@@ -1,0 +1,233 @@
+package org.textup.rest
+
+import grails.plugin.springsecurity.SpringSecurityService
+import grails.test.mixin.gorm.Domain
+import grails.test.mixin.hibernate.HibernateTestMixin
+import grails.test.mixin.TestFor
+import grails.test.mixin.TestMixin
+import grails.validation.ValidationErrors
+import org.springframework.context.MessageSource
+import org.textup.util.CustomSpec
+import spock.lang.Shared
+import spock.lang.Specification
+import org.textup.*
+import static javax.servlet.http.HttpServletResponse.*
+
+@TestFor(StaffController)
+@Domain([TagMembership, Contact, Phone, ContactTag, 
+    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
+    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
+    TeamMembership, StaffPhone, Staff, Team, Organization, 
+    Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@TestMixin(HibernateTestMixin)
+class StaffControllerSpec extends CustomSpec {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+    def setup() {
+        super.setupData()
+    }
+    def cleanup() { 
+        super.cleanupData()
+    }
+
+    //////////
+    // List //
+    //////////
+
+    protected void mockForList() {
+        controller.authService = [
+            isAdminAt:{ Long id -> true },
+            isAdminForTeam:{ Long id -> true },
+            belongsToSameTeamAs:{ Long id -> true }
+        ]
+    }
+
+    void "test listing with no ids"() {
+        when: 
+        request.method = "GET"
+        controller.index()
+
+        then: 
+        response.status == SC_BAD_REQUEST
+    }
+
+    void "test listing with both ids"() {
+        when: 
+        request.method = "GET"
+        params.organizationId = org.id
+        params.teamId = t1.id
+        controller.index()
+
+        then: 
+        response.status == SC_BAD_REQUEST
+    }
+
+    void "test listing with org id"() {
+        when:
+        mockForList()
+        request.method = "GET"
+        params.organizationId = org.id
+        controller.index()
+        List<Long> ids = Helpers.allToLong(org.people*.id)
+
+        then:
+        response.status == SC_OK
+        response.json.size() == ids.size()
+        response.json*.id.every { ids.contains(it as Long) }
+    }
+
+    void "test list with team id"() {
+        when:
+        mockForList()
+        request.method = "GET"
+        params.teamId = t1.id
+        controller.index()
+        List<Long> ids = Helpers.allToLong(t1.members*.id)
+
+        then:
+        response.status == SC_OK
+        response.json.size() == ids.size()
+        response.json*.id.every { ids.contains(it as Long) }
+    }
+
+    //////////
+    // Show //
+    //////////
+
+    void "test show nonexistent staff"() {
+        when:
+        request.method = "GET"
+        params.id = -88L
+        controller.show()
+
+        then: 
+        response.status == SC_NOT_FOUND
+    }
+
+    void "test show a forbidden staff"() {
+        given: 
+        controller.authService = [
+            hasPermissionsForStaff:{ Long id -> false },
+        ]
+
+        when:
+        request.method = "GET"
+        params.id = s1.id
+        controller.show()
+
+        then:
+        response.status == SC_FORBIDDEN
+    }
+
+    void "test show a staff"() {
+        given: 
+        controller.authService = [
+            hasPermissionsForStaff:{ Long id -> true },
+        ]
+        
+        when:
+        request.method = "GET"
+        params.id = s1.id
+        controller.show()
+
+        then:
+        response.status == SC_OK
+        response.json.id == s1.id 
+    }
+
+    //////////
+    // Save //
+    //////////
+
+    void "test save"() {
+        given:
+        controller.staffService = [create:{ Map body ->
+            new Result(payload:s1)
+        }]
+
+        when: 
+        request.json = "{'staff':{}}"
+        request.method = "POST"
+        controller.save()
+
+        then:
+        response.status == SC_CREATED
+        response.json.id == s1.id
+    }
+
+    ////////////
+    // Update //
+    ////////////
+
+    void "test update a nonexistent staff"() {
+        given: 
+        controller.authService = [
+            exists:{ Class clazz, Long id -> false }
+        ]
+
+        when:
+        request.json = "{'staff':{}}"
+        params.id = -88L
+        request.method = "PUT"
+        controller.update()
+
+        then:
+        response.status == SC_NOT_FOUND
+    }
+
+    void "test update a forbidden staff"() {
+        given: 
+        controller.authService = [
+            exists:{ Class clazz, Long id -> true },
+            isLoggedIn:{ Long id -> false },
+            isAdminAtSameOrgAs:{ Long id -> false }
+        ]
+
+        when:
+        request.json = "{'staff':{}}"
+        params.id = s1.id
+        request.method = "PUT"
+        controller.update()
+
+        then:
+        response.status == SC_FORBIDDEN
+    }
+
+    void "test update a staff"() {
+        given: 
+        controller.staffService = [update:{ Long cId, Map body ->
+            new Result(payload:s1)
+        }]
+        controller.authService = [
+            exists:{ Class clazz, Long id -> true },
+            isLoggedIn:{ Long id -> true },
+            isAdminAtSameOrgAs:{ Long id -> true }
+        ]
+
+        when:
+        request.json = "{'staff':{}}"
+        params.id = s1.id
+        request.method = "PUT"
+        controller.update()
+
+        then:
+        response.status == SC_OK
+        response.json.id == s1.id
+    }
+
+    ////////////
+    // Delete //
+    ////////////
+
+    void "test delete"() {
+        when:
+        params.id = s1.id
+        request.method = "DELETE"
+        controller.delete()
+
+        then:
+        response.status == SC_METHOD_NOT_ALLOWED
+    }
+}
