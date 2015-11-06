@@ -6,10 +6,10 @@ import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import grails.plugin.springsecurity.SpringSecurityService
 
 class RecordItemJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, 
-        SpringSecurityService springSecurityService, AuthService authService, 
+    static final Closure marshalClosure = { String namespace,
+        SpringSecurityService springSecurityService, AuthService authService,
         LinkGenerator linkGenerator, RecordItem item ->
-        
+
         Map json = [:]
         json.with {
             id = item.id
@@ -21,15 +21,18 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             if (item.instanceOf(RecordCall)) {
                 durationInSeconds = item.durationInSeconds
                 if (item.voicemailUrl) voicemailUrl = item.voicemailUrl
+                type = Constants.RECORD_CALL
             }
             else if (item.instanceOf(RecordText)) {
                 futureText = item.futureText
                 if (item.sendAt) sendAt = item.sendAt
                 contents = item.contents
+                type = Constants.RECORD_TEXT
             }
             else if (item.instanceOf(RecordNote)) {
                 note = item.note
                 editable = item.editable
+                type = Constants.RECORD_NOTE
             }
         }
         json.receipts = item.receipts.collect { RecordItemReceipt r ->
@@ -37,7 +40,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
         }
 
         json.links = [:]
-        json.links << [self:linkGenerator.link(namespace:namespace, resource:"record", action:"show", id:item.id, absolute:false)]    
+        json.links << [self:linkGenerator.link(namespace:namespace, resource:"record", action:"show", id:item.id, absolute:false)]
         json
     }
 

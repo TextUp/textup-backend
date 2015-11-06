@@ -28,9 +28,9 @@ class ContactController extends BaseController {
         	paramType=RestApiParamType.QUERY, description="Max number of results"),
         @RestApiParam(name="offset", type="Number", required=false,
         	paramType=RestApiParamType.QUERY, description="Offset of results"),
-        @RestApiParam(name="status[]", type="List", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="status[]", type="List", paramType=RestApiParamType.QUERY,
             allowedvalues=["unread", "active", "archived", "blocked"],
-            required=false, description='''List of staff statuses to restrict to. 
+            required=false, description='''List of staff statuses to restrict to.
             Default showing only unread and active'''),
         @RestApiParam(name="staffId", type="Number", required=true,
         	paramType=RestApiParamType.QUERY, description="Id of the staff member"),
@@ -47,14 +47,14 @@ class ContactController extends BaseController {
     @Transactional(readOnly=true)
     def index() {
         //need to account for both sharedcontact and contact
-        //set tagId if in context of a tag 
+        //set tagId if in context of a tag
         if (moreThanOneId(params)) { badRequest() }
         else if (params.staffId) {
             Staff s1 = Staff.get(params.long("staffId"))
             if (!s1 || !s1.phone) { notFound() }
             else if (authService.isLoggedIn(s1.id)) {
                 params.status = params.list("status[]")
-                Closure count = { Map params -> s1.phone.countContacts(params) }, 
+                Closure count = { Map params -> s1.phone.countContacts(params) },
                     list = { Map params -> s1.phone.getContacts(params) }
                 genericListActionForClosures(Contact, count, list, params)
             }
@@ -64,17 +64,17 @@ class ContactController extends BaseController {
             Team t1 = Team.get(params.long("teamId"))
             if (!t1 || !t1.phone) { notFound() }
             else if (authService.belongsToSameTeamAs(t1.id)) {
-                genericListActionForCriteria(Contact, Contact.forPhoneAndStatuses(t1.phone, 
+                genericListActionForCriteria(Contact, Contact.forPhoneAndStatuses(t1.phone,
                     params.list("status[]")), params)
             }
             else { forbidden() }
         }
         else if (params.tagId) {
-            ContactTag ct1 = ContactTag.get(params.long("tagId")) 
+            ContactTag ct1 = ContactTag.get(params.long("tagId"))
             if (!ct1) { notFound() }
             else if (authService.hasPermissionsForTag(ct1.id)) {
                 request.tagId = ct1.id //for the json marshaller
-                genericListActionForCriteria(Contact, Contact.forTagAndStatuses(ct1, 
+                genericListActionForCriteria(Contact, Contact.forTagAndStatuses(ct1,
                     params.list("status[]")), params)
             }
             else { forbidden() }
@@ -94,7 +94,7 @@ class ContactController extends BaseController {
 
     @RestApiMethod(description="Show specifics about a contact")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", 
+        @RestApiParam(name="id", type="Number",
         	paramType=RestApiParamType.PATH, description="Id of the contact")
     ])
     @RestApiErrors(apierrors=[
@@ -103,12 +103,12 @@ class ContactController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-        //id will always be for the contact to avoid collisions, but we might need to 
+        //id will always be for the contact to avoid collisions, but we might need to
         //find the corresponding shared contact if we don't have permissions for the contact
         Long id = params.long("id")
         if (Contact.exists(id)) {
             if (authService.hasPermissionsForContact(id)) { genericShowAction(Contact, id) }
-            else { 
+            else {
                 Long scId = authService.getSharedContactForContact(id)
                 if (scId) { genericShowAction(SharedContact, scId) }
                 else { forbidden() }
@@ -123,9 +123,9 @@ class ContactController extends BaseController {
 
     @RestApiMethod(description="Create a new contact for staff member or team")
     @RestApiParams(params=[
-        @RestApiParam(name="staffId", type="Number", 
+        @RestApiParam(name="staffId", type="Number",
         	paramType=RestApiParamType.QUERY, description="Id of the staff member"),
-        @RestApiParam(name="teamId", type="Number", 
+        @RestApiParam(name="teamId", type="Number",
         	paramType=RestApiParamType.QUERY, description="Id of the team member")
     ])
     @RestApiErrors(apierrors=[
@@ -167,7 +167,7 @@ class ContactController extends BaseController {
 
     @RestApiMethod(description="Update an existing contact")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", 
+        @RestApiParam(name="id", type="Number",
         	paramType=RestApiParamType.PATH, description="Id of the contact")
     ])
     @RestApiErrors(apierrors=[
@@ -194,14 +194,14 @@ class ContactController extends BaseController {
 
     @RestApiMethod(description="Delete an existing contact")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="number", paramType=RestApiParamType.PATH,
         	description="Id of the contact")
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404", description="The requested contact was not found."),
         @RestApiError(code="403", description="You do not have permission to modify this contact.")
     ])
-    def delete() { 
+    def delete() {
         Long id = params.long("id")
         if (authService.exists(Contact, id)) {
             if (authService.hasPermissionsForContact(id)) {

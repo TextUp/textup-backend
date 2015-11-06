@@ -33,20 +33,20 @@ class BaseController {
 
     /**
      * Handles pagination logic. Takes in some information as specified below and outputs a map of parameters as detailed below for pagination
-     * @param  info Map of necessary information, including: 
-     *                  params = controller params object possibly containing maximum number of results to return per page and offset of results 
-     *                  total = total number of results 
+     * @param  info Map of necessary information, including:
+     *                  params = controller params object possibly containing maximum number of results to return per page and offset of results
+     *                  total = total number of results
      *                  next = Map of options to pass to create "next" link
      *                  prev = Map of options to pass to create "prev" link
      * @return Map of pagination info, including:
-     *             meta = metainformation including total count, maximum results per page, and offset of results 
-     *             searchParams = Map of the following: 
-     *                 max = max number of results 
+     *             meta = metainformation including total count, maximum results per page, and offset of results
+     *             searchParams = Map of the following:
+     *                 max = max number of results
      *                 offset = offset of results
      *             links = prev/next links, if needed
      */
     protected Map handlePagination(Map info) {
-        Map params = parseParams(info?.params), 
+        Map params = parseParams(info?.params),
         	linkParams = (info.linkParams && info.linkParams instanceof Map) ? info.linkParams : [:]
         int max = params.max,
         	offset = params.offset,
@@ -69,9 +69,9 @@ class BaseController {
         def results = [:]
         results.meta = [total:total, max:max, offset:offset]
         results.searchParams = [max:max, offset:offset]
-        if (links) results.links = links 
-        
-        results 
+        if (links) results.links = links
+
+        results
     }
 
     protected void respondHandleEmpty(String ifEmpty, def obj, Map params) {
@@ -79,19 +79,19 @@ class BaseController {
         else {
             Collection<String> path = ifEmpty.tokenize(".")
             def target = grailsApplication.config.textup.rest
-            for (step in path) { 
+            for (step in path) {
                 if (target != null) { target = target."${step}" }
-                else { break }            
+                else { break }
             }
             String label = (target && target instanceof String) ? target : "result"
             render status:OK
-            respond([(label):[], meta:[]])
+            respond([(label):[], meta:[:]])
         }
     }
 
     protected void respondWithError(String message, HttpStatus status) {
         respondWithErrors([message], status)
-    }    
+    }
     protected void respondWithErrors(Collection<String> messages, HttpStatus status) {
         JSONObject errorsJson = new JSONObject()
         Collection<Map> errors = []
@@ -137,48 +137,48 @@ class BaseController {
         genericListAction(getLowercaseSimpleName(clazz), clazz, params)
     }
     protected def genericListAction(String resourceName, Class clazz, Map params) {
-        Map linkParams = [namespace:namespace, resource:resourceName, absolute:false], 
-            options = handlePagination(params:params, total:clazz.count(), 
+        Map linkParams = [namespace:namespace, resource:resourceName, absolute:false],
+            options = handlePagination(params:params, total:clazz.count(),
                 next:linkParams, prev:linkParams)
         List found = clazz.list(options.searchParams)
         withFormat {
             json {
-                respondHandleEmpty("v1.${resourceName}.plural", found, 
+                respondHandleEmpty("v1.${resourceName}.plural", found,
                     [meta:options.meta, links:options.links])
             }
-        } 
+        }
     }
 
     protected def genericListActionForCriteria(Class clazz, NamedCriteriaProxy criteria, Map params) {
         genericListActionForCriteria(getLowercaseSimpleName(clazz), criteria, params)
     }
     protected def genericListActionForCriteria(String resourceName, NamedCriteriaProxy criteria, Map params) {
-        Map linkParams = [namespace:namespace, resource:resourceName, absolute:false], 
-            options = handlePagination(params:params, total:criteria.count(), 
+        Map linkParams = [namespace:namespace, resource:resourceName, absolute:false],
+            options = handlePagination(params:params, total:criteria.count(),
                 next:linkParams, prev:linkParams)
         List found = criteria.list(mergeIntoParams(params, options.searchParams))
         withFormat {
             json {
-                respondHandleEmpty("v1.${resourceName}.plural", found, 
+                respondHandleEmpty("v1.${resourceName}.plural", found,
                     [meta:options.meta, links:options.links])
             }
-        } 
+        }
     }
 
     protected def genericListActionForClosures(Class clazz, Closure count, Closure list, Map params) {
         genericListActionForClosures(getLowercaseSimpleName(clazz), count, list, params)
     }
     protected def genericListActionForClosures(String resourceName, Closure count, Closure list, Map params) {
-        Map linkParams = [namespace:namespace, resource:resourceName, absolute:false], 
-            options = handlePagination(params:params, total:count(params), 
+        Map linkParams = [namespace:namespace, resource:resourceName, absolute:false],
+            options = handlePagination(params:params, total:count(params),
                 next:linkParams, prev:linkParams)
         List found = list(mergeIntoParams(params, options.searchParams))
         withFormat {
             json {
-                respondHandleEmpty("v1.${resourceName}.plural", found, 
+                respondHandleEmpty("v1.${resourceName}.plural", found,
                     [meta:options.meta, links:options.links])
             }
-        } 
+        }
     }
 
     protected def genericShowAction(Class clazz, Long id) {
@@ -235,7 +235,7 @@ class BaseController {
                 break
             case Constants.RESULT_MESSAGE_STATUS:
                 respondWithError(res.payload.message, res.payload.status)
-                break 
+                break
             case Constants.RESULT_THROWABLE:
                 respondWithError(res.payload.message, BAD_REQUEST)
                 break
@@ -249,7 +249,7 @@ class BaseController {
     }
     private String getLowercaseSimpleName(Class clazz) {
         String n = clazz.simpleName
-        //lowercase first letter 
+        //lowercase first letter
         n[0].toLowerCase() + n.substring(1)
     }
 
@@ -272,7 +272,7 @@ class BaseController {
     /////////////////////
 
     protected boolean validateJsonRequest(req, requiredRoot) {
-        try { 
+        try {
             Map json = req.JSON
             if (json."$requiredRoot" == null) {
                 badRequest()
@@ -288,7 +288,7 @@ class BaseController {
     }
 
     protected boolean validateJsonRequest(req) {
-        try { 
+        try {
             Map json = req.JSON
         }
         catch (e) {

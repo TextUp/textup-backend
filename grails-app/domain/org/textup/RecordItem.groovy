@@ -10,40 +10,45 @@ import org.restapidoc.annotation.*
 class RecordItem {
 
     @RestApiObjectField(
-        description    = "Date this item was added to the record", 
+        description    = "Date this item was added to the record",
         allowedType    = "DateTime",
         useForCreation = false)
 	DateTime dateCreated = DateTime.now(DateTimeZone.UTC)
     Record record //record this item belongs to
     @RestApiObjectField(
-        description    = "The direction of communication. Outgoing is from staff to client.", 
+        description    = "The direction of communication. Outgoing is from staff to client.",
         useForCreation = false)
 	boolean outgoing = true //true is CM->client, false is CM<-client
 
 	//non-null when this RecordItem is authored by someone
 	//other than the owner of the record
     @RestApiObjectField(
-        description    = "If available, the author of this entry.", 
-        useForCreation = false) 
-	String authorName 
-    //id of the author, which class it pertains to depends on the 
+        description    = "If available, the author of this entry.",
+        useForCreation = false)
+	String authorName
+    //id of the author, which class it pertains to depends on the
     //specific implementation of the phone
     @RestApiObjectField(
-        description    = "If available, the id of the author of this entry.", 
+        description    = "If available, the id of the author of this entry.",
         allowedType    = "Number",
-        useForCreation = false) 
-	Long authorId 
+        useForCreation = false)
+	Long authorId
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName= "incoming",
             description = "The direction of communication. Incoming is from client to staff",
             allowedType =  "Boolean",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName= "type",
+            description = "Type of record item. One of: call, text, note",
+            allowedType =  "String",
             useForCreation = false)
     ])
 	static transients = ["incoming", "author"]
     static constraints = {
-    	authorName blank:true, nullable:true 
+    	authorName blank:true, nullable:true
     	authorId nullable:true
     }
     static mapping = {
@@ -57,7 +62,7 @@ class RecordItem {
         allowedType    = "List<Receipt>",
         useForCreation = false)
     static hasMany = [receipts:RecordItemReceipt]
-    static namedQueries = { 
+    static namedQueries = {
         forRecord { Record rec ->
             eq("record", rec)
             order("dateCreated", "desc")
@@ -95,11 +100,11 @@ class RecordItem {
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     int getNumReceived() { RecordItemReceipt.success(this).count() }
     List<RecordItemReceipt> getReceived() { RecordItemReceipt.success(this).list() }
     int getNumPending() { RecordItemReceipt.pending(this).count() }

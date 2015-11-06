@@ -6,13 +6,13 @@ import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import grails.plugin.springsecurity.SpringSecurityService
 
 class StaffJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, 
-        SpringSecurityService springSecurityService, AuthService authService, 
+    static final Closure marshalClosure = { String namespace,
+        SpringSecurityService springSecurityService, AuthService authService,
         LinkGenerator linkGenerator, Staff s1 ->
-        
+
         Map json = [:]
         json.with {
-            id = s1.id 
+            id = s1.id
             username = s1.username
             name = s1.name
             email = s1.email
@@ -35,7 +35,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
         }
 
         json.links = [:]
-        json.links << [self:linkGenerator.link(namespace:namespace, resource:"staff", action:"show", id:s1.id, absolute:false)]    
+        json.links << [self:linkGenerator.link(namespace:namespace, resource:"staff", action:"show", id:s1.id, absolute:false)]
         json
     }
 

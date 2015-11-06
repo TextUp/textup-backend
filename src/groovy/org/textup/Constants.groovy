@@ -13,6 +13,10 @@ class Constants {
 	static String CONTACT_ARCHIVED = "archived"
 	static String CONTACT_BLOCKED = "blocked"
 
+	static String RECORD_CALL = "call"
+	static String RECORD_TEXT = "text"
+	static String RECORD_NOTE = "note"
+
 	static String STATUS_BLOCKED = "blocked"
 	static String STATUS_PENDING = "pending"
 	static String STATUS_STAFF = "staff"

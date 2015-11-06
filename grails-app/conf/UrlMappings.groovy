@@ -22,7 +22,7 @@ class UrlMappings {
 	        ////////////////
         	// Public API //
 	        ////////////////
-        
+
 	        "/public/organizations"(resources:"publicOrganization", namespace:"v1") {
                 format = "json"
             }
@@ -39,7 +39,7 @@ class UrlMappings {
 	        ////////////////////
 	        // Restricted API //
 	        ////////////////////
-        	
+
         	"/organizations"(resources:"organization", namespace:"v1") {
                 format = "json"
             }

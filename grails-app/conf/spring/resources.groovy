@@ -10,13 +10,13 @@ beans = {
 	String v1Namespace = "v1"
 
 	resultFactory(ResultFactory) { bean ->
-		bean.autowire = true 
+		bean.autowire = true
 	}
-	customRestAuthenticationTokenJsonRenderer(CustomRestAuthenticationTokenJsonRenderer) { 
+	restAuthenticationTokenJsonRenderer(CustomRestAuthenticationTokenJsonRenderer) {
 		usernamePropertyName = restConfig.rendering.usernamePropertyName
-		tokenPropertyName = restConfig.rendering.authoritiesPropertyName 
-		authoritiesPropertyName = restConfig.rendering.tokenPropertyName 
-		useBearerToken = restConfig.validation.useBearerToken 
+		tokenPropertyName = restConfig.rendering.tokenPropertyName
+		authoritiesPropertyName = restConfig.rendering.authoritiesPropertyName
+		useBearerToken = restConfig.validation.useBearerToken
 	}
 
 	/////////////////

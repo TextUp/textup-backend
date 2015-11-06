@@ -76,7 +76,7 @@ class StaffPhoneIntegrationSpec extends IntegrationSpec {
 
         HashSet<Long> notMyContactIds = new HashSet<>()
         Map<Long,Long> contactIdToSharedContact = [:]
-        p.authService = [findInvalidOrForbiddenContactIds:{ List<Long> contactIds ->
+        p.authService = [parseContactIdsByPermission:{ List<Long> contactIds ->
                 ParsedResult parsed= new ParsedResult()
                 contactIds.each { Long cId ->
                     if (notMyContactIds.contains(cId)) {
@@ -88,10 +88,10 @@ class StaffPhoneIntegrationSpec extends IntegrationSpec {
                 }
                 parsed
             },
-            findInvalidOrForbiddenTagIds:{ List<Long> tagIds ->
+            parseTagIdsByPermission:{ List<Long> tagIds ->
                 new ParsedResult<Long,Long>(valid:tagIds)
             }, 
-            findUnsharedContactIds:{ List<Long> contactIds ->
+            parseIntoSharedContactsByPermission:{ List<Long> contactIds ->
                 ParsedResult parsed= new ParsedResult()
                 contactIds.each { Long cId ->
                     if (contactIdToSharedContact.containsKey(cId)) {

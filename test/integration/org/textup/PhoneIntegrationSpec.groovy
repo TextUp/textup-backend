@@ -130,10 +130,10 @@ class PhoneIntegrationSpec extends IntegrationSpec {
     	Phone p = new Phone()
     	p.numberAsString = "5223334445"
     	assert p.save(flush:true)
-        p.authService = [findInvalidOrForbiddenContactIds:{ List<Long> contactIds ->
+        p.authService = [parseContactIdsByPermission:{ List<Long> contactIds ->
                 new ParsedResult<Long,Long>(valid:contactIds)
             },
-            findInvalidOrForbiddenTagIds:{ List<Long> tagIds ->
+            parseTagIdsByPermission:{ List<Long> tagIds ->
                 new ParsedResult<Long,Long>(valid:tagIds)
             }
         ] as AuthService

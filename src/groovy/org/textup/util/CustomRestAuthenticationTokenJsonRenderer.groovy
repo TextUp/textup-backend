@@ -10,12 +10,13 @@ import org.springframework.util.Assert
 import grails.converters.JSON
 
 @Log4j
-class CustomRestAuthenticationTokenJsonRenderer implements RestAuthenticationTokenJsonRenderer {    
+class CustomRestAuthenticationTokenJsonRenderer implements RestAuthenticationTokenJsonRenderer {
     String usernamePropertyName
     String tokenPropertyName
     String authoritiesPropertyName
     Boolean useBearerToken
 
+    @Override
     String generateJson(RestAuthenticationToken restAuthenticationToken) {
         Assert.isInstanceOf(UserDetails, restAuthenticationToken.principal, "A UserDetails implementation is required")
         UserDetails userDetails = restAuthenticationToken.principal as UserDetails
