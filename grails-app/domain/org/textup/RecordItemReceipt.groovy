@@ -8,8 +8,8 @@ import org.restapidoc.annotation.*
 class RecordItemReceipt {
 
     @RestApiObjectField(
-        description="Status of the communication. Allowed: failed, pending, success", 
-        useForCreation=false, 
+        description="Status of the communication. Allowed: failed, pending, success",
+        useForCreation=false,
         defaultValue="pending")
 	String status = Constants.RECEIPT_PENDING
 	//unique id assigned to this record by the communications provider
@@ -17,10 +17,10 @@ class RecordItemReceipt {
 	String apiId
 	//if outgoing, then record the number that received the communication
     @RestApiObjectField(
-        description="Phone number that this communication was sent to", 
-        useForCreation=false, 
+        description="Phone number that this communication was sent to",
+        useForCreation=false,
         allowedType="String")
-	PhoneNumber receivedBy 
+	PhoneNumber receivedBy
 
     static constraints = {
     	status inList:[Constants.RECEIPT_FAILED, Constants.RECEIPT_PENDING, Constants.RECEIPT_SUCCESS]
@@ -32,7 +32,7 @@ class RecordItemReceipt {
     		eq("item", recordItem)
     		eq("status", Constants.RECEIPT_FAILED)
     	}
-    	pending { recordItem -> 
+    	pending { recordItem ->
     		eq("item", recordItem)
     		eq("status", Constants.RECEIPT_PENDING)
     	}
@@ -45,7 +45,7 @@ class RecordItemReceipt {
     /*
 	Has many:
 	*/
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////

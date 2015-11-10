@@ -20,49 +20,49 @@ class Staff {
     @RestApiObjectField(description="Username of the staff member.")
 	String username
     @RestApiObjectField(
-        description       = "Password of the staff member.", 
+        description       = "Password of the staff member.",
         presentInResponse = false)
 	String password
 
     @RestApiObjectField(description="Full name of the staff member.")
 	String name
     @RestApiObjectField(description="Email address of the staff member.")
-	String email 
+	String email
     @RestApiObjectField(
         description    = "Id of the organization this team belongs to",
-        allowedType    = "Number", 
+        allowedType    = "Number",
         useForCreation = false)
 	Organization org
     @RestApiObjectField(
-        description  = "Status of the staff member. Allowed: blocked, pending, staff, admin", 
-        mandatory    = false, 
+        description  = "Status of the staff member. Allowed: blocked, pending, staff, admin",
+        mandatory    = false,
         defaultValue = "pending")
 	String status = Constants.STATUS_PENDING
     @RestApiObjectField(
-        description = "Personal phone number of the staff member.", 
+        description = "Personal phone number of the staff member.",
         allowedType = "String")
     PhoneNumber personalPhoneNumber
 
     @RestApiObjectField(
-        description    = "TextUp phone number of the staff member.", 
-        useForCreation = false, 
+        description    = "TextUp phone number of the staff member.",
+        useForCreation = false,
         allowedType    = "String")
 	StaffPhone phone
     @RestApiObjectField(
-        description    = "Schedule of the staff member.", 
+        description    = "Schedule of the staff member.",
         useForCreation = false)
 	Schedule schedule
 
-    //If manual schedule is true then ignore the Schedule object and 
+    //If manual schedule is true then ignore the Schedule object and
     //look only at the 'available' boolean
     @RestApiObjectField(
-        description  = "If the staff member wants to manually manage schedule.", 
-        mandatory    = false, 
+        description  = "If the staff member wants to manually manage schedule.",
+        mandatory    = false,
         defaultValue = "false")
-    boolean manualSchedule = false 
+    boolean manualSchedule = false
     @RestApiObjectField(
-        description  = "If the staff member is available. Can only be mutated if the staff member is manually managing the schedule.", 
-        mandatory    = false, 
+        description  = "If the staff member is available. Can only be mutated if the staff member is manually managing the schedule.",
+        mandatory    = false,
         defaultValue = "true")
     boolean isAvailable = true
 
@@ -77,16 +77,16 @@ class Staff {
             description       = "If creating a new organization, the name of the organization to create and associate with",
             mandatory         = false,
             allowedType       = "String",
-            presentInResponse = false), 
+            presentInResponse = false),
         @RestApiObjectField(
             apiFieldName      = "org.location",
             description       = "If creating a new organization, the location of the organization to create and associate with",
             mandatory         = false,
             allowedType       = "Location",
-            presentInResponse = false), 
+            presentInResponse = false),
         @RestApiObjectField(
             apiFieldName   = "isAvailableNow",
-            description    = "If the staff member is available right now.", 
+            description    = "If the staff member is available right now.",
             allowedType    = "Boolean",
             useForCreation = false)
     ])
@@ -96,7 +96,7 @@ class Staff {
 		username blank:false, unique:true
 		password blank:false
 		email email:true
-		status inList:[Constants.STATUS_BLOCKED, Constants.STATUS_PENDING, 
+		status inList:[Constants.STATUS_BLOCKED, Constants.STATUS_PENDING,
             Constants.STATUS_STAFF, Constants.STATUS_ADMIN]
         phone nullable:true
 	}
@@ -104,19 +104,23 @@ class Staff {
 		password column: '`password`'
 	}
     static namedQueries = {
-        activeForTeam { thisTeam ->
+        activeForTeam { Team thisTeam ->
             "in"("id", TeamMembership.staffIdsForTeam(thisTeam).list())
             "in"("status", [Constants.STATUS_STAFF, Constants.STATUS_ADMIN])
         }
-        membersForTeam { thisTeam, statuses ->
+        membersForTeam { Team thisTeam, Collection<String> statuses ->
             "in"("id", TeamMembership.staffIdsForTeam(thisTeam).list())
             if (statuses) {
                 "in"("status", statuses)
             }
         }
-        forOrgAndStatuses { thisOrg, statuses ->
+        forOrgAndStatuses { Organization thisOrg, Collection<String> statuses ->
             eq("org", thisOrg)
             if (statuses) "in"("status", statuses)
+        }
+        forPersonalAndWorkPhoneNums { String personalNum, String workNum ->
+            eq("personalPhoneNumber.number", personalNum)
+            phone { eq("number.number", workNum) }
         }
     }
 
@@ -128,14 +132,14 @@ class Staff {
     ////////////
     // Events //
     ////////////
-    
+
     def beforeDelete() {
         Staff.withNewSession {
             TeamMembership.where { staff == this }.deleteAll()
 
             def tags = ContactTag.where { phone == this.phone }
             def contacts = Contact.where { phone == this.phone }
-            //delete tag memberships, must come before 
+            //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
                 "in"("tag", tags.list())
@@ -149,12 +153,12 @@ class Staff {
             new DetachedCriteria(ContactNumber).build {
                 "in"("contact", contacts.list())
             }.deleteAll()
-            //delete shared contacts 
+            //delete shared contacts
             SharedContact.where { sharedBy == this.phone || sharedWith == this.phone }.deleteAll()
             //delete contact and contact tags
             contacts.deleteAll()
             tags.deleteAll()
-            //delete records associated with contacts, must 
+            //delete records associated with contacts, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
                 "in"("id", associatedRecordIds)
@@ -170,7 +174,7 @@ class Staff {
 
     def beforeValidate() {
         if (!this.schedule) {
-            this.schedule = new WeeklySchedule([:]) 
+            this.schedule = new WeeklySchedule([:])
             this.schedule.save()
         }
     }
@@ -178,7 +182,7 @@ class Staff {
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     /*
     Permissions
      */
@@ -198,7 +202,7 @@ class Staff {
         else { resultFactory.failWithMessage("staff.error.notYetApproved") }
     }
     Result<Staff> demoteFromAdmin() {
-        if (this.status == Constants.STATUS_ADMIN) { 
+        if (this.status == Constants.STATUS_ADMIN) {
             this.status = Constants.STATUS_STAFF
             resultFactory.success(this)
         }
@@ -289,13 +293,13 @@ class Staff {
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     void setUsername(String un) {
         this.username = un?.toLowerCase()
     }
 
     void setSchedule(Schedule s) {
-        this.schedule = s 
+        this.schedule = s
         this.schedule.save()
     }
 
@@ -309,12 +313,12 @@ class Staff {
         this.personalPhoneNumber.save()
     }
     void setPersonalPhoneNumber(PhoneNumber pNum) {
-        this.personalPhoneNumber = pNum 
+        this.personalPhoneNumber = pNum
         this.personalPhoneNumber?.save()
     }
 
     void setPhone(StaffPhone p) {
-        this.phone = p 
+        this.phone = p
     	if (this.phone) {
     		this.phone.ownerId = this.id
             if (this.phone.validate()) { this.phone.save() }

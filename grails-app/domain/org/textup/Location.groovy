@@ -12,15 +12,11 @@ class Location {
     @RestApiObjectField(
         description = "Latitude of the location",
         allowedType =  "Number")
-    BigDecimal lat 
+    BigDecimal lat
     @RestApiObjectField(
         description = "Longitude of the location",
         allowedType =  "Number")
     BigDecimal lon
-    @RestApiObjectField(
-        description    = "Timezone corresponding to given lat/lon",
-        useForCreation = false)
-    String timezoneId = "America/New_York"
 
     static constraints = {
         address nullable:false, blank:false
@@ -35,15 +31,15 @@ class Location {
     /*
 	Has many:
 	*/
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     @Override
     String toString() { this.address }
 }

@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.plugin.jodatime.converters.JodaConverters
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -7,17 +8,17 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
+import org.textup.*
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
-import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(ContactController)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
+@Domain([TagMembership, Contact, Phone, ContactTag,
+    ContactNumber, Record, RecordItem, RecordNote, RecordText,
+    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact,
+    TeamMembership, StaffPhone, Staff, Team, Organization,
     Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
 @TestMixin(HibernateTestMixin)
 class ContactControllerSpec extends CustomSpec {
@@ -27,8 +28,9 @@ class ContactControllerSpec extends CustomSpec {
     }
     def setup() {
         super.setupData()
+        JodaConverters.registerJsonAndXmlMarshallers()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
@@ -45,50 +47,95 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test list with no ids"() {
-        when: 
+        when:
         request.method = "GET"
         controller.index()
 
-        then: 
+        then:
         response.status == SC_BAD_REQUEST
     }
 
     void "test list with more than 1 id"() {
-        when: 
+        when:
         request.method = "GET"
         params.staffId = s1.id
         params.teamId = t1.id
         controller.index()
 
-        then: 
+        then:
         response.status == SC_BAD_REQUEST
     }
 
     void "test list with staff id"() {
-        when: 
+        when:
         mockForList()
         request.method = "GET"
         params.staffId = s1.id
         controller.index()
         List<Long> ids = Helpers.allToLong(s1.phone.getContacts()*.id)
 
-        then: 
+        then:
         response.status == SC_OK
-        response.json.size() == ids.size() 
+        response.json.size() == ids.size()
+        response.json*.id.every { ids.contains(it as Long) }
+    }
+
+    void "test list with staff id and invalid staff status"() {
+        when:
+        mockForList()
+        request.method = "GET"
+        params.staffId = s1.id
+        params.staffStatus = "invalid"
+        controller.index()
+
+        then:
+        response.status == SC_BAD_REQUEST
+        response.json.errors?.size() == 1
+        response.json.errors[0].message == "contactController.index.invalidStaffStatus"
+    }
+
+    void "test list with staff id and staff status of sharedByMe"() {
+        when:
+        mockForList()
+        request.method = "GET"
+        params.staffId = s1.id
+        params.staffStatus = "sharedByMe"
+        params["status[]"] = [Constants.CONTACT_UNREAD, Constants.CONTACT_ACTIVE]
+        controller.index()
+        List<Long> ids = Helpers.allToLong(s1.phone.getSharedByMe()*.contact*.id)
+
+        then: "status[] param is overshadowed"
+        response.status == SC_OK
+        response.json.size() == ids.size()
+        response.json*.id.every { ids.contains(it as Long) }
+    }
+
+    void "test list with staff id and staff status of sharedWithMe"() {
+        when:
+        mockForList()
+        request.method = "GET"
+        params.staffId = s1.id
+        params.staffStatus = "sharedWithMe"
+        controller.index()
+        List<Long> ids = Helpers.allToLong(s1.phone.getSharedWithMe()*.contact*.id)
+
+        then:
+        response.status == SC_OK
+        response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
     void "test list with team id"() {
-        when: 
+        when:
         mockForList()
         request.method = "GET"
         params.teamId = t1.id
         controller.index()
         List<Long> ids = Helpers.allToLong(t1.phone.getContacts()*.id)
 
-        then: 
+        then:
         response.status == SC_OK
-        response.json.size() == ids.size() 
+        response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
@@ -102,7 +149,7 @@ class ContactControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_OK
-        response.json.size() == ids.size() 
+        response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
@@ -116,7 +163,7 @@ class ContactControllerSpec extends CustomSpec {
         params.id = -88L
         controller.show()
 
-        then: 
+        then:
         response.status == SC_NOT_FOUND
     }
 
@@ -133,7 +180,7 @@ class ContactControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_OK
-        response.json.id == c1.id 
+        response.json.id == c1.id
     }
 
     void "test show a shared contact"() {
@@ -142,15 +189,15 @@ class ContactControllerSpec extends CustomSpec {
             hasPermissionsForContact:{ Long id -> false },
             getSharedContactForContact:{ Long id -> sc1.id }
         ]
-        
+
         when:
         request.method = "GET"
-        params.id = c2.id 
+        params.id = c2.id
         controller.show()
 
         then:
         response.status == SC_OK
-        //note that this returned is the default val and is 
+        //note that this returned is the default val and is
         //different in our custom marshalled SharedContact
         response.json.id == sc1.id
     }
@@ -171,7 +218,7 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test save with no ids"() {
-        when: 
+        when:
         request.json = "{'contact':{}}"
         request.method = "POST"
         controller.save()
@@ -181,7 +228,7 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test save with both ids"() {
-        when: 
+        when:
         request.json = "{'contact':{}}"
         params.staffId = s1.id
         params.teamId = t1.id
@@ -193,7 +240,7 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test save for staff"() {
-        when: 
+        when:
         mockForSave()
         request.json = "{'contact':{}}"
         params.staffId = s1.id
@@ -206,7 +253,7 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test save for team"() {
-        when: 
+        when:
         mockForSave()
         request.json = "{'contact':{}}"
         params.teamId = t1.id
@@ -223,7 +270,7 @@ class ContactControllerSpec extends CustomSpec {
     ////////////
 
     void "test update a nonexistent contact"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
         ]
@@ -239,7 +286,7 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test update a forbidden contact"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             hasPermissionsForContact:{ Long id -> false }
@@ -256,7 +303,7 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test update a contact"() {
-        given: 
+        given:
         controller.contactService = [update:{ Long cId, Map body ->
             new Result(payload:c1)
         }]
@@ -281,7 +328,7 @@ class ContactControllerSpec extends CustomSpec {
     ////////////
 
     void "test delete a nonexistent contact"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
         ]
@@ -296,7 +343,7 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test delete a forbidden contact"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             hasPermissionsForContact:{ Long id -> false }
@@ -312,7 +359,7 @@ class ContactControllerSpec extends CustomSpec {
     }
 
     void "test delete a contact"() {
-        given: 
+        given:
         controller.contactService = [delete:{ Long cId ->
             new Result(payload:c1)
         }]

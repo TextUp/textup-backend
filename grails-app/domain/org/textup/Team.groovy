@@ -12,9 +12,9 @@ class Team {
     @RestApiObjectField(description="Name of the team")
 	String name
     @RestApiObjectField(
-        description    = "Shared team phone number", 
-        allowedType    = "String", 
-        useForCreation = false, 
+        description    = "Shared team phone number",
+        allowedType    = "String",
+        useForCreation = false,
         mandatory      = false)
 	TeamPhone phone //teams can optionally have a shared phone
     @RestApiObjectField(description="Location this team is based at. Default same as organization.")
@@ -29,7 +29,7 @@ class Team {
             apiFieldName      = "doTeamActions",
             description       = "List of some actions to perform on staff with relation to this team",
             allowedType       = "List<[teamAction]>",
-            useForCreation    = false, 
+            useForCreation    = false,
             presentInResponse = false)
     ])
     static transients = []
@@ -64,13 +64,14 @@ class Team {
             projections { property("phone.id") }
         }
         forOrg { Organization thisOrg -> eq("org", thisOrg) }
+        forPhone { TeamPhone thisPhone -> eq("phone", thisPhone) }
     }
 
     /*
 	Has many:
 		TeamMembership
 	*/
-    
+
     ////////////
     // Events //
     ////////////
@@ -81,7 +82,7 @@ class Team {
 
             def tags = ContactTag.where { phone == this.phone }
             def contacts = Contact.where { phone == this.phone }
-            //delete tag memberships, must come before 
+            //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
                 "in"("tag", tags.list())
@@ -112,7 +113,7 @@ class Team {
             }.deleteAll()
             //delete all record items before deleting record
             items.deleteAll()
-            //delete records associated with contacts and tags, must 
+            //delete records associated with contacts and tags, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
                 "in"("id", allRecords*.id)
@@ -136,7 +137,7 @@ class Team {
     /*
     Members
      */
-    int countActiveMembers() { 
+    int countActiveMembers() {
         Staff.activeForTeam(this).count()
     }
     List<Staff> getActiveMembers(Map params=[:]) {
@@ -152,7 +153,7 @@ class Team {
     }
 
     private boolean hasExistingTeamName(String teamName) {
-        boolean duplicateTeam = false 
+        boolean duplicateTeam = false
         Team.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
@@ -163,13 +164,13 @@ class Team {
         }
         duplicateTeam
     }
-    
+
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     void setLocation(Location l) {
-        this.location = l 
+        this.location = l
         this.location?.save()
     }
 

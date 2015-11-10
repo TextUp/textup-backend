@@ -1,17 +1,17 @@
-package org.textup.rest 
+package org.textup.rest
 
 import org.textup.AuthService
 import grails.plugin.springsecurity.SpringSecurityService
-import org.codehaus.groovy.grails.web.converters.configuration.DefaultConverterConfiguration 
-import org.codehaus.groovy.grails.web.converters.Converter 
+import org.codehaus.groovy.grails.web.converters.configuration.DefaultConverterConfiguration
+import org.codehaus.groovy.grails.web.converters.Converter
 import org.codehaus.groovy.grails.web.converters.marshaller.ClosureObjectMarshaller
 import org.codehaus.groovy.grails.web.converters.marshaller.ObjectMarshaller
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.beans.factory.annotation.Autowired
 
 class NamedMarshaller {
-    
-    @Autowired 
+
+    @Autowired
     LinkGenerator linkGenerator
     @Autowired
     SpringSecurityService springSecurityService
@@ -19,17 +19,17 @@ class NamedMarshaller {
     AuthService authService
 
     ObjectMarshaller marshaller
-    Class<? extends Converter> converterClass 
-    int priority = DefaultConverterConfiguration.DEFAULT_PRIORITY 
-    String name 
+    Class<? extends Converter> converterClass
+    int priority = DefaultConverterConfiguration.DEFAULT_PRIORITY
+    String name
     String namespace
-    Closure closure 
-    Class clazz 
+    Closure closure
+    Class clazz
 
     NamedMarshaller(Class<? extends Converter> converterClass, Class clazz, Closure closure) {
         this.converterClass = converterClass //distinguishes beans in initializer service
-        this.clazz = clazz 
-        this.closure = closure 
+        this.clazz = clazz
+        this.closure = closure
     }
 
     ObjectMarshaller getMarshaller() {
@@ -51,6 +51,6 @@ class NamedMarshaller {
                 this.marshaller = new ClosureObjectMarshaller(this.clazz, this.closure)
             }
         }
-        this.marshaller 
+        this.marshaller
     }
 }

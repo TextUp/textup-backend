@@ -8,8 +8,11 @@ import grails.plugin.springsecurity.SpringSecurityService
 
 class CustomSpec extends Specification {
 
-	@Shared 
+	@Shared
 	int iterationCount = 1
+
+    @Shared
+    ConfigObject config = new ConfigSlurper().parse(new File("grails-app/conf/Config.groovy").toURL())
 
 	Organization org, org2
 	Team t1, t2, otherT1, otherT2
@@ -24,8 +27,11 @@ class CustomSpec extends Specification {
 	String loggedInUsername
     String loggedInPassword
 
+    protected def getBean(String beanName) {
+        grailsApplication.mainContext.getBean(beanName)
+    }
     protected ResultFactory getResultFactory() {
-        grailsApplication.mainContext.getBean("resultFactory")
+        getBean("resultFactory")
     }
 
     protected void setupData() {
@@ -57,31 +63,31 @@ class CustomSpec extends Specification {
         fac.messageSource = [getMessage:{ String c, Object[] p, Locale l -> c }] as MessageSource
 
         Staff.metaClass.constructor = { Map m->
-            def instance = new Staff() 
+            def instance = new Staff()
             instance.properties = m
             instance.resultFactory = getResultFactory()
             instance
         }
         Contact.metaClass.constructor = { Map m->
-            def instance = new Contact() 
+            def instance = new Contact()
             instance.properties = m
             instance.resultFactory = getResultFactory()
             instance
         }
         Record.metaClass.constructor = { Map m->
-            def instance = new Record() 
+            def instance = new Record()
             instance.properties = m
             instance.resultFactory = getResultFactory()
             instance
         }
         RecordText.metaClass.constructor = { Map m->
-            def instance = new RecordText() 
+            def instance = new RecordText()
             instance.properties = m
             instance.resultFactory = getResultFactory()
             instance
         }
         WeeklySchedule.metaClass.constructor = { Map m->
-            def instance = new WeeklySchedule() 
+            def instance = new WeeklySchedule()
             instance.properties = m
             instance.resultFactory = getResultFactory()
             instance
@@ -107,7 +113,7 @@ class CustomSpec extends Specification {
         t2.location = new Location(address:"Testing Address", lat:1G, lon:1G)
         t1.save(flush:true, failOnError:true)
         t2.save(flush:true, failOnError:true)
-        //add team phones 
+        //add team phones
         tPh1 = new TeamPhone()
         tPh1.resultFactory = getResultFactory()
         tPh1.numberAsString = "160333444${iterationCount}"
@@ -126,7 +132,7 @@ class CustomSpec extends Specification {
         otherT2.location = new Location(address:"Testing Address", lat:1G, lon:1G)
         otherT1.save(flush:true, failOnError:true)
         otherT2.save(flush:true, failOnError:true)
-        //add a team phone 
+        //add a team phone
         otherTPh1 = new TeamPhone()
         otherTPh1.resultFactory = getResultFactory()
         otherTPh1.numberAsString = "180333444${iterationCount}"
@@ -141,11 +147,11 @@ class CustomSpec extends Specification {
 
     protected void staffWithPhones() {
         //staff for our org
-        s1 = new Staff(username:loggedInUsername, password:loggedInPassword, 
+        s1 = new Staff(username:loggedInUsername, password:loggedInPassword,
             name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org)
-        s2 = new Staff(username:"1sta$iterationCount", password:"password", 
+        s2 = new Staff(username:"1sta$iterationCount", password:"password",
             name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org)
-        s3 = new Staff(username:"2sta$iterationCount", password:"password", 
+        s3 = new Staff(username:"2sta$iterationCount", password:"password",
             name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org)
         s1.personalPhoneNumberAsString = "111 222 3333"
         s2.personalPhoneNumberAsString = "111 222 3333"
@@ -171,11 +177,11 @@ class CustomSpec extends Specification {
         p3.save(flush:true, failOnError:true)
 
         //staff for other org
-        otherS1 = new Staff(username:"3sta$iterationCount", password:"password", 
+        otherS1 = new Staff(username:"3sta$iterationCount", password:"password",
             name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org2)
-        otherS2 = new Staff(username:"4sta$iterationCount", password:"password", 
+        otherS2 = new Staff(username:"4sta$iterationCount", password:"password",
             name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org2)
-        otherS3 = new Staff(username:"5sta$iterationCount", password:"password", 
+        otherS3 = new Staff(username:"5sta$iterationCount", password:"password",
             name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org2)
         otherS1.personalPhoneNumberAsString = "111 222 3333"
         otherS2.personalPhoneNumberAsString = "111 222 3333"
@@ -207,7 +213,7 @@ class CustomSpec extends Specification {
         (new TeamMembership(staff:s2, team:t1)).save(flush:true, failOnError:true)
         (new TeamMembership(staff:s2, team:t2)).save(flush:true, failOnError:true)
         (new TeamMembership(staff:s3, team:t2)).save(flush:true, failOnError:true)
-        
+
         //add staff at other org to teams
         (new TeamMembership(staff:otherS1, team:otherT1))
             .save(flush:true, failOnError:true)

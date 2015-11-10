@@ -10,8 +10,8 @@ class TeamPhone extends Phone {
     //grailsApplication from superclass
     //resultFactory from superclass
 
-	//NOTE: authorId on the individual record items 
-    //correspond to Staff 
+	//NOTE: authorId on the individual record items
+    //correspond to Staff
 
     private Map<Long,HashSet<Long>> _contactIdToTagIds = [:]
     private Map<Long,RecordItem> _contactableIdToRecordItem = [:]
@@ -19,6 +19,12 @@ class TeamPhone extends Phone {
 
     static transients = ["_contactIdToTagIds", "_contactableIdToRecordItem", "_parsedTags"]
     static constraints = {
+    }
+    static namedQueries = {
+        forTeamNumber { String num ->
+            //embedded properties must be accessed with dot notation
+            eq("number.number", num)
+        }
     }
 
     /*
@@ -36,7 +42,7 @@ class TeamPhone extends Phone {
         TeamPhone.withNewSession {
             def tags = ContactTag.where { phone == this }
             def contacts = Contact.where { phone == this }
-            //delete tag memberships, must come before 
+            //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
                 "in"("tag", tags.list())
@@ -57,7 +63,7 @@ class TeamPhone extends Phone {
             //delete contact and contact tags
             contacts.deleteAll()
             tags.deleteAll()
-            //delete records associated with contacts and tags, must 
+            //delete records associated with contacts and tags, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
                 "in"("id", associatedRecordIds + tagRecordIds)
@@ -68,12 +74,12 @@ class TeamPhone extends Phone {
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     /*
-    Phone capabilities 
+    Phone capabilities
      */
     @Override
-    Result<Map> text(String message, List<String> numbers, 
+    Result<Map> text(String message, List<String> numbers,
         List<Long> contactableIds, List<Long> tagIds) {
         _contactableIdToRecordItem = [:]
         _contactIdToTagIds = [:]
@@ -93,7 +99,7 @@ class TeamPhone extends Phone {
             //add recordItemReceipt to tag's record if tag is a TeamContactTag
             _contactableIdToRecordItem.each { long contactableId, RecordItem contactableRecordItem ->
                 //some contactables are NOT our contacts, and so we need the same dereference
-                //operator in these cases to skip over these 
+                //operator in these cases to skip over these
                 _contactIdToTagIds[contactableId]?.each { long tagId ->
                     RecordItem tagItem = tagIdToRecordItem[tagId]
                     if (tagItem) {
@@ -120,7 +126,7 @@ class TeamPhone extends Phone {
     @Override
     protected void afterParsingTags(List<ContactTag> parsedTags, List<Long> invalid) {
         _parsedTags = parsedTags
-        parsedTags.each { ContactTag tag -> 
+        parsedTags.each { ContactTag tag ->
             tag.subscribers.each { TagMembership m ->
                 Contact s = m.contact
                 if (!_contactIdToTagIds.containsKey(s.id)) {
@@ -133,11 +139,11 @@ class TeamPhone extends Phone {
 
 
     @Override
-    Result<Map> scheduleText(String message, DateTime sendAt, 
+    Result<Map> scheduleText(String message, DateTime sendAt,
         List<String> numbers, List<Long> contactableIds, List<Long> tagIds) {
 
         //TODO implement me
-        
+
     }
 
     /*
@@ -147,7 +153,7 @@ class TeamPhone extends Phone {
     Result<ContactTag> createTag(Map params) {
         TeamContactTag teamTag = new TeamContactTag()
         teamTag.with {
-            phone = this 
+            phone = this
             name = params.name
             if (params.hexColor) hexColor = params.hexColor
         }
@@ -159,9 +165,9 @@ class TeamPhone extends Phone {
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     @Override
     List<ContactTag> getTags(Map params=[:]) {
-        TeamContactTag.findAllByPhone(this, params)
+        TeamContactTag.findAllByPhone(this, params + [sort: "name", order: "desc"])
     }
 }

@@ -46,12 +46,12 @@ class RecordController extends BaseController {
     @Transactional(readOnly=true)
     def index() {
         if (params.contactId) {
-            Long cId = params.long("contactId") 
-            Contact c1 = Contact.get(cId) 
+            Long cId = params.long("contactId")
+            Contact c1 = Contact.get(cId)
             if (c1) {
-                Contactable cont 
+                Contactable cont
                 if (authService.hasPermissionsForContact(c1.id)) { cont = c1 }
-                else { 
+                else {
                     Long scId = authService.getSharedContactForContact(c1.id)
                     if (scId) { cont = SharedContact.get(scId) }
                     else { forbidden(); return; }
@@ -63,7 +63,7 @@ class RecordController extends BaseController {
                     list = { Map params -> cont.getSince(since, params) }
                 }
                 else if (params.since && params.before) {
-                    DateTime start = Helpers.toUTCDateTime(params.since), 
+                    DateTime start = Helpers.toUTCDateTime(params.since),
                         end = Helpers.toUTCDateTime(params.before)
                     count = { Map params -> cont.countBetween(start, end) }
                     list = { Map params -> cont.getBetween(start, end, params) }
@@ -85,7 +85,7 @@ class RecordController extends BaseController {
 
     @RestApiMethod(description="Show specifics about a record item")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
             description="Id of the record item")
     ])
     @RestApiResponseObject(objectIdentifier = "RecordCall, RecordText, or RecordNote")
@@ -109,9 +109,9 @@ class RecordController extends BaseController {
 
     @RestApiMethod(description="Create a new record item")
     @RestApiParams(params=[
-        @RestApiParam(name="staffId", type="number", required=true,
+        @RestApiParam(name="staffId", type="Number", required=true,
             paramType=RestApiParamType.QUERY, description="Id of the staff to create record item for"),
-        @RestApiParam(name="teamId", type="number", required=true,
+        @RestApiParam(name="teamId", type="Number", required=true,
             paramType=RestApiParamType.QUERY, description="Id of the team to create record item for")
     ])
     @RestApiBodyObject(name = "RecordCall, RecordText, or RecordNote")
@@ -175,7 +175,7 @@ class RecordController extends BaseController {
 
     @RestApiMethod(description="Update an existing record item")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
             description="Id of the record item")
     ])
     @RestApiBodyObject(name = "RecordCall, RecordText, or RecordNote")

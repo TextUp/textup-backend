@@ -15,10 +15,10 @@ import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(OrganizationController)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
+@Domain([TagMembership, Contact, Phone, ContactTag,
+    ContactNumber, Record, RecordItem, RecordNote, RecordText,
+    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact,
+    TeamMembership, StaffPhone, Staff, Team, Organization,
     Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
 @TestMixin(HibernateTestMixin)
 class OrganizationControllerSpec extends CustomSpec {
@@ -29,7 +29,7 @@ class OrganizationControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
@@ -47,6 +47,29 @@ class OrganizationControllerSpec extends CustomSpec {
         response.json.size() == Organization.count()
     }
 
+    void "test list with successful search"() {
+        when:
+        request.method = "GET"
+        params.search = "organ"
+        controller.index()
+
+        then:
+        response.status == SC_OK
+        response.json.size() == Organization.count()
+    }
+
+    void "test list with unsuccessful search"() {
+        when:
+        request.method = "GET"
+        params.search = "sdfjksljsdf"
+        controller.index()
+
+        then:
+        response.status == SC_OK
+        response.json.organizations != null //when empty, we manually add in the root
+        response.json.organizations?.size() == 0
+    }
+
     //////////
     // Show //
     //////////
@@ -57,7 +80,7 @@ class OrganizationControllerSpec extends CustomSpec {
         params.id = -88L
         controller.show()
 
-        then: 
+        then:
         response.status == SC_NOT_FOUND
     }
 
@@ -67,7 +90,7 @@ class OrganizationControllerSpec extends CustomSpec {
         params.id = org.id
         controller.show()
 
-        then: 
+        then:
         response.status == SC_OK
         response.json.id == org.id
     }
@@ -77,7 +100,7 @@ class OrganizationControllerSpec extends CustomSpec {
     //////////
 
     void "test save"() {
-        when: 
+        when:
         request.json = "{'organization':{}}"
         request.method = "POST"
         controller.save()
@@ -91,7 +114,7 @@ class OrganizationControllerSpec extends CustomSpec {
     ////////////
 
     void "test update a nonexistent org"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
         ]
@@ -107,7 +130,7 @@ class OrganizationControllerSpec extends CustomSpec {
     }
 
     void "test update a forbidden org"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             isAdminAt:{ Long id -> false }
@@ -124,7 +147,7 @@ class OrganizationControllerSpec extends CustomSpec {
     }
 
     void "test update"() {
-        given: 
+        given:
         controller.organizationService = [update:{ Long cId, Map body ->
             new Result(payload:org)
         }]

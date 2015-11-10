@@ -13,13 +13,13 @@ class RecordText extends RecordItem {
     def resultFactory
 
     @RestApiObjectField(
-        description  = "Whether or not this text is scheduled to be sent in the future", 
+        description  = "Whether or not this text is scheduled to be sent in the future",
         mandatory    = false,
         defaultValue = "false")
     boolean futureText = false
     @RestApiObjectField(
-        description  = "If scheduled for the future, when this should be sent", 
-        allowedType  = "DateTime", 
+        description  = "If scheduled for the future, when this should be sent",
+        allowedType  = "DateTime",
         mandatory    = false,
         defaultValue = "null")
     DateTime sendAt
@@ -49,7 +49,7 @@ class RecordText extends RecordItem {
             allowedType    = "List<Number>",
             defaultValue   = "[ ]",
             mandatory      = false,
-            useForCreation = true, 
+            useForCreation = true,
             presentInResponse = false)
     ])
     static transients = []
@@ -60,17 +60,29 @@ class RecordText extends RecordItem {
     static mapping = {
         sendAt type:PersistentDateTime
     }
+    static namedQueries = {
+        forRecordAndParams { Record rec, Map params ->
+            eq("record", rec)
+            order("dateCreated", "desc")
+            if (params.outgoing != null) {
+                eq("outgoing", params.outgoing)
+            }
+            if (params.futureText != null) {
+                eq("futureText", params.futureText)
+            }
+        }
+    }
 
     /*
 	Has many:
 	*/
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     Result<RecordText> cancelScheduled() {
-        //TODO: implement me 
+        //TODO: implement me
         this.futureText = false
         resultFactory.success(this)
     }

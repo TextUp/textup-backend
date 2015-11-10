@@ -13,13 +13,13 @@ class SharedContact implements Contactable {
     def resultFactory
 
     @RestApiObjectField(
-        description    = "When you started sharing this contact", 
+        description    = "When you started sharing this contact",
         allowedType    = "DateTime",
         useForCreation = false)
 	DateTime dateCreated = DateTime.now(DateTimeZone.UTC)
 	DateTime dateExpired //dateExpired = null -> SharedContact still active
     @RestApiObjectField(description="Level of permissions you shared this contact with. Allowed: delegate, view")
-    String permission 
+    String permission
 
 	Contact contact
 	StaffPhone sharedBy
@@ -50,8 +50,8 @@ class SharedContact implements Contactable {
     }
     static mapping = {
         autoTimestamp false
-        dateCreated type:PersistentDateTime 
-        dateExpired type:PersistentDateTime 
+        dateCreated type:PersistentDateTime
+        dateExpired type:PersistentDateTime
     }
     static namedQueries = {
         notExpired {
@@ -65,7 +65,7 @@ class SharedContact implements Contactable {
         sharedContactsForSameTeamAsSharedWith { StaffPhone sWith ->
             eq("sharedWith.id", sWith.id)
             sharedBy {
-                "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list())    
+                "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list())
             }
         }
         sharedContactsForSameTeamAsSharedBy { StaffPhone sBy ->
@@ -74,9 +74,9 @@ class SharedContact implements Contactable {
                 "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list())
             }
         }
-        sharedContactsForSameTeam { StaffPhone sBy, StaffPhone sWith ->   
+        sharedContactsForSameTeam { StaffPhone sBy, StaffPhone sWith ->
             sharedBy {
-                "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list())    
+                "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list())
             }
             sharedWith {
                 "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list())
@@ -140,11 +140,11 @@ class SharedContact implements Contactable {
     /*
 	Has many:
 	*/
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     /*
     Permissions
      */
@@ -157,7 +157,7 @@ class SharedContact implements Contactable {
     //Can modify if not yet expired and with either delegate or
     //view persmissions
     private boolean canView() {
-        isSameTeam() && (canModify() || 
+        isSameTeam() && (canModify() ||
             (this.dateExpired == null && this.permission == Constants.SHARED_VIEW))
     }
     //check that sharedBy and sharedWith Staff are still on the same Team
@@ -173,13 +173,13 @@ class SharedContact implements Contactable {
         canView() ? this.contact.lastRecordActivity : null
     }
     void updateLastRecordActivity() {
-        if (canModify()) this.contact.updateLastRecordActivity() 
+        if (canModify()) this.contact.updateLastRecordActivity()
     }
 
     /*
     Related to the client's record
      */
-    
+
     Result<RecordResult> call(Map params) {
         if (canModify()) { contact.call(params, this.author) }
         else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
@@ -200,7 +200,7 @@ class SharedContact implements Contactable {
         if (canModify()) { contact.addNote(params, this.author) }
         else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
     }
-    Result<RecordResult> addNote(Map params, Author author) { 
+    Result<RecordResult> addNote(Map params, Author author) {
         addNote(params)
     }
 
@@ -212,7 +212,7 @@ class SharedContact implements Contactable {
         editNote(noteId, params)
     }
 
-    Author getAuthor() { 
+    Author getAuthor() {
         Staff s = Staff.get(sharedWith.ownerId)
         if (s) { new Author(name:s.name, id:sharedWith.ownerId) }
         else { new Author(id:sharedWith.ownerId) }
@@ -233,7 +233,7 @@ class SharedContact implements Contactable {
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     List<PhoneNumber> getNumbers() {
         canView() ? contact.numbers : []
     }

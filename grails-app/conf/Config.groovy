@@ -177,17 +177,24 @@ textup {
     defaultMax = 10 //default max during pagination
     largestMax = 100 //largest max allowed during pagination
 
+    voicemailBucketName = "media.textup.org"
     noReplyMail = "no-reply@textup.org"
 
     //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
     //in the format: JAVA_OPTS="${JAVA_OPTS} -Dkey=value"
-    // callback=System.getenv("CALLBACK") ?: System.getProperty("CALLBACK") ?: "http://textup.localtunnel.me/api/callback"
-    textupNumber=System.getenv("MAIN_NUMBER") ?: System.getProperty("MAIN_NUMBER") ?: "+18888888888"
-    twilioAuth=System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
-    twilioSid=System.getenv("TWILIO_SID") ?: System.getProperty("TWILIO_SID")
+    apiKeys {
+        twilio {
+            sid = System.getenv("TWILIO_SID") ?: System.getProperty("TWILIO_SID")
+            authToken = System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
+        }
+        aws {
+            accessKey = System.getenv("AWS_ACCESS_KEY") ?: System.getProperty("AWS_ACCESS_KEY")
+            secretKey = System.getenv("AWS_SECRET_KEY") ?: System.getProperty("AWS_SECRET_KEY")
+        }
+    }
     rest {
         defaultLabel = "default" //default is to link to relationships
-        detailLabel = "detail" //detailed view 
+        detailLabel = "detail" //detailed view
         v1 {
             contact = [singular:"contact", plural:"contacts"]
             record = [singular:"record", plural:"records"]

@@ -9,11 +9,11 @@ class RecordNote extends RecordItem {
 
     @RestApiObjectField(description = "Contents of the note")
 	String note
-    //for some system events, we add a note that isn't editable 
+    //for some system events, we add a note that isn't editable
     @RestApiObjectField(
-        description    = "Specifies whether or not this note is editable", 
+        description    = "Specifies whether or not this note is editable",
         useForCreation = false)
-    boolean editable = true 
+    boolean editable = true
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -28,19 +28,25 @@ class RecordNote extends RecordItem {
     static constraints = {
     	note blank:false, size:1..250
     }
+    static namedQueries = {
+        forRecord { Record rec ->
+            eq("record", rec)
+            order("dateCreated", "desc")
+        }
+    }
 
     /*
 	Has many:
 	*/
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     void setNote(String n) {
         if (editable) {
             this.note = n

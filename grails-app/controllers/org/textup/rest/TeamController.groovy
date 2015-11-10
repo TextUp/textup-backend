@@ -25,13 +25,13 @@ class TeamController extends BaseController {
 
     @RestApiMethod(description="List teams", listing=true)
     @RestApiParams(params=[
-        @RestApiParam(name="max", type="Number", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="max", type="Number", paramType=RestApiParamType.QUERY,
             required=false, description="Max number of results"),
-        @RestApiParam(name="offset", type="Number", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="offset", type="Number", paramType=RestApiParamType.QUERY,
             required=false, description="Offset of results"),
-        @RestApiParam(name="organizationId", type="Number", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="organizationId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description="Id of the organization"),
-        @RestApiParam(name="staffId", type="Number", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="staffId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description="Id of the staff")
     ])
     @RestApiErrors(apierrors=[
@@ -46,7 +46,7 @@ class TeamController extends BaseController {
             Organization org = Organization.get(params.long("organizationId"))
             if (!org) { notFound(); return; }
             if (authService.isAdminAt(org.id)) {
-                genericListActionForCriteria(Team, Team.forOrg(org), params)    
+                genericListActionForCriteria(Team, Team.forOrg(org), params)
             }
             else { forbidden() }
         }
@@ -67,7 +67,7 @@ class TeamController extends BaseController {
 
     @RestApiMethod(description="Show specifics about a team")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
             description="Id of the team")
     ])
     @RestApiErrors(apierrors=[
@@ -75,7 +75,7 @@ class TeamController extends BaseController {
         @RestApiError(code="403", description="You do not permissions to view this team.")
     ])
     @Transactional(readOnly=true)
-    def show() { 
+    def show() {
         Long id = params.long("id")
         if (Team.exists(id)) {
             if (authService.hasPermissionsForTeam(id)) {
@@ -108,21 +108,21 @@ class TeamController extends BaseController {
         }
         else { notFound() }
     }
-    
-    
+
+
     ////////////
     // Update //
     ////////////
 
     @RestApiMethod(description="Update an existing team")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
             description="Id of the team")
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),
         @RestApiError(code="404", description="The requested team was not found."),
-        @RestApiError(code="403", description='''The logged in staff member is 
+        @RestApiError(code="403", description='''The logged in staff member is
             not an admin and so cannot modify teams.'''),
         @RestApiError(code="422", description="The updated fields created an invalid team.")
     ])
@@ -144,15 +144,15 @@ class TeamController extends BaseController {
 
     @RestApiMethod(description="Delete an existing team")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
             description="Id of the team")
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404", description="The requested team was not found."),
-        @RestApiError(code="403", description='''The logged in staff member is 
+        @RestApiError(code="403", description='''The logged in staff member is
             not an admin and so cannot delete teams.''')
     ])
-    def delete() { 
+    def delete() {
         Long id = params.long("id")
         if (authService.exists(Team, id)) {
             if (authService.isAdminForTeam(id)) {

@@ -46,7 +46,7 @@ class BaseController {
      *             links = prev/next links, if needed
      */
     protected Map handlePagination(Map info) {
-        Map params = parseParams(info?.params),
+        Map params = parseParams(info?.params, info.total),
         	linkParams = (info.linkParams && info.linkParams instanceof Map) ? info.linkParams : [:]
         int max = params.max,
         	offset = params.offset,
@@ -65,7 +65,6 @@ class BaseController {
             linkParams.offset = offset + max
             links << [next:g.createLink(info?.next + [params:linkParams])]
         }
-
         def results = [:]
         results.meta = [total:total, max:max, offset:offset]
         results.searchParams = [max:max, offset:offset]
@@ -110,14 +109,16 @@ class BaseController {
         respond errorsJson, [status:UNPROCESSABLE_ENTITY]
     }
 
-    protected Map parseParams(Map params) {
+    protected def renderAsXml(Closure xml) {
+        render([contentType: "text/xml", encoding: "UTF-8"], xml)
+    }
+
+    protected Map parseParams(Map params, Integer total) {
         int defaultMax = defaultMax(),
         	largestMax = largestMax(),
         	max = Math.min(params?.int("max") ?: defaultMax, largestMax)
         max = (max > 0) ? max : defaultMax
-
-        int total = params?.total ?: max
-        total = (total > 0) ? total : max
+        total = (total && total > 0) ? total: max
 
         int offset = params?.int("offset") ?: 0
         [max:max, offset:offset, total:total]

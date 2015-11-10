@@ -22,11 +22,11 @@ class TextService {
     	//SHOULD ALSO HANDLE FUTURE TEXTS AS WELL!!!
 
 		if (text.validate()) {
-			def config = grailsApplication.config.textup
-			ContactNumber.withNewSession { session ->
+			def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
+			RecordText.withNewSession { session ->
 				session.flushMode = FlushMode.MANUAL
 				try {
-		            TwilioRestClient client = new TwilioRestClient(config.twilioSid, config.twilioAuth)
+		            TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
 		            MessageFactory messageFactory = client.account.messageFactory
 		            //////////////////////////////////////////////////////////////
 		            // Try the contactable's first preference number first,     //
@@ -34,18 +34,19 @@ class TextService {
 		            //////////////////////////////////////////////////////////////
 		            List<PhoneNumber> numsByPref = toContact.numbers
 		            if (!numsByPref.isEmpty()) {
-		            	PhoneNumber to = numsByPref[0]
-		            	def l = [Body:text.contents, To:to, From:fromPhone.number]
+		            	String to = numsByPref[0].number,
+                            from = fromPhone.number
+		            	def l = [Body:text.contents, To:to, From:from]
 		            	def params = l.collect { k, v -> new BasicNameValuePair(k, v) }
 			            Message m = messageFactory.create(params)
-			            m.redact() 
+			            m.redact()
 			            text.addToReceipts(apiId:m.sid, receivedBy:to)
 		            }
-		            text.save()
-		            resultFactory.success(text)
+		            if (text.save()) { resultFactory.success(text) }
+                    else { resultFactory.failWithValidationErrors(text.errors) }
 		        }
-		        catch(Throwable e) {
-		            log.error("ContactService.text: ${e.message}")
+		        catch (Throwable e) {
+		            log.error("TextService.text: ${e.message}")
 		            resultFactory.failWithThrowable(e)
 		        }
 		        finally { session.flushMode = FlushMode.AUTO }
@@ -63,15 +64,15 @@ class TextService {
 	protected Result checkNumRecipients(int numRecipients) {
         int maxRecipients = grailsApplication.config.textup.maxNumText
         if (numRecipients > maxRecipients) {
-            resultFactory.failWithMessage("textService.error.tooManyRecipients", 
-                [numRecipients, maxRecipients])   
+            resultFactory.failWithMessage("textService.error.tooManyRecipients",
+                [numRecipients, maxRecipients])
         }
         else { resultFactory.success() }
     }
     protected Result checkMessageSize(String message) {
         int maxMsgSize = RecordText.constraints.contents.maxSize
         if (!message || message.size() > maxMsgSize) {
-            resultFactory.failWithMessage("textService.error.messageLength", 
+            resultFactory.failWithMessage("textService.error.messageLength",
                 [message.size(), maxMsgSize])
         }
         else { resultFactory.success() }

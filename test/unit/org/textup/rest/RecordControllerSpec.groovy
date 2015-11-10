@@ -16,10 +16,10 @@ import static javax.servlet.http.HttpServletResponse.*
 import grails.plugin.jodatime.converters.JodaConverters
 
 @TestFor(RecordController)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
+@Domain([TagMembership, Contact, Phone, ContactTag,
+    ContactNumber, Record, RecordItem, RecordNote, RecordText,
+    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact,
+    TeamMembership, StaffPhone, Staff, Team, Organization,
     Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
 @TestMixin(HibernateTestMixin)
 class RecordControllerSpec extends CustomSpec {
@@ -31,7 +31,7 @@ class RecordControllerSpec extends CustomSpec {
         super.setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
@@ -40,88 +40,88 @@ class RecordControllerSpec extends CustomSpec {
     //////////
 
     void "test list with no ids"() {
-        when: 
+        when:
         request.method = "GET"
         controller.index()
 
-        then: 
+        then:
         response.status == SC_BAD_REQUEST
     }
 
     void "test list with contact id and no dates"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForContact:{ Long id -> true },
         ]
 
-        when: 
+        when:
         request.method = "GET"
-        params.contactId = c1.id 
+        params.contactId = c1.id
         controller.index()
         List<Long> ids = Helpers.allToLong(c1.items*.id)
 
-        then: 
+        then:
         response.status == SC_OK
         response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
     void "test list with for shared contact id and no dates"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForContact:{ Long id -> false },
             getSharedContactForContact:{ Long cId -> sc1.id }
         ]
 
-        when: 
+        when:
         request.method = "GET"
-        params.contactId = c2.id 
+        params.contactId = c2.id
         controller.index()
         List<Long> ids = Helpers.allToLong(sc1.items*.id)
 
-        then: 
+        then:
         response.status == SC_OK
         response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
     void "test list with contact id for date since"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForContact:{ Long id -> true },
         ]
 
-        when: 
+        when:
         DateTime since = DateTime.now().minusDays(1)
         request.method = "GET"
-        params.contactId = c1.id 
+        params.contactId = c1.id
         params.since = since.toDate()
         controller.index()
         List<Long> ids = Helpers.allToLong(c1.getSince(since)*.id)
 
-        then: 
+        then:
         response.status == SC_OK
         response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
     void "test list with contact id for date between"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForContact:{ Long id -> true },
         ]
 
-        when: 
+        when:
         DateTime since = DateTime.now().minusDays(1)
         DateTime before = DateTime.now().minusHours(1)
         request.method = "GET"
-        params.contactId = c1.id 
+        params.contactId = c1.id
         params.since = since.toDate()
         params.before = before.toDate()
         controller.index()
         List<Long> ids = Helpers.allToLong(c1.getBetween(since, before)*.id)
 
-        then: 
+        then:
         response.status == SC_OK
         response.json.records.size() == ids.size()
         //this is a little different because this went to respondHandleEmpty
@@ -141,12 +141,12 @@ class RecordControllerSpec extends CustomSpec {
         params.id = -88L
         controller.show()
 
-        then: 
+        then:
         response.status == SC_NOT_FOUND
     }
 
     void "test show forbidden item"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForItem:{ Long id -> false },
         ]
@@ -161,7 +161,7 @@ class RecordControllerSpec extends CustomSpec {
     }
 
     void "test show item"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForItem:{ Long id -> true },
         ]
@@ -173,7 +173,7 @@ class RecordControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_OK
-        response.json.id == rText1.id 
+        response.json.id == rText1.id
     }
 
     //////////
@@ -182,7 +182,7 @@ class RecordControllerSpec extends CustomSpec {
 
     protected void mockForSave() {
         controller.recordService = [create:{ Class clazz, Long id, Map body ->
-            RecordResult recResult = new RecordResult() 
+            RecordResult recResult = new RecordResult()
             recResult.newItems << rText1
             recResult.newItems << rText2
             new Result(payload:recResult)
@@ -195,7 +195,7 @@ class RecordControllerSpec extends CustomSpec {
     }
 
     void "test save for no ids"() {
-        when: 
+        when:
         request.json = "{'record':{}}"
         request.method = "POST"
         controller.save()
@@ -205,7 +205,7 @@ class RecordControllerSpec extends CustomSpec {
     }
 
     void "test save for both ids"() {
-        when: 
+        when:
         request.json = "{'record':{}}"
         params.staffId = s1.id
         params.teamId = t1.id
@@ -217,7 +217,7 @@ class RecordControllerSpec extends CustomSpec {
     }
 
     void "test save for staff id"() {
-        when: 
+        when:
         mockForSave()
         request.json = "{'record':{}}"
         params.staffId = s1.id
@@ -231,7 +231,7 @@ class RecordControllerSpec extends CustomSpec {
     }
 
     void "test save for team id"() {
-        when: 
+        when:
         mockForSave()
         request.json = "{'record':{}}"
         params.teamId = t1.id
@@ -249,7 +249,7 @@ class RecordControllerSpec extends CustomSpec {
     ////////////
 
     void "test update nonexistent item"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
         ]
@@ -265,7 +265,7 @@ class RecordControllerSpec extends CustomSpec {
     }
 
     void "test update forbidden item"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             hasPermissionsForItem:{ Long id -> false }
@@ -282,7 +282,7 @@ class RecordControllerSpec extends CustomSpec {
     }
 
     void "test update item"() {
-        given: 
+        given:
         controller.recordService = [update:{ Long cId, Map body ->
             new Result(payload:rText1)
         }]

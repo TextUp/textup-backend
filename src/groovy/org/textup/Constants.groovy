@@ -1,47 +1,60 @@
 package org.textup
 
 class Constants {
-	static String SCHEDULE_AVAILABLE = "available"
-	static String SCHEDULE_UNAVAILABLE = "unavailable"
+	static final String LOCK_RETRY_MAX = 3
 
-	static String RECEIPT_FAILED = "failed"
-	static String RECEIPT_PENDING = "pending"
-	static String RECEIPT_SUCCESS = "success"
+	static final String SCHEDULE_AVAILABLE = "available"
+	static final String SCHEDULE_UNAVAILABLE = "unavailable"
 
-	static String CONTACT_UNREAD = "unread"
-	static String CONTACT_ACTIVE = "active"
-	static String CONTACT_ARCHIVED = "archived"
-	static String CONTACT_BLOCKED = "blocked"
+	static final String RECEIPT_FAILED = "failed"
+	static final String RECEIPT_PENDING = "pending"
+	static final String RECEIPT_SUCCESS = "success"
 
-	static String RECORD_CALL = "call"
-	static String RECORD_TEXT = "text"
-	static String RECORD_NOTE = "note"
+	static final String CONTACT_UNREAD = "unread"
+	static final String CONTACT_ACTIVE = "active"
+	static final String CONTACT_ARCHIVED = "archived"
+	static final String CONTACT_BLOCKED = "blocked"
 
-	static String STATUS_BLOCKED = "blocked"
-	static String STATUS_PENDING = "pending"
-	static String STATUS_STAFF = "staff"
-	static String STATUS_ADMIN = "admin"
+	static final String RECORD_CALL = "call"
+	static final String RECORD_TEXT = "text"
+	static final String RECORD_NOTE = "note"
 
-	static String SHARED_DELEGATE = "delegate"
-	static String SHARED_VIEW = "view"
+	static final String STATUS_BLOCKED = "blocked"
+	static final String STATUS_PENDING = "pending"
+	static final String STATUS_STAFF = "staff"
+	static final String STATUS_ADMIN = "admin"
 
-	static String RESULT_SUCCESS = "success"
-	static String RESULT_VALIDATION = "validation"
-	static String RESULT_MESSAGE = "message"
-	static String RESULT_MESSAGE_STATUS = "messageWithStatus"
-	static String RESULT_THROWABLE = "throwable"
+	static final String SHARED_DELEGATE = "delegate"
+	static final String SHARED_VIEW = "view"
 
-	static String TAG_ACTION_ADD = "add"
-	static String TAG_ACTION_REMOVE = "remove"
-	static String TAG_ACTION_SUBSCRIBE = "subscribe"
-	static String TAG_ACTION_UNSUBSCRIBE = "unsubscribe"
+	static final String RESULT_SUCCESS = "success"
+	static final String RESULT_VALIDATION = "validation"
+	static final String RESULT_MESSAGE = "message"
+	static final String RESULT_MESSAGE_STATUS = "messageWithStatus"
+	static final String RESULT_THROWABLE = "throwable"
 
-	static String TEAM_ACTION_ADD = "add"
-	static String TEAM_ACTION_REMOVE = "remove"
+	static final String TAG_ACTION_ADD = "add"
+	static final String TAG_ACTION_REMOVE = "remove"
+	static final String TAG_ACTION_SUBSCRIBE = "subscribe"
+	static final String TAG_ACTION_UNSUBSCRIBE = "unsubscribe"
 
-	static String SHARE_ACTION_MERGE = "merge"
-	static String SHARE_ACTION_STOP = "stop"
+	static final String TEAM_ACTION_ADD = "add"
+	static final String TEAM_ACTION_REMOVE = "remove"
 
-	static String NUMBER_ACTION_MERGE = "merge"
-	static String NUMBER_ACTION_DELETE = "delete"
+	static final String SHARE_ACTION_MERGE = "merge"
+	static final String SHARE_ACTION_STOP = "stop"
+
+	static final String NUMBER_ACTION_MERGE = "merge"
+	static final String NUMBER_ACTION_DELETE = "delete"
+
+	static final String CALL_TEXT_REPEAT = "repeat"
+
+	static final String CALL_INCOMING = "incoming"
+	static final String CALL_STATUS = "status"
+	static final String CALL_VOICEMAIL = "voicemail"
+	static final String CALL_PUBLIC_TEAM_DIGITS = "digitsFromPublicForTeam"
+	static final String CALL_STAFF_STAFF_DIGITS = "digitsFromStaffForStaff"
+
+	static final String TEXT_INCOMING = "incoming"
+	static final String TEXT_STATUS = "status"
 }

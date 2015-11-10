@@ -11,40 +11,40 @@ import org.restapidoc.annotation.*
 @RestApiObject(name="Contact", description="A contact")
 class Contact implements Contactable {
 
-    def textService 
+    def textService
     def callService
     def resultFactory
 
     @RestApiObjectField(
-        description    = "Date and time of the most recent communication with this contact", 
+        description    = "Date and time of the most recent communication with this contact",
         allowedType    = "DateTime",
         useForCreation = false)
     DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
 
     Phone phone //phone that owns this contact
 	@RestApiObjectField(
-        description    = "Name of this contact", 
+        description    = "Name of this contact",
         mandatory      = false,
-        defaultValue   = "", 
+        defaultValue   = "",
         useForCreation = true)
-    String name 
+    String name
     @RestApiObjectField(
-        description = "Notes on this contact", 
+        description = "Notes on this contact",
         mandatory      = false,
-        defaultValue   = "", 
+        defaultValue   = "",
         useForCreation = true)
 	String note
     @RestApiObjectField(
-        description    = "Status of this contact. Allowed: active, unread, archived, blocked", 
+        description    = "Status of this contact. Allowed: active, unread, archived, blocked",
         defaultValue   = "active",
         mandatory      = false,
         useForCreation = true)
     String status = Constants.CONTACT_ACTIVE
-    Record record 
+    Record record
     @RestApiObjectField(
         apiFieldName   = "numbers",
         description    = "Numbers that pertain to this contact. Order in this list determines priorit",
-        allowedType    = "List<String>", 
+        allowedType    = "List<String>",
         useForCreation = false)
     List numbers
 
@@ -53,13 +53,13 @@ class Contact implements Contactable {
             apiFieldName      = "doShareActions",
             description       = "List of some share or unshare actions",
             allowedType       = "List<[shareAction]>",
-            useForCreation    = false, 
+            useForCreation    = false,
             presentInResponse = false),
         @RestApiObjectField(
             apiFieldName      = "doNumberActions",
             description       = "List of some share or unshare actions",
             allowedType       = "List<[numberAction]>",
-            useForCreation    = true, 
+            useForCreation    = true,
             presentInResponse = false),
         @RestApiObjectField(
             apiFieldName   = "sharedWith",
@@ -91,7 +91,7 @@ class Contact implements Contactable {
     static constraints = {
     	name blank:true, nullable:true
     	note blank:true, nullable:true, size:1..1000
-        status blank:false, nullable:false, inList:[Constants.CONTACT_UNREAD, 
+        status blank:false, nullable:false, inList:[Constants.CONTACT_UNREAD,
             Constants.CONTACT_ACTIVE, Constants.CONTACT_ARCHIVED, Constants.CONTACT_BLOCKED]
     }
     static mapping = {
@@ -100,20 +100,6 @@ class Contact implements Contactable {
     }
     static hasMany = [numbers:ContactNumber]
     static namedQueries = {
-        sharedWithMe { StaffPhone staffPhone ->
-            DetachedCriteria sharedWithMeIds = new DetachedCriteria(SharedContact).build {
-                projections { property("contact.id") }
-                SharedContact.sharedWithMe(staffPhone)
-            }
-            "in"("id", sharedWithMeIds.list())
-        }
-        sharedByMe { StaffPhone staffPhone -> 
-            DetachedCriteria sharedByMeIds = new DetachedCriteria(SharedContact).build {
-                projections { property("contact.id") }
-                SharedContact.sharedByMe(staffPhone)
-            }
-            "in"("id", sharedByMeIds.list())
-        }
         recordIdsForPhoneId { Long phoneId ->
             phone { eq("id", phoneId) }
             projections { property("record.id") }
@@ -138,8 +124,22 @@ class Contact implements Contactable {
             order("lastRecordActivity", "desc") //more recent first
             order("id", "desc") //by contact id
         }
+        forPhoneAndNum { Phone thisPhone, String num ->
+            eq("phone", thisPhone)
+            numbers { eq("number", num) }
+        }
+        forRecord { Record thisRecord ->
+            eq("record", thisRecord)
+        }
+        forRecords { List<Record> records ->
+            "in"("record", records)
+        }
+        forPhoneAndContactId { Phone thisPhone, long contactId ->
+            eq("phone", thisPhone)
+            eq("id", contactId)
+        }
         forStaffPhoneAndStatuses { StaffPhone sp, List<String> statuses ->
-            or { 
+            or {
                 eq("phone", sp)
                 "in"("id", SharedContact.sharedWithMeContactIds(sp).list())
             }
@@ -161,7 +161,7 @@ class Contact implements Contactable {
             order("id", "desc") //by contact id
         }
     }
-    
+
     /*
 	Has many:
 		TagMembership
@@ -197,7 +197,7 @@ class Contact implements Contactable {
             this.record.save()
         }
     }
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
@@ -205,7 +205,7 @@ class Contact implements Contactable {
     /*
     Modify status
      */
-    
+
     Result<Contact> activate() {
         this.status = Constants.CONTACT_ACTIVE
         resultFactory.success(this)
@@ -231,11 +231,11 @@ class Contact implements Contactable {
     /*
     Related to the client's record
      */
-    
-    Result<RecordResult> call(Map params) { 
+
+    Result<RecordResult> call(Map params) {
         call(params, this.author)
     }
-    Result<RecordResult> call(Map params, Author auth) { 
+    Result<RecordResult> call(Map params, Author auth) {
         Result<RecordText> tRes = record.addCall(params, auth)
         if (tRes.success) {
             tRes = callService.call(this.phone, this, tRes.payload)
@@ -243,11 +243,11 @@ class Contact implements Contactable {
         }
         resultFactory.convertToRecordResult(tRes)
     }
-    
-    Result<RecordResult> text(Map params) { 
+
+    Result<RecordResult> text(Map params) {
         text(params, this.author)
     }
-    Result<RecordResult> text(Map params, Author auth) { 
+    Result<RecordResult> text(Map params, Author auth) {
         Result<RecordText> tRes = record.addText(params, auth)
         if (tRes.success) {
             tRes = textService.text(this.phone, this, tRes.payload)
@@ -261,10 +261,10 @@ class Contact implements Contactable {
         resultFactory.convertToRecordResult(record.addNote(params, auth))
     }
 
-    Result<RecordResult> editNote(long noteId, Map params) { 
+    Result<RecordResult> editNote(long noteId, Map params) {
         editNote(noteId, params, this.author)
     }
-    Result<RecordResult> editNote(long noteId, Map params, Author auth) { 
+    Result<RecordResult> editNote(long noteId, Map params, Author auth) {
         resultFactory.convertToRecordResult(record.editNote(noteId, params, auth))
     }
 
@@ -274,14 +274,14 @@ class Contact implements Contactable {
     }
     def getOwner() {
         def owner = Staff.where { phone.id == this.phone.id }.list(max:1)[0]
-        if (!owner) { owner = Team.where { phone.id == this.phone.id }.list(max:1)[0] } 
+        if (!owner) { owner = Team.where { phone.id == this.phone.id }.list(max:1)[0] }
         owner
     }
 
     /*
     Client's phone numbers
      */
-    
+
     Result<PhoneNumber> mergeNumber(String num, Map params=[:]) {
         PhoneNumber temp = new PhoneNumber(number:num)
         ContactNumber thisNum = ContactNumber.findByOwnerIdAndNumber(this.id, temp.number)
@@ -305,7 +305,7 @@ class Contact implements Contactable {
         PhoneNumber temp = new PhoneNumber(number:num)
         ContactNumber number = ContactNumber.findByContactAndNumber(this, temp.number)
         temp.discard()
-        if (number) { 
+        if (number) {
             this.removeFromNumbers(number)
             number.delete()
             resultFactory.success()
@@ -334,7 +334,7 @@ class Contact implements Contactable {
     Result<ContactTag> removeFromTag(ContactTag tag) {
         TagMembership membership = TagMembership.findByContactAndTag(this, tag)
         if (membership) {
-            membership.delete() 
+            membership.delete()
             resultFactory.success(tag)
         }
         else { resultFactory.failWithMessage("contact.error.membershipNotFound", [this.name, tag.name]) }
@@ -367,9 +367,9 @@ class Contact implements Contactable {
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     void setRecord(Record r) {
-        this.record = r 
+        this.record = r
         this.record?.save()
     }
 
@@ -384,7 +384,7 @@ class Contact implements Contactable {
     /*
     Items for the contact's record
      */
-    
+
     List<RecordItem> getItems(Map params=[:]) {
         record.getItems(params)
     }

@@ -20,7 +20,7 @@ class Record {
     ////////////
     // Events //
     ////////////
-    
+
     def beforeDelete() {
         Record.withNewSession {
             RecordItem.where { record == this }.deleteAll()
@@ -40,9 +40,9 @@ class Record {
     Result<RecordItem> add(RecordItem item, Author auth) {
         if (item) {
             item.author = auth
-            item.record = this 
+            item.record = this
             if (item.save()) { resultFactory.success(item) }
-            else { resultFactory.failWithValidationErrors(item.errors) }   
+            else { resultFactory.failWithValidationErrors(item.errors) }
         }
         else { resultFactory.failWithMessage("record.error.noRecordItem") }
     }
@@ -61,7 +61,7 @@ class Record {
         if (n1) {
             if (n1.editable) {
                 n1.note = params.note
-                n1.author = auth 
+                n1.author = auth
                 if (n1.save()) { resultFactory.success(n1) }
                 else { resultFactory.failWithValidationErrors(n1.errors) }
             }
@@ -73,13 +73,24 @@ class Record {
     /////////////////////
     // Property Access //
     /////////////////////
-    
-    List<RecordItem> getItems(Map params) {
-        RecordItem.forRecord(this).list(params)
-    }
-    int countItems() {
-        RecordItem.forRecord(this).count()
-    }
+
+    List<RecordItem> getItems(Map params=[:]) { RecordItem.forRecord(this).list(params) }
+    int countItems() { RecordItem.forRecord(this).count() }
+
+    List<RecordCall> getCalls(Map params=[:]) { RecordCall.forRecord(this).list(params) }
+    int countCalls() { RecordCall.forRecord(this).count() }
+    List<RecordNote> getNotes(Map params=[:]) { RecordNote.forRecord(this).list(params) }
+    int countNotes() { RecordNote.forRecord(this).count() }
+
+    /**
+     * Count texts in this record.
+     * @param  params Map of parameter options. In addition to 'max' and 'offset':
+     *                'outgoing' = boolean, true if outgoing
+     *                'futureText' = boolean, true if will be sent in the future
+     * @return List of RecordTexts found
+     */
+    List<RecordText> getTexts(Map params=[:]) { RecordText.forRecordAndParams(this, params).list(params) }
+    int countTexts(Map params=[:]) { RecordText.forRecordAndParams(this, params).count() }
 
     List<RecordItem> getSince(DateTime since, Map params=[:]) {
         if (!since) { return [] }
@@ -92,18 +103,18 @@ class Record {
 
     List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
         if (!start || !end) { return [] }
-        if (end.isBefore(start)) { 
-            DateTime exchange = start 
-            start = end 
+        if (end.isBefore(start)) {
+            DateTime exchange = start
+            start = end
             end = exchange
         }
         RecordItem.forRecordDateBetween(this, start, end).list(params) ?: []
     }
     int countBetween(DateTime start, DateTime end) {
         if (!start || !end) { return 0 }
-        if (end.isBefore(start)) { 
-            DateTime exchange = start 
-            start = end 
+        if (end.isBefore(start)) {
+            DateTime exchange = start
+            start = end
             end = exchange
         }
         RecordItem.forRecordDateBetween(this, start, end).count()

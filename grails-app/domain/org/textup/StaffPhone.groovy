@@ -10,14 +10,20 @@ class StaffPhone extends Phone {
     //grailsApplication from superclass
     //resultFactory from superclass
 
-    Long ownerId  
+    Long ownerId
 
-    //NOTE: authorId on the individual record items 
+    //NOTE: authorId on the individual record items
     //correspond to Staff id
 
     static constraints = {
         ownerId validator:{ val, obj ->
             if (!obj.isOwnerStaff(val)) { ["invalid"] }
+        }
+    }
+    static namedQueries = {
+        forStaffNumber { String num ->
+            //embedded properties must be accessed with dot notation
+            eq("number.number", num)
         }
     }
 
@@ -36,7 +42,7 @@ class StaffPhone extends Phone {
         StaffPhone.withNewSession {
             def tags = ContactTag.where { phone == this }
             def contacts = Contact.where { phone == this }
-            //delete tag memberships, must come before 
+            //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
                 "in"("tag", tags.list())
@@ -50,12 +56,12 @@ class StaffPhone extends Phone {
             new DetachedCriteria(ContactNumber).build {
                 "in"("contact", contacts.list())
             }.deleteAll()
-            //delete shared contacts 
+            //delete shared contacts
             SharedContact.where { sharedBy == this || sharedWith == this }.deleteAll()
             //delete contact and contact tags
             contacts.deleteAll()
             tags.deleteAll()
-            //delete records associated with contacts, must 
+            //delete records associated with contacts, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
                 "in"("id", associatedRecordIds)
@@ -63,16 +69,16 @@ class StaffPhone extends Phone {
         }
     }
 
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
 
     private boolean isOwnerStaff(Long id) {
         if (id == null) { return false }
-        boolean isStaff = false 
+        boolean isStaff = false
         StaffPhone.withNewSession { session ->
-            session.flushMode = FlushMode.MANUAL 
+            session.flushMode = FlushMode.MANUAL
             try {
                 isStaff = Staff.exists(id)
             }
@@ -91,10 +97,10 @@ class StaffPhone extends Phone {
                 int numNotExpired = SharedContact.nonexpiredFor(contact, this, shareWith).count()
                 SharedContact sc
                 if (numNotExpired == 0) {
-                    sc = new SharedContact(contact:contact, sharedBy:this, 
+                    sc = new SharedContact(contact:contact, sharedBy:this,
                         sharedWith:shareWith, permission:permission)
                 }
-                else { 
+                else {
                     List<SharedContact> alreadyShared = SharedContact.nonexpiredFor(contact, this, shareWith).list(max:1)
                     sc = alreadyShared[0]
                     sc.permission = permission
@@ -146,26 +152,26 @@ class StaffPhone extends Phone {
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     @Override
     //Optional specify 'status' corresponding to valid contact statuses
     List<Contactable> getContacts(Map params=[:]) {
-        List<Contactable> contactables = Contact.forStaffPhoneAndStatuses(this, 
+        List<Contactable> contactables = Contact.forStaffPhoneAndStatuses(this,
             Helpers.toList(params.status)).list(params)
         //identify those contacts that are shared with me and their order in the results
         Map<Long,Integer> sharedContactIdToIndices = [:]
         contactables.eachWithIndex { Contact contact, int i ->
-            if (contact.phone != this) sharedContactIdToIndices[contact.id] = i 
+            if (contact.phone != this) sharedContactIdToIndices[contact.id] = i
         }
-        //retrieve the corresponding SharedContact instance 
-        List<SharedContact> sharedContacts = SharedContact.sharedWithForContactIds(this, 
+        //retrieve the corresponding SharedContact instance
+        List<SharedContact> sharedContacts = SharedContact.sharedWithForContactIds(this,
             sharedContactIdToIndices.keySet()).list()
         if (sharedContacts.size() != sharedContactIdToIndices.size()) {
             log.error("""StaffPhone.getContacts with params: $params. Not all shared
                 contacts found. Expected: ${sharedContactIdToIndices.keySet()}.
                 Found: ${sharedContacts}""")
         }
-        //store retrieved SharedContact list as a HashMap for faster retrieval 
+        //store retrieved SharedContact list as a HashMap for faster retrieval
         Map contactIdToSharedContact = sharedContacts.collectEntries { [(it.contact.id):it] }
         //replace the shared with me Contacts with their SharedContact counterpart
         List<Integer> indicesToBeRemoved = []
@@ -173,7 +179,7 @@ class StaffPhone extends Phone {
             if (contactIdToSharedContact.containsKey(contactId)) {
                 contactables[index] = contactIdToSharedContact[contactId]
             }
-            //removing now would mess up our stored indices 
+            //removing now would mess up our stored indices
             else { indicesToBeRemoved << index }
         }
         //if some of the shared contacts could not be found, for example, if the
@@ -188,8 +194,14 @@ class StaffPhone extends Phone {
         Contact.forStaffPhoneAndStatuses(this, Helpers.toList(params.status)).count()
     }
 
+    int countSharedWithMe() {
+        SharedContact.sharedWithMe(this).count()
+    }
     List<SharedContact> getSharedWithMe(Map params=[:]) {
         SharedContact.sharedWithMe(this).list(params) ?: []
+    }
+    int countSharedByMe() {
+        SharedContact.sharedByMe(this).count()
     }
     List<Contact> getSharedByMe(Map params=[:]) {
         SharedContact.sharedByMe(this).list(params) ?: []

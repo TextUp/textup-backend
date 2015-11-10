@@ -14,26 +14,28 @@ import org.joda.time.DateTime
 import static org.springframework.http.HttpStatus.*
 
 @TestFor(RecordService)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-	ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-	RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-	TeamMembership, StaffPhone, Staff, Team, Organization, 
+@Domain([TagMembership, Contact, Phone, ContactTag,
+	ContactNumber, Record, RecordItem, RecordNote, RecordText,
+	RecordCall, RecordItemReceipt, PhoneNumber, SharedContact,
+	TeamMembership, StaffPhone, Staff, Team, Organization,
 	Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
 @TestMixin(HibernateTestMixin)
 class RecordServiceSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
+        lockService(LockService) { bean -> bean.autoWire = true }
     }
     def setup() {
         super.setupData()
         service.resultFactory = getResultFactory()
+        service.lockService = getBean("lockService")
         [Phone, StaffPhone, TeamPhone].each { clazz ->
-            clazz.metaClass.text = { String message, List<String> numbers, 
+            clazz.metaClass.text = { String message, List<String> numbers,
                 List<Long> contactableIds, List<Long> tagIds ->
                 new Result(payload:new RecordResult())
             }
-            clazz.metaClass.scheduleText = {String message, DateTime sendAt, 
+            clazz.metaClass.scheduleText = {String message, DateTime sendAt,
                 List<String> numbers, List<Long> contactableIds, List<Long> tagIds ->
                 new Result(payload:new RecordResult())
             }
@@ -45,16 +47,124 @@ class RecordServiceSpec extends CustomSpec {
             }
         }
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
+
+    ///////////
+    // Calls //
+    ///////////
+
+    void "test call status"() {
+        // when: "update status with nonexistent apiId"
+
+        // then:
+
+        // when: "update with invalid status"
+
+        // then:
+
+        // when: "update valid with duration"
+
+        // then:
+        expect:
+        1 ==2
+    }
+
+    void "test incoming call with multiple contacts"() {
+        // when: "invalid from number"
+
+        // then:
+
+        // when: "incoming to multiple contacts"
+
+        // then:
+        expect:
+        1 ==2
+    }
+
+    void "test incoming call and create new contact"() {
+        // when: "invalid from number"
+
+        // then:
+
+        // when: "incoming and create new contact"
+
+        // then:
+        expect:
+        1 ==2
+    }
+
+    void "test outgoing call with multiple contacts"() {
+        // when: "invalid to number"
+
+        // then:
+
+        // when: "outgoing to multiple contacts"
+
+        // then:
+        expect:
+        1 ==2
+    }
+
+    void "test outgoing call and create new contact"() {
+        // when: "invalid to number"
+
+        // then:
+
+        // when: "outgoing and create new contact"
+
+        // then:
+        expect:
+        1 ==2
+    }
+
+    void "test creating outgoing RecordCall for a specific contact"() {
+        // when: "no phone found for 'from' number"
+
+        // then:
+
+        // when: "invalid 'to' number"
+
+        // then:
+
+        // when: "contactId specified is not owned by 'from' phone"
+
+        // then:
+
+        // when: "valid creation of outgoing call for specified contactId"
+
+        // then:
+        expect:
+        1 ==2
+    }
+
+    void "test updating timestamps"() {
+        // when: "create call for incoming for multiple contacts"
+
+        // then: "all timestamps updated"
+
+        // when: "create call for outgoing for multiple contacts"
+
+        // then: "all timestamps updated"
+
+        // when: "create outgoing for one specific contact"
+
+        // then: "all timestamps updated"
+        expect:
+        1 ==2
+    }
+
+    ////////////
+    // Create //
+    ////////////
 
     void "test create errors"() {
         when: "we create record for a nonexistent team"
         Result res = service.create(Team, -88L, [:])
 
-        then: 
-        res.success == false 
+        then:
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.create.noPhone"
         res.payload.status == UNPROCESSABLE_ENTITY
@@ -63,7 +173,7 @@ class RecordServiceSpec extends CustomSpec {
         res = service.create(Team, t1.id, [:])
 
         then:
-        res.success == false 
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.create.unknownType"
         res.payload.status == UNPROCESSABLE_ENTITY
@@ -74,8 +184,8 @@ class RecordServiceSpec extends CustomSpec {
         Map itemInfo = [contents:"hi"]
         Result res = service.create(Team, t1.id, itemInfo)
 
-        then: 
-        res.success == false 
+        then:
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.create.noTextRecipients"
         res.payload.status == BAD_REQUEST
@@ -85,7 +195,7 @@ class RecordServiceSpec extends CustomSpec {
         res = service.create(Team, t1.id, itemInfo)
 
         then:
-        res.success == false 
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.create.idIsNotLong"
         res.payload.status == BAD_REQUEST
@@ -104,8 +214,8 @@ class RecordServiceSpec extends CustomSpec {
         Map itemInfo = [callPhoneNumber:"12223334444", callContact:tC1.id]
         Result res = service.create(Team, t1.id, itemInfo)
 
-        then: 
-        res.success == false 
+        then:
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.create.canCallOnlyOne"
         res.payload.status == BAD_REQUEST
@@ -128,8 +238,8 @@ class RecordServiceSpec extends CustomSpec {
         Map itemInfo = [note:"note", addToContact:-88L]
         Result res = service.create(Team, t1.id, itemInfo)
 
-        then: 
-        res.success == false 
+        then:
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.create.contactNotFound"
         res.payload.status == NOT_FOUND
@@ -143,6 +253,10 @@ class RecordServiceSpec extends CustomSpec {
         res.payload instanceof RecordResult
     }
 
+    ////////////
+    // Update //
+    ////////////
+
     void "test update errors"() {
         given:
         service.authService = [getLoggedIn:{ s1 }] as AuthService
@@ -153,8 +267,8 @@ class RecordServiceSpec extends CustomSpec {
         Map updateInfo = [:]
         Result res = service.update(-88L, updateInfo)
 
-        then: 
-        res.success == false 
+        then:
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.update.itemNotFound"
         res.payload.status == NOT_FOUND
@@ -164,7 +278,7 @@ class RecordServiceSpec extends CustomSpec {
         res = service.update(rCall1.id, updateInfo)
 
         then:
-        res.success == false 
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.update.notEditable"
         res.payload.status == FORBIDDEN
@@ -182,8 +296,8 @@ class RecordServiceSpec extends CustomSpec {
         Map updateInfo = [note:updatedNote]
         Result res = service.update(rNote1.id, updateInfo)
 
-        then: 
-        res.success == false 
+        then:
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.update.notEditable"
         res.payload.status == FORBIDDEN
@@ -193,7 +307,7 @@ class RecordServiceSpec extends CustomSpec {
         res = service.update(rNote2.id, updateInfo)
 
         then:
-        res.success == true 
+        res.success == true
         res.payload instanceof RecordNote
         res.payload.id == rNote2.id
         res.payload.note == updatedNote
@@ -209,8 +323,8 @@ class RecordServiceSpec extends CustomSpec {
         Map updateInfo = [contents:updatedContents, sendAt:sendAt]
         Result res = service.update(rText1.id, updateInfo)
 
-        then: 
-        res.success == false 
+        then:
+        res.success == false
         res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.update.notEditable"
         res.payload.status == FORBIDDEN
@@ -219,24 +333,24 @@ class RecordServiceSpec extends CustomSpec {
         updateInfo = [sendAt:sendAt]
         res = service.update(rText1.id, updateInfo)
 
-        then: 
-        res.success == true 
+        then:
+        res.success == true
         res.payload instanceof RecordText
         res.payload.id == rText1.id
         res.payload.contents == rText1.contents
-        res.payload.futureText == true 
+        res.payload.futureText == true
         res.payload.sendAt == sendAt
 
         when: "we cancel future text"
         updateInfo = [futureText:false]
         res = service.update(rText1.id, updateInfo)
 
-        then: 
-        res.success == true 
+        then:
+        res.success == true
         res.payload instanceof RecordText
         res.payload.id == rText1.id
         res.payload.contents == rText1.contents
-        res.payload.futureText == false 
+        res.payload.futureText == false
         res.payload.sendAt == sendAt
     }
 }

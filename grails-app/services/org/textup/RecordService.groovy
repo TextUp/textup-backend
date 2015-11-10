@@ -2,33 +2,116 @@ package org.textup
 
 import grails.transaction.Transactional
 import static org.springframework.http.HttpStatus.*
+import org.joda.time.DateTime
 
 @Transactional
 class RecordService {
 
 	def resultFactory
 	def authService
+    def lockService
+
+    /////////////////////
+    // Webhook methods //
+    /////////////////////
+
+    @Transactional(readOnly=true)
+    boolean receiptExistsForApiId(String apiId) {
+        RecordItemReceipt.findByApiId(apiId) != null
+    }
+
+    Result<List<RecordCall>> updateCallStatus(String apiId, String status, Integer duration) {
+        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
+        if (receipts) {
+            lockService.updateCallStatus(receipts, status, duration)
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                "recordService.updateCallStatus.receiptsNotFound", [apiId])
+        }
+    }
+
+    Result<List<RecordCall>> createIncomingRecordCall(PhoneNumber fromNum, Phone to, Map receiptParams) {
+        Closure list = { -> Contact.forPhoneAndNum(to, fromNum.number).list() },
+            create = { -> to.createContact([:], [fromNum.number]) }
+        Map callParams = [outgoing:false]
+        receiptParams.receivedBy = to.number.copy()
+        createRecordCall(list, create, callParams, receiptParams)
+    }
+    Result<List<RecordCall>> createOutgoingRecordCall(Phone from, PhoneNumber toNum, Map receiptParams) {
+        Closure list = { -> Contact.forPhoneAndNum(from, toNum.number).list() },
+            create = { -> from.createContact([:], [toNum.number]) }
+        Map callParams = [outgoing:true]
+        receiptParams.receivedBy = toNum.save()
+        createRecordCall(list, create, callParams, receiptParams)
+    }
+    protected Result<List<RecordCall>> createRecordCall(Closure listContacts, Closure createContact,
+        Map callParams, Map receiptParams) {
+        List<Contact> contacts = listContacts()
+        if (contacts) {
+            lockService.addRecordCallWithReceipt(contacts, callParams, receiptParams)
+        }
+        else {
+            Result res = createContact()
+            if (res.success) {
+                Contact newContact = res.payload
+                res = lockService.addRecordCallWithReceipt(newContact, callParams, receiptParams)
+                if (res.success) { resultFactory.success([res.payload]) }
+                else { res }
+            }
+            else { res }
+        }
+    }
+
+    Result<RecordCall> createRecordCallForContact(long contactId, String from, String to,
+        Integer callDuration, Map receiptParams) {
+
+        Phone phone = Phone.forNumber(Helpers.cleanNumber(from)).get()
+        if (phone) {
+            Contact contact = Contact.forPhoneAndContactId(phone, contactId).get()
+            if (contact) {
+                Map callParams = (callDuration == null) ? [:] : [durationInSeconds:callDuration]
+                receiptParams.receivedBy = new PhoneNumber(number:to)
+                if (receiptParams.receivedBy.validate()) {
+                    lockService.addRecordCallWithReceipt(contact, callParams, receiptParams)
+                }
+                else { resultFactory.failWithValidationErrors(receiptParams.receivedBy.errors) }
+            }
+            else {
+                resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                    "recordService.createRecordCall.contactNotFound", [contactId, fromNum.number])
+            }
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                "recordService.createRecordCall.phoneNotFound", [fromNum.number])
+        }
+    }
+
+    //////////////////
+    // REST methods //
+    //////////////////
 
     Result<RecordResult> create(Class clazz, Long id, Map body) {
     	Phone p1 = clazz.get(id)?.phone
 		Result res = determineClass(body)
 		if (!p1) {
-			resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY, 
+			resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
 				"recordService.create.noPhone")
 		}
 		else if (!res.success) {
-			resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY, 
+			resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
 				"recordService.create.unknownType")
 		}
 		else if (res.payload == RecordText) {
 			Result cRes = toIdsList(body.sendToContacts)
-			if (!cRes.success) return cRes 
+			if (!cRes.success) return cRes
 			Result tRes = toIdsList(body.sendToTags)
-			if (!tRes.success) return tRes 
+			if (!tRes.success) return tRes
 			List<String> nums = Helpers.toList(body.sendToPhoneNumbers)
 			List<Long> cIds = cRes.payload, tIds = tRes.payload
 			if ([nums, cIds, tIds].every { it.isEmpty() }) {
-				resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
+				resultFactory.failWithMessageAndStatus(BAD_REQUEST,
 					"recordService.create.noTextRecipients")
 			}
 			else {
@@ -47,37 +130,37 @@ class RecordService {
 				p1.call(Helpers.toLong(body.callContact))
 			}
 			else {
-				resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
+				resultFactory.failWithMessageAndStatus(BAD_REQUEST,
 					"recordService.create.canCallOnlyOne")
 			}
 		}
 		else { //is RecordNote
 			Long cId = Helpers.toLong(body.addToContact)
 			Contact c1 = Contact.get(cId)
-			if (c1) { 
-				if (authService.hasPermissionsForContact(cId) || 
+			if (c1) {
+				if (authService.hasPermissionsForContact(cId) ||
 					authService.getSharedContactForContact(cId)) {
 					c1.addNote(body)
 				}
 				else {
-					resultFactory.failWithMessageAndStatus(FORBIDDEN, 
+					resultFactory.failWithMessageAndStatus(FORBIDDEN,
 						"recordService.create.contactForbidden", [cId])
 				}
 			}
 			else {
-				resultFactory.failWithMessageAndStatus(NOT_FOUND, 
+				resultFactory.failWithMessageAndStatus(NOT_FOUND,
 					"recordService.create.contactNotFound", [cId])
 			}
 		}
     }
 
     Result<RecordItem> update(Long id, Map body) {
-    	RecordItem rItem = RecordItem.get(id) 
+    	RecordItem rItem = RecordItem.get(id)
     	if (rItem) {
     		Staff loggedIn = authService.getLoggedIn()
 			if (rItem.instanceOf(RecordNote) && rItem.editable) {
 				rItem.with {
-					note = body.note 
+					note = body.note
 					authorName = loggedIn.name
 					authorId = loggedIn.id
 				}
@@ -89,17 +172,17 @@ class RecordService {
 				if (futureBool == false) { rItem.cancelScheduled() }
 				//setting sendAt also automatically sets futureText
 				if (body.sendAt) { rItem.sendAt = body.sendAt }
-				
+
 				if (rItem.save()) { resultFactory.success(rItem) }
 				else { resultFactory.failWithValidationErrors(rItem.errors) }
 			}
     		else {
-    			resultFactory.failWithMessageAndStatus(FORBIDDEN, 
+    			resultFactory.failWithMessageAndStatus(FORBIDDEN,
     				"recordService.update.notEditable", [id])
     		}
     	}
     	else {
-    		resultFactory.failWithMessageAndStatus(NOT_FOUND, 
+    		resultFactory.failWithMessageAndStatus(NOT_FOUND,
     			"recordService.update.itemNotFound", [id])
     	}
     }
@@ -113,10 +196,11 @@ class RecordService {
     	else if (body.contents) { resultFactory.success(RecordText) }
     	else if (body.note) { resultFactory.success(RecordNote) }
     	else {
-    		resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY, 
+    		resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
     			"recordService.create.unknownType")
     	}
     }
+
     private Result<List<Long>> toIdsList(def data) {
     	List rawIds = Helpers.toList(data)
     	List<Long> ids = []
@@ -124,7 +208,7 @@ class RecordService {
     		Long id = Helpers.toLong(rawId)
     		if (id) { ids << id }
     		else {
-    			return resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
+    			return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
     			"recordService.create.idIsNotLong", [rawId])
     		}
 		}

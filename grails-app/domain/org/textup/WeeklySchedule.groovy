@@ -116,13 +116,13 @@ class WeeklySchedule extends Schedule {
     /*
 	Has many:
 	*/
-    
+
     ////////////////////////
     // Accessible methods //
     ////////////////////////
-    
+
     @Override
-    boolean isAvailableAt(DateTime dt) { 
+    boolean isAvailableAt(DateTime dt) {
         if (dt) {
             List<Interval> intervals = rehydrateAsIntervals(dt)
             intervals.any { Interval interval -> interval.contains(dt) }
@@ -135,7 +135,7 @@ class WeeklySchedule extends Schedule {
         nextChangeForDateTime(now, now)
     }
     @Override
-    Result<DateTime> nextAvailable() { 
+    Result<DateTime> nextAvailable() {
         Result res = nextChangeForType(Constants.SCHEDULE_AVAILABLE)
         if (res.success) { resultFactory.success(res.payload.when) }
         else { res }
@@ -161,9 +161,9 @@ class WeeklySchedule extends Schedule {
                 resultFactory.success(this)
             }
         }
-        catch (Throwable e) { 
+        catch (Throwable e) {
             log.debug("WeeklySchedule.update: ${e.message}")
-            resultFactory.failWithThrowable(e) 
+            resultFactory.failWithThrowable(e)
         }
     }
     Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params) {
@@ -177,7 +177,7 @@ class WeeklySchedule extends Schedule {
                 else { return res }
             }
             else {
-                return resultFactory.failWithMessage("weeklySchedule.error.strIntsNotList", 
+                return resultFactory.failWithMessage("weeklySchedule.error.strIntsNotList",
                     [dayEntry.key])
             }
         }
@@ -187,7 +187,7 @@ class WeeklySchedule extends Schedule {
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     protected Result<List<LocalInterval>> parseIntervalStrings(List<String> intStrings) {
         List<LocalInterval> result = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
@@ -195,14 +195,14 @@ class WeeklySchedule extends Schedule {
             try {
                 List<String> times = str.tokenize(_restDelimiter)
                 if (times.size() == 2) {
-                    LocalTime start = dtf.parseLocalTime(times[0]), 
+                    LocalTime start = dtf.parseLocalTime(times[0]),
                         end = dtf.parseLocalTime(times[1])
                     result << new LocalInterval(start, end)
                 }
                 else {
                     return resultFactory.failWithMessage("weeklySchedule.error.invalidRestTimeFormat", [str])
                 }
-            } 
+            }
             catch (e) {
                 log.debug("WeeklyScheduleSpec.parseIntervalStrings: ${e.message}")
                 return resultFactory.failWithMessage("weeklySchedule.error.invalidRestTimeFormat", [str])
@@ -220,20 +220,20 @@ class WeeklySchedule extends Schedule {
                 res = nextChangeForDateTime(sChange.when, sChange.when)
             }
         }
-        res 
+        res
     }
     private Result<ScheduleChange> nextChangeForDateTime(DateTime dt, DateTime initialDt) {
         List<Interval> intervals = rehydrateAsIntervals(dt)
         ScheduleChange sChange = null
         //set the closest upcoming to be impossibly far into the future as an initial value
-        DateTime closestUpcoming = dt.plusWeeks(1) 
+        DateTime closestUpcoming = dt.plusWeeks(1)
         for (interval in intervals) {
             if (interval.contains(initialDt)) {
                 sChange = new ScheduleChange(type:Constants.SCHEDULE_UNAVAILABLE, when:interval.end)
                 break
             }
             else if (interval.isBefore(closestUpcoming) && interval.isAfter(initialDt)) {
-                closestUpcoming = interval.start 
+                closestUpcoming = interval.start
             }
         }
         //If sChange is not null, then we found an interval that contains initialDt
@@ -243,7 +243,7 @@ class WeeklySchedule extends Schedule {
             resultFactory.success(new ScheduleChange(type:Constants.SCHEDULE_AVAILABLE, when:closestUpcoming))
         }
         //If no upcoming intervals on this day, check the next day
-        else { 
+        else {
             //continue searching if we have not yet looked one week into the future
             if (initialDt.plusWeeks(1) != dt) {
                 nextChangeForDateTime(dt.plusDays(1), initialDt)
@@ -254,21 +254,21 @@ class WeeklySchedule extends Schedule {
     private List<Interval> rehydrateAsIntervals(DateTime dt, boolean stitchEndOfDay=true) {
         String intervalsString = getDayOfWeek(dt)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
-        Interval endOfDayInterval = null //stitch intervals that cross between days 
+        Interval endOfDayInterval = null //stitch intervals that cross between days
         List<Interval> intervals = []
         intervalsString.tokenize(_rangeDelimiter).each { String rangeString ->
             List<String> times = rangeString.tokenize(_timeDelimiter)
             if (times.size() == 2) {
                 DateTime start = dtf.parseLocalTime(times[0])
-                    .toDateTime(dt).withZoneRetainFields(DateTimeZone.UTC) 
+                    .toDateTime(dt).withZoneRetainFields(DateTimeZone.UTC)
                 DateTime end = dtf.parseLocalTime(times[1])
-                    .toDateTime(dt).withZoneRetainFields(DateTimeZone.UTC) 
+                    .toDateTime(dt).withZoneRetainFields(DateTimeZone.UTC)
                 Interval interval = new Interval(start, end)
                 //if end of day interval, don't add it to intervals list yet
                 if (isEndOfDay(end)) { endOfDayInterval = interval }
                 else { intervals << interval }
             }
-            else { 
+            else {
                 log.error("WeeklySchedule.rehydrateAsIntervals: for intervals $intervalsString, invalid range: $rangeString")
             }
         }
@@ -286,8 +286,8 @@ class WeeklySchedule extends Schedule {
     private String getDayOfWeek(DateTime dt) {
         switch(dt.dayOfWeek) {
             case DateTimeConstants.SUNDAY: return sunday
-            case DateTimeConstants.MONDAY: return monday 
-            case DateTimeConstants.TUESDAY: return tuesday 
+            case DateTimeConstants.MONDAY: return monday
+            case DateTimeConstants.TUESDAY: return tuesday
             case DateTimeConstants.WEDNESDAY: return wednesday
             case DateTimeConstants.THURSDAY: return thursday
             case DateTimeConstants.FRIDAY: return friday
@@ -296,19 +296,24 @@ class WeeklySchedule extends Schedule {
     }
 
     private List<LocalInterval> cleanLocalIntervals(List<LocalInterval> intervals) {
-        List<LocalInterval> sorted = intervals.sort(), 
+        List<LocalInterval> sorted = intervals.sort(),
             cleaned = sorted.isEmpty() ? [] : [sorted[0]]
         int sortedLen = sorted.size()
-        boolean mergedPrevious = true 
+        boolean mergedPrevious = true
         for(int i = 1; i < sortedLen; i++) {
             LocalInterval int1 = sorted[i - 1], int2 = sorted[i]
             if (int1 != int2) {
                 if (int1.abuts(int2) || int1.overlaps(int2)) {
                     LocalInterval startingInt = mergedPrevious ? cleaned.pop() : int1
-                    cleaned << new LocalInterval(start:startingInt.start, end:int2.end)
-                    mergedPrevious = true 
+                    if (startingInt.end > int2.end) {
+                        cleaned << new LocalInterval(start:startingInt.start, end:startingInt.end)
+                    }
+                    else {
+                        cleaned << new LocalInterval(start:startingInt.start, end:int2.end)
+                    }
+                    mergedPrevious = true
                 }
-                else { 
+                else {
                     cleaned << int2
                     mergedPrevious = false
                 }
@@ -332,11 +337,11 @@ class WeeklySchedule extends Schedule {
             for (rangeString in strInts) {
                 List<String> rTimes = rangeString.tokenize(_timeDelimiter)
                 if (rTimes.size() != 2) { return false }
-                LocalTime start = dtf.parseLocalTime(rTimes[0]), 
+                LocalTime start = dtf.parseLocalTime(rTimes[0]),
                     end = dtf.parseLocalTime(rTimes[1])
-                if (start.isAfter(end) || 
+                if (start.isAfter(end) ||
                     !times.isEmpty() && times.last().isAfter(start)) { return false }
-                (times << start) << end 
+                (times << start) << end
             }
             return true
         }
@@ -346,9 +351,9 @@ class WeeklySchedule extends Schedule {
     /////////////////////
     // Property Access //
     /////////////////////
- 
+
     Map<String,List<LocalInterval>> getAllAsLocalIntervals() {
-        ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", 
+        ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday",
             "saturday"].collectEntries { String dayOfWeek ->
             DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
             List<Interval> localIntervals = []
@@ -359,11 +364,11 @@ class WeeklySchedule extends Schedule {
                     LocalTime end = dtf.parseLocalTime(times[1])
                     localIntervals << new LocalInterval(start, end)
                 }
-                else { 
+                else {
                     log.error("WeeklySchedule.getAsLocalIntervals: for $dayOfWeek, invalid range: $rangeString")
                 }
             }
             [(dayOfWeek):localIntervals]
         }
-    }   
+    }
 }

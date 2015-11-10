@@ -26,16 +26,16 @@ class StaffController extends BaseController {
 
     @RestApiMethod(description="List staff", listing=true)
     @RestApiParams(params=[
-        @RestApiParam(name="max", type="Number", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="max", type="Number", paramType=RestApiParamType.QUERY,
             required=false, description="Max number of results"),
-        @RestApiParam(name="offset", type="Number", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="offset", type="Number", paramType=RestApiParamType.QUERY,
             required=false, description="Offset of results"),
-        @RestApiParam(name="status[]", type="list", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="status[]", type="list", paramType=RestApiParamType.QUERY,
             allowedvalues=["blocked", "pending", "staff", "admin"],
             required=false, description="List of staff statuses to restrict to"),
-        @RestApiParam(name="organizationId", type="Number", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="organizationId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description="Id of the organization to restrict results to"),
-        @RestApiParam(name="teamId", type="Number", paramType=RestApiParamType.QUERY, 
+        @RestApiParam(name="teamId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description="Id of the team to restrict results to")
     ])
     @RestApiErrors(apierrors=[
@@ -44,13 +44,13 @@ class StaffController extends BaseController {
         @RestApiError(code="403", description="You do not have permission to do this.")
     ])
     @Transactional(readOnly=true)
-    def index() { 
+    def index() {
         if (params.organizationId && params.teamId) { badRequest() }
         else if (params.organizationId) {
             Organization org = Organization.get(params.long("organizationId"))
             if (!org) { notFound(); return; }
             if (authService.isAdminAt(org.id)) {
-                genericListActionForCriteria(Staff, Staff.forOrgAndStatuses(org, 
+                genericListActionForCriteria(Staff, Staff.forOrgAndStatuses(org,
                     params.list("status[]")), params)
             }
             else { forbidden() }
@@ -59,7 +59,7 @@ class StaffController extends BaseController {
             Team t1 = Team.get(params.long("teamId"))
             if (!t1) { notFound(); return; }
             if (authService.isAdminForTeam(t1.id) || authService.belongsToSameTeamAs(t1.id)) {
-                genericListActionForCriteria(Staff, Staff.membersForTeam(t1, 
+                genericListActionForCriteria(Staff, Staff.membersForTeam(t1,
                     params.list("status[]")), params)
             }
             else { forbidden() }
@@ -73,7 +73,7 @@ class StaffController extends BaseController {
 
     @RestApiMethod(description="Show specifics about a staff member")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
             description="Id of the staff member")
     ])
     @RestApiErrors(apierrors=[
@@ -94,7 +94,7 @@ class StaffController extends BaseController {
     // Save //
     //////////
 
-    @RestApiMethod(description='''Create a new staff member and associate with 
+    @RestApiMethod(description='''Create a new staff member and associate with
         either a new or existing organization''')
     @RestApiResponseObject(objectIdentifier = "Staff")
     @RestApiBodyObject(name = "Staff")
@@ -104,8 +104,6 @@ class StaffController extends BaseController {
             description="The updated fields created an invalid staff member.")
     ])
     def save() {
-        // println "request.JSON: ${request.JSON}"
-
         if (!validateJsonRequest(request, "staff")) { return; }
         handleSaveResult(Staff, staffService.create(request.JSON.staff))
     }
@@ -116,13 +114,13 @@ class StaffController extends BaseController {
 
     @RestApiMethod(description="Update an existing staff member")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
             description="Id of the staff member")
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),
         @RestApiError(code="404", description="The staff member was not found."),
-        @RestApiError(code="403", description='''The logged in staff member is trying 
+        @RestApiError(code="403", description='''The logged in staff member is trying
             to modify another staff member and is not an admin at the organization.'''),
         @RestApiError(code="422", description="The updated fields created an invalid staff member.")
     ])

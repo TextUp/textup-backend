@@ -28,15 +28,23 @@ class OrganizationController extends BaseController {
         @RestApiParam(name="max", type="Number", required=false,
             paramType=RestApiParamType.QUERY, description="Max number of results"),
         @RestApiParam(name="offset", type="Number", required=false,
-            paramType=RestApiParamType.QUERY, description="Offset of results")
+            paramType=RestApiParamType.QUERY, description="Offset of results"),
+        @RestApiParam(name="search", type="String", required=false,
+            paramType=RestApiParamType.QUERY, description='''String to search for in
+            organization\'s name and address''')
     ])
     @Transactional(readOnly=true)
-    def index() { 
-
-        println Organization.count()
-        println Organization.list()
-
-        genericListAction(Organization, params)
+    def index() {
+        if (params.search) {
+            String query = params.search
+            if (!query.startsWith("%")) query = "%$query"
+            if (!query.endsWith("%")) query = "$query%"
+            genericListActionForCriteria(Organization,
+                Organization.iLikeForNameAndAddress(query), params)
+        }
+        else {
+            genericListAction(Organization, params)
+        }
     }
 
     //////////
@@ -46,7 +54,7 @@ class OrganizationController extends BaseController {
     @RestApiMethod(description="Show specifics about an organization")
     @RestApiResponseObject(objectIdentifier = "Organization")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", 
+        @RestApiParam(name="id", type="Number",
             paramType=RestApiParamType.PATH, description="Id of the organization")
     ])
     @RestApiErrors(apierrors=[
@@ -71,12 +79,12 @@ class OrganizationController extends BaseController {
 
     @RestApiMethod(description="Update an existing organization")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
             description="Id of the organization")
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),
-        @RestApiError(code="403", description='''The logged in staff member is not an admin at this 
+        @RestApiError(code="403", description='''The logged in staff member is not an admin at this
             organization and so cannot make any changes.'''),
         @RestApiError(code="404", description="The organization was not found."),
         @RestApiError(code="422", description="The updated fields created an invalid organization.")

@@ -13,7 +13,7 @@ class ContactNumber extends PhoneNumber {
         number validator:{ val, obj ->
             //number must be unique within a contact
             if (obj.contactHasNumber(obj.contact, val)) { return ["duplicate", obj.contact?.name] }
-            //from superclass 
+            //from superclass
             if (val?.size() != 10) { return ["format"] }
         }
     }
@@ -21,7 +21,7 @@ class ContactNumber extends PhoneNumber {
     /*
 	Has many:
 	*/
-    
+
     ////////////
     // Events //
     ////////////
@@ -45,9 +45,9 @@ class ContactNumber extends PhoneNumber {
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     private boolean contactHasNumber(Contact c, String num) {
-        boolean hasDuplicate = false 
+        boolean hasDuplicate = false
         ContactNumber.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
@@ -62,10 +62,10 @@ class ContactNumber extends PhoneNumber {
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     void setContact(Contact c) {
         if (c) {
-            this.contact = c 
+            this.contact = c
             this.ownerId = c.id
         }
     }

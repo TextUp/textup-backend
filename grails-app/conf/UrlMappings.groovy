@@ -29,10 +29,10 @@ class UrlMappings {
             "/public/staff"(resources:"publicStaff", namespace:"v1") {
                 format = "json"
             }
-            // "/public/records"(resources:"publicRecords", namespace:"v1") {
-            //     format = "json"
-            // }
-            // "/public/numbers"(resources:"publicNumbers", namespace:"v1") {
+            "/public/records"(resources:"publicRecord", namespace:"v1") {
+                format = "json"
+            }
+            // "/public/numbers"(resources:"publicNumber", namespace:"v1") {
             //     format = "json"
             // }
 

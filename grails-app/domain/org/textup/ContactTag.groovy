@@ -12,7 +12,7 @@ class ContactTag {
     @RestApiObjectField(description = "Name of this tag")
     String name
     @RestApiObjectField(
-        description  = "Hex color code for labels for this tag", 
+        description  = "Hex color code for labels for this tag",
         defaultValue = "#000",
         mandatory    = false)
 	String hexColor = "#000"
@@ -32,7 +32,7 @@ class ContactTag {
             apiFieldName      = "doTagActions",
             description       = "List of some actions to perform on contacts with relation to this tag",
             allowedType       = "List<[tagAction]>",
-            useForCreation    = false, 
+            useForCreation    = false,
             presentInResponse = false)
     ])
     static transients = []
@@ -42,7 +42,7 @@ class ContactTag {
             if (val && obj.sameTagExists()) { ["duplicate"] }
         }
     	hexColor blank:false, nullable:false, validator:{ val, obj ->
-    		//String must be a valid hex color 
+    		//String must be a valid hex color
             if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
     	}
     }
@@ -65,18 +65,18 @@ class ContactTag {
     ////////////
 
     def beforeDelete() {
-        ContactTag.withNewSession { 
+        ContactTag.withNewSession {
             TagMembership.where { tag == this }.deleteAll()
         }
     }
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
 
-    //Validation helper 
+    //Validation helper
     private boolean sameTagExists() {
-        boolean duplicateTag = false 
+        boolean duplicateTag = false
         ContactTag.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
@@ -91,7 +91,7 @@ class ContactTag {
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     int countAllMembers() {
         TagMembership.countByTag(this)
     }

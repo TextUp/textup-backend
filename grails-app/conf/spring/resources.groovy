@@ -1,15 +1,23 @@
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.services.s3.AmazonS3Client
 import org.textup.*
-import org.textup.util.*
 import org.textup.rest.*
 import org.textup.rest.marshallers.*
+import org.textup.util.*
 
 // Place your Spring DSL code here
 beans = {
-	def tRestConfig = application.config.textup.rest
+	def tConfig = application.config.textup
+	def tRestConfig = tConfig.rest
 	def restConfig = application.config.grails.plugin.springsecurity.rest.token
 	String v1Namespace = "v1"
 
+	s3Service(AmazonS3Client,
+		new BasicAWSCredentials(tConfig.apiKeys.aws.accessKey, tConfig.apiKeys.aws.secretKey))
 	resultFactory(ResultFactory) { bean ->
+		bean.autowire = true
+	}
+	twimlBuilder(TwimlBuilder) { bean ->
 		bean.autowire = true
 	}
 	restAuthenticationTokenJsonRenderer(CustomRestAuthenticationTokenJsonRenderer) {

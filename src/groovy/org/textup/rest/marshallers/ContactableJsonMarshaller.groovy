@@ -21,10 +21,13 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
             ContactableJsonMarshaller.addContactFields(c1, json)
             json.sharedWith = SharedContact.nonexpiredForContact(c1).list().collect {
                 Map scResult = [:]
-                scResult.dateCreated = it.dateCreated
-                scResult.permission = it.permission
-                scResult.sharedWithId = it.sharedWith.ownerId
-                scResult.sharedWith = Staff.get(it.sharedWith.ownerId)?.name
+                scResult.with {
+                    id = it.id
+                    dateCreated = it.dateCreated
+                    permission = it.permission
+                    sharedWithId = it.sharedWith.ownerId
+                    sharedWith = Staff.get(it.sharedWith.ownerId)?.name
+                }
                 scResult
             }
         }
@@ -54,7 +57,7 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         List<ContactNumber> nums = c1.numbers
         if (nums) {
             jsonToAddTo.numbers = nums.collect {
-                [number:it.number, preference:it.preference]
+                [id:it.id, number:it.number, preference:it.preference]
             }
         }
         def request = WebUtils.retrieveGrailsWebRequest().currentRequest

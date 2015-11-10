@@ -11,15 +11,23 @@ class Organization {
     def resultFactory
 
     @RestApiObjectField(description="Name of the organization")
-	String name 
+	String name
     @RestApiObjectField(description="Location of the organization")
 	Location location
 
     static constraints = {
-    	name blank:false, validator:{ val, obj -> 
+    	name blank:false, validator:{ val, obj ->
     		//must have unique (name, location) combination
     		if (obj.hasNameAndLocation(val, obj.location)) { ["duplicate"] }
     	}
+    }
+    static namedQueries = {
+        iLikeForNameAndAddress { String query ->
+            or {
+                ilike("name", query)
+                location { ilike("address", query) }
+            }
+        }
     }
 
 	/*
@@ -27,21 +35,21 @@ class Organization {
 		Staff
 		Team
 	*/
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     /*
     Staff
      */
     /**
      * Creates a staff for this organization
      * @param  params Map of parameters for this staff with some exceptions:
-     *                personalPhoneNumber must be passed in with the key 
+     *                personalPhoneNumber must be passed in with the key
      *                'personalPhoneNumberAsString' and this methods DOES NOT
      *                support adding a StaffPhone.
-     * @return        Result object containing the new Staff is success, 
+     * @return        Result object containing the new Staff is success,
      *                ValidationError otherwise
      */
     Result<Staff> addStaff(Map params) {
@@ -52,7 +60,7 @@ class Organization {
         }
         s.properties = params
         s.personalPhoneNumberAsString = params.personalPhoneNumberAsString
-        s.org = this 
+        s.org = this
         if (s.save()) { resultFactory.success(s) }
         else { resultFactory.failWithValidationErrors(s.errors) }
     }
@@ -64,7 +72,7 @@ class Organization {
     Result<Team> addTeam(Map params) {
         Team t = new Team()
         t.properties = params
-        t.org = this 
+        t.org = this
         if (t.save()) { resultFactory.success(t) }
         else { resultFactory.failWithValidationErrors(t.errors) }
     }
@@ -84,7 +92,7 @@ class Organization {
 
     private boolean hasNameAndLocation(String n, Location loc) {
         if ([n, loc].any { it == null }) return false
-        boolean hasDuplicate = false 
+        boolean hasDuplicate = false
         Organization.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
@@ -106,9 +114,9 @@ class Organization {
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
     void setLocation(Location l) {
-        this.location = l 
+        this.location = l
         l.save()
     }
 

@@ -11,7 +11,7 @@ class TeamService {
 
     Result<Team> create(Map body) {
         Long orgId = body?.org
-        Organization o1 = Organization.get(orgId) 
+        Organization o1 = Organization.get(orgId)
         if (o1) {
         	Team t1 = new Team()
             t1.with {
@@ -25,7 +25,7 @@ class TeamService {
             }
         	if (body.phone) {
         		TeamPhone p1 = new TeamPhone()
-        		p1.numberAsString = body.phone 
+        		p1.numberAsString = body.phone
         		t1.phone = p1
                 if (!p1.save()) {
                     return resultFactory.failWithValidationErrors(p1.errors)
@@ -35,7 +35,7 @@ class TeamService {
         	else { resultFactory.failWithValidationErrors(t1.errors) }
         }
         else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND, 
+            resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "teamService.create.orgNotFound", [orgId])
         }
     }
@@ -50,13 +50,13 @@ class TeamService {
                     for (tAction in teamActions) {
                         Staff s1 = Staff.get(Helpers.toLong(tAction.id))
                         if (!s1) {
-                            return resultFactory.failWithMessageAndStatus(NOT_FOUND, 
-                                "teamService.update.staffNotFound", 
+                            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                                "teamService.update.staffNotFound",
                                 [tAction.action, tAction.id])
                         }
                         else if (!authService.hasPermissionsForStaff(s1.id)) {
-                            return resultFactory.failWithMessageAndStatus(FORBIDDEN, 
-                                "teamService.update.staffForbidden", 
+                            return resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                                "teamService.update.staffForbidden",
                                 [tAction.id])
                         }
                         switch(tAction.action) {
@@ -68,14 +68,14 @@ class TeamService {
                                 s1.removeFromTeam(t1)
                                 break
                             default:
-                                return resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
-                                    "teamService.update.teamActionInvalid", 
+                                return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                                    "teamService.update.teamActionInvalid",
                                     [tAction.action])
                         }
                     }
                 }
-                else { 
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
+                else {
+                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                         "teamService.update.teamActionNotList")
                 }
             }
@@ -95,9 +95,9 @@ class TeamService {
 	    	}
 	    	if (body.phone) {
 	    		if (t1.phone) { t1.phone.numberAsString = body.phone }
-	    		else { 
+	    		else {
 	    			TeamPhone p1 = new TeamPhone()
-		    		p1.numberAsString = body.phone 
+		    		p1.numberAsString = body.phone
 		    		t1.phone = p1
 	    		}
                 if (!t1.phone.save()) {
@@ -107,8 +107,8 @@ class TeamService {
 	    	if (t1.save()) { resultFactory.success(t1) }
 	    	else { resultFactory.failWithValidationErrors(t1.errors) }
     	}
-    	else { 
-    		resultFactory.failWithMessageAndStatus(NOT_FOUND, 
+    	else {
+    		resultFactory.failWithMessageAndStatus(NOT_FOUND,
     			"teamService.update.notFound", [teamId])
     	}
     }
@@ -120,7 +120,7 @@ class TeamService {
     		resultFactory.success()
     	}
     	else {
-    		resultFactory.failWithMessageAndStatus(NOT_FOUND, 
+    		resultFactory.failWithMessageAndStatus(NOT_FOUND,
     			"teamService.delete.notFound", [teamId])
     	}
     }

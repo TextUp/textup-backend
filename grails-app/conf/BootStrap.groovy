@@ -35,11 +35,11 @@ class BootStrap {
 		        tPh1.save(flush:true, failOnError:true)
 
 				//create staff
-				Staff admin = new Staff(username:"demo-admin", password:"password", 
+				Staff admin = new Staff(username:"demo-admin", password:"password",
 		    		name:"Staff 1", email:"admin@textup.org", org:org, status:Constants.STATUS_ADMIN)
-		    	Staff s1 = new Staff(username:"demo-staff1", password:"password", 
+		    	Staff s1 = new Staff(username:"demo-staff1", password:"password",
 		    		name:"Staff 2", email:"staff1@textup.org", org:org)
-				Staff s2 = new Staff(username:"demo-staff2", password:"password", 
+				Staff s2 = new Staff(username:"demo-staff2", password:"password",
 					name:"Staff 3", email:"staff2@textup.org", org:org)
 		    	admin.personalPhoneNumberAsString = "111 222 3333"
 		    	s1.personalPhoneNumberAsString = "111 222 3333"
@@ -69,7 +69,7 @@ class BootStrap {
 		    	(new TeamMembership(staff:s1, team:t1)).save(flush:true, failOnError:true)
 		    	(new TeamMembership(staff:s1, team:t2)).save(flush:true, failOnError:true)
 		    	(new TeamMembership(staff:s2, team:t2)).save(flush:true, failOnError:true)
-		    	
+
 		    	//create contacts with items
 		    	Contact c1 = p1.createContact([:], ["12223334444"]).payload
 				Contact c2 = p2.createContact([:], ["12223334444"]).payload

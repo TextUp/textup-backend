@@ -44,8 +44,8 @@ grails.project.dependency.resolution = {
         //mavenRepo "http://repository.codehaus.org"
         //mavenRepo "http://download.java.net/maven/2/"
         //mavenRepo "http://repository.jboss.com/maven2/"
-        
-        //for springsecurity rest 
+
+        //for springsecurity rest
         mavenRepo "http://repo.spring.io/milestone"
     }
 
@@ -54,15 +54,26 @@ grails.project.dependency.resolution = {
         runtime 'mysql:mysql-connector-java:5.1.29'
         test "org.grails:grails-datastore-test-support:1.0.2-grails-2.4"
         //for persistance of joda time classes in Hibernate 4
-        compile "org.jadira.usertype:usertype.core:3.2.0.GA" 
+        compile "org.jadira.usertype:usertype.core:3.2.0.GA"
         //for GrailsWebUtil dependency in custom renderer
         runtime "org.springframework:spring-test:4.0.7.RELEASE"
         //for twilio plugin assisting with api calls
         compile "com.twilio.sdk:twilio-java-sdk:3.4.5", {
             exclude "httpclient" //use mandatory 4.3.4 version in sendgrid dependency
         }
-        //for sending emails 
+        //for sending emails
         compile "com.sendgrid:sendgrid-java:2.2.2"
+        //for printing human-reading timestamps
+        compile "org.ocpsoft.prettytime:prettytime:3.0.2.Final"
+        //amazon s3. newer version 1.10.32 returns 'NoSuchFieldError: INSTANCE'
+        compile "com.amazonaws:aws-java-sdk-s3:1.10.11"
+
+        //Workaround to resolve dependency issue with aws-java-sdk and
+        //http-builder (dependent on httpcore:4.0)
+        build "org.apache.httpcomponents:httpcore:4.2"
+        build "org.apache.httpcomponents:httpclient:4.2"
+        runtime "org.apache.httpcomponents:httpcore:4.2"
+        runtime "org.apache.httpcomponents:httpclient:4.2"
     }
 
     plugins {
@@ -80,7 +91,7 @@ grails.project.dependency.resolution = {
             excludes: 'spring-security-core'
         } //includes cors
         compile ":functional-spock:0.7"
-        
+
         compile ":rest-client-builder:2.0.4-SNAPSHOT"
         compile ":remote-control:1.5"
 
@@ -92,11 +103,5 @@ grails.project.dependency.resolution = {
         runtime ":hibernate4:4.3.6.1" // or ":hibernate:3.6.10.18"
         runtime ":database-migration:1.4.0"
         runtime ":console:1.5.4"
-
-        // Uncomment these to enable additional asset-pipeline capabilities
-        //compile ":sass-asset-pipeline:1.9.0"
-        //compile ":less-asset-pipeline:1.10.0"
-        //compile ":coffee-asset-pipeline:1.8.0"
-        //compile ":handlebars-asset-pipeline:1.3.0.3"
     }
 }

@@ -28,7 +28,7 @@ class WeeklyScheduleSpec extends Specification {
 	}
 	def setup() {
 		ResultFactory fac = getResultFactory()
-		fac.messageSource = [getMessage:{ String code, 
+		fac.messageSource = [getMessage:{ String code,
 			Object[] parameters, Locale locale -> code }] as MessageSource
 	}
 	private ResultFactory getResultFactory() {
@@ -37,7 +37,7 @@ class WeeklyScheduleSpec extends Specification {
 
     void "test constraints and deletion"() {
     	given:
-    	LocalTime midnight = new LocalTime(0, 0) 
+    	LocalTime midnight = new LocalTime(0, 0)
     	LocalTime endOfDay = new LocalTime(23, 59)
     	LocalTime t1 = new LocalTime(1, 0)
     	LocalTime t2 = new LocalTime(20, 59)
@@ -45,34 +45,34 @@ class WeeklyScheduleSpec extends Specification {
     	LocalTime t4 = new LocalTime(7, 59)
 
     	when: "we have an empty schedule"
-    	WeeklySchedule s = new WeeklySchedule() 
+    	WeeklySchedule s = new WeeklySchedule()
     	s.resultFactory = getResultFactory()
 
     	then:
-    	s.validate() == true 
+    	s.validate() == true
 
     	when: "update with all valid local intervals for one day"
-        LocalInterval lInt1 = new LocalInterval(t1, t2), 
+        LocalInterval lInt1 = new LocalInterval(t1, t2),
             lInt2 = new LocalInterval(midnight, t2)
     	Result res = s.update(monday:[lInt1, lInt2])
     	String mondayString = "0000,2059"
 
     	then:
-    	s.validate() == true 
-    	res.success == true 
+    	s.validate() == true
+    	res.success == true
     	res.payload.instanceOf(WeeklySchedule)
     	res.payload.monday == mondayString
         res.payload.allAsLocalIntervals.monday.every { it in [lInt1, lInt2] }
 
     	when: "update all valid for another day, leaving out the first day"
-        LocalInterval lInt3 = new LocalInterval(t2, endOfDay), 
+        LocalInterval lInt3 = new LocalInterval(t2, endOfDay),
             lInt4 = new LocalInterval(t3, t4),
             lInt5 = new LocalInterval(t1, t4)
     	res = s.update(tuesday:[lInt3, lInt4, lInt5])
 
     	then: "both days should be preserved"
-    	s.validate() == true 
-    	res.success == true 
+    	s.validate() == true
+    	res.success == true
     	res.payload.instanceOf(WeeklySchedule)
     	res.payload.monday == mondayString
     	res.payload.tuesday == "0100,0759;2059,2359"
@@ -83,24 +83,24 @@ class WeeklyScheduleSpec extends Specification {
 	    res = s.update(invalid:[new LocalInterval(t1, t2), new LocalInterval(midnight, t2)])
 
     	then:
-    	s.validate() == true 
-    	res.success == false 
-    	res.payload instanceof Throwable 
+    	s.validate() == true
+    	res.success == false
+    	res.payload instanceof Throwable
 
     	when: "update with both the same valid time interval"
 	    res = s.update(friday:[new LocalInterval(midnight, t1), new LocalInterval(t3, t4), new LocalInterval(t3, t4)])
 
     	then:
-    	s.validate() == true 
-    	res.success == true 
+    	s.validate() == true
+    	res.success == true
     	res.payload.friday == "0000,0100;0559,0759"
 
     	when: "update with some invalid local intervals"
 		res = s.update(tuesday:[new LocalInterval(t2, t1), new LocalInterval(midnight, t2)])
 
     	then:
-    	s.validate() == true 
-    	res.success == false 
+    	s.validate() == true
+    	res.success == false
     	res.payload instanceof ValidationErrors
     	res.payload.errorCount == 1
 
@@ -108,22 +108,22 @@ class WeeklyScheduleSpec extends Specification {
     	String wedString = "0100,0500;0759,2359"
 	    s.wednesday = wedString
 
-    	then: 
-    	s.validate() == true 
+    	then:
+    	s.validate() == true
     	s.wednesday == wedString
 
     	when: "update string field directly with invalid string"
     	String invalidString = "0100,80 075,10059"
-    	s.thursday = invalidString 
+    	s.thursday = invalidString
 
-    	then: 
-    	s.validate() == false 
+    	then:
+    	s.validate() == false
     	s.errors.errorCount == 1
 
     	when: "clear field with update method"
     	res = s.update(thursday:[])
 
-    	then: 
+    	then:
     	s.validate() == true
     	s.thursday == ""
 
@@ -138,7 +138,7 @@ class WeeklyScheduleSpec extends Specification {
 
     void "test updating with interval strings"() {
         given: "a weekly schedule"
-        WeeklySchedule s = new WeeklySchedule() 
+        WeeklySchedule s = new WeeklySchedule()
         s.resultFactory = getResultFactory()
         s.save(flush:true, failOnError:true)
 
@@ -147,8 +147,8 @@ class WeeklyScheduleSpec extends Specification {
         Result res = s.updateWithIntervalStrings(updateInfo)
 
         then:
-        res.success == false 
-        res.payload instanceof Map 
+        res.success == false
+        res.payload instanceof Map
         res.payload.code == "weeklySchedule.error.strIntsNotList"
 
         when: "the interval strings are invalidly formatted"
@@ -156,8 +156,8 @@ class WeeklyScheduleSpec extends Specification {
         res = s.updateWithIntervalStrings(updateInfo)
 
         then:
-        res.success == false 
-        res.payload instanceof Map 
+        res.success == false
+        res.payload instanceof Map
         res.payload.code == "weeklySchedule.error.invalidRestTimeFormat"
 
         when: "we have a map of lists of valid interval strings"
@@ -169,14 +169,56 @@ class WeeklyScheduleSpec extends Specification {
         ]
 
         then:
-        res.success == true 
+        res.success == true
         s.getAllAsLocalIntervals().monday.size() == 2
         s.getAllAsLocalIntervals().monday.every { it in mondayInts }
+
+        when: "we have an interval overlapping at the end"
+        updateInfo = [wednesday:["0400:0430", "0330:0430"]]
+        res = s.updateWithIntervalStrings(updateInfo)
+        List<LocalInterval> wednesdayInts = [
+            new LocalInterval(new LocalTime(3, 30), new LocalTime(4, 30))
+        ]
+
+        then:
+        res.success == true
+        s.getAllAsLocalIntervals().wednesday.size() == 1
+        s.getAllAsLocalIntervals().wednesday.every { it in wednesdayInts }
+
+        when: "we have an interval overlapping at the end in opposite order"
+        updateInfo = [wednesday:["0330:0430", "0400:0430"]]
+        res = s.updateWithIntervalStrings(updateInfo)
+
+        then:
+        res.success == true
+        s.getAllAsLocalIntervals().wednesday.size() == 1
+        s.getAllAsLocalIntervals().wednesday.every { it in wednesdayInts }
+
+        when: "we have an interval entirely contained in another"
+        updateInfo = [tuesday:["0100:0800", "0330:0430"]]
+        res = s.updateWithIntervalStrings(updateInfo)
+        List<LocalInterval> tuesdayInts = [
+            new LocalInterval(new LocalTime(1, 0), new LocalTime(8, 0))
+        ]
+
+        then:
+        res.success == true
+        s.getAllAsLocalIntervals().tuesday.size() == 1
+        s.getAllAsLocalIntervals().tuesday.every { it in tuesdayInts }
+
+        when: "we have an interval entirely contained in another in opposite order"
+        updateInfo = [tuesday:["0330:0430", "0100:0800"]]
+        res = s.updateWithIntervalStrings(updateInfo)
+
+        then:
+        res.success == true
+        s.getAllAsLocalIntervals().tuesday.size() == 1
+        s.getAllAsLocalIntervals().tuesday.every { it in tuesdayInts }
     }
 
     void "test updating and asking availability"() {
     	given:
-    	LocalTime midnight = new LocalTime(0, 0) 
+    	LocalTime midnight = new LocalTime(0, 0)
     	LocalTime endOfDay = new LocalTime(23, 59)
     	LocalTime t1 = new LocalTime(1, 0)
     	LocalTime t2 = new LocalTime(20, 59)
@@ -188,25 +230,25 @@ class WeeklyScheduleSpec extends Specification {
     	when: "we ask an empty schedule"
     	Result res = s.nextChange()
 
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map 
+    	then:
+    	res.success == false
+    	res.payload instanceof Map
     	res.payload.code == "weeklySchedule.error.nextChangeNotFound"
 
     	when:
     	res = s.nextAvailable()
 
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map 
+    	then:
+    	res.success == false
+    	res.payload instanceof Map
     	res.payload.code == "weeklySchedule.error.nextChangeNotFound"
 
     	when:
     	res = s.nextUnavailable()
 
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map 
+    	then:
+    	res.success == false
+    	res.payload instanceof Map
     	res.payload.code == "weeklySchedule.error.nextChangeNotFound"
 
     	when: "we add some times"
@@ -215,18 +257,18 @@ class WeeklyScheduleSpec extends Specification {
     	s.save(flush:true, failOnError:true)
 
     	DateTime availableTime = DateTime.now(DateTimeZone.UTC).plusDays(1).withHourOfDay(6),
-    		unavailableTime = DateTime.now(DateTimeZone.UTC).plusDays(1).withHourOfDay(2), 
-    		tomorrowAvailable = DateTime.now(DateTimeZone.UTC).plusDays(1).withTimeAtStartOfDay(), 
+    		unavailableTime = DateTime.now(DateTimeZone.UTC).plusDays(1).withHourOfDay(2),
+    		tomorrowAvailable = DateTime.now(DateTimeZone.UTC).plusDays(1).withTimeAtStartOfDay(),
     		tomorrowUnavail = tomorrowAvailable.plusHours(1)
-    	Result nextChange = s.nextChange(), 
+    	Result nextChange = s.nextChange(),
     		nextAvail = s.nextAvailable(),
     		nextUnavail = s.nextUnavailable()
 
     	then:
     	s."$tomString" == "0000,0100;0559,0759;2059,2359"
-    	s.isAvailableAt(availableTime) == true 
+    	s.isAvailableAt(availableTime) == true
     	s.isAvailableAt(unavailableTime) == false
-    	nextChange.payload instanceof ScheduleChange 
+    	nextChange.payload instanceof ScheduleChange
     	nextChange.payload.type == Constants.SCHEDULE_AVAILABLE
     	nextChange.payload.when == tomorrowAvailable
     	nextAvail.payload instanceof DateTime
@@ -250,11 +292,11 @@ class WeeklyScheduleSpec extends Specification {
 				.withHourOfDay(1).withMinuteOfHour(00)
 				.withSecondOfMinute(0).withMillisOfSecond(0)
 
-    	then: 
+    	then:
     	s."$todayString" == ""
     	s."$tomString" == "2059,2359"
     	s."$followingString" == "0000,0100"
-    	nextChange.payload instanceof ScheduleChange 
+    	nextChange.payload instanceof ScheduleChange
     	nextChange.payload.type == Constants.SCHEDULE_AVAILABLE
     	nextChange.payload.when == nextAvailTime
     	nextAvail.payload instanceof DateTime
@@ -266,8 +308,8 @@ class WeeklyScheduleSpec extends Specification {
     private String getDayOfWeekStringFor(DateTime dt) {
     	switch(dt.dayOfWeek) {
             case DateTimeConstants.SUNDAY: return "sunday"
-            case DateTimeConstants.MONDAY: return "monday" 
-            case DateTimeConstants.TUESDAY: return "tuesday" 
+            case DateTimeConstants.MONDAY: return "monday"
+            case DateTimeConstants.TUESDAY: return "tuesday"
             case DateTimeConstants.WEDNESDAY: return "wednesday"
             case DateTimeConstants.THURSDAY: return "thursday"
             case DateTimeConstants.FRIDAY: return "friday"

@@ -1,18 +1,18 @@
-package org.textup.rest 
+package org.textup.rest
 
 import grails.converters.JSON
 import grails.rest.render.*
-import grails.util.GrailsWebUtil 
+import grails.util.GrailsWebUtil
 import groovy.util.logging.Log4j
 import java.io.Writer
 import org.codehaus.groovy.grails.web.converters.exceptions.ConverterException
-import org.codehaus.groovy.grails.web.json.JSONWriter 
-import org.codehaus.groovy.grails.web.mime.MimeType 
+import org.codehaus.groovy.grails.web.json.JSONWriter
+import org.codehaus.groovy.grails.web.mime.MimeType
 
 @Log4j
 class ApiJsonRenderer<T> extends AbstractRenderer<T> {
 
-    String label 
+    String label
 
     ApiJsonRenderer(Class<T> targetClass) {
         super(targetClass, MimeType.JSON)
@@ -24,22 +24,22 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
 
         String view = context.arguments?.view ?: "default"
         ApiJson converter = useJsonWithDetail(view, object)
-        Writer out = context.writer 
+        Writer out = context.writer
         JSONWriter writer = new JSONWriter(out)
 
-        writer.object() 
+        writer.object()
         writer.key(getLabel())
         converter.renderPartial(writer)
 
         if (context.arguments?.meta) {
             writer.key("meta")
-            converter = context.arguments.meta as ApiJson 
+            converter = context.arguments.meta as ApiJson
             converter.renderPartial(writer)
         }
 
         if (context.arguments?.links) {
             writer.key("links")
-            converter = context.arguments.links as ApiJson 
+            converter = context.arguments.links as ApiJson
             converter.renderPartial(writer)
         }
 
@@ -52,13 +52,13 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
             }
         }
 
-        writer.endObject() 
+        writer.endObject()
         out.flush()
         out.close()
     }
 
     ApiJson useJsonWithDetail(String view, T object) {
-        ApiJson converter 
+        ApiJson converter
         try {
             JSON.use(view) {
                 converter = object as ApiJson
@@ -76,7 +76,7 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
                 converter = object as JSON
             }
         }
-        return converter 
+        return converter
     }
 
     String getLabel() {

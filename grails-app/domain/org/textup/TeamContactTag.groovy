@@ -53,15 +53,15 @@ class TeamContactTag extends ContactTag implements Contactable {
             this.record.save()
         }
     }
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
 
     /*
-    Activity 
+    Activity
      */
-    
+
     void updateLastRecordActivity() {
         this.lastRecordActivity = DateTime.now(DateTimeZone.UTC)
     }
@@ -76,17 +76,17 @@ class TeamContactTag extends ContactTag implements Contactable {
         resultFactory.failWithMessage("teamContactTag.error.notSupported", [this.name])
     }
 
-    Result<RecordResult> text(Map params) { 
+    Result<RecordResult> text(Map params) {
         text(params, this.author)
     }
-    Result<RecordResult> text(Map params, Author auth) { 
+    Result<RecordResult> text(Map params, Author auth) {
         //first add to this tag's record
         Result<RecordText> tagRes = addTextToRecord(params, auth)
         if (!tagRes.success) return tagRes
         RecordText tagText = tagRes.payload
         //then text each of the subscribers
         this.subscribers.each { TagMembership membership ->
-            Contact subscriber = membership.contact 
+            Contact subscriber = membership.contact
             Result<RecordResult> subscriberRecordRes = subscriber.text(params, auth)
             if (subscriberRecordRes.success) {
                 RecordText subRec = subscriberRecordRes.payload.newItems[0]
@@ -99,8 +99,8 @@ class TeamContactTag extends ContactTag implements Contactable {
                     newR.save()
                 }
             }
-            else { 
-                log.error('''TeamContactTag.text: error sending text to 
+            else {
+                log.error('''TeamContactTag.text: error sending text to
                     subscriber $sub: ${subscriberRecordRes.payload}''')
             }
         }
@@ -117,22 +117,22 @@ class TeamContactTag extends ContactTag implements Contactable {
         this.record.addText(params, this.author)
     }
 
-    Result<RecordResult> addNote(Map params) { 
+    Result<RecordResult> addNote(Map params) {
         addNote(params, this.author)
     }
-    Result<RecordResult> addNote(Map params, Author auth) { 
+    Result<RecordResult> addNote(Map params, Author auth) {
         resultFactory.convertToRecordResult(record.addNote(params, auth))
     }
 
-    Result<RecordResult> editNote(long noteId, Map params) { 
+    Result<RecordResult> editNote(long noteId, Map params) {
         editNote(noteId, params, this.author)
     }
-    Result<RecordResult> editNote(long noteId, Map params, Author auth) { 
+    Result<RecordResult> editNote(long noteId, Map params, Author auth) {
         resultFactory.convertToRecordResult(record.editNote(noteId, params, auth))
     }
-    
+
     Author getAuthor() {
-        Staff s1 = authService.getLoggedIn() 
+        Staff s1 = authService.getLoggedIn()
         s1 ? new Author(name:s1.name, id:s1.id) : null
     }
 
@@ -152,7 +152,7 @@ class TeamContactTag extends ContactTag implements Contactable {
     /////////////////////
 
     void setRecord(Record r) {
-        this.record = r 
+        this.record = r
         this.record?.save()
     }
 

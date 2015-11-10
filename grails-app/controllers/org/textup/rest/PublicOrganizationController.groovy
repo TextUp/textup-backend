@@ -16,6 +16,4 @@ class PublicOrganizationController extends OrganizationController {
     def update() { notAllowed() }
     @Override
     def delete() { notAllowed() }
-
-    String currentDomainName() { "Organization" }
 }

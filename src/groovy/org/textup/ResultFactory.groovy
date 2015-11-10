@@ -19,7 +19,7 @@ class ResultFactory {
 		new Result(success:true, payload:payload, type:Constants.RESULT_SUCCESS)
 	}
 	Result<?> success() {
-		new Result<?>(success:true, payload:null, type:Constants.RESULT_SUCCESS)	
+		new Result<?>(success:true, payload:null, type:Constants.RESULT_SUCCESS)
 	}
 
 	/////////////

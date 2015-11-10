@@ -31,7 +31,11 @@ class ContactController extends BaseController {
         @RestApiParam(name="status[]", type="List", paramType=RestApiParamType.QUERY,
             allowedvalues=["unread", "active", "archived", "blocked"],
             required=false, description='''List of staff statuses to restrict to.
-            Default showing only unread and active'''),
+            Default showing unread and active. The two shared stauses are only valid when
+            specifying a staffId and will result in a 400 error otherwise.'''),
+        @RestApiParam(name="staffStatus", type="String", required=true,
+            paramType=RestApiParamType.QUERY, description='''One of sharedByMe or sharedWithMe.
+            This takes precedence over the status[] parameter. Only used with a staffId.'''),
         @RestApiParam(name="staffId", type="Number", required=true,
         	paramType=RestApiParamType.QUERY, description="Id of the staff member"),
         @RestApiParam(name="teamId", type="Number", required=true,
@@ -40,8 +44,10 @@ class ContactController extends BaseController {
             paramType=RestApiParamType.QUERY, description="Id of the team member")
     ])
     @RestApiErrors(apierrors=[
-        @RestApiError(code="404",description="The staff or team was not found. Or, the staff or team specified is not allowed to have contacts."),
-        @RestApiError(code="400", description="You must specify either a staff id or team id or tag id, but not more than one."),
+        @RestApiError(code="404",description='''The staff or team was not found. Or, the
+            staff or team specified is not allowed to have contacts.'''),
+        @RestApiError(code="400", description='''You must specify either a staff id or
+            team id or tag id, but not more than one. Or you specified an invalid staffStatus.'''),
         @RestApiError(code="403", description="You do not have permission to do this.")
     ])
     @Transactional(readOnly=true)
@@ -53,10 +59,36 @@ class ContactController extends BaseController {
             Staff s1 = Staff.get(params.long("staffId"))
             if (!s1 || !s1.phone) { notFound() }
             else if (authService.isLoggedIn(s1.id)) {
-                params.status = params.list("status[]")
-                Closure count = { Map params -> s1.phone.countContacts(params) },
-                    list = { Map params -> s1.phone.getContacts(params) }
-                genericListActionForClosures(Contact, count, list, params)
+                if (params.staffStatus) {
+                    if (params.staffStatus == "sharedByMe") {
+                        Closure count = { params ->
+                                s1.phone.countSharedByMe()
+                            }, list  = { params ->
+                                List<SharedContact> scList = s1.phone.getSharedByMe(params)
+                                scList ? scList*.contact : []
+                            }
+                        genericListActionForClosures(Contact, count, list, params)
+                    }
+                    else if (params.staffStatus == "sharedWithMe") {
+                        Closure count = { params ->
+                                s1.phone.countSharedWithMe()
+                            }, list = { params ->
+                                List<SharedContact> scList = s1.phone.getSharedWithMe(params)
+                                scList ? scList*.contact : []
+                            }
+                        genericListActionForClosures(Contact, count, list, params)
+                    }
+                    else {
+                        respondWithError(g.message(code:"contactController.index.invalidStaffStatus",
+                            args:[params.staffStatus]), BAD_REQUEST)
+                    }
+                }
+                else {
+                    params.status = params.list("status[]")
+                    Closure count = { Map params -> s1.phone.countContacts(params) },
+                        list = { Map params -> s1.phone.getContacts(params) }
+                    genericListActionForClosures(Contact, count, list, params)
+                }
             }
             else { forbidden() }
         }
