@@ -21,7 +21,7 @@ class ContactService {
     		if (body.doNumberActions) {
     			Result validateRes = validateNumberActions(body.doNumberActions)
     			if (!validateRes.success) return validateRes
-    			body.doNumberActions.sort { it.preference }.each { 
+    			body.doNumberActions.sort { it.preference }.each {
     				if (it.action == Constants.NUMBER_ACTION_MERGE) {
     					nums << it.number
     				}
@@ -30,7 +30,7 @@ class ContactService {
     		p1.createContact(body, nums)
     	}
     	else {
-    		resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY, 
+    		resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
 				"contactService.create.noPhone")
     	}
 	}
@@ -58,16 +58,16 @@ class ContactService {
                         }
                     }
                     else {
-                        return resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
+                        return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                             "contactService.update.shareActionNotList")
                     }
                 }
                 else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
+                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                         "contactService.update.cannotShareFromTeam", [c1.id])
                 }
     		}
-    		//do number actions 
+    		//do number actions
     		for (nAction in numActions) {
     			Result res = doNumberAction(c1, nAction)
 				if (!res.success) return res
@@ -78,11 +78,11 @@ class ContactService {
     			if (body.note) note = body.note
     			if (body.status) status = body.status
     		}
-    		if (c1.save()) { resultFactory.success(c1) } 
+    		if (c1.save()) { resultFactory.success(c1) }
 	    	else { resultFactory.failWithValidationErrors(c1.errors) }
     	}
     	else {
-    		resultFactory.failWithMessageAndStatus(NOT_FOUND, 
+    		resultFactory.failWithMessageAndStatus(NOT_FOUND,
     			"contactService.update.notFound", [cId])
     	}
 	}
@@ -94,11 +94,11 @@ class ContactService {
 			resultFactory.success()
     	}
     	else {
-    		resultFactory.failWithMessageAndStatus(NOT_FOUND, 
+    		resultFactory.failWithMessageAndStatus(NOT_FOUND,
     			"contactService.delete.notFound", [cId])
     	}
     }
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
@@ -106,16 +106,16 @@ class ContactService {
     private Result doShareAction(Contact c1, Map sAction, Staff owner) {
     	Staff s1 = Staff.get(Helpers.toLong(sAction.id))
 		if (!s1) {
-			return resultFactory.failWithMessageAndStatus(NOT_FOUND, 
-                "contactService.update.staffNotFound", 
+			return resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                "contactService.update.staffNotFound",
                 [sAction.action, sAction.id])
 		}
 		else if (!authService.canShareContactWithStaff(c1.id, s1.id)) {
-			return resultFactory.failWithMessageAndStatus(FORBIDDEN, 
-                "contactService.update.shareDifferentTeam", 
+			return resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                "contactService.update.shareDifferentTeam",
                 [sAction.id])
 		}
-        Result res 
+        Result res
 		switch(sAction.action) {
 			case Constants.SHARE_ACTION_MERGE:
 				res = owner.phone.shareContact(c1, s1.phone, sAction.permission)
@@ -124,8 +124,8 @@ class ContactService {
 				res = owner.phone.stopSharingWith(s1.phone)
 				break
 			default:
-                return resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
-                    "contactService.update.shareActionInvalid", 
+                return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                    "contactService.update.shareActionInvalid",
                     [sAction.action])
 		}
 		res
@@ -144,16 +144,16 @@ class ContactService {
     private Result validateNumberActions(def numActions) {
 		if (numActions instanceof List) {
 			for (nAction in numActions) {
-				if (nAction.action != Constants.NUMBER_ACTION_MERGE && 
+				if (nAction.action != Constants.NUMBER_ACTION_MERGE &&
 					nAction.action != Constants.NUMBER_ACTION_DELETE) {
-					return resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
-                        "contactService.error.numberActionInvalid", 
+					return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                        "contactService.error.numberActionInvalid",
                         [nAction.action])
 				}
 			}
 		}
 		else {
-			return resultFactory.failWithMessageAndStatus(BAD_REQUEST, 
+			return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                 "contactService.error.numberActionNotList")
 		}
 		resultFactory.success()

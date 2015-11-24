@@ -84,7 +84,7 @@ class BaseController {
             }
             String label = (target && target instanceof String) ? target : "result"
             render status:OK
-            respond([(label):[], meta:[:]])
+            respond([(label):[], meta:[total:0]])
         }
     }
 
@@ -236,6 +236,9 @@ class BaseController {
                 break
             case Constants.RESULT_MESSAGE_STATUS:
                 respondWithError(res.payload.message, res.payload.status)
+                break
+            case Constants.RESULT_MESSAGE_LIST_STATUS:
+                respondWithErrors(res.payload.messages, res.payload.status)
                 break
             case Constants.RESULT_THROWABLE:
                 respondWithError(res.payload.message, BAD_REQUEST)

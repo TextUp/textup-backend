@@ -20,8 +20,6 @@ class StaffService {
     		password = body.password
     		name = body.name
     		email = body.email
-    		personalPhoneNumberAsString = body.personalPhoneNumber
-
     		if (body.manualSchedule) manualSchedule = body.manualSchedule
     		if (body.isAvailable) isAvailable = body.isAvailable
             //NOT allowed to change status away from default 'pending'
@@ -31,6 +29,7 @@ class StaffService {
 			def o = body.org
             //if we specify id then we must be associating with existing
             if (o.id) {
+                s1.status = Constants.STATUS_PENDING
                 org = Organization.get(o.id)
                 if (!org) {
                     return resultFactory.failWithMessageAndStatus(NOT_FOUND,
@@ -38,6 +37,9 @@ class StaffService {
                 }
             }
             else {
+                //We will manually change this staff status to ADMIN
+                //after we approve the organization
+                s1.status = Constants.STATUS_PENDING
                 org = new Organization(o)
                 org.location = new Location(o.location)
                 if (!org.location.save()) { //needs to be before org.save()
@@ -46,7 +48,6 @@ class StaffService {
                 if (!org.save()) {
                     return resultFactory.failWithValidationErrors(org.errors)
                 }
-                s1.status = Constants.STATUS_ADMIN
             }
 			s1.org = org
 		}

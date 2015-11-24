@@ -127,7 +127,7 @@ class StaffController extends BaseController {
     def update() {
         if (!validateJsonRequest(request, "staff")) { return; }
         Long id = params.long("id")
-        if (authService.exists(Organization, id)) {
+        if (authService.exists(Staff, id)) {
             if (authService.isLoggedIn(id) || authService.isAdminAtSameOrgAs(id)) {
                 handleUpdateResult(Staff, staffService.update(id, request.JSON.staff))
             }

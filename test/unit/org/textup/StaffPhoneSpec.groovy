@@ -12,19 +12,19 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
 
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-	ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-	RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-	TeamMembership, StaffPhone, Staff, Team, Organization, 
+@Domain([TagMembership, Contact, Phone, ContactTag,
+	ContactNumber, Record, RecordItem, RecordNote, RecordText,
+	RecordCall, RecordItemReceipt, PhoneNumber, SharedContact,
+	TeamMembership, StaffPhone, Staff, Team, Organization,
 	Schedule, Location, TeamPhone, WeeklySchedule])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class StaffPhoneSpec extends Specification {
 
-	@Shared 
+	@Shared
 	int iterationCount = 1
 
-	Organization org 
+	Organization org
 	Team t1, t2
 	Staff s1, s2, s3
 	StaffPhone p1, p2, p3
@@ -52,11 +52,11 @@ class StaffPhoneSpec extends Specification {
 		t1.save(flush:true, failOnError:true)
 		t2.save(flush:true, failOnError:true)
 
-		s1 = new Staff(username:"3staff$iterationCount", password:"password", 
+		s1 = new Staff(username:"3staff$iterationCount", password:"password",
     		name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org)
-    	s2 = new Staff(username:"4staff$iterationCount", password:"password", 
+    	s2 = new Staff(username:"4staff$iterationCount", password:"password",
     		name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org)
-		s3 = new Staff(username:"5staff$iterationCount", password:"password", 
+		s3 = new Staff(username:"5staff$iterationCount", password:"password",
 			name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org)
     	s1.personalPhoneNumberAsString = "111 222 3333"
     	s2.personalPhoneNumberAsString = "111 222 3333"
@@ -64,7 +64,7 @@ class StaffPhoneSpec extends Specification {
     	s1.save(flush:true, failOnError:true)
 		s2.save(flush:true, failOnError:true)
 		s3.save(flush:true, failOnError:true)
-    	
+
     	p1 = new StaffPhone()
     	p1.numberAsString = "100333444${iterationCount}"
     	s1.phone = p1
@@ -90,11 +90,11 @@ class StaffPhoneSpec extends Specification {
 
 	void "test constraints and deletion"() {
 		given: "a staff member"
-		Staff staff = new Staff(username:"6staff$iterationCount", password:"password", 
+		Staff staff = new Staff(username:"6staff$iterationCount", password:"password",
 			name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org)
 		staff.personalPhoneNumberAsString = "111 222 3333"
 		staff.save(flush:true, failOnError:true)
-		Staff staff2 = new Staff(username:"7staff$iterationCount", password:"password", 
+		Staff staff2 = new Staff(username:"7staff$iterationCount", password:"password",
 			name:"Staff$iterationCount", email:"staff$iterationCount@textup.org", org:org)
 		staff2.personalPhoneNumberAsString = "111 222 3333"
 		staff2.save(flush:true, failOnError:true)
@@ -107,11 +107,11 @@ class StaffPhoneSpec extends Specification {
     	p.validate() == false
     	p.errors.errorCount == 1
 
-    	when: "we have a phone with a unique number" 
+    	when: "we have a phone with a unique number"
     	p.numberAsString = "8223334444"
 
-    	then: 
-    	p.validate() == true 
+    	then:
+    	p.validate() == true
 
     	when: "we try to add a phone with a duplicate number"
     	p.save(flush:true)
@@ -119,19 +119,19 @@ class StaffPhoneSpec extends Specification {
     	staff2.phone = p2
     	p2.numberAsString = "8223334444"
 
-    	then: 
+    	then:
     	p2.validate() == false
     	p2.errors.errorCount == 1
 
     	when: "we add a phone with a unique number"
     	p2.numberAsString = "8223334445"
 
-    	then: 
-    	p2.validate() == true 
+    	then:
+    	p2.validate() == true
 
     	when: "we add associated classes WITHOUT ContactNumbers, then delete the phone"
     	p2.save(flush:true)
-    	ContactTag tag1 = new ContactTag(phone:p2, name:"tag1"), 
+    	ContactTag tag1 = new ContactTag(phone:p2, name:"tag1"),
     		tag2 = new ContactTag(phone:p2, name:"tag2")
     	tag1.save(flush:true, failOnError:true)
     	tag2.save(flush:true, failOnError:true)
@@ -154,15 +154,15 @@ class StaffPhoneSpec extends Specification {
     	[sc1, sc2]*.save(flush:true, failOnError:true)
 
     	//break link between staff and phone
-    	staff2.phone = null 
+    	staff2.phone = null
     	staff2.save(flush:true, failOnError:true)
 
-    	int tBaseline = ContactTag.count(), cBaseline = Contact.count(), 
-    		mBaseline = TagMembership.count(), pBaseline = StaffPhone.count(), 
+    	int tBaseline = ContactTag.count(), cBaseline = Contact.count(),
+    		mBaseline = TagMembership.count(), pBaseline = StaffPhone.count(),
     		rBaseline = Record.count(), scBaseline = SharedContact.count()
 	    p2.delete(flush:true)
 
-    	then: 
+    	then:
     	ContactTag.count() == tBaseline - 2
 		Contact.count() == cBaseline - 2
 		TagMembership.count() == mBaseline - 2
@@ -172,9 +172,9 @@ class StaffPhoneSpec extends Specification {
     }
 
 	void "test sharing contact operations"() {
-		given: 
+		given:
 		Contact c1 = p1.createContact().payload
-		Contact c2 = p1.createContact().payload 
+		Contact c2 = p1.createContact().payload
 		Contact c3 = p1.createContact().payload
 		Contact c4 = p1.createContact().payload
 		Contact o1 = p2.createContact().payload
@@ -184,15 +184,15 @@ class StaffPhoneSpec extends Specification {
     	when: "we start sharing one of our contacts with someone on a different team"
     	Result res = p1.shareContact(c1, p3, Constants.SHARED_DELEGATE)
 
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map 
+    	then:
+    	res.success == false
+    	res.payload instanceof Map
     	res.payload.code == "staffPhone.error.differentTeams"
 
     	when: "we start sharing contact with someone on the same team "
     	res = p1.shareContact(c1, p2, Constants.SHARED_DELEGATE)
 
-    	then: 
+    	then:
     	res.success == true
     	res.payload.instanceOf(SharedContact)
 
@@ -216,7 +216,7 @@ class StaffPhoneSpec extends Specification {
     		sc.save(flush:true, failOnError:true)
 		}
 
-    	then: 
+    	then:
     	p1.sharedByMe == [sc2, sc1, sc0]
     	p1.sharedWithMe == [sc3]
 
@@ -225,22 +225,22 @@ class StaffPhoneSpec extends Specification {
 
     	then:
     	res.success == false
-    	res.payload instanceof Map 
+    	res.payload instanceof Map
     	res.payload.code == "staffPhone.error.contactNotMine"
 
     	when: "we stop sharing contact that is not shared"
     	res = p1.stopSharing(c4)
 
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map 
+    	then:
+    	res.success == false
+    	res.payload instanceof Map
     	res.payload.code == "staffPhone.error.allNotShared"
 
     	when: "we stop sharing by staff phones"
     	assert p1.stopSharingWith(p2).success
     	p1.save(flush:true, failOnError:true)
 
-    	then: 
+    	then:
     	p1.sharedByMe == []
     	p1.sharedWithMe == [sc3]
 
@@ -249,20 +249,20 @@ class StaffPhoneSpec extends Specification {
     	p2.save(flush:true, failOnError:true)
     	assert p2.sharedByMe == [sc4, sc3] || p2.sharedByMe == [sc3, sc4] //same underlying contact
     	assert p1.sharedWithMe == [sc3] && p3.sharedWithMe == [sc4]
-    	
+
     	p2.stopSharing(o1)
     	p2.save(flush:true, failOnError:true)
 
-    	then: 
+    	then:
     	p2.sharedByMe == []
     	p1.sharedWithMe == []
     	p3.sharedWithMe == []
 	}
 
 	void "test getting contacts also gets shared contacts mixed in"() {
-		given: 
+		given:
 		Contact c1 = p1.createContact().payload
-		Contact c2 = p1.createContact().payload 
+		Contact c2 = p1.createContact().payload
 		Contact c3 = p1.createContact().payload
 		Contact c4 = p1.createContact().payload
 		Contact o1 = p2.createContact().payload
@@ -281,10 +281,10 @@ class StaffPhoneSpec extends Specification {
 		}
 
 		when: "we list all our contacts"
-		List<Contactable> p1Contactables = p1.contacts, 
+		List<Contactable> p1Contactables = p1.contacts,
 			p2Contactables = p2.contacts
 
-		then: 
+		then:
 		p1Contactables == [sc3, c3, c2, c1, c4]
 		p2Contactables == [o1, sc2, sc1] //adding time to sc3 modifies o1
 
@@ -296,7 +296,7 @@ class StaffPhoneSpec extends Specification {
 		p1Contactables = p1.contacts
 		p2Contactables = p2.contacts
 
-		then: 
+		then:
 		p1Contactables == [c3, c4, sc3, c2, c1]
 		p2Contactables == [sc2, o1, sc1]
 
@@ -307,7 +307,7 @@ class StaffPhoneSpec extends Specification {
 		p1Contactables = p1.contacts
 		p2Contactables = p2.contacts
 
-		then: 
+		then:
 		p1Contactables == [c3, c4, sc3, c2, c1]
 		p2Contactables == [o1, sc1]
 	}

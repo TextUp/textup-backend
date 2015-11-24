@@ -96,6 +96,7 @@ class Staff {
 		username blank:false, unique:true
 		password blank:false
 		email email:true
+        personalPhoneNumber nullable:true
 		status inList:[Constants.STATUS_BLOCKED, Constants.STATUS_PENDING,
             Constants.STATUS_STAFF, Constants.STATUS_ADMIN]
         phone nullable:true
@@ -300,7 +301,7 @@ class Staff {
 
     void setSchedule(Schedule s) {
         this.schedule = s
-        this.schedule.save()
+        this.schedule?.save()
     }
 
     void setPersonalPhoneNumberAsString(String num) {

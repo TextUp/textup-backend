@@ -43,8 +43,8 @@ class Contact implements Contactable {
     Record record
     @RestApiObjectField(
         apiFieldName   = "numbers",
-        description    = "Numbers that pertain to this contact. Order in this list determines priorit",
-        allowedType    = "List<String>",
+        description    = "Numbers that pertain to this contact. Order in this list determines priority",
+        allowedType    = "List<ContactNumber>",
         useForCreation = false)
     List numbers
 

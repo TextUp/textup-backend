@@ -58,7 +58,7 @@ grails.project.dependency.resolution = {
         //for GrailsWebUtil dependency in custom renderer
         runtime "org.springframework:spring-test:4.0.7.RELEASE"
         //for twilio plugin assisting with api calls
-        compile "com.twilio.sdk:twilio-java-sdk:3.4.5", {
+        compile "com.twilio.sdk:twilio-java-sdk:5.3.0", {
             exclude "httpclient" //use mandatory 4.3.4 version in sendgrid dependency
         }
         //for sending emails

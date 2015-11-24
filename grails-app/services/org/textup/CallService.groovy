@@ -42,7 +42,7 @@ class CallService {
         if (call) {
             Contact contact = Contact.forRecord(call.record).get()
             if (contact) {
-                lockService.retryCall(call, contact, this.&stopOnSuccessOrInternalError)
+                lockService.retry(call, contact, this.&stopOnSuccessOrInternalError)
             }
             else {
                 resultFactory.failWithMessage("callService.retry.contactNotFoundForCall", [call.id])
@@ -286,6 +286,9 @@ class CallService {
         Result res = resultFactory.success(call)
         for (toNum in toNums) {
             res = this.tryCall(call, toNum, from)
+
+            println "TRY CALL RESULT: $res"
+
             //return on first success or if 500-level error
             if (res.success || (!res.success && res.payload?.errorCode > 499)) {
                 return res
@@ -295,8 +298,16 @@ class CallService {
     }
 
     protected Result<RecordCall> tryCall(RecordCall call, String to, String from) {
-        String callback = linkGenerator.link(namespace:"v1", resource:"publicRecord",
-            action:"save", absolute:true, params:[handle:Constants.CALL_STATUS])
+        // String callback = linkGenerator.link(namespace:"v1", resource:"publicRecord",
+        //     action:"save", absolute:true, params:[handle:Constants.CALL_STATUS])
+
+
+
+        String callback = "https://08a91b1b.ngrok.io/v1/public/records?handle=status"
+
+
+
+
         RecordCall.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
@@ -304,10 +315,11 @@ class CallService {
                 if (res.success) {
                     Call c = res.payload
                     RecordItemReceipt receipt = new RecordItemReceipt(apiId:c.sid)
-                    receipt.setReceivedByAsString = to
+                    receipt.receivedByAsString = to
                     call.addToReceipts(receipt)
                     if (receipt.save()) {
-                        if (call.save()) { resultFactory.success(call) }
+                        //if not merge, we get org.hibernate.NonUniqueObjectException
+                        if (call.merge()) { resultFactory.success(call) }
                         else { resultFactory.failWithValidationErrors(call.errors) }
                     }
                     else { resultFactory.failWithValidationErrors(receipt.errors) }
@@ -348,7 +360,7 @@ class CallService {
         try {
             TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
             CallFactory cFactory = client.account.callFactory
-            cFactory.create(To:to, From:from, Url:callback)
+            resultFactory.success(cFactory.create(To:to, From:from, Url:callback))
         }
         catch (Throwable e) {
             log.error("CallService.makeCallHelper: ${e.message}")

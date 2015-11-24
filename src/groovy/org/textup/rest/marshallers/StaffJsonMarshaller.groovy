@@ -18,7 +18,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             email = s1.email
             org = s1.org.id
             status = s1.status
-            personalPhoneNumber = s1.personalPhoneNumber.number
+            if (s1.personalPhoneNumber) personalPhoneNumber = s1.personalPhoneNumber.number
             if (s1.phone) phone = s1.phone.number.number
             manualSchedule = s1.manualSchedule
             if (manualSchedule == true) { isAvailable = s1.isAvailable }

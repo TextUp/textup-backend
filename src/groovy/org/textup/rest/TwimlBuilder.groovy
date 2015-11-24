@@ -18,6 +18,7 @@ class TwimlBuilder {
     @Autowired
     ResultFactory resultFactory
 
+    //Call codes
     static final String CALL_SELF_GREETING = "callSelfGreeting"
     static final String CALL_SELF_ERROR = "callSelfError"
     static final String CALL_SELF_CONNECTING = "callSelfConnecting"
@@ -31,6 +32,9 @@ class TwimlBuilder {
     static final String CALL_SERVER_ERROR = "callServerError"
     static final int CALL_TEAM_CONNECT = 0
 
+    //Text codes
+    static final String TEXT_STAFF_AWAY = "textStaffAway"
+
     static int convertTagIndexToOptionNumber(int index) {
         index + 1 //zero is CALL_TEAM_CONNECT
     }
@@ -38,9 +42,15 @@ class TwimlBuilder {
         optionNum - 1 //reverse operation
     }
 
+    Result<Closure> noResponse() { resultFactory.success({ Response { } }) }
     Result<Closure> buildXmlFor(String code, Map params=[:]) {
         Closure result = null
         switch (code) {
+
+            ///////////
+            // Calls //
+            ///////////
+
             case CALL_SELF_GREETING:
                 String welcome = getMessage("twimlBuilder.staffToSelfWelcome"),
                     directions = getMessage("twimlBuilder.staffToSelfDirections"),
@@ -114,7 +124,7 @@ class TwimlBuilder {
                         Response {
                             Say(connecting)
                             Dial {
-                                for (num in paras.numsToCall) {
+                                for (num in params.numsToCall) {
                                     Number(num)
                                 }
                             }
@@ -245,6 +255,19 @@ class TwimlBuilder {
                     }
                 }
                 break
+
+            ///////////
+            // Texts //
+            ///////////
+
+            case TEXT_STAFF_AWAY:
+                String message = getMessage("twimlBuilder.textStaffAway")
+                result = {
+                    Response {
+                        Message(message)
+                    }
+                }
+                break
         }
         if (result) { resultFactory.success(result) }
         else {
@@ -266,7 +289,7 @@ class TwimlBuilder {
     }
 
     protected String getLink(Map linkParams) {
-        linkGenerator.link(namespace:"v1", esource:"publicRecord", action:"save",
+        linkGenerator.link(namespace:"v1", resource:"publicRecord", action:"save",
             params:linkParams, absolute:true)
     }
 }

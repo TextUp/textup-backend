@@ -1,11 +1,13 @@
 package org.textup
 
 import grails.validation.ValidationErrors
+import groovy.util.logging.Log4j
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.springframework.http.HttpStatus
 
+@Log4j
 class ResultFactory {
 
 	@Autowired
@@ -34,6 +36,9 @@ class ResultFactory {
 		String message = messageSource.getMessage(messageCode, params as Object[], LCH.getLocale())
 		new Result<Map>(success:false, payload:[code:messageCode, message:message, status:status], type:Constants.RESULT_MESSAGE_STATUS)
 	}
+    Result<Map> failWithMessagesAndStatus(HttpStatus status, Collection<String> messages) {
+        new Result<Map>(success:false, payload:[status:status, messages:messages], type:Constants.RESULT_MESSAGE_LIST_STATUS)
+    }
 	Result<Throwable> failWithThrowable(Throwable t) {
 		new Result<Throwable>(success:false, payload:t, type:Constants.RESULT_THROWABLE)
 	}
@@ -55,5 +60,35 @@ class ResultFactory {
             res = this.success(recResult)
         }
         res
+    }
+
+    /////////////////////
+    // Utility methods //
+    /////////////////////
+
+    Collection<String> extractMessages(Result res) {
+        Collection<String> messages = []
+        switch (res.type) {
+            case Constants.RESULT_VALIDATION:
+                res.payload.allErrors.each {
+                    messages << messageSource.getMessage(it, LCH.getLocale())
+                }
+                break
+            case Constants.RESULT_MESSAGE_STATUS:
+                messages << res.payload.message
+                break
+            case Constants.RESULT_MESSAGE_LIST_STATUS:
+                messages += res.payload.messages
+                break
+            case Constants.RESULT_THROWABLE:
+                messages << res.payload.message
+                break
+            case Constants.RESULT_MESSAGE:
+                messages << res.payload.message
+                break
+            default:
+                log.error("ResultFactory.extractMessage: result $res has an invalid type!")
+        }
+        messages
     }
 }

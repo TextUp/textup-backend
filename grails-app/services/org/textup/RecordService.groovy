@@ -11,57 +11,80 @@ class RecordService {
 	def authService
     def lockService
 
-    /////////////////////
-    // Webhook methods //
-    /////////////////////
+    /////////////////////////////
+    // Webhook utility methods //
+    /////////////////////////////
 
     @Transactional(readOnly=true)
     boolean receiptExistsForApiId(String apiId) {
         RecordItemReceipt.findByApiId(apiId) != null
     }
 
-    Result<List<RecordCall>> updateCallStatus(String apiId, String status, Integer duration) {
+    Result<List<RecordItemReceipt>> updateStatus(String apiId, String status, Integer duration=null) {
         List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
-        if (receipts) {
-            lockService.updateCallStatus(receipts, status, duration)
-        }
+        if (receipts) { lockService.updateStatus(receipts, status, duration) }
         else {
             resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "recordService.updateCallStatus.receiptsNotFound", [apiId])
+                "recordService.updateStatus.receiptsNotFound", [apiId])
         }
     }
 
+    /////////////////////////////////
+    // Webhook for calls and texts //
+    /////////////////////////////////
+
+    Result<List<RecordText>> createIncomingRecordText(PhoneNumber fromNum, Phone to,
+        Map textParams, Map receiptParams) {
+        createIncoming(RecordItemType.RECORD_TEXT, fromNum, to, textParams, receiptParams)
+    }
+    Result<List<RecordCall>> createOutgoingRecordCall(Phone from, PhoneNumber toNum,
+        Map textParams, Map receiptParams) {
+        createOutgoing(RecordItemType.RECORD_TEXT, from, toNum, textParams, receiptParams)
+    }
     Result<List<RecordCall>> createIncomingRecordCall(PhoneNumber fromNum, Phone to, Map receiptParams) {
-        Closure list = { -> Contact.forPhoneAndNum(to, fromNum.number).list() },
-            create = { -> to.createContact([:], [fromNum.number]) }
-        Map callParams = [outgoing:false]
-        receiptParams.receivedBy = to.number.copy()
-        createRecordCall(list, create, callParams, receiptParams)
+        createIncoming(RecordItemType.RECORD_CALL, fromNum, to, [:], receiptParams)
     }
     Result<List<RecordCall>> createOutgoingRecordCall(Phone from, PhoneNumber toNum, Map receiptParams) {
+        createOutgoing(RecordItemType.RECORD_CALL, from, toNum, [:], receiptParams)
+    }
+
+    protected Result<List<RecordText>> createIncoming(RecordItemType type, PhoneNumber fromNum,
+        Phone to, Map itemParams, Map receiptParams) {
+        Closure list = { -> Contact.forPhoneAndNum(to, fromNum.number).list() },
+            create = { -> to.createContact([:], [fromNum.number]) }
+        itemParams.outgoing = false
+        receiptParams.receivedBy = to.number.copy()
+        createRecordItem(type, list, create, itemParams, receiptParams)
+    }
+    protected Result<List<RecordCall>> createOutgoing(RecordItemType type, Phone from,
+        PhoneNumber toNum, Map itemParams, Map receiptParams) {
         Closure list = { -> Contact.forPhoneAndNum(from, toNum.number).list() },
             create = { -> from.createContact([:], [toNum.number]) }
-        Map callParams = [outgoing:true]
+        itemParams.outgoing = true
         receiptParams.receivedBy = toNum.save()
-        createRecordCall(list, create, callParams, receiptParams)
+        createRecordItem(type, list, create, itemParams, receiptParams)
     }
-    protected Result<List<RecordCall>> createRecordCall(Closure listContacts, Closure createContact,
-        Map callParams, Map receiptParams) {
+    protected Result<List<RecordCall>> createRecordItem(RecordItemType type, Closure listContacts,
+        Closure createContact, Map textParams, Map receiptParams) {
         List<Contact> contacts = listContacts()
         if (contacts) {
-            lockService.addRecordCallWithReceipt(contacts, callParams, receiptParams)
+            lockService.addToRecordWithReceipt(type, contacts, textParams, receiptParams)
         }
         else {
             Result res = createContact()
             if (res.success) {
                 Contact newContact = res.payload
-                res = lockService.addRecordCallWithReceipt(newContact, callParams, receiptParams)
+                res = lockService.addToRecordWithReceipt(type, newContact, textParams, receiptParams)
                 if (res.success) { resultFactory.success([res.payload]) }
                 else { res }
             }
             else { res }
         }
     }
+
+    ///////////////////////
+    // Webhook for calls //
+    ///////////////////////
 
     Result<RecordCall> createRecordCallForContact(long contactId, String from, String to,
         Integer callDuration, Map receiptParams) {
@@ -73,7 +96,7 @@ class RecordService {
                 Map callParams = (callDuration == null) ? [:] : [durationInSeconds:callDuration]
                 receiptParams.receivedBy = new PhoneNumber(number:to)
                 if (receiptParams.receivedBy.validate()) {
-                    lockService.addRecordCallWithReceipt(contact, callParams, receiptParams)
+                    lockService.addToRecordWithReceipt(RecordItemType.RECORD_CALL, contact, callParams, receiptParams)
                 }
                 else { resultFactory.failWithValidationErrors(receiptParams.receivedBy.errors) }
             }

@@ -71,6 +71,11 @@ class RecordText extends RecordItem {
                 eq("futureText", params.futureText)
             }
         }
+        forRecordAndApiId { Record rec, String thisApiId ->
+            eq("record", rec)
+            receipts { eq("apiId", thisApiId) }
+            order("dateCreated", "desc")
+        }
     }
 
     /*

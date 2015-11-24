@@ -172,10 +172,11 @@ class PublicRecordController extends BaseController {
 
     protected def handleStatusForCall(GrailsParameterMap params) {
         if (recordService.receiptExistsForApiId(params.CallSid)) {
-            Result<List<RecordItemReceipt>> res = recordService.updateCallStatus(params.CallSid,
-                Helpers.translateCallStatus(params.CallStatus), Helpers.toInteger(params.CallDuration))
+            String status = Helpers.translateCallStatus(params.CallStatus)
+            Result<List<RecordItemReceipt>> res = recordService.updateStatus(params.CallSid,
+                status, Helpers.toInteger(params.CallDuration))
             if (res.success) {
-                if (params.CallStatus == Constants.RECEIPT_FAILED) {
+                if (status == Constants.RECEIPT_FAILED) {
                     for (receipt in res.payload) {
                         res = callService.retry(receipt.item.id)
                         if (res.success) { break }
@@ -190,7 +191,7 @@ class PublicRecordController extends BaseController {
         }
         //we're updating the status where we connected the call (say for incoming client calls)
         else if (recordService.receiptExistsForApiId(params.ParentCallSid)) {
-            Result<List<RecordItemReceipt>> res = recordService.updateCallStatus(params.ParentCallSid,
+            Result<List<RecordItemReceipt>> res = recordService.updateStatus(params.ParentCallSid,
                 Helpers.translateCallStatus(params.CallStatus), Helpers.toInteger(params.CallDuration))
             if (res.success) { ok() }
             else { handleResultFailure(res) }
@@ -291,13 +292,60 @@ class PublicRecordController extends BaseController {
     /////////////////////////////
 
     protected def handleIncomingForText(GrailsParameterMap params) {
-        println "\t handleIncomingForText"
-        notAllowed()
+        //case 1: staff member is texting from personal phone to TextUp phone
+        String from = Helpers.cleanNumber(params.From),
+            to = Helpers.cleanNumber(params.To)
+        if (staffService.staffExistsForPersonalAndWorkPhoneNums(from, to)) {
+            // Result res = twimlBuilder.buildXmlFor(TwimlBuilder.TEXT_SELF_GREETING)
+            // if (res.success) { renderAsXml(res.payload) }
+            // else { handleResultFailure(res) }
+            notAllowed()
+        }
+        //case 2: someone is texting a TextUp phone
+        else {
+            if (callService.staffPhoneExistsForNum(to)) {
+                Result<Closure> res = textService.handleIncomingToStaff(from, to, params.MessageSid, params.Body)
+
+                println "PublicRecordController: handleIncomingForText: handleIncomingToStaff result: $res"
+                // println "\t res.payload: ${res.payload}"
+
+                if (res.success) { renderAsXml(res.payload) }
+                else { handleResultFailure(res) }
+            }
+            else if (MessageService.teamPhoneExistsForNum(to)) {
+                notAllowed()
+                // Result<Closure> res = textService.handleIncomingToTeam(from, to, params.MessageSid, params.Body)
+                // if (res.success) { renderAsXml(res.payload) }
+                // else { handleResultFailure(res) }
+            }
+            //phone not found
+            else {
+                // Result res = twimlBuilder.buildXmlFor(TwimlBuilder.TEXT_DEST_NOT_FOUND, [num:to])
+                // if (res.success) { renderAsXml(res.payload) }
+                // else { handleResultFailure(res) }
+                notAllowed()
+            }
+        }
     }
 
     protected def handleStatusForText(GrailsParameterMap params) {
-        println "\t handleStatusForText"
-        // need to use find All By
-        notAllowed()
+        if (recordService.receiptExistsForApiId(params.MessageSid)) {
+            String status = Helpers.translateTextStatus(params.MessageStatus)
+            Result<List<RecordItemReceipt>> res = recordService.updateStatus(params.MessageSid,
+                Helpers.translateTextStatus(params.MessageStatus))
+            if (res.success) {
+                if (status == Constants.RECEIPT_FAILED) {
+                    for (receipt in res.payload) {
+                        res = textService.retry(receipt.item.id)
+                        if (res.success) { break }
+                    }
+                }
+                ok()
+            }
+            else {
+                log.error("PublicRecordController.handleStatusForText: $res")
+                handleResultFailure(res)
+            }
+        }
     }
 }

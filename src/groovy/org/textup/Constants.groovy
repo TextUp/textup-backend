@@ -1,7 +1,8 @@
 package org.textup
 
 class Constants {
-	static final String LOCK_RETRY_MAX = 3
+	static final int LOCK_RETRY_MAX = 3
+	static final int TEXT_LENGTH = 160
 
 	static final String SCHEDULE_AVAILABLE = "available"
 	static final String SCHEDULE_UNAVAILABLE = "unavailable"
@@ -30,6 +31,7 @@ class Constants {
 	static final String RESULT_SUCCESS = "success"
 	static final String RESULT_VALIDATION = "validation"
 	static final String RESULT_MESSAGE = "message"
+	static final String RESULT_MESSAGE_LIST_STATUS = "messageListWithStatus"
 	static final String RESULT_MESSAGE_STATUS = "messageWithStatus"
 	static final String RESULT_THROWABLE = "throwable"
 

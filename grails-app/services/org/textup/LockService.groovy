@@ -8,26 +8,30 @@ class LockService {
 
     def resultFactory
 
-    /////////////////
-    // CallService //
-    /////////////////
+    ////////////////////////////////
+    // CallService or TextService //
+    ////////////////////////////////
 
-    Result<RecordCall> retryCall(RecordCall call, Contact contact, Closure stopOnSuccessOrInternalError, int attemptNum=0) {
+    Result<RecordItem> retry(RecordItem item, Contact contact, Closure stopOnSuccessOrInternalError, int attemptNum=0) {
         try {
-            call.lock()
+            item.lock()
             contact.lock()
             List<String> cNums = contact.numbers*.e164PhoneNumber,
-                alreadySent = call.receipts*.receivedBy*.e164PhoneNumber,
+                alreadySent = item.receipts*.receivedBy*.e164PhoneNumber,
                 numsRemaining = cNums - alreadySent
-            stopOnSuccessOrInternalError(call, contact.phone.number.e164PhoneNumber, numsRemaining)
+            stopOnSuccessOrInternalError(item, contact.phone.number.e164PhoneNumber, numsRemaining)
         }
         catch (StaleObjectStateException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {
-                retryCall(call, contact, attemptNum++)
+                retry(item, contact, attemptNum++)
             }
             else { resultFactory.failWithThrowable(e) }
         }
     }
+
+    /////////////////
+    // CallService //
+    /////////////////
 
     Result<List<RecordCall>> updateVoicemailItemsAndContacts(List<RecordItemReceipt> receipts, int voicemailDuration, int attemptNum=0) {
         try {
@@ -65,11 +69,18 @@ class LockService {
         }
     }
 
+    /////////////////
+    // TextService //
+    /////////////////
+
+
+
     ///////////////////
     // RecordService //
     ///////////////////
 
-    Result<List<RecordCall>> updateCallStatus(List<RecordItemReceipt> receipts, String status, Integer duration, int attemptNum=0) {
+    Result<List<RecordItemReceipt>> updateStatus(List<RecordItemReceipt> receipts,
+        String status, Integer duration, int attemptNum=0) {
         try {
             receipts*.lock()
             for (receipt in receipts) {
@@ -84,60 +95,88 @@ class LockService {
         }
         catch (StaleObjectStateException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {
-                updateCallStatus(receipts, status, duration, attemptNum++)
+                updateStatus(receipts, status, duration, attemptNum++)
             }
             else { resultFactory.failWithThrowable(e) }
         }
     }
 
-    Result<RecordCall> addRecordCallWithReceipt(Contact contact, Map callParams, Map receiptParams) {
-        Result<List<RecordCall>> res = addRecordCallWithReceipt([contact], callParams, receiptParams)
-        if (res.success) {
-            resultFactory.success(res.payload[0])
-        }
+    Result<RecordItem> addToRecordWithReceipt(RecordItemType type, Contact contact,
+        Map itemParams, Map receiptParams) {
+
+        Result<List<RecordItem>> res = addToRecordWithReceipt(type, [contact], itemParams, receiptParams)
+        if (res.success) { resultFactory.success(res.payload[0]) }
         else { res }
     }
 
-    Result<List<RecordCall>> addRecordCallWithReceipt(List<Contact> contacts, Map callParams,
-        Map receiptParams, int attemptNum=0) {
+    Result<List<RecordItem>> addToRecordWithReceipt(RecordItemType type, List<Contact> contacts,
+        Map itemParams, Map receiptParams, int attemptNum=0) {
         try {
-            List<RecordCall> calls = []
+            List<RecordItem> items = []
             contacts*.lock()
             for (contact in contacts) {
                 Record rec = contact.record
-                List<RecordCall> cList = RecordCall.forRecordAndApiId(rec, receiptParams.apiId).list()
+                List<RecordItem> iList = listForRecordItemType(type, rec, receiptParams.apiId)
                 //add call and receipt to record if receipt with apiId doesn't already exist
-                if (cList) { calls += cList }
+                if (iList) { items += iList }
                 else {
                     rec.lock()
-                    Result res = rec.addCall(callParams, null)
+                    Result res = createForRecordItemType(type, rec, itemParams)
                     if (res.success) {
-                        RecordCall call = res.payload
-                        call.lock()
+                        RecordItem item = res.payload
+                        item.lock()
                         RecordItemReceipt receipt = new RecordItemReceipt(receiptParams)
-                        call.addToReceipts(receipt)
+                        item.addToReceipts(receipt)
                         if (receipt.save()) {
-                            if (call.save()) {
+                            if (item.save()) {
                                 if (contact.save()) {
                                     contact.updateLastRecordActivity()
-                                    calls << call
+                                    items << item
                                 }
                                 else { resultFactory.failWithValidationErrors(contact.errors) }
                             }
-                            else { resultFactory.failWithValidationErrors(call.errors) }
+                            else { resultFactory.failWithValidationErrors(item.errors) }
                         }
                         else { resultFactory.failWithValidationErrors(receipt.errors) }
                     }
                     else { res }
                 }
             }
-            resultFactory.success(calls)
+            resultFactory.success(items)
         }
         catch (StaleObjectStateException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {
-                updateCallStatus(receipts, status, duration, attemptNum++)
+                addToRecordWithReceipt(type, contacts, callParams, receiptParams, attemptNum++)
             }
             else { resultFactory.failWithThrowable(e) }
+        }
+    }
+
+    protected Result<RecordItem> createForRecordItemType(RecordItemType type, Record rec, Map createParams) {
+        switch(type) {
+            case RecordItemType.RECORD_CALL:
+                rec.addCall(createParams, null)
+                break
+            case RecordItemType.RECORD_TEXT:
+                rec.addText(createParams, null)
+                break
+            case RecordItemType.RECORD_NOTE:
+                resultFactory.failWithMessage("lockService.createForRecordItemType.noteNoReceipt")
+                break
+        }
+    }
+
+    protected List listForRecordItemType(RecordItemType type, Record rec, String apiId) {
+        switch(type) {
+            case RecordItemType.RECORD_CALL:
+                RecordCall.forRecordAndApiId(rec, apiId).list()
+                break
+            case RecordItemType.RECORD_TEXT:
+                RecordText.forRecordAndApiId(rec, apiId).list()
+                break
+            case RecordItemType.RECORD_NOTE:
+                []
+                break
         }
     }
 }

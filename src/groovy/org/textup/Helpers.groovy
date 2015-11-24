@@ -95,8 +95,12 @@ class Helpers {
             case "failed": translated = Constants.RECEIPT_FAILED; break;
             case "undelivered": translated = Constants.RECEIPT_FAILED; break;
             case "sent": translated = Constants.RECEIPT_SUCCESS; break;
+            case "received": translated = Constants.RECEIPT_SUCCESS; break;
             case "delivered": translated = Constants.RECEIPT_SUCCESS; break;
+            case "accepted": translated = Constants.RECEIPT_PENDING; break;
             case "queued": translated = Constants.RECEIPT_PENDING; break;
+            case "sending": translated = Constants.RECEIPT_PENDING; break;
+            case "receiving": translated = Constants.RECEIPT_PENDING; break;
         }
         translated
     }

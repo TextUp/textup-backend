@@ -4,6 +4,7 @@ import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import org.hibernate.FlushMode
 import org.joda.time.DateTime
+import static org.springframework.http.HttpStatus.*
 
 @EqualsAndHashCode
 class Phone {
@@ -111,8 +112,10 @@ class Phone {
         Result numContRes = textService.checkNumRecipients(contactables.size())
         if (!numContRes.success) return numContRes
         //send the texts and return the result
-        RecordResult textRecResult = sendTexts(message, contactables)
-        resultFactory.success(recResult.merge(textRecResult))
+        RecordResult textRecResult = sendTexts(message, contactables),
+            overallRecResult = recResult.merge(textRecResult)
+        if (overallRecResult.newItems) { resultFactory.success(overallRecResult) }
+        else { resultFactory.failWithMessagesAndStatus(BAD_REQUEST, overallRecResult.errorMessages) }
     }
     Result<RecordResult> scheduleText(String message, DateTime sendAt,
         List<String> numbers, List<Long> contactableIds, List<Long> tagIds) {
@@ -121,23 +124,40 @@ class Phone {
     }
 
     Result<RecordResult> call(String number) {
-        //TODO: implement me
-        // parsePhoneNumberIntoContactables(List<PhoneNumber> pNums)
-        resultFactory.success(new RecordResult())
+        Result res = resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+            "phone.error.invalidNumber", [number])
+        ParsedResult<Contactable,String> parsedNums = parsePhoneNumberIntoContactables([number])
+        if (parsedNums.valid) {
+            Contactable c1 = parsedNums.valid[0]
+            Result<RecordResult> cRes = c1.call([:])
+            if (cRes.success) { res = resultFactory.success(cRes.payload) }
+        }
+        res
     }
 
-    Result<RecordResult> call(Long contactableId) {
-        //NEED TO CHECK TO SEE THAT THIS CONTACT IS OUR'S OR IS A SHARED CONTACT!
-        //TODO: implement me
-        // parseIntoContactables(List<Long> cIds)
-        resultFactory.success(new RecordResult())
+    /**
+     * Call a contact, if allowed
+     * @param  contactId Id of the contact to call. Note this contact may be the id of a contact
+     *                   that has been shared with you, NOT the shared contact id
+     * @return           RecordResult
+     */
+    Result<RecordResult> call(Long contactId) {
+        Result res = resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+            "phone.error.invalidContactId", [contactId])
+        ParsedResult<Contactable,Long> parsedCs = parseIntoContactables([contactId])
+        if (parsedCs.valid) {
+            Contactable c1 = parsedCs.valid[0]
+            Result<RecordResult> cRes = c1.call([:])
+            if (cRes.success) { res = resultFactory.success(cRes.payload) }
+        }
+        res
     }
 
     /*
     Phone capabilities helper methods
      */
 
-    protected ParsedResult<Contactable,Long> parseIntoContactables(List cIds) {
+    protected ParsedResult<Contactable,Long> parseIntoContactables(List<Long> cIds) {
         ParsedResult<Long,Long> parsedIds = authService.parseContactIdsByPermission(cIds)
         List<Contact> contacts = Contact.getAll(parsedIds.valid)
         new ParsedResult(valid:contacts, invalid:parsedIds.invalid)
@@ -183,7 +203,10 @@ class Phone {
             Result<RecordResult> res = c.text(contents:message)
             afterSendTextTo(c, res) //hook to override
             if (res.success) { recResult.merge(res.payload) }
-            else { recResult.invalidOrForbiddenContactableIds << c.id }
+            else {
+                recResult.invalidOrForbiddenContactableIds << c.id
+                recResult.errorMessages += resultFactory.extractMessages(res)
+            }
         }
         recResult
     }

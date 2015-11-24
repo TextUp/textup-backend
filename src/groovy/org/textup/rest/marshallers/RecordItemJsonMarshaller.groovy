@@ -43,7 +43,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             }
         }
         json.receipts = item.receipts.collect { RecordItemReceipt r ->
-            [status:r.status, receivedBy:r.receivedBy.number]
+            [id: r.id, status:r.status, receivedBy:r.receivedBy.number]
         }
 
         json.links = [:]

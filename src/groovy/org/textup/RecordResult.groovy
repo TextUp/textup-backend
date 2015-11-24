@@ -8,6 +8,7 @@ class RecordResult {
 	Set<Long> invalidOrForbiddenContactableIds = new HashSet<>()
 	Set<Long> invalidOrForbiddenTagIds = new HashSet<>()
 	Set<String> invalidNumbers = new HashSet<>()
+	Collection<String> errorMessages = []
 
 	RecordResult merge(RecordResult recRes) {
 		this.with {
@@ -15,6 +16,7 @@ class RecordResult {
 			invalidOrForbiddenContactableIds += recRes.invalidOrForbiddenContactableIds
 			invalidOrForbiddenTagIds += recRes.invalidOrForbiddenTagIds
 			invalidNumbers += recRes.invalidNumbers
+			errorMessages += recRes.errorMessages
 		}
 		this
 	}
