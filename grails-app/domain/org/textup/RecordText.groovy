@@ -25,6 +25,8 @@ class RecordText extends RecordItem {
     DateTime sendAt
     @RestApiObjectField(description = "Contents of the text")
 	String contents
+    //if text created as a part of a text out from a TeamContactTag
+    Long teamContactTagId = null
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -56,6 +58,7 @@ class RecordText extends RecordItem {
     static constraints = {
     	contents blank:false, nullable:false, maxSize:320
         sendAt nullable:true
+        teamContactTagId nullable:true 
     }
     static mapping = {
         sendAt type:PersistentDateTime

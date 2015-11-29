@@ -15,6 +15,8 @@ class Organization {
     @RestApiObjectField(description="Location of the organization")
 	Location location
 
+    boolean verified = false
+
     static constraints = {
     	name blank:false, validator:{ val, obj ->
     		//must have unique (name, location) combination

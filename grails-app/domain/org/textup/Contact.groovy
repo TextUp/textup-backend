@@ -6,7 +6,9 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
+import groovy.util.logging.Log4j
 
+@Log4j
 @EqualsAndHashCode
 @RestApiObject(name="Contact", description="A contact")
 class Contact implements Contactable {
@@ -202,6 +204,18 @@ class Contact implements Contactable {
     // Helper methods //
     ////////////////////
 
+    static List<Contact> findOrCreateForPhoneAndNum(Phone p1, String number) {
+        List<Contact> contacts = Contact.forPhoneAndNum(p1, number).list()
+        if (contacts.isEmpty()) {
+            Result res = p1.createContact([:], [number])
+            if (res.success) { contacts = [res.payload] }
+            else {
+                log.error("Contact.findOrCreateForPhoneAndNum: could not create contact: ${res.payload}")
+            }
+        }
+        contacts
+    }
+
     /*
     Modify status
      */
@@ -231,14 +245,21 @@ class Contact implements Contactable {
     /*
     Related to the client's record
      */
-
-    Result<RecordResult> call(Map params) {
-        call(params, this.author)
-    }
-    Result<RecordResult> call(Map params, Author auth) {
-        Result<RecordText> tRes = record.addCall(params, auth)
+    Result<RecordResult> callNotify(Long teamContactTagId, Long recordTextId, Author auth) {
+        Result<RecordCall> tRes = record.addCall([:], auth)
         if (tRes.success) {
-            tRes = callService.call(this.phone, this, tRes.payload)
+            tRes = callService.startCallAnnouncement(this.phone, this, tRes.payload, teamContactTagId, recordTextId)
+            if (tRes.success) { updateLastRecordActivity() }
+        }
+        resultFactory.convertToRecordResult(tRes)
+    }
+    Result<RecordResult> call(Staff staffMakingCall, Map params) {
+        call(staffMakingCall, params, this.author)
+    }
+    Result<RecordResult> call(Staff staffMakingCall, Map params, Author auth) {
+        Result<RecordCall> tRes = record.addCall(params, auth)
+        if (tRes.success) {
+            tRes = callService.startBridgeCall(staffMakingCall, this.phone, this, tRes.payload)
             if (tRes.success) { updateLastRecordActivity() }
         }
         resultFactory.convertToRecordResult(tRes)
@@ -322,9 +343,13 @@ class Contact implements Contactable {
         else { resultFactory.failWithMessage("contact.error.tagNotFound", [tagName]) }
     }
     Result<TagMembership> addToTag(ContactTag tag) {
-        TagMembership membership = new TagMembership(contact:this, tag:tag)
-        if (membership.save()) { resultFactory.success(membership) }
-        else { resultFactory.failWithValidationErrors(membership.errors) }
+        TagMembership membership = TagMembership.findByContactAndTag(this, tag)
+        if (membership) { resultFactory.success(membership) }
+        else {
+            membership = new TagMembership(contact:this, tag:tag)
+            if (membership.save()) { resultFactory.success(membership) }
+            else { resultFactory.failWithValidationErrors(membership.errors) }
+        }
     }
     Result<ContactTag> removeFromTag(String tagName) {
         ContactTag tag = ContactTag.findByPhoneAndName(this.phone, tagName)
@@ -333,23 +358,24 @@ class Contact implements Contactable {
     }
     Result<ContactTag> removeFromTag(ContactTag tag) {
         TagMembership membership = TagMembership.findByContactAndTag(this, tag)
-        if (membership) {
-            membership.delete()
-            resultFactory.success(tag)
-        }
-        else { resultFactory.failWithMessage("contact.error.membershipNotFound", [this.name, tag.name]) }
+        if (membership) { membership.delete() }
+        resultFactory.success(tag)
     }
-    Result<TagMembership> subscribeToTag(String tagName) {
+    Result<TagMembership> subscribeToTag(String tagName, String subType) {
         ContactTag tag = ContactTag.findByPhoneAndName(this.phone, tagName)
-        if (tag) { subscribeToTag(tag) }
+        if (tag) { subscribeToTag(tag, subType) }
         else { resultFactory.failWithMessage("contact.error.tagNotFound", [tagName]) }
     }
-    Result<TagMembership> subscribeToTag(ContactTag tag) {
+    Result<TagMembership> subscribeToTag(ContactTag tag, String subType) {
         TagMembership membership = TagMembership.findByContactAndTag(this, tag)
         if (membership) {
-            resultFactory.success(membership.subscribe())
+            resultFactory.success(membership.subscribe(subType))
         }
-        else { resultFactory.failWithMessage("contact.error.membershipNotFound", [this.name, tag.name]) }
+        else {
+            Result<TagMembership> res = addToTag(tag)
+            if (res.success) { res.payload.subscribe(subType) }
+            res
+        }
     }
     Result<TagMembership> unsubscribeFromTag(String tagName) {
         ContactTag tag = ContactTag.findByPhoneAndName(this.phone, tagName)
@@ -363,10 +389,17 @@ class Contact implements Contactable {
         }
         else { resultFactory.failWithMessage("contact.error.membershipNotFound", [this.name, tag.name]) }
     }
+    void quietUnsubscribeFromTag(ContactTag tag) {
+        TagMembership.findByContactAndTag(this, tag)?.unsubscribe()
+    }
 
     /////////////////////
     // Property Access //
     /////////////////////
+
+    Long getContactId() {
+        this.id
+    }
 
     void setRecord(Record r) {
         this.record = r

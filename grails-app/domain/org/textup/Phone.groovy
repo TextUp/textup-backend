@@ -123,13 +123,13 @@ class Phone {
         resultFactory.success(new RecordResult())
     }
 
-    Result<RecordResult> call(String number) {
+    Result<RecordResult> call(Staff staffMakingCall, String number) {
         Result res = resultFactory.failWithMessageAndStatus(BAD_REQUEST,
             "phone.error.invalidNumber", [number])
         ParsedResult<Contactable,String> parsedNums = parsePhoneNumberIntoContactables([number])
         if (parsedNums.valid) {
             Contactable c1 = parsedNums.valid[0]
-            Result<RecordResult> cRes = c1.call([:])
+            Result<RecordResult> cRes = c1.call(staffMakingCall, [:])
             if (cRes.success) { res = resultFactory.success(cRes.payload) }
         }
         res
@@ -141,13 +141,13 @@ class Phone {
      *                   that has been shared with you, NOT the shared contact id
      * @return           RecordResult
      */
-    Result<RecordResult> call(Long contactId) {
+    Result<RecordResult> call(Staff staffMakingCall, Long contactId) {
         Result res = resultFactory.failWithMessageAndStatus(BAD_REQUEST,
             "phone.error.invalidContactId", [contactId])
         ParsedResult<Contactable,Long> parsedCs = parseIntoContactables([contactId])
         if (parsedCs.valid) {
             Contactable c1 = parsedCs.valid[0]
-            Result<RecordResult> cRes = c1.call([:])
+            Result<RecordResult> cRes = c1.call(staffMakingCall, [:])
             if (cRes.success) { res = resultFactory.success(cRes.payload) }
         }
         res

@@ -25,7 +25,9 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             isAvailableNow = s1.isAvailableNow()
         }
         if (s1.schedule.instanceOf(WeeklySchedule)) {
-            json.schedule = s1.schedule.allAsLocalIntervals
+            json.schedule = s1.schedule.allAsLocalIntervals.collect { LocalInterval lt ->
+                [start:lt.start, end:lt.end]
+            }
             if (s1.manualSchedule == false) {
                 Result res = s1.nextAvailable()
                 if (res.success) { json.schedule.nextAvailable = res.payload }

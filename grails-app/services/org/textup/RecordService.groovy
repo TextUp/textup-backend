@@ -37,7 +37,7 @@ class RecordService {
         Map textParams, Map receiptParams) {
         createIncoming(RecordItemType.RECORD_TEXT, fromNum, to, textParams, receiptParams)
     }
-    Result<List<RecordCall>> createOutgoingRecordCall(Phone from, PhoneNumber toNum,
+    Result<List<RecordCall>> createOutgoingRecordText(Phone from, PhoneNumber toNum,
         Map textParams, Map receiptParams) {
         createOutgoing(RecordItemType.RECORD_TEXT, from, toNum, textParams, receiptParams)
     }
@@ -54,27 +54,27 @@ class RecordService {
             create = { -> to.createContact([:], [fromNum.number]) }
         itemParams.outgoing = false
         receiptParams.receivedBy = to.number.copy()
-        createRecordItem(type, list, create, itemParams, receiptParams)
+        createRecordItem(type, false, list, create, itemParams, receiptParams)
     }
-    protected Result<List<RecordCall>> createOutgoing(RecordItemType type, Phone from,
+    protected Result<List<RecordCall>> createOutgoing(RecordItemType type, Phone from, 
         PhoneNumber toNum, Map itemParams, Map receiptParams) {
         Closure list = { -> Contact.forPhoneAndNum(from, toNum.number).list() },
             create = { -> from.createContact([:], [toNum.number]) }
         itemParams.outgoing = true
         receiptParams.receivedBy = toNum.save()
-        createRecordItem(type, list, create, itemParams, receiptParams)
+        createRecordItem(type, true, list, create, itemParams, receiptParams)
     }
-    protected Result<List<RecordCall>> createRecordItem(RecordItemType type, Closure listContacts,
-        Closure createContact, Map textParams, Map receiptParams) {
+    protected Result<List<RecordCall>> createRecordItem(RecordItemType type, boolean outgoing,
+        Closure listContacts, Closure createContact, Map textParams, Map receiptParams) {
         List<Contact> contacts = listContacts()
         if (contacts) {
-            lockService.addToRecordWithReceipt(type, contacts, textParams, receiptParams)
+            lockService.addToRecordWithReceipt(type, outgoing, contacts, textParams, receiptParams)
         }
         else {
             Result res = createContact()
             if (res.success) {
                 Contact newContact = res.payload
-                res = lockService.addToRecordWithReceipt(type, newContact, textParams, receiptParams)
+                res = lockService.addToRecordWithReceipt(type, outgoing, newContact, textParams, receiptParams)
                 if (res.success) { resultFactory.success([res.payload]) }
                 else { res }
             }
@@ -96,7 +96,7 @@ class RecordService {
                 Map callParams = (callDuration == null) ? [:] : [durationInSeconds:callDuration]
                 receiptParams.receivedBy = new PhoneNumber(number:to)
                 if (receiptParams.receivedBy.validate()) {
-                    lockService.addToRecordWithReceipt(RecordItemType.RECORD_CALL, contact, callParams, receiptParams)
+                    lockService.addToRecordWithReceipt(RecordItemType.RECORD_CALL, true, contact, callParams, receiptParams)
                 }
                 else { resultFactory.failWithValidationErrors(receiptParams.receivedBy.errors) }
             }
@@ -116,7 +116,8 @@ class RecordService {
     //////////////////
 
     Result<RecordResult> create(Class clazz, Long id, Map body) {
-    	Phone p1 = clazz.get(id)?.phone
+        def entity = clazz.get(id)
+    	Phone p1 = entity?.phone
 		Result res = determineClass(body)
 		if (!p1) {
 			resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
@@ -142,15 +143,25 @@ class RecordService {
 				if (isFuture == true) {
 					p1.scheduleText(body.contents, body.sendAt, nums, cIds, tIds)
 				}
-				else { p1.text(body.contents, nums, cIds, tIds) }
+				else {
+                    //If only sending to one tag, then send through that tag
+                    //which will add in additional text about unsubscribing from that tag
+                    if (!nums && !cIds && tIds.size() == 1 && TeamContactTag.exists(tIds.size[0])) {
+                        TeamContactTag.get(tIds.size[0]).notifySubscribers(body.contents)
+                    }
+                    else { //otherwise, send message without any special instructions from phone
+                        p1.text(body.contents, nums, cIds, tIds)
+                    }
+                }
 			}
 		}
 		else if (res.payload == RecordCall) {
+            Staff staffMakingCall = entity.instanceof(Staff) ? entity : authService.loggedIn
 			if (body.callPhoneNumber && !body.callContact) {
-				p1.call(Helpers.toString(body.callPhoneNumber))
+				p1.call(staffMakingCall, Helpers.toString(body.callPhoneNumber))
 			}
 			else if (!body.callPhoneNumber && body.callContact) {
-				p1.call(Helpers.toLong(body.callContact))
+				p1.call(staffMakingCall, Helpers.toLong(body.callContact))
 			}
 			else {
 				resultFactory.failWithMessageAndStatus(BAD_REQUEST,

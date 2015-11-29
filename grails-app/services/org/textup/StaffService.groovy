@@ -39,8 +39,9 @@ class StaffService {
             else {
                 //We will manually change this staff status to ADMIN
                 //after we approve the organization
-                s1.status = Constants.STATUS_PENDING
+                s1.status = Constants.STATUS_ADMIN
                 org = new Organization(o)
+                org.verified = false
                 org.location = new Location(o.location)
                 if (!org.location.save()) { //needs to be before org.save()
                     return resultFactory.failWithValidationErrors(org.location.errors)
@@ -103,6 +104,6 @@ class StaffService {
     ////////////////////
 
     boolean staffExistsForPersonalAndWorkPhoneNums(String personalNum, String workNum) {
-        Staff.forPersonalAndWorkPhoneNums(personalNum, workNum).list()[0] != null
+        Staff.forPersonalAndWorkPhoneNums(personalNum, workNum).get() != null
     }
 }

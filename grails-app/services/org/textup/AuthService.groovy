@@ -30,6 +30,11 @@ class AuthService {
         Staff.findByUsername(springSecurityService.principal?.username)
     }
 
+    Staff getLoggedInAndActive() {
+        Staff s1 = getLoggedIn()
+        ((s1.status == Constants.STATUS_STAFF || s1.status == Constants.STATUS_ADMIN) && s1.org.verified) ? s1 : null
+    }
+
     //////////////////
     // Admin status //
     //////////////////
@@ -86,7 +91,7 @@ class AuthService {
      * @return     Whether you have permission
      */
     boolean hasPermissionsForContact(Long cId) {
-        Staff s1 = getLoggedIn()
+        Staff s1 = getLoggedInAndActive()
         if (s1 && cId) {
             List<Long> tPhoneIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(s1.id).list())
             Contact.createCriteria().count {
@@ -108,7 +113,7 @@ class AuthService {
      *                 permissions for or null otherwise
      */
     Long getSharedContactForContact(Long cId) {
-        Staff s1 = getLoggedIn()
+        Staff s1 = getLoggedInAndActive()
         if (s1 && cId) {
             List<Long> sWithMeIds = Helpers.allToLong(SharedContact.sharedWithMeIds(s1.phone).list())
             List<Long> scIds = SharedContact.createCriteria().list {
@@ -129,7 +134,7 @@ class AuthService {
      * @return     Whether you have permission
      */
     boolean hasPermissionsForTeam(Long tId) {
-        Staff s1 = getLoggedIn()
+        Staff s1 = getLoggedInAndActive()
         if (s1 && tId) {
             int memberCount = TeamMembership.where {
                 team.id == tId && staff == s1
@@ -152,7 +157,7 @@ class AuthService {
      * @return     Whether you have permission for staff member
      */
     boolean hasPermissionsForStaff(Long sId) {
-        Staff s1 = getLoggedIn()
+        Staff s1 = getLoggedInAndActive()
         if (s1 && sId) {
             DetachedCriteria sQuery = Staff.where { id == sId && org == s1.org }
             (sId == s1.id) || //(1)
@@ -170,7 +175,7 @@ class AuthService {
      * @return     Whether you have permission for this Tag
      */
     boolean hasPermissionsForTag(Long tId) {
-        Staff s1 = getLoggedIn()
+        Staff s1 = getLoggedInAndActive()
         if (s1 && tId) {
             List<Long> tPhoneIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(s1.id).list())
             ContactTag.createCriteria().count {
@@ -207,7 +212,7 @@ class AuthService {
      * @return        Whether or have permission
      */
     boolean hasPermissionsForItem(Long itemId) {
-        Staff s1 = getLoggedIn()
+        Staff s1 = getLoggedInAndActive()
         if (s1 && itemId) {
             long pId = s1.phone.id
             List<Long> phoneRecIds = Helpers.allToLong(Contact.recordIdsForPhoneId(pId).list()),

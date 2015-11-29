@@ -180,12 +180,12 @@ class SharedContact implements Contactable {
     Related to the client's record
      */
 
-    Result<RecordResult> call(Map params) {
-        if (canModify()) { contact.call(params, this.author) }
+    Result<RecordResult> call(Staff staffMakingCall, Map params) {
+        if (canModify()) { contact.call(staffMakingCall, params, this.author) }
         else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
     }
-    Result<RecordResult> call(Map params, Author author) {
-        call(params)
+    Result<RecordResult> call(Staff staffMakingCall, Map params, Author author) {
+        call(staffMakingCall, params)
     }
 
     Result<RecordResult> text(Map params) {
@@ -233,6 +233,10 @@ class SharedContact implements Contactable {
     /////////////////////
     // Property Access //
     /////////////////////
+
+    Long getContactId() {
+        this.contact?.id
+    }
 
     List<PhoneNumber> getNumbers() {
         canView() ? contact.numbers : []

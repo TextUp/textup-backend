@@ -17,7 +17,7 @@ class BootStrap {
 	        Role userRole = Role.findByAuthority("ROLE_USER") ?: new Role(authority:"ROLE_USER").save(flush:true)
 
 	    	if (Organization.count() == 0) {
-		    	Organization org = new Organization(name:"Demo Organization")
+		    	Organization org = new Organization(name:"Demo Organization", verified:true)
 		    	org.location = new Location(address:"Testing Address", lat:0G, lon:0G)
 		    	org.save(flush:true)
 

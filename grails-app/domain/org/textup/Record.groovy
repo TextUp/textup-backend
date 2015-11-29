@@ -34,7 +34,7 @@ class Record {
     Result<RecordText> addText(Map params, Author auth) { addAny(RecordText, params, auth) }
     Result<RecordNote> addNote(Map params, Author auth) { addAny(RecordNote, params, auth) }
     Result<RecordCall> addCall(Map params, Author auth) { addAny(RecordCall, params, auth) }
-    private Result addAny(Class<RecordItem> clazz, Map params, Author auth) {
+    protected Result addAny(Class<RecordItem> clazz, Map params, Author auth) {
         this.add(clazz.newInstance(params), auth)
     }
     Result<RecordItem> add(RecordItem item, Author auth) {

@@ -4,13 +4,13 @@ import org.joda.time.DateTime
 
 interface Contactable {
 
-    Long getId()
+    Long getContactId()
 
     DateTime getLastRecordActivity() 
     void updateLastRecordActivity()
 
-	Result<RecordResult> call(Map params)
-    Result<RecordResult> call(Map params, Author author)
+	Result<RecordResult> call(Staff staffMakingCall, Map params)
+    Result<RecordResult> call(Staff staffMakingCall, Map params, Author author)
     Result<RecordResult> text(Map params)
     Result<RecordResult> text(Map params, Author author)
     Result<RecordResult> addNote(Map params)

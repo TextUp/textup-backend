@@ -101,48 +101,64 @@ class LockService {
         }
     }
 
-    Result<RecordItem> addToRecordWithReceipt(RecordItemType type, Contact contact,
+    Result<RecordItem> addToRecordWithReceipt(RecordItemType type, boolean outgoing, Contact contact,
         Map itemParams, Map receiptParams) {
 
-        Result<List<RecordItem>> res = addToRecordWithReceipt(type, [contact], itemParams, receiptParams)
+        Result<List<RecordItem>> res = addToRecordWithReceipt(type, outgoing, [contact], itemParams, receiptParams)
         if (res.success) { resultFactory.success(res.payload[0]) }
         else { res }
     }
 
-    Result<List<RecordItem>> addToRecordWithReceipt(RecordItemType type, List<Contact> contacts,
+    Result<List<RecordItem>> addToRecordWithReceipt(RecordItemType type, boolean outgoing, List<Contact> contacts,
         Map itemParams, Map receiptParams, int attemptNum=0) {
         try {
             List<RecordItem> items = []
             contacts*.lock()
             for (contact in contacts) {
-                Record rec = contact.record
-                List<RecordItem> iList = listForRecordItemType(type, rec, receiptParams.apiId)
-                //add call and receipt to record if receipt with apiId doesn't already exist
-                if (iList) { items += iList }
-                else {
-                    rec.lock()
-                    Result res = createForRecordItemType(type, rec, itemParams)
-                    if (res.success) {
-                        RecordItem item = res.payload
-                        item.lock()
-                        RecordItemReceipt receipt = new RecordItemReceipt(receiptParams)
-                        item.addToReceipts(receipt)
-                        if (receipt.save()) {
-                            if (item.save()) {
-                                if (contact.save()) {
-                                    contact.updateLastRecordActivity()
-                                    items << item
-                                }
-                                else { resultFactory.failWithValidationErrors(contact.errors) }
-                            }
-                            else { resultFactory.failWithValidationErrors(item.errors) }
+                if (contact.status != Constants.CONTACT_BLOCKED) {
+                    if (outgoing == false) { //if incoming
+                        contact.updateLastRecordActivity()
+                        contact.status = Constants.CONTACT_UNREAD
+                        if (!contact.save()) {
+                            return resultFactory.failWithValidationErrors(contact.errors)
                         }
-                        else { resultFactory.failWithValidationErrors(receipt.errors) }
                     }
-                    else { res }
+                    Record rec = contact.record
+                    List<RecordItem> iList = listForRecordItemType(type, rec, receiptParams.apiId)
+                    //add call and receipt to record if receipt with apiId already exists
+                    if (iList) { items += iList }
+                    else {
+                        rec.lock()
+                        Result res = createForRecordItemType(type, rec, itemParams)
+                        if (res.success) {
+                            RecordItem item = res.payload
+                            item.lock()
+                            RecordItemReceipt receipt = new RecordItemReceipt(receiptParams)
+                            item.addToReceipts(receipt)
+                            if (receipt.save()) {
+                                if (item.save()) {
+                                    if (contact.save()) {
+                                        contact.updateLastRecordActivity()
+                                        items << item
+                                    }
+                                    else { 
+                                        return resultFactory.failWithValidationErrors(contact.errors)
+                                    }
+                                }
+                                else {
+                                    return resultFactory.failWithValidationErrors(item.errors)
+                                }
+                            }
+                            else { 
+                                return resultFactory.failWithValidationErrors(receipt.errors) 
+                            }
+                        }
+                        else { return res }
+                    }
                 }
             }
-            resultFactory.success(items)
+            if (items) { resultFactory.success(items) }
+            else { resultFactory.failWithMessage(BAD_REQUEST, "lockService.addToRecordWithReceipt.allBlocked") }
         }
         catch (StaleObjectStateException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {

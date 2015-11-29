@@ -52,6 +52,10 @@ class Staff {
         description    = "Schedule of the staff member.",
         useForCreation = false)
 	Schedule schedule
+    @RestApiObjectField(
+        description    = "Away message to text back when a text comes in but the staff is unavailable.",
+        useForCreation = false)
+    String awayMessage = Constants.DEFAULT_AWAY_MESSAGE
 
     //If manual schedule is true then ignore the Schedule object and
     //look only at the 'available' boolean
@@ -100,6 +104,7 @@ class Staff {
 		status inList:[Constants.STATUS_BLOCKED, Constants.STATUS_PENDING,
             Constants.STATUS_STAFF, Constants.STATUS_ADMIN]
         phone nullable:true
+        awayMessage blank:false, size:1..(Constants.TEXT_LENGTH)
 	}
 	static mapping = {
 		password column: '`password`'

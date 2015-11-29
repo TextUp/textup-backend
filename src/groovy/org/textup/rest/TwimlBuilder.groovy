@@ -8,6 +8,7 @@ import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
+import static org.textup.Helpers.*
 
 class TwimlBuilder {
 
@@ -18,77 +19,100 @@ class TwimlBuilder {
     @Autowired
     ResultFactory resultFactory
 
-    //Call codes
-    static final String CALL_SELF_GREETING = "callSelfGreeting"
-    static final String CALL_SELF_ERROR = "callSelfError"
-    static final String CALL_SELF_CONNECTING = "callSelfConnecting"
-    static final String CALL_VOICEMAIL = "callVoicemail"
-    static final String CALL_CONNECTING = "callConnecting"
-    static final String CALL_DEST_NOT_FOUND = "callDestNotFound"
-    static final String CALL_TEAM_GREETING = "callTeamGreeting"
-    static final String CALL_TEAM_ERROR = "callTeamError"
-    static final String CALL_TEAM_TAG_MESSAGE = "callTeamTagMessage"
-    static final String CALL_TEAM_TAG_NONE = "callTeamTagNone"
-    static final String CALL_SERVER_ERROR = "callServerError"
-    static final int CALL_TEAM_CONNECT = 0
-
-    //Text codes
-    static final String TEXT_STAFF_AWAY = "textStaffAway"
-
-    static int convertTagIndexToOptionNumber(int index) {
-        index + 1 //zero is CALL_TEAM_CONNECT
-    }
-    static int convertOptionNumberToTagIndex(int optionNum) {
-        optionNum - 1 //reverse operation
-    }
-
     Result<Closure> noResponse() { resultFactory.success({ Response { } }) }
-    Result<Closure> buildXmlFor(String code, Map params=[:]) {
+    Result<Closure> buildMessageFor(String msg) {
+        resultFactory.success({ Response { Message(msg) } })
+    }
+    Result<Closure> buildXmlFor(TextResponse code, Map params=[:]) {
+        List messages = []
+        switch (code) {
+            case TextResponse.STAFF_SELF_GREETING:
+                if (params.staff instanceof Staff) {
+                    Staff s1 = params.staff
+                    String availNow = translateIsAvailable(s1.isAvailableNow()),
+                        predicate = getMessage("twimlBuilder.textSelfManualSchedule")
+                    if (!s1.manualSchedule) {
+                        ScheduleChange sChange = s1.nextChange().payload
+                        String nextChange = translateScheduleChange(sChange.type),
+                            whenChange = new PrettyTime(LCH.getLocale()).format(sChange.when.toDate())
+                        predicate = getMessage("twimlBuilder.textSelfAutoSchedule", [nextChange, whenChange])
+                    }
+                    messages << getMessage("twimlBuilder.textSelf", [s1.name, availNow, predicate])
+                }
+                break
+            case TextResponse.TEAM_INSTRUCTIONS:
+                messages << getMessage("twimlBuilder.teamInstructions", [Constants.ACTION_SEE_ANNOUNCEMENTS, Constants.ACTION_SUBSCRIBE])
+                break
+            case TextResponse.TEAM_INSTRUCTIONS_SUBSCRIBED:
+                messages << getMessage("twimlBuilder.teamInstructionsSubscribed", [Constants.ACTION_SEE_ANNOUNCEMENTS, Constants.ACTION_UNSUBSCRIBE_ALL])
+                break
+            case TextResponse.TEAM_ANNOUNCEMENTS:
+                if (params.features instanceof List) {
+                    messages += formatAnnouncements(params.features)
+                }
+                break
+            case TextResponse.TEAM_NO_ANNOUNCEMENTS:
+                messages << getMessage("twimlBuilder.noTeamAnnouncements")
+                break
+            case TextResponse.TEAM_SUBSCRIBE_ALL:
+                messages << getMessage("twimlBuilder.teamSubscribeAll")
+                break
+            case TextResponse.TEAM_UNSUBSCRIBE_ALL:
+                messages << getMessage("twimlBuilder.teamUnsubscribeAll")
+                break
+            case TextResponse.TEAM_UNSUBSCRIBE_ONE:
+                if (params.tagName) {
+                    messages << getMessage("twimlBuilder.teamUnsubscribeOne", [params.tagName])
+                }
+                break
+            case TextResponse.NOT_FOUND:
+                messages << getMessage("twimlBuilder.phoneNotFound")
+                break
+            case TextResponse.SERVER_ERROR:
+                messages << getMessage("twimlBuilder.textServerError")
+                break
+        }
+        if (messages) { 
+            Closure response = { Response { messages.each { Message(it) } } }
+            resultFactory.success(response) 
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                "twimlBuilder.buildXmlFor.codeNotFound", [code])
+        }
+    }
+    Result<Closure> buildXmlFor(CallResponse code, Map params=[:]) {
         Closure result = null
         switch (code) {
-
-            ///////////
-            // Calls //
-            ///////////
-
-            case CALL_SELF_GREETING:
+            case CallResponse.SELF_GREETING:
                 String welcome = getMessage("twimlBuilder.staffToSelfWelcome"),
                     directions = getMessage("twimlBuilder.staffToSelfDirections"),
                     digitsWebhook = getLink(handle:Constants.CALL_STAFF_STAFF_DIGITS),
                     repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, for:CALL_SELF_GREETING)
                 result = {
                     Response {
-                        Say(welcome)
                         Gather(action:digitsWebhook, numDigits:11) {
+                            Say(welcome)
                             Say(directions)
                         }
                         Redirect(repeatWebhook)
                     }
                 }
                 break
-            case CALL_SELF_ERROR:
+            case CallResponse.SELF_ERROR:
                 if (params.digits) {
                     String formatted = formatNumberForSay(params.digits),
                         error = getMessage("twimlBuilder.staffToSelfError", [formatted]),
-                        directions = getMessage("twimlBuilder.staffToSelfDirections"),
-                        digitsWebhook = getLink(handle:Constants.CALL_STAFF_STAFF_DIGITS),
                         repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, for:CALL_SELF_GREETING)
                     result = {
                         Response {
                             Say(error)
-                            Gather(action:digitsWebhook, numDigits:11) {
-                                Say(directions)
-                            }
                             Redirect(repeatWebhook)
                         }
                     }
                 }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "twimlBuilder.buildXmlFor.paramNotFound", [CALL_SELF_ERROR])
-                }
                 break
-            case CALL_SELF_CONNECTING:
+            case CallResponse.SELF_CONNECTING:
                 if (params.num) {
                     String number = formatNumberForSay(params.num),
                         connecting = getMessage("twimlBuilder.staffToSelfConnecting", [number])
@@ -99,12 +123,26 @@ class TwimlBuilder {
                         }
                     }
                 }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "twimlBuilder.buildXmlFor.paramNotFound", [CALL_SELF_ERROR])
+                break
+            case CallResponse.BRIDGE_CONNECT: 
+                if (params.contactToBridge instanceof Contact) {
+                    String couldNotConnect = getMessage("twimlBuilder.callBridgeFailed")
+                    Contact c1 = params.contactToBridge
+                    result = {
+                        Response {
+                            if (c1.name) {
+                                Say(getMessage("twimlBuilder.callBridge", [c1.name]))
+                            }
+                            c1.numbers?.each { ContactNumber num ->
+                                Say(getMessage("twimlBuilder.callBridgeNumber", [formatNumberForSay(num)]))
+                                Dial(num.e164PhoneNumber) 
+                            }
+                            Say(couldNotConnect)
+                        }
+                    }
                 }
                 break
-            case CALL_VOICEMAIL:
+            case CallResponse.VOICEMAIL:
                 String directions = getMessage("twimlBuilder.voicemailDirections"),
                     voicemailWebhook = getLink(handle:Constants.CALL_VOICEMAIL),
                     repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, for:CALL_VOICEMAIL)
@@ -116,7 +154,7 @@ class TwimlBuilder {
                     }
                 }
                 break
-            case CALL_CONNECTING:
+            case CallResponse.CONNECTING:
                 if (params.numsToCall instanceof Collection) {
                     String connecting = getMessage("twimlBuilder.connectingCall"),
                         voicemailWebhook = getLink(handle:Constants.CALL_VOICEMAIL)
@@ -132,12 +170,8 @@ class TwimlBuilder {
                         }
                     }
                 }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "twimlBuilder.buildXmlFor.paramNotFound", [CALL_CONNECTING])
-                }
                 break
-            case CALL_DEST_NOT_FOUND:
+            case CallResponse.DEST_NOT_FOUND:
                 if (params.num) {
                     String number = formatNumberForSay(params.num),
                         notFound = getMessage("twimlBuilder.phoneNotFound", [number])
@@ -148,123 +182,129 @@ class TwimlBuilder {
                         }
                     }
                 }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "twimlBuilder.buildXmlFor.paramNotFound", [CALL_DEST_NOT_FOUND])
-                }
                 break
-            case CALL_TEAM_GREETING:
-                if (params.teamName && params.numDigits) {
-                    String d = params.teamDirections ?: getMessage("twimlBuilder.teamNoTags"),
-                        welcome = getMessage("twimlBuilder.teamWelcome", [params.teamName]),
-                        directions = getMessage("twimlBuilder.teamDirections",
-                            [CALL_TEAM_CONNECT, d]),
+            case CallResponse.TEAM_GREETING:
+                if (params.teamName && params.isSubscribed != null) {
+                    String welcome = getMessage("twimlBuilder.teamWelcome", [params.teamName, Constants.CALL_GREETING_HEAR_ANNOUNCEMENTS]),
+                        connectToStaff = getMessage("twimlBuilder.teamConnectToStaff", [Constants.CALL_GREETING_CONNECT_TO_STAFF]),
                         digitsWebhook = getLink(handle:Constants.CALL_PUBLIC_TEAM_DIGITS),
                         repeatWebhook = getLink(handle:Constants.CALL_INCOMING)
+                    String sAction 
+                    if (params.isSubscribed) {
+                        sAction = getMessage("twimlBuilder.teamWelcomeUnsubscribe", [Constants.CALL_GREETING_UNSUBSCRIBE_ALL])
+                    }
+                    else {
+                        sAction = getMessage("twimlBuilder.teamWelcomeSubscribe", [Constants.CALL_GREETING_SUBSCRIBE_ALL])
+                    }
                     result = {
                         Response {
-                            Say(welcome)
-                            Gather(action:digitsWebhook, numDigits:params.numDigits) {
-                                Say(directions)
+                            Gather(action:digitsWebhook, numDigits:1) {
+                                Say(welcome)
+                                Say(sAction)
+                                Say(connectToStaff)
                             }
                             Redirect(repeatWebhook)
                         }
                     }
                 }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "twimlBuilder.buildXmlFor.paramNotFound", [CALL_TEAM_GREETING])
+                break
+            case CallResponse.TEAM_SUBSCRIBE_ALL:
+                String subscribed = getMessage("twimlBuilder.callSubscribeAll"),
+                    redirectWebhook = getLink(handle:Constants.CALL_INCOMING)
+                result = {
+                    Response {
+                        Say(subscribed)
+                        Redirect(redirectWebhook)
+                    }
                 }
                 break
-            case CALL_TEAM_ERROR:
-                if (params.digits && params.numDigits) {
-                    String d = params.teamDirections ?: getMessage("twimlBuilder.teamNoTags"),
-                        formatted = formatNumberForSay(params.digits),
+            case CallResponse.TEAM_UNSUBSCRIBE_ALL:
+                String unsubscribed = getMessage("twimlBuilder.callUnsubscribeAll"),
+                    redirectWebhook = getLink(handle:Constants.CALL_INCOMING)
+                result = {
+                    Response {
+                        Say(unsubscribed)
+                        Redirect(redirectWebhook)
+                    }
+                }
+                break
+            case CallResponse.TEAM_ANNOUNCEMENTS:
+                if (params.features instanceof List) {
+                    String redirectWebhook = getLink(handle:Constants.CALL_INCOMING)
+                    result = {
+                        Response {
+                            formatAnnouncements(params.features).each { Say(it) }
+                            Redirect(redirectWebhook)
+                        }
+                    }
+                }
+                break
+            case CallResponse.TEAM_NO_ANNOUNCEMENTS:
+                String noMsgs = getMessage("twimlBuilder.noTeamAnnouncements"),
+                    redirectWebhook = getLink(handle:Constants.CALL_INCOMING)
+                result = {
+                    Response {
+                        Say(noMsgs) 
+                        Redirect(redirectWebhook)
+                    }
+                }
+                break
+            case CallResponse.TEAM_ERROR:
+                if (params.digits) {
+                    String formatted = formatNumberForSay(params.digits),
                         error = getMessage("twimlBuilder.teamError", [formatted]),
-                        directions = getMessage("twimlBuilder.teamDirections",
-                            [CALL_TEAM_CONNECT, d]),
-                        digitsWebhook = getLink(handle:Constants.CALL_PUBLIC_TEAM_DIGITS),
                         repeatWebhook = getLink(handle:Constants.CALL_INCOMING)
                     result = {
                         Response {
                             Say(error)
-                            Gather(action:digitsWebhook, numDigits:params.numDigits) {
-                                Say(directions)
-                            }
                             Redirect(repeatWebhook)
                         }
                     }
                 }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "twimlBuilder.buildXmlFor.paramNotFound", [CALL_TEAM_ERROR])
-                }
                 break
-            case CALL_TEAM_TAG_MESSAGE:
-                if (params.datePosted instanceof DateTime && params.message &&
-                    params.teamDirections && params.numDigits) {
-                    String formatted = new PrettyTime(LCH.getLocale()).format(params.datePosted.toDate()),
-                        error = getMessage("twimlBuilder.teamTagMessage", [formatted, params.message]),
-                        directions = getMessage("twimlBuilder.teamDirections",
-                            [CALL_TEAM_CONNECT, params.teamDirections]),
-                        digitsWebhook = getLink(handle:Constants.CALL_PUBLIC_TEAM_DIGITS),
-                        repeatWebhook = getLink(handle:Constants.CALL_INCOMING)
+            case CallResponse.ANNOUNCEMENT:
+                if (params.contents && params.teamName && params.tagName && params.tagId && params.textId) {
+                    String announce = getMessage("twimlBuilder.callAnnouncement", [params.teamName, params.tagName, params.contents]),
+                        announceActions = getMessage("twimlBuilder.callAnnouncementActions", [Constants.CALL_ANNOUNCE_UNSUBSCRIBE_ONE, params.tagName, Constants.CALL_ANNOUNCE_UNSUBSCRIBE_ALL]),
+                        digitsWebhook = getLink(handle:Constants.CALL_TEAM_ANNOUNCEMENT_DIGITS, teamContactTagId:params.tagId, recordTextId:params.textId),
+                        repeatWebhook = getLink(handle:Constants.CALL_ANNOUNCEMENT, teamContactTagId:params.tagId, recordTextId:params.textId)
                     result = {
                         Response {
-                            Say(error)
-                            Gather(action:digitsWebhook, numDigits:params.numDigits) {
-                                Say(directions)
+                            Gather(action:digitsWebhook, numDigits:1) {
+                                Say(announce)
+                                Say(announceActions)
                             }
                             Redirect(repeatWebhook)
                         }
                     }
                 }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "twimlBuilder.buildXmlFor.paramNotFound", [CALL_TEAM_TAG_MESSAGE])
-                }
                 break
-            case CALL_TEAM_TAG_NONE:
-                if (params.tagName && params.teamDirections && params.numDigits) {
-                    String none = getMessage("twimlBuilder.teamTagNone", [params.tagName]),
-                        directions = getMessage("twimlBuilder.teamDirections",
-                            [CALL_TEAM_CONNECT, params.teamDirections]),
-                        digitsWebhook = getLink(handle:Constants.CALL_PUBLIC_TEAM_DIGITS),
-                        repeatWebhook = getLink(handle:Constants.CALL_INCOMING)
+            case CallResponse.ANNOUNCEMENT_UNSUBSCRIBE_ONE:
+                if (params.tagName) {
+                    String unsubOne = getMessage("twimlBuilder.callUnsubscribeOne", [params.tagName])
                     result = {
                         Response {
-                            Say(none)
-                            Gather(action:digitsWebhook, numDigits:params.numDigits) {
-                                Say(directions)
-                            }
-                            Redirect(repeatWebhook)
+                            Say(unsubOne)
+                            Hangup()
                         }
                     }
                 }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "twimlBuilder.buildXmlFor.paramNotFound", [CALL_TEAM_TAG_NONE])
-                }
                 break
-            case CALL_SERVER_ERROR:
+            case CallResponse.ANNOUNCEMENT_UNSUBSCRIBE_ALL:
+                String unsubAll = getMessage("twimlBuilder.callUnsubscribeAll")
+                result = {
+                        Response {
+                            Say(unsubAll)
+                            Hangup()
+                        }
+                    }
+                break
+            case CallResponse.SERVER_ERROR:
                 String serverError = getMessage("twimlBuilder.cannotCompleteCall")
                 result = {
                     Response {
                         Say(serverError)
                         Hangup()
-                    }
-                }
-                break
-
-            ///////////
-            // Texts //
-            ///////////
-
-            case TEXT_STAFF_AWAY:
-                String message = getMessage("twimlBuilder.textStaffAway")
-                result = {
-                    Response {
-                        Message(message)
                     }
                 }
                 break
@@ -280,10 +320,6 @@ class TwimlBuilder {
     // Helper methods //
     ////////////////////
 
-    protected String formatNumberForSay(String number) {
-        number.replaceAll(/\D*/, "").replaceAll(/.(?!$)/, /$0 /)
-    }
-
     protected String getMessage(String code, Collection<String> args=[]) {
         messageSource.getMessage(code, args as Object[], LCH.getLocale())
     }
@@ -291,5 +327,24 @@ class TwimlBuilder {
     protected String getLink(Map linkParams) {
         linkGenerator.link(namespace:"v1", resource:"publicRecord", action:"save",
             params:linkParams, absolute:true)
+    }
+
+    protected List<String> formatAnnouncements(List<FeaturedAnnouncement> features) {
+        features.collect { FeaturedAnnouncement fa ->
+            RecordText t1 = fa.featured
+            String timeAgo = new PrettyTime(LCH.getLocale()).format(t1.dateCreated.toDate())
+            getMessage("twimlBuilder.teamAnnouncement", [timeAgo, t1.contents])
+        }
+    }
+
+    protected String translateIsAvailable(boolean isAvailable) {
+        if (isAvailable) { getMessage("twimlBuilder.available") }
+        else { getMessage("twimlBuilder.unavailable") }
+    }
+    protected String translateScheduleChange(String sChangeType) {
+        if (sChangeType == Constants.SCHEDULE_AVAILABLE) {
+            getMessage("twimlBuilder.available")
+        }
+        else { getMessage("twimlBuilder.unavailable") }
     }
 }

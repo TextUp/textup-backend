@@ -166,6 +166,10 @@ class TeamPhone extends Phone {
     // Property Access //
     /////////////////////
 
+    List<FeaturedAnnouncement> getCurrentFeatures() {
+        FeaturedAnnouncement.notExpiredForTeamPhone(this).list(max:3)
+    }
+
     @Override
     List<ContactTag> getTags(Map params=[:]) {
         TeamContactTag.findAllByPhone(this, params + [sort: "name", order: "desc"])

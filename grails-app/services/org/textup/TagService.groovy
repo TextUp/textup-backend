@@ -45,9 +45,12 @@ class TagService {
 							case Constants.TAG_ACTION_REMOVE:
 								res = c1.removeFromTag(t1)
     							break
-							case Constants.TAG_ACTION_SUBSCRIBE:
-								res = c1.subscribeToTag(t1)
-    							break
+                            case Constants.TAG_ACTION_SUBSCRIBE_CALL:
+                                res = c1.subscribeToTag(t1, Constants.SUBSCRIPTION_CALL)
+                                break
+                            case Constants.TAG_ACTION_SUBSCRIBE_TEXT:
+                                res = c1.subscribeToTag(t1, Constants.SUBSCRIPTION_TEXT)
+                                break
 							case Constants.TAG_ACTION_UNSUBSCRIBE:
 								res = c1.unsubscribeFromTag(t1)
     							break

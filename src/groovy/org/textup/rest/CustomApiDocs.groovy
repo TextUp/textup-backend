@@ -3,6 +3,32 @@ package org.textup.rest
 import org.restapidoc.annotation.*
 
 class CustomResponseDoc {
+
+    @RestApiObjectField(description = "Request a password reset")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName = "username",
+            description = "Username of the account to send password request for",
+            allowedType = "String",
+            useForCreation = true),
+    ])
+    static def passwordResetRequest
+
+    @RestApiObjectField(description = "Request a password reset")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName = "token",
+            description = "Reset token string",
+            allowedType = "String",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName = "password",
+            description = "New password for the staff",
+            allowedType = "String",
+            useForCreation = true),
+    ])
+    static def newPasswordRequest
+
     @RestApiObjectField(description = "Modify a contact with relative to a tag")
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -12,7 +38,7 @@ class CustomResponseDoc {
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName = "action",
-            description = "Action to take. Allowed: add, remove, subscribe, unsubscribe",
+            description = "Action to take. Allowed: add, remove, subscribeCall, subscribeText, unsubscribe",
             allowedType = "String",
             useForCreation = true)
     ])

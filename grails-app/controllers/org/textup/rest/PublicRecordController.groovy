@@ -68,17 +68,30 @@ class PublicRecordController extends BaseController {
             if (authenticateRequest(request, params)) {
                 if (params.CallSid) {
                     switch (params.handle) {
-                        case Constants.CALL_INCOMING: return handleIncomingForCall(params)
-                        case Constants.CALL_STATUS: return handleStatusForCall(params)
-                        case Constants.CALL_VOICEMAIL: return handleVoicemailForCall(params)
-                        case Constants.CALL_PUBLIC_TEAM_DIGITS: return handlePublicTeamDigitsForCall(params)
-                        case Constants.CALL_STAFF_STAFF_DIGITS: return handleStaffStaffDigitsForCall(params)
+                        case Constants.CALL_INCOMING: 
+                            return handleIncomingForCall(params)
+                        case Constants.CALL_STATUS: 
+                            return handleStatusForCall(params)
+                        case Constants.CALL_VOICEMAIL: 
+                            return handleVoicemailForCall(params)
+                        case Constants.CALL_PUBLIC_TEAM_DIGITS: 
+                            return handlePublicTeamDigitsForCall(params)
+                        case Constants.CALL_STAFF_STAFF_DIGITS: 
+                            return handleStaffStaffDigitsForCall(params)
+                        case Constants.CALL_BRIDGE: 
+                            return doBridgeCall(params)
+                        case Constants.CALL_ANNOUNCEMENT:
+                            return doCallAnnouncement(params)
+                        case Constants.CALL_TEAM_ANNOUNCEMENT_DIGITS:
+                            return handleTeamAnnouncementDigits(params)
                     }
                 }
                 else if (params.MessageSid) {
                     switch (params.handle) {
-                        case Constants.TEXT_INCOMING: return handleIncomingForText(params)
-                        case Constants.TEXT_STATUS: return handleStatusForText(params)
+                        case Constants.TEXT_INCOMING: 
+                            return handleIncomingForText(params)
+                        case Constants.TEXT_STATUS: 
+                            return handleStatusForText(params)
                     }
                 }
                 badRequest()
@@ -86,12 +99,6 @@ class PublicRecordController extends BaseController {
             else { forbidden() }
         }
     }
-
-
-    /*
-        TODO: appropriatly mark calls/texts as UNREAD!!!
-     */
-
 
     ////////////////////////////////////////////
     // Helper methods for repeating responses //
@@ -223,7 +230,7 @@ class PublicRecordController extends BaseController {
         String from = Helpers.cleanNumber(params.From),
             to = Helpers.cleanNumber(params.To)
         if (staffService.staffExistsForPersonalAndWorkPhoneNums(from, to)) {
-            Result res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_SELF_GREETING)
+            Result res = twimlBuilder.buildXmlFor(CallResponse.SELF_GREETING)
             if (res.success) { renderAsXml(res.payload) }
             else { handleResultFailure(res) }
         }
@@ -241,7 +248,7 @@ class PublicRecordController extends BaseController {
             }
             //phone not found
             else {
-                Result res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_DEST_NOT_FOUND, [num:to])
+                Result res = twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to])
                 if (res.success) { renderAsXml(res.payload) }
                 else { handleResultFailure(res) }
             }
@@ -262,7 +269,7 @@ class PublicRecordController extends BaseController {
     protected def handlePublicTeamDigitsForCall(GrailsParameterMap params) {
         String from = Helpers.cleanNumber(params.From),
             to = Helpers.cleanNumber(params.To)
-        if (params.Digits == TwimlBuilder.CALL_TEAM_CONNECT.toString()) {
+        if (params.Digits == Constants.CALL_GREETING_CONNECT_TO_STAFF) {
             Result<Closure> res = callService.connectToPhone(from, to, params.CallSid)
             if (res.success) { renderAsXml(res.payload) }
             else { handleResultFailure(res) }
@@ -278,13 +285,57 @@ class PublicRecordController extends BaseController {
         Result<String> res = callService.handleOutgoingCallOrContactCode(params.CallSid,
             params.To, params.Digits)
         if (res.success) {
-            res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_SELF_CONNECTING, [num:res.payload])
+            res = twimlBuilder.buildXmlFor(CallResponse.SELF_CONNECTING, [num:res.payload])
         }
         else {
-            res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_SELF_ERROR, [digits:params.Digits])
+            res = twimlBuilder.buildXmlFor(CallResponse.SELF_ERROR, [digits:params.Digits])
         }
         if (res.success) { renderAsXml(res.payload) }
         else { handleResultFailure(res) }
+    }
+
+    protected def doBridgeCall(GrailsParameterMap params) {
+        if (params.long("contactToBridge")) {
+            Result<Closure> res = callService.completeBridgeCallForContact(params.long("contactToBridge"))
+            if (res.success) { renderAsXml(res.payload) }
+            else { handleResultFailure(res) }
+        }
+        else { badRequest() }
+    }
+
+    protected def doCallAnnouncement(GrailsParameterMap params) {
+        if (params.long("teamContactTagId") && params.long("recordTextId")) {
+            Long ctId = params.long("teamContactTagId"),
+                rtId = params.long("recordTextId")
+            Result<Closure> res = callService.completeCallAnnouncement(ctId, rtId)
+            if (res.success) { renderAsXml(res.payload) }
+            else { handleResultFailure(res) }
+        }
+        else { badRequest() }
+    }
+
+    protected def handleTeamAnnouncementDigits(GrailsParameterMap params) {
+        if (params.long("teamContactTagId") && params.long("recordTextId")) {
+            String from = Helpers.cleanNumber(params.From),
+                to = Helpers.cleanNumber(params.To)
+            Long ctId = params.long("teamContactTagId"),
+                rtId = params.long("recordTextId")
+            Result<Closure> res
+            switch (params.Digits) {
+                case Constants.CALL_ANNOUNCE_UNSUBSCRIBE_ONE:
+                    res = callService.handleCallAnnouncementUnsubscribeOne(from, ctId)
+                    break
+                case Constants.CALL_ANNOUNCE_UNSUBSCRIBE_ALL:
+                    res = callService.handleCallAnnouncementUnsubscribeAll(from, to)
+                    break
+                default:
+                    res = callService.completeCallAnnouncement(ctId, rtId)
+                    break
+            }
+            if (res.success) { renderAsXml(res.payload) }
+            else { handleResultFailure(res) }
+        }
+        else { badRequest() }
     }
 
     /////////////////////////////
@@ -296,34 +347,26 @@ class PublicRecordController extends BaseController {
         String from = Helpers.cleanNumber(params.From),
             to = Helpers.cleanNumber(params.To)
         if (staffService.staffExistsForPersonalAndWorkPhoneNums(from, to)) {
-            // Result res = twimlBuilder.buildXmlFor(TwimlBuilder.TEXT_SELF_GREETING)
-            // if (res.success) { renderAsXml(res.payload) }
-            // else { handleResultFailure(res) }
-            notAllowed()
+            Result res = textService.handleIncomingToSelf(from, to)
+            if (res.success) { renderAsXml(res.payload) }
+            else { handleResultFailure(res) }
         }
         //case 2: someone is texting a TextUp phone
         else {
             if (callService.staffPhoneExistsForNum(to)) {
                 Result<Closure> res = textService.handleIncomingToStaff(from, to, params.MessageSid, params.Body)
-
-                println "PublicRecordController: handleIncomingForText: handleIncomingToStaff result: $res"
-                // println "\t res.payload: ${res.payload}"
-
                 if (res.success) { renderAsXml(res.payload) }
                 else { handleResultFailure(res) }
             }
             else if (MessageService.teamPhoneExistsForNum(to)) {
-                notAllowed()
-                // Result<Closure> res = textService.handleIncomingToTeam(from, to, params.MessageSid, params.Body)
-                // if (res.success) { renderAsXml(res.payload) }
-                // else { handleResultFailure(res) }
+                Result<Closure> res = textService.handleIncomingToTeam(from, to, params.MessageSid, params.Body)
+                if (res.success) { renderAsXml(res.payload) }
+                else { handleResultFailure(res) }
             }
-            //phone not found
-            else {
-                // Result res = twimlBuilder.buildXmlFor(TwimlBuilder.TEXT_DEST_NOT_FOUND, [num:to])
-                // if (res.success) { renderAsXml(res.payload) }
-                // else { handleResultFailure(res) }
-                notAllowed()
+            else { //phone not found
+                Result res = twimlBuilder.buildXmlFor(TextResponse.NOT_FOUND)
+                if (res.success) { renderAsXml(res.payload) }
+                else { handleResultFailure(res) }
             }
         }
     }

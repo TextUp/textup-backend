@@ -68,10 +68,22 @@ class Helpers {
         parsed
     }
 
+    static String cleanIncomingText(String contents) {
+        contents?.trim()
+    }
+
+    static String cleanUsername(String username) {
+        username?.trim()?.toLowerCase()
+    }
+
     static String cleanNumber(String num) {
         PhoneNumber pNum = new PhoneNumber(number:num)
         pNum.discard() //temporary container
         pNum.number
+    }
+
+    static String formatNumberForSay(String number) {
+        number?.replaceAll(/\D*/, "")?.replaceAll(/.(?!$)/, /$0 /)
     }
 
     static String translateCallStatus(String status) {
@@ -118,5 +130,16 @@ class Helpers {
             log.error("Helpers.getBase64HmacSHA1: data: $data, error: ${e.message}")
         }
         result
+    }
+
+    static String randomAlphanumericString(int length) {
+        Collection<String> alphabet = ("a".."z") + (0..9)
+        int lastIndex = alphabet.size() - 1
+        StringBuffer result = new StringBuffer()
+        length.times {
+            int randIndex = Math.round(Math.random() * lastIndex)
+            result << alphabet[randIndex]
+        }
+        result.toString()
     }
 }

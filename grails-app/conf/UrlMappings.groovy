@@ -7,15 +7,15 @@ class UrlMappings {
             }
         }
 
-        "/"(view:"/index")
-        "500"(view:'/error')
         //login endpoint is /login (provided by Spring Security REST)
+        "/"(controller:"doc", action:"displayDoc")
+        "500"(view:'/error')
 
-        // //password reset option. index and delete not allowed
-        // "/reset"(controller:"passwordReset", action:"index", method:"GET") { format = "json" }
-        // "/reset"(controller:"passwordReset", action:"delete", method:"DELETE") { format = "json" }
-        // "/reset"(controller:"passwordReset", action:"resetPassword", method:"PUT") { format = "json" }
-        // "/reset"(controller:"passwordReset", action:"requestReset", method:"POST") { format = "json" }
+        //password reset option. index and delete not allowed
+        "/reset"(controller:"passwordReset", action:"index", method:"GET") { format = "json" }
+        "/reset"(controller:"passwordReset", action:"delete", method:"DELETE") { format = "json" }
+        "/reset"(controller:"passwordReset", action:"resetPassword", method:"PUT") { format = "json" }
+        "/reset"(controller:"passwordReset", action:"requestReset", method:"POST") { format = "json" }
 
         group("/v1") {
 
@@ -29,17 +29,19 @@ class UrlMappings {
             "/public/staff"(resources:"publicStaff", namespace:"v1") {
                 format = "json"
             }
+            //for webhooks requests from Twilio
             "/public/records"(resources:"publicRecord", namespace:"v1") {
                 format = "json"
             }
-            // "/public/numbers"(resources:"publicNumber", namespace:"v1") {
-            //     format = "json"
-            // }
 
 	        ////////////////////
 	        // Restricted API //
 	        ////////////////////
 
+            //only used for looking up available TextUp numbers
+            "/numbers"(resources:"lookupNumber", namespace:"v1") {
+                format = "json"
+            }
         	"/organizations"(resources:"organization", namespace:"v1") {
                 format = "json"
             }

@@ -9,6 +9,7 @@ class TagMembership {
 	Contact contact 
 
     boolean hasUnsubscribed = false
+    String subscriptionType
 
     static transients = ["subscribed"]
     static constraints = {
@@ -18,6 +19,7 @@ class TagMembership {
                 ["phoneMismatch", val.phone?.number, obj.tag?.phone?.number]
             }
         }
+        subscriptionType blank:true, nullable:true, inList:[Constants.SUBSCRIPTION_TEXT, Call.SUBSCRIPTION_CALL]
     }
     static namedQueries = {
         forContactAndTagId { Contact c1, Long tagId ->
@@ -27,6 +29,23 @@ class TagMembership {
         contactIdsForTag { ContactTag ct ->
             eq("tag", ct)
             projections { property("contact.id") }
+        }
+        allSubsForContactNumAndTeamPhone { String cNum, TeamPhone p1 ->
+            eq("hasUnsubscribed", false)
+            contact {
+                numbers {
+                    eq("number", cNum)
+                }
+                eq("phone", p1)
+            }
+        }
+        textSubsForContactNumAndTeamPhone { String cNum, TeamPhone p1 ->
+            allSubsForContactNumAndTeamPhone(cNum, p1)
+            eq("subscriptionType", Constants.SUBSCRIPTION_TEXT)
+        }
+        textSubsForContactNumAndTeamPhone { String cNum, TeamPhone p1 ->
+            allSubsForContactNumAndTeamPhone(cNum, p1)
+            eq("subscriptionType", Constants.SUBSCRIPTION_CALL)
         }
     }
 
@@ -38,8 +57,9 @@ class TagMembership {
     // Helper methods //
     ////////////////////
     
-    TagMembership subscribe() {
+    TagMembership subscribe(String subType) {
         this.hasUnsubscribed = false
+        this.subscriptionType = subType
         this
     }
     TagMembership unsubscribe() {

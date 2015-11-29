@@ -8,17 +8,14 @@ import com.twilio.sdk.resource.instance.Call
 import com.twilio.sdk.resource.list.RecordingList
 import com.twilio.sdk.TwilioRestClient
 import grails.transaction.Transactional
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.hibernate.FlushMode
-import org.springframework.beans.factory.annotation.Autowired
 import org.textup.rest.TwimlBuilder
 import static org.springframework.http.HttpStatus.*
 
 @Transactional
 class CallService {
 
-    @Autowired
-    LinkGenerator linkGenerator
+    def grailsLinkGenerator
 	def grailsApplication
 	def resultFactory
     def twimlBuilder
@@ -30,30 +27,133 @@ class CallService {
     // Call methods //
     //////////////////
 
-    Result<RecordCall> call(Phone fromPhone, Contactable toContact, RecordCall call) {
+
+    Result<RecordCall> startBridgeCall(Staff staffMakingCall, Phone fromPhone, Contactable toContact, RecordCall call) {
         if (call.validate()) {
-            stopOnSuccessOrInternalError(call, fromPhone.number.e164PhoneNumber, toContact.numbers*.e164PhoneNumber)
+            String personalAsString = staff.personalPhoneNumber?.e164PhoneNumber
+            if (personalPhoneAsString) {
+                tryCall(personalAsString, call, fromPhone.number.e164PhoneNumber, toContact, 
+                    [contactToBridge:toContact.contactId, handle:Constants.CALL_BRIDGE])
+            }
+            else {
+                resultFactory.failWithMessageAndStatus("callService.startBridgeCall.noPersonalNumber")
+            }
         }
         else { resultFactory.failWithValidationErrors(call.error) }
 	}
-
-    Result<RecordCall> retry(Long recordCallId) {
-        RecordCall call = RecordCall.get(recordCallId)
-        if (call) {
-            Contact contact = Contact.forRecord(call.record).get()
-            if (contact) {
-                lockService.retry(call, contact, this.&stopOnSuccessOrInternalError)
-            }
-            else {
-                resultFactory.failWithMessage("callService.retry.contactNotFoundForCall", [call.id])
-            }
+    //the call method above initiates a bridge call and this method 
+    //completes the bridge call in the webhook callback
+    Result<Closure> completeBridgeCallForContact(Long cId) {
+        Contact c1 = Contact.get(cId)
+        if (c1) { twimlBuilder.buildXmlFor(CallResponse.BRIDGE_CONNECT, [contactToBridge:c1]) }
+        else {
+            log.error("CallService.completeBridgeCallForContact: Contact ${cId} not found.")
+            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.completeBridgeCallForContact.contactNotFound", [cId])
         }
-        else { resultFactory.failWithMessage("callService.retry.callNotFound", [recordCallId]) }
+    }
+    
+    Result<RecordCall> startCallAnnouncement(Phone fromPhone, Contactable toContact, RecordCall call, Long teamContactTagId, Long recordTextId) {
+        if (call.validate()) {
+            tryCall(toContact.numbers[0]?.e164PhoneNumber, call, fromPhone.number.e164PhoneNumber, toContact, 
+                [handle:Constants.CALL_ANNOUNCEMENT, teamContactTagId:teamContactTagId, recordTextId:recordTextId])
+        }
+        else { resultFactory.failWithValidationErrors(call.error) }
+    }
+    Result<Closure> completeCallAnnouncement(Long teamContactTagId, Long recordTextId) {
+        RecordText rt1 = RecordText.get(recordTextId)
+        TeamContactTag ct1 = TeamContactTag.get(teamContactTagId)
+        if (rt1 && ct1) {
+            Team t1 = Team.forPhone(ct1.phone).get()
+            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT, 
+                [contents:rt1.contents, teamName:t1.name, tagName:ct1.name, tagId:ct1.id, textId:rt1.id])
+        }
+        else {
+            log.error("CallService.completeCallAnnouncement: RecordText ${recordTextId} not found.")
+            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.completeCallAnnouncement.notFound", [rt1?.id, ct1?.id])
+        }
+    }
+    Result<Closure> handleCallAnnouncementUnsubscribeOne(String contactNum, String phoneNum, Long teamContactTagId) {
+        TeamPhone p1 = TeamPhone.forTeamNumber(phoneNum)
+        TeamContactTag ct1 = TeamContactTag.get(teamContactTagId)
+        if (p1 && ct1) {
+            List<Contact> contacts = Contact.forPhoneAndNum(p1, fromNum.number).list()
+            contacts.each { Contact c1 -> c1.quietUnsubscribeFromTag(ct1) }
+            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT_UNSUBSCRIBE_ONE, [tagName:ct1.name])
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.handleCallAnnouncementUnsubscribeOne.notFound", [p1?.id, ct1?.id])
+        }
+    }
+    Result<Closure> handleCallAnnouncementUnsubscribeAll(String contactNum, String phoneNum) {
+        TeamPhone p1 = TeamPhone.forTeamNumber(phoneNum)
+        if (p1) {
+            List<Contact> contacts = Contact.forPhoneAndNum(p1, fromNum.number).list()
+            List<ContactTag> tags = p1.tags
+            contacts.each { Contact c1 ->
+                tags.each { ContactTag t1 ->
+                    c1.quietUnsubscribeFromTag(t1)
+                }
+            }
+            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT_UNSUBSCRIBE_ALL)
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.handleCallAnnouncementUnsubscribeAll.notFound", [p1?.id])
+        }
     }
 
-    /////////////////////
-    // Webhook methods //
-    /////////////////////
+    protected Result<RecordCall> tryCall(String to, RecordCall call, String from, Map afterPickupParams) {
+
+        String afterPickup = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
+            action:"save", absolute:true, params:afterPickupParams)
+
+        println "REAL AFTER PICKUP IN TRYCALL: $afterPickup"
+
+        //TODO: remove this
+        String fakeAfterPickup = "https://08a91b1b.ngrok.io/v1/public/records?"
+        afterPickupParams.each { k, v -> fakeAfterPickup += "$k=$v&" }
+
+
+        RecordCall.withNewSession { session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                Result<Call> res = makeCallHelper(to, from, fakeAfterPickup)
+                if (res.success) {
+                    Call c = res.payload
+                    RecordItemReceipt receipt = new RecordItemReceipt(apiId:c.sid)
+                    receipt.receivedByAsString = to
+                    call.addToReceipts(receipt)
+                    if (receipt.save()) {
+                        //if not merge, we get org.hibernate.NonUniqueObjectException
+                        if (call.merge()) { resultFactory.success(call) }
+                        else { resultFactory.failWithValidationErrors(call.errors) }
+                    }
+                    else { resultFactory.failWithValidationErrors(receipt.errors) }
+                }
+                else { res }
+            }
+            catch (Throwable e) {
+                log.error("CallService.tryCall: ${e.message}")
+                resultFactory.failWithThrowable(e)
+            }
+            finally { session.flushMode = FlushMode.AUTO }
+        }
+    }
+    protected Result<Call> makeCallHelper(String to, String from, String afterPickup) {
+        def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
+        try {
+            TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
+            CallFactory cFactory = client.account.callFactory
+            resultFactory.success(cFactory.create(To:to, From:from, Url:afterPickup))
+        }
+        catch (Throwable e) {
+            log.error("CallService.makeCallHelper: ${e.message}")
+            resultFactory.failWithThrowable(e)
+        }
+    }
+
+    /////////////////////////
+    // Existence of phones //
+    /////////////////////////
 
     @Transactional(readOnly=true)
     boolean teamPhoneExistsForNum(String num) {
@@ -65,9 +165,9 @@ class CallService {
         StaffPhone.forStaffNumber(Helpers.cleanNumber(num)).get() != null
     }
 
-    /*
-    Voicemail
-     */
+    ///////////////
+    // Voicemail //
+    ///////////////
 
     Result<List<RecordCall>> storeVoicemail(String apiId, String callStatus,
         Integer callDuration, String voicemailUrl, int voicemailDuration) {
@@ -112,15 +212,31 @@ class CallService {
             else { moveVoicemailToS3(apiId, attemptNum + 1) }
         }
     }
+    protected Result<Call> getCallFromSid(String apiId) {
+        def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
+        try {
+            TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
+            Call call = client.account.getCall(apiId)
+            if (call) { resultFactory.success(call) }
+            else {
+                resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                    "callService.getCallFromSid.callNotFound", [apiId])
+            }
+        }
+        catch (e) {
+            log.error("CallService.getCallFromSid: ${e.message}")
+            resultFactory.failWithThrowable(e)
+        }
+    }
 
-    /*
-    Determins if should connect incoming call to phone or redirect to voicemail
-     */
+    ////////////////////////////////////
+    // Connect incoming call to phone //
+    ////////////////////////////////////
 
     Result<Closure> connectToPhone(String from, String to, String apiId) {
         Phone phone = Phone.forNumber(Helpers.cleanNumber(to)).get()
         if (phone) { connectToPhone(from, phone, apiId) }
-        else { twimlBuilder.buildXmlFor(TwimlBuilder.CALL_DEST_NOT_FOUND, [num:to]) }
+        else { twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to]) }
     }
     Result<Closure> connectToPhone(String from, Phone toPhone, String apiId) {
         PhoneNumber fromNum = new PhoneNumber(number:from)
@@ -129,7 +245,7 @@ class CallService {
             res = getNumbersToCallIfAvailable(toPhone)
             if (res.success && res.payload instanceof Collection) {
                 List<String> numsToCall = res.payload
-                res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_CONNECTING,
+                res = twimlBuilder.buildXmlFor(CallResponse.CONNECTING,
                     [numsToCall:numsToCall])
             }
         }
@@ -140,12 +256,12 @@ class CallService {
             Staff s = Staff.get(phone.ownerId)
             if (s) {
                 if (s.isAvailableNow()) { resultFactory.success([s.phone.numberAsString]) }
-                else { twimlBuilder.buildXmlFor(TwimlBuilder.CALL_VOICEMAIL) }
+                else { twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL) }
             }
             else {
                 log.error('''CallService.connectToPhone: staff not found for staff
                     phone $phone with ownerId ${phone.ownerId}.''')
-                return twimlBuilder.buildXmlFor(TwimlBuilder.CALL_SERVER_ERROR)
+                return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
             }
         }
         else if (phone.instanceOf(TeamPhone)) {
@@ -156,22 +272,22 @@ class CallService {
                     if (s.isAvailableNow()) { numsToCall << s.phone.numberAsString }
                 }
                 if (!numsToCall.isEmpty()) { resultFactory.success(numsToCall) }
-                else { twimlBuilder.buildXmlFor(TwimlBuilder.CALL_VOICEMAIL) }
+                else { twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL) }
             }
             else {
                 log.error("CallService.connectToPhone: team not found for team phone $phone.")
-                return twimlBuilder.buildXmlFor(TwimlBuilder.CALL_SERVER_ERROR)
+                return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
             }
         }
         else {
             log.error("CallService.connectToPhone: phone $phone is not a staff or team phone.")
-            twimlBuilder.buildXmlFor(TwimlBuilder.CALL_SERVER_ERROR)
+            twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
         }
     }
 
-    /*
-    Handles digit input when staff calls self
-     */
+    //////////////////////////////////////////////////////////////////
+    // Incoming call from staff from personal phone to TextUp phone //
+    //////////////////////////////////////////////////////////////////
 
     Result<String> handleOutgoingCallOrContactCode(String apiId, String workNum, String numOrCode) {
         Phone phone = Phone.forNumber(Helpers.cleanNumber(workNum)).get()
@@ -208,163 +324,72 @@ class CallService {
         }
     }
 
-    /*
-    Calling a team phone
-     */
+    //////////////////////////
+    // Calling a team phone //
+    //////////////////////////
 
     Result<Closure> handleCallToTeamPhone(String from, String to, String apiId) {
-        TeamPhone phone = TeamPhone.forTeamNumber(Helpers.cleanNumber(to)).get()
-        Result res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_DEST_NOT_FOUND, [num:to])
-        if (phone) {
-            Team t = Team.forPhone(phone).get()
+        TeamPhone p1 = TeamPhone.forTeamNumber(Helpers.cleanNumber(to)).get()
+        Result res = twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to])
+        if (p1) {
+            Team t = Team.forPhone(p1).get()
             if (t) {
                 //store record of this incoming call to team phone
                 PhoneNumber fromNum = new PhoneNumber(number:from)
-                res = recordService.createIncomingRecordCall(fromNum, phone, [apiId:apiId])
+                res = recordService.createIncomingRecordCall(fromNum, p1, [apiId:apiId])
                 if (res.success) {
-                    List<String> directions = getTeamDirectionsFromTags(t.phone.tags)
-                    res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_TEAM_GREETING,
-                    [teamName:t.name, teamDirections:directions.join(", "),
-                    numDigits:getNumDigits(directions)])
-                }
-            }
-            else { log.error("CallService.handleCallToTeamPhone: No team found for $phone") }
-        }
-        res
-    }
-    @Transactional(readOnly=true)
-    Result<Closure> handleDigitsToTeamPhone(String from, String to, String digits) {
-        TeamPhone phone = TeamPhone.forTeamNumber(Helpers.cleanNumber(to)).get()
-        Result res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_DEST_NOT_FOUND, [num:to])
-        if (phone) {
-            Team t = Team.forPhone(phone).get()
-            if (t) {
-                List<String> directions = getTeamDirectionsFromTags(t.phone.tags)
-                int dIndex = digits.isInteger() ? digits.toInteger() : -1,
-                    numDigits = getNumDigits(directions)
-                dIndex = TwimlBuilder.convertOptionNumberToTagIndex(dIndex)
-                String dString = directions.join(", ")
-                if (dIndex >= 0 && dIndex < directions.size()) {
-                    TeamContactTag tag = t.phone.tags[dIndex]
-                    RecordText text = tag.record.getTexts(outgoing:true, futureText:false, max:1)[0]
-                    if (text) {
-                        res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_TEAM_TAG_MESSAGE,
-                            [datePosted:text.dateCreated, message:text.contents,
-                            teamDirections:dString, numDigits:numDigits])
+                    ClientSession ts1 = ClientSession.findOrCreateForTeamPhoneAndNumber(p1, from)
+                    if (ts1) { 
+                        res = twimlBuilder.buildXmlFor(CallResponse.TEAM_GREETING, [teamName:t.name, isSubscribed:ts1.hasCallSubscriptions()])
                     }
                     else {
-                        res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_TEAM_TAG_NONE,
-                            [tagName:tag.name, teamDirections:dString, numDigits:numDigits])
+                        res = twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
                     }
                 }
-                else {
-                    res = twimlBuilder.buildXmlFor(TwimlBuilder.CALL_TEAM_ERROR,
-                        [digits:digits, teamDirections:dString, numDigits:getNumDigits(directions)])
-                }
             }
-            else { log.error("CallService.handleDigitsToTeamPhone: No team found for $phone") }
+            else { log.error("CallService.handleCallToTeamPhone: No team found for $p1") }
         }
         res
     }
-    protected List<String> getTeamDirectionsFromTags(List<TeamContactTag> tagList) {
-        List<String> directionList = []
-        tagList.eachWithIndex { TeamContactTag tag, int index ->
-            directionList << twimlBuilder.getMessage("twimlBuilder.teamDirection",
-                [TwimlBuilder.convertTagIndexToOptionNumber(index), tag.name])
-        }
-        directionList
-    }
-    protected int getNumDigits(List<String> teamDirections) {
-        "${teamDirections.size()}".size()
-    }
-
-    ////////////////////
-    // Helper methods //
-    ////////////////////
-
-    protected Result<RecordCall> stopOnSuccessOrInternalError(RecordCall call, String from, List<String> toNums) {
-        Result res = resultFactory.success(call)
-        for (toNum in toNums) {
-            res = this.tryCall(call, toNum, from)
-
-            println "TRY CALL RESULT: $res"
-
-            //return on first success or if 500-level error
-            if (res.success || (!res.success && res.payload?.errorCode > 499)) {
-                return res
-            }
-        }
-        res //if we haven't already returned, return last obtained result
-    }
-
-    protected Result<RecordCall> tryCall(RecordCall call, String to, String from) {
-        // String callback = linkGenerator.link(namespace:"v1", resource:"publicRecord",
-        //     action:"save", absolute:true, params:[handle:Constants.CALL_STATUS])
-
-
-
-        String callback = "https://08a91b1b.ngrok.io/v1/public/records?handle=status"
-
-
-
-
-        RecordCall.withNewSession { session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                Result<Call> res = makeCallHelper(to, from, callback)
-                if (res.success) {
-                    Call c = res.payload
-                    RecordItemReceipt receipt = new RecordItemReceipt(apiId:c.sid)
-                    receipt.receivedByAsString = to
-                    call.addToReceipts(receipt)
-                    if (receipt.save()) {
-                        //if not merge, we get org.hibernate.NonUniqueObjectException
-                        if (call.merge()) { resultFactory.success(call) }
-                        else { resultFactory.failWithValidationErrors(call.errors) }
+    Result<Closure> handleDigitsToTeamPhone(String from, String to, String digits) {
+        TeamPhone phone = TeamPhone.forTeamNumber(Helpers.cleanNumber(to)).get()
+        Result res = twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to])
+        if (phone) {
+            ClientSession ts1 = ClientSession.findOrCreateForTeamPhoneAndNumber(p1, from)
+            if (!ts1) { return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR) }
+            List<Contact> contacts = Contact.findOrCreateForPhoneAndNum(p1, cleanFrom)
+            if (!contacts) { return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR) }
+            List<ContactTag> tags = p1.tags
+            //connect to staff case redirected in PublicRecordController
+            switch(digits) {
+                case Constants.CALL_GREETING_HEAR_ANNOUNCEMENTS:
+                    List<FeaturedAnnouncement> features = p1.currentFeatures
+                    if (features) {
+                        twimlBuilder.buildXmlFor(CallResponse.TEAM_ANNOUNCEMENTS, [features:features])
                     }
-                    else { resultFactory.failWithValidationErrors(receipt.errors) }
-                }
-                else { res }
-            }
-            catch (Throwable e) {
-                log.error("CallService.tryCall: ${e.message}")
-                resultFactory.failWithThrowable(e)
-            }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-    }
-
-    ////////////////////
-    // Twilio methods //
-    ////////////////////
-
-    protected Result<Call> getCallFromSid(String apiId) {
-        def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
-        try {
-            TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
-            Call call = client.account.getCall(apiId)
-            if (call) { resultFactory.success(call) }
-            else {
-                resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                    "callService.getCallFromSid.callNotFound", [apiId])
+                    else { twimlBuilder.buildXmlFor(CallResponse.TEAM_NO_ANNOUNCEMENTS) }
+                    break
+                case Constants.CALL_GREETING_SUBSCRIBE_ALL:
+                    contacts.each { Contact c1 ->
+                        tags.each { ContactTag t1 ->
+                            c1.subscribeToTag(t1, Constants.SUBSCRIPTION_CALL)
+                        }
+                    }
+                    res = twimlBuilder.buildXmlFor(CallResponse.TEAM_SUBSCRIBE_ALL)
+                    break
+                case Constants.CALL_GREETING_UNSUBSCRIBE_ALL:
+                    contacts.each { Contact c1 ->
+                        tags.each { ContactTag t1 ->
+                            c1.quietUnsubscribeFromTag(t1)
+                        }
+                    }
+                    res = twimlBuilder.buildXmlFor(CallResponse.TEAM_UNSUBSCRIBE_ALL)
+                    break
+                default:
+                    res = twimlBuilder.buildXmlFor(CallResponse.TEAM_ERROR, [digits:digits])
+                    break
             }
         }
-        catch (e) {
-            log.error("CallService.getCallFromSid: ${e.message}")
-            resultFactory.failWithThrowable(e)
-        }
-    }
-
-    protected Result<Call> makeCallHelper(String to, String from, String callback) {
-        def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
-        try {
-            TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
-            CallFactory cFactory = client.account.callFactory
-            resultFactory.success(cFactory.create(To:to, From:from, Url:callback))
-        }
-        catch (Throwable e) {
-            log.error("CallService.makeCallHelper: ${e.message}")
-            resultFactory.failWithThrowable(e)
-        }
+        res
     }
 }

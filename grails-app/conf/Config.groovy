@@ -176,9 +176,15 @@ textup {
     maxNumText = 50 //max number of recipients to text
     defaultMax = 10 //default max during pagination
     largestMax = 100 //largest max allowed during pagination
+    resetTokenSize = 25
 
     voicemailBucketName = "media.textup.org"
-    noReplyMail = "no-reply@textup.org"
+    mail {
+        standard {
+            name = "TextUp Notification"
+            email = "no-reply@textup.org"
+        }    
+    }
 
     //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
     //in the format: JAVA_OPTS="${JAVA_OPTS} -Dkey=value"
@@ -190,6 +196,13 @@ textup {
         aws {
             accessKey = System.getenv("AWS_ACCESS_KEY") ?: System.getProperty("AWS_ACCESS_KEY")
             secretKey = System.getenv("AWS_SECRET_KEY") ?: System.getProperty("AWS_SECRET_KEY")
+        }
+        sendGrid {
+            username = System.getenv("SENDGRID_USERNAME") ?: System.getProperty("SENDGRID_USERNAME")
+            password = System.getenv("SENDGRID_PASSWORD") ?: System.getProperty("SENDGRID_PASSWORD")
+            templateIds {
+                standard = "6c024f79-e180-4f96-bfad-4178dc0204ab"
+            }
         }
     }
     rest {

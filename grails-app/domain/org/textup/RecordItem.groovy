@@ -67,6 +67,11 @@ class RecordItem {
             eq("record", rec)
             order("dateCreated", "desc")
         }
+        forThisIdAndPhoneId { Long thisId, Long phoneId ->
+            eq("id", thisId)
+            record { "in"("id", Contact.recordIdsForPhoneId(phoneId)) }
+            order("dateCreated", "desc")   
+        }
         forRecordDateSince { Record rec, DateTime s ->
             eq("record", rec)
             ge("dateCreated", s)
