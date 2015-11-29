@@ -8,6 +8,7 @@ class StaffService {
 
     def resultFactory
     def authService
+    def mailService
 
     //////////////////
     // REST methods //
@@ -35,6 +36,8 @@ class StaffService {
                     return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                         "staffService.create.orgNotFound", [o.id])
                 }
+                Result res = mailService.notifyAdminsOfPendingStaff(s1.name, org.admins)
+                if (!res.success) { return res }
             }
             else {
                 //We will manually change this staff status to ADMIN
@@ -49,6 +52,8 @@ class StaffService {
                 if (!org.save()) {
                     return resultFactory.failWithValidationErrors(org.errors)
                 }
+                Result res = mailService.notifySuperOfNewOrganization(org.name)
+                if (!res.success) { return res }
             }
 			s1.org = org
 		}
@@ -62,13 +67,6 @@ class StaffService {
     		return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "staffService.update.notFound", [staffId])
     	}
-        if (body.status) { //can only update status if you are an admin
-            if (authService.isAdminAtSameOrgAs(s1.id)) { s1.status = body.status  }
-            else {
-                return resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                    "staffService.update.statusNotAdmin", [staffId])
-            }
-        }
     	s1.with {
     		if (body.name) name = body.name
             if (body.username) username = body.username
@@ -95,6 +93,29 @@ class StaffService {
                 return resultFactory.failWithValidationErrors(s1.phone.errors)
             }
 		}
+        if (body.status) { //can only update status if you are an admin
+            if (authService.isAdminAtSameOrgAs(s1.id)) {
+                String oldStatus = s1.status
+                s1.status = body.status
+                if (oldStatus == Constants.STATUS_PENDING && 
+                    s1.status != Constants.STATUS_PENDING && s1.save()) {
+                    Result res
+                    if (s1.status == Constants.STATUS_ADMIN || 
+                        s1.status == Constants.STATUS_STAFF) {
+                        res = mailService.notifyPendingOfApproval(s1)
+                    }
+                    else {
+                        res = mailService.notifyPendingOfRejection(s1)
+                    }
+                    if (!res.success) { return res }
+                }
+            }
+            else {
+                s1.discard()
+                return resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                    "staffService.update.statusNotAdmin", [staffId])
+            }
+        }
 		if (s1.save()) { resultFactory.success(s1) }
     	else { resultFactory.failWithValidationErrors(s1.errors) }
     }

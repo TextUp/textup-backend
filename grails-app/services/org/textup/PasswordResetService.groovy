@@ -6,7 +6,6 @@ import static org.springframework.http.HttpStatus.*
 @Transactional
 class PasswordResetService {
 
-	def grailsLinkGenerator
 	def grailsApplication
 	def resultFactory
 	def mailService
@@ -18,8 +17,7 @@ class PasswordResetService {
             if (toEmail) {
                 Result<PasswordResetToken> tokenRes = generateResetToken(s1)
                 if (tokenRes.success) {
-                	String resetLink = grailsLinkGenerator.link(namespace:"v1", controller:"passwordReset", action:"resetPassword", absolute:true, params:[token:tokenRes.payload.token])
-                	mailService.notifyPasswordReset(s1, resetLink)
+                	mailService.notifyPasswordReset(s1, tokenRes.payload.token)
                 }
                 else { tokenRes }
             }

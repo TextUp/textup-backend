@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>TextUp Super</title>
+        <title>TextUp Super Approved</title>
         <meta name="layout" content="main">
         <asset:stylesheet src="super.css"/>
     </head>
@@ -25,9 +25,9 @@
                     </ul>
                 </div>
             </g:if>
-            <p class="super-container-title">Unverified Organizations</p>
-            <g:if test="${unverifiedOrgs}">
-                <g:each var="o" in="${unverifiedOrgs}">
+            <p class="super-container-title">Approved Organizations</p>
+            <g:if test="${orgs}">
+                <g:each var="o" in="${orgs}">
                     <div class="unverified-org">
                         <div class="org-details">
                             <span class="name">${o.name}</span>
@@ -39,13 +39,12 @@
                         </div>
                         <div class="org-controls">
                             <button class="btn btn-danger">Reject</button>
-                            <button class="btn btn-success">Approve</button>
                         </div>
                     </div>
                 </g:each>
             </g:if>
             <g:else>
-                <p class="super-container-none">No unverified organizations! Hooray!</p>
+                <p class="super-container-none">No approved organizations.</p>
             </g:else>
         </div>
     </body>

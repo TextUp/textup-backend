@@ -22,7 +22,7 @@ class BootStrap {
 		    	org1.location = new Location(address:"Testing Address", lat:0G, lon:0G)
 		    	org1.save(flush:true)
 		    	Staff pendingOrgStaff = new Staff(username:"demo-pending", password:"password",
-		    		name:"Pending 1", email:"pending@textup.org", org:org1, status:Constants.STATUS_ADMIN)
+		    		name:"Pending 1", email:"connect@textup.org", org:org1, status:Constants.STATUS_ADMIN)
 		    	pendingOrgStaff.save(flush:true, failOnError:true)
 				StaffRole.create(pendingOrgStaff, userRole, true)
 
@@ -52,11 +52,11 @@ class BootStrap {
 
 				//create staff
 				Staff admin = new Staff(username:"demo-admin", password:"password",
-		    		name:"Staff 1", email:"admin@textup.org", org:org, status:Constants.STATUS_ADMIN)
+		    		name:"Staff 1", email:"connect@textup.org", org:org, status:Constants.STATUS_ADMIN)
 		    	Staff s1 = new Staff(username:"demo-staff1", password:"password",
-		    		name:"Staff 2", email:"staff1@textup.org", org:org)
+		    		name:"Staff 2", email:"connect@textup.org", org:org, status:Constants.STATUS_STAFF)
 				Staff s2 = new Staff(username:"demo-staff2", password:"password",
-					name:"Staff 3", email:"staff2@textup.org", org:org)
+					name:"Staff 3", email:"connect@textup.org", org:org, status:Constants.STATUS_PENDING)
 		    	admin.personalPhoneNumberAsString = "111 222 3333"
 		    	s1.personalPhoneNumberAsString = "111 222 3333"
 		    	s2.personalPhoneNumberAsString = "111 222 3333"

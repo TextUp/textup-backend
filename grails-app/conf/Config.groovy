@@ -186,6 +186,15 @@ textup {
             name = "TextUp Notification"
             email = "no-reply@textup.org"
         }
+        self {
+            name = "TextUp"
+            email = "connect@textup.org"
+        }
+    }
+    links {
+        passwordReset = "https://app.textup.org/reset?token="
+        setupNewOrg = "https://app.textup.org/setup/new"
+        setupExistingOrg = "https://app.textup.org/setup/existing"
     }
 
     //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
