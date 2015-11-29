@@ -4,20 +4,42 @@
 <!--[if IE 8 ]>    <html lang="en" class="no-js ie8"> <![endif]-->
 <!--[if IE 9 ]>    <html lang="en" class="no-js ie9"> <![endif]-->
 <!--[if (gt IE 9)|!(IE)]><!--> <html lang="en" class="no-js"><!--<![endif]-->
-	<head>
-		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-		<title><g:layoutTitle default="Grails"/></title>
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<link rel="shortcut icon" href="${assetPath(src: 'favicon.ico')}" type="image/x-icon">
-  		<asset:stylesheet src="application.css"/>
-		<asset:javascript src="application.js"/>
-		<g:layoutHead/>
-	</head>
-	<body>
-		<div id="grailsLogo" role="banner"><a href="http://www.textup.org"><asset:image src="logo.png" alt="TextUp"/></a></div>
+<head>
+    <title><g:layoutTitle default="TextUp API"/></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <asset:stylesheet src="application.css"/>
+    <g:layoutHead/>
+</head>
+<body>
+	<nav class="navbar navbar-default">
+	    <div class="navbar-header">
+            <a class="navbar-brand" href="http://www.textup.org" target="_blank">
+                <g:img dir="images" file="logo.png" alt="TextUp" height="40"/>
+            </a>
+            <sec:ifAllGranted roles="ROLE_ADMIN">
+                <g:link controller="super" action="index" class="navbar-text"><b>Super Dashboard</b></g:link>
+            </sec:ifAllGranted>
+            <sec:ifNotGranted roles="ROLE_ADMIN">
+                <a class="navbar-text" href="/">
+                    <b>API Documentation</b>
+                </a>
+            </sec:ifNotGranted>
+	    </div>
+	    <div class="navbar-right">
+            <sec:ifAllGranted roles="ROLE_ADMIN">
+                <g:link controller="super" action="settings" class="btn btn-link navbar-btn">Settings</g:link>
+                <g:link controller="super" action="logout" class="btn btn-link navbar-btn">Logout</g:link>
+            </sec:ifAllGranted>
+            <sec:ifNotGranted roles="ROLE_ADMIN">
+                <g:link controller="super" class="btn btn-link navbar-btn">Super</g:link>
+                <a href="https://app.textup.org" target="_blank" class="btn btn-success navbar-btn">Launch</a>
+            </sec:ifNotGranted>
+		</div>
+	</nav>
+	<main>
 		<g:layoutBody/>
-		<div class="footer" role="contentinfo"></div>
-		<div id="spinner" class="spinner" style="display:none;"><g:message code="spinner.alt" default="Loading&hellip;"/></div>
-	</body>
+	</main>
+    <asset:javascript src="application.js"/>
+</body>
 </html>

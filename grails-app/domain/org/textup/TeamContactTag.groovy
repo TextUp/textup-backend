@@ -74,7 +74,7 @@ class TeamContactTag extends ContactTag implements Contactable {
      */
     Result<RecordResult> notifySubscribers(String message) {
         Result<RecordText> textRes
-        //we have to add text to record in new transaction because we are going to 
+        //we have to add text to record in new transaction because we are going to
         //store the id the RecordText. The id is only available after the RecordText
         //has been persisted to the database.
         TeamContactTag.withTransaction([propagationBehavior: TransactionDefinition.PROPAGATION_REQUIRES_NEW]) {
@@ -83,7 +83,7 @@ class TeamContactTag extends ContactTag implements Contactable {
         if (textRes.success) {
             RecordText tagText = textRes.payload
             tagText.refresh() //refresh after commiting so we have an object with an id
-            Result<RecordResult> res = text(teamContactTagId:this.id, tagText:tagText, 
+            Result<RecordResult> res = text(teamContactTagId:this.id, tagText:tagText,
                 contents:formatTextAnnouncement(message))
             if (res.success) {
                 Result<RecordResult> cRes = callNotify(tagText, this.id, tagText.id)

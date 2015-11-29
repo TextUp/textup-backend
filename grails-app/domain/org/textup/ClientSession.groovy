@@ -15,12 +15,11 @@ class ClientSession {
     DateTime lastSentInstructions = DateTime.now(DateTimeZone.UTC)
 
     //id of the TeamContactTag that most recently sent this number a message
-    Long mostRecentTagId 
+    Long mostRecentTagId
 
     static embedded = ["number"]
     static constraints = {
-    	mostRecentTagId nullable:true 
-        recordTextId nullable:true 
+    	mostRecentTagId nullable:true
     }
     static mapping = {
         lastSentInstructions type:PersistentDateTime
@@ -77,7 +76,7 @@ class ClientSession {
 
     void setNumberAsString(String num) {
         if (this.number) {
-            this.number.number = num 
+            this.number.number = num
         }
         else {
             this.number = new PhoneNumber(number:num)

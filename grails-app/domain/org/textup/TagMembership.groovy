@@ -6,7 +6,7 @@ import groovy.transform.EqualsAndHashCode
 class TagMembership {
 
     ContactTag tag
-	Contact contact 
+	Contact contact
 
     boolean hasUnsubscribed = false
     String subscriptionType
@@ -19,7 +19,7 @@ class TagMembership {
                 ["phoneMismatch", val.phone?.number, obj.tag?.phone?.number]
             }
         }
-        subscriptionType blank:true, nullable:true, inList:[Constants.SUBSCRIPTION_TEXT, Call.SUBSCRIPTION_CALL]
+        subscriptionType blank:true, nullable:true, inList:[Constants.SUBSCRIPTION_TEXT, Constants.SUBSCRIPTION_CALL]
     }
     static namedQueries = {
         forContactAndTagId { Contact c1, Long tagId ->
@@ -52,11 +52,11 @@ class TagMembership {
     /*
 	Has many:
 	*/
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     TagMembership subscribe(String subType) {
         this.hasUnsubscribed = false
         this.subscriptionType = subType
@@ -70,7 +70,7 @@ class TagMembership {
     /////////////////////
     // Property Access //
     /////////////////////
- 
+
     boolean getSubscribed() { !this.hasUnsubscribed }
     void setSubscribed(boolean s) { this.hasUnsubscribed = !s }
 }

@@ -18,6 +18,10 @@ class Constants {
 	static final String CONTACT_ARCHIVED = "archived"
 	static final String CONTACT_BLOCKED = "blocked"
 
+	static final String ORG_PENDING = "pending"
+	static final String ORG_REJECTED = "rejected"
+	static final String ORG_APPROVED = "approved"
+
 	static final String RECORD_CALL = "call"
 	static final String RECORD_TEXT = "text"
 	static final String RECORD_NOTE = "note"

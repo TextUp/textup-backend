@@ -17,7 +17,7 @@ class PasswordResetController extends BaseController {
 
     def index() { notAllowed() }
     def delete() { notAllowed() }
-    
+
     @RestApiMethod(description="Request a password reset")
     @RestApiResponseObject(objectIdentifier = "[passwordResetRequest]")
     @RestApiErrors(apierrors=[
@@ -26,7 +26,7 @@ class PasswordResetController extends BaseController {
     ])
     def requestReset() {
         if (!validateJsonRequest(request)) { return }
-        Map info = request.JSON 
+        Map info = request.JSON
         if (info.username) {
             Result res = passwordResetService.requestReset(Helpers.cleanUsername(info.username))
             if (res.success) { ok() }
@@ -34,7 +34,7 @@ class PasswordResetController extends BaseController {
         }
         else { badRequest() }
     }
-    
+
     @RestApiMethod(description="Reset password with a valid reset tokentoken")
     @RestApiResponseObject(objectIdentifier = "[newPasswordRequest]")
     @RestApiErrors(apierrors=[
@@ -44,7 +44,7 @@ class PasswordResetController extends BaseController {
     ])
     def resetPassword() {
         if (!validateJsonRequest(request)) { return }
-        Map info = request.JSON 
+        Map info = request.JSON
         if (info.token && info.password) {
             Result res = passwordResetService.resetPassword(info.token, info.password)
             if (res.success) { ok() }

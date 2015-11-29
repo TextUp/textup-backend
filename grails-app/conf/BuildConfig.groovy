@@ -97,11 +97,12 @@ grails.project.dependency.resolution = {
 
         //for api documentation generation
         compile ":rest-api-doc:0.6.1"
-        runtime ":resources:1.2.14"
 
         // plugins needed at runtime but not for compilation
         runtime ":hibernate4:4.3.6.1" // or ":hibernate:3.6.10.18"
         runtime ":database-migration:1.4.0"
         runtime ":console:1.5.4"
+        runtime ":twitter-bootstrap:3.3.2.1"
+        runtime ":jquery:1.11.1"
     }
 }

@@ -15,13 +15,14 @@ class Organization {
     @RestApiObjectField(description="Location of the organization")
 	Location location
 
-    boolean verified = false
+    String status = Constants.ORG_PENDING
 
     static constraints = {
     	name blank:false, validator:{ val, obj ->
     		//must have unique (name, location) combination
     		if (obj.hasNameAndLocation(val, obj.location)) { ["duplicate"] }
     	}
+        status blank:false, nullable:false, inList:[Constants.ORG_PENDING, Constants.ORG_REJECTED, Constants.ORG_APPROVED]
     }
     static namedQueries = {
         iLikeForNameAndAddress { String query ->

@@ -17,9 +17,25 @@ class BootStrap {
 	        Role userRole = Role.findByAuthority("ROLE_USER") ?: new Role(authority:"ROLE_USER").save(flush:true)
 
 	    	if (Organization.count() == 0) {
-		    	Organization org = new Organization(name:"Demo Organization", verified:true)
+	    		//create an unverified org
+	    		Organization org1 = new Organization(name:"Demo Organization 2", status: Constants.ORG_PENDING)
+		    	org1.location = new Location(address:"Testing Address", lat:0G, lon:0G)
+		    	org1.save(flush:true)
+		    	Staff pendingOrgStaff = new Staff(username:"demo-pending", password:"password",
+		    		name:"Pending 1", email:"pending@textup.org", org:org1, status:Constants.STATUS_ADMIN)
+		    	pendingOrgStaff.save(flush:true, failOnError:true)
+				StaffRole.create(pendingOrgStaff, userRole, true)
+
+	    		//create our full-fleges demo org
+	    		Organization org = new Organization(name:"Demo Organization", status: Constants.ORG_APPROVED)
 		    	org.location = new Location(address:"Testing Address", lat:0G, lon:0G)
 		    	org.save(flush:true)
+
+	    		//create the super user
+	    		Staff superUser = new Staff(username:"super", password:"password",
+		    		name:"Super", email:"connect@textup.org", org:org, status:Constants.STATUS_ADMIN)
+	    		superUser.save(flush:true, failOnError:true)
+	    		StaffRole.create(superUser, adminRole, true)
 
 		    	//create teams
 		    	Team t1 = new Team(name:"Team1", org:org)

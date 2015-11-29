@@ -32,7 +32,8 @@ class AuthService {
 
     Staff getLoggedInAndActive() {
         Staff s1 = getLoggedIn()
-        ((s1.status == Constants.STATUS_STAFF || s1.status == Constants.STATUS_ADMIN) && s1.org.verified) ? s1 : null
+        ((s1.status == Constants.STATUS_STAFF || s1.status == Constants.STATUS_ADMIN) &&
+            s1.org.status == Constants.ORG_APPROVED) ? s1 : null
     }
 
     //////////////////

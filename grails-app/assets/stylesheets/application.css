@@ -7,7 +7,37 @@
 * You're free to add application-wide styles to this file and they'll appear at the top of the
 * compiled file, but it's generally better to create a new file per style scope.
 *
-*= require main
+*= require docs
 *= require mobile
 *= require_self
+*= require bootstrap
 */
+nav.navbar {
+    position: relative;
+    max-height: 8vh;
+    margin-bottom: 0;
+    border-bottom: 1px solid LightGray;
+    border-radius: 0;
+}
+nav.navbar > .navbar-right {
+    margin-right: 1em;
+}
+nav.navbar .navbar-brand > img {
+    display: block;
+    margin-top: -7px;
+}
+nav.navbar > .navbar-right > .btn {
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 0;
+}
+nav.navbar > .navbar-right > .btn-success {
+    border-bottom: 5px solid #449c44;
+    box-sizing: border-box;
+    padding-bottom: 3px;
+}
+main {
+    width: 100%;
+    font-size: 12px;
+    height: 92vh;
+}

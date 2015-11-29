@@ -41,7 +41,7 @@ class StaffService {
                 //after we approve the organization
                 s1.status = Constants.STATUS_ADMIN
                 org = new Organization(o)
-                org.verified = false
+                org.status = Constants.ORG_PENDING
                 org.location = new Location(o.location)
                 if (!org.location.save()) { //needs to be before org.save()
                     return resultFactory.failWithValidationErrors(org.location.errors)
