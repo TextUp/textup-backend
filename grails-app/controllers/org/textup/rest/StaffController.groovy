@@ -150,7 +150,7 @@ class StaffController extends BaseController {
         Long id = params.long("id")
         if (authService.exists(Staff, id)) {
             if (authService.isLoggedIn(id) || authService.isAdminAtSameOrgAs(id)) {
-                handleUpdateResult(Staff, staffService.update(id, request.JSON.staff))
+                handleUpdateResult(Staff, staffService.update(id, request.JSON.staff, params.timezone))
             }
             else { forbidden() }
         }

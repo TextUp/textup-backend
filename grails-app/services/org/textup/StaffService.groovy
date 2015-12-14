@@ -67,7 +67,7 @@ class StaffService {
     	else { resultFactory.failWithValidationErrors(s1.errors) }
     }
 
-    Result<Staff> update(Long staffId, Map body) {
+    Result<Staff> update(Long staffId, Map body, String timezone) {
     	Staff s1 = Staff.get(staffId)
     	if (!s1) {
     		return resultFactory.failWithMessageAndStatus(NOT_FOUND,
@@ -86,14 +86,15 @@ class StaffService {
             s1.personalPhoneNumberAsString = body.personalPhoneNumber
         }
 		if (body.schedule) {
-			Result res = s1.schedule.updateWithIntervalStrings(body.schedule)
+			Result res = s1.schedule.updateWithIntervalStrings(body.schedule, timezone)
 			if (!res.success) { return res }
 		}
 		if (body.phone || body.phoneId) {
             StaffPhone p1 = s1.phone ?: new StaffPhone()
             def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
+            TransientPhoneNumber bNum = new TransientPhoneNumber(number:body.phone)
             //only proceed if we are trying to CHANGE our phone number
-            if (!((body.phone && Helpers.cleanNumber(body.phone) == p1.numberAsString) ||
+            if (!((bNum.validate() && bNum.number == p1.numberAsString) ||
                 (body.phoneId && body.phoneId == p1.apiId))) {
                 try {
                     TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
@@ -154,13 +155,5 @@ class StaffService {
         }
 		if (s1.save()) { resultFactory.success(s1) }
     	else { resultFactory.failWithValidationErrors(s1.errors) }
-    }
-
-    ////////////////////
-    // Helper methods //
-    ////////////////////
-
-    boolean staffExistsForPersonalAndWorkPhoneNums(String personalNum, String workNum) {
-        Staff.forPersonalAndWorkPhoneNums(personalNum, workNum).get() != null
     }
 }

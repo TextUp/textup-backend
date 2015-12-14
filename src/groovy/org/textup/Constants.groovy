@@ -1,6 +1,10 @@
 package org.textup
 
 class Constants {
+
+	static final List<String> DAYS_OF_WEEK = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday",
+            "saturday"]
+
 	static final int LOCK_RETRY_MAX = 3
 	static final int TEXT_LENGTH = 160
 

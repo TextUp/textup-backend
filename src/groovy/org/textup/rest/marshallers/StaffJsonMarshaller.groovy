@@ -21,6 +21,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             awayMessage = s1.awayMessage
             if (s1.personalPhoneNumber) personalPhoneNumber = s1.personalPhoneNumber.number
             if (s1.phone) phone = s1.phone.number.number
+            
             manualSchedule = s1.manualSchedule
             if (manualSchedule == true) { isAvailable = s1.isAvailable }
             isAvailableNow = s1.isAvailableNow()
@@ -30,14 +31,8 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             String timezone = WebUtils.retrieveGrailsWebRequest().currentRequest.timezone
             json.schedule = [:]
             s1.schedule.getAllAsLocalIntervals(timezone).each { String day, List<LocalInterval> intervals ->
-                json.schedule."${day}" = intervals.collect { LocalInterval lt ->
-                    String start1 = lt.start.hourOfDay.toString().padLeft(2, "0"),
-                        start2 = lt.start.minuteOfHour.toString().padLeft(2, "0"),
-                        end1 = lt.end.hourOfDay.toString().padLeft(2, "0"),
-                        end2 = lt.end.minuteOfHour.toString().padLeft(2, "0"),
-                        start = "${start1}${start2}",
-                        end = "${end1}${end2}"
-                    "${start}:${end}"
+                json.schedule."${day}" = intervals.collect { LocalInterval localInt ->
+                    Helpers.printLocalInterval(localInt)
                 }
             }
             if (s1.manualSchedule == false) {

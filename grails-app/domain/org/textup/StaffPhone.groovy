@@ -21,9 +21,9 @@ class StaffPhone extends Phone {
         }
     }
     static namedQueries = {
-        forStaffNumber { String num ->
+        forStaffNumber { TransientPhoneNumber num ->
             //embedded properties must be accessed with dot notation
-            eq("number.number", num)
+            eq("number.number", num?.number)
         }
     }
 

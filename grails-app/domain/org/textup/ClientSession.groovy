@@ -25,12 +25,12 @@ class ClientSession {
         lastSentInstructions type:PersistentDateTime
     }
     static namedQueries = {
-    	forTeamPhoneAndNumber { String teamPhoneNum, String num ->
-    		eq("number.number", Helpers.cleanNumber(num))
-    		teamPhone { eq("number.number", Helpers.cleanNumber(teamPhoneNum)) }
+    	forTeamPhoneAndNumber { TransientPhoneNumber teamPhoneNum, TransientPhoneNumber num ->
+    		eq("number.number", num?.number)
+    		teamPhone { eq("number.number", teamPhoneNum?.number) }
     	}
-        forTeamPhoneAndNumber { TeamPhone p1, String num ->
-            eq("number.number", Helpers.cleanNumber(num))
+        forTeamPhoneAndNumber { TeamPhone p1, TransientPhoneNumber num ->
+            eq("number.number", num?.number)
             eq("teamPhone", p1)
         }
     }
@@ -39,11 +39,10 @@ class ClientSession {
     // Helper Methods //
     ////////////////////
 
-    static ClientSession findOrCreateForTeamPhoneAndNumber(TeamPhone p1, String num) {
+    static ClientSession findOrCreateForTeamPhoneAndNumber(TeamPhone p1, TransientPhoneNumber num) {
     	ClientSession cs1 = ClientSession.forTeamPhoneAndNumber(p1, num).get()
         if (!cs1) {
-            cs1 = new ClientSession(teamPhone:p1)
-            cs1.numberAsString = num
+            cs1 = new ClientSession(teamPhone:p1, number:PhoneNumber.copy(num))
             if (!cs1.save()) {
                 log.error("ClientSession.findOrCreateForTeamPhoneAndNumber: could not create text session: ${cs1.errors}")
                 cs1.discard()

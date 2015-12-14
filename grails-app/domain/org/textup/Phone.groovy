@@ -28,9 +28,9 @@ class Phone {
     static transients = ["numberAsString"]
     static embedded = ["number"]
     static namedQueries = {
-        forNumber { String num ->
+        forNumber { TransientPhoneNumber num ->
             //embedded properties must be accessed with dot notation
-            eq("number.number", num)
+            eq("number.number", num?.number)
         }
     }
 

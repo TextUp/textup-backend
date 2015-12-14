@@ -39,7 +39,7 @@ class Schedule {
     /*
     Operations that modify the Schedule
      */
-    Result<Schedule> update(Map params, String timezone=null) { Result.success(this) }
+    Result<Schedule> update(Map params) { Result.success(this) }
 
     /////////////////////
     // Property Access //

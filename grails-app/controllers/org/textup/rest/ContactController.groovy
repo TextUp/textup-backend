@@ -75,7 +75,7 @@ class ContactController extends BaseController {
                                 s1.phone.countSharedByMe()
                             }, list  = { params ->
                                 List<SharedContact> scList = s1.phone.getSharedByMe(params)
-                                scList ? scList*.contact : []
+                                scList ? scList : [] //return sharedContact, will be handled in marshaller
                             }
                         genericListActionForClosures(Contact, count, list, params)
                     }
@@ -84,7 +84,7 @@ class ContactController extends BaseController {
                                 s1.phone.countSharedWithMe()
                             }, list = { params ->
                                 List<SharedContact> scList = s1.phone.getSharedWithMe(params)
-                                scList ? scList*.contact : []
+                                scList ? scList : [] //return sharedContact, will be handled in marshaller
                             }
                         genericListActionForClosures(Contact, count, list, params)
                     }

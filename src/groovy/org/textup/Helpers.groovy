@@ -5,11 +5,17 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.joda.time.Days
+import org.joda.time.LocalTime
 
 @Log4j
 class Helpers {
 
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1"
+
+    ////////////////
+    // Formatting //
+    ////////////////
 
 	static boolean isLong(def val) {
         "${val}".isLong()
@@ -46,6 +52,55 @@ class Helpers {
         "$val".toString()
     }
 
+    ///////////////////////////
+    // date, time, timezones //
+    ///////////////////////////
+
+    static String printLocalInterval(LocalInterval localInt) {
+        if (localInt) {
+            String start1 = localInt.start.hourOfDay.toString().padLeft(2, "0"),
+                start2 = localInt.start.minuteOfHour.toString().padLeft(2, "0"),
+                end1 = localInt.end.hourOfDay.toString().padLeft(2, "0"),
+                end2 = localInt.end.minuteOfHour.toString().padLeft(2, "0"),
+                start = "${start1}${start2}",
+                end = "${end1}${end2}"
+            "${start}:${end}"
+        }
+        else { "" }
+    }
+
+    static DateTimeZone getZoneFromId(String id) {
+        try {
+            return DateTimeZone.forId(id)
+        }
+        catch (e) { return null }
+    }
+
+    static DateTime toDateTimeTodayWithZone(LocalTime lt, DateTimeZone zone) {
+        if (zone) {
+            lt.toDateTimeToday(DateTimeZone.UTC).withZone(zone)
+        }
+        else { lt.toDateTimeToday(DateTimeZone.UTC) }
+    }
+
+    static DateTime toUTCDateTimeTodayFromZone(LocalTime lt, DateTimeZone zone) {
+        if (zone) {
+            lt.toDateTimeToday(zone).withZone(DateTimeZone.UTC)
+        }
+        else { lt.toDateTimeToday(DateTimeZone.UTC) }
+    }
+
+    static int getDaysBetween(DateTime dt1, DateTime dt2) {
+        Days.daysBetween(dt1.toLocalDate(), dt2.toLocalDate()).getDays()
+    }
+
+    /////////////////////////////
+    // Sending calls and texts //
+    /////////////////////////////
+
+    //0 corresponds to sunday, 6 to saturday
+    static int getDayOfWeekIndex(int num) { Math.abs(num % 7) }
+
     static ParsedResult<PhoneNumber,String> parseIntoPhoneNumbers(List<String> nums) {
         List<PhoneNumber> pNums = []
         List<String> invalidStrings = []
@@ -68,6 +123,10 @@ class Helpers {
         parsed
     }
 
+    //////////////////////////////
+    // Incoming calls and texts //
+    //////////////////////////////
+
     static String cleanIncomingText(String contents) {
         contents?.trim()
     }
@@ -76,14 +135,19 @@ class Helpers {
         username?.trim()?.toLowerCase()
     }
 
-    static String cleanNumber(String num) {
-        PhoneNumber pNum = new PhoneNumber(number:num)
-        pNum.discard() //temporary container
-        pNum.number
-    }
-
     static String formatNumberForSay(String number) {
         number?.replaceAll(/\D*/, "")?.replaceAll(/.(?!$)/, /$0 /)
+    }
+    static String formatNumberForSay(TransientPhoneNumber num) {
+        formatNumberForSay(num?.number)
+    }
+    static String formatTextNotification(String attribution, String contents) {
+        String notification = "${attribution}: ${contents}"
+        if (notification.size() >= Constants.TEXT_LENGTH) {
+            int trimTo = Constants.TEXT_LENGTH - 4
+            notification = "${notification[0..trimTo]}..."
+        }
+        notification
     }
 
     static String translateCallStatus(String status) {
@@ -116,6 +180,10 @@ class Helpers {
         }
         translated
     }
+
+    //////////////
+    // Security //
+    //////////////
 
     static String getBase64HmacSHA1(String data, String key) {
         String result = ""

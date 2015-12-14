@@ -21,9 +21,9 @@ class TeamPhone extends Phone {
     static constraints = {
     }
     static namedQueries = {
-        forTeamNumber { String num ->
+        forTeamNumber { TransientPhoneNumber num ->
             //embedded properties must be accessed with dot notation
-            eq("number.number", num)
+            eq("number.number", num?.number)
         }
     }
 

@@ -27,9 +27,9 @@ class BaseController {
     private int largestMax() { grailsApplication.config.textup.largestMax }
     private def tConfig() { grailsApplication.config.textup }
 
-    /////////////////////
-    // Utility methods //
-    /////////////////////
+    ////////////////
+    // Pagination //
+    ////////////////
 
     /**
      * Handles pagination logic. Takes in some information as specified below and outputs a map of parameters as detailed below for pagination
@@ -73,6 +73,27 @@ class BaseController {
         results
     }
 
+    protected Map parseParams(Map params, Integer total) {
+        int defaultMax = defaultMax(),
+            largestMax = largestMax(),
+            max = Math.min(params?.int("max") ?: defaultMax, largestMax)
+        max = (max > 0) ? max : defaultMax
+        total = (total && total > 0) ? total: max
+
+        int offset = params?.int("offset") ?: 0
+        [max:max, offset:offset, total:total]
+    }
+
+    protected Map mergeIntoParams(Map params, Map searchParams) {
+        params.max = searchParams.max
+        params.offset = searchParams.offset
+        params
+    }
+
+    ////////////////////////////
+    // Respond helper methods //
+    ////////////////////////////
+
     protected void respondHandleEmpty(String ifEmpty, def obj, Map params) {
         if (obj) { respond(obj, params + [status:OK]) }
         else {
@@ -113,26 +134,42 @@ class BaseController {
         render([contentType: "text/xml", encoding: "UTF-8"], xml)
     }
 
-    protected Map parseParams(Map params, Integer total) {
-        int defaultMax = defaultMax(),
-        	largestMax = largestMax(),
-        	max = Math.min(params?.int("max") ?: defaultMax, largestMax)
-        max = (max > 0) ? max : defaultMax
-        total = (total && total > 0) ? total: max
-
-        int offset = params?.int("offset") ?: 0
-        [max:max, offset:offset, total:total]
+    protected def handleXmlResult(Result<Closure> res) {
+        if (res.success) { renderAsXml(res.payload) }
+        else { handleResultFailure(res) }
     }
 
-    protected Map mergeIntoParams(Map params, Map searchParams) {
-        params.max = searchParams.max
-        params.offset = searchParams.offset
-        params
+    protected def handleResultWithStatus(Result res, HttpStatus status) {
+        if (res.success) { render status:status }
+        else { handleResultFailure(res) }
     }
 
-    //////////////////////////////
-    // Standard methods actions //
-    //////////////////////////////
+    protected def handleResultFailure(Result res) {
+        switch (res.type) {
+            case Constants.RESULT_VALIDATION:
+                respond res.payload, [status:UNPROCESSABLE_ENTITY]
+                break
+            case Constants.RESULT_MESSAGE_STATUS:
+                respondWithError(res.payload.message, res.payload.status)
+                break
+            case Constants.RESULT_MESSAGE_LIST_STATUS:
+                respondWithErrors(res.payload.messages, res.payload.status)
+                break
+            case Constants.RESULT_THROWABLE:
+                respondWithError(res.payload.message, BAD_REQUEST)
+                break
+            case Constants.RESULT_MESSAGE:
+                respondWithError(res.payload.message, BAD_REQUEST)
+                break
+            default:
+                log.error("BaseController.handleResultFailure: result $res has an invalid type!")
+                respondWithError(message("baseController.handleResultFailure.error"), INTERNAL_SERVER_ERROR)
+        }
+    }
+
+    ////////////////////////////////////////
+    // Standard response for index (list) //
+    ////////////////////////////////////////
 
     protected def genericListAction(Class clazz, Map params) {
         genericListAction(getLowercaseSimpleName(clazz), clazz, params)
@@ -182,6 +219,10 @@ class BaseController {
         }
     }
 
+    //////////////////////////////
+    // Standard action for show //
+    //////////////////////////////
+
     protected def genericShowAction(Class clazz, Long id) {
         def found = clazz.get(id)
         if (!found) { notFound(); return; }
@@ -189,6 +230,10 @@ class BaseController {
             json { respond(found, [status:OK]) }
         }
     }
+
+    //////////////////////////////
+    // Standard action for save //
+    //////////////////////////////
 
     protected def handleSaveResult(Class clazz, Result res) {
         handleSaveResult(getLowercaseSimpleName(clazz), res)
@@ -206,6 +251,10 @@ class BaseController {
         else { handleResultFailure(res) }
     }
 
+    ////////////////////////////////
+    // Standard action for update //
+    ////////////////////////////////
+
     protected def handleUpdateResult(Class clazz, Result res) {
         handleUpdateResult(getLowercaseSimpleName(clazz), res)
     }
@@ -222,6 +271,10 @@ class BaseController {
         else { handleResultFailure(res) }
     }
 
+    ////////////////////////////////
+    // Standard action for delete //
+    ////////////////////////////////
+
     protected def handleDeleteResult(Result res) {
         if (res.success) {
             render status:NO_CONTENT
@@ -229,28 +282,6 @@ class BaseController {
         else { handleResultFailure(res) }
     }
 
-    protected def handleResultFailure(Result res) {
-        switch (res.type) {
-            case Constants.RESULT_VALIDATION:
-                respond res.payload, [status:UNPROCESSABLE_ENTITY]
-                break
-            case Constants.RESULT_MESSAGE_STATUS:
-                respondWithError(res.payload.message, res.payload.status)
-                break
-            case Constants.RESULT_MESSAGE_LIST_STATUS:
-                respondWithErrors(res.payload.messages, res.payload.status)
-                break
-            case Constants.RESULT_THROWABLE:
-                respondWithError(res.payload.message, BAD_REQUEST)
-                break
-            case Constants.RESULT_MESSAGE:
-                respondWithError(res.payload.message, BAD_REQUEST)
-                break
-            default:
-                log.error("BaseController.handleResultFailure: result $res has an invalid type!")
-                respondWithError(message("baseController.handleResultFailure.error"), INTERNAL_SERVER_ERROR)
-        }
-    }
     private String getLowercaseSimpleName(Class clazz) {
         String n = clazz.simpleName
         //lowercase first letter

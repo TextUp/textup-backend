@@ -14,10 +14,17 @@ import static org.springframework.http.HttpStatus.*
 class PublicRecordController extends BaseController {
 
     static namespace = "v1"
+
     //grailsApplication from superclass
     //authService from superclass
     def callService
+    def staffCallService
+    def teamCallService
+
     def textService
+    def staffTextService
+    def teamTextService
+    
     def recordService
     def staffService
     def twimlBuilder
@@ -26,19 +33,10 @@ class PublicRecordController extends BaseController {
     // Prohibited methods //
     ////////////////////////
 
-    def index() {
-        println "1"
-        notAllowed()
-    }
-    def show() {
-        println "2"
-        notAllowed() }
-    def update() {
-        println "3"
-        notAllowed() }
-    def delete() {
-        println "4"
-        notAllowed() }
+    def index() { notAllowed() }
+    def show() { notAllowed() }
+    def update() { notAllowed() }
+    def delete() { notAllowed() }
 
     /////////////////////
     // Handle webhooks //
@@ -71,331 +69,87 @@ class PublicRecordController extends BaseController {
     def save() {
         println "PUBLIC RECORD CONTROLLER -> handle ${params.handle}"
 
-        if (params.handle == Constants.CALL_TEXT_REPEAT) { handleRepeat(params) }
+        if (params.handle == Constants.CALL_TEXT_REPEAT) { repeat(params) }
         else {
-            //confirm that request is from Twilio
-            if (authenticateRequest(request, params)) {
+            if (authService.authenticateRequest(request, params)) {
                 if (params.CallSid) {
                     switch (params.handle) {
-                        case Constants.CALL_INCOMING:
-                            return handleIncomingForCall(params)
                         case Constants.CALL_STATUS:
-                            return handleStatusForCall(params)
+                            return callStatus(params)
+                        case Constants.CALL_INCOMING:
+                            return incomingCall(params)
                         case Constants.CALL_VOICEMAIL:
-                            return handleVoicemailForCall(params)
+                            return voicemail(params)
                         case Constants.CALL_PUBLIC_TEAM_DIGITS:
-                            return handlePublicTeamDigitsForCall(params)
+                            return incomingTeamDigitsForCall(params)
                         case Constants.CALL_STAFF_STAFF_DIGITS:
-                            return handleStaffStaffDigitsForCall(params)
+                            return incomingDigitsForSelfCall(params)
                         case Constants.CONFIRM_CALL_BRIDGE:
                             return confirmBridgeCall(params)
                         case Constants.CALL_BRIDGE:
-                            return doBridgeCall(params)
+                            return startBridgeCall(params)
                         case Constants.CALL_ANNOUNCEMENT:
-                            return doCallAnnouncement(params)
+                            return startCallAnnouncement(params)
                         case Constants.CALL_TEAM_ANNOUNCEMENT_DIGITS:
-                            return handleTeamAnnouncementDigits(params)
+                            return incomingDigitsForAnnouncement(params)
                     }
                 }
                 else if (params.MessageSid) {
                     switch (params.handle) {
                         case Constants.TEXT_INCOMING:
-                            return handleIncomingForText(params)
+                            return incomingText(params)
                         case Constants.TEXT_STATUS:
-                            return handleStatusForText(params)
+                            return textStatus(params)
                     }
                 }
-                badRequest()
+                else { badRequest() }
             }
             else { forbidden() }
         }
     }
 
-    ////////////////////////////////////////////
-    // Helper methods for repeating responses //
-    ////////////////////////////////////////////
+    ////////////
+    // Repeat //
+    ////////////
 
-    protected def handleRepeat(GrailsParameterMap params) {
-        if (params.for) {
-            Result res = twimlBuilder.buildXmlFor(params.for)
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
+    protected def repeat(GrailsParameterMap params) {
+        if (params.for) { 
+            handleXmlResult(twimlBuilder.buildXmlFor(params.for))
         }
         else {
-            String error = g.message(code:"publicRecordController.handleRepeat.noRepeatFor")
+            String error = g.message(code:"publicRecordController.repeat.noRepeatFor")
             respondWithError(error, BAD_REQUEST)
         }
     }
 
-    ////////////////////
-    // Authentication //
-    ////////////////////
+    ////////////
+    // Status //
+    ////////////
 
-    protected boolean authenticateRequest(HttpServletRequest request, GrailsParameterMap params) {
-        String browserURL = (request.requestURL.toString() - request.requestURI) + request.forwardURI,
-            authToken = grailsApplication.config.textup.apiKeys.twilio.authToken,
-            authHeaderName = "x-twilio-signature",
-            authHeader = request.getHeader(authHeaderName)
-        if (authHeader) {
-            if (request.queryString) { browserURL = "$browserURL?${request.queryString}" }
-            Map<String,String> twilioParams = extractTwilioParams(request, params)
+    protected def callStatus(GrailsParameterMap params) {
+        String sid = recordService.receiptExistsForApiId(params.CallSid) ? params.CallSid : 
+            (recordService.receiptExistsForApiId(params.ParentCallSid) ? params.ParentCallSid : null),
+            status = Helpers.translateCallStatus(params.CallStatus)
+        Integer duration = Helpers.toInteger(params.CallDuration)
 
-            StringBuilder data = new StringBuilder(browserURL)
-            List<String> sortedKeys = twilioParams.keySet().toList().sort() //sort keys lexicographically
-            sortedKeys.each { String key -> data << key << twilioParams[key] }
-            //first check https then check http if fails. Scheme detection in request object is spotty
-            String dataString = data.toString(), httpsData, httpData
-            if (dataString.startsWith("http://")) {
-                httpData = dataString
-                httpsData = dataString.replace("http://", "https://")
-            }
-            else if (dataString.startsWith("https://")) {
-                httpData = dataString.replace("https://", "http://")
-                httpsData = dataString
-            }
-            else {
-                log.error("PublicRecordController.authenticateRequest: invalid data: $dataString")
-                return false
-            }
-            //first try https
-            String encoded = Helpers.getBase64HmacSHA1(httpsData.toString(), authToken)
-            boolean isAuth = (encoded == authHeader)
-            //then fallback to checking http if needed
-            if (!isAuth) {
-                encoded = Helpers.getBase64HmacSHA1(httpData.toString(), authToken)
-                isAuth = (encoded == authHeader)
-            }
-            isAuth
+        if (sid) { 
+            handleResultWithStatus(recordService.updateStatus(sid, status, duration), OK)
         }
-        else { false }
-    }
-
-    protected Map<String,String> extractTwilioParams(HttpServletRequest request, GrailsParameterMap allParams) {
-        Collection<String> requestParamKeys = request.parameterMap.keySet(), queryParams = []
-        request.queryString?.tokenize("&")?.each { queryParams << it.tokenize("=")[0] }
-        HashSet<String> ignoreParamKeys = new HashSet<>(queryParams),
-            keepParamKeys = new HashSet<>(requestParamKeys)
-        Map<String,String> twilioParams = [:]
-        allParams.each { String key, String val ->
-            if (keepParamKeys.contains(key) && !ignoreParamKeys.contains(key)) {
-                twilioParams[key] = val
-            }
-        }
-        twilioParams
-    }
-
-    /////////////////////////////
-    // Helper methods for call //
-    /////////////////////////////
-
-    protected def handleStatusForCall(GrailsParameterMap params) {
-        if (recordService.receiptExistsForApiId(params.CallSid)) {
-            String status = Helpers.translateCallStatus(params.CallStatus)
-            Result<List<RecordItemReceipt>> res = recordService.updateStatus(params.CallSid,
-                status, Helpers.toInteger(params.CallDuration))
-            if (res.success) {
-                if (status == Constants.RECEIPT_FAILED) {
-                    for (receipt in res.payload) {
-                        res = callService.retry(receipt.item.id)
-                        if (res.success) { break }
-                    }
-                }
-                ok()
-            }
-            else {
-                log.error("PublicRecordController.handleStatusForCall: $res")
-                handleResultFailure(res)
-            }
-        }
-        //we're updating the status where we connected the call (say for incoming client calls)
-        else if (recordService.receiptExistsForApiId(params.ParentCallSid)) {
-            Result<List<RecordItemReceipt>> res = recordService.updateStatus(params.ParentCallSid,
-                Helpers.translateCallStatus(params.CallStatus), Helpers.toInteger(params.CallDuration))
-            if (res.success) { ok() }
-            else { handleResultFailure(res) }
-        }
-        //if not found this is a Twilio Client call initiated by the frontend
-        else { handleStatusForClientCall(params) }
-    }
-
-    //if this is a Twilio client call, then we directly initiate
-    //the call from the javascript without first making a request
-    //to create a RecordCall in the backend
-    protected def handleStatusForClientCall(GrailsParameterMap params) {
-        if (params.contactId) {
-            Map receiptParams = [apiId:params.CallSid, status:Helpers.translateCallStatus(params.CallStatus)]
-            Result res = recordService.createRecordCallForContact(params.contactId, params.From,
-                params.To, Helpers.toInteger(params.CallDuration), receiptParams)
-            if (res.success) { ok() }
-            else { handleResultFailure(res) }
+        else if (params.contactId) { // if a Twilio Client call
+            TransientPhoneNumber from = new TransientPhoneNumber(number:params.From),
+                to = new TransientPhoneNumber(number:params.To)
+            handleResultWithStatus(recordService.createRecordCallForContact(params.contactId, from,
+                to, duration, [apiId:params.CallSid, status:status]), OK)
         }
         else {
-            String error = g.message(code:
-                "publicRecordController.handleStatusForClientCall.noContactId")
+            String error = g.message(code:"publicRecordController.clientCallStatus.noContactId")
             respondWithError(error, BAD_REQUEST)
         }
     }
-
-    protected def handleIncomingForCall(GrailsParameterMap params) {
-        //case 1: staff member is calling from personal phone to TextUp phone
-        String from = Helpers.cleanNumber(params.From),
-            to = Helpers.cleanNumber(params.To)
-        if (staffService.staffExistsForPersonalAndWorkPhoneNums(from, to)) {
-            Result res = twimlBuilder.buildXmlFor(CallResponse.SELF_GREETING)
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
-        }
-        //case 2: someone is calling a TextUp phone
-        else {
-            if (callService.staffPhoneExistsForNum(to)) {
-                Result<Closure> res = callService.connectToPhone(from, to, params.CallSid)
-                if (res.success) { renderAsXml(res.payload) }
-                else { handleResultFailure(res) }
-            }
-            else if (callService.teamPhoneExistsForNum(to)) {
-                Result<Closure> res = callService.handleCallToTeamPhone(from, to, params.CallSid)
-                if (res.success) { renderAsXml(res.payload) }
-                else { handleResultFailure(res) }
-            }
-            //phone not found
-            else {
-                Result res = twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to])
-                if (res.success) { renderAsXml(res.payload) }
-                else { handleResultFailure(res) }
-            }
-        }
-    }
-
-    //incoming call to a TextUp phone results in a voicemail
-    protected def handleVoicemailForCall(GrailsParameterMap params) {
-        if (recordService.receiptExistsForApiId(params.CallSid)) {
-            Result res = callService.storeVoicemail(params.CallSid, Helpers.translateCallStatus(params.CallStatus),
-                Helpers.toInteger(params.CallDuration), params.RecordingUrl, Helpers.toInteger(params.RecordingDuration))
-            if (res.success) { ok() }
-            else { handleResultFailure(res) }
-        }
-        else { notFound() }
-    }
-
-    protected def handlePublicTeamDigitsForCall(GrailsParameterMap params) {
-        String from = Helpers.cleanNumber(params.From),
-            to = Helpers.cleanNumber(params.To)
-        if (params.Digits == Constants.CALL_GREETING_CONNECT_TO_STAFF) {
-            Result<Closure> res = callService.connectToPhone(from, to, params.CallSid)
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
-        }
-        else {
-            Result<Closure> res = callService.handleDigitsToTeamPhone(from, to, params.Digits)
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
-        }
-    }
-
-    protected def handleStaffStaffDigitsForCall(GrailsParameterMap params) {
-        Result<String> res = callService.handleOutgoingCallOrContactCode(params.CallSid,
-            params.To, params.Digits)
-        if (res.success) {
-            res = twimlBuilder.buildXmlFor(CallResponse.SELF_CONNECTING, [num:res.payload])
-        }
-        else {
-            res = twimlBuilder.buildXmlFor(CallResponse.SELF_ERROR, [digits:params.Digits])
-        }
-        if (res.success) { renderAsXml(res.payload) }
-        else { handleResultFailure(res) }
-    }
-
-    protected def confirmBridgeCall(GrailsParameterMap params) {
-        if (params.long("contactToBridge")) {
-            Result<Closure> res = callService.confirmBridgeCallForContact(params.long("contactToBridge"))
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
-        }
-        else { badRequest() }
-    }
-
-    protected def doBridgeCall(GrailsParameterMap params) {
-        if (params.long("contactToBridge")) {
-            Result<Closure> res = callService.completeBridgeCallForContact(params.long("contactToBridge"))
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
-        }
-        else { badRequest() }
-    }
-
-    protected def doCallAnnouncement(GrailsParameterMap params) {
-        if (params.long("teamContactTagId") && params.long("recordTextId")) {
-            Long ctId = params.long("teamContactTagId"),
-                rtId = params.long("recordTextId")
-            Result<Closure> res = callService.completeCallAnnouncement(ctId, rtId)
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
-        }
-        else { badRequest() }
-    }
-
-    protected def handleTeamAnnouncementDigits(GrailsParameterMap params) {
-        if (params.long("teamContactTagId") && params.long("recordTextId")) {
-            String from = Helpers.cleanNumber(params.From),
-                to = Helpers.cleanNumber(params.To)
-            Long ctId = params.long("teamContactTagId"),
-                rtId = params.long("recordTextId")
-            Result<Closure> res
-            switch (params.Digits) {
-                case Constants.CALL_ANNOUNCE_UNSUBSCRIBE_ONE:
-                    res = callService.handleCallAnnouncementUnsubscribeOne(from, ctId)
-                    break
-                case Constants.CALL_ANNOUNCE_UNSUBSCRIBE_ALL:
-                    res = callService.handleCallAnnouncementUnsubscribeAll(from, to)
-                    break
-                default:
-                    res = callService.completeCallAnnouncement(ctId, rtId)
-                    break
-            }
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
-        }
-        else { badRequest() }
-    }
-
-    /////////////////////////////
-    // Helper methods for text //
-    /////////////////////////////
-
-    protected def handleIncomingForText(GrailsParameterMap params) {
-        //case 1: staff member is texting from personal phone to TextUp phone
-        String from = Helpers.cleanNumber(params.From),
-            to = Helpers.cleanNumber(params.To)
-        if (staffService.staffExistsForPersonalAndWorkPhoneNums(from, to)) {
-            Result res = textService.handleIncomingToSelf(from, to)
-            if (res.success) { renderAsXml(res.payload) }
-            else { handleResultFailure(res) }
-        }
-        //case 2: someone is texting a TextUp phone
-        else {
-            if (callService.staffPhoneExistsForNum(to)) {
-                Result<Closure> res = textService.handleIncomingToStaff(from, to, params.MessageSid, params.Body)
-                if (res.success) { renderAsXml(res.payload) }
-                else { handleResultFailure(res) }
-            }
-            else if (MessageService.teamPhoneExistsForNum(to)) {
-                Result<Closure> res = textService.handleIncomingToTeam(from, to, params.MessageSid, params.Body)
-                if (res.success) { renderAsXml(res.payload) }
-                else { handleResultFailure(res) }
-            }
-            else { //phone not found
-                Result res = twimlBuilder.buildXmlFor(TextResponse.NOT_FOUND)
-                if (res.success) { renderAsXml(res.payload) }
-                else { handleResultFailure(res) }
-            }
-        }
-    }
-
-    protected def handleStatusForText(GrailsParameterMap params) {
+    protected def textStatus(GrailsParameterMap params) {
         if (recordService.receiptExistsForApiId(params.MessageSid)) {
             String status = Helpers.translateTextStatus(params.MessageStatus)
-            Result<List<RecordItemReceipt>> res = recordService.updateStatus(params.MessageSid,
-                Helpers.translateTextStatus(params.MessageStatus))
+            Result<List<RecordItemReceipt>> res = recordService.updateStatus(params.MessageSid, status)
             if (res.success) {
                 if (status == Constants.RECEIPT_FAILED) {
                     for (receipt in res.payload) {
@@ -406,9 +160,117 @@ class PublicRecordController extends BaseController {
                 ok()
             }
             else {
-                log.error("PublicRecordController.handleStatusForText: $res")
+                log.error("PublicRecordController.textStatus: $res")
                 handleResultFailure(res)
             }
         }
+    }
+
+    /*
+     * TEXT
+     */
+
+    protected def incomingText(GrailsParameterMap params) {
+        TransientPhoneNumber from = new TransientPhoneNumber(number:params.From),
+            to = new TransientPhoneNumber(number:params.To)
+
+        if (callService.staffPhoneExistsForNum(to)) {
+            handleXmlResult(staffTextService.handleIncoming(from, to, params.MessageSid, params.Body))
+        }
+        else if (callService.teamPhoneExistsForNum(to)) {
+            handleXmlResult(teamTextService.handleIncomingToTeam(from, to, params.MessageSid, params.Body))
+        }
+        else { //phone not found
+            handleXmlResult(twimlBuilder.buildXmlFor(TextResponse.NOT_FOUND))
+        }
+    }
+
+    /*
+     * CALL 
+     */
+
+    //////////////////
+    // General call //
+    //////////////////
+
+    protected def incomingCall(GrailsParameterMap params) {
+        TransientPhoneNumber from = new TransientPhoneNumber(number:params.From),
+            to = new TransientPhoneNumber(number:params.To)
+
+        if (callService.staffPhoneExistsForNum(to)) {
+            handleXmlResult(staffCallService.handleIncoming(from, to, params.CallSid))
+        }
+        else if (callService.teamPhoneExistsForNum(to)) {
+            handleXmlResult(teamCallService.handleIncoming(from, to, params.CallSid))
+        }
+        else { //phone not found
+            handleXmlResult(twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to]))
+        }
+    }
+
+    //incoming call to a TextUp phone results in a voicemail
+    protected def voicemail(GrailsParameterMap params) {
+        if (recordService.receiptExistsForApiId(params.CallSid)) {
+            String status = Helpers.translateCallStatus(params.CallStatus)
+            Integer callDuration = Helpers.toInteger(params.CallDuration),
+                recordingDuration = Helpers.toInteger(params.RecordingDuration)
+            handleResultWithStatus(callService.storeVoicemail(params.CallSid, status,
+                callDuration, params.RecordingUrl, recordingDuration), OK)
+        }
+        else { notFound() }
+    }
+
+    protected def confirmBridgeCall(GrailsParameterMap params) {
+        if (params.long("contactToBridge")) {
+            handleXmlResult(callService.confirmBridgeCallForContact(params.long("contactToBridge")))
+        }
+        else { badRequest() }
+    }
+
+    protected def startBridgeCall(GrailsParameterMap params) {
+        if (params.long("contactToBridge")) {
+            handleXmlResult(callService.completeBridgeCallForContact(params.long("contactToBridge")))
+        }
+        else { badRequest() }
+    }
+
+    ///////////////////
+    // Call for Team //
+    ///////////////////
+
+    protected def incomingTeamDigitsForCall(GrailsParameterMap params) {
+        TransientPhoneNumber from = new TransientPhoneNumber(number:params.From),
+                to = new TransientPhoneNumber(number:params.To)
+        handleXmlResult(teamCallService.handleIncomingDigits(from, to, params.CallSid))
+    }
+
+    protected def startCallAnnouncement(GrailsParameterMap params) {
+        if (params.long("teamContactTagId") && params.long("recordTextId")) {
+            Long ctId = params.long("teamContactTagId"),
+                rtId = params.long("recordTextId")
+            Result<Closure> res = teamCallService.completeCallAnnouncement(ctId, rtId)
+            if (res.success) { renderAsXml(res.payload) }
+            else { handleResultFailure(res) }
+        }
+        else { badRequest() }
+    }
+
+    protected def incomingDigitsForAnnouncement(GrailsParameterMap params) {
+        if (params.long("teamContactTagId") && params.long("recordTextId")) {
+            TransientPhoneNumber from = new TransientPhoneNumber(number:params.From),
+                to = new TransientPhoneNumber(number:params.To)
+            Long ctId = params.long("teamContactTagId"), rtId = params.long("recordTextId")
+            handleXmlResult(teamCallService.handleAnnouncementDigits(from, to, params.Digits, ctId, rtId))
+        }
+        else { badRequest() }
+    }
+
+    ////////////////////
+    // Call for Staff //
+    ////////////////////
+
+    protected def incomingDigitsForSelfCall(GrailsParameterMap params) {
+        TransientPhoneNumber to = new TransientPhoneNumber(number:params.To)
+        handleXmlResult(staffCallService.handleIncomingDigitsFromSelf(params.CallSid, to, params.Digits))
     }
 }

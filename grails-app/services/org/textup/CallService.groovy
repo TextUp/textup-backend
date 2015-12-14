@@ -27,7 +27,6 @@ class CallService {
     // Call methods //
     //////////////////
 
-
     Result<RecordCall> startBridgeCall(Staff staffMakingCall, Phone fromPhone, Contactable toContact, RecordCall call) {
         if (call.validate()) {
             String personalAsString = staffMakingCall.personalPhoneNumber?.e164PhoneNumber
@@ -61,54 +60,6 @@ class CallService {
         }
     }
 
-    Result<RecordCall> startCallAnnouncement(Phone fromPhone, Contactable toContact, RecordCall call, Long teamContactTagId, Long recordTextId) {
-        if (call.validate()) {
-            tryCall(toContact.numbers[0]?.e164PhoneNumber, call, fromPhone.number.e164PhoneNumber, toContact,
-                [handle:Constants.CALL_ANNOUNCEMENT, teamContactTagId:teamContactTagId, recordTextId:recordTextId])
-        }
-        else { resultFactory.failWithValidationErrors(call.error) }
-    }
-    Result<Closure> completeCallAnnouncement(Long teamContactTagId, Long recordTextId) {
-        RecordText rt1 = RecordText.get(recordTextId)
-        TeamContactTag ct1 = TeamContactTag.get(teamContactTagId)
-        if (rt1 && ct1) {
-            Team t1 = Team.forPhone(ct1.phone).get()
-            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT,
-                [contents:rt1.contents, teamName:t1.name, tagName:ct1.name, tagId:ct1.id, textId:rt1.id])
-        }
-        else {
-            log.error("CallService.completeCallAnnouncement: RecordText ${recordTextId} not found.")
-            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.completeCallAnnouncement.notFound", [rt1?.id, ct1?.id])
-        }
-    }
-    Result<Closure> handleCallAnnouncementUnsubscribeOne(String contactNum, String phoneNum, Long teamContactTagId) {
-        TeamPhone p1 = TeamPhone.forTeamNumber(phoneNum)
-        TeamContactTag ct1 = TeamContactTag.get(teamContactTagId)
-        if (p1 && ct1) {
-            List<Contact> contacts = Contact.forPhoneAndNum(p1, fromNum.number).list()
-            contacts.each { Contact c1 -> c1.quietUnsubscribeFromTag(ct1) }
-            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT_UNSUBSCRIBE_ONE, [tagName:ct1.name])
-        }
-        else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.handleCallAnnouncementUnsubscribeOne.notFound", [p1?.id, ct1?.id])
-        }
-    }
-    Result<Closure> handleCallAnnouncementUnsubscribeAll(String contactNum, String phoneNum) {
-        TeamPhone p1 = TeamPhone.forTeamNumber(phoneNum)
-        if (p1) {
-            List<Contact> contacts = Contact.forPhoneAndNum(p1, fromNum.number).list()
-            List<ContactTag> tags = p1.tags
-            contacts.each { Contact c1 ->
-                tags.each { ContactTag t1 ->
-                    c1.quietUnsubscribeFromTag(t1)
-                }
-            }
-            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT_UNSUBSCRIBE_ALL)
-        }
-        else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.handleCallAnnouncementUnsubscribeAll.notFound", [p1?.id])
-        }
-    }
 
     protected Result<RecordCall> tryCall(String to, RecordCall call, String from, Map afterPickupParams) {
 
@@ -168,13 +119,13 @@ class CallService {
     /////////////////////////
 
     @Transactional(readOnly=true)
-    boolean teamPhoneExistsForNum(String num) {
-        TeamPhone.forTeamNumber(Helpers.cleanNumber(num)).get() != null
+    boolean teamPhoneExistsForNum(TransientPhoneNumber num) {
+        TeamPhone.forTeamNumber(num).get() != null
     }
 
     @Transactional(readOnly=true)
-    boolean staffPhoneExistsForNum(String num) {
-        StaffPhone.forStaffNumber(Helpers.cleanNumber(num)).get() != null
+    boolean staffPhoneExistsForNum(TransientPhoneNumber num) {
+        StaffPhone.forStaffNumber(num).get() != null
     }
 
     ///////////////
@@ -245,14 +196,13 @@ class CallService {
     // Connect incoming call to phone //
     ////////////////////////////////////
 
-    Result<Closure> connectToPhone(String from, String to, String apiId) {
-        Phone phone = Phone.forNumber(Helpers.cleanNumber(to)).get()
+    Result<Closure> connectToPhone(TransientPhoneNumber from, TransientPhoneNumber to, String apiId) {
+        Phone phone = Phone.forNumber(to).get()
         if (phone) { connectToPhone(from, phone, apiId) }
         else { twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to]) }
     }
-    Result<Closure> connectToPhone(String from, Phone toPhone, String apiId) {
-        PhoneNumber fromNum = new PhoneNumber(number:from)
-        Result res = recordService.createIncomingRecordCall(fromNum, toPhone, [apiId:apiId])
+    Result<Closure> connectToPhone(TransientPhoneNumber from, Phone toPhone, String apiId) {        
+        Result res = recordService.createIncomingRecordCall(from, toPhone, [apiId:apiId])
         if (res.success) {
             res = getNumbersToCallIfAvailable(toPhone)
             if (res.success && res.payload instanceof Collection) {
@@ -295,113 +245,5 @@ class CallService {
             log.error("CallService.connectToPhone: phone $phone is not a staff or team phone.")
             twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
         }
-    }
-
-    //////////////////////////////////////////////////////////////////
-    // Incoming call from staff from personal phone to TextUp phone //
-    //////////////////////////////////////////////////////////////////
-
-    Result<String> handleOutgoingCallOrContactCode(String apiId, String workNum, String numOrCode) {
-        Phone phone = Phone.forNumber(Helpers.cleanNumber(workNum)).get()
-        if (phone) {
-            PhoneNumber pNum = new PhoneNumber(number:numOrCode)
-            if (pNum.validate()) { //then is a valid phone number
-                Result res = recordService.createOutgoingRecordCall(phone, pNum, [apiId:apiId])
-                if (res.success) {  resultFactory.success(pNum.number) }
-                else { res }
-            }
-            else if (numOrCode.isLong() && Contact.exists(numOrCode.toLong())) {
-                Contact contact = Contact.forPhoneAndContactId(phone, numOrCode.toLong()).get()
-                if (contact) {
-                    String to = contact.numbers[0]?.number
-                    Result res = recordService.createRecordCallForContact(contact.id, workNum, to,
-                        null, [apiId:apiId])
-                    if (res.success) {  resultFactory.success(to) }
-                    else { res }
-                }
-                else {
-                    resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                        "callService.handleOutgoingCallOrContactCode.contactForbidden",
-                        [phone.id, contact.id])
-                }
-            }
-            else {
-                resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                    "callService.handleOutgoingCallOrContactCode.neitherNumNorCode", [numOrCode])
-            }
-        }
-        else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "callService.handleOutgoingCallOrContactCode.phoneNotFound", [workNum])
-        }
-    }
-
-    //////////////////////////
-    // Calling a team phone //
-    //////////////////////////
-
-    Result<Closure> handleCallToTeamPhone(String from, String to, String apiId) {
-        TeamPhone p1 = TeamPhone.forTeamNumber(Helpers.cleanNumber(to)).get()
-        Result res = twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to])
-        if (p1) {
-            Team t = Team.forPhone(p1).get()
-            if (t) {
-                //store record of this incoming call to team phone
-                PhoneNumber fromNum = new PhoneNumber(number:from)
-                res = recordService.createIncomingRecordCall(fromNum, p1, [apiId:apiId])
-                if (res.success) {
-                    ClientSession ts1 = ClientSession.findOrCreateForTeamPhoneAndNumber(p1, from)
-                    if (ts1) {
-                        res = twimlBuilder.buildXmlFor(CallResponse.TEAM_GREETING, [teamName:t.name, isSubscribed:ts1.hasCallSubscriptions()])
-                    }
-                    else {
-                        res = twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
-                    }
-                }
-            }
-            else { log.error("CallService.handleCallToTeamPhone: No team found for $p1") }
-        }
-        res
-    }
-    Result<Closure> handleDigitsToTeamPhone(String from, String to, String digits) {
-        TeamPhone phone = TeamPhone.forTeamNumber(Helpers.cleanNumber(to)).get()
-        Result res = twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to])
-        if (phone) {
-            ClientSession ts1 = ClientSession.findOrCreateForTeamPhoneAndNumber(p1, from)
-            if (!ts1) { return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR) }
-            List<Contact> contacts = Contact.findOrCreateForPhoneAndNum(p1, cleanFrom)
-            if (!contacts) { return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR) }
-            List<ContactTag> tags = p1.tags
-            //connect to staff case redirected in PublicRecordController
-            switch(digits) {
-                case Constants.CALL_GREETING_HEAR_ANNOUNCEMENTS:
-                    List<FeaturedAnnouncement> features = p1.currentFeatures
-                    if (features) {
-                        twimlBuilder.buildXmlFor(CallResponse.TEAM_ANNOUNCEMENTS, [features:features])
-                    }
-                    else { twimlBuilder.buildXmlFor(CallResponse.TEAM_NO_ANNOUNCEMENTS) }
-                    break
-                case Constants.CALL_GREETING_SUBSCRIBE_ALL:
-                    contacts.each { Contact c1 ->
-                        tags.each { ContactTag t1 ->
-                            c1.subscribeToTag(t1, Constants.SUBSCRIPTION_CALL)
-                        }
-                    }
-                    res = twimlBuilder.buildXmlFor(CallResponse.TEAM_SUBSCRIBE_ALL)
-                    break
-                case Constants.CALL_GREETING_UNSUBSCRIBE_ALL:
-                    contacts.each { Contact c1 ->
-                        tags.each { ContactTag t1 ->
-                            c1.quietUnsubscribeFromTag(t1)
-                        }
-                    }
-                    res = twimlBuilder.buildXmlFor(CallResponse.TEAM_UNSUBSCRIBE_ALL)
-                    break
-                default:
-                    res = twimlBuilder.buildXmlFor(CallResponse.TEAM_ERROR, [digits:digits])
-                    break
-            }
-        }
-        res
     }
 }

@@ -9,14 +9,30 @@ import org.joda.time.DateTimeZone
 @Validateable
 class ScheduleChange {
     String type
-    DateTime when
+    DateTime when //assume UTC timezone
+    String timezone
+    private DateTimeZone tz
 
     static constraints = {
     	type blank:false, nullable:false, inList:[Constants.SCHEDULE_AVAILABLE, Constants.SCHEDULE_UNAVAILABLE]
     	when nullable:false
+    	timezone blank:true, nullable:true
+    	tz nullable:true
+    }
+
+    void setTimezone(String tzId) {
+    	if (tzId) {
+    		try {
+				tz = DateTimeZone.forId(tzId)
+				timezone = tzId
+			}
+			catch(e) {}
+    	}
     }
 
     void setWhen(DateTime w) {
         when = w?.withZone(DateTimeZone.UTC)
     }
+
+    DateTime getWhen() { tz ? when?.withZone(tz) : when }
 }

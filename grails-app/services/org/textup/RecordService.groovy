@@ -20,6 +20,10 @@ class RecordService {
         RecordItemReceipt.findByApiId(apiId) != null
     }
 
+    ////////////
+    // Status //
+    ////////////
+
     Result<List<RecordItemReceipt>> updateStatus(String apiId, String status, Integer duration=null) {
         List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
         if (receipts) { lockService.updateStatus(receipts, status, duration) }
@@ -29,72 +33,34 @@ class RecordService {
         }
     }
 
-    /////////////////////////////////
-    // Webhook for calls and texts //
-    /////////////////////////////////
+    /////////////////////////////
+    // Create new record items //
+    /////////////////////////////
 
-    Result<List<RecordText>> createIncomingRecordText(PhoneNumber fromNum, Phone to,
+    Result<List<RecordText>> createIncomingRecordText(TransientPhoneNumber fromNum, Phone to,
         Map textParams, Map receiptParams) {
         createIncoming(RecordItemType.RECORD_TEXT, fromNum, to, textParams, receiptParams)
     }
-    Result<List<RecordCall>> createOutgoingRecordText(Phone from, PhoneNumber toNum,
+    Result<List<RecordCall>> createOutgoingRecordText(Phone from, TransientPhoneNumber toNum,
         Map textParams, Map receiptParams) {
         createOutgoing(RecordItemType.RECORD_TEXT, from, toNum, textParams, receiptParams)
     }
-    Result<List<RecordCall>> createIncomingRecordCall(PhoneNumber fromNum, Phone to, Map receiptParams) {
+    Result<List<RecordCall>> createIncomingRecordCall(TransientPhoneNumber fromNum, Phone to, Map receiptParams) {
         createIncoming(RecordItemType.RECORD_CALL, fromNum, to, [:], receiptParams)
     }
-    Result<List<RecordCall>> createOutgoingRecordCall(Phone from, PhoneNumber toNum, Map receiptParams) {
+    Result<List<RecordCall>> createOutgoingRecordCall(Phone from, TransientPhoneNumber toNum, Map receiptParams) {
         createOutgoing(RecordItemType.RECORD_CALL, from, toNum, [:], receiptParams)
     }
 
-    protected Result<List<RecordText>> createIncoming(RecordItemType type, PhoneNumber fromNum,
-        Phone to, Map itemParams, Map receiptParams) {
-        Closure list = { -> Contact.forPhoneAndNum(to, fromNum.number).list() },
-            create = { -> to.createContact([:], [fromNum.number]) }
-        itemParams.outgoing = false
-        receiptParams.receivedBy = to.number.copy()
-        createRecordItem(type, false, list, create, itemParams, receiptParams)
-    }
-    protected Result<List<RecordCall>> createOutgoing(RecordItemType type, Phone from,
-        PhoneNumber toNum, Map itemParams, Map receiptParams) {
-        Closure list = { -> Contact.forPhoneAndNum(from, toNum.number).list() },
-            create = { -> from.createContact([:], [toNum.number]) }
-        itemParams.outgoing = true
-        receiptParams.receivedBy = toNum.save()
-        createRecordItem(type, true, list, create, itemParams, receiptParams)
-    }
-    protected Result<List<RecordCall>> createRecordItem(RecordItemType type, boolean outgoing,
-        Closure listContacts, Closure createContact, Map textParams, Map receiptParams) {
-        List<Contact> contacts = listContacts()
-        if (contacts) {
-            lockService.addToRecordWithReceipt(type, outgoing, contacts, textParams, receiptParams)
-        }
-        else {
-            Result res = createContact()
-            if (res.success) {
-                Contact newContact = res.payload
-                res = lockService.addToRecordWithReceipt(type, outgoing, newContact, textParams, receiptParams)
-                if (res.success) { resultFactory.success([res.payload]) }
-                else { res }
-            }
-            else { res }
-        }
-    }
+    Result<RecordCall> createRecordCallForContact(long contactId, TransientPhoneNumber from, 
+        TransientPhoneNumber to, Integer callDuration, Map receiptParams) {
 
-    ///////////////////////
-    // Webhook for calls //
-    ///////////////////////
-
-    Result<RecordCall> createRecordCallForContact(long contactId, String from, String to,
-        Integer callDuration, Map receiptParams) {
-
-        Phone phone = Phone.forNumber(Helpers.cleanNumber(from)).get()
+        Phone phone = Phone.forNumber(from).get()
         if (phone) {
             Contact contact = Contact.forPhoneAndContactId(phone, contactId).get()
             if (contact) {
                 Map callParams = (callDuration == null) ? [:] : [durationInSeconds:callDuration]
-                receiptParams.receivedBy = new PhoneNumber(number:to)
+                receiptParams.receivedBy = PhoneNumber.copy(to)
                 if (receiptParams.receivedBy.validate()) {
                     lockService.addToRecordWithReceipt(RecordItemType.RECORD_CALL, true, contact, callParams, receiptParams)
                 }
@@ -111,9 +77,47 @@ class RecordService {
         }
     }
 
-    //////////////////
-    // REST methods //
-    //////////////////
+    //////////////////////////////////////////
+    // Creating record items helper methods //
+    //////////////////////////////////////////
+
+    protected Result<List<RecordText>> createIncoming(RecordItemType type, TransientPhoneNumber fromNum,
+        Phone to, Map itemParams, Map receiptParams) {
+        Closure listAction = { -> Contact.forPhoneAndNum(to, fromNum).list() },
+            createAction = { -> to.createContact([:], [fromNum.number]) }
+        itemParams.outgoing = false
+        receiptParams.receivedBy = to.number.copy()
+        createRecordItem(type, false, listAction, createAction, itemParams, receiptParams)
+    }
+    protected Result<List<RecordCall>> createOutgoing(RecordItemType type, Phone from,
+        TransientPhoneNumber toNum, Map itemParams, Map receiptParams) {
+        Closure listAction = { -> Contact.forPhoneAndNum(from, toNum).list() },
+            createAction = { -> from.createContact([:], [toNum.number]) }
+        itemParams.outgoing = true
+        receiptParams.receivedBy = PhoneNumber.copy(toNum)
+        createRecordItem(type, true, listAction, createAction, itemParams, receiptParams)
+    }
+    protected Result<List<RecordCall>> createRecordItem(RecordItemType type, boolean outgoing,
+        Closure listContactsAction, Closure createContactAction, Map textParams, Map receiptParams) {
+        List<Contact> contacts = listContactsAction()
+        if (contacts) {
+            lockService.addToRecordWithReceipt(type, outgoing, contacts, textParams, receiptParams)
+        }
+        else {
+            Result res = createContactAction()
+            if (res.success) {
+                Contact newContact = res.payload
+                res = lockService.addToRecordWithReceipt(type, outgoing, newContact, textParams, receiptParams)
+                if (res.success) { resultFactory.success([res.payload]) }
+                else { res }
+            }
+            else { res }
+        }
+    }
+
+    ////////////
+    // Create //
+    ////////////
 
     Result<RecordResult> create(Class clazz, Long id, Map body) {
         def entity = clazz.get(id)
@@ -127,66 +131,75 @@ class RecordService {
 			resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
 				"recordService.create.unknownType")
 		}
-		else if (res.payload == RecordText) {
-			Result cRes = toIdsList(body.sendToContacts)
-			if (!cRes.success) return cRes
-			Result tRes = toIdsList(body.sendToTags)
-			if (!tRes.success) return tRes
-			List<String> nums = Helpers.toList(body.sendToPhoneNumbers)
-			List<Long> cIds = cRes.payload, tIds = tRes.payload
-			if ([nums, cIds, tIds].every { it.isEmpty() }) {
-				resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-					"recordService.create.noTextRecipients")
-			}
-			else {
-				Boolean isFuture = Helpers.toBoolean(body.futureText)
-				if (isFuture == true) {
-					p1.scheduleText(body.contents, body.sendAt, nums, cIds, tIds)
-				}
-				else {
-                    //If only sending to one tag, then send through that tag
-                    //which will add in additional text about unsubscribing from that tag
-                    if (!nums && !cIds && tIds.size() == 1 && TeamContactTag.exists(tIds[0])) {
-                        TeamContactTag.get(tIds.size[0]).notifySubscribers(body.contents)
-                    }
-                    else { //otherwise, send message without any special instructions from phone
-                        p1.text(body.contents, nums, cIds, tIds)
-                    }
-                }
-			}
-		}
-		else if (res.payload == RecordCall) {
-            Staff staffMakingCall = entity.instanceOf(Staff) ? entity : authService.loggedIn
-			if (body.callPhoneNumber && !body.callContact) {
-				p1.call(staffMakingCall, Helpers.toString(body.callPhoneNumber))
-			}
-			else if (!body.callPhoneNumber && body.callContact) {
-				p1.call(staffMakingCall, Helpers.toLong(body.callContact))
-			}
-			else {
-				resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-					"recordService.create.canCallOnlyOne")
-			}
-		}
-		else { //is RecordNote
-			Long cId = Helpers.toLong(body.addToContact)
-			Contact c1 = Contact.get(cId)
-			if (c1) {
-				if (authService.hasPermissionsForContact(cId) ||
-					authService.getSharedContactForContact(cId)) {
-					c1.addNote(body)
-				}
-				else {
-					resultFactory.failWithMessageAndStatus(FORBIDDEN,
-						"recordService.create.contactForbidden", [cId])
-				}
-			}
-			else {
-				resultFactory.failWithMessageAndStatus(NOT_FOUND,
-					"recordService.create.contactNotFound", [cId])
-			}
-		}
+		else if (res.payload == RecordText) { createText(p1, body) }
+		else if (res.payload == RecordCall) { createCall(entity, p1, body) }
+		else { createNote(body) }
     }
+
+    protected Result<RecordResult> createText(Phone p1, Map body) {
+        Result cRes = toIdsList(body.sendToContacts)
+        if (!cRes.success) return cRes
+        Result tRes = toIdsList(body.sendToTags)
+        if (!tRes.success) return tRes
+        List<String> nums = Helpers.toList(body.sendToPhoneNumbers)
+        List<Long> cIds = cRes.payload, tIds = tRes.payload
+        if ([nums, cIds, tIds].every { it.isEmpty() }) {
+            resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                "recordService.create.noTextRecipients")
+        }
+        else {
+            Boolean isFuture = Helpers.toBoolean(body.futureText)
+            if (isFuture == true) {
+                p1.scheduleText(body.contents, body.sendAt, nums, cIds, tIds)
+            }
+            else {
+                //If only sending to one tag, then send through that tag
+                //which will add in additional text about unsubscribing from that tag
+                if (!nums && !cIds && tIds.size() == 1 && TeamContactTag.exists(tIds[0])) {
+                    TeamContactTag.get(tIds.size[0]).notifySubscribers(body.contents)
+                }
+                else { //otherwise, send message without any special instructions from phone
+                    p1.text(body.contents, nums, cIds, tIds)
+                }
+            }
+        }
+    }
+
+    protected Result<RecordResult> createCall(def entity, Phone p1, Map body) {
+        Staff staffMakingCall = entity.instanceOf(Staff) ? entity : authService.loggedIn
+        if (body.callPhoneNumber && !body.callContact) {
+            p1.call(staffMakingCall, Helpers.toString(body.callPhoneNumber))
+        }
+        else if (!body.callPhoneNumber && body.callContact) {
+            p1.call(staffMakingCall, Helpers.toLong(body.callContact))
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                "recordService.create.canCallOnlyOne")
+        }
+    }
+
+    protected Result<RecordResult> createNote(Map body) {
+        Long cId = Helpers.toLong(body.addToContact)
+        Contact c1 = Contact.get(cId)
+        if (c1) {
+            if (authService.hasPermissionsForContact(cId) || authService.getSharedContactForContact(cId)) {
+                c1.addNote(body)
+            }
+            else {
+                resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                    "recordService.create.contactForbidden", [cId])
+            }
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                "recordService.create.contactNotFound", [cId])
+        }
+    }
+
+    ////////////
+    // Update //
+    ////////////
 
     Result<RecordItem> update(Long id, Map body) {
     	RecordItem rItem = RecordItem.get(id)

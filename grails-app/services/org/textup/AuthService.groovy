@@ -2,6 +2,8 @@ package org.textup
 
 import grails.gorm.DetachedCriteria
 import grails.transaction.Transactional
+import javax.servlet.http.HttpServletRequest
+import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 
 @Transactional(readOnly=true)
 class AuthService {
@@ -70,23 +72,66 @@ class AuthService {
         else { false }
     }
 
-    /////////////////
-    // Permissions //
-    /////////////////
+    ///////////////////////////////////
+    // Twilio request authentication //
+    ///////////////////////////////////
 
-    boolean belongsToSameTeamAs(Long teamId) {
-        Staff s1 = getLoggedIn()
-        if (s1) { TeamMembership.staffIdsForTeamId(teamId).list().contains(s1.id) }
-        else { false }
-    }
+    boolean authenticateRequest(HttpServletRequest request, GrailsParameterMap params) {
+        String browserURL = (request.requestURL.toString() - request.requestURI) + request.forwardURI,
+            authToken = grailsApplication.config.textup.apiKeys.twilio.authToken,
+            authHeaderName = "x-twilio-signature",
+            authHeader = request.getHeader(authHeaderName)
+        if (authHeader) {
+            if (request.queryString) { browserURL = "$browserURL?${request.queryString}" }
+            Map<String,String> twilioParams = extractTwilioParams(request, params)
 
-    boolean canShareContactWithStaff(Long cId, Long sId) {
-        Contact c1 = Contact.get(cId)
-        if (c1 && c1.phone.instanceOf(StaffPhone)) {
-            TeamMembership.staffIdsOnSameTeamAs(sId).list().contains(c1.phone.ownerId)
+            StringBuilder data = new StringBuilder(browserURL)
+            List<String> sortedKeys = twilioParams.keySet().toList().sort() //sort keys lexicographically
+            sortedKeys.each { String key -> data << key << twilioParams[key] }
+            //first check https then check http if fails. Scheme detection in request object is spotty
+            String dataString = data.toString(), httpsData, httpData
+            if (dataString.startsWith("http://")) {
+                httpData = dataString
+                httpsData = dataString.replace("http://", "https://")
+            }
+            else if (dataString.startsWith("https://")) {
+                httpData = dataString.replace("https://", "http://")
+                httpsData = dataString
+            }
+            else {
+                log.error("AuthService.authenticateRequest: invalid data: $dataString")
+                return false
+            }
+            //first try https
+            String encoded = Helpers.getBase64HmacSHA1(httpsData.toString(), authToken)
+            boolean isAuth = (encoded == authHeader)
+            //then fallback to checking http if needed
+            if (!isAuth) {
+                encoded = Helpers.getBase64HmacSHA1(httpData.toString(), authToken)
+                isAuth = (encoded == authHeader)
+            }
+            isAuth
         }
         else { false }
     }
+
+    protected Map<String,String> extractTwilioParams(HttpServletRequest request, GrailsParameterMap allParams) {
+        Collection<String> requestParamKeys = request.parameterMap.keySet(), queryParams = []
+        request.queryString?.tokenize("&")?.each { queryParams << it.tokenize("=")[0] }
+        HashSet<String> ignoreParamKeys = new HashSet<>(queryParams),
+            keepParamKeys = new HashSet<>(requestParamKeys)
+        Map<String,String> twilioParams = [:]
+        allParams.each { String key, String val ->
+            if (keepParamKeys.contains(key) && !ignoreParamKeys.contains(key)) {
+                twilioParams[key] = val
+            }
+        }
+        twilioParams
+    }
+
+    ////////////////////////
+    // Contact permission //
+    ////////////////////////
 
     /**
      * Can have permission for this Contact if
@@ -106,6 +151,18 @@ class AuthService {
                     phone { "in"("id", tPhoneIds) } //(2)
                 }
             } > 0
+        }
+        else { false }
+    }
+
+    /////////////////////////////////
+    // Sharing contact permissions //
+    /////////////////////////////////
+
+    boolean canShareContactWithStaff(Long cId, Long sId) {
+        Contact c1 = Contact.get(cId)
+        if (c1 && c1.phone.instanceOf(StaffPhone)) {
+            TeamMembership.staffIdsOnSameTeamAs(sId).list().contains(c1.phone.ownerId)
         }
         else { false }
     }
@@ -131,6 +188,17 @@ class AuthService {
         else { null }
     }
 
+
+    //////////////////////
+    // Team permissions //
+    //////////////////////
+
+    boolean belongsToSameTeamAs(Long teamId) {
+        Staff s1 = getLoggedIn()
+        if (s1) { TeamMembership.staffIdsForTeamId(teamId).list().contains(s1.id) }
+        else { false }
+    }
+
     /**
      * Can have permission for this team if
      * (1) You are on this team
@@ -153,6 +221,10 @@ class AuthService {
         else { false }
     }
 
+    ///////////////////////
+    // Staff permissions //
+    ///////////////////////
+
     /**
      * Can have permission for this staff member if
      * (1) You are this staff member
@@ -171,6 +243,10 @@ class AuthService {
         }
         else { false }
     }
+
+    /////////////////////
+    // Tag permissions //
+    /////////////////////
 
     /**
      * Can have permission for this Tag if
@@ -207,6 +283,10 @@ class AuthService {
         if (t1 && c1) { t1.phone == c1.phone }
         else { false }
     }
+
+    ////////////////////////
+    // Record permissions //
+    ////////////////////////
 
     /**
      * Can have permission for this RecordItem if

@@ -14,7 +14,7 @@ import groovy.util.logging.Log4j
 class Contact implements Contactable {
 
     def textService
-    def callService
+    def teamCallService
     def resultFactory
 
     @RestApiObjectField(
@@ -131,9 +131,9 @@ class Contact implements Contactable {
             order("lastRecordActivity", "desc") //more recent first
             order("id", "desc") //by contact id
         }
-        forPhoneAndNum { Phone thisPhone, String num ->
+        forPhoneAndNum { Phone thisPhone, TransientPhoneNumber num ->
             eq("phone", thisPhone)
-            numbers { eq("number", num) }
+            numbers { eq("number", num?.number) }
         }
         forRecord { Record thisRecord ->
             eq("record", thisRecord)
@@ -214,10 +214,10 @@ class Contact implements Contactable {
     // Helper methods //
     ////////////////////
 
-    static List<Contact> findOrCreateForPhoneAndNum(Phone p1, String number) {
+    static List<Contact> findOrCreateForPhoneAndNum(Phone p1, TransientPhoneNumber number) {
         List<Contact> contacts = Contact.forPhoneAndNum(p1, number).list()
         if (contacts.isEmpty()) {
-            Result res = p1.createContact([:], [number])
+            Result res = p1.createContact([:], [number.number])
             if (res.success) { contacts = [res.payload] }
             else {
                 log.error("Contact.findOrCreateForPhoneAndNum: could not create contact: ${res.payload}")
@@ -258,7 +258,7 @@ class Contact implements Contactable {
     Result<RecordResult> callNotify(Long teamContactTagId, Long recordTextId, Author auth) {
         Result<RecordCall> tRes = record.addCall([:], auth)
         if (tRes.success) {
-            tRes = callService.startCallAnnouncement(this.phone, this, tRes.payload, teamContactTagId, recordTextId)
+            tRes = teamCallService.startCallAnnouncement(this.phone, this, tRes.payload, teamContactTagId, recordTextId)
             if (tRes.success) { updateLastRecordActivity() }
         }
         resultFactory.convertToRecordResult(tRes)
@@ -269,7 +269,7 @@ class Contact implements Contactable {
     Result<RecordResult> call(Staff staffMakingCall, Map params, Author auth) {
         Result<RecordCall> tRes = record.addCall(params, auth)
         if (tRes.success) {
-            tRes = callService.startBridgeCall(staffMakingCall, this.phone, this, tRes.payload)
+            tRes = teamCallService.startBridgeCall(staffMakingCall, this.phone, this, tRes.payload)
             if (tRes.success) { updateLastRecordActivity() }
         }
         resultFactory.convertToRecordResult(tRes)

@@ -132,22 +132,22 @@ class WeeklySchedule extends Schedule {
     @Override
     Result<ScheduleChange> nextChange(String timezone=null) {
         DateTime now = DateTime.now(DateTimeZone.UTC)
-        nextChangeForDateTime(now, now)
+        nextChangeForDateTime(now, now, timezone)
     }
     @Override
     Result<DateTime> nextAvailable(String timezone=null) {
-        Result res = nextChangeForType(Constants.SCHEDULE_AVAILABLE)
+        Result res = nextChangeForType(Constants.SCHEDULE_AVAILABLE, timezone)
         if (res.success) { resultFactory.success(res.payload.when) }
         else { res }
     }
     @Override
     Result<DateTime> nextUnavailable(String timezone=null) {
-        Result res = nextChangeForType(Constants.SCHEDULE_UNAVAILABLE)
+        Result res = nextChangeForType(Constants.SCHEDULE_UNAVAILABLE, timezone)
         if (res.success) { resultFactory.success(res.payload.when) }
         else { res }
     }
     @Override
-    Result<Schedule> update(Map<String,List<LocalInterval>> params, String timezone=null) {
+    Result<Schedule> update(Map<String,List<LocalInterval>> params) {
         try {
             ValidationErrors errors = null
             for (i in params?.values()?.flatten()) {
@@ -167,12 +167,19 @@ class WeeklySchedule extends Schedule {
         }
     }
     Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params, String timezone=null) {
-        Map<String, List<LocalInterval>> localIntervalParams = [:]
-        for (dayEntry in params) {
-            if (dayEntry.value instanceof List) {
-                Result res = parseIntervalStrings(dayEntry.value)
+        DateTimeZone zone = Helpers.getZoneFromId(timezone)
+        List<String> daysOfWeek = Constants.DAYS_OF_WEEK
+        int numDaysPerWeek = daysOfWeek.size()
+        //parse interval strings into a list of UTC intervals where sunday corresponds to 
+        //today, monday corresponds to tomorrow and so forth
+        List<Interval> utcIntervals = []
+        for(int addDays = 0; addDays < numDaysPerWeek; addDays++) {
+            String dayOfWeek = daysOfWeek[addDays]
+            def intStrings = params[dayOfWeek]
+            if (intStrings instanceof List) {
+                Result res = parseIntervalStringsToUTCIntervals(intStrings, addDays, zone)
                 if (res.success) {
-                    localIntervalParams."${dayEntry.key}" = res.payload
+                    utcIntervals += res.payload
                 }
                 else { return res }
             }
@@ -181,23 +188,133 @@ class WeeklySchedule extends Schedule {
                     [dayEntry.key])
             }
         }
-        update(localIntervalParams)
+        //call update after converting interval strings to local intervals
+        update(fromIntervalsToLocalIntervalsMap(utcIntervals))
     }
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    /////////////////////
+    // Property Access //
+    /////////////////////
 
-    protected Result<List<LocalInterval>> parseIntervalStrings(List<String> intStrings) {
+    Map<String,List<LocalInterval>> getAllAsLocalIntervals(String timezone=null) {
+        DateTimeZone zone = Helpers.getZoneFromId(timezone)
+        DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
+        List<String> daysOfWeek = Constants.DAYS_OF_WEEK
+        //rehydrate the strings as INTERVALS where sunday corresponds to TODAY, monday corresponds
+        //to tomorrow, and tuesday corresponds to the day after tomorrow, etc.
+        List<Interval> intervals = []
+        daysOfWeek.collectEntries { String dayOfWeek ->
+            List<Interval> intervalsForDay = []
+            this."$dayOfWeek".tokenize(_rangeDelimiter).eachWithIndex { String rangeString, int addDays ->
+                List<String> times = rangeString.tokenize(_timeDelimiter)
+                if (times.size() == 2) {
+                    DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
+                        .plusDays(addDays)
+                    DateTime end = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[1]), zone)
+                        .plusDays(addDays)
+                    intervalsForDay << new Interval(start, end)
+                }
+                else {
+                    log.error("WeeklySchedule.getAsLocalIntervals: for $dayOfWeek, invalid range: $rangeString")
+                }
+            }
+            intervals += intervalsForDay
+        }
+        fromIntervalsToLocalIntervalsMap(intervals)
+    }
+
+    /*
+     * Helper methods
+     */
+
+    ///////////////////////////////////////////////////
+    // Iterating through and finding the next change //
+    ///////////////////////////////////////////////////
+
+    protected Result<ScheduleChange> nextChangeForType(String changeType, String timezone) {
+        DateTime now = DateTime.now()
+        Result<ScheduleChange> res = nextChangeForDateTime(now, now, timezone)
+        if (res.success) {
+            ScheduleChange sChange = res.payload
+            if (sChange.type != changeType) {
+                res = nextChangeForDateTime(sChange.when, sChange.when, timezone)
+            }
+        }
+        res
+    }
+    private Result<ScheduleChange> nextChangeForDateTime(DateTime dt, DateTime initialDt, String timezone) {
+        List<Interval> intervals = rehydrateAsIntervals(dt)
+        ScheduleChange sChange = null
+        //set the closest upcoming to be impossibly far into the future as an initial value
+        DateTime closestUpcoming = dt.plusWeeks(1)
+        for (interval in intervals) {
+            if (interval.contains(initialDt)) {
+                sChange = new ScheduleChange(type:Constants.SCHEDULE_UNAVAILABLE, when:interval.end, timezone:timezone)
+                break
+            }
+            else if (interval.isBefore(closestUpcoming) && interval.isAfter(initialDt)) {
+                closestUpcoming = interval.start
+            }
+        }
+        //If sChange is not null, then we found an interval that contains initialDt
+        if (sChange) { resultFactory.success(sChange) }
+        //Otherwise, we need to find the nearest upcoming interval
+        else if (closestUpcoming && !intervals.isEmpty()) {
+            resultFactory.success(new ScheduleChange(type:Constants.SCHEDULE_AVAILABLE, when:closestUpcoming, timezone:timezone))
+        }
+        //If no upcoming intervals on this day, check the next day
+        else {
+            //continue searching if we have not yet looked one week into the future
+            if (initialDt.plusWeeks(1) != dt) {
+                nextChangeForDateTime(dt.plusDays(1), initialDt, timezone)
+            }
+            else { resultFactory.failWithMessage("weeklySchedule.error.nextChangeNotFound") }
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Before dehydrating, rehydrating or validating, handle non-UTC timezones first //
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    //iterate each interval, and bin them into the appropriate day of the week, assuming that sunday 
+    //corresponds to day, monday to tomorrow and so forth. For wraparound purposes, yesterday corresponds
+    //to saturday
+    protected Map<String,List<LocalInterval>> fromIntervalsToLocalIntervalsMap(List<Interval> intervals) {
+        Map<String,List<LocalInterval>> localIntervals = daysOfWeek.collectEntries { [(it):[]] }
+        List<String> daysOfWeek = Constants.DAYS_OF_WEEK
+        DateTime today = DateTime.now()
+        
+        intervals.each { Interval interval ->
+            int startDayOfWeek = Helpers.getDayOfWeekIndex(Helpers.getDaysBetween(today, interval.start)),
+                endDayOfWeek = Helpers.getDayOfWeekIndex(Helpers.getDaysBetween(today, interval.end))
+            String startDay = daysOfWeek[startDayOfWeek],
+                    endDay = daysOfWeek[endDayOfWeek]
+            //if interval does not span two days
+            if (startDayOfWeek == endDayOfWeek) {
+                localIntervals[startDay] << new LocalInterval(interval)
+            }
+            else { //interval spans two days, break interval into two local intervals
+                localIntervals[startDay] << new LocalInterval(interval.start.toLocalTime(), new LocalTime(11, 59))
+                localIntervals[endDay] << new LocalInterval(new LocalTime(12, 00), interval.end.toLocalTime())
+            }
+        }
+        localIntervals
+    }
+
+    protected Result<List<Interval>> parseIntervalStringsToUTCIntervals(List<String> intStrings, int addDays,
+        DateTimeZone zone=null) {
+
         List<LocalInterval> result = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
         for (str in intStrings) {
             try {
                 List<String> times = str.tokenize(_restDelimiter)
                 if (times.size() == 2) {
-                    LocalTime start = dtf.parseLocalTime(times[0]),
-                        end = dtf.parseLocalTime(times[1])
-                    result << new LocalInterval(start, end)
+                    DateTime start = Helpers.toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[0]), zone)
+                        .plusDays(addDays)
+                    DateTime end = Helpers.toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[1]), zone)
+                        .plusDays(addDays)
+                    result << new Interval(start, end)
                 }
                 else {
                     return resultFactory.failWithMessage("weeklySchedule.error.invalidRestTimeFormat", [str])
@@ -211,46 +328,10 @@ class WeeklySchedule extends Schedule {
         resultFactory.success(result)
     }
 
-    protected Result<ScheduleChange> nextChangeForType(String changeType) {
-        DateTime now = DateTime.now()
-        Result<ScheduleChange> res = nextChangeForDateTime(now, now)
-        if (res.success) {
-            ScheduleChange sChange = res.payload
-            if (sChange.type != changeType) {
-                res = nextChangeForDateTime(sChange.when, sChange.when)
-            }
-        }
-        res
-    }
-    private Result<ScheduleChange> nextChangeForDateTime(DateTime dt, DateTime initialDt) {
-        List<Interval> intervals = rehydrateAsIntervals(dt)
-        ScheduleChange sChange = null
-        //set the closest upcoming to be impossibly far into the future as an initial value
-        DateTime closestUpcoming = dt.plusWeeks(1)
-        for (interval in intervals) {
-            if (interval.contains(initialDt)) {
-                sChange = new ScheduleChange(type:Constants.SCHEDULE_UNAVAILABLE, when:interval.end)
-                break
-            }
-            else if (interval.isBefore(closestUpcoming) && interval.isAfter(initialDt)) {
-                closestUpcoming = interval.start
-            }
-        }
-        //If sChange is not null, then we found an interval that contains initialDt
-        if (sChange) { resultFactory.success(sChange) }
-        //Otherwise, we need to find the nearest upcoming interval
-        else if (closestUpcoming && !intervals.isEmpty()) {
-            resultFactory.success(new ScheduleChange(type:Constants.SCHEDULE_AVAILABLE, when:closestUpcoming))
-        }
-        //If no upcoming intervals on this day, check the next day
-        else {
-            //continue searching if we have not yet looked one week into the future
-            if (initialDt.plusWeeks(1) != dt) {
-                nextChangeForDateTime(dt.plusDays(1), initialDt)
-            }
-            else { resultFactory.failWithMessage("weeklySchedule.error.nextChangeNotFound") }
-        }
-    }
+    ///////////////////////////////////////////////////////
+    // Dehydrating, rehydrating and validating intervals //
+    ///////////////////////////////////////////////////////
+
     private List<Interval> rehydrateAsIntervals(DateTime dt, boolean stitchEndOfDay=true) {
         String intervalsString = getDayOfWeek(dt)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
@@ -346,29 +427,5 @@ class WeeklySchedule extends Schedule {
             return true
         }
         catch (e) { return false }
-    }
-
-    /////////////////////
-    // Property Access //
-    /////////////////////
-
-    Map<String,List<LocalInterval>> getAllAsLocalIntervals(String timezone=null) {
-        ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday",
-            "saturday"].collectEntries { String dayOfWeek ->
-            DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
-            List<Interval> localIntervals = []
-            this."$dayOfWeek".tokenize(_rangeDelimiter).each { String rangeString ->
-                List<String> times = rangeString.tokenize(_timeDelimiter)
-                if (times.size() == 2) {
-                    LocalTime start = dtf.parseLocalTime(times[0])
-                    LocalTime end = dtf.parseLocalTime(times[1])
-                    localIntervals << new LocalInterval(start, end)
-                }
-                else {
-                    log.error("WeeklySchedule.getAsLocalIntervals: for $dayOfWeek, invalid range: $rangeString")
-                }
-            }
-            [(dayOfWeek):localIntervals]
-        }
     }
 }

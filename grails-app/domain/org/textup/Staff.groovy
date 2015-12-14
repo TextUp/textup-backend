@@ -135,9 +135,9 @@ class Staff {
             eq("org", thisOrg)
             if (statuses) "in"("status", statuses)
         }
-        forPersonalAndWorkPhoneNums { String personalNum, String workNum ->
-            eq("personalPhoneNumber.number", personalNum)
-            phone { eq("number.number", workNum) }
+        forPersonalAndWorkPhoneNums { TransientPhoneNumber personalNum, TransientPhoneNumber workNum ->
+            eq("personalPhoneNumber.number", personalNum?.number)
+            phone { eq("number.number", workNum?.number) }
         }
     }
 
