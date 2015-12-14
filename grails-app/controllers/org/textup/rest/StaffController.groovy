@@ -36,15 +36,22 @@ class StaffController extends BaseController {
         @RestApiParam(name="organizationId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description="Id of the organization to restrict results to"),
         @RestApiParam(name="teamId", type="Number", paramType=RestApiParamType.QUERY,
-            required=true, description="Id of the team to restrict results to")
+            required=true, description="Id of the team to restrict results to"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key to convert times to,
+            include schedule intervals, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404",description="The organization or team was not found."),
-        @RestApiError(code="400", description="You must specify either organization id or team id but not both."),
+        @RestApiError(code="400", description='''You must specify either organization id
+            or team id but not both'''),
         @RestApiError(code="403", description="You do not have permission to do this.")
     ])
     @Transactional(readOnly=true)
     def index() {
+        if (params.timezone) {
+            request.timezone = params.timezone //for the json marshaller
+        }
         if (params.organizationId && params.teamId) { badRequest() }
         else if (params.organizationId) {
             Organization org = Organization.get(params.long("organizationId"))
@@ -74,7 +81,10 @@ class StaffController extends BaseController {
     @RestApiMethod(description="Show specifics about a staff member")
     @RestApiParams(params=[
         @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
-            description="Id of the staff member")
+            description="Id of the staff member"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key to convert times to,
+            include schedule intervals, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404",description="The staff member was not found."),
@@ -83,8 +93,13 @@ class StaffController extends BaseController {
     @Transactional(readOnly=true)
     def show() {
         Long id = params.long("id")
+        if (params.timezone) {
+            request.timezone = params.timezone //for the json marshaller
+        }
         if (Staff.exists(id)) {
-            if (authService.hasPermissionsForStaff(id)) { genericShowAction(Staff, id) }
+            if (authService.isLoggedIn(id) || authService.hasPermissionsForStaff(id)) {
+                genericShowAction(Staff, id)
+            }
             else { forbidden() }
         }
         else { notFound() }
@@ -115,7 +130,10 @@ class StaffController extends BaseController {
     @RestApiMethod(description="Update an existing staff member")
     @RestApiParams(params=[
         @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
-            description="Id of the staff member")
+            description="Id of the staff member"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key that the dates, including schedule intervals
+            passed in are in, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),
@@ -126,6 +144,9 @@ class StaffController extends BaseController {
     ])
     def update() {
         if (!validateJsonRequest(request, "staff")) { return; }
+        if (params.timezone) {
+            request.timezone = params.timezone //for the json marshaller
+        }
         Long id = params.long("id")
         if (authService.exists(Staff, id)) {
             if (authService.isLoggedIn(id) || authService.isAdminAtSameOrgAs(id)) {

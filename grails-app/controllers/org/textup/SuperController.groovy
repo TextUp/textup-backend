@@ -69,7 +69,7 @@ class SuperController {
     }
 
     def rejectOrg() {
-        Org org = Organization.get(id)
+        Organization org = Organization.get(params.long("id"))
         if (org && org.admins[0]) {
             org.status = Constants.ORG_REJECTED
             if (org.save()) {
@@ -92,13 +92,13 @@ class SuperController {
     }
 
     def approveOrg() {
-        Org org = Organization.get(id)
+        Organization org = Organization.get(params.long("id"))
         if (org && org.admins[0]) {
             org.status = Constants.ORG_APPROVED
             if (org.save()) {
-                flash.messages = ["Successfully rejected ${org.name}"]
+                flash.messages = ["Successfully approved ${org.name}"]
                 Result res = mailService.notifyNewOrganizationOfApproval(org.admins[0])
-                if (!res.success) { 
+                if (!res.success) {
                     log.error("SuperController.approveOrg: could not notify $org of approval: ${res.payload}")
                     flash.messages = resultFactory.extractMessages(res)
                 }

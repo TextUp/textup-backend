@@ -63,6 +63,7 @@ class Constants {
 
 	static final String CALL_INCOMING = "incoming"
 	static final String CALL_STATUS = "status"
+	static final String CONFIRM_CALL_BRIDGE = "confirmBridge"
 	static final String CALL_BRIDGE = "bridge"
 	static final String CALL_ANNOUNCEMENT = "announcement"
 	static final String CALL_VOICEMAIL = "voicemail"

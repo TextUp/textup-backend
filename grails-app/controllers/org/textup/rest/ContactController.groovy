@@ -41,7 +41,10 @@ class ContactController extends BaseController {
         @RestApiParam(name="teamId", type="Number", required=true,
         	paramType=RestApiParamType.QUERY, description="Id of the team member"),
         @RestApiParam(name="tagId", type="Number", required=true,
-            paramType=RestApiParamType.QUERY, description="Id of the team member")
+            paramType=RestApiParamType.QUERY, description="Id of the team member"),
+        @RestApiParam(name="search", type="String", required=false,
+            paramType=RestApiParamType.QUERY, description='''String to search for in contact name,
+            limited to active and unread contacts''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404",description='''The staff or team was not found. Or, the
@@ -59,7 +62,14 @@ class ContactController extends BaseController {
             Staff s1 = Staff.get(params.long("staffId"))
             if (!s1 || !s1.phone) { notFound() }
             else if (authService.isLoggedIn(s1.id)) {
-                if (params.staffStatus) {
+                if (params.search) {
+                    String query = params.search
+                    if (!query.startsWith("%")) query = "%$query"
+                    if (!query.endsWith("%")) query = "$query%"
+                    genericListActionForCriteria(Contact,
+                        Contact.iLikeForNameAndPhone(query, s1.phone), params)
+                }
+                else if (params.staffStatus) {
                     if (params.staffStatus == "sharedByMe") {
                         Closure count = { params ->
                                 s1.phone.countSharedByMe()
@@ -96,8 +106,17 @@ class ContactController extends BaseController {
             Team t1 = Team.get(params.long("teamId"))
             if (!t1 || !t1.phone) { notFound() }
             else if (authService.belongsToSameTeamAs(t1.id)) {
-                genericListActionForCriteria(Contact, Contact.forPhoneAndStatuses(t1.phone,
-                    params.list("status[]")), params)
+                if (params.search) {
+                    String query = params.search
+                    if (!query.startsWith("%")) query = "%$query"
+                    if (!query.endsWith("%")) query = "$query%"
+                    genericListActionForCriteria(Contact,
+                        Contact.iLikeForNameAndPhone(query, s1.phone), params)
+                }
+                else {
+                    genericListActionForCriteria(Contact, Contact.forPhoneAndStatuses(t1.phone,
+                        params.list("status[]")), params)
+                }
             }
             else { forbidden() }
         }

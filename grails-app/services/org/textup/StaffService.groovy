@@ -2,6 +2,11 @@ package org.textup
 
 import grails.transaction.Transactional
 import static org.springframework.http.HttpStatus.*
+import com.twilio.sdk.resource.instance.IncomingPhoneNumber
+import com.twilio.sdk.TwilioRestClient
+import com.twilio.sdk.TwilioRestException
+import org.apache.http.message.BasicNameValuePair
+import org.apache.http.NameValuePair
 
 @Transactional
 class StaffService {
@@ -9,6 +14,7 @@ class StaffService {
     def resultFactory
     def authService
     def mailService
+    def grailsApplication
 
     //////////////////
     // REST methods //
@@ -74,6 +80,7 @@ class StaffService {
             if (body.email) email = body.email
             if (body.manualSchedule) manualSchedule = body.manualSchedule
             if (body.isAvailable) isAvailable = body.isAvailable
+            if (body.awayMessage) awayMessage = body.awayMessage
 		}
         if (body.personalPhoneNumber) {
             s1.personalPhoneNumberAsString = body.personalPhoneNumber
@@ -82,13 +89,42 @@ class StaffService {
 			Result res = s1.schedule.updateWithIntervalStrings(body.schedule)
 			if (!res.success) { return res }
 		}
-		if (body.phone) {
-			if (s1.phone) { s1.phone.numberAsString = body.phone }
-			else {
-				StaffPhone p1 = new StaffPhone()
-				p1.numberAsString = body.phone
-				s1.phone = p1
-			}
+		if (body.phone || body.phoneId) {
+            StaffPhone p1 = s1.phone ?: new StaffPhone()
+            def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
+            //only proceed if we are trying to CHANGE our phone number
+            if (!((body.phone && Helpers.cleanNumber(body.phone) == p1.numberAsString) ||
+                (body.phoneId && body.phoneId == p1.apiId))) {
+                try {
+                    TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
+                    List<NameValuePair> params = []
+                    params.with {
+                        add(new BasicNameValuePair("FriendlyName", twilioConfig.unavailable))
+                        add(new BasicNameValuePair("SmsApplicationSid", twilioConfig.appId))
+                        add(new BasicNameValuePair("VoiceApplicationSid", twilioConfig.appId))
+                    }
+                    IncomingPhoneNumber currNum = p1.apiId ? client.account.getIncomingPhoneNumber(p1.apiId) : null,
+                        newNum
+                    if (body.phoneId) {
+                        newNum = client.account.getIncomingPhoneNumber(body.phoneId)
+                        newNum.update(params)
+                    }
+                    else {
+                        params.add(new BasicNameValuePair("PhoneNumber", body.phone))
+                        newNum = client.account.incomingPhoneNumberFactory.create(params)
+                    }
+                    //update staff phone
+                    if (currNum) {
+                        currNum.update([new BasicNameValuePair("FriendlyName", twilioConfig.available)])
+                    }
+                    p1.apiId = newNum.sid
+                    p1.numberAsString = newNum.phoneNumber
+                }
+                catch (TwilioRestException e) {
+                    return resultFactory.failWithThrowable(e)
+                }
+            }
+            s1.phone = p1
             if (!s1.phone.save()) {
                 return resultFactory.failWithValidationErrors(s1.phone.errors)
             }
@@ -97,10 +133,10 @@ class StaffService {
             if (authService.isAdminAtSameOrgAs(s1.id)) {
                 String oldStatus = s1.status
                 s1.status = body.status
-                if (oldStatus == Constants.STATUS_PENDING && 
+                if (oldStatus == Constants.STATUS_PENDING &&
                     s1.status != Constants.STATUS_PENDING && s1.save()) {
                     Result res
-                    if (s1.status == Constants.STATUS_ADMIN || 
+                    if (s1.status == Constants.STATUS_ADMIN ||
                         s1.status == Constants.STATUS_STAFF) {
                         res = mailService.notifyPendingOfApproval(s1)
                     }

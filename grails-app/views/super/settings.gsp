@@ -7,8 +7,14 @@
     </head>
     <body>
         <div class="super-container">
-            <g:if test="${flash.message}">
-                <div class="message">${flash.message}</div>
+            <g:if test="${flash.messages}">
+                <div class="message">
+                    <ul>
+                        <g:each in="${flash.messages}">
+                            <li>${it}</li>
+                        </g:each>
+                    </ul>
+                </div>
             </g:if>
             <g:if test="${flash.errorObj}">
                 <div class="message">

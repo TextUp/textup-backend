@@ -26,10 +26,19 @@ class PublicRecordController extends BaseController {
     // Prohibited methods //
     ////////////////////////
 
-    def index() { notAllowed() }
-    def show() { notAllowed() }
-    def validate() { notAllowed() }
-    def delete() { notAllowed() }
+    def index() {
+        println "1"
+        notAllowed()
+    }
+    def show() {
+        println "2"
+        notAllowed() }
+    def update() {
+        println "3"
+        notAllowed() }
+    def delete() {
+        println "4"
+        notAllowed() }
 
     /////////////////////
     // Handle webhooks //
@@ -68,17 +77,19 @@ class PublicRecordController extends BaseController {
             if (authenticateRequest(request, params)) {
                 if (params.CallSid) {
                     switch (params.handle) {
-                        case Constants.CALL_INCOMING: 
+                        case Constants.CALL_INCOMING:
                             return handleIncomingForCall(params)
-                        case Constants.CALL_STATUS: 
+                        case Constants.CALL_STATUS:
                             return handleStatusForCall(params)
-                        case Constants.CALL_VOICEMAIL: 
+                        case Constants.CALL_VOICEMAIL:
                             return handleVoicemailForCall(params)
-                        case Constants.CALL_PUBLIC_TEAM_DIGITS: 
+                        case Constants.CALL_PUBLIC_TEAM_DIGITS:
                             return handlePublicTeamDigitsForCall(params)
-                        case Constants.CALL_STAFF_STAFF_DIGITS: 
+                        case Constants.CALL_STAFF_STAFF_DIGITS:
                             return handleStaffStaffDigitsForCall(params)
-                        case Constants.CALL_BRIDGE: 
+                        case Constants.CONFIRM_CALL_BRIDGE:
+                            return confirmBridgeCall(params)
+                        case Constants.CALL_BRIDGE:
                             return doBridgeCall(params)
                         case Constants.CALL_ANNOUNCEMENT:
                             return doCallAnnouncement(params)
@@ -88,9 +99,9 @@ class PublicRecordController extends BaseController {
                 }
                 else if (params.MessageSid) {
                     switch (params.handle) {
-                        case Constants.TEXT_INCOMING: 
+                        case Constants.TEXT_INCOMING:
                             return handleIncomingForText(params)
-                        case Constants.TEXT_STATUS: 
+                        case Constants.TEXT_STATUS:
                             return handleStatusForText(params)
                     }
                 }
@@ -292,6 +303,15 @@ class PublicRecordController extends BaseController {
         }
         if (res.success) { renderAsXml(res.payload) }
         else { handleResultFailure(res) }
+    }
+
+    protected def confirmBridgeCall(GrailsParameterMap params) {
+        if (params.long("contactToBridge")) {
+            Result<Closure> res = callService.confirmBridgeCallForContact(params.long("contactToBridge"))
+            if (res.success) { renderAsXml(res.payload) }
+            else { handleResultFailure(res) }
+        }
+        else { badRequest() }
     }
 
     protected def doBridgeCall(GrailsParameterMap params) {

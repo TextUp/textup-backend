@@ -1,3 +1,11 @@
+main {
+    background-color: LightGray;
+}
+
+main.viewing {
+    background-color: white;
+}
+
 /*scrollbar*/
 .custom-scroll::-webkit-scrollbar {
     width: 1px;
@@ -5,9 +13,11 @@
     border-left: 0;
     background: rgba(0, 0, 0, 0.1);
 }
+
 .custom-scroll::-webkit-scrollbar-track {
     background: none;
 }
+
 .custom-scroll::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.4);
     border-radius: 0;
@@ -18,107 +28,137 @@
 /*documentation*/
 .doc-sidebar {
     position: fixed;
-    width: 15%;
-    height: 100%;
+    width: 13%;
+    height: 92vh;
 }
+
+.doc-detail {
+    margin-left: 13%;
+    width: 87%;
+    padding-left: 1vw;
+    padding-bottom: 2em;
+}
+
 .doc-sidebar-scroll {
     position: absolute;
     left: 0;
     top: 0;
-    right: 1vw;
+    right: 0;
     bottom: 0;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     border-right: 1px solid LightGray;
+    background-color: white;
 }
-.doc-sidebar-scroll > .scroll-title, .doc-detail > .detail-item > .detail-title > span {
+
+.doc-sidebar-scroll > .scroll-title,
+.doc-detail > .detail-item > .detail-title > span {
     background-color: rgb(27, 165, 224);
     color: white;
     text-transform: uppercase;
     border-top: 5px solid #1894c9;
 }
+
 .doc-sidebar-scroll > .scroll-title {
     text-align: center;
     padding: 0.5em 0;
     font-weight: 700;
     margin-top: 0;
 }
+
 .doc-sidebar-scroll > .scroll-list {
     list-style-type: none;
     padding: 0;
     padding-left: 2em;
 }
+
 .doc-sidebar-scroll > .scroll-list > li {
     font-size: 1.2em;
     text-transform: uppercase;
 }
+
 .doc-sidebar-scroll > .scroll-list > li > a {
     color: gray;
 }
+
 .doc-sidebar-scroll > .scroll-list > li.active > a {
     font-weight: 700;
 }
-.doc-detail {
-    margin-left: 15%;
-    width: 85%;
-}
+
 .doc-detail > .detail-item {
     padding-right: 1em;
 }
+
 .doc-detail > .detail-item > .detail-title {
     font-weight: 700;
     font-size: 1.5em;
     padding-top: 1em;
     text-transform: uppercase;
 }
+
 .doc-detail > .detail-item > .detail-title > span {
     padding: 0.3em;
     padding-top: 0.1em;
 }
+
 .doc-detail > .detail-item > .detail-method {
     border: 1px solid LightGray;
     border-top: 3px solid rgb(27, 165, 224);
     margin-bottom: 1em;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-title {
     border-bottom: 1px solid LightGray;
     padding: 1em 0.5em;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-title {
     font-weight: 700;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-title > .verb {
     background-color: gray;
     color: white;
     padding: 0.5em;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-title > .verb.get {
     background-color: green;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-title > .verb.post {
     background-color: rgb(27, 165, 224);
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-title > .verb.put {
     background-color: orange;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-title > .verb.delete {
     background-color: red;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-title > .methodName {
     font-size: 1.2em;
     padding: 0 1em;
     text-transform: uppercase;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-body {
     padding: 1em;
 }
-.doc-detail > .detail-item > .detail-description, .doc-detail > .detail-item > .detail-method > .detail-method-body > .description {
+
+.doc-detail > .detail-item > .detail-description,
+.doc-detail > .detail-item > .detail-method > .detail-method-body > .description {
     font-size: 1.3em;
 }
+
 .doc-detail > .detail-item > .detail-method > .detail-method-body > .section-title {
     font-size: 1.2em;
     font-weight: 700;
     text-transform: uppercase;
 }
+
 .detail-item .field-description {
     padding-left: 3em;
 }

@@ -72,6 +72,12 @@ class Staff {
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
+            apiFieldName   = "phoneId",
+            description    = "Id of the phone number to provision as the TextUp number of this staff member",
+            useForCreation = false,
+            allowedType    = "String",
+            presentInResponse = false),
+        @RestApiObjectField(
             apiFieldName      = "org.id",
             description       = "Id of the organization to associate with",
             allowedType       = "Number",
@@ -92,6 +98,11 @@ class Staff {
             apiFieldName   = "isAvailableNow",
             description    = "If the staff member is available right now.",
             allowedType    = "Boolean",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "tags",
+            description    = "List of tags the staff member's TextUp phone, if any.",
+            allowedType    = "List<Tag>",
             useForCreation = false)
     ])
     static transients = []

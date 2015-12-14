@@ -30,6 +30,7 @@ class Organization {
                 ilike("name", query)
                 location { ilike("address", query) }
             }
+            eq("status", Constants.ORG_APPROVED)
         }
     }
 

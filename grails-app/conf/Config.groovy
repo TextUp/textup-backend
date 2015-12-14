@@ -89,12 +89,14 @@ environments {
     development {
         grails.logging.jul.usebridge = true
         grails.plugin.databasemigration.updateOnStart = false
+        textup.apiKeys.twilio.appId="AP762342f6263b687fdc60c12dc9fbded8"
     }
     production {
         grails.logging.jul.usebridge = false
         // TODO: grails.serverURL = "http://www.changeme.com"
         grails.plugin.databasemigration.updateOnStart = true
         grails.plugin.databasemigration.updateOnStartFileNames = ['changelog.groovy']
+        textup.apiKeys.twilio.appId="AP7f44379a93c897199e9938fd5b6b3e60"
     }
 }
 
@@ -138,7 +140,9 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
     "/console/**":                    ['ROLE_USER', 'ROLE_ADMIN'],
     "/plugins/console*/**":           ['ROLE_USER', 'ROLE_ADMIN'],
     '/restApiDoc':                    ['permitAll'],
-    '/restApiDoc/**':                 ['permitAll']
+    '/restApiDoc/**':                 ['permitAll'],
+    '/reset':                         ['permitAll'],
+    '/reset/**':                      ['permitAll'],
 ]
 grails.plugin.springsecurity.filterChain.chainMap = [
     '/v1/public/**': 'anonymousAuthenticationFilter,restTokenValidationFilter,restExceptionTranslationFilter,filterInvocationInterceptor',
@@ -192,9 +196,9 @@ textup {
         }
     }
     links {
-        passwordReset = "https://app.textup.org/reset?token="
-        setupNewOrg = "https://app.textup.org/setup/new"
-        setupExistingOrg = "https://app.textup.org/setup/existing"
+        passwordReset = "https://app.textup.org/#/reset?token="
+        setupNewOrg = "https://app.textup.org/#/setup"
+        setupExistingOrg = "https://app.textup.org/#/setup"
     }
 
     //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
@@ -203,6 +207,8 @@ textup {
         twilio {
             sid = System.getenv("TWILIO_SID") ?: System.getProperty("TWILIO_SID")
             authToken = System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
+            unavailable="assigned"
+            available="unassigned"
         }
         aws {
             accessKey = System.getenv("AWS_ACCESS_KEY") ?: System.getProperty("AWS_ACCESS_KEY")

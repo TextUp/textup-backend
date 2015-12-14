@@ -32,6 +32,11 @@ class CustomRestAuthenticationTokenJsonRenderer implements RestAuthenticationTok
                 result.name = staff.name
                 result.email = staff.email
                 result.status = staff.status
+                result.org = [
+                    id: staff.org.id,
+                    name: staff.org.name,
+                    status: staff.org.status
+                ]
             }
         }
         result["$tokenPropertyName"] = restAuthenticationToken.tokenValue

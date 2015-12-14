@@ -63,6 +63,10 @@ class BootStrap {
 		    	admin.save(flush:true, failOnError:true)
 				s1.save(flush:true, failOnError:true)
 				s2.save(flush:true, failOnError:true)
+				//set availability
+				admin.schedule.updateWithIntervalStrings(wednesday:["0100:2300"])
+				s1.schedule.updateWithIntervalStrings(wednesday:["0100:2300"])
+				s2.schedule.updateWithIntervalStrings(wednesday:["0100:2300"])
 				//create staff phones
 		    	StaffPhone p1 = new StaffPhone()
 		    	StaffPhone p2 = new StaffPhone()

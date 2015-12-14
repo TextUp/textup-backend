@@ -20,6 +20,7 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
             thisId = c1.id
             ContactableJsonMarshaller.addContactFields(c1, json)
             json.sharedWith = []
+            json.tags = c1.tags.collect { TagMembership tm1 -> tm1.tag }
             SharedContact.nonexpiredForContact(c1).list().each { SharedContact sc ->
                 StaffPhone sWith = sc.sharedWith
                 if (sWith) {

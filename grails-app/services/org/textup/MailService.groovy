@@ -8,6 +8,7 @@ import org.springframework.context.i18n.LocaleContextHolder as LCH
 @Transactional
 class MailService {
 
+    def grailsApplication
 	def messageSource
 	def resultFactory
 
@@ -19,14 +20,25 @@ class MailService {
         String body = getMessage("mail.pendingForAdmin.body", [pendingName]),
             subject = getMessage("mail.pendingForAdmin.subject")
         List<Result> successes = [], failures = []
+
+        println "pendingName: $pendingName"
+        println "admins: $admins"
+
         admins.each { Staff a1 ->
             EmailEntity to = new EmailEntity(name:a1.name, email:a1.email)
             Result res = sendMail(to, getDefaultFrom(), subject, body)
+
+            println "\t res: $res"
+
             if (res.success) { successes << res }
             else { failures << res }
         }
-        if (!sucesses.isEmpty()) { resultFactory.success() }
-        if (sucesses.isEmpty() && !failures.isEmpty()) { failures[0] }
+
+        println "successes: $successes"
+        println "failures: $failures"
+
+        if (!successes.isEmpty()) { resultFactory.success() }
+        else if (successes.isEmpty() && !failures.isEmpty()) { failures[0] }
         else {
             resultFactory.failWithMessage("mailService.notifyAdminsOfPendingStaff.noAdmins")
         }
@@ -95,20 +107,20 @@ class MailService {
     	messageSource.getMessage(code, options as Object[], LCH.getLocale())
     }
 
-    protected Result<SendGrid.Response> sendMail(EmailEntity to, EmailEntity from, String subject, 
+    protected Result<SendGrid.Response> sendMail(EmailEntity to, EmailEntity from, String subject,
     	String contents, String templateId=null) {
     	if (!to.validate()) { return resultFactory.failWithValidationErrors(to.errors) }
     	if (!from.validate()) { return resultFactory.failWithValidationErrors(from.errors) }
-    	def sgConfig = grailsApplication.config.apiKeys.sendGrid
+    	def sgConfig = grailsApplication.config.textup.apiKeys.sendGrid
     	templateId = templateId ?: sgConfig.templateIds.standard
         SendGrid.Email email = new SendGrid.Email()
         email.with {
             addTo to.email
             addToName to.name
-            setFrom from.email 
+            setFrom from.email
             setFromName from.name
             setSubject subject
-            setText contents 
+            setText contents
             setTemplateId templateId
         }
         try {

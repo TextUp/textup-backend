@@ -33,12 +33,16 @@
                             <span class="name">${o.name}</span>
                             <span class="address">${o.location.address}</span>
                         </div>
-                        <div class="org-admin">
-                            <span class="name">${o.admins[0]?.name}</span>
-                            <span class="email">${o.admins[0].email}</span>
-                        </div>
+                        <g:each var="a" in="${o.admins}">
+                            <div class="org-admin">
+                                <span class="name">${a.name}</span>
+                                <span class="email">${a.email}</span>
+                            </div>
+                        </g:each>
                         <div class="org-controls">
-                            <button class="btn btn-success">Approve</button>
+                            <g:link action="approveOrg" params="[id: "${o.id}"]" class="btn btn-success">
+                               Approve
+                            </g:link>
                         </div>
                     </div>
                 </g:each>

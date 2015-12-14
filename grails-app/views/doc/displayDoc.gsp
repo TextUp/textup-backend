@@ -3,6 +3,7 @@
 	<head>
 		<title>TextUp API</title>
 		<meta name="layout" content="main">
+		<asset:stylesheet src="docs.css"/>
 	</head>
 	<body>
 		<section class="doc-sidebar">

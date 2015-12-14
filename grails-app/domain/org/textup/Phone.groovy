@@ -14,9 +14,12 @@ class Phone {
     def textService
     def authService
 
+    //unique id assigned to this phone's number
+    String apiId
 	PhoneNumber number
 
     static constraints = {
+        apiId blank:true, nullable:true, unique:true
         number validator:{ pNum, obj ->
             //phone number must be unique for phones
             if (pNum && obj.existsWithSameNumber(pNum.number)) { ["duplicate"] }
@@ -94,6 +97,9 @@ class Phone {
 
     Result<RecordResult> text(String message, List<String> numbers,
         List<Long> contactableIds, List<Long> tagIds) {
+
+        println "TEXT: tagIds: $tagIds"
+
         //check message size
         Result msgSizeRes = textService.checkMessageSize(message)
         if (!msgSizeRes.success) return msgSizeRes
@@ -102,19 +108,33 @@ class Phone {
         ParsedResult<PhoneNumber,String> parsedNums = Helpers.parseIntoPhoneNumbers(numbers)
         ParsedResult<Contactable,Long> parsedContactables = parseIntoContactables(contactableIds)
         ParsedResult<ContactTag,Long> parsedTags = parseIntoTags(tagIds)
+
+        println "\t parsedNums: $parsedNums"
+        println "\t parsedContactables: $parsedContactables"
+        println "\t parsedTags: $parsedTags"
+
         recResult.invalidNumbers += parsedNums.invalid
         recResult.invalidOrForbiddenContactableIds += parsedContactables.invalid
         recResult.invalidOrForbiddenTagIds += parsedTags.invalid
+
+        println "\t recResult: $recResult"
+
         //collect all contactables into one consensus list
         Set<Contactable> contactables = collectAllContactables(recResult,
             parsedNums.valid, parsedContactables.valid, parsedTags.valid)
+
+        println "\t contactables: $contactables"
+
         //check number of contactables
         Result numContRes = textService.checkNumRecipients(contactables.size())
         if (!numContRes.success) return numContRes
         //send the texts and return the result
         RecordResult textRecResult = sendTexts(message, contactables),
             overallRecResult = recResult.merge(textRecResult)
-        if (overallRecResult.newItems) { resultFactory.success(overallRecResult) }
+        if (overallRecResult.newItems ||
+            (overallRecResult.newItems.isEmpty() && overallRecResult.errorMessages.isEmpty())) {
+            resultFactory.success(overallRecResult)
+        }
         else { resultFactory.failWithMessagesAndStatus(BAD_REQUEST, overallRecResult.errorMessages) }
     }
     Result<RecordResult> scheduleText(String message, DateTime sendAt,
@@ -186,6 +206,11 @@ class Phone {
         List<ContactNumber> existingContactNumbers = ContactNumber.createCriteria().list {
             "in"("number", nums); contact { eq("phone", this) };
         }
+
+        println "parsePhoneNumberIntoContactables"
+        println "\t pNums: $pNums"
+        println "\t existingContactNumbers: $existingContactNumbers"
+
         //add existing contacts to consensus
         existingContactNumbers.each { parsed.valid << it.contact }
         //create new contacts for new numbers, and then add these
@@ -200,6 +225,9 @@ class Phone {
     protected RecordResult sendTexts(String message, Set<Contactable> contactables) {
         RecordResult recResult = new RecordResult()
         contactables.each { Contactable c ->
+
+            println "SENDING TEXT TO $c with numbers ${c.numbers}"
+
             Result<RecordResult> res = c.text(contents:message)
             afterSendTextTo(c, res) //hook to override
             if (res.success) { recResult.merge(res.payload) }

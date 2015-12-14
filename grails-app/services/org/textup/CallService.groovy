@@ -30,10 +30,10 @@ class CallService {
 
     Result<RecordCall> startBridgeCall(Staff staffMakingCall, Phone fromPhone, Contactable toContact, RecordCall call) {
         if (call.validate()) {
-            String personalAsString = staff.personalPhoneNumber?.e164PhoneNumber
-            if (personalPhoneAsString) {
-                tryCall(personalAsString, call, fromPhone.number.e164PhoneNumber, toContact, 
-                    [contactToBridge:toContact.contactId, handle:Constants.CALL_BRIDGE])
+            String personalAsString = staffMakingCall.personalPhoneNumber?.e164PhoneNumber
+            if (personalAsString) {
+                tryCall(personalAsString, call, fromPhone.number.e164PhoneNumber,
+                    [contactToBridge:toContact.contactId, handle:Constants.CONFIRM_CALL_BRIDGE])
             }
             else {
                 resultFactory.failWithMessageAndStatus("callService.startBridgeCall.noPersonalNumber")
@@ -41,7 +41,16 @@ class CallService {
         }
         else { resultFactory.failWithValidationErrors(call.error) }
 	}
-    //the call method above initiates a bridge call and this method 
+    //staff must pick up and press any number to start the bridge
+    Result<Closure> confirmBridgeCallForContact(Long cId) {
+        Contact c1 = Contact.get(cId)
+        if (c1) { twimlBuilder.buildXmlFor(CallResponse.BRIDGE_CONFIRM_CONNECT, [contactToBridge:c1]) }
+        else {
+            log.error("CallService.confirmBridgeCallForContact: Contact ${cId} not found.")
+            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.completeBridgeCallForContact.contactNotFound", [cId])
+        }
+    }
+    //the call method above initiates a bridge call and this method
     //completes the bridge call in the webhook callback
     Result<Closure> completeBridgeCallForContact(Long cId) {
         Contact c1 = Contact.get(cId)
@@ -51,10 +60,10 @@ class CallService {
             resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.completeBridgeCallForContact.contactNotFound", [cId])
         }
     }
-    
+
     Result<RecordCall> startCallAnnouncement(Phone fromPhone, Contactable toContact, RecordCall call, Long teamContactTagId, Long recordTextId) {
         if (call.validate()) {
-            tryCall(toContact.numbers[0]?.e164PhoneNumber, call, fromPhone.number.e164PhoneNumber, toContact, 
+            tryCall(toContact.numbers[0]?.e164PhoneNumber, call, fromPhone.number.e164PhoneNumber, toContact,
                 [handle:Constants.CALL_ANNOUNCEMENT, teamContactTagId:teamContactTagId, recordTextId:recordTextId])
         }
         else { resultFactory.failWithValidationErrors(call.error) }
@@ -64,7 +73,7 @@ class CallService {
         TeamContactTag ct1 = TeamContactTag.get(teamContactTagId)
         if (rt1 && ct1) {
             Team t1 = Team.forPhone(ct1.phone).get()
-            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT, 
+            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT,
                 [contents:rt1.contents, teamName:t1.name, tagName:ct1.name, tagId:ct1.id, textId:rt1.id])
         }
         else {
@@ -106,12 +115,15 @@ class CallService {
         String afterPickup = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:afterPickupParams)
 
-        println "REAL AFTER PICKUP IN TRYCALL: $afterPickup"
+
 
         //TODO: remove this
-        String fakeAfterPickup = "https://08a91b1b.ngrok.io/v1/public/records?"
+        String fakeAfterPickup = "https://c12266e7.ngrok.io/v1/public/records?"
         afterPickupParams.each { k, v -> fakeAfterPickup += "$k=$v&" }
 
+        println "afterPickupParams: $afterPickupParams"
+        println "REAL AFTER PICKUP IN TRYCALL: $afterPickup"
+        println "\t FAKE IS: ${fakeAfterPickup}"
 
         RecordCall.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
@@ -171,7 +183,7 @@ class CallService {
 
     Result<List<RecordCall>> storeVoicemail(String apiId, String callStatus,
         Integer callDuration, String voicemailUrl, int voicemailDuration) {
-        Result<List<RecordItemReceipt>> res = recordService.updateCallStatus(apiId,
+        Result<List<RecordItemReceipt>> res = recordService.updateStatus(apiId,
             callStatus, callDuration)
         if (res.success) {
             List<RecordItemReceipt> receipts = res.payload
@@ -339,7 +351,7 @@ class CallService {
                 res = recordService.createIncomingRecordCall(fromNum, p1, [apiId:apiId])
                 if (res.success) {
                     ClientSession ts1 = ClientSession.findOrCreateForTeamPhoneAndNumber(p1, from)
-                    if (ts1) { 
+                    if (ts1) {
                         res = twimlBuilder.buildXmlFor(CallResponse.TEAM_GREETING, [teamName:t.name, isSubscribed:ts1.hasCallSubscriptions()])
                     }
                     else {

@@ -130,24 +130,24 @@ class WeeklySchedule extends Schedule {
         else { false }
     }
     @Override
-    Result<ScheduleChange> nextChange() {
+    Result<ScheduleChange> nextChange(String timezone=null) {
         DateTime now = DateTime.now(DateTimeZone.UTC)
         nextChangeForDateTime(now, now)
     }
     @Override
-    Result<DateTime> nextAvailable() {
+    Result<DateTime> nextAvailable(String timezone=null) {
         Result res = nextChangeForType(Constants.SCHEDULE_AVAILABLE)
         if (res.success) { resultFactory.success(res.payload.when) }
         else { res }
     }
     @Override
-    Result<DateTime> nextUnavailable() {
+    Result<DateTime> nextUnavailable(String timezone=null) {
         Result res = nextChangeForType(Constants.SCHEDULE_UNAVAILABLE)
         if (res.success) { resultFactory.success(res.payload.when) }
         else { res }
     }
     @Override
-    Result<Schedule> update(Map<String,List<LocalInterval>> params) {
+    Result<Schedule> update(Map<String,List<LocalInterval>> params, String timezone=null) {
         try {
             ValidationErrors errors = null
             for (i in params?.values()?.flatten()) {
@@ -166,7 +166,7 @@ class WeeklySchedule extends Schedule {
             resultFactory.failWithThrowable(e)
         }
     }
-    Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params) {
+    Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params, String timezone=null) {
         Map<String, List<LocalInterval>> localIntervalParams = [:]
         for (dayEntry in params) {
             if (dayEntry.value instanceof List) {
@@ -352,7 +352,7 @@ class WeeklySchedule extends Schedule {
     // Property Access //
     /////////////////////
 
-    Map<String,List<LocalInterval>> getAllAsLocalIntervals() {
+    Map<String,List<LocalInterval>> getAllAsLocalIntervals(String timezone=null) {
         ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday",
             "saturday"].collectEntries { String dayOfWeek ->
             DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()

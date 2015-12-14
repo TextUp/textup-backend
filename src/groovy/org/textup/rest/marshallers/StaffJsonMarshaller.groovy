@@ -18,20 +18,32 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             email = s1.email
             org = s1.org.id
             status = s1.status
+            awayMessage = s1.awayMessage
             if (s1.personalPhoneNumber) personalPhoneNumber = s1.personalPhoneNumber.number
             if (s1.phone) phone = s1.phone.number.number
             manualSchedule = s1.manualSchedule
             if (manualSchedule == true) { isAvailable = s1.isAvailable }
             isAvailableNow = s1.isAvailableNow()
         }
+        json.tags = s1.phone ? s1.phone.tags : []
         if (s1.schedule.instanceOf(WeeklySchedule)) {
-            json.schedule = s1.schedule.allAsLocalIntervals.collect { LocalInterval lt ->
-                [start:lt.start, end:lt.end]
+            String timezone = WebUtils.retrieveGrailsWebRequest().currentRequest.timezone
+            json.schedule = [:]
+            s1.schedule.getAllAsLocalIntervals(timezone).each { String day, List<LocalInterval> intervals ->
+                json.schedule."${day}" = intervals.collect { LocalInterval lt ->
+                    String start1 = lt.start.hourOfDay.toString().padLeft(2, "0"),
+                        start2 = lt.start.minuteOfHour.toString().padLeft(2, "0"),
+                        end1 = lt.end.hourOfDay.toString().padLeft(2, "0"),
+                        end2 = lt.end.minuteOfHour.toString().padLeft(2, "0"),
+                        start = "${start1}${start2}",
+                        end = "${end1}${end2}"
+                    "${start}:${end}"
+                }
             }
             if (s1.manualSchedule == false) {
-                Result res = s1.nextAvailable()
+                Result res = s1.nextAvailable(timezone)
                 if (res.success) { json.schedule.nextAvailable = res.payload }
-                res = s1.nextUnavailable()
+                res = s1.nextUnavailable(timezone)
                 if (res.success) { json.schedule.nextUnavailable = res.payload }
             }
         }

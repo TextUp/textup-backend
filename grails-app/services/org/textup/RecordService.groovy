@@ -56,7 +56,7 @@ class RecordService {
         receiptParams.receivedBy = to.number.copy()
         createRecordItem(type, false, list, create, itemParams, receiptParams)
     }
-    protected Result<List<RecordCall>> createOutgoing(RecordItemType type, Phone from, 
+    protected Result<List<RecordCall>> createOutgoing(RecordItemType type, Phone from,
         PhoneNumber toNum, Map itemParams, Map receiptParams) {
         Closure list = { -> Contact.forPhoneAndNum(from, toNum.number).list() },
             create = { -> from.createContact([:], [toNum.number]) }
@@ -146,7 +146,7 @@ class RecordService {
 				else {
                     //If only sending to one tag, then send through that tag
                     //which will add in additional text about unsubscribing from that tag
-                    if (!nums && !cIds && tIds.size() == 1 && TeamContactTag.exists(tIds.size[0])) {
+                    if (!nums && !cIds && tIds.size() == 1 && TeamContactTag.exists(tIds[0])) {
                         TeamContactTag.get(tIds.size[0]).notifySubscribers(body.contents)
                     }
                     else { //otherwise, send message without any special instructions from phone
@@ -156,7 +156,7 @@ class RecordService {
 			}
 		}
 		else if (res.payload == RecordCall) {
-            Staff staffMakingCall = entity.instanceof(Staff) ? entity : authService.loggedIn
+            Staff staffMakingCall = entity.instanceOf(Staff) ? entity : authService.loggedIn
 			if (body.callPhoneNumber && !body.callContact) {
 				p1.call(staffMakingCall, Helpers.toString(body.callPhoneNumber))
 			}

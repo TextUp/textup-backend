@@ -72,9 +72,9 @@ class TwimlBuilder {
                 messages << getMessage("twimlBuilder.textServerError")
                 break
         }
-        if (messages) { 
+        if (messages) {
             Closure response = { Response { messages.each { Message(it) } } }
-            resultFactory.success(response) 
+            resultFactory.success(response)
         }
         else {
             resultFactory.failWithMessageAndStatus(BAD_REQUEST,
@@ -124,9 +124,26 @@ class TwimlBuilder {
                     }
                 }
                 break
-            case CallResponse.BRIDGE_CONNECT: 
+            case CallResponse.BRIDGE_CONFIRM_CONNECT:
                 if (params.contactToBridge instanceof Contact) {
-                    String couldNotConnect = getMessage("twimlBuilder.callBridgeFailed")
+                    Contact c1 = params.contactToBridge
+                    String attrib = c1.name ?: formatNumberForSay(c1.numbers?.number),
+                        confirmation = getMessage("twimlBuilder.confirmCallBridge", [attrib]),
+                        noResponse = getMessage("twimlBuilder.noResponseConfirmCallBridge"),
+                        digitsWebhook = getLink(contactToBridge:c1.contactId, handle:Constants.CALL_BRIDGE)
+                    result = {
+                        Response {
+                            Gather(action:digitsWebhook, numDigits:1) {
+                                Say(confirmation)
+                            }
+                            Say(noResponse)
+                        }
+                    }
+                }
+                break
+            case CallResponse.BRIDGE_CONNECT:
+                if (params.contactToBridge instanceof Contact) {
+                    String couldNotConnect = getMessage("twimlBuilder.callBridgeDone")
                     Contact c1 = params.contactToBridge
                     result = {
                         Response {
@@ -134,8 +151,8 @@ class TwimlBuilder {
                                 Say(getMessage("twimlBuilder.callBridge", [c1.name]))
                             }
                             c1.numbers?.each { ContactNumber num ->
-                                Say(getMessage("twimlBuilder.callBridgeNumber", [formatNumberForSay(num)]))
-                                Dial(num.e164PhoneNumber) 
+                                Say(getMessage("twimlBuilder.callBridgeNumber", [formatNumberForSay(num.number)]))
+                                Dial(num.e164PhoneNumber)
                             }
                             Say(couldNotConnect)
                         }
@@ -145,7 +162,7 @@ class TwimlBuilder {
             case CallResponse.VOICEMAIL:
                 String directions = getMessage("twimlBuilder.voicemailDirections"),
                     voicemailWebhook = getLink(handle:Constants.CALL_VOICEMAIL),
-                    repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, for:CALL_VOICEMAIL)
+                    repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, for:Constants.CALL_VOICEMAIL)
                 result = {
                     Response {
                         Say(directions)
@@ -189,7 +206,7 @@ class TwimlBuilder {
                         connectToStaff = getMessage("twimlBuilder.teamConnectToStaff", [Constants.CALL_GREETING_CONNECT_TO_STAFF]),
                         digitsWebhook = getLink(handle:Constants.CALL_PUBLIC_TEAM_DIGITS),
                         repeatWebhook = getLink(handle:Constants.CALL_INCOMING)
-                    String sAction 
+                    String sAction
                     if (params.isSubscribed) {
                         sAction = getMessage("twimlBuilder.teamWelcomeUnsubscribe", [Constants.CALL_GREETING_UNSUBSCRIBE_ALL])
                     }
@@ -244,7 +261,7 @@ class TwimlBuilder {
                     redirectWebhook = getLink(handle:Constants.CALL_INCOMING)
                 result = {
                     Response {
-                        Say(noMsgs) 
+                        Say(noMsgs)
                         Redirect(redirectWebhook)
                     }
                 }

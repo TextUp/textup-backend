@@ -25,6 +25,7 @@ $(document).ready(function() {
     $(".sidebar-item").on("click", function() {
         hideAllDetailItems();
         deactivateAllInScrollbar();
+        $("main").addClass("viewing");
         var self = $(this),
             detailToShow = ".detail-" + self.attr("id");
         self.parent().addClass("active");

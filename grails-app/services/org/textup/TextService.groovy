@@ -3,6 +3,7 @@ package org.textup
 import com.twilio.sdk.resource.factory.MessageFactory
 import com.twilio.sdk.resource.instance.Message
 import com.twilio.sdk.TwilioRestClient
+import com.twilio.sdk.TwilioRestException
 import grails.transaction.Transactional
 import org.apache.http.message.BasicNameValuePair
 import org.hibernate.FlushMode
@@ -176,7 +177,12 @@ class TextService {
     	//SHOULD ALSO HANDLE FUTURE TEXTS AS WELL!!!
         //TODO: do redact in status callback because otherwise MessageId not stored yet m.redact()
 
+        println "TEST from phone: $fromPhone to contact $toContact"
+
 		if (text.validate()) {
+            println "\t fromPhone.number.e164PhoneNumber: ${fromPhone.number.e164PhoneNumber}"
+            println "\t toContact.numbers*.e164PhoneNumber: ${toContact.numbers*.e164PhoneNumber}"
+
 			stopOnSuccessOrInternalError(text, fromPhone.number.e164PhoneNumber,
                 toContact.numbers*.e164PhoneNumber)
 		}
@@ -227,7 +233,8 @@ class TextService {
         for (toNum in toNums) {
             res = this.tryText(text, toNum, from)
             //return on first success or if 500-level error
-            if (res.success || (!res.success && res.payload?.errorCode > 499)) {
+            if (res.success || (!res.success &&
+                res.payload instanceof TwilioRestException && res.payload.errorCode > 499)) {
                 return res
             }
         }
@@ -242,7 +249,7 @@ class TextService {
             // action:"save", absolute:true, params:[handle:Constants.TEXT_STATUS])
 
 
-        String callback = "https://08a91b1b.ngrok.io/v1/public/records?handle=status"
+        String callback = "https://c12266e7.ngrok.io/v1/public/records?handle=status"
 
         RecordText.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
@@ -260,7 +267,7 @@ class TextService {
                 }
                 //if not merge, we get org.hibernate.NonUniqueObjectException
                 if (text.merge()) {
-                    //if there is a team contact tag associated with this text, 
+                    //if there is a team contact tag associated with this text,
                     //update the associated ClientSession if one exists
                     if (text.teamContactTagId != null) {
                         ClientSession ts1 = ClientSession.forTeamPhoneAndNumber(from, to).get()

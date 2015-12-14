@@ -87,6 +87,11 @@ class Contact implements Contactable {
             apiFieldName   = "subscribed",
             description    = "In the context of a Tag, tells whether this contact is a subscriber",
             allowedType    = "Boolean",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "tags",
+            description    = "List of tags this contact belongs to, if any. Note that this will be empty for a shared contact.",
+            allowedType    = "List<Tag>",
             useForCreation = false)
     ])
     static transients = []
@@ -161,6 +166,11 @@ class Contact implements Contactable {
             order("status", "desc") //unread first then active
             order("lastRecordActivity", "desc") //more recent first
             order("id", "desc") //by contact id
+        }
+        iLikeForNameAndPhone { String query, Phone thisPhone ->
+            ilike("name", query)
+            eq("phone", thisPhone)
+            "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD])
         }
     }
 

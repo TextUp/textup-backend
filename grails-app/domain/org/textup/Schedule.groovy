@@ -12,13 +12,13 @@ class Schedule {
     /*
 	Has many:
 	*/
-    
+
     ////////////////////
     // Helper methods //
     ////////////////////
-    
+
     /*
-    Availability 
+    Availability
      */
     boolean isAvailableAt(DateTime dt) { Result.success(false) }
     boolean isAvailableNow() { isAvailableAt(DateTime.now()) }
@@ -26,23 +26,23 @@ class Schedule {
     /*
     Status changes
      */
-    Result<ScheduleChange> nextChange() {
+    Result<ScheduleChange> nextChange(String timezone=null) {
         Result.success(new ScheduleChange(type:Constants.SCHEDULE_AVAILABLE, when:DateTime.now().minusDays(1)))
     }
-    Result<DateTime> nextAvailable() {
+    Result<DateTime> nextAvailable(String timezone=null) {
         Result.success(DateTime.now().minusDays(1))
     }
-    Result<DateTime> nextUnavailable() { 
+    Result<DateTime> nextUnavailable(String timezone=null) {
         Result.success(DateTime.now().minusDays(1))
     }
 
     /*
     Operations that modify the Schedule
      */
-    Result<Schedule> update(Map params) { Result.success(this) }
-    
+    Result<Schedule> update(Map params, String timezone=null) { Result.success(this) }
+
     /////////////////////
     // Property Access //
     /////////////////////
-    
+
 }

@@ -66,14 +66,13 @@ grails.project.dependency.resolution = {
         //for printing human-reading timestamps
         compile "org.ocpsoft.prettytime:prettytime:3.0.2.Final"
         //amazon s3. newer version 1.10.32 returns 'NoSuchFieldError: INSTANCE'
-        compile "com.amazonaws:aws-java-sdk-s3:1.10.11"
-
-        //Workaround to resolve dependency issue with aws-java-sdk and
-        //http-builder (dependent on httpcore:4.0)
-        build "org.apache.httpcomponents:httpcore:4.2"
-        build "org.apache.httpcomponents:httpclient:4.2"
-        runtime "org.apache.httpcomponents:httpcore:4.2"
-        runtime "org.apache.httpcomponents:httpclient:4.2"
+        compile "com.amazonaws:aws-java-sdk-s3:1.10.11", {
+            exclude 'httpclient' //use mandatory 4.3.4 version in sendgrid dependency
+        }
+        //httpclient is 4.3.4 in the sendgrid dependency
+        //Required by the aws-java-sdk dependency
+        build "org.apache.httpcomponents:httpcore:4.3.3"
+        runtime "org.apache.httpcomponents:httpcore:4.3.3"
     }
 
     plugins {

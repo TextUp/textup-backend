@@ -19,6 +19,8 @@
             </a>
             <sec:ifAllGranted roles="ROLE_ADMIN">
                 <g:link controller="super" action="index" class="navbar-text"><b>Super Dashboard</b></g:link>
+                <g:link controller="super" action="rejected" class="navbar-text"><b>Rejected</b></g:link>
+                <g:link controller="super" action="approved" class="navbar-text"><b>Approved</b></g:link>
             </sec:ifAllGranted>
             <sec:ifNotGranted roles="ROLE_ADMIN">
                 <a class="navbar-text" href="/">

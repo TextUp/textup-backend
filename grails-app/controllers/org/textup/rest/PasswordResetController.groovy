@@ -6,17 +6,17 @@ import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
 
-@Secured("permitAll")
 @RestApi(name="PasswordReset", description = "Password reset")
+@Secured("permitAll")
 class PasswordResetController extends BaseController {
 
-	static namespace = "v1"
 	static allowedMethods = [index:"GET", requestReset:"POST", resetPassword:"PUT", delete:"DELETE"]
 
 	def passwordResetService
 
     def index() { notAllowed() }
     def delete() { notAllowed() }
+
 
     @RestApiMethod(description="Request a password reset")
     @RestApiResponseObject(objectIdentifier = "[passwordResetRequest]")

@@ -20,6 +20,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             if (item.authorId) authorId = item.authorId
             if (item.instanceOf(RecordCall)) {
                 durationInSeconds = item.durationInSeconds
+                hasVoicemail = item.hasVoicemail
                 if (item.hasVoicemail) {
 
                     ////////////////////////////////////////////////

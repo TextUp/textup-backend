@@ -6,7 +6,7 @@ interface Contactable {
 
     Long getContactId()
 
-    DateTime getLastRecordActivity() 
+    DateTime getLastRecordActivity()
     void updateLastRecordActivity()
 
 	Result<RecordResult> call(Staff staffMakingCall, Map params)
@@ -26,7 +26,7 @@ interface Contactable {
     List<RecordItem> getItems()
     List<RecordItem> getItems(Map params)
     int countItems()
-    
+
     List<RecordItem> getSince(DateTime since)
     List<RecordItem> getSince(DateTime since, Map params)
     int countSince(DateTime since)
