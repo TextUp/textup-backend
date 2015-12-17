@@ -78,21 +78,10 @@ class Staff {
             allowedType    = "String",
             presentInResponse = false),
         @RestApiObjectField(
-            apiFieldName      = "org.id",
-            description       = "Id of the organization to associate with",
-            allowedType       = "Number",
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "org.name",
+            apiFieldName      = "orgName",
             description       = "If creating a new organization, the name of the organization to create and associate with",
             mandatory         = false,
             allowedType       = "String",
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "org.location",
-            description       = "If creating a new organization, the location of the organization to create and associate with",
-            mandatory         = false,
-            allowedType       = "Location",
             presentInResponse = false),
         @RestApiObjectField(
             apiFieldName   = "isAvailableNow",
@@ -103,6 +92,11 @@ class Staff {
             apiFieldName   = "tags",
             description    = "List of tags the staff member's TextUp phone, if any.",
             allowedType    = "List<Tag>",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "teams",
+            description    = "List of teams the staff member is a member of.",
+            allowedType    = "List<Team>",
             useForCreation = false)
     ])
     static transients = []
@@ -267,21 +261,21 @@ class Staff {
         if (!manualSchedule) { resultFactory.success(schedule.isAvailableAt(dt)) }
         else { resultFactory.failWithMessage("staff.error.scheduleInfoUnavailable") }
     }
-    Result<ScheduleChange> nextChange() {
+    Result<ScheduleChange> nextChange(String timezone=null) {
         if (!manualSchedule) {
-            schedule.nextChange()
+            schedule.nextChange(timezone)
         }
         else { resultFactory.failWithMessage("staff.error.scheduleInfoUnavailable") }
     }
-    Result<DateTime> nextAvailable() {
+    Result<DateTime> nextAvailable(String timezone=null) {
         if (!manualSchedule) {
-            schedule.nextAvailable()
+            schedule.nextAvailable(timezone)
         }
         else { resultFactory.failWithMessage("staff.error.scheduleInfoUnavailable") }
     }
-    Result<DateTime> nextUnavailable() {
+    Result<DateTime> nextUnavailable(String timezone=null) {
         if (!manualSchedule) {
-            schedule.nextUnavailable()
+            schedule.nextUnavailable(timezone)
         }
         else { resultFactory.failWithMessage("staff.error.scheduleInfoUnavailable") }
     }
@@ -329,9 +323,10 @@ class Staff {
         }
         this.personalPhoneNumber.save()
     }
+    // DO NOT call save as this will save many many
+    // copies of the phone number
     void setPersonalPhoneNumber(PhoneNumber pNum) {
         this.personalPhoneNumber = pNum
-        this.personalPhoneNumber?.save()
     }
 
     void setPhone(StaffPhone p) {

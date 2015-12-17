@@ -82,7 +82,8 @@ class Phone {
         Phone.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
-                Phone ph = Phone.forNumber(num).get()
+                TransientPhoneNumber tNum = new TransientPhoneNumber(number:num)
+                Phone ph = Phone.forNumber(tNum).get()
                 if (ph && ph.id != this.id) { hasDuplicate = true }
             }
             catch (e) { hasDuplicate = true } //get throws exception if nonunique result
@@ -305,9 +306,10 @@ class Phone {
     // Property Access //
     /////////////////////
 
+    // DO NOT call save as this will save many many
+    // copies of the phone number
     void setNumber(PhoneNumber pNum) {
         this.number = pNum
-        this.number?.save()
     }
     void setNumberAsString(String num) {
         if (this.number) {

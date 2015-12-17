@@ -57,7 +57,7 @@ class ContactController extends BaseController {
     def index() {
         //need to account for both sharedcontact and contact
         //set tagId if in context of a tag
-        if (moreThanOneId(params)) { badRequest() }
+        if (Helpers.moreThanOneId(["staffId", "teamId", "tagId"], params)) { badRequest() }
         else if (params.staffId) {
             Staff s1 = Staff.get(params.long("staffId"))
             if (!s1 || !s1.phone) { notFound() }
@@ -71,11 +71,21 @@ class ContactController extends BaseController {
                 }
                 else if (params.staffStatus) {
                     if (params.staffStatus == "sharedByMe") {
+                        // We want to return the contact because we are sharing our OWN CONTACTS
+                        // and returning the shared contact would limit our ability to manipulate
+                        // this object. Also, we want to return sharedBy with ANY TEAMS. That is,
+                        // we still want to be able to see any contacts we have shared regardless
+                        // of if the staff member has moved on to a different team or not
                         Closure count = { params ->
-                                s1.phone.countSharedByMe()
-                            }, list  = { params ->
-                                List<SharedContact> scList = s1.phone.getSharedByMe(params)
-                                scList ? scList : [] //return sharedContact, will be handled in marshaller
+                                SharedContact.createCriteria().list {
+                                  projections { distinct("contact.id") }
+                                 'in'('id', SharedContact.anyTeamSharedByMeIds(s1.phone).list())
+                                }.size()
+                            }, list  = { params -> //return CONTACT, not shared contact
+                                Contact.getAll(SharedContact.createCriteria().list {
+                                  projections { distinct("contact.id") }
+                                 'in'('id', SharedContact.anyTeamSharedByMeIds(s1.phone).list())
+                                })
                             }
                         genericListActionForClosures(Contact, count, list, params)
                     }
@@ -131,12 +141,6 @@ class ContactController extends BaseController {
             else { forbidden() }
         }
         else { badRequest() }
-    }
-    protected boolean moreThanOneId(GrailsParameterMap params) {
-        (params.staffId && params.teamId) ||
-        (params.staffId && params.tagId) ||
-        (params.tagId && params.teamId) ||
-        (params.tagId && params.staffId && params.teamId)
     }
 
     //////////

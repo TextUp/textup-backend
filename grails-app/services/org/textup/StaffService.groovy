@@ -29,21 +29,27 @@ class StaffService {
     		email = body.email
     		if (body.manualSchedule) manualSchedule = body.manualSchedule
     		if (body.isAvailable) isAvailable = body.isAvailable
-            //NOT allowed to change status away from default 'pending'
+            //NOT allowed to change status away from default 'pending' EXCEPT (see below)
 		}
 		if (body.org) {
             Organization org
 			def o = body.org
             //if we specify id then we must be associating with existing
             if (o.id) {
-                s1.status = Constants.STATUS_PENDING
                 org = Organization.get(o.id)
                 if (!org) {
                     return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                         "staffService.create.orgNotFound", [o.id])
                 }
-                Result res = mailService.notifyAdminsOfPendingStaff(s1.name, org.admins)
-                if (!res.success) { return res }
+                //if logged in is admin at org we are adding this staff to, permit status update
+                if (body.status && authService.isAdminAt(org.id)) {
+                    s1.status = body.status
+                }
+                else {
+                    s1.status = Constants.STATUS_PENDING
+                    Result res = mailService.notifyAdminsOfPendingStaff(s1.name, org.admins)
+                    if (!res.success) { return res }
+                }
             }
             else {
                 //We will manually change this staff status to ADMIN

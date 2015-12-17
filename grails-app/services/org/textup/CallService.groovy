@@ -201,7 +201,7 @@ class CallService {
         if (phone) { connectToPhone(from, phone, apiId) }
         else { twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to]) }
     }
-    Result<Closure> connectToPhone(TransientPhoneNumber from, Phone toPhone, String apiId) {        
+    Result<Closure> connectToPhone(TransientPhoneNumber from, Phone toPhone, String apiId) {
         Result res = recordService.createIncomingRecordCall(from, toPhone, [apiId:apiId])
         if (res.success) {
             res = getNumbersToCallIfAvailable(toPhone)

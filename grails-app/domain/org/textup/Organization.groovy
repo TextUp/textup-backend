@@ -17,6 +17,12 @@ class Organization {
 
     String status = Constants.ORG_PENDING
 
+    @RestApiObjectField(
+        apiFieldName   = "numAdmins",
+        description    = "Number of admins this organization has",
+        useForCreation = false,
+        allowedType    = "Number")
+    static transients = []
     static constraints = {
     	name blank:false, validator:{ val, obj ->
     		//must have unique (name, location) combination
@@ -119,6 +125,9 @@ class Organization {
     // Property Access //
     /////////////////////
 
+    //For some reason, saving the location here is okay
+    //but saving in the setteraves many duplicates for
+    //when adding numbers as strings
     void setLocation(Location l) {
         this.location = l
         l.save()

@@ -18,17 +18,17 @@ class BootStrap {
 
 	    	if (Organization.count() == 0) {
 	    		//create an unverified org
-	    		Organization org1 = new Organization(name:"Demo Organization 2", status: Constants.ORG_PENDING)
-		    	org1.location = new Location(address:"Testing Address", lat:0G, lon:0G)
+	    		Organization org1 = new Organization(name:"Shelter Rhode Island", status: Constants.ORG_PENDING)
+		    	org1.location = new Location(address:"30 Howard Ave, North Providence, Rhode Island 02911, United States", lat:41.858923G, lon:-71.473439G)
 		    	org1.save(flush:true)
 		    	Staff pendingOrgStaff = new Staff(username:"demo-pending", password:"password",
-		    		name:"Pending 1", email:"connect@textup.org", org:org1, status:Constants.STATUS_ADMIN)
+		    		name:"Mallory Pending1", email:"connect@textup.org", org:org1, status:Constants.STATUS_ADMIN)
 		    	pendingOrgStaff.save(flush:true, failOnError:true)
 				StaffRole.create(pendingOrgStaff, userRole, true)
 
 	    		//create our full-fleges demo org
-	    		Organization org = new Organization(name:"Demo Organization", status: Constants.ORG_APPROVED)
-		    	org.location = new Location(address:"Testing Address", lat:0G, lon:0G)
+	    		Organization org = new Organization(name:"Rhode Island House", status: Constants.ORG_APPROVED)
+		    	org.location = new Location(address:"577 Cranston St", lat:41.807982G, lon:-71.435045G)
 		    	org.save(flush:true)
 
 	    		//create the super user
@@ -38,8 +38,8 @@ class BootStrap {
 	    		StaffRole.create(superUser, adminRole, true)
 
 		    	//create teams
-		    	Team t1 = new Team(name:"Team1", org:org)
-				Team t2 = new Team(name:"Team2", org:org)
+		    	Team t1 = new Team(name:"Rapid Rehousing", org:org)
+				Team t2 = new Team(name:"Housing First", org:org)
 				t1.location = new Location(address:"Testing Address", lat:0G, lon:1G)
 				t2.location = new Location(address:"Testing Address", lat:1G, lon:1G)
 				t1.save(flush:true, failOnError:true)
@@ -52,14 +52,14 @@ class BootStrap {
 
 				//create staff
 				Staff admin = new Staff(username:"demo-admin", password:"password",
-		    		name:"Staff 1", email:"connect@textup.org", org:org, status:Constants.STATUS_ADMIN)
+		    		name:"Mike Staff1", email:"connect@textup.org", org:org, status:Constants.STATUS_ADMIN)
 		    	Staff s1 = new Staff(username:"demo-staff1", password:"password",
-		    		name:"Staff 2", email:"connect@textup.org", org:org, status:Constants.STATUS_STAFF)
+		    		name:"Eva Staff2", email:"connect@textup.org", org:org, status:Constants.STATUS_STAFF)
 				Staff s2 = new Staff(username:"demo-staff2", password:"password",
-					name:"Staff 3", email:"connect@textup.org", org:org, status:Constants.STATUS_PENDING)
-		    	admin.personalPhoneNumberAsString = "111 222 3333"
-		    	s1.personalPhoneNumberAsString = "111 222 3333"
-		    	s2.personalPhoneNumberAsString = "111 222 3333"
+					name:"Johnny Staff3", email:"connect@textup.org", org:org, status:Constants.STATUS_PENDING)
+		    	admin.personalPhoneNumberAsString = "267 888 7452"
+		    	s1.personalPhoneNumberAsString = "267 888 7452"
+		    	s2.personalPhoneNumberAsString = "267 888 7452"
 		    	admin.save(flush:true, failOnError:true)
 				s1.save(flush:true, failOnError:true)
 				s2.save(flush:true, failOnError:true)
@@ -71,16 +71,16 @@ class BootStrap {
 		    	StaffPhone p1 = new StaffPhone()
 		    	StaffPhone p2 = new StaffPhone()
 		    	StaffPhone p3 = new StaffPhone()
-		    	p1.numberAsString = "1112223333"
+		    	p1.numberAsString = "401 234 4510"
 		    	admin.phone = p1
 		    	p1.save(flush:true, failOnError:true)
-		    	p2.numberAsString = "1112223334"
+		    	p2.numberAsString = "401 234 0315"
 		    	s1.phone = p2
 		    	p2.save(flush:true, failOnError:true)
 		    	p3.numberAsString = "1112223335"
 		    	s2.phone = p3
 		    	p3.save(flush:true, failOnError:true)
-		    	//create roles for staff
+		    	// create roles for staff
 		    	StaffRole.create(admin, userRole, true)
 		    	StaffRole.create(s1, userRole, true)
 		    	StaffRole.create(s2, userRole, true)
@@ -91,13 +91,13 @@ class BootStrap {
 		    	(new TeamMembership(staff:s2, team:t2)).save(flush:true, failOnError:true)
 
 		    	//create contacts with items
-		    	Contact c1 = p1.createContact([:], ["12223334444"]).payload
-				Contact c2 = p2.createContact([:], ["12223334444"]).payload
-				Contact tC1 = tPh1.createContact([:], ["12223334444"]).payload
+		    	Contact c1 = p1.createContact([name:'John Smith'], ["626 202 7548"]).payload
+				Contact c2 = p2.createContact([:], ["626 202 7548"]).payload
+				Contact tC1 = tPh1.createContact([:], ["626 202 7548"]).payload
 				[c1, c2, tC1]*.save(flush:true, failOnError:true)
-				RecordText rText1 = c1.record.addText([contents:"text"], null).payload
-		        RecordText rText2 = c2.record.addText([contents:"text"], null).payload
-		        RecordText rTeText1 = tC1.record.addText([contents:"text"], null).payload
+				RecordText rText1 = c1.record.addText([contents:"Hi! Hope you're doing well today."], null).payload
+		        RecordText rText2 = c2.record.addText([contents:"Hi! Hope you're doing well today."], null).payload
+		        RecordText rTeText1 = tC1.record.addText([contents:"Hi! Hope you're doing well today."], null).payload
 				[rText1, rText2, rTeText1]*.save(flush:true, failOnError:true)
 
 				//share contacts
@@ -106,12 +106,12 @@ class BootStrap {
 		        [sc1, sc2]*.save(flush:true, failOnError:true)
 
 		    	//create tags
-		    	ContactTag tag1 = p1.createTag(name:"Tag1").payload
-				ContactTag tag2 = p2.createTag(name:"Tag1").payload
-    		    ContactTag teTag1 = tPh1.createTag(name:"Tag1").payload
+		    	ContactTag tag1 = p1.createTag(name:"Case Management").payload
+				ContactTag tag2 = p2.createTag(name:"Case Management").payload
+    		    ContactTag teTag1 = tPh1.createTag(name:"Case Management").payload
         		[tag1, tag2, teTag1]*.save(flush:true, failOnError:true)
 		    	//create items for team tags
-		    	teTag1.record.addText([contents:"text"], null).payload
+		    	teTag1.record.addText([contents:"Hi! Hope you're doing well today."], null).payload
 		    		.save(flush:true, failOnError:true)
 		    	//tag memberships
 		    	(new TagMembership(tag:tag1, contact:c1)).save(flush:true, failOnError:true)

@@ -23,6 +23,11 @@ class Team {
         description = "Id of the organization this team belongs to",
         allowedType = "Number")
 	Organization org
+    @RestApiObjectField(
+        description  = "Hex color code for this team",
+        defaultValue = "#1BA5E0",
+        mandatory    = false)
+    String hexColor = "#1BA5E0"
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -39,6 +44,10 @@ class Team {
             if (obj.hasExistingTeamName(val)) ["duplicate", obj.org?.name]
         }
         phone nullable:true
+        hexColor blank:false, nullable:false, validator:{ val, obj ->
+            //String must be a valid hex color
+            if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
+        }
     }
     static namedQueries = {
         forStaff { Staff thisStaff ->
@@ -75,6 +84,8 @@ class Team {
     ////////////
     // Events //
     ////////////
+
+    //TODO: update with new classes!!!
 
     def beforeDelete() {
         Team.withNewSession {
@@ -169,6 +180,9 @@ class Team {
     // Property Access //
     /////////////////////
 
+    //For some reason, saving the location here is okay
+    //but saving in the setteraves many duplicates for
+    //when adding numbers as strings
     void setLocation(Location l) {
         this.location = l
         this.location?.save()

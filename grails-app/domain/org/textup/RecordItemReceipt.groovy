@@ -55,7 +55,12 @@ class RecordItemReceipt {
     /////////////////////
 
     void setReceivedByAsString(String num) {
-    	this.receivedBy = new PhoneNumber(number:num)
+        if (this.receivedBy) {
+            this.receivedBy.number = num
+        }
+        else {
+            this.receivedBy = new PhoneNumber(number:num)
+        }
         this.receivedBy.save()
     }
 }

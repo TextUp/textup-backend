@@ -110,12 +110,20 @@ class StaffPhone extends Phone {
             }
             else { resultFactory.failWithMessage("staffPhone.error.differentTeams") }
         }
-        else { resultFactory.failWithMessage("staffPhone.error.contactNotMine", [contact?.name]) }
+        else { resultFactory.failWithMessage("staffPhone.error.allNotShared", [contact?.name]) }
     }
     Result<List<SharedContact>> stopSharingWith(StaffPhone sharedWith) {
         List<SharedContact> allSharedBtwn = SharedContact.allNonexpiredBetween(this, sharedWith).list()
         allSharedBtwn.each { SharedContact sc -> sc.stopSharing() }
         resultFactory.success(allSharedBtwn)
+    }
+    Result<SharedContact> stopSharingContactWith(Contact c1, StaffPhone sharedWith) {
+        SharedContact sc1 = SharedContact.findByContactAndSharedWith(c1, sharedWith)
+        if (sc1) {
+            sc1.stopSharing()
+            resultFactory.success(sc1)
+        }
+        else { resultFactory.failWithMessage("staffPhone.error.allNotShared", [c1?.name]) }
     }
     Result<List<SharedContact>> stopSharing(Contact contact) {
         if (validateContact(contact)) {

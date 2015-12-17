@@ -2,6 +2,7 @@ package org.textup
 
 import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 
 @EqualsAndHashCode
 class Schedule {
@@ -21,19 +22,20 @@ class Schedule {
     Availability
      */
     boolean isAvailableAt(DateTime dt) { Result.success(false) }
-    boolean isAvailableNow() { isAvailableAt(DateTime.now()) }
+    boolean isAvailableNow() { isAvailableAt(DateTime.now(DateTimeZone.UTC)) }
 
     /*
     Status changes
      */
     Result<ScheduleChange> nextChange(String timezone=null) {
-        Result.success(new ScheduleChange(type:Constants.SCHEDULE_AVAILABLE, when:DateTime.now().minusDays(1)))
+        Result.success(new ScheduleChange(type:Constants.SCHEDULE_AVAILABLE,
+            when:DateTime.now(DateTimeZone.UTC).minusDays(1)))
     }
     Result<DateTime> nextAvailable(String timezone=null) {
-        Result.success(DateTime.now().minusDays(1))
+        Result.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
     }
     Result<DateTime> nextUnavailable(String timezone=null) {
-        Result.success(DateTime.now().minusDays(1))
+        Result.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
     }
 
     /*

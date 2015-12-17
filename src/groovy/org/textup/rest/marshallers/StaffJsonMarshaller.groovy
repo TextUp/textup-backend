@@ -1,9 +1,10 @@
 package org.textup.rest.marshallers
 
+import grails.plugin.springsecurity.SpringSecurityService
+import org.codehaus.groovy.grails.web.mapping.LinkGenerator
+import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.rest.*
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import grails.plugin.springsecurity.SpringSecurityService
 
 class StaffJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace,
@@ -17,16 +18,18 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             name = s1.name
             email = s1.email
             org = s1.org.id
+            orgName = s1.org.name
             status = s1.status
             awayMessage = s1.awayMessage
             if (s1.personalPhoneNumber) personalPhoneNumber = s1.personalPhoneNumber.number
             if (s1.phone) phone = s1.phone.number.number
-            
+
             manualSchedule = s1.manualSchedule
             if (manualSchedule == true) { isAvailable = s1.isAvailable }
             isAvailableNow = s1.isAvailableNow()
         }
         json.tags = s1.phone ? s1.phone.tags : []
+        json.teams = s1.teams
         if (s1.schedule.instanceOf(WeeklySchedule)) {
             String timezone = WebUtils.retrieveGrailsWebRequest().currentRequest.timezone
             json.schedule = [:]

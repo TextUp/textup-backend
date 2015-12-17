@@ -3,6 +3,7 @@ package org.textup
 import groovy.util.logging.Log4j
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.Days
@@ -16,6 +17,15 @@ class Helpers {
     ////////////////
     // Formatting //
     ////////////////
+
+
+    static boolean moreThanOneId(List<String> keysToLookFor, GrailsParameterMap params) {
+        int numFound = 0
+        keysToLookFor.each {
+            if (params[it]) { numFound++ }
+        }
+        numFound > 1
+    }
 
 	static boolean isLong(def val) {
         "${val}".isLong()
@@ -71,9 +81,12 @@ class Helpers {
 
     static DateTimeZone getZoneFromId(String id) {
         try {
-            return DateTimeZone.forId(id)
+            return DateTimeZone.forID(id)
         }
-        catch (e) { return null }
+        catch (e) {
+            log.debug("Helpers.getZoneFromId: ${e.message}")
+            return null
+        }
     }
 
     static DateTime toDateTimeTodayWithZone(LocalTime lt, DateTimeZone zone) {
@@ -89,7 +102,6 @@ class Helpers {
         }
         else { lt.toDateTimeToday(DateTimeZone.UTC) }
     }
-
     static int getDaysBetween(DateTime dt1, DateTime dt2) {
         Days.daysBetween(dt1.toLocalDate(), dt2.toLocalDate()).getDays()
     }
@@ -138,7 +150,7 @@ class Helpers {
     static String formatNumberForSay(String number) {
         number?.replaceAll(/\D*/, "")?.replaceAll(/.(?!$)/, /$0 /)
     }
-    static String formatNumberForSay(TransientPhoneNumber num) {
+    static String formatNumberForSay(BasePhoneNumber num) {
         formatNumberForSay(num?.number)
     }
     static String formatTextNotification(String attribution, String contents) {

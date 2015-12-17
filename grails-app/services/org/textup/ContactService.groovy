@@ -121,7 +121,7 @@ class ContactService {
 				res = owner.phone.shareContact(c1, s1.phone, sAction.permission)
 				break
 			case Constants.SHARE_ACTION_STOP:
-				res = owner.phone.stopSharingWith(s1.phone)
+				res = owner.phone.stopSharingContactWith(c1, s1.phone)
 				break
 			default:
                 return resultFactory.failWithMessageAndStatus(BAD_REQUEST,

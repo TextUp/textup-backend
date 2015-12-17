@@ -13,9 +13,9 @@ class ContactTag {
     String name
     @RestApiObjectField(
         description  = "Hex color code for labels for this tag",
-        defaultValue = "#000",
+        defaultValue = "#1BA5E0",
         mandatory    = false)
-	String hexColor = "#000"
+	String hexColor = "#1BA5E0"
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(

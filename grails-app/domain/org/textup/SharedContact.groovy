@@ -102,10 +102,19 @@ class SharedContact implements Contactable {
             notExpired()
             sharedContactsForSameTeamAsSharedWith(sWith)
         }
+        anyTeamSharedByMeIds { StaffPhone sBy ->
+            projections { property("id") }
+            eq("sharedBy", sBy)
+            notExpired()
+        }
         sharedByMe { StaffPhone sBy ->
             eq("sharedBy", sBy)
             notExpired()
             sharedContactsForSameTeamAsSharedBy(sBy)
+        }
+        sharedByMeIds { StaffPhone sBy ->
+            projections { property("id") }
+            sharedByMe(sBy)
         }
         allNonexpiredFor { Contact contact, StaffPhone sBy ->
             sharedByMe(sBy)

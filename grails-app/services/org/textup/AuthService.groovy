@@ -27,6 +27,9 @@ class AuthService {
     boolean isLoggedIn(Long sId) {
         getLoggedInId() == sId
     }
+    boolean isLoggedInAndActive(Long sId) {
+        getLoggedInAndActive()?.id == sId
+    }
 
     Staff getLoggedIn() {
         Staff.findByUsername(springSecurityService.principal?.username)

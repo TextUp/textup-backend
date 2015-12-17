@@ -3,7 +3,7 @@ package org.textup
 import groovy.transform.EqualsAndHashCode
 
 @EqualsAndHashCode(callSuper=true)
-class PhoneNumber extends TransientPhoneNumber {
+class PhoneNumber extends BasePhoneNumber {
 
     //number from superclass
 
@@ -22,7 +22,7 @@ class PhoneNumber extends TransientPhoneNumber {
     ////////////////////
 
     PhoneNumber copy() { new PhoneNumber(number:this.number) }
-    static PhoneNumber copy(TransientPhoneNumber num) {
+    static PhoneNumber copy(BasePhoneNumber num) {
         new PhoneNumber(number:num?.number)
     }
 
