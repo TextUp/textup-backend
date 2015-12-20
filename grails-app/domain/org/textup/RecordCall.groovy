@@ -1,11 +1,17 @@
 package org.textup
 
+import com.amazonaws.HttpMethod
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest
 import groovy.transform.EqualsAndHashCode
+import org.joda.time.DateTime
 import org.restapidoc.annotation.*
 
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="RecordCall", description="A phone call entry in a contact's record.")
 class RecordCall extends RecordItem {
+
+    def grailsApplication
+    def s3Service
 
     @RestApiObjectField(
         description    = "Duration of the call",
@@ -74,4 +80,25 @@ class RecordCall extends RecordItem {
     // Property Access //
     /////////////////////
 
+    String getVoicemailUrl() {
+        if (!this.hasVoicemail) { return "" }
+        def tConfig = grailsApplication.config.textup
+        RecordItemReceipt receipt = this.getReceived()[0]
+        if (!receipt) { return "" }
+        String bucketName = tConfig.voicemailBucketName,
+            objectKey = receipt.apiId
+        try {
+            Date expires = DateTime.now().plusHours(1).toDate()
+            GeneratePresignedUrlRequest req = new GeneratePresignedUrlRequest(bucketName, objectKey);
+            req.with {
+                method = HttpMethod.GET
+                expiration = expires
+            }
+            s3Service.generatePresignedUrl(req)?.toString()
+        }
+        catch (e) {
+            log.error("RecordCall.getVoicemailUrl: ${e.message}")
+            return ""
+        }
+    }
 }

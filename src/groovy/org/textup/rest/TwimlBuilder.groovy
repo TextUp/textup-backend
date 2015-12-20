@@ -88,7 +88,7 @@ class TwimlBuilder {
                 String welcome = getMessage("twimlBuilder.staffToSelfWelcome"),
                     directions = getMessage("twimlBuilder.staffToSelfDirections"),
                     digitsWebhook = getLink(handle:Constants.CALL_STAFF_STAFF_DIGITS),
-                    repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, for:CALL_SELF_GREETING)
+                    repeatWebhook = getLink(handle:Constants.CALL_INCOMING)
                 result = {
                     Response {
                         Gather(action:digitsWebhook, numDigits:11) {
@@ -103,7 +103,7 @@ class TwimlBuilder {
                 if (params.digits) {
                     String formatted = formatNumberForSay(params.digits),
                         error = getMessage("twimlBuilder.staffToSelfError", [formatted]),
-                        repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, for:CALL_SELF_GREETING)
+                        repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, Constants.CALL_INCOMING)
                     result = {
                         Response {
                             Say(error)
@@ -127,7 +127,7 @@ class TwimlBuilder {
             case CallResponse.BRIDGE_CONFIRM_CONNECT:
                 if (params.contactToBridge instanceof Contact) {
                     Contact c1 = params.contactToBridge
-                    String attrib = c1.name ?: formatNumberForSay(c1.numbers?.number),
+                    String attrib = c1.name ?: formatNumberForSay(c1.numbers[0]?.number),
                         confirmation = getMessage("twimlBuilder.confirmCallBridge", [attrib]),
                         noResponse = getMessage("twimlBuilder.noResponseConfirmCallBridge"),
                         digitsWebhook = getLink(contactToBridge:c1.contactId, handle:Constants.CALL_BRIDGE)
@@ -161,24 +161,23 @@ class TwimlBuilder {
                 break
             case CallResponse.VOICEMAIL:
                 String directions = getMessage("twimlBuilder.voicemailDirections"),
-                    voicemailWebhook = getLink(handle:Constants.CALL_VOICEMAIL),
-                    repeatWebhook = getLink(handle:Constants.CALL_TEXT_REPEAT, for:Constants.CALL_VOICEMAIL)
+                    storeVoicemailWebhook = getLink(handle:Constants.CALL_VOICEMAIL)
                 result = {
                     Response {
                         Say(directions)
-                        Record(action:voicemailWebhook, maxLength:160)
-                        Redirect(repeatWebhook)
+                        Record(action:storeVoicemailWebhook, maxLength:160)
+                        Hangup()
                     }
                 }
                 break
             case CallResponse.CONNECTING:
                 if (params.numsToCall instanceof Collection) {
                     String connecting = getMessage("twimlBuilder.connectingCall"),
-                        voicemailWebhook = getLink(handle:Constants.CALL_VOICEMAIL)
+                        voicemailWebhook = getLink(handle:Constants.CALL_SEND_TO_VOICEMAIL)
                     result = {
                         Response {
                             Say(connecting)
-                            Dial {
+                            Dial(timeout:"15") {
                                 for (num in params.numsToCall) {
                                     Number(num)
                                 }

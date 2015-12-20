@@ -8,6 +8,7 @@ import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 @Transactional(readOnly=true)
 class AuthService {
 
+    def grailsApplication
 	def springSecurityService
 
     ////////////////////

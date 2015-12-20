@@ -204,17 +204,38 @@ class WeeklySchedule extends Schedule {
         //rehydrate the strings as INTERVALS where sunday corresponds to TODAY, monday corresponds
         //to tomorrow, and tuesday corresponds to the day after tomorrow, etc.
         List<Interval> intervals = []
-        daysOfWeek.eachWithIndex { String dayOfWeek, int i ->
-            int addDays = i
+        //Handle edge case where Sunday's range is actually
+        //a wraparound of a range on Saturday!
+        boolean hasWraparound
+        String firstDayWrappedEnd
+        (hasWraparound, firstDayWrappedEnd) = checkWraparoundHelper(daysOfWeek)
+        //iterate over each day, building intervals as appropriate
+        daysOfWeek.eachWithIndex { String dayOfWeek, int addDays ->
             List<Interval> intervalsForDay = []
             this."$dayOfWeek".tokenize(_rangeDelimiter).each { String rangeString ->
                 List<String> times = rangeString.tokenize(_timeDelimiter)
                 if (times.size() == 2) {
-                    DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
-                        .plusDays(addDays)
-                    DateTime end = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[1]), zone)
-                        .plusDays(addDays)
-                    intervalsForDay << new Interval(start, end)
+                    //if is Sunday
+                    if (dayOfWeek == daysOfWeek[0]) {
+                        if (!(hasWraparound && times[0] == "0000")) {
+                            addToIntervalsHelper(dtf, zone, intervalsForDay, times, addDays)
+                        }
+                    }
+                    // should add wraparound on Saturday
+                    else if (dayOfWeek == daysOfWeek.last()) {
+                        if (hasWraparound && times[1] == "2359") {
+                            DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
+                                .plusDays(addDays)
+                            DateTime end = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(firstDayWrappedEnd), zone)
+                                .plusDays(addDays + 1)
+                            intervalsForDay << new Interval(start, end)
+                        }
+                        else {
+                            addToIntervalsHelper(dtf, zone, intervalsForDay, times, addDays)
+                        }
+                    }
+                    //handle all other days
+                    else { addToIntervalsHelper(dtf, zone, intervalsForDay, times, addDays) }
                 }
                 else {
                     log.error("WeeklySchedule.getAsLocalIntervals: for $dayOfWeek, invalid range: $rangeString")
@@ -228,6 +249,35 @@ class WeeklySchedule extends Schedule {
             mergedLocalIntMap[dayOfWeek] = cleanLocalIntervals(localInts.sort(), 1) //1 minute merge threshold
         }
         mergedLocalIntMap
+    }
+    private List checkWraparoundHelper(List<String> daysOfWeek) {
+        boolean lastDayAtEnd = false,
+            firstDayAtBeginning = false
+        String firstDayWrappedEnd
+        for (wrapRange in this."${daysOfWeek[0]}".tokenize(_rangeDelimiter)) {
+            if (wrapRange.tokenize(_timeDelimiter)[0] == "0000") {
+                firstDayWrappedEnd = wrapRange.tokenize(_timeDelimiter)[1]
+                firstDayAtBeginning = true
+                break
+            }
+        }
+        for (wrapRange in this."${daysOfWeek.last()}".tokenize(_rangeDelimiter)) {
+            if (wrapRange.tokenize(_timeDelimiter)[1] == "2359") {
+                lastDayAtEnd = true
+                break
+            }
+        }
+        boolean hasWraparound = lastDayAtEnd && firstDayAtBeginning
+        [hasWraparound, firstDayWrappedEnd]
+    }
+    private addToIntervalsHelper(DateTimeFormatter dtf, DateTimeZone zone,
+        List<Interval> intervalsForDay, List<String> times, int addDays) {
+
+        DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
+            .plusDays(addDays)
+        DateTime end = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[1]), zone)
+            .plusDays(addDays)
+        intervalsForDay << new Interval(start, end)
     }
 
     /*

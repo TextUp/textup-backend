@@ -111,6 +111,10 @@ class Contact implements Contactable {
             phone { eq("id", phoneId) }
             projections { property("record.id") }
         }
+        phoneIdsForContactId { Long thisId ->
+            eq("id", thisId)
+            projections { property("phone.id") }
+        }
         teamRecordIdsForStaffId { Long thisStaffId ->
             List<Long> scIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(thisStaffId).list())
             phone { "in"("id", scIds) }

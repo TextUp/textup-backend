@@ -70,7 +70,7 @@ class RecordItem {
         forThisIdAndPhoneId { Long thisId, Long phoneId ->
             eq("id", thisId)
             record { "in"("id", Contact.recordIdsForPhoneId(phoneId)) }
-            order("dateCreated", "desc")   
+            order("dateCreated", "desc")
         }
         forRecordDateSince { Record rec, DateTime s ->
             eq("record", rec)

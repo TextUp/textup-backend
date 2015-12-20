@@ -10,6 +10,9 @@ class Constants {
 
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
 
+	static final String SOCKET_EVENT_RECORD = "record"
+	static final String SOCKET_EVENT_RECORD_STATUS = "recordStatus"
+
 	static final String SCHEDULE_AVAILABLE = "available"
 	static final String SCHEDULE_UNAVAILABLE = "unavailable"
 
@@ -71,6 +74,7 @@ class Constants {
 	static final String CALL_BRIDGE = "bridge"
 	static final String CALL_ANNOUNCEMENT = "announcement"
 	static final String CALL_VOICEMAIL = "voicemail"
+	static final String CALL_SEND_TO_VOICEMAIL = "sendCallToVoicemail"
 	static final String CALL_PUBLIC_TEAM_DIGITS = "digitsFromPublicForTeam"
 	static final String CALL_TEAM_ANNOUNCEMENT_DIGITS = "digitsForTeamAnnouncement"
 	static final String CALL_STAFF_STAFF_DIGITS = "digitsFromStaffForStaff"

@@ -235,7 +235,7 @@ class ContactController extends BaseController {
     	if (!validateJsonRequest(request, "contact")) { return; }
         Long id = params.long("id")
         if (authService.exists(Contact, id)) {
-            if (authService.hasPermissionsForContact(id)) {
+            if (authService.hasPermissionsForContact(id) || authService.getSharedContactForContact(id)) {
                 handleUpdateResult(Contact, contactService.update(id, request.JSON.contact))
             }
             else { forbidden() }

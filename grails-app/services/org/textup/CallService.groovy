@@ -23,6 +23,25 @@ class CallService {
     def s3Service
     def lockService
 
+    /////////////////////////
+    // Existence of phones //
+    /////////////////////////
+
+    @Transactional(readOnly=true)
+    boolean teamPhoneExistsForNum(TransientPhoneNumber num) {
+        TeamPhone.forTeamNumber(num).get() != null
+    }
+
+    @Transactional(readOnly=true)
+    boolean staffPhoneExistsForNum(TransientPhoneNumber num) {
+        StaffPhone.forStaffNumber(num).get() != null
+    }
+
+    @Transactional(readOnly=true)
+    boolean phoneExistsForNum(TransientPhoneNumber num) {
+        Phone.forNumber(num).get() != null
+    }
+
     //////////////////
     // Call methods //
     //////////////////
@@ -62,24 +81,12 @@ class CallService {
 
 
     protected Result<RecordCall> tryCall(String to, RecordCall call, String from, Map afterPickupParams) {
-
         String afterPickup = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:afterPickupParams)
-
-
-
-        //TODO: remove this
-        String fakeAfterPickup = "https://c12266e7.ngrok.io/v1/public/records?"
-        afterPickupParams.each { k, v -> fakeAfterPickup += "$k=$v&" }
-
-        println "afterPickupParams: $afterPickupParams"
-        println "REAL AFTER PICKUP IN TRYCALL: $afterPickup"
-        println "\t FAKE IS: ${fakeAfterPickup}"
-
         RecordCall.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
-                Result<Call> res = makeCallHelper(to, from, fakeAfterPickup)
+                Result<Call> res = makeCallHelper(to, from, afterPickup)
                 if (res.success) {
                     Call c = res.payload
                     RecordItemReceipt receipt = new RecordItemReceipt(apiId:c.sid)
@@ -102,11 +109,13 @@ class CallService {
         }
     }
     protected Result<Call> makeCallHelper(String to, String from, String afterPickup) {
+        String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
+            action:"save", absolute:true, params:[handle:Constants.CALL_STATUS])
         def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
         try {
             TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
             CallFactory cFactory = client.account.callFactory
-            resultFactory.success(cFactory.create(To:to, From:from, Url:afterPickup))
+            resultFactory.success(cFactory.create(To:to, From:from, Url:afterPickup, StatusCallback:callback))
         }
         catch (Throwable e) {
             log.error("CallService.makeCallHelper: ${e.message}")
@@ -114,24 +123,18 @@ class CallService {
         }
     }
 
-    /////////////////////////
-    // Existence of phones //
-    /////////////////////////
-
-    @Transactional(readOnly=true)
-    boolean teamPhoneExistsForNum(TransientPhoneNumber num) {
-        TeamPhone.forTeamNumber(num).get() != null
-    }
-
-    @Transactional(readOnly=true)
-    boolean staffPhoneExistsForNum(TransientPhoneNumber num) {
-        StaffPhone.forStaffNumber(num).get() != null
-    }
-
     ///////////////
     // Voicemail //
     ///////////////
 
+    Result<Closure> playVoicemail(TransientPhoneNumber to) {
+        if (phoneExistsForNum(to)) {
+            twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL)
+        }
+        else { //phone not found
+            twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to])
+        }
+    }
     Result<List<RecordCall>> storeVoicemail(String apiId, String callStatus,
         Integer callDuration, String voicemailUrl, int voicemailDuration) {
         Result<List<RecordItemReceipt>> res = recordService.updateStatus(apiId,
@@ -147,8 +150,7 @@ class CallService {
         res
     }
     protected Result moveVoicemailToS3(String apiId, int attemptNum=1) {
-        def tConfig = grailsApplication.config.textup,
-            awsConf = tConfig.apiKeys.aws
+        def tConfig = grailsApplication.config.textup
         String bucketName = tConfig.voicemailBucketName
         try {
             Result<Call> res = getCallFromSid(apiId)
@@ -189,61 +191,6 @@ class CallService {
         catch (e) {
             log.error("CallService.getCallFromSid: ${e.message}")
             resultFactory.failWithThrowable(e)
-        }
-    }
-
-    ////////////////////////////////////
-    // Connect incoming call to phone //
-    ////////////////////////////////////
-
-    Result<Closure> connectToPhone(TransientPhoneNumber from, TransientPhoneNumber to, String apiId) {
-        Phone phone = Phone.forNumber(to).get()
-        if (phone) { connectToPhone(from, phone, apiId) }
-        else { twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to]) }
-    }
-    Result<Closure> connectToPhone(TransientPhoneNumber from, Phone toPhone, String apiId) {
-        Result res = recordService.createIncomingRecordCall(from, toPhone, [apiId:apiId])
-        if (res.success) {
-            res = getNumbersToCallIfAvailable(toPhone)
-            if (res.success && res.payload instanceof Collection) {
-                List<String> numsToCall = res.payload
-                res = twimlBuilder.buildXmlFor(CallResponse.CONNECTING,
-                    [numsToCall:numsToCall])
-            }
-        }
-        res
-    }
-    protected Result getNumbersToCallIfAvailable(Phone phone) {
-        if (phone.instanceOf(StaffPhone)) {
-            Staff s = Staff.get(phone.ownerId)
-            if (s) {
-                if (s.isAvailableNow()) { resultFactory.success([s.phone.numberAsString]) }
-                else { twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL) }
-            }
-            else {
-                log.error('''CallService.connectToPhone: staff not found for staff
-                    phone $phone with ownerId ${phone.ownerId}.''')
-                return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
-            }
-        }
-        else if (phone.instanceOf(TeamPhone)) {
-            Team t = Team.forPhone(phone).list()[0]
-            if (t) {
-                List<String> numsToCall = []
-                for (s in t.activeMembers) {
-                    if (s.isAvailableNow()) { numsToCall << s.phone.numberAsString }
-                }
-                if (!numsToCall.isEmpty()) { resultFactory.success(numsToCall) }
-                else { twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL) }
-            }
-            else {
-                log.error("CallService.connectToPhone: team not found for team phone $phone.")
-                return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
-            }
-        }
-        else {
-            log.error("CallService.connectToPhone: phone $phone is not a staff or team phone.")
-            twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
         }
     }
 }

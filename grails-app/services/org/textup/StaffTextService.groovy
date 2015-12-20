@@ -5,11 +5,11 @@ import grails.transaction.Transactional
 @Transactional
 class StaffTextService extends TextService {
 
-    Result<Closure> handleIncoming(TransientPhoneNumber from, TransientPhoneNumber to, 
+    Result<Closure> handleIncoming(TransientPhoneNumber from, TransientPhoneNumber to,
         String apiId, String contents) {
         //case 1: staff member is texting from personal phone to TextUp phone
-        Staff s1 = Staff.forPersonalAndWorkPhoneNums(personalNum, workNum).get()
-        if (s1) { 
+        Staff s1 = Staff.forPersonalAndWorkPhoneNums(from, to).get()
+        if (s1) {
             twimlBuilder.buildXmlFor(TextResponse.STAFF_SELF_GREETING, [staff:s1])
         }
         //case 2: someone is texting a TextUp phone
@@ -21,7 +21,7 @@ class StaffTextService extends TextService {
                 Staff s2 = Staff.get(p1.ownerId)
                 if (s2?.isAvailableNow()) {
                     Contact c1 = Contact.forRecord(res.payload[0]?.record).get()
-                    Result nRes = notifyStaff(s2, c1, fromNum.number, contents)
+                    Result nRes = notifyStaff(s2, c1, from.number, contents)
                     if (!nRes.success) { log.error(nRes.payload.message) }
                     twimlBuilder.noResponse()
                 }

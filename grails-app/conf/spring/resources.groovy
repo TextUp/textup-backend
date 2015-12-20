@@ -1,5 +1,6 @@
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
+import com.pusher.rest.Pusher
 import org.textup.*
 import org.textup.rest.*
 import org.textup.rest.marshallers.*
@@ -9,11 +10,15 @@ import org.textup.util.*
 beans = {
 	def tConfig = application.config.textup
 	def tRestConfig = tConfig.rest
+	def apiConfig = tConfig.apiKeys
 	def restConfig = application.config.grails.plugin.springsecurity.rest.token
 	String v1Namespace = "v1"
 
 	s3Service(AmazonS3Client,
-		new BasicAWSCredentials(tConfig.apiKeys.aws.accessKey, tConfig.apiKeys.aws.secretKey))
+		new BasicAWSCredentials(apiConfig.aws.accessKey, apiConfig.aws.secretKey))
+	pusherService(Pusher, apiConfig.pusher.appId, apiConfig.pusher.apiKey, apiConfig.pusher.apiSecret) {
+		encrypted = true
+	}
 	resultFactory(ResultFactory) { bean ->
 		bean.autowire = true
 	}

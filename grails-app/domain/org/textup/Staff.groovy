@@ -133,6 +133,12 @@ class Staff {
             eq("personalPhoneNumber.number", personalNum?.number)
             phone { eq("number.number", workNum?.number) }
         }
+        forContactId { Long contactId ->
+            "in"("phone", Phone.forContactId(contactId).list())
+        }
+        forPhoneNum { TransientPhoneNumber num ->
+            phone { eq("number.number", num?.number) }
+        }
     }
 
 	/*

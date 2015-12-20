@@ -221,6 +221,11 @@ textup {
                 standard = "6c024f79-e180-4f96-bfad-4178dc0204ab"
             }
         }
+        pusher {
+            appId = "159936"
+            apiKey = System.getenv("PUSHER_API_KEY") ?: System.getProperty("PUSHER_API_KEY")
+            apiSecret = System.getenv("PUSHER_API_SECRET") ?: System.getProperty("PUSHER_API_SECRET")
+        }
     }
     rest {
         defaultLabel = "default" //default is to link to relationships

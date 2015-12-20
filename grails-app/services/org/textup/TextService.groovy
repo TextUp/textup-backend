@@ -28,12 +28,7 @@ class TextService {
     	//SHOULD ALSO HANDLE FUTURE TEXTS AS WELL!!!
         //TODO: do redact in status callback because otherwise MessageId not stored yet m.redact()
 
-        println "TEST from phone: $fromPhone to contact $toContact"
-
 		if (text.validate()) {
-            println "\t fromPhone.number.e164PhoneNumber: ${fromPhone.number.e164PhoneNumber}"
-            println "\t toContact.numbers*.e164PhoneNumber: ${toContact.numbers*.e164PhoneNumber}"
-
 			stopOnSuccessOrInternalError(text, fromPhone.number.e164PhoneNumber,
                 toContact.numbers*.e164PhoneNumber)
 		}
@@ -93,15 +88,8 @@ class TextService {
     }
     protected Result<RecordText> tryText(RecordText text, String to, String from) {
         def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
-
-
-
-        // String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
-            // action:"save", absolute:true, params:[handle:Constants.TEXT_STATUS])
-
-
-        String callback = "https://c12266e7.ngrok.io/v1/public/records?handle=status"
-
+        String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
+            action:"save", absolute:true, params:[handle:Constants.TEXT_STATUS])
         RecordText.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {

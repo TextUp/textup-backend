@@ -73,6 +73,8 @@ grails.project.dependency.resolution = {
         //Required by the aws-java-sdk dependency
         build "org.apache.httpcomponents:httpcore:4.3.3"
         runtime "org.apache.httpcomponents:httpcore:4.3.3"
+        //pusher for realtime status updates and notifications
+        compile "com.pusher:pusher-http-java:0.9.3"
     }
 
     plugins {

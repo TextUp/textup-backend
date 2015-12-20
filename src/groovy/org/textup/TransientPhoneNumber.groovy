@@ -7,8 +7,6 @@ import groovy.transform.EqualsAndHashCode
 @Validateable
 class TransientPhoneNumber extends BasePhoneNumber {
 
-    String number
-
 	static constraints = {
     	number validator:{ val, obj ->
             if (val?.size() != 10) { ["format"] }

@@ -154,6 +154,9 @@ class Team {
     List<Staff> getActiveMembers(Map params=[:]) {
         Staff.activeForTeam(this).list(params)
     }
+    List<Staff> getActiveAndAvailableMembers(Map params=[:]) {
+        getActiveMembers(params).findAll { it.isAvailableNow() }
+    }
     int countMembers(String s) { countMembers([s]) }
     int countMembers(List<String> statuses = []) {
         Staff.membersForTeam(this, statuses).count()

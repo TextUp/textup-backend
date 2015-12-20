@@ -34,14 +34,23 @@ class UrlMappings {
                 format = "json"
             }
 
+            ////////////////////////////
+            // Restricted Utility API //
+            ////////////////////////////
+
+            //authenticating private channels with Pusher
+            "/sockets"(resources:"socket", namespace:"v1") {
+                format = "json"
+            }
+            //only used for looking up available TextUp numbers from twilio
+            "/numbers"(resources:"lookupNumber", namespace:"v1") {
+                format = "json"
+            }
+
 	        ////////////////////
 	        // Restricted API //
 	        ////////////////////
 
-            //only used for looking up available TextUp numbers
-            "/numbers"(resources:"lookupNumber", namespace:"v1") {
-                format = "json"
-            }
         	"/organizations"(resources:"organization", namespace:"v1") {
                 format = "json"
             }
