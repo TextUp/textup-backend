@@ -117,12 +117,12 @@ class Contact implements Contactable {
         }
         teamRecordIdsForStaffId { Long thisStaffId ->
             List<Long> scIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(thisStaffId).list())
-            phone { "in"("id", scIds) }
+            if (scIds) { phone { "in"("id", scIds) } }
             projections { property("record.id") }
         }
         sharedRecordIdsForSharedWithId { Long sWithPhoneId ->
             List<Long> scIds = Helpers.allToLong(SharedContact.contactIdsForSharedWithId(sWithPhoneId).list())
-            "in"("id", scIds)
+            if (scIds) { "in"("id", scIds) }
             projections { property("record.id") }
         }
         forPhoneAndStatuses { Phone thisPhone, List<String> statuses ->
@@ -143,7 +143,7 @@ class Contact implements Contactable {
             eq("record", thisRecord)
         }
         forRecords { List<Record> records ->
-            "in"("record", records)
+            if (records) { "in"("record", records) }
         }
         forPhoneAndContactId { Phone thisPhone, long contactId ->
             eq("phone", thisPhone)
@@ -152,7 +152,8 @@ class Contact implements Contactable {
         forStaffPhoneAndStatuses { StaffPhone sp, List<String> statuses ->
             or {
                 eq("phone", sp)
-                "in"("id", SharedContact.sharedWithMeContactIds(sp).list())
+                def res1 = SharedContact.sharedWithMeContactIds(sp).list()
+                if (res1) { "in"("id", res1) }
             }
             if (statuses) { "in"("status", statuses) }
             else { "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD]) }
@@ -162,7 +163,8 @@ class Contact implements Contactable {
             order("id", "desc") //by contact id
         }
         forTagAndStatuses { ContactTag ct, List<String> statuses ->
-            "in"("id", TagMembership.contactIdsForTag(ct).list())
+            def res2 = TagMembership.contactIdsForTag(ct).list()
+            if (res2) { "in"("id", res2) }
 
             if (statuses) { "in"("status", statuses) }
             else { "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD]) }
@@ -196,7 +198,8 @@ class Contact implements Contactable {
             //delete all receipts before deleting items
             def items = RecordItem.where { record == this.record }
             new DetachedCriteria(RecordItemReceipt).build {
-                "in"("item", items.list())
+                def res = items.list()
+                if (res) { "in"("item", res) }
             }.deleteAll()
             //delete all record items before deleting record
             items.deleteAll()

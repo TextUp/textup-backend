@@ -152,7 +152,7 @@ class AuthService {
                 eq("id", cId)
                 or {
                     eq("phone", s1.phone) //(1)
-                    phone { "in"("id", tPhoneIds) } //(2)
+                    if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
                 }
             } > 0
         }
@@ -184,7 +184,7 @@ class AuthService {
             List<Long> sWithMeIds = Helpers.allToLong(SharedContact.sharedWithMeIds(s1.phone).list())
             List<Long> scIds = SharedContact.createCriteria().list {
                 projections { property("id") }
-                "in"("id", sWithMeIds)
+                if (sWithMeIds) { "in"("id", sWithMeIds) }
                 eq("contact.id", cId)
             }
             !scIds.isEmpty() ? scIds[0] : null
@@ -267,7 +267,7 @@ class AuthService {
                 eq("id", tId)
                 or {
                     eq("phone", s1.phone) //(1)
-                    phone { "in"("id", tPhoneIds) } //(2)
+                    if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
                 }
             } > 0
         }
@@ -311,9 +311,9 @@ class AuthService {
                 eq("id", itemId)
                 record {
                     or {
-                        "in"("id", phoneRecIds) //(1)
-                        "in"("id", sharedRecIds) //(2)
-                        "in"("id", teamRecIds) //(3)
+                        if (phoneRecIds) { "in"("id", phoneRecIds) } //(1)
+                        if (sharedRecIds) { "in"("id", sharedRecIds) } //(2)
+                        if (teamRecIds) { "in"("id", teamRecIds) } //(3)
                     }
                 }
             } > 0
@@ -341,10 +341,10 @@ class AuthService {
             List<Long> tPhoneIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(s1.id).list())
             List<Long> validIds = Contact.createCriteria().list {
                 projections { property("id") }
-                "in"("id", contactIds)
+                if (contactIds) { "in"("id", contactIds) }
                 or {
                     eq("phone", s1.phone) //(1)
-                    phone { "in"("id", tPhoneIds) } //(2)
+                    if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
                 }
             }
             Helpers.parseFromList(validIds, contactIds)
@@ -386,10 +386,10 @@ class AuthService {
             List<Long> tPhoneIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(s1.id).list())
             List<Long> validIds = ContactTag.createCriteria().list {
                 projections { property("id") }
-                "in"("id", tIds)
+                if (tIds) { "in"("id", tIds) }
                 or {
                     eq("phone", s1.phone) //(1)
-                    phone { "in"("id", tPhoneIds) } //(2)
+                    if (tPhoneIds) { phone { "in"("id", tPhoneIds) } }//(2)
                 }
             }
             Helpers.parseFromList(validIds, tIds)

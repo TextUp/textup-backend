@@ -45,7 +45,8 @@ class StaffPhone extends Phone {
             //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
-                "in"("tag", tags.list())
+                def res = tags.list()
+                if (res) { "in"("tag", res) }
             }.deleteAll()
             //must be before we delete our contacts FOR RECORD DELETION
             def associatedRecordIds = new DetachedCriteria(Contact).build {
@@ -54,7 +55,8 @@ class StaffPhone extends Phone {
             }.list()
             //delete contacts' numbers
             new DetachedCriteria(ContactNumber).build {
-                "in"("contact", contacts.list())
+                def res = contacts.list()
+                if (res) { "in"("contact", res) }
             }.deleteAll()
             //delete shared contacts
             SharedContact.where { sharedBy == this || sharedWith == this }.deleteAll()
@@ -64,7 +66,7 @@ class StaffPhone extends Phone {
             //delete records associated with contacts, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
-                "in"("id", associatedRecordIds)
+                if (associatedRecordIds) { "in"("id", associatedRecordIds) }
             }.deleteAll()
         }
     }

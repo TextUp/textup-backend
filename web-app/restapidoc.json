@@ -5,41 +5,80 @@
          "methods": [
             {
                "headers": [],
+               "bodyobject": null,
+               "jsondocId": "5ad5ccd7-a9fb-418e-a3ed-5d064b2ed61f",
+               "consumes": [],
+               "response": {
+                  "mapKeyObject": "",
+                  "jsondocId": "4c31a001-614c-400b-8382-a22ca37cf5ec",
+                  "mapValueObject": "",
+                  "object": "Contact"
+               },
+               "pathparameters": [{
+                  "jsondocId": "32508b3a-c1ac-4652-bf9f-4d2273413586",
+                  "description": "Id of the contact",
+                  "name": "id",
+                  "allowedvalues": [],
+                  "format": "",
+                  "required": "true",
+                  "type": "Number"
+               }],
+               "apierrors": [
+                  {
+                     "jsondocId": "a455715b-72ce-4caa-a05e-e2bdb60da674",
+                     "description": "You do not have permissions to view this contact.",
+                     "code": "403"
+                  },
+                  {
+                     "jsondocId": "df89ca2c-c9a4-44d9-a234-4ebfa9686c41",
+                     "description": "The requested contact was not found.",
+                     "code": "404"
+                  }
+               ],
+               "verb": "GET",
+               "description": "Show specifics about a contact",
+               "queryparameters": [],
+               "path": "/v1/contacts/{id}",
+               "produces": ["application/json"],
+               "methodName": "show"
+            },
+            {
+               "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "adf5c919-204f-46bc-9862-a92fd510f2c3",
+                  "jsondocId": "c1ddb437-9fc1-4368-9701-932d867943ec",
                   "mapValueObject": "",
                   "map": "",
                   "object": "Contact",
                   "multiple": "Unknow"
                },
-               "jsondocId": "38e177e9-adc2-432b-b534-0a98ea0a44e1",
+               "jsondocId": "c5778d91-38d6-42da-9064-488ea12645d9",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "1d5cb3de-2e5b-46cb-a026-28d4e8e60de7",
+                  "jsondocId": "23296667-fa00-49f6-9c34-1ddd41ca9cfd",
                   "mapValueObject": "",
                   "object": "Contact"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "e433f12e-8829-4f5c-9f3a-70085ed43f59",
+                     "jsondocId": "6d5529f9-f117-4f78-8b94-f9c82bac1a65",
                      "description": "Malformed JSON in request. Or, you did not specify either staff id or team id (but not both)",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "4f35c9ac-1d35-4814-bfe7-9892d1ecbfba",
+                     "jsondocId": "6e922445-7486-488d-b283-5656f35cd5dd",
                      "description": "The updated fields created an invalid contact.",
                      "code": "422"
                   },
                   {
-                     "jsondocId": "51fb5094-5162-41ff-8b4c-e19295df7692",
+                     "jsondocId": "7a51e574-6087-4637-b61f-d45ff6baa27c",
                      "description": "You do not permissions to create a new contact for this staff member or team.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "ee29fb6a-b0d8-4dd0-8adb-6f378d0ba607",
+                     "jsondocId": "b3351cb8-280e-4220-997e-3a6031ade6da",
                      "description": "The staff or team member to add this contact to was not found.",
                      "code": "404"
                   }
@@ -48,7 +87,7 @@
                "description": "Create a new contact for staff member or team",
                "queryparameters": [
                   {
-                     "jsondocId": "b7a8e535-cd02-49f8-89ae-4154e396eac9",
+                     "jsondocId": "fbc797fa-bf03-44bb-921b-1d73ddb86509",
                      "description": "Id of the staff member",
                      "name": "staffId",
                      "allowedvalues": [],
@@ -57,7 +96,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "32be44db-daf2-457d-845b-18f874af71e0",
+                     "jsondocId": "8a54ae59-8c11-42b9-9f0f-9cc1398a8cb7",
                      "description": "Id of the team member",
                      "name": "teamId",
                      "allowedvalues": [],
@@ -73,28 +112,28 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "952b479f-d84f-41a9-a67a-1fc81d034267",
+               "jsondocId": "a7e22438-25d0-4940-a0a7-b05530275293",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "8e7a1fd7-3a0e-40f1-9946-77fefad5addc",
+                  "jsondocId": "aa4b80ca-d404-434f-b55f-e032ac37c3bc",
                   "mapValueObject": "",
                   "object": "Contact"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "1f27f5d8-180c-4158-b03d-d6782bcfbe97",
+                     "jsondocId": "6858bcc0-1f25-47bd-8ffc-6a13438c92ff",
                      "description": "The staff or team was not found. Or, the\n            staff or team specified is not allowed to have contacts.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "c62c4b78-e63e-4a58-b877-c97b709f2621",
+                     "jsondocId": "a940ab21-1832-4d77-a7e3-b431d19ff457",
                      "description": "You must specify either a staff id or\n            team id or tag id, but not more than one. Or you specified an invalid staffStatus.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "ca298f52-e211-4028-b8b1-70209e13336d",
+                     "jsondocId": "2307400a-497f-425c-a4e6-c4e7a9da2b4c",
                      "description": "You do not have permission to do this.",
                      "code": "403"
                   }
@@ -103,7 +142,7 @@
                "description": "List contacts for a specific staff or team",
                "queryparameters": [
                   {
-                     "jsondocId": "a6b946ae-cd11-4f8f-a975-06b7be95d83b",
+                     "jsondocId": "f55a3cf3-3821-429c-9271-df4b06d72774",
                      "description": "Max number of results",
                      "name": "max",
                      "allowedvalues": [],
@@ -112,7 +151,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "7ab73eba-05d8-48f3-9630-dbc14a6e659a",
+                     "jsondocId": "326d5300-5f90-4472-9b92-ce5a1c7addc6",
                      "description": "Offset of results",
                      "name": "offset",
                      "allowedvalues": [],
@@ -121,7 +160,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "dba12f0b-9c5e-4683-be64-97029009346e",
+                     "jsondocId": "0a02fea3-23b4-40ab-aaae-7f8300835d24",
                      "description": "List of staff statuses to restrict to.\n            Default showing unread and active. The two shared stauses are only valid when\n            specifying a staffId and will result in a 400 error otherwise.",
                      "name": "status[]",
                      "allowedvalues": [
@@ -135,7 +174,7 @@
                      "type": "List"
                   },
                   {
-                     "jsondocId": "2874b661-2662-4f5d-a514-af67b812bd1c",
+                     "jsondocId": "8890c466-9c91-45c4-be4b-6fa936c0a501",
                      "description": "One of sharedByMe or sharedWithMe.\n            This takes precedence over the status[] parameter. Only used with a staffId.",
                      "name": "staffStatus",
                      "allowedvalues": [],
@@ -144,7 +183,7 @@
                      "type": "String"
                   },
                   {
-                     "jsondocId": "5f18815c-9f4c-4591-97f7-02757c9acd26",
+                     "jsondocId": "17a5d74c-8f02-407d-9a75-12c5e68af04c",
                      "description": "Id of the staff member",
                      "name": "staffId",
                      "allowedvalues": [],
@@ -153,7 +192,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "bb36f681-0f41-4a0f-b5fd-e4f94cc8aabb",
+                     "jsondocId": "8b6b0c19-8bfa-46f9-afe4-5e28a125f8a9",
                      "description": "Id of the team member",
                      "name": "teamId",
                      "allowedvalues": [],
@@ -162,13 +201,22 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "2b4e9d79-e1a0-418a-9446-437e791cae15",
+                     "jsondocId": "55f147a0-aa58-4586-a646-18efeed58152",
                      "description": "Id of the team member",
                      "name": "tagId",
                      "allowedvalues": [],
                      "format": "",
                      "required": "true",
                      "type": "Number"
+                  },
+                  {
+                     "jsondocId": "fff3acab-dd21-4797-bbb9-9a70dbe3e748",
+                     "description": "String to search for in contact name,\n            limited to active and unread contacts",
+                     "name": "search",
+                     "allowedvalues": [],
+                     "format": "",
+                     "required": "false",
+                     "type": "String"
                   }
                ],
                "path": "/v1/contacts",
@@ -178,16 +226,16 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "ebb51c92-040f-4bcc-b5e3-73dcd4276b50",
+               "jsondocId": "337184c8-7e6b-400e-b2c0-9e90edea822a",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "d66e2e78-7eff-4f1c-a7a2-c817c025596a",
+                  "jsondocId": "357d796f-15b0-408a-a1e7-305e9cbdf221",
                   "mapValueObject": "",
                   "object": "Contact"
                },
                "pathparameters": [{
-                  "jsondocId": "d4770031-e5f6-41a8-a1ba-941fb18ebc9f",
+                  "jsondocId": "d9ad8752-b24c-41ba-b1be-d063220bf31d",
                   "description": "Id of the contact",
                   "name": "id",
                   "allowedvalues": [],
@@ -197,12 +245,12 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "675a093e-f979-477f-85a2-9d917274882e",
+                     "jsondocId": "ab9f983b-4fea-4ffb-ac93-f7e4e965c786",
                      "description": "The requested contact was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "a6c42cb7-28c5-4e50-b2b4-bd0915c1cafa",
+                     "jsondocId": "ab487011-2adf-4fa1-acb3-bedd3f45caa1",
                      "description": "You do not have permission to modify this contact.",
                      "code": "403"
                   }
@@ -218,22 +266,22 @@
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "6ed222ac-7066-4ea7-9825-616337256112",
+                  "jsondocId": "82fe8d78-723b-499c-83fc-d1e3541f275b",
                   "mapValueObject": "",
                   "map": "",
                   "object": "Contact",
                   "multiple": "Unknow"
                },
-               "jsondocId": "424578bb-281b-423e-8d72-dbfcb4fed7f4",
+               "jsondocId": "23e3eff7-5d87-4214-8c98-dd86a79e9975",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "a8b87d0f-1109-46ac-badd-c49d35f2cef8",
+                  "jsondocId": "7fe2c707-c69b-43b9-a3d9-08484fe146a9",
                   "mapValueObject": "",
                   "object": "Contact"
                },
                "pathparameters": [{
-                  "jsondocId": "d1865880-153d-4ff9-b8e2-94b127da32ef",
+                  "jsondocId": "0d5826dc-e827-44b8-b6a8-0275884b49b3",
                   "description": "Id of the contact",
                   "name": "id",
                   "allowedvalues": [],
@@ -243,22 +291,22 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "e37069a0-94c5-4420-be79-92c07697e9fa",
+                     "jsondocId": "693dd830-94b6-47df-be5f-3c87ae75cc4a",
                      "description": "Malformed JSON in request.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "4cbdc470-27e6-4b65-9069-b71349d33a26",
+                     "jsondocId": "e0ab7f1d-910b-4aa2-b971-661a854939a3",
                      "description": "The requested contact was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "386d14df-e385-4dd1-a9d5-cb7c9ac038a9",
+                     "jsondocId": "5653a28b-b02e-4d1e-a29b-c58d6995b320",
                      "description": "You do not have permission to modify this contact.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "825decf0-d198-42ba-91bf-d27eaf19d66f",
+                     "jsondocId": "08df2ae8-0675-42c1-8eee-68dfbc86cdcf",
                      "description": "The updated fields created an invalid contact.",
                      "code": "422"
                   }
@@ -269,48 +317,9 @@
                "path": "/v1/contacts/{id}",
                "produces": ["application/json"],
                "methodName": "update"
-            },
-            {
-               "headers": [],
-               "bodyobject": null,
-               "jsondocId": "e6b63766-2ba3-4881-98b5-35623dd564d7",
-               "consumes": [],
-               "response": {
-                  "mapKeyObject": "",
-                  "jsondocId": "19b4705e-10a6-49df-bfbc-ee2c42f4b84a",
-                  "mapValueObject": "",
-                  "object": "Contact"
-               },
-               "pathparameters": [{
-                  "jsondocId": "33cc854b-8c8b-46e2-8456-0075a619c95a",
-                  "description": "Id of the contact",
-                  "name": "id",
-                  "allowedvalues": [],
-                  "format": "",
-                  "required": "true",
-                  "type": "Number"
-               }],
-               "apierrors": [
-                  {
-                     "jsondocId": "a74a3ae8-e3d3-47f5-81dd-4e389beb3337",
-                     "description": "You do not have permissions to view this contact.",
-                     "code": "403"
-                  },
-                  {
-                     "jsondocId": "615c174e-9fe1-4561-8c14-390028481d31",
-                     "description": "The requested contact was not found.",
-                     "code": "404"
-                  }
-               ],
-               "verb": "GET",
-               "description": "Show specifics about a contact",
-               "queryparameters": [],
-               "path": "/v1/contacts/{id}",
-               "produces": ["application/json"],
-               "methodName": "show"
             }
          ],
-         "jsondocId": "bc4aafbe-7f44-42c3-824c-f812ecebb79e",
+         "jsondocId": "c94b43f0-5306-4c0c-9097-8c374ea41f29",
          "description": "Operations on contacts, after logging in.",
          "name": "Contact"
       },
@@ -319,11 +328,43 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "54fe4ccc-2615-4ba8-91e5-5c1806bf233d",
+               "jsondocId": "d95faff9-b6fa-4472-9314-50b13e065f9c",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "5bb19d20-ae08-4263-a1df-e7cc1317eb29",
+                  "jsondocId": "f9d72d49-dbdf-4a38-aaef-eda0f00f3202",
+                  "mapValueObject": "",
+                  "object": "Organization"
+               },
+               "pathparameters": [{
+                  "jsondocId": "5b1a190b-6b89-4113-b2e6-a4f17a57e5f9",
+                  "description": "Id of the organization",
+                  "name": "id",
+                  "allowedvalues": [],
+                  "format": "",
+                  "required": "true",
+                  "type": "Number"
+               }],
+               "apierrors": [{
+                  "jsondocId": "fdb417f7-b489-4770-8f42-b0499892b749",
+                  "description": "The organization was not found.",
+                  "code": "404"
+               }],
+               "verb": "GET",
+               "description": "Show specifics about an organization",
+               "queryparameters": [],
+               "path": "/v1/organizations/{id}",
+               "produces": ["application/json"],
+               "methodName": "show"
+            },
+            {
+               "headers": [],
+               "bodyobject": null,
+               "jsondocId": "f3d30675-91be-4ec2-b4f7-d1f3cead7a50",
+               "consumes": [],
+               "response": {
+                  "mapKeyObject": "",
+                  "jsondocId": "e056304c-152a-4385-bef0-4dcb811e317c",
                   "mapValueObject": "",
                   "object": "Organization"
                },
@@ -333,7 +374,7 @@
                "description": "List organizations",
                "queryparameters": [
                   {
-                     "jsondocId": "c2a4d87a-b28e-4059-a88e-98a52b7b1c16",
+                     "jsondocId": "caff620a-88f1-4b86-8b7c-6a23bfb6a822",
                      "description": "Max number of results",
                      "name": "max",
                      "allowedvalues": [],
@@ -342,7 +383,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "44d839ec-67d5-40a6-b2cd-94e1c7ad6586",
+                     "jsondocId": "6fd481e2-b6d0-447b-9fd4-0a513194ab7f",
                      "description": "Offset of results",
                      "name": "offset",
                      "allowedvalues": [],
@@ -351,7 +392,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "205ab9a6-ea50-4a65-a764-fc8abf2b158c",
+                     "jsondocId": "c7827569-b131-4d07-b5b6-ba00e517f962",
                      "description": "String to search for in\n            organization's name and address",
                      "name": "search",
                      "allowedvalues": [],
@@ -368,22 +409,22 @@
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "f078e531-1c5f-4439-b47f-8835c769a56f",
+                  "jsondocId": "90f8d79d-d396-49e4-9e23-67a4bfdaf85d",
                   "mapValueObject": "",
                   "map": "",
                   "object": "Organization",
                   "multiple": "Unknow"
                },
-               "jsondocId": "a8d01492-92d5-4758-962f-6a734d12f02e",
+               "jsondocId": "a022fd4d-3fbc-489b-9229-4bac502f03d4",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "b79f45ec-c8e1-4dee-b827-0ae8dab30120",
+                  "jsondocId": "f093c627-dd3c-4d42-bf29-035b50f6e249",
                   "mapValueObject": "",
                   "object": "Organization"
                },
                "pathparameters": [{
-                  "jsondocId": "bbce3426-c5bb-48d5-8d62-29847317d94b",
+                  "jsondocId": "c3523629-ec05-4017-b0bb-65e75b913ea8",
                   "description": "Id of the organization",
                   "name": "id",
                   "allowedvalues": [],
@@ -393,22 +434,22 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "1a2b78c7-d73f-4232-aa2f-1cecede8ae71",
+                     "jsondocId": "10501f1b-3441-4597-beb5-82a40325ea7b",
                      "description": "Malformed JSON in request.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "f6efbec2-8176-460a-bf7e-4037b5789480",
+                     "jsondocId": "4356d220-0c99-42c3-b860-d979faf80a23",
                      "description": "The logged in staff member is not an admin at this\n            organization and so cannot make any changes.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "7e98057f-8f78-4531-82f8-2fbb8695e88c",
+                     "jsondocId": "28fa5e94-f01b-42f2-beee-ba78e5632f67",
                      "description": "The organization was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "53058995-1f47-4b45-8dd0-7bf07d93bcb1",
+                     "jsondocId": "eb9311b9-da46-4662-8ee0-828d95c70dda",
                      "description": "The updated fields created an invalid organization.",
                      "code": "422"
                   }
@@ -419,41 +460,9 @@
                "path": "/v1/organizations/{id}",
                "produces": ["application/json"],
                "methodName": "update"
-            },
-            {
-               "headers": [],
-               "bodyobject": null,
-               "jsondocId": "a4e53834-0934-405a-b59e-60ed2af2c8a4",
-               "consumes": [],
-               "response": {
-                  "mapKeyObject": "",
-                  "jsondocId": "3d4cc8d3-303a-41ef-809a-3f75930faf2f",
-                  "mapValueObject": "",
-                  "object": "Organization"
-               },
-               "pathparameters": [{
-                  "jsondocId": "9dcf1ab7-50a3-4c05-ba44-c928330d9718",
-                  "description": "Id of the organization",
-                  "name": "id",
-                  "allowedvalues": [],
-                  "format": "",
-                  "required": "true",
-                  "type": "Number"
-               }],
-               "apierrors": [{
-                  "jsondocId": "c6ad80e7-a308-49fb-84ae-848d0ae6e4ca",
-                  "description": "The organization was not found.",
-                  "code": "404"
-               }],
-               "verb": "GET",
-               "description": "Show specifics about an organization",
-               "queryparameters": [],
-               "path": "/v1/organizations/{id}",
-               "produces": ["application/json"],
-               "methodName": "show"
             }
          ],
-         "jsondocId": "30eb6013-9243-48b2-ac4a-15b8514b1dd2",
+         "jsondocId": "00de7522-008e-4322-8004-cd90113cd52b",
          "description": "Operations on organizations after logging in.",
          "name": "Organization"
       },
@@ -463,29 +472,29 @@
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "eb8114da-2cb6-4e74-916e-5d67cbc74297",
+                  "jsondocId": "bc654901-c979-4dbe-a8e5-39bfdaeda057",
                   "mapValueObject": "",
                   "map": "",
                   "object": "password reset",
                   "multiple": "Unknow"
                },
-               "jsondocId": "e7bad9c0-f7e9-4f91-8654-e1af18e41c93",
+               "jsondocId": "37e858b7-c00d-4288-873c-84dd5ccd587c",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "f2f04721-4289-4c86-8596-07d2c706f109",
+                  "jsondocId": "b91862d8-d8b0-47e1-ba11-ebf3865d0e69",
                   "mapValueObject": "",
                   "object": "[passwordResetRequest]"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "bccad4ab-6c0d-4fdf-b0a7-44aae90bfb0a",
+                     "jsondocId": "276147b3-e9c3-46d5-b49b-67e637139051",
                      "description": "Malformed JSON in request or could not send email.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "0fb51a8d-8cd2-4c14-bae3-4f414cf08c16",
+                     "jsondocId": "bfa222ab-a2b6-44f0-8783-c39ae0c0456e",
                      "description": "Staff with passed-in username not found or has no email.",
                      "code": "404"
                   }
@@ -501,34 +510,34 @@
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "d6976971-ed25-4d9f-9aad-28a5c790da35",
+                  "jsondocId": "335c302f-b1f0-49d0-a61d-8c397df3caca",
                   "mapValueObject": "",
                   "map": "",
                   "object": "password reset",
                   "multiple": "Unknow"
                },
-               "jsondocId": "5f7b5127-fc32-4adf-979c-c9e3702e4218",
+               "jsondocId": "3ae3edf7-1dfa-4372-8286-9dd5cbbccc3a",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "d3776b2a-743b-4018-b3af-4c68f643cb7f",
+                  "jsondocId": "b7b82b1e-e63e-48e5-af7c-e065d70c0f9e",
                   "mapValueObject": "",
                   "object": "[newPasswordRequest]"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "725ded04-d4ec-41e8-bfb6-c9ed609f792f",
+                     "jsondocId": "4582f768-e004-4c03-a711-b86fe96aea11",
                      "description": "Malformed JSON in request or expired token.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "e7b52b3f-0b7c-4f17-87d3-cbf1907c6e74",
+                     "jsondocId": "ee332a44-f03f-4ed7-b9e1-37e598064a0a",
                      "description": "Could not find token",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "ce3db618-5452-4ded-9030-3272a3bdbc11",
+                     "jsondocId": "c21459f9-6a5b-4c83-aa77-e19c518999ec",
                      "description": "The new password is invalid.",
                      "code": "422"
                   }
@@ -541,7 +550,7 @@
                "methodName": "resetPassword"
             }
          ],
-         "jsondocId": "d22bdeee-8186-4e7c-81ef-4f38b62673b9",
+         "jsondocId": "18cdbc97-ea50-4d9a-ae78-8453fb5b7eaf",
          "description": "Password reset",
          "name": "PasswordReset"
       },
@@ -549,36 +558,75 @@
          "methods": [
             {
                "headers": [],
+               "bodyobject": null,
+               "jsondocId": "32cc08ad-a603-420f-84a0-fd3e597cfdbf",
+               "consumes": [],
+               "response": {
+                  "mapKeyObject": "",
+                  "jsondocId": "198a852d-cba8-4a92-a5aa-1568a79b77a6",
+                  "mapValueObject": "",
+                  "object": "RecordCall, RecordText, or RecordNote"
+               },
+               "pathparameters": [{
+                  "jsondocId": "52b3e517-b948-4ae3-8cb5-0c94e2067c91",
+                  "description": "Id of the record item",
+                  "name": "id",
+                  "allowedvalues": [],
+                  "format": "",
+                  "required": "true",
+                  "type": "Number"
+               }],
+               "apierrors": [
+                  {
+                     "jsondocId": "d0b644df-a10d-4438-8dbc-3ed47c8e4ba6",
+                     "description": "You do not have permissions to view this record item.",
+                     "code": "403"
+                  },
+                  {
+                     "jsondocId": "69f2719a-5db0-4e0e-9c61-ae66669821d6",
+                     "description": "The requested record item was not found.",
+                     "code": "404"
+                  }
+               ],
+               "verb": "GET",
+               "description": "Show specifics about a record item",
+               "queryparameters": [],
+               "path": "/v1/records/{id}",
+               "produces": ["application/json"],
+               "methodName": "show"
+            },
+            {
+               "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "8c4f7e11-5100-4c3c-a77d-0f94901d9803",
+                  "jsondocId": "8a70b6bf-f6c5-4c93-b955-0f8658effd1f",
                   "mapValueObject": "",
                   "map": "",
                   "object": "RecordCall, RecordText, or RecordNote",
                   "multiple": "Unknow"
                },
-               "jsondocId": "570f2204-44c2-4e0f-a71d-5677a0d61253",
+               "jsondocId": "c9e587a6-2004-477f-a040-9e14fbf7754f",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "6d0ea2e5-a4a5-42e5-8d97-0362ffd47a42",
+                  "jsondocId": "9e7dfcdc-ccc8-4af6-8469-53e160e85c2a",
                   "mapValueObject": "",
                   "object": "List of RecordCall, RecordText, or RecordNote"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "0bb2e0a8-2e78-4968-8391-eb22c8492a6a",
+                     "jsondocId": "8b7a1408-2efc-4e5c-9e9c-4581ad8e4717",
                      "description": "Malformed JSON in request. Or, you did not specify either staff id or team id (but not both)",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "a9496d15-712d-4044-a7fc-3b4931496f3e",
+                     "jsondocId": "eef2b610-811d-43d9-b79e-fef370d304e0",
                      "description": "You do not have permission to add items to this record.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "a60abe67-42be-4de3-9b55-b6c84e07feb0",
+                     "jsondocId": "ea598237-410e-4f81-a79a-c210a5c1acd1",
                      "description": "The fields created an invalid record item.",
                      "code": "422"
                   }
@@ -587,7 +635,7 @@
                "description": "Create a new record item",
                "queryparameters": [
                   {
-                     "jsondocId": "8f444a37-6864-460f-9a9d-cb3d23971235",
+                     "jsondocId": "dfdcfd94-209b-4932-8cf2-9f3abee98b02",
                      "description": "Id of the staff to create record item for",
                      "name": "staffId",
                      "allowedvalues": [],
@@ -596,7 +644,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "9df90644-b65f-4e78-a7a1-96826aa2c053",
+                     "jsondocId": "ad303d00-9b49-4ee5-bd53-449adfac067a",
                      "description": "Id of the team to create record item for",
                      "name": "teamId",
                      "allowedvalues": [],
@@ -612,28 +660,28 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "b7e24dda-7100-450a-864c-06521b4af9e5",
+               "jsondocId": "bccbe85a-9785-409f-a40d-00a805159986",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "de3d56e1-53a8-4761-a8ab-eb0ef44f5dcc",
+                  "jsondocId": "b38df94a-d96f-421e-b42e-57472e85823f",
                   "mapValueObject": "",
                   "object": "RecordCall, RecordText, or RecordNote"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "ab8626f1-ea71-4010-8652-aed359e33dc2",
+                     "jsondocId": "5dc33a01-2d5a-41b5-9a9d-14da6f2763a1",
                      "description": "The specific contact was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "13dd8cb5-c216-421a-81d8-7e172513ae03",
+                     "jsondocId": "23c473d5-eff0-442f-b73e-4454a7564e4d",
                      "description": "You must specify a contact id.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "1566dc63-9db5-4b23-b36a-454a2935dea2",
+                     "jsondocId": "ccf255c0-0186-4277-8ecb-6a42ddfe3e66",
                      "description": "You do not have permission to do this.",
                      "code": "403"
                   }
@@ -642,7 +690,7 @@
                "description": "List contacts for a specific staff or team",
                "queryparameters": [
                   {
-                     "jsondocId": "186b2983-dc77-4aec-a32f-415db08b065f",
+                     "jsondocId": "8e12697f-e4aa-47d0-9b36-ec2c5ecf594c",
                      "description": "Max number of results",
                      "name": "max",
                      "allowedvalues": [],
@@ -651,7 +699,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "bb575d3e-9d31-48c8-82de-151769ef1ed2",
+                     "jsondocId": "fee7d83f-e584-45ce-bad9-ed028cfecc76",
                      "description": "Offset of results",
                      "name": "offset",
                      "allowedvalues": [],
@@ -660,7 +708,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "0054fb98-ee3e-4178-a7bc-a86c1dadb82f",
+                     "jsondocId": "19fa61f4-35ba-4068-9f8b-cfad1f5b4137",
                      "description": "Get all record items since. We assume is UTC.",
                      "name": "since",
                      "allowedvalues": [],
@@ -669,7 +717,7 @@
                      "type": "DateTime"
                   },
                   {
-                     "jsondocId": "b7e34cb6-5c3e-4585-a3cd-e7c8422663d9",
+                     "jsondocId": "83ae2cbf-b8fc-4a1a-8b67-cf369fdc89c8",
                      "description": "Get all record items before. We assume is UTC.",
                      "name": "before",
                      "allowedvalues": [],
@@ -678,7 +726,7 @@
                      "type": "DateTime"
                   },
                   {
-                     "jsondocId": "9d3bc288-9acb-4abb-b051-c90cd26f8494",
+                     "jsondocId": "28d6f5a0-ac68-4ded-859a-840559e0ace8",
                      "description": "Id of the associated contact",
                      "name": "contactId",
                      "allowedvalues": [],
@@ -695,22 +743,22 @@
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "bcfa6cda-af17-49d6-8501-da20e4db6e16",
+                  "jsondocId": "b711e0ae-8e3a-4eb9-9957-9fb5663f385d",
                   "mapValueObject": "",
                   "map": "",
                   "object": "RecordCall, RecordText, or RecordNote",
                   "multiple": "Unknow"
                },
-               "jsondocId": "b2c47947-13e4-42c9-867f-74eb6b435a66",
+               "jsondocId": "28c9993d-bbb8-418f-af49-94baad9bab19",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "b8e79584-dd6f-4792-9284-ce8ba9702104",
+                  "jsondocId": "1ecb52d6-c76c-400b-bf1b-62b09599b719",
                   "mapValueObject": "",
                   "object": "RecordCall, RecordText, or RecordNote"
                },
                "pathparameters": [{
-                  "jsondocId": "93b50f34-8a97-44b4-8929-4458ccd0eb4b",
+                  "jsondocId": "87706c46-66a9-41fd-bfdb-4e0fc0c3c6fd",
                   "description": "Id of the record item",
                   "name": "id",
                   "allowedvalues": [],
@@ -720,22 +768,22 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "62246706-b8a2-485f-bb0a-ad0bdf17b16c",
+                     "jsondocId": "7cbf7c65-75d3-4a56-8660-7557477eca16",
                      "description": "Malformed JSON in request.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "7171b5bb-79a6-4d82-8cbe-15f3c5e6b29f",
+                     "jsondocId": "e12c7ce8-83a3-4c20-8b35-1d625ec39649",
                      "description": "The requested record item was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "6e14376e-478b-4e4e-9114-c6895c7c4e55",
+                     "jsondocId": "00c4bb7e-809a-4041-9d73-39b7796b0745",
                      "description": "This record item is not editable.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "d7add7e4-d45e-40d9-be82-c29e9120319a",
+                     "jsondocId": "394ec30d-3528-41da-b2b6-2aa8a5575a36",
                      "description": "The updated fields created an invalid record item.",
                      "code": "422"
                   }
@@ -746,21 +794,28 @@
                "path": "/v1/records/{id}",
                "produces": ["application/json"],
                "methodName": "update"
-            },
+            }
+         ],
+         "jsondocId": "fc134888-01a1-4a71-a435-c749c9cdc289",
+         "description": "Operations on records of communications belonging to staff and teams, after logging in.",
+         "name": "Record"
+      },
+      {
+         "methods": [
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "89adb468-87e0-4028-871e-31fdcc365780",
+               "jsondocId": "fb97c831-f565-4f54-bcaf-f686dd173532",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "09fc42dc-1bfb-440a-ba03-88ee2f5b6b41",
+                  "jsondocId": "7cc63a06-be4a-4e5f-a680-8478a0bee3c8",
                   "mapValueObject": "",
-                  "object": "RecordCall, RecordText, or RecordNote"
+                  "object": "Staff"
                },
                "pathparameters": [{
-                  "jsondocId": "26eb9ddb-fa8f-45a9-a693-f4e3db7550dd",
-                  "description": "Id of the record item",
+                  "jsondocId": "26760f77-7d35-42d2-85d7-9f42bd02f897",
+                  "description": "Id of the staff member",
                   "name": "id",
                   "allowedvalues": [],
                   "format": "",
@@ -769,57 +824,58 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "951747db-767f-44f7-b321-cd6cfc85acaa",
-                     "description": "You do not have permissions to view this record item.",
-                     "code": "403"
+                     "jsondocId": "13b3003a-8a9c-4a10-9a0c-2b547d733038",
+                     "description": "The staff member was not found.",
+                     "code": "404"
                   },
                   {
-                     "jsondocId": "7e84a29f-078b-43a0-830f-618806c4ea6c",
-                     "description": "The requested record item was not found.",
-                     "code": "404"
+                     "jsondocId": "878b52f7-0b8b-4cbe-b142-002340070bc0",
+                     "description": "You do not have permission to do this.",
+                     "code": "403"
                   }
                ],
                "verb": "GET",
-               "description": "Show specifics about a record item",
-               "queryparameters": [],
-               "path": "/v1/records/{id}",
+               "description": "Show specifics about a staff member",
+               "queryparameters": [{
+                  "jsondocId": "c8839b32-fb3b-4111-8664-43191db38263",
+                  "description": "IANA zone info key to convert times to,\n            include schedule intervals, defaults to UTC if unspecified or invalid",
+                  "name": "timezone",
+                  "allowedvalues": [],
+                  "format": "",
+                  "required": "false",
+                  "type": "String"
+               }],
+               "path": "/v1/staff/{id}",
                "produces": ["application/json"],
                "methodName": "show"
-            }
-         ],
-         "jsondocId": "fb061595-8ec8-4035-afae-f21fa458a705",
-         "description": "Operations on records of communications belonging to staff and teams, after logging in.",
-         "name": "Record"
-      },
-      {
-         "methods": [
+            },
             {
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "d6d55399-2a42-4467-a98d-f8651a145854",
+                  "jsondocId": "36ba1165-02aa-4dc6-87e7-e8f8f093b268",
                   "mapValueObject": "",
                   "map": "",
                   "object": "Staff",
                   "multiple": "Unknow"
                },
-               "jsondocId": "fe90519f-fb0b-4646-b451-8ea9d22c8f25",
+               "jsondocId": "1fcdab27-9f66-48c6-8bbf-505f26fbe318",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "9b1be40f-271b-48ab-8e3b-91db17744d7f",
+                  "jsondocId": "90f731c5-ce2d-4ddd-8fe6-efb5b345622d",
                   "mapValueObject": "",
                   "object": "Staff"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "99c81b84-47d6-41d7-afbf-ab0b4a64bf11",
+                     "jsondocId": "e42a9135-264a-43b3-9efe-2afbbe4c8f4e",
                      "description": "Malformed JSON in request.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "a49e394d-ef63-439f-92e0-7be98e74bf4b",
+                     "jsondocId": "df4066da-f695-40d0-9abf-167559e4fa4c",
                      "description": "The updated fields created an invalid staff member.",
                      "code": "422"
                   }
@@ -834,28 +890,28 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "ff705728-2321-4eeb-9c6d-155a9e2885a3",
+               "jsondocId": "340be6f0-d87e-4841-b4d2-c10ca8d8ec9a",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "85bf0dbd-819d-4ea2-8e35-81ca7e63e891",
+                  "jsondocId": "c002ff11-9cf7-4451-9ead-bda05412c0f5",
                   "mapValueObject": "",
                   "object": "Staff"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "6b1f140a-9373-4ff1-b218-514484d9adf8",
+                     "jsondocId": "34f2339f-5745-42e4-bd78-85cac595ba0a",
                      "description": "The organization or team was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "807d1239-177c-4dba-acbd-0cd53618715a",
-                     "description": "You must specify either organization id or team id but not both.",
+                     "jsondocId": "084599ea-ebfc-421b-abef-93bcf4137896",
+                     "description": "You must specify either organization id\n            or team id but not both",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "9e12424b-3e2b-4878-8515-5d2587bc22bc",
+                     "jsondocId": "b70d7157-2c3c-4f2c-bcc2-fc49df409b66",
                      "description": "You do not have permission to do this.",
                      "code": "403"
                   }
@@ -864,7 +920,7 @@
                "description": "List staff",
                "queryparameters": [
                   {
-                     "jsondocId": "ff57f380-7e06-4b16-a741-bf1d6fd6b775",
+                     "jsondocId": "86779ece-3f96-4e26-b2ad-844a2c3936af",
                      "description": "Max number of results",
                      "name": "max",
                      "allowedvalues": [],
@@ -873,7 +929,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "b2b9464c-3485-47b1-97e6-cd1af08cf6e6",
+                     "jsondocId": "72c3a820-8067-4b11-96c8-2c74ad6e77bb",
                      "description": "Offset of results",
                      "name": "offset",
                      "allowedvalues": [],
@@ -882,7 +938,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "6b535355-a4f7-4109-a45e-6e97e947e182",
+                     "jsondocId": "b4ec91c2-eb8b-406b-8790-26ee13d0358e",
                      "description": "List of staff statuses to restrict to",
                      "name": "status[]",
                      "allowedvalues": [
@@ -896,7 +952,7 @@
                      "type": "list"
                   },
                   {
-                     "jsondocId": "761d692a-d150-4759-929f-8a600f483fbb",
+                     "jsondocId": "3e2ca1b8-a388-4022-ab31-a695129bd916",
                      "description": "Id of the organization to restrict results to",
                      "name": "organizationId",
                      "allowedvalues": [],
@@ -905,13 +961,31 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "afdadeec-3da9-4867-b1f5-d310393c024c",
+                     "jsondocId": "88586381-b24a-4332-905b-f79885d3e1f6",
                      "description": "Id of the team to restrict results to",
                      "name": "teamId",
                      "allowedvalues": [],
                      "format": "",
                      "required": "true",
                      "type": "Number"
+                  },
+                  {
+                     "jsondocId": "502daf5c-f908-433d-8ce6-5f8b3130f5e7",
+                     "description": "Restrict results to staff who are on the same\n            team as the provided staff id",
+                     "name": "onSameTeamAsStaffId",
+                     "allowedvalues": [],
+                     "format": "",
+                     "required": "true",
+                     "type": "Number"
+                  },
+                  {
+                     "jsondocId": "b24b56bb-4852-4aa3-bc3f-5ea5c524967d",
+                     "description": "IANA zone info key to convert times to,\n            include schedule intervals, defaults to UTC if unspecified or invalid",
+                     "name": "timezone",
+                     "allowedvalues": [],
+                     "format": "",
+                     "required": "false",
+                     "type": "String"
                   }
                ],
                "path": "/v1/staff",
@@ -922,22 +996,22 @@
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "f66133e3-0a60-4c57-ac18-253bf2bb8da1",
+                  "jsondocId": "c5c44a6a-3040-41e5-a97e-deeef9e47704",
                   "mapValueObject": "",
                   "map": "",
                   "object": "Staff",
                   "multiple": "Unknow"
                },
-               "jsondocId": "7dad2eb5-adbd-42a0-9640-744ecc8dabcf",
+               "jsondocId": "d8e4d0e9-3b56-46f1-9a9c-04d93e09a765",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "7c0ac061-c429-4cf4-b1e4-4825c8bbae22",
+                  "jsondocId": "35d5c270-dcec-430a-a92f-4538e742209f",
                   "mapValueObject": "",
                   "object": "Staff"
                },
                "pathparameters": [{
-                  "jsondocId": "d0f8e7ac-0b25-4a73-b666-64f4d71658d7",
+                  "jsondocId": "a13b2049-b947-4273-a750-9373bd408267",
                   "description": "Id of the staff member",
                   "name": "id",
                   "allowedvalues": [],
@@ -947,74 +1021,43 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "532de218-2fd5-49b4-97ea-4e792d64ad6d",
+                     "jsondocId": "940f6777-4a7f-4ec5-82af-a109952d0915",
                      "description": "Malformed JSON in request.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "06b5ef51-a54f-41e0-8b16-7b2963cdb581",
+                     "jsondocId": "a2e50130-a54f-4df7-8880-dd14ea83a7e2",
                      "description": "The staff member was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "3873629b-e893-45d4-a00f-7becca51988a",
+                     "jsondocId": "89e8b416-71be-4c26-9f56-8d716246a358",
                      "description": "The logged in staff member is trying\n            to modify another staff member and is not an admin at the organization.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "05805fed-7271-45b2-8f9b-3aa12aa83cb0",
+                     "jsondocId": "62eee8d0-73f0-4ff2-9a3b-80fd2cc6d526",
                      "description": "The updated fields created an invalid staff member.",
                      "code": "422"
                   }
                ],
                "verb": "PUT",
                "description": "Update an existing staff member",
-               "queryparameters": [],
+               "queryparameters": [{
+                  "jsondocId": "2702759b-bf4a-4ee7-867a-a30eae039c88",
+                  "description": "IANA zone info key that the dates, including schedule intervals\n            passed in are in, defaults to UTC if unspecified or invalid",
+                  "name": "timezone",
+                  "allowedvalues": [],
+                  "format": "",
+                  "required": "false",
+                  "type": "String"
+               }],
                "path": "/v1/staff/{id}",
                "produces": ["application/json"],
                "methodName": "update"
-            },
-            {
-               "headers": [],
-               "bodyobject": null,
-               "jsondocId": "cbf4d44b-e56c-47a6-aff5-af06dcc8f8f2",
-               "consumes": [],
-               "response": {
-                  "mapKeyObject": "",
-                  "jsondocId": "560556cf-be45-480d-85e8-35df04ca84a2",
-                  "mapValueObject": "",
-                  "object": "Staff"
-               },
-               "pathparameters": [{
-                  "jsondocId": "64432dc8-8a00-4cfd-93b8-2273d3812601",
-                  "description": "Id of the staff member",
-                  "name": "id",
-                  "allowedvalues": [],
-                  "format": "",
-                  "required": "true",
-                  "type": "Number"
-               }],
-               "apierrors": [
-                  {
-                     "jsondocId": "297b7502-6c23-446c-a309-9e2a009e1a2f",
-                     "description": "The staff member was not found.",
-                     "code": "404"
-                  },
-                  {
-                     "jsondocId": "8585d271-53ee-44ab-a7a8-e4b510235536",
-                     "description": "You do not have permission to do this.",
-                     "code": "403"
-                  }
-               ],
-               "verb": "GET",
-               "description": "Show specifics about a staff member",
-               "queryparameters": [],
-               "path": "/v1/staff/{id}",
-               "produces": ["application/json"],
-               "methodName": "show"
             }
          ],
-         "jsondocId": "a574a61e-8dba-4596-99f7-8512b41d65ac",
+         "jsondocId": "56fa1ac9-54ed-4bfd-a8fc-835b74d0a90b",
          "description": "Operations on staff members after logging in.",
          "name": "Staff"
       },
@@ -1022,41 +1065,80 @@
          "methods": [
             {
                "headers": [],
+               "bodyobject": null,
+               "jsondocId": "8b8bc77b-f913-4d13-bee0-9bc38f69f3a1",
+               "consumes": [],
+               "response": {
+                  "mapKeyObject": "",
+                  "jsondocId": "4223c582-0f5e-4061-8c8a-e1c137656f01",
+                  "mapValueObject": "",
+                  "object": "tag"
+               },
+               "pathparameters": [{
+                  "jsondocId": "918f0a21-05d8-4723-b3cd-6fdb01423be7",
+                  "description": "Id of the tag",
+                  "name": "id",
+                  "allowedvalues": [],
+                  "format": "",
+                  "required": "true",
+                  "type": "Number"
+               }],
+               "apierrors": [
+                  {
+                     "jsondocId": "c4be11ff-09ae-4737-87c7-f5d38980ff27",
+                     "description": "You do not have permissions to view this tag.",
+                     "code": "403"
+                  },
+                  {
+                     "jsondocId": "a2b91558-ca01-4fe1-9d73-a7ba12198665",
+                     "description": "The requested tag was not found.",
+                     "code": "404"
+                  }
+               ],
+               "verb": "GET",
+               "description": "Show specifics about a tag",
+               "queryparameters": [],
+               "path": "/v1/tags/{id}",
+               "produces": ["application/json"],
+               "methodName": "show"
+            },
+            {
+               "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "62761973-7ff3-4c05-ba26-59d1d35ee9df",
+                  "jsondocId": "894c2d4a-1fff-47e0-9a6b-6f7f54f35147",
                   "mapValueObject": "",
                   "map": "",
                   "object": "tag",
                   "multiple": "Unknow"
                },
-               "jsondocId": "a0a7d221-084a-49d5-8e74-af9521f97c72",
+               "jsondocId": "a57bed7b-5b81-480b-b422-e4662ded5a32",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "e2cab1a7-bf69-43be-8cfd-44906064dcaa",
+                  "jsondocId": "03911edc-a764-403d-8bb8-6a26bef0e18a",
                   "mapValueObject": "",
                   "object": "tag"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "5c29ffed-2051-4de4-a27a-dbbd546701f2",
+                     "jsondocId": "568e6ed4-c05e-4cba-ae44-fcd0eadd067c",
                      "description": "Malformed JSON in request. Or, you did not specify either staff id or team id (but not both)",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "e4a88830-6d7c-46ec-8e86-3a1c2e6af991",
+                     "jsondocId": "d75ac24f-fadf-483b-872f-d5cab4ebd53d",
                      "description": "The updated fields created an invalid tag.",
                      "code": "422"
                   },
                   {
-                     "jsondocId": "f8c65347-cf3f-4b8f-9e5f-75984f21f8eb",
+                     "jsondocId": "431c4455-3e0e-44f9-90a5-1c60506473b8",
                      "description": "You do not permissions to create a new tag for this staff member or team.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "24a57346-591d-478c-9af9-5dca4700c36c",
+                     "jsondocId": "a0293320-a691-415b-b8c3-e32e09683ce9",
                      "description": "The staff or team member to add this tag to was not found.",
                      "code": "404"
                   }
@@ -1065,7 +1147,7 @@
                "description": "Create a new tag for a staff member or team",
                "queryparameters": [
                   {
-                     "jsondocId": "25579956-6bcc-4e7f-a073-0d9e40088487",
+                     "jsondocId": "e2296fe3-c68f-4aa2-a7ce-54983703495d",
                      "description": "Id of the staff member",
                      "name": "staffId",
                      "allowedvalues": [],
@@ -1074,7 +1156,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "780e439c-34c1-4a05-855b-e14a81fcf897",
+                     "jsondocId": "5c42365b-7429-4a56-ba44-58a01246709a",
                      "description": "Id of the team member",
                      "name": "teamId",
                      "allowedvalues": [],
@@ -1090,28 +1172,28 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "2ae85f70-4a96-4f58-9dbc-d6dfb8732191",
+               "jsondocId": "c37d55b5-289a-4d8d-93e1-2e95988c8be2",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "5cc931ff-8504-4ee2-bf28-61ec02ecd693",
+                  "jsondocId": "d60fd10e-7622-473a-a42d-ec8b8a0ea2ad",
                   "mapValueObject": "",
                   "object": "tag"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "affe63d4-2495-494b-b47e-085a3793f3a0",
+                     "jsondocId": "b2c03921-18c9-410e-bd05-ad9e45962418",
                      "description": "The staff or team was not found. Or, the staff or team is not allowed to have tags.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "c588c2fe-188c-4be4-b933-094732b145dc",
+                     "jsondocId": "1723e4b5-e963-444d-927c-f817704e59e1",
                      "description": "You must specify either a staff id or team id, but not both.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "f323eb9f-440b-4a88-b83c-f2315ed38485",
+                     "jsondocId": "a6862146-2542-4a16-91bf-de07be6cbfcc",
                      "description": "You do not have permission to do this.",
                      "code": "403"
                   }
@@ -1120,7 +1202,7 @@
                "description": "List tags for a specific staff or team",
                "queryparameters": [
                   {
-                     "jsondocId": "74de3ac7-c1f6-425e-9559-e27a1d86c9db",
+                     "jsondocId": "2723293c-9f60-4444-85bd-d8fbe828f410",
                      "description": "Max number of results",
                      "name": "max",
                      "allowedvalues": ["YOUR MOM"],
@@ -1129,7 +1211,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "a01f6354-8373-4c44-bf95-ae274176e67f",
+                     "jsondocId": "b456544a-d857-459c-84f9-090db0d12c2e",
                      "description": "Offset of results",
                      "name": "offset",
                      "allowedvalues": [],
@@ -1138,7 +1220,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "ba464d1e-2592-4a08-b508-ae8650ae2906",
+                     "jsondocId": "1b13f550-ea4a-4c4e-bb30-318c7e82f81d",
                      "description": "Id of the staff member",
                      "name": "staffId",
                      "allowedvalues": [],
@@ -1147,7 +1229,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "d3ce3605-07ce-4702-9803-e89050823e42",
+                     "jsondocId": "07e2dda8-9fbf-4814-aa38-626f8bc8e545",
                      "description": "Id of the team member",
                      "name": "teamId",
                      "allowedvalues": [],
@@ -1163,16 +1245,16 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "d731afb6-5002-42b9-ac5f-2acb5c9880a0",
+               "jsondocId": "c86b9bbb-9dd1-48a8-a6f6-c6fc1944d53d",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "1fdf125c-c9fb-424c-8f13-dce35f1697ef",
+                  "jsondocId": "a9e6d556-786d-4fe9-950a-e952067e5021",
                   "mapValueObject": "",
                   "object": "tag"
                },
                "pathparameters": [{
-                  "jsondocId": "5392812d-d2a4-459f-8726-c997bd8f780c",
+                  "jsondocId": "ef6d8690-62c1-449e-880a-9d095eda74da",
                   "description": "Id of the tag",
                   "name": "id",
                   "allowedvalues": [],
@@ -1182,12 +1264,12 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "94ba1996-bc34-4f1f-8b5a-7536f7ee0e40",
+                     "jsondocId": "4ddcd25e-2d3b-46a0-8abc-3625e5943e44",
                      "description": "The requested tag was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "6bd8f86e-cbb2-4f53-9356-f96ec4d977e2",
+                     "jsondocId": "d2a03fc8-e765-4ab1-8bab-fd47b05f9d3d",
                      "description": "You do not have permission to delete this tag.",
                      "code": "403"
                   }
@@ -1203,22 +1285,22 @@
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "d17daeea-2a90-49e6-8f73-8b69c4814efd",
+                  "jsondocId": "fdea7f57-e9be-4242-89de-475dc7507473",
                   "mapValueObject": "",
                   "map": "",
                   "object": "tag",
                   "multiple": "Unknow"
                },
-               "jsondocId": "27487966-7ed4-46f2-8189-fdd07ecf1f9e",
+               "jsondocId": "150fd8f2-70ba-4763-9d79-e17466cdd68f",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "6c78e650-7c69-49a0-a9b9-f39e6645e5dc",
+                  "jsondocId": "502778f5-ef10-4239-af0d-5b847195f4c9",
                   "mapValueObject": "",
                   "object": "tag"
                },
                "pathparameters": [{
-                  "jsondocId": "ce858823-04b4-4911-a86b-31848febc488",
+                  "jsondocId": "06cb8d2b-8249-4036-84ac-9abe040635c4",
                   "description": "Id of the tag",
                   "name": "id",
                   "allowedvalues": [],
@@ -1228,22 +1310,22 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "c19479ca-e122-465c-891f-0ec0d691677d",
+                     "jsondocId": "0b9fcc38-49e3-4456-850f-cee698063cdc",
                      "description": "Malformed JSON in request.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "afa107ba-53c2-4dc9-a0f3-f3ac8e399f6a",
+                     "jsondocId": "37525784-5709-44cb-a6da-b63cd775d22f",
                      "description": "The requested tag was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "bf2a6f6d-40c6-4a84-9239-b4f8e1593b75",
+                     "jsondocId": "52a66691-e05f-462e-814b-e457bf49f0fe",
                      "description": "You do not have permission to modify this tag.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "7520b89b-597a-4e36-9af7-34950ac13660",
+                     "jsondocId": "dc3f1068-142c-4cf5-9765-dffec4c6107a",
                      "description": "The updated fields created an invalid tag.",
                      "code": "422"
                   }
@@ -1254,21 +1336,28 @@
                "path": "/v1/tags/{id}",
                "produces": ["application/json"],
                "methodName": "update"
-            },
+            }
+         ],
+         "jsondocId": "cd923227-778e-441d-a230-562ba0e40389",
+         "description": "Operations on tags belonging to staff members or teams. Requires logging in.",
+         "name": "Tag"
+      },
+      {
+         "methods": [
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "43e44405-9133-4fd7-850c-f73207baad59",
+               "jsondocId": "49c26ef7-46c8-4c85-84e2-4b939edaa958",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "b1821a75-9ad8-4a16-a5bc-9f1aac84aea6",
+                  "jsondocId": "c9c2bdbd-7ce4-42a8-bf00-9bcb8b4c61e0",
                   "mapValueObject": "",
-                  "object": "tag"
+                  "object": "Team"
                },
                "pathparameters": [{
-                  "jsondocId": "0d4824c3-5940-4e56-9d09-457fd0fd8435",
-                  "description": "Id of the tag",
+                  "jsondocId": "f9f3deb8-794a-4f25-84dc-97b10f779f70",
+                  "description": "Id of the team",
                   "name": "id",
                   "allowedvalues": [],
                   "format": "",
@@ -1277,67 +1366,60 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "52b4db66-00c9-4efd-a895-6013281e9e70",
-                     "description": "You do not have permissions to view this tag.",
-                     "code": "403"
+                     "jsondocId": "af2878d0-727f-413a-b6be-f42aae0b7f1a",
+                     "description": "The requested team was not found.",
+                     "code": "404"
                   },
                   {
-                     "jsondocId": "710e65e1-8707-4eb3-ad06-8867f85c382c",
-                     "description": "The requested tag was not found.",
-                     "code": "404"
+                     "jsondocId": "a058c575-ba2e-4bf4-8f57-c5c47e3a0120",
+                     "description": "You do not permissions to view this team.",
+                     "code": "403"
                   }
                ],
                "verb": "GET",
-               "description": "Show specifics about a tag",
+               "description": "Show specifics about a team",
                "queryparameters": [],
-               "path": "/v1/tags/{id}",
+               "path": "/v1/teams/{id}",
                "produces": ["application/json"],
                "methodName": "show"
-            }
-         ],
-         "jsondocId": "91e355a8-3559-4d53-85ba-a575073ee064",
-         "description": "Operations on tags belonging to staff members or teams. Requires logging in.",
-         "name": "Tag"
-      },
-      {
-         "methods": [
+            },
             {
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "67a46eff-b2db-4298-9838-be468f13248a",
+                  "jsondocId": "195954f7-c116-4ac0-94e2-8954f563623a",
                   "mapValueObject": "",
                   "map": "",
                   "object": "Team",
                   "multiple": "Unknow"
                },
-               "jsondocId": "d38f007b-885f-4fcc-9c62-1bba8f7c6bd9",
+               "jsondocId": "7cca0918-de8e-489b-9596-2759c9e19ea7",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "dae7294e-54fb-4780-907c-56ac2475469e",
+                  "jsondocId": "1f54c61e-bdc9-429b-a6d2-88f55d4c38dc",
                   "mapValueObject": "",
                   "object": "Team"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "7b911f31-7f26-42ba-97c7-c9709b9624b7",
+                     "jsondocId": "536c981d-9559-4c37-b1d7-a484782a3eb0",
                      "description": "Malformed JSON in request.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "329138d7-4a9a-4a0d-9580-7c3dba9bc295",
+                     "jsondocId": "303633df-16d6-46e7-8e50-a61fdbd96efc",
                      "description": "The organization to add the team to was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "38dea749-1600-4144-8160-7e895bb2e2df",
+                     "jsondocId": "9d703d1a-a1a4-4f1b-b5dd-69d280875ea2",
                      "description": "The updated fields created an invalid team.",
                      "code": "422"
                   },
                   {
-                     "jsondocId": "fe34ea8f-a72b-4321-aafd-21ca54e85fe4",
+                     "jsondocId": "ca0ac36a-75ab-4760-95fb-93d65c447cf3",
                      "description": "You do not permissions to create a new team for this organization.",
                      "code": "403"
                   }
@@ -1352,28 +1434,28 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "4c3e5420-8d87-453c-b038-4032428cd426",
+               "jsondocId": "b2a6d387-fae5-40d3-b817-4c67fd7efed0",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "4b12be31-2a52-4930-b50e-c253c134df10",
+                  "jsondocId": "27f82ed6-75ad-4ce0-a5a9-06f7f2bf39e6",
                   "mapValueObject": "",
                   "object": "Team"
                },
                "pathparameters": [],
                "apierrors": [
                   {
-                     "jsondocId": "ad2c1d39-3a0b-4083-8edb-c47e01a430f7",
+                     "jsondocId": "25d860f4-6684-4439-8494-5925873d880b",
                      "description": "The organization or staff was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "a708761e-947a-4ef7-b5e7-adbfbb0c43b6",
+                     "jsondocId": "83f2937c-2434-467c-ada9-569008c82cea",
                      "description": "You must specify either an organization id or staff id, but not both.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "803e7639-24c2-45cd-9ce5-abe3fe73e573",
+                     "jsondocId": "02f94f12-8631-46d0-8910-61ab0b7ec4b3",
                      "description": "You do not have permission to do this.",
                      "code": "403"
                   }
@@ -1382,7 +1464,7 @@
                "description": "List teams",
                "queryparameters": [
                   {
-                     "jsondocId": "ece09c45-cc32-4152-ada8-5cf26fece42b",
+                     "jsondocId": "a227e988-c327-447a-b303-dc428e3c7d48",
                      "description": "Max number of results",
                      "name": "max",
                      "allowedvalues": [],
@@ -1391,7 +1473,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "18efb83a-b128-4fca-9976-0b21dff7a372",
+                     "jsondocId": "4ac27a50-1691-4a16-bac9-f6231e7e4e98",
                      "description": "Offset of results",
                      "name": "offset",
                      "allowedvalues": [],
@@ -1400,7 +1482,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "2050f00b-7075-435a-96f8-c2467e72645c",
+                     "jsondocId": "0c84b3d3-cb0b-4f69-8614-7e6ed1a4e828",
                      "description": "Id of the organization",
                      "name": "organizationId",
                      "allowedvalues": [],
@@ -1409,7 +1491,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "3f359551-35a5-4cbb-a236-846d77546788",
+                     "jsondocId": "fefa7d36-abf3-464e-a96a-f426630b8352",
                      "description": "Id of the staff",
                      "name": "staffId",
                      "allowedvalues": [],
@@ -1425,16 +1507,16 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "62c1ab2e-c2a9-41e8-a123-9ff4e2fef135",
+               "jsondocId": "f85fb594-0909-4f97-b65b-0740bd0b2986",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "3093d6a2-d01c-4868-9570-49897a3a38ce",
+                  "jsondocId": "bb96c2d5-8085-4b52-aeb3-c421d90c1aea",
                   "mapValueObject": "",
                   "object": "Team"
                },
                "pathparameters": [{
-                  "jsondocId": "648b28fb-0ce2-445c-861b-dca2259074a6",
+                  "jsondocId": "31ca6720-e970-4f63-acc6-65b267c7f9de",
                   "description": "Id of the team",
                   "name": "id",
                   "allowedvalues": [],
@@ -1444,12 +1526,12 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "d8a024e2-e572-47af-831f-86921b9e3eb7",
+                     "jsondocId": "3e763296-6141-491e-a86b-d9e5bcbe783c",
                      "description": "The requested team was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "5a1f7a5d-22d4-41f5-87a5-e4a33bccdd3e",
+                     "jsondocId": "142e9a39-65fa-42cd-81da-e532eaf63403",
                      "description": "The logged in staff member is\n            not an admin and so cannot delete teams.",
                      "code": "403"
                   }
@@ -1465,22 +1547,22 @@
                "headers": [],
                "bodyobject": {
                   "mapKeyObject": "",
-                  "jsondocId": "04855d3c-8acc-4f65-9e7b-657ce11a781f",
+                  "jsondocId": "d9f73a62-ced4-4b35-b765-24ac3f55f289",
                   "mapValueObject": "",
                   "map": "",
                   "object": "Team",
                   "multiple": "Unknow"
                },
-               "jsondocId": "e55b2bea-4893-4f01-b419-6aa0d3d7d1b4",
+               "jsondocId": "80cad7e5-3f99-4192-87e9-2cf9e5ab6676",
                "consumes": ["application/json"],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "5d512372-1822-48a0-bfad-3fffba66201b",
+                  "jsondocId": "4cb4bbf5-a996-4ab4-8e1a-50234b848575",
                   "mapValueObject": "",
                   "object": "Team"
                },
                "pathparameters": [{
-                  "jsondocId": "3227db04-57ea-4439-804a-145cf3c39fb4",
+                  "jsondocId": "79f53f59-7de0-4502-a39c-ea4269672c11",
                   "description": "Id of the team",
                   "name": "id",
                   "allowedvalues": [],
@@ -1490,22 +1572,22 @@
                }],
                "apierrors": [
                   {
-                     "jsondocId": "2a931f9f-2237-4cf6-a25e-11ef4e992c39",
+                     "jsondocId": "ec19f312-74e4-4363-928f-6e483a13547f",
                      "description": "Malformed JSON in request.",
                      "code": "400"
                   },
                   {
-                     "jsondocId": "e7cc1528-b832-4c24-9404-f58e1114e52f",
+                     "jsondocId": "3aee2ab7-1941-4743-94aa-1a0b439489b4",
                      "description": "The requested team was not found.",
                      "code": "404"
                   },
                   {
-                     "jsondocId": "7be1cc87-4a3d-416d-9512-a5d7cff8273e",
+                     "jsondocId": "9ed9c251-b955-4989-a45d-01af0a8aedba",
                      "description": "The logged in staff member is\n            not an admin and so cannot modify teams.",
                      "code": "403"
                   },
                   {
-                     "jsondocId": "ab34d205-47b4-4acf-9f7c-fe57c6874618",
+                     "jsondocId": "78c2747b-6a1d-460e-a755-97e28af708a5",
                      "description": "The updated fields created an invalid team.",
                      "code": "422"
                   }
@@ -1516,48 +1598,9 @@
                "path": "/v1/teams/{id}",
                "produces": ["application/json"],
                "methodName": "update"
-            },
-            {
-               "headers": [],
-               "bodyobject": null,
-               "jsondocId": "1b684815-a1c9-4236-824b-1ab6cc126738",
-               "consumes": [],
-               "response": {
-                  "mapKeyObject": "",
-                  "jsondocId": "db8391af-fcdf-4761-8ab6-ea89ef0e32e2",
-                  "mapValueObject": "",
-                  "object": "Team"
-               },
-               "pathparameters": [{
-                  "jsondocId": "cfb436fa-bcbd-45d1-801a-a8d50208b6d7",
-                  "description": "Id of the team",
-                  "name": "id",
-                  "allowedvalues": [],
-                  "format": "",
-                  "required": "true",
-                  "type": "Number"
-               }],
-               "apierrors": [
-                  {
-                     "jsondocId": "e67b2a77-afab-49ce-b122-3a646af1072b",
-                     "description": "The requested team was not found.",
-                     "code": "404"
-                  },
-                  {
-                     "jsondocId": "6545e44d-b168-4945-b545-1afa719426e8",
-                     "description": "You do not permissions to view this team.",
-                     "code": "403"
-                  }
-               ],
-               "verb": "GET",
-               "description": "Show specifics about a team",
-               "queryparameters": [],
-               "path": "/v1/teams/{id}",
-               "produces": ["application/json"],
-               "methodName": "show"
             }
          ],
-         "jsondocId": "b9fcf6bf-d3b6-431f-b065-50c705f4ed94",
+         "jsondocId": "42ef8c3c-2907-4e1b-8cf3-a1bd6f21ffe1",
          "description": "Operations on teams after logging in.",
          "name": "Team"
       },
@@ -1566,11 +1609,43 @@
             {
                "headers": [],
                "bodyobject": null,
-               "jsondocId": "dd42937b-5664-4090-8b16-032c87301556",
+               "jsondocId": "ef27aa53-3095-465e-a7b9-48477a23992a",
                "consumes": [],
                "response": {
                   "mapKeyObject": "",
-                  "jsondocId": "15dad792-062d-4a09-b839-192700c67460",
+                  "jsondocId": "6d3cd14c-ebee-4a69-9b38-638d067db6f6",
+                  "mapValueObject": "",
+                  "object": "Organization"
+               },
+               "pathparameters": [{
+                  "jsondocId": "06b6a731-a6a3-4cb3-8b21-97ed921d8212",
+                  "description": "Id of the organization",
+                  "name": "id",
+                  "allowedvalues": [],
+                  "format": "",
+                  "required": "true",
+                  "type": "Number"
+               }],
+               "apierrors": [{
+                  "jsondocId": "15c2e337-acde-4c8c-acd2-a132ddd1d04b",
+                  "description": "The organization was not found.",
+                  "code": "404"
+               }],
+               "verb": "GET",
+               "description": "Show specifics about an organization",
+               "queryparameters": [],
+               "path": "/v1/public/organizations/{id}",
+               "produces": ["application/json"],
+               "methodName": "show"
+            },
+            {
+               "headers": [],
+               "bodyobject": null,
+               "jsondocId": "8fda990f-b098-456a-a995-81895271099f",
+               "consumes": [],
+               "response": {
+                  "mapKeyObject": "",
+                  "jsondocId": "125d8066-83f0-431a-8c6c-363fd9d87333",
                   "mapValueObject": "",
                   "object": "Organization"
                },
@@ -1580,7 +1655,7 @@
                "description": "List organizations",
                "queryparameters": [
                   {
-                     "jsondocId": "89620ab8-6d26-468e-9edc-77929469a40a",
+                     "jsondocId": "840e290e-f4cc-435d-92f1-8bd4363132f7",
                      "description": "Max number of results",
                      "name": "max",
                      "allowedvalues": [],
@@ -1589,7 +1664,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "ec2e543c-7758-440d-9fd1-cd6e4cdc0a3f",
+                     "jsondocId": "8a5044c8-4ac5-4daf-8707-0c432c57ca49",
                      "description": "Offset of results",
                      "name": "offset",
                      "allowedvalues": [],
@@ -1598,7 +1673,7 @@
                      "type": "Number"
                   },
                   {
-                     "jsondocId": "07153127-8009-406a-b4c0-b44313f7d02c",
+                     "jsondocId": "1bb6e8b0-c966-4fda-bf3f-72450c4bc21f",
                      "description": "String to search for in\n            organization's name and address",
                      "name": "search",
                      "allowedvalues": [],
@@ -1610,41 +1685,9 @@
                "path": "/v1/public/organizations",
                "produces": ["application/json"],
                "methodName": "index"
-            },
-            {
-               "headers": [],
-               "bodyobject": null,
-               "jsondocId": "4b9aab5e-b276-4277-848b-03a6465ec45f",
-               "consumes": [],
-               "response": {
-                  "mapKeyObject": "",
-                  "jsondocId": "5f024319-b6fe-492e-aee5-dda79e5843eb",
-                  "mapValueObject": "",
-                  "object": "Organization"
-               },
-               "pathparameters": [{
-                  "jsondocId": "73f41f43-d949-4754-be35-8d2d9d482cc5",
-                  "description": "Id of the organization",
-                  "name": "id",
-                  "allowedvalues": [],
-                  "format": "",
-                  "required": "true",
-                  "type": "Number"
-               }],
-               "apierrors": [{
-                  "jsondocId": "9aa5fece-dae1-4a64-bf37-61c322b78774",
-                  "description": "The organization was not found.",
-                  "code": "404"
-               }],
-               "verb": "GET",
-               "description": "Show specifics about an organization",
-               "queryparameters": [],
-               "path": "/v1/public/organizations/{id}",
-               "produces": ["application/json"],
-               "methodName": "show"
             }
          ],
-         "jsondocId": "37ced884-da81-4688-85f8-40ffd99f1c41",
+         "jsondocId": "8e63925f-7f94-4483-806b-2278f40ca354",
          "description": "Listing and showing organizations. Accessible to all.",
          "name": "[Public] Organization"
       },
@@ -1653,39 +1696,39 @@
             "headers": [],
             "bodyobject": {
                "mapKeyObject": "",
-               "jsondocId": "e762c6a1-05a9-46ef-9d49-4062843bef86",
+               "jsondocId": "9b919008-7594-4af0-bf22-894f8f5be5d2",
                "mapValueObject": "",
                "map": "",
                "object": "public record",
                "multiple": "Unknow"
             },
-            "jsondocId": "6a9b8bf6-04d3-4c87-8d65-81fbe1348abe",
+            "jsondocId": "5af39aa5-81dd-4f2c-a534-e388e6f6ceb6",
             "consumes": ["application/json"],
             "response": {
                "mapKeyObject": "",
-               "jsondocId": "fa1b1850-001b-42ef-83f4-62d0f9c4a892",
+               "jsondocId": "d190ed49-cff1-4121-873b-cd821fbcda39",
                "mapValueObject": "",
                "object": "public record"
             },
             "pathparameters": [],
             "apierrors": [
                {
-                  "jsondocId": "5fe3ed43-07b7-4906-b661-3ef2a5fd5f56",
+                  "jsondocId": "fa071ad2-65b1-4b4d-88c2-b83ed61e9e8b",
                   "description": "No records found that match the Sid provided.",
                   "code": "400"
                },
                {
-                  "jsondocId": "877a07e8-59dc-412a-9564-fc84aab3d791",
+                  "jsondocId": "a66c3449-9e90-4ce6-b14c-6c56ed1daa89",
                   "description": "The signature header does not match or you specified\n            the id of a contact not owned by the From number.",
                   "code": "403"
                },
                {
-                  "jsondocId": "f6f1690d-32e5-4a77-87a1-a50bc2ea7ca2",
+                  "jsondocId": "4dc90873-d03f-4db2-b2fd-a8a9be6969eb",
                   "description": "Not found. Could not find a matching phone or receipt.",
                   "code": "404"
                },
                {
-                  "jsondocId": "d997fdca-a121-4b1c-972a-2ca6c95e4fc6",
+                  "jsondocId": "d8f2f78b-583d-4c55-8c72-ed6e0f1c9b8f",
                   "description": "MessageSid or CallSid not provided in the POST\n            body, or invalid status parameter, or contactId not provided with Twilio Client call.",
                   "code": "422"
                }
@@ -1694,8 +1737,8 @@
             "description": "Handles webhooks",
             "queryparameters": [
                {
-                  "jsondocId": "e0b449fe-f854-4aef-8a01-9ce5853c7dcb",
-                  "description": "If is a text (POST body has MessageSid),\n            then one of \"incoming\" or \"status\". If is a call (POST has CallSid), then one of \"incoming\",\n            \"status\", \"voicemail\", \"digitsFromPublicForTeam\" or \"digitsFromStaffForStaff.\" If you want to\n            repeat a previous response, you can specify the handle as \"repeat\", and then pass in the\n            code of the response to repeat in the \"for\" query param",
+                  "jsondocId": "ca7fb8f2-6ae9-413f-add1-b7f6f6881faa",
+                  "description": "If is a text (POST body has MessageSid),\n            then one of \"incoming\" or \"status\". If is a call (POST has CallSid), then one of \"incoming\",\n            \"status\", \"voicemail\", \"digitsFromPublicForTeam\" or \"digitsFromStaffForStaff.\"",
                   "name": "handle",
                   "allowedvalues": [],
                   "format": "",
@@ -1703,29 +1746,20 @@
                   "type": "String"
                },
                {
-                  "jsondocId": "a56b7288-2971-41db-aaa4-6f904eb49792",
+                  "jsondocId": "06fd37cb-7cb7-475a-8e01-47b2cd1513dc",
                   "description": "If updating the status for a Twilio Client\n            call made directly from the frontend Javascript, then you must include the id of the contact\n            that was called so we know which contact to update the status for.",
                   "name": "contactId",
                   "allowedvalues": [],
                   "format": "",
                   "required": "true",
                   "type": "Number"
-               },
-               {
-                  "jsondocId": "f543f064-53b6-4a77-a579-316b30ba7b3b",
-                  "description": "The code of the response you would like\n            repeated. This is mandatory when the handle is specified as \"repeat.\"",
-                  "name": "for",
-                  "allowedvalues": [],
-                  "format": "",
-                  "required": "true",
-                  "type": "String"
                }
             ],
             "path": "/v1/public/records",
             "produces": ["application/json"],
             "methodName": "save"
          }],
-         "jsondocId": "bf150572-c33c-4dca-b3dc-1fa18f9bf78e",
+         "jsondocId": "f2b6acc9-b040-424d-aba9-d89175d6039e",
          "description": "Webhook endpoint for Twilio.",
          "name": "[Public] Record"
       },
@@ -1734,29 +1768,29 @@
             "headers": [],
             "bodyobject": {
                "mapKeyObject": "",
-               "jsondocId": "fd8f1b11-8d65-4a26-84d8-ba685f5c0915",
+               "jsondocId": "d048700b-7086-41ff-97d2-68b1cdc1d059",
                "mapValueObject": "",
                "map": "",
                "object": "Staff",
                "multiple": "Unknow"
             },
-            "jsondocId": "e5b3b59d-4767-4087-8009-2c883f3bbb12",
+            "jsondocId": "d22bf30a-ffd9-45f2-a289-02f88ba33ca9",
             "consumes": ["application/json"],
             "response": {
                "mapKeyObject": "",
-               "jsondocId": "7a17daac-cbbc-400f-91dd-e7e442c4ee97",
+               "jsondocId": "0f27a677-dd1f-4e37-b798-f1784c1b830b",
                "mapValueObject": "",
                "object": "Staff"
             },
             "pathparameters": [],
             "apierrors": [
                {
-                  "jsondocId": "8d9cd7be-1bc9-41ee-9971-0a5c49c3eabf",
+                  "jsondocId": "f01ea53f-7759-4cae-81f4-f4ad92bbfb57",
                   "description": "Malformed JSON in request.",
                   "code": "400"
                },
                {
-                  "jsondocId": "9b76ad9d-26e4-468e-bbb2-3845bab89988",
+                  "jsondocId": "387b8d5d-9b07-40cb-8678-afa82035fce0",
                   "description": "The updated fields created an invalid staff member.",
                   "code": "422"
                }
@@ -1768,19 +1802,19 @@
             "produces": ["application/json"],
             "methodName": "save"
          }],
-         "jsondocId": "57c19bce-8ec7-4988-a3ff-d0e9a1222d0e",
+         "jsondocId": "36865505-8ec1-4b47-9561-fa6c92e7b6df",
          "description": "Creating new staff members only. Accessible to all.",
          "name": "[Public] Staff"
       }
    ],
    "objects": [
       {
-         "jsondocId": "6e355a88-82b6-4f48-ab39-7197fc8300e0",
+         "jsondocId": "2577eefd-34c7-49ab-8858-0290de757170",
          "description": "A contact",
          "name": "Contact",
          "fields": [
             {
-               "jsondocId": "bcf73008-0262-4380-a9e2-0b659f5cfc47",
+               "jsondocId": "52a0675d-813b-40e9-93d3-9b8b47cd86a2",
                "description": "List of some share or unshare actions",
                "presentInResponse": false,
                "mandatory": true,
@@ -1793,7 +1827,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "ccf32ab1-e266-4942-b3f5-0a1c335cfc47",
+               "jsondocId": "20479acb-8d40-4bd1-817c-0c7aff8ac1d1",
                "description": "List of some share or unshare actions",
                "presentInResponse": false,
                "mandatory": false,
@@ -1806,7 +1840,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "556d688e-3216-4f7b-a76c-27705b2e3b76",
+               "jsondocId": "cd3e8bae-3179-4c59-834f-7d73366e3c03",
                "description": "Date and time of the most recent communication with this contact",
                "presentInResponse": true,
                "mandatory": false,
@@ -1819,7 +1853,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "04a0e3cc-7563-4363-b6ae-0b24e28a85d4",
+               "jsondocId": "01f3599a-00d6-4120-813b-e3384ee260ba",
                "description": "Name of this contact",
                "presentInResponse": true,
                "mandatory": false,
@@ -1832,7 +1866,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "ef78df0a-5f67-43c0-a217-17c352a00ccb",
+               "jsondocId": "ccf482af-5e78-4125-8d7f-429318b2d43d",
                "description": "Notes on this contact",
                "presentInResponse": true,
                "mandatory": false,
@@ -1845,7 +1879,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "54f8f1b7-3955-49c5-8bfd-a7b1cb0f2b34",
+               "jsondocId": "13b87011-657b-4e10-9647-5f4b4d6aed86",
                "description": "Numbers that pertain to this contact. Order in this list determines priority",
                "presentInResponse": true,
                "mandatory": false,
@@ -1858,7 +1892,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "b0cb1f1d-2b26-4108-bc02-ecf052f09b26",
+               "jsondocId": "10fa3f1b-784d-4e5b-ba31-d1feab7a7f44",
                "description": "Level of permissions you have with this contact. Allowed: delegate, view",
                "presentInResponse": true,
                "mandatory": false,
@@ -1871,7 +1905,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "d6aba0f5-25f1-4622-8ec9-29bc5fb82323",
+               "jsondocId": "0864d54d-d17c-4ecb-9cab-1c0ac2ba21f5",
                "description": "Name of the staff member who shared this contact with you",
                "presentInResponse": true,
                "mandatory": false,
@@ -1884,7 +1918,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "731f1381-ae9a-43fb-b4a1-c37892bb98d2",
+               "jsondocId": "11676ab4-0aff-4c5a-abae-824e83253f37",
                "description": "A list of other staff you'ved shared this contact with.",
                "presentInResponse": true,
                "mandatory": false,
@@ -1897,7 +1931,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "cac7bf65-06b3-4c12-81a4-0dabd0fe1e25",
+               "jsondocId": "f222e1dc-2124-420e-b9f1-f315588c89f8",
                "description": "Date and time this contact was shared with you",
                "presentInResponse": true,
                "mandatory": false,
@@ -1910,7 +1944,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "ae139e72-e5e0-4fd9-a0a8-756c825c04c0",
+               "jsondocId": "58ea2036-aff7-4167-bd36-9f9720cc4f25",
                "description": "Status of this contact. Allowed: active, unread, archived, blocked",
                "presentInResponse": true,
                "mandatory": false,
@@ -1923,7 +1957,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "6baf172c-d009-43d1-bf19-5d84d041e61d",
+               "jsondocId": "a1d9f74e-9fb8-47a8-ae00-00804566c220",
                "description": "In the context of a Tag, tells whether this contact is a subscriber",
                "presentInResponse": true,
                "mandatory": false,
@@ -1934,16 +1968,29 @@
                "defaultValue": null,
                "type": "Boolean",
                "multiple": "false"
+            },
+            {
+               "jsondocId": "69023a5a-7579-4144-b254-592e9ce3a401",
+               "description": "List of tags this contact belongs to, if any. Note that this will be empty for a shared contact.",
+               "presentInResponse": true,
+               "mandatory": false,
+               "name": "tags",
+               "allowedvalues": null,
+               "useForCreation": false,
+               "format": null,
+               "defaultValue": null,
+               "type": "List<Tag>",
+               "multiple": "false"
             }
          ]
       },
       {
-         "jsondocId": "c2e7b181-5193-49bc-81e7-68227f2210c5",
+         "jsondocId": "fafe732c-4a7a-4fab-929a-9e05b4a7d4ae",
          "description": "A location",
          "name": "Location",
          "fields": [
             {
-               "jsondocId": "f103a6a3-bf7f-49d0-9153-70451f45992b",
+               "jsondocId": "8ee382de-8212-407e-b4ec-2313475309e7",
                "description": "Human readable address of the location",
                "presentInResponse": true,
                "mandatory": true,
@@ -1956,7 +2003,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "9992e437-0d65-45fc-9c0a-48bab3dcc18c",
+               "jsondocId": "6731a370-2808-45f7-a7ac-fe32122c0870",
                "description": "Latitude of the location",
                "presentInResponse": true,
                "mandatory": true,
@@ -1969,7 +2016,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "d170b740-f947-444e-8940-e62b13667b86",
+               "jsondocId": "4ee8041c-d86c-4191-8720-e237dcbfb7dd",
                "description": "Longitude of the location",
                "presentInResponse": true,
                "mandatory": true,
@@ -1984,12 +2031,12 @@
          ]
       },
       {
-         "jsondocId": "2b87f498-6da6-495f-8d98-a6528ca7a521",
+         "jsondocId": "bc0d7e90-f1d7-4f3a-a948-697ba8d9f5ca",
          "description": "An organization of staff members and teams.",
          "name": "Organization",
          "fields": [
             {
-               "jsondocId": "44d4feee-ae11-4fb7-b9e0-5614db4a6215",
+               "jsondocId": "96d97592-1d70-4808-a813-ae5c5760b778",
                "description": "Location of the organization",
                "presentInResponse": true,
                "mandatory": true,
@@ -2002,7 +2049,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "34d9be11-2688-4ce4-b63e-50796b821ccb",
+               "jsondocId": "60e4fff0-be55-4956-b153-1b88aac13584",
                "description": "Name of the organization",
                "presentInResponse": true,
                "mandatory": true,
@@ -2013,16 +2060,29 @@
                "defaultValue": null,
                "type": "String",
                "multiple": "false"
+            },
+            {
+               "jsondocId": "4f086f1f-4fa0-40ca-a841-576bdb5db3b7",
+               "description": "Number of admins this organization has",
+               "presentInResponse": true,
+               "mandatory": false,
+               "name": "numAdmins",
+               "allowedvalues": null,
+               "useForCreation": false,
+               "format": null,
+               "defaultValue": null,
+               "type": "Number",
+               "multiple": "false"
             }
          ]
       },
       {
-         "jsondocId": "89075ce3-62be-4172-a23f-a50de4c1877d",
+         "jsondocId": "4c6ab6ab-f5a7-4a0d-9c26-4d7374c937a4",
          "description": "A receipt indicating the status of a communication sent to a phone number.",
          "name": "Receipt",
          "fields": [
             {
-               "jsondocId": "f494a3d8-7abb-4d5c-84c8-6b0cac018848",
+               "jsondocId": "2719a6e0-61cc-43f7-9dfb-8e58f16f0416",
                "description": "Phone number that this communication was sent to",
                "presentInResponse": true,
                "mandatory": false,
@@ -2035,7 +2095,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "849eed8d-b278-4dfa-80c6-cfc37284bdbb",
+               "jsondocId": "78534a42-0c3f-4c93-9e01-be640a0993ee",
                "description": "Status of the communication. Allowed: failed, pending, success",
                "presentInResponse": true,
                "mandatory": false,
@@ -2050,12 +2110,12 @@
          ]
       },
       {
-         "jsondocId": "655ed540-878b-4f56-80d3-9161fc6e29b9",
+         "jsondocId": "5d2ef8e6-b7cf-41e1-911f-a7387faad7e7",
          "description": "A phone call entry in a contact's record.",
          "name": "RecordCall",
          "fields": [
             {
-               "jsondocId": "2269a03a-347a-4214-8669-4b8e75009150",
+               "jsondocId": "6d3edd36-224b-495a-9166-1e740387985e",
                "description": "If available, the id of the author of this entry.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2068,7 +2128,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "6b5ec967-059a-40f7-a876-afac52f32705",
+               "jsondocId": "5e32d345-2a07-4746-9ab9-6b4d633ac4ce",
                "description": "If available, the author of this entry.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2081,7 +2141,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "fdcca7d0-5c59-4181-85d8-80789af6b349",
+               "jsondocId": "238b22ab-757e-422c-a5f9-44dab43368df",
                "description": "Id of a contact to call",
                "presentInResponse": false,
                "mandatory": false,
@@ -2094,7 +2154,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "8c20bfd7-8b16-4130-a2f1-bee836fef0fd",
+               "jsondocId": "18594bbd-8a4f-4311-befd-b7b293135c14",
                "description": "A phone number to call",
                "presentInResponse": false,
                "mandatory": false,
@@ -2107,7 +2167,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "ccf75b14-e644-46ff-829c-ffd6f8b0c63f",
+               "jsondocId": "6c097ae5-19fe-4862-bbb1-eb28fa02b8d6",
                "description": "Date this item was added to the record",
                "presentInResponse": true,
                "mandatory": false,
@@ -2120,7 +2180,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "7cfa9f63-1ba4-45ed-b4ce-12a4ea97cb97",
+               "jsondocId": "ddab8181-48df-418f-a1e7-36d1f8ab0ecc",
                "description": "Duration of the call",
                "presentInResponse": true,
                "mandatory": false,
@@ -2133,7 +2193,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "909836eb-7322-4481-8177-2fe696727dbf",
+               "jsondocId": "8055c804-1f30-4a4b-a40b-f0afc9fa2718",
                "description": "Whether or not this call has a voicemail",
                "presentInResponse": true,
                "mandatory": false,
@@ -2146,7 +2206,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "cf708573-a37f-4dd8-a36f-0e1189fae444",
+               "jsondocId": "ddc3ce13-8075-4ac1-b36b-09b810bb9dd8",
                "description": "The direction of communication. Incoming is from client to staff",
                "presentInResponse": true,
                "mandatory": false,
@@ -2159,7 +2219,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "f3fa6fa0-f1b2-4904-8ec1-9d9ab2df0a45",
+               "jsondocId": "1e7240ce-7937-4483-9974-eaaaede18142",
                "description": "The direction of communication. Outgoing is from staff to client.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2172,7 +2232,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "9694110a-27b4-4e1a-aa99-6062654ef057",
+               "jsondocId": "2135e4f5-89da-48ce-8bbd-d76692723df3",
                "description": "Statuses of all phone numbers who were sent this response",
                "presentInResponse": true,
                "mandatory": false,
@@ -2185,7 +2245,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "03b2a9fa-1ff9-4648-81bd-be61d0f70cf8",
+               "jsondocId": "e2bde87b-bd14-452b-abc7-82e116211a5b",
                "description": "Type of record item. One of: call, text, note",
                "presentInResponse": true,
                "mandatory": false,
@@ -2198,7 +2258,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "48d9d4c9-8cd3-4100-aa49-589a01521bec",
+               "jsondocId": "326c9646-ec9a-4177-addb-acc5a8b0eaa6",
                "description": "Duration of the voicemail",
                "presentInResponse": true,
                "mandatory": false,
@@ -2211,7 +2271,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "f9b95cdc-0979-4ec4-8e8b-9abae35f1b47",
+               "jsondocId": "541814dd-402a-4091-8475-6fa7edc678ef",
                "description": "Url to access the voicemail at",
                "presentInResponse": true,
                "mandatory": false,
@@ -2226,12 +2286,12 @@
          ]
       },
       {
-         "jsondocId": "73bf1e64-833e-452a-baab-b7b8f1544626",
+         "jsondocId": "7d3f3943-1036-4aa7-9744-44283d1b139b",
          "description": "A note entry in a contact's record.",
          "name": "RecordNote",
          "fields": [
             {
-               "jsondocId": "b1ce9ed1-7cf5-4f26-8d9e-2d88c7d713b9",
+               "jsondocId": "a7cd47b8-7d11-4f42-beac-cc207844a458",
                "description": "Id of a contact to add this note to",
                "presentInResponse": false,
                "mandatory": true,
@@ -2244,7 +2304,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "5ff94360-ccf4-4efb-9ffc-99d1b3f22e59",
+               "jsondocId": "9663db73-ebca-461f-ba79-13eb7b9eec3e",
                "description": "If available, the id of the author of this entry.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2257,7 +2317,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "36eb9b05-7a15-47e2-b83f-4e452be917a8",
+               "jsondocId": "ec6a7297-7849-4c1f-9b41-dcef236dbb63",
                "description": "If available, the author of this entry.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2270,7 +2330,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "9b3566e1-fc7b-4b6e-8a02-1fab2660e67d",
+               "jsondocId": "7d29e089-1cdf-4136-afb6-017cfe3764c1",
                "description": "Date this item was added to the record",
                "presentInResponse": true,
                "mandatory": false,
@@ -2283,7 +2343,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "b82eec78-3f00-42cf-bde6-a22549400b7e",
+               "jsondocId": "ac6a8355-12fc-439d-a3a0-3caf299c28b9",
                "description": "Specifies whether or not this note is editable",
                "presentInResponse": true,
                "mandatory": false,
@@ -2296,7 +2356,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "1761c03a-f7ab-49c8-8019-0841fb0934d0",
+               "jsondocId": "8c76f094-e6e5-4325-a971-df739da25e2d",
                "description": "The direction of communication. Incoming is from client to staff",
                "presentInResponse": true,
                "mandatory": false,
@@ -2309,7 +2369,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "ec20dd28-8dec-43a0-9cec-1c680b7f7f50",
+               "jsondocId": "4ccebc57-3393-4c50-85f6-8132d54ba2eb",
                "description": "Contents of the note",
                "presentInResponse": true,
                "mandatory": true,
@@ -2322,7 +2382,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "ce69310b-25d5-4c7d-b62c-203c61fd7a46",
+               "jsondocId": "59b85bc5-9d15-42fd-a562-b73bc9d92eb7",
                "description": "The direction of communication. Outgoing is from staff to client.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2335,7 +2395,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "d6d998e7-6f9a-4fc5-a71b-be5005bb8e7d",
+               "jsondocId": "8714f107-f677-438c-8387-589b579febad",
                "description": "Statuses of all phone numbers who were sent this response",
                "presentInResponse": true,
                "mandatory": false,
@@ -2348,7 +2408,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "9b3e62bb-fe2f-4d74-a35f-4b1d7f6acf16",
+               "jsondocId": "829cbbf7-622d-4864-9cd2-8a65d326ff7e",
                "description": "Type of record item. One of: call, text, note",
                "presentInResponse": true,
                "mandatory": false,
@@ -2363,12 +2423,12 @@
          ]
       },
       {
-         "jsondocId": "2f5c8333-1d87-4db6-b9e8-923cef68d490",
+         "jsondocId": "5efa3607-1247-4bd5-9de3-e9bc5157782f",
          "description": "A text message entry in a contact's record.",
          "name": "RecordText",
          "fields": [
             {
-               "jsondocId": "5d18eb13-d0ed-4801-be16-6978d477804d",
+               "jsondocId": "81558c0b-90b2-4f85-a030-09516725de7a",
                "description": "If available, the id of the author of this entry.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2381,7 +2441,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "9dc3049c-fef5-416d-8229-a9274cf2b057",
+               "jsondocId": "2c7de8e4-a35a-43de-80bc-742081e91e92",
                "description": "If available, the author of this entry.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2394,7 +2454,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "b701c5f5-7cea-4038-b942-fe69434eae15",
+               "jsondocId": "714e9903-0ef4-4cb0-b129-9097a27eee29",
                "description": "Contents of the text",
                "presentInResponse": true,
                "mandatory": true,
@@ -2407,7 +2467,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "387daf27-a863-4ecd-97a0-d11e6fdd1629",
+               "jsondocId": "5fbb2f97-593f-408d-87a8-ca784af9fa29",
                "description": "Date this item was added to the record",
                "presentInResponse": true,
                "mandatory": false,
@@ -2420,7 +2480,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "f96a8073-3104-4438-8905-d94c16e93559",
+               "jsondocId": "00fc76f0-0d7b-4db0-981d-063e98dae864",
                "description": "Whether or not this text is scheduled to be sent in the future",
                "presentInResponse": true,
                "mandatory": false,
@@ -2433,7 +2493,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "25c022cb-92ce-4f00-9ce0-aa1544b96241",
+               "jsondocId": "124fe252-c560-42b4-beae-29bb6fa342ea",
                "description": "The direction of communication. Incoming is from client to staff",
                "presentInResponse": true,
                "mandatory": false,
@@ -2446,7 +2506,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "bfe5851e-aa8f-4884-9105-2f81d4d7f3e2",
+               "jsondocId": "f49f86d4-b98d-43dc-a6fe-29e583ebfd1b",
                "description": "The direction of communication. Outgoing is from staff to client.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2459,7 +2519,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "9e3b316c-cf86-46a1-a03d-8a7e5c406a29",
+               "jsondocId": "3b0c71fa-db4f-42ef-83e6-f25f0b0ca8e6",
                "description": "Statuses of all phone numbers who were sent this response",
                "presentInResponse": true,
                "mandatory": false,
@@ -2472,7 +2532,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "ce2769b4-8c64-4ed7-9b4c-91ca7166a6c9",
+               "jsondocId": "6542c6ad-e46b-4aaa-96ce-cead36571d72",
                "description": "If scheduled for the future, when this should be sent",
                "presentInResponse": true,
                "mandatory": false,
@@ -2485,7 +2545,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "54944594-3095-4d58-9232-6494ff55e910",
+               "jsondocId": "1a198b1b-2381-4130-a099-bb12a0cd16d1",
                "description": "List of contact ids to send this text to",
                "presentInResponse": false,
                "mandatory": false,
@@ -2498,7 +2558,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "1f74b142-556e-42c6-94b7-93ef39e56f90",
+               "jsondocId": "59d0591f-bd56-41e0-81f6-a89387052216",
                "description": "List of phone numbers to send this text to",
                "presentInResponse": false,
                "mandatory": false,
@@ -2511,7 +2571,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "492c8571-cc9e-4f09-ae94-ee3632277245",
+               "jsondocId": "e40c2cf2-117b-4da6-a7f0-1f37746b4d07",
                "description": "List of tag ids to send this text to",
                "presentInResponse": false,
                "mandatory": false,
@@ -2524,7 +2584,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "f4dee304-56d2-44bf-9fe0-5d38b1ba33ce",
+               "jsondocId": "0a512780-2776-4af1-a1bf-abb520b972bf",
                "description": "Type of record item. One of: call, text, note",
                "presentInResponse": true,
                "mandatory": false,
@@ -2539,12 +2599,12 @@
          ]
       },
       {
-         "jsondocId": "4467b27a-557e-4f0b-a744-a91b177f81f2",
+         "jsondocId": "68feb5f0-a6f3-4288-95b7-68a8f02c1b90",
          "description": "Schedule that repeats weekly.",
          "name": "Schedule",
          "fields": [
             {
-               "jsondocId": "5a831cd2-dbe4-42f1-801c-2c2f3d6a26be",
+               "jsondocId": "5a0e3577-b0d6-4afc-9c5d-29660f0d0e70",
                "description": "Available times on Friday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2557,7 +2617,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "41dd1924-d423-494c-92db-78dd21e1a6bf",
+               "jsondocId": "f31ff157-29b3-4fca-8f70-ab3912000872",
                "description": "Available times on Monday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2570,7 +2630,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "5266097b-ea51-4615-bb81-67b4fc86d19f",
+               "jsondocId": "612b04c3-d665-4e9f-a654-9b1f2d437d9e",
                "description": "Date and time of the next time the schedule will be available. Only appears if the schedule is not empty.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2583,7 +2643,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "ab97f89e-b091-486a-9784-0a75c283b19b",
+               "jsondocId": "6aead798-887a-4eb0-9a93-697cf4ba2704",
                "description": "Date and time of the next time the schedule will be unavailable. Only appears if the schedule is not empty.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2596,7 +2656,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "b434d161-501f-443f-a84d-3bdee54f3e24",
+               "jsondocId": "55028010-e328-4be8-a57a-5870e6488e3d",
                "description": "Available times on Saturday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2609,7 +2669,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "2d0a27b5-181c-402e-bcd4-7a3e4ffed8f2",
+               "jsondocId": "b9d1cb7f-9bf3-4cdf-9635-f087093c1637",
                "description": "Available times on Sunday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2622,7 +2682,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "0145de31-f774-4d35-8757-7be191f603d5",
+               "jsondocId": "a90d54d2-3e27-40e4-bd05-f7548169843f",
                "description": "Available times on Thursday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2635,7 +2695,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "87aad7a3-d5cd-4940-95b7-8b2ad738cfbc",
+               "jsondocId": "4ab0873e-86b7-4740-9531-89eb84b343d0",
                "description": "Available times on Tuesday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2648,7 +2708,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "71b53a28-742b-4247-87de-caba1c9b72dc",
+               "jsondocId": "7107f0c1-da38-4ea6-a8dd-c9643f534648",
                "description": "Available times on Wednesday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2663,12 +2723,12 @@
          ]
       },
       {
-         "jsondocId": "fb2000cf-1a43-435b-8371-a6cf76ce9f8a",
+         "jsondocId": "7ddcfd32-7ecc-4188-91ef-f6fa9c934cb5",
          "description": "Information on how you've shared a contact with another staff member",
          "name": "SharedContact",
          "fields": [
             {
-               "jsondocId": "2f3c9917-bea6-48f7-b106-453f5cbda58e",
+               "jsondocId": "ad112897-890a-4742-9a00-2d8904ce05c3",
                "description": "When you started sharing this contact",
                "presentInResponse": true,
                "mandatory": false,
@@ -2681,7 +2741,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "bd8ad1a7-6aa7-4680-bfe6-8eafea32254d",
+               "jsondocId": "9b9c330d-8718-42f7-ac5f-e3d975e59c18",
                "description": "Level of permissions you shared this contact with. Allowed: delegate, view",
                "presentInResponse": true,
                "mandatory": true,
@@ -2694,7 +2754,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "a73f9d69-a58c-42dd-bfdb-6c8e9ae61481",
+               "jsondocId": "e1daa9ce-048c-46f7-8493-b204fb9c359c",
                "description": "Name of the staff member you have shared this contact with",
                "presentInResponse": true,
                "mandatory": false,
@@ -2707,7 +2767,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "b14e0426-5a41-4599-bcde-62cb9a599eef",
+               "jsondocId": "36e7b7e0-e10c-4a2e-8983-4fbecab4985e",
                "description": "Staff member that this contact is shared with",
                "presentInResponse": true,
                "mandatory": true,
@@ -2722,12 +2782,12 @@
          ]
       },
       {
-         "jsondocId": "a22c3a33-12f6-4f99-9f7f-66e02d75a38f",
+         "jsondocId": "5c7f35e7-1f60-45e8-9212-f849afa76668",
          "description": "A staff member at an organization.",
          "name": "Staff",
          "fields": [
             {
-               "jsondocId": "a2426e0c-806f-4614-a88c-8a173fd843ee",
+               "jsondocId": "05626437-843c-4dcc-8f1d-261c59409126",
                "description": "Away message to text back when a text comes in but the staff is unavailable.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2740,7 +2800,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "c405e2c1-77ce-4787-8007-5409b5db4f93",
+               "jsondocId": "34c056bb-7b80-4ddc-80f2-1057aa78d0f7",
                "description": "Email address of the staff member.",
                "presentInResponse": true,
                "mandatory": true,
@@ -2753,7 +2813,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "5f0929f7-424e-4e7e-9d46-ebc97f50b2a5",
+               "jsondocId": "98d72dbb-d54c-4779-81e2-ae1963868a88",
                "description": "If the staff member is available. Can only be mutated if the staff member is manually managing the schedule.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2766,7 +2826,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "8a2b44b2-d967-42c3-ae9f-5be7605607de",
+               "jsondocId": "e745a8ce-b3a3-4103-a528-5fd3f73435c2",
                "description": "If the staff member is available right now.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2779,7 +2839,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "a8c493ea-2ddd-44f1-98ab-f7af0c405632",
+               "jsondocId": "65dd0abb-f317-4b23-b5b9-ec7b0b137d2d",
                "description": "If the staff member wants to manually manage schedule.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2792,7 +2852,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "4f9dd394-3e3e-449c-a9ac-ba2e03a7f3d5",
+               "jsondocId": "850fedbc-97d9-4299-8851-fb155754244a",
                "description": "Full name of the staff member.",
                "presentInResponse": true,
                "mandatory": true,
@@ -2805,7 +2865,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "7618fa81-38fd-431d-9ce4-75297fafad70",
+               "jsondocId": "df6cfcd6-b7ab-4368-be9b-b636dfdfe5e1",
                "description": "Id of the organization this team belongs to",
                "presentInResponse": true,
                "mandatory": false,
@@ -2818,37 +2878,11 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "c4db3f76-a033-4446-aa63-c1259e6c7ef0",
-               "description": "Id of the organization to associate with",
-               "presentInResponse": false,
-               "mandatory": true,
-               "name": "org.id",
-               "allowedvalues": null,
-               "useForCreation": true,
-               "format": null,
-               "defaultValue": null,
-               "type": "Number",
-               "multiple": "false"
-            },
-            {
-               "jsondocId": "023b2546-e8fd-41d0-8e52-26f503ca0201",
-               "description": "If creating a new organization, the location of the organization to create and associate with",
-               "presentInResponse": false,
-               "mandatory": false,
-               "name": "org.location",
-               "allowedvalues": null,
-               "useForCreation": true,
-               "format": null,
-               "defaultValue": "Undefined",
-               "type": "Location",
-               "multiple": "false"
-            },
-            {
-               "jsondocId": "bd3d1b48-490d-4118-92a1-f9cd3718115d",
+               "jsondocId": "de1b36fb-578f-425b-bd0b-6d4d7aa981cd",
                "description": "If creating a new organization, the name of the organization to create and associate with",
                "presentInResponse": false,
                "mandatory": false,
-               "name": "org.name",
+               "name": "orgName",
                "allowedvalues": null,
                "useForCreation": true,
                "format": null,
@@ -2857,7 +2891,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "7af1ddac-99af-43a1-ac21-9ad40d00610c",
+               "jsondocId": "d7d763c6-82e3-43b7-bed0-e3b38aadee32",
                "description": "Password of the staff member.",
                "presentInResponse": false,
                "mandatory": true,
@@ -2870,7 +2904,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "343d4dd0-1562-4d0c-874c-1453ba7e4506",
+               "jsondocId": "653354e0-7f88-4afb-bf35-7cc879fc9339",
                "description": "Personal phone number of the staff member.",
                "presentInResponse": true,
                "mandatory": true,
@@ -2883,7 +2917,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "725e7bc9-834b-4b0e-b0f1-4080aa671486",
+               "jsondocId": "f9cfd089-2b8b-4d67-a983-2e8c98d8f3f7",
                "description": "TextUp phone number of the staff member.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2896,7 +2930,20 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "3a60f0ab-0b9b-4b08-a5a9-8cb353ae88c6",
+               "jsondocId": "af096c3a-aa3f-421a-bf3d-ec232bf19a9c",
+               "description": "Id of the phone number to provision as the TextUp number of this staff member",
+               "presentInResponse": false,
+               "mandatory": false,
+               "name": "phoneId",
+               "allowedvalues": null,
+               "useForCreation": false,
+               "format": null,
+               "defaultValue": null,
+               "type": "String",
+               "multiple": "false"
+            },
+            {
+               "jsondocId": "ac82e5e1-741c-4985-98ff-d0194d0fe45a",
                "description": "Schedule of the staff member.",
                "presentInResponse": true,
                "mandatory": false,
@@ -2909,7 +2956,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "2c4e6fd4-5aac-4834-ac9e-f6ce829e4e0d",
+               "jsondocId": "36445a07-4191-411f-bafe-7eb075f1d259",
                "description": "Status of the staff member. Allowed: blocked, pending, staff, admin",
                "presentInResponse": true,
                "mandatory": false,
@@ -2922,7 +2969,33 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "182648a2-ec42-4a09-8a90-caa733d3c484",
+               "jsondocId": "983d1548-f17b-4a33-acc4-f48fcf279ab5",
+               "description": "List of tags the staff member's TextUp phone, if any.",
+               "presentInResponse": true,
+               "mandatory": false,
+               "name": "tags",
+               "allowedvalues": null,
+               "useForCreation": false,
+               "format": null,
+               "defaultValue": null,
+               "type": "List<Tag>",
+               "multiple": "false"
+            },
+            {
+               "jsondocId": "38abe215-59b0-4508-aa54-02b19641f0e4",
+               "description": "List of teams the staff member is a member of.",
+               "presentInResponse": true,
+               "mandatory": false,
+               "name": "teams",
+               "allowedvalues": null,
+               "useForCreation": false,
+               "format": null,
+               "defaultValue": null,
+               "type": "List<Team>",
+               "multiple": "false"
+            },
+            {
+               "jsondocId": "a3613555-1493-4fdc-8d56-d385465da7d8",
                "description": "Username of the staff member.",
                "presentInResponse": true,
                "mandatory": true,
@@ -2937,12 +3010,12 @@
          ]
       },
       {
-         "jsondocId": "00f2d531-8f9d-48b0-842a-74b22f2df27b",
+         "jsondocId": "887d67e7-5730-4982-bf46-2881534fe50b",
          "description": "A tag for grouping contacts",
          "name": "Tag",
          "fields": [
             {
-               "jsondocId": "8aa1b7b7-3584-49bc-a2c3-bbc81273d541",
+               "jsondocId": "bfc923c4-80be-4596-a919-628a721f55a0",
                "description": "List of some actions to perform on contacts with relation to this tag",
                "presentInResponse": false,
                "mandatory": false,
@@ -2955,7 +3028,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "571d5b83-15de-4ad3-9338-92b79e978b65",
+               "jsondocId": "8bb3b1c9-9e63-47f7-927a-133b6da2d488",
                "description": "Whether this tag keeps a record of messages to its members",
                "presentInResponse": true,
                "mandatory": false,
@@ -2968,7 +3041,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "efd66c4b-82f8-4480-afdc-fcd4ccd2ae23",
+               "jsondocId": "9392f884-766d-47fd-b57d-71dec84464d7",
                "description": "Hex color code for labels for this tag",
                "presentInResponse": true,
                "mandatory": false,
@@ -2976,12 +3049,12 @@
                "allowedvalues": null,
                "useForCreation": true,
                "format": null,
-               "defaultValue": "#000",
+               "defaultValue": "#1BA5E0",
                "type": "String",
                "multiple": "false"
             },
             {
-               "jsondocId": "43a84293-8ea0-478b-b48f-418d4e464cbc",
+               "jsondocId": "5862cc92-71da-482f-8679-92e6d7c92e94",
                "description": "Date and time of the most recent communication if this tag keeps a record",
                "presentInResponse": true,
                "mandatory": false,
@@ -2994,7 +3067,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "f39d760c-1b50-4ed6-9b65-4bae6a2b278a",
+               "jsondocId": "d011016b-a81b-4a6e-8d8a-18a65d5f5e05",
                "description": "Name of this tag",
                "presentInResponse": true,
                "mandatory": true,
@@ -3009,12 +3082,12 @@
          ]
       },
       {
-         "jsondocId": "c4fa63e6-e68f-43b8-8919-9af977fd70ef",
+         "jsondocId": "d60f5ecb-35e2-4502-93c5-355a2ab122b7",
          "description": "A team at an organization.",
          "name": "Team",
          "fields": [
             {
-               "jsondocId": "9e901fcd-8e13-4007-bb9c-2443d14cad45",
+               "jsondocId": "68eac93c-a3db-4b47-8565-05abf36bc722",
                "description": "List of some actions to perform on staff with relation to this team",
                "presentInResponse": false,
                "mandatory": false,
@@ -3027,7 +3100,20 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "dff3849d-1c0b-4ba4-91b1-eab28bf036cc",
+               "jsondocId": "e50619cd-8693-4918-bdba-85b9a1b9b23c",
+               "description": "Hex color code for this team",
+               "presentInResponse": true,
+               "mandatory": false,
+               "name": "hexColor",
+               "allowedvalues": null,
+               "useForCreation": true,
+               "format": null,
+               "defaultValue": "#1BA5E0",
+               "type": "String",
+               "multiple": "false"
+            },
+            {
+               "jsondocId": "9a164626-95ca-4ac6-8048-15cd60ff1f5c",
                "description": "Location this team is based at. Default same as organization.",
                "presentInResponse": true,
                "mandatory": true,
@@ -3040,7 +3126,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "8f50970f-c7c7-4681-97a6-8fbd7cb40ed7",
+               "jsondocId": "e5061be5-03d5-418e-b250-3171516cf0b0",
                "description": "Name of the team",
                "presentInResponse": true,
                "mandatory": true,
@@ -3053,7 +3139,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "7fefe477-0480-47b2-a04f-a87f7c76c479",
+               "jsondocId": "7dc83af2-c320-4d55-883b-3a6099906135",
                "description": "Id of the organization this team belongs to",
                "presentInResponse": true,
                "mandatory": true,
@@ -3066,7 +3152,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "90491cd3-a9e9-4f59-9742-84c8ee5b4a7e",
+               "jsondocId": "76c2aaab-554a-45d4-9dd2-666937885c8d",
                "description": "Shared team phone number",
                "presentInResponse": true,
                "mandatory": false,
@@ -3081,12 +3167,12 @@
          ]
       },
       {
-         "jsondocId": "ea8024e8-dd7c-4641-b0e8-f7b097d53a51",
+         "jsondocId": "ced54d05-24c5-457a-ab81-4eccaf832745",
          "description": "Request a password reset",
          "name": "[newPasswordRequest]",
          "fields": [
             {
-               "jsondocId": "3b64bbcc-c8ab-469d-a90d-b3e3e1c7d775",
+               "jsondocId": "471bfa44-ffc1-4367-a579-16914490b921",
                "description": "New password for the staff",
                "presentInResponse": false,
                "mandatory": true,
@@ -3099,7 +3185,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "763bc377-b5ba-44c8-9160-6ab088b90da0",
+               "jsondocId": "427588cf-fde6-4efe-a0ae-f3bdab208d7c",
                "description": "Reset token string",
                "presentInResponse": false,
                "mandatory": true,
@@ -3114,12 +3200,12 @@
          ]
       },
       {
-         "jsondocId": "9977402d-2900-4d02-8d3c-eafa7a8b42cb",
+         "jsondocId": "b428db7f-625b-4157-84c4-bbcaec8dd92f",
          "description": "Add, update, or delete a contact's phone numbers",
          "name": "[numberAction]",
          "fields": [
             {
-               "jsondocId": "0ae990b9-a492-4e4b-8111-d7376beb0d28",
+               "jsondocId": "f319d69c-66f1-4297-8fc9-36332f3f26d2",
                "description": "Action to take. Allowed: merge, delete",
                "presentInResponse": false,
                "mandatory": true,
@@ -3132,7 +3218,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "bcd896be-c87c-42c0-9018-8446dfb5bc63",
+               "jsondocId": "4ef47de0-a20f-48db-a771-1bc3e65480c4",
                "description": "Phone number",
                "presentInResponse": false,
                "mandatory": true,
@@ -3145,7 +3231,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "2ec0725e-d404-418e-b5a7-f2ccc8ac92ac",
+               "jsondocId": "a897d913-5a69-496e-9bfa-920cea01232a",
                "description": "Level of preference to use this number. Smaller number is higher preference.",
                "presentInResponse": false,
                "mandatory": false,
@@ -3160,11 +3246,11 @@
          ]
       },
       {
-         "jsondocId": "7028086d-d948-4e8f-b2ad-7db644240f17",
+         "jsondocId": "aed48768-0f46-45c5-80b0-af87a5d1beae",
          "description": "Request a password reset",
          "name": "[passwordResetRequest]",
          "fields": [{
-            "jsondocId": "b674c555-ef3a-4dee-a411-3247d6cfb789",
+            "jsondocId": "8924ada0-57c9-49e9-9fd9-145a2a2aa8fa",
             "description": "Username of the account to send password request for",
             "presentInResponse": false,
             "mandatory": true,
@@ -3178,12 +3264,12 @@
          }]
       },
       {
-         "jsondocId": "ea6078e3-289a-4771-bf72-0c198909b499",
+         "jsondocId": "5d8dc476-20b5-48aa-902c-ac5c5dfee1e0",
          "description": "Share or stop sharing a contact with another staff member",
          "name": "[shareAction]",
          "fields": [
             {
-               "jsondocId": "b47fbe59-90fe-4eac-94e8-3672f5936e86",
+               "jsondocId": "c5e5db81-f9e0-415a-9406-43870bb7ddd5",
                "description": "Action to take. Allowed: merge, stop",
                "presentInResponse": false,
                "mandatory": true,
@@ -3196,7 +3282,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "bc4818be-cec5-458f-b88a-c83d1d53f11c",
+               "jsondocId": "300e47fd-95a4-48f0-93c1-eff4e8d5b1d8",
                "description": "Id of the staff member",
                "presentInResponse": false,
                "mandatory": true,
@@ -3209,7 +3295,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "3c60ed35-cdaa-4e87-aa12-44ca47069b53",
+               "jsondocId": "fe034553-2be3-4fa0-ae42-500503b0a158",
                "description": "Level of permission to share with. Allowed: delegate, view",
                "presentInResponse": false,
                "mandatory": true,
@@ -3224,12 +3310,12 @@
          ]
       },
       {
-         "jsondocId": "5cedad48-4984-44c3-9988-a51ecfc75ecf",
+         "jsondocId": "ec727e17-9e80-4034-a31d-7f377186a5e8",
          "description": "Modify a contact with relative to a tag",
          "name": "[tagAction]",
          "fields": [
             {
-               "jsondocId": "2a2f66a6-5e30-436e-96af-bd5c3775b23c",
+               "jsondocId": "4de200d2-3f14-40e6-91b2-faa497f544b3",
                "description": "Action to take. Allowed: add, remove, subscribeCall, subscribeText, unsubscribe",
                "presentInResponse": false,
                "mandatory": true,
@@ -3242,7 +3328,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "a99f7e7e-a90b-4cb9-9d74-7a7067e2d2df",
+               "jsondocId": "154036ec-d55f-4557-9dd9-a59a4d6f3c13",
                "description": "Id of the contact to modify",
                "presentInResponse": false,
                "mandatory": true,
@@ -3257,12 +3343,12 @@
          ]
       },
       {
-         "jsondocId": "8604700a-bfba-470a-96ed-949aae4aaf57",
+         "jsondocId": "90a9882b-2353-4516-9062-2de592e5bfe8",
          "description": "Modify a staff with relative to a team",
          "name": "[teamAction]",
          "fields": [
             {
-               "jsondocId": "bd16af04-25e9-4bda-93d7-30bd177fab7d",
+               "jsondocId": "8a01891a-7aa5-42fc-b478-72569f7748c6",
                "description": "Action to take. Allowed: add, remove",
                "presentInResponse": false,
                "mandatory": true,
@@ -3275,7 +3361,7 @@
                "multiple": "false"
             },
             {
-               "jsondocId": "d011e30f-bed4-4af2-8156-fe932102539a",
+               "jsondocId": "830742e9-7f09-49b5-8447-fd1c97a7f78b",
                "description": "Id of the staff to modify",
                "presentInResponse": false,
                "mandatory": true,

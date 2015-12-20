@@ -116,25 +116,26 @@ class Staff {
 	}
     static namedQueries = {
         activeForTeam { Team thisTeam ->
-            "in"("id", TeamMembership.staffIdsForTeam(thisTeam).list())
+            def res = TeamMembership.staffIdsForTeam(thisTeam).list()
+            if (res) { "in"("id", res) }
             "in"("status", [Constants.STATUS_STAFF, Constants.STATUS_ADMIN])
         }
         membersForTeam { Team thisTeam, Collection<String> statuses ->
-            "in"("id", TeamMembership.staffIdsForTeam(thisTeam).list())
-            if (statuses) {
-                "in"("status", statuses)
-            }
+            def res = TeamMembership.staffIdsForTeam(thisTeam).list()
+            if (res) { "in"("id", res) }
+            if (statuses) { "in"("status", statuses) }
         }
         forOrgAndStatuses { Organization thisOrg, Collection<String> statuses ->
             eq("org", thisOrg)
-            if (statuses) "in"("status", statuses)
+            if (statuses) { "in"("status", statuses) }
         }
         forPersonalAndWorkPhoneNums { TransientPhoneNumber personalNum, TransientPhoneNumber workNum ->
             eq("personalPhoneNumber.number", personalNum?.number)
             phone { eq("number.number", workNum?.number) }
         }
         forContactId { Long contactId ->
-            "in"("phone", Phone.forContactId(contactId).list())
+            def res4 = Phone.forContactId(contactId).list()
+            if (res4) { "in"("phone", res4) }
         }
         forPhoneNum { TransientPhoneNumber num ->
             phone { eq("number.number", num?.number) }
@@ -159,7 +160,8 @@ class Staff {
             //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
-                "in"("tag", tags.list())
+                def res = tags.list()
+                if (res) { "in"("tag", res) }
             }.deleteAll()
             //must be before we delete our contacts FOR RECORD DELETION
             def associatedRecordIds = new DetachedCriteria(Contact).build {
@@ -168,7 +170,8 @@ class Staff {
             }.list()
             //delete contacts' numbers
             new DetachedCriteria(ContactNumber).build {
-                "in"("contact", contacts.list())
+                def res = contacts.list()
+                if (res) { "in"("contact", res) }
             }.deleteAll()
             //delete shared contacts
             SharedContact.where { sharedBy == this.phone || sharedWith == this.phone }.deleteAll()
@@ -178,7 +181,7 @@ class Staff {
             //delete records associated with contacts, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
-                "in"("id", associatedRecordIds)
+                if (associatedRecordIds) { "in"("id", associatedRecordIds) }
             }.deleteAll()
         }
     }

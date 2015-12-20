@@ -33,7 +33,8 @@ class Phone {
             eq("number.number", num?.number)
         }
         forContactId { Long contactId ->
-            "in"("id", Contact.phoneIdsForContactId(contactId).list())
+            def res = Contact.phoneIdsForContactId(contactId).list()
+            if (res) { "in"("id", res) }
         }
     }
 
@@ -54,7 +55,8 @@ class Phone {
             //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
-                "in"("tag", tags.list())
+                def res = tags.list()
+                if (res) { "in"("tag", res) }
             }.deleteAll()
             //must be before we delete our contacts FOR RECORD DELETION
             def associatedRecordIds = new DetachedCriteria(Contact).build {
@@ -63,7 +65,8 @@ class Phone {
             }.list()
             //delete contacts' numbers
             new DetachedCriteria(ContactNumber).build {
-                "in"("contact", contacts.list())
+                def res = contacts.list()
+                if (res) { "in"("contact", res) }
             }.deleteAll()
             //delete contact and contact tags
             contacts.deleteAll()
@@ -71,7 +74,7 @@ class Phone {
             //delete records associated with contacts, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
-                "in"("id", associatedRecordIds)
+                if (associatedRecordIds) { "in"("id", associatedRecordIds) }
             }.deleteAll()
         }
     }
@@ -194,7 +197,8 @@ class Phone {
         List<String> nums = pNums*.number
         //find the numbers that correspond to existing contacts
         List<ContactNumber> existingContactNumbers = ContactNumber.createCriteria().list {
-            "in"("number", nums); contact { eq("phone", this) };
+            if (nums) { "in"("number", nums) }
+            contact { eq("phone", this) }
         }
         //add existing contacts to consensus
         existingContactNumbers.each { parsed.valid << it.contact }

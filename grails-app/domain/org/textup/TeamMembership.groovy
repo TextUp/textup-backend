@@ -20,11 +20,13 @@ class TeamMembership {
     static namedQueries = {
         staffIdsOnSameTeamAs { Long thisStaffId ->
             projections { distinct("staff.id") }
-            "in"("team.id", Team.teamIdsForStaffId(thisStaffId).list())
+            def res = Team.teamIdsForStaffId(thisStaffId).list()
+            if (res) { "in"("team.id", res) }
         }
         staffOnSameTeamAs { Long thisStaffId ->
             projections { distinct("staff") }
-            "in"("team.id", Team.teamIdsForStaffId(thisStaffId).list())
+            def res = Team.teamIdsForStaffId(thisStaffId).list()
+            if (res) { "in"("team.id", res) }
         }
         staffIdsForTeam { Team thisTeam ->
             projections { distinct("staff.id") }
