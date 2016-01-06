@@ -173,10 +173,16 @@ grails {
 cors.headers = ['Access-Control-Allow-Headers': 'Content-Type, Authorization']
 
 //REST API documentation
-grails.plugin.location.restapidoc = "PATH_TO_RESTAPIDOC"
 grails.plugins.restapidoc.customClassName="org.textup.rest.CustomResponseDoc"
 grails.plugins.restapidoc.outputFileGeneration="web-app/restapidoc.json"
 grails.plugins.restapidoc.outputFileReading="restapidoc.json"
+
+grails.doc {
+    title = "TextUp Backend"
+    subtitle = "The backend server powering the TextUp application"
+    authors = "Eric Bai"
+    license = "MIT"
+}
 
 textup {
     maxNumText = 50 //max number of recipients to text

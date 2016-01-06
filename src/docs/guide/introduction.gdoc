@@ -1,0 +1,1 @@
+The TextUp backend provides the data abstractions, enforces authentication and permission requirements, and handles texts and calls for the TextUp frontend application. In this guide, we aim to summarize the principal implementation details underlying the key abstraction

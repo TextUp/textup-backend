@@ -1,0 +1,41 @@
+introduction:
+	title: Introduction
+	gettingStarted: Getting Started
+	roadmap: Roadmap 
+deployment: 
+	title: Deployment
+	backendDeloyment: Backend Deployment
+	frontendDeployment: Frontend Deployment
+dataModel: 
+	title: Backend: Data Model 
+	basicRelationships: Basic Relationships
+	phones: Phones 
+	records: Records
+	contactsAndTags: Contacts and Tags
+	sharing: Sharing
+	schedules: Schedules
+	others: Others
+frontendDataModel: Frontend: Data Model 
+authPermissions: 
+	title: Backend: Authentication and Permissions
+	organizationApproval: Organization Approval
+	staffStatus: Staff Statuses
+	apiAuthentication: API Authentication
+	permissions: Permissions
+texts: 
+	title: Backend: Text Messages
+	sendingTexts: Sending Texts
+	receivingTexts: Receiving Texts
+calls: 
+	title: Backend: Voice Calls
+	makingCalls: Making Calls
+	receivingCalls: Receiving Calls
+	voicemails: Voicemails
+realtime: 
+	title: Realtime Communication via Web Sockets
+	backendRealtime: Backend Implementation
+	frontendRealtime: Frontend Implementation
+frontendInterface: 
+	title: Frontend: Interface Implementation
+	frontendUrls: Frontend Routes, Controllers, and Templates
+	frontendComponents: Web Components
