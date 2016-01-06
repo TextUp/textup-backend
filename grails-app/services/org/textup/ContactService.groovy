@@ -8,6 +8,7 @@ class ContactService {
 
 	def resultFactory
     def authService
+    def lockService
 
 	//////////////////
 	// REST methods //
@@ -36,55 +37,8 @@ class ContactService {
 	}
 
 	Result<Contact> update(Long cId, Map body) {
-		Contact c1 = Contact.get(cId)
-    	if (c1) {
-    		//do at the beginning so we don't need to discard any field changes
-    		//number actions validate only, see below for number actions
-    		List numActions = []
-    		if (body.doNumberActions) {
-    			Result validateRes = validateNumberActions(body.doNumberActions)
-    			if (!validateRes.success) return validateRes
-    			numActions = body.doNumberActions
-    		}
-    		//share actions
-    		if (body.doShareActions) {
-                def owner = c1.owner
-                if (owner.instanceOf(Staff)) {
-                    def shareActions = body.doShareActions
-                    if (shareActions instanceof List) {
-                        for (sAction in shareActions) {
-                            Result res = doShareAction(c1, sAction, owner)
-                            if (!res.success) return res
-                        }
-                    }
-                    else {
-                        return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                            "contactService.update.shareActionNotList")
-                    }
-                }
-                else {
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "contactService.update.cannotShareFromTeam", [c1.id])
-                }
-    		}
-    		//do number actions
-    		for (nAction in numActions) {
-    			Result res = doNumberAction(c1, nAction)
-				if (!res.success) return res
-			}
-    		//update other fields
-    		c1.with {
-    			if (body.name) name = body.name
-    			if (body.note) note = body.note
-    			if (body.status) status = body.status
-    		}
-    		if (c1.save()) { resultFactory.success(c1) }
-	    	else { resultFactory.failWithValidationErrors(c1.errors) }
-    	}
-    	else {
-    		resultFactory.failWithMessageAndStatus(NOT_FOUND,
-    			"contactService.update.notFound", [cId])
-    	}
+		lockService.updateContact(cId, body, this.&validateNumberActions,
+            this.&doShareAction, this.&doNumberAction)
 	}
 
 	Result delete(Long cId) {
@@ -121,7 +75,7 @@ class ContactService {
 				res = owner.phone.shareContact(c1, s1.phone, sAction.permission)
 				break
 			case Constants.SHARE_ACTION_STOP:
-				res = owner.phone.stopSharingWith(s1.phone)
+				res = owner.phone.stopSharingContactWith(c1, s1.phone)
 				break
 			default:
                 return resultFactory.failWithMessageAndStatus(BAD_REQUEST,

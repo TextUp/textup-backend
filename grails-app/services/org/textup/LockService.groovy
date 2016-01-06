@@ -6,6 +6,7 @@ import org.hibernate.StaleObjectStateException
 @Transactional
 class LockService {
 
+    def socketService
     def resultFactory
 
     ////////////////////////////////
@@ -59,6 +60,8 @@ class LockService {
                     return resultFactory.failWithValidationErrors(contact.errors)
                 }
             }
+            //trigger socket notifications
+            calls.each { socketService.sendRecord(it) }
             resultFactory.success(calls)
         }
         catch (StaleObjectStateException e) {
@@ -90,6 +93,7 @@ class LockService {
                 if (duration && item.instanceOf(RecordCall)) { item.durationInSeconds = duration }
                 if (!receipt.save()) { return resultFactory.failWithValidationErrors(receipt.errors) }
                 if (!item.save()) { return resultFactory.failWithValidationErrors(item.errors) }
+                socketService.sendRecord(item, Constants.SOCKET_EVENT_RECORD_STATUS)
             }
             resultFactory.success(receipts)
         }
@@ -141,7 +145,7 @@ class LockService {
                                         contact.updateLastRecordActivity()
                                         items << item
                                     }
-                                    else { 
+                                    else {
                                         return resultFactory.failWithValidationErrors(contact.errors)
                                     }
                                 }
@@ -149,15 +153,18 @@ class LockService {
                                     return resultFactory.failWithValidationErrors(item.errors)
                                 }
                             }
-                            else { 
-                                return resultFactory.failWithValidationErrors(receipt.errors) 
+                            else {
+                                return resultFactory.failWithValidationErrors(receipt.errors)
                             }
                         }
                         else { return res }
                     }
                 }
             }
-            if (items) { resultFactory.success(items) }
+            if (items) {
+                items.each { socketService.sendRecord(it) }
+                resultFactory.success(items)
+            }
             else { resultFactory.failWithMessage(BAD_REQUEST, "lockService.addToRecordWithReceipt.allBlocked") }
         }
         catch (StaleObjectStateException e) {
@@ -193,6 +200,72 @@ class LockService {
             case RecordItemType.RECORD_NOTE:
                 []
                 break
+        }
+    }
+
+    ////////////////////
+    // ContactService //
+    ////////////////////
+
+    Result<Contact> updateContact(Long cId, Map body, Closure validateNumberActions,
+        Closure doShareAction, Closure doNumberAction, int attemptNum=0) {
+        try {
+            Contact c1 = Contact.get(cId)
+            if (c1) {
+                //do at the beginning so we don't need to discard any field changes
+                //number actions validate only, see below for number actions
+                List numActions = []
+                if (body.doNumberActions) {
+                    Result validateRes = validateNumberActions(body.doNumberActions)
+                    if (!validateRes.success) return validateRes
+                    numActions = body.doNumberActions
+                }
+                //share actions
+                if (body.doShareActions) {
+                    def owner = c1.owner
+                    if (owner.instanceOf(Staff)) {
+                        def shareActions = body.doShareActions
+                        if (shareActions instanceof List) {
+                            for (sAction in shareActions) {
+                                Result res = doShareAction(c1, sAction, owner)
+                                if (!res.success) return res
+                            }
+                        }
+                        else {
+                            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                                "contactService.update.shareActionNotList")
+                        }
+                    }
+                    else {
+                        return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                            "contactService.update.cannotShareFromTeam", [c1.id])
+                    }
+                }
+                //do number actions
+                for (nAction in numActions) {
+                    Result res = doNumberAction(c1, nAction)
+                    if (!res.success) return res
+                }
+                //update other fields
+                c1.with {
+                    if (body.name) name = body.name
+                    if (body.note) note = body.note
+                    if (body.status) status = body.status
+                }
+                if (c1.save()) { resultFactory.success(c1) }
+                else { resultFactory.failWithValidationErrors(c1.errors) }
+            }
+            else {
+                resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                    "contactService.update.notFound", [cId])
+            }
+        }
+        catch (StaleObjectStateException e) {
+            if (attemptNum < Constants.LOCK_RETRY_MAX) {
+                updateContact(cId, body, validateNumberActions, doShareAction,
+                    doNumberAction, attemptNum++)
+            }
+            else { resultFactory.failWithThrowable(e) }
         }
     }
 }

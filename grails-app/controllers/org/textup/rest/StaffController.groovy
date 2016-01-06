@@ -37,6 +37,9 @@ class StaffController extends BaseController {
             required=true, description="Id of the organization to restrict results to"),
         @RestApiParam(name="teamId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description="Id of the team to restrict results to"),
+        @RestApiParam(name="onSameTeamAsStaffId", type="Number", paramType=RestApiParamType.QUERY,
+            required=true, description='''Restrict results to staff who are on the same
+            team as the provided staff id'''),
         @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
             required=false, description='''IANA zone info key to convert times to,
             include schedule intervals, defaults to UTC if unspecified or invalid''')
@@ -49,10 +52,10 @@ class StaffController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (params.timezone) {
-            request.timezone = params.timezone //for the json marshaller
+        if (params.timezone) { request.timezone = params.timezone }
+        if (Helpers.moreThanOneId(["organizationId", "teamId", "onSameTeamAsStaffId"], params)) {
+            badRequest()
         }
-        if (params.organizationId && params.teamId) { badRequest() }
         else if (params.organizationId) {
             Organization org = Organization.get(params.long("organizationId"))
             if (!org) { notFound(); return; }
@@ -68,6 +71,13 @@ class StaffController extends BaseController {
             if (authService.isAdminForTeam(t1.id) || authService.belongsToSameTeamAs(t1.id)) {
                 genericListActionForCriteria(Staff, Staff.membersForTeam(t1,
                     params.list("status[]")), params)
+            }
+            else { forbidden() }
+        }
+        else if (params.onSameTeamAsStaffId) {
+            Long sId = params.long("onSameTeamAsStaffId")
+            if (authService.isLoggedInAndActive(sId) || authService.isAdminAtSameOrgAs(sId)) {
+                genericListActionForCriteria(Staff, TeamMembership.staffOnSameTeamAs(sId), params)
             }
             else { forbidden() }
         }

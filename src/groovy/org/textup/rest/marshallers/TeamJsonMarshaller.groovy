@@ -16,6 +16,7 @@ class TeamJsonMarshaller extends JsonNamedMarshaller {
             name = t1.name
             if (t1.phone) phone = t1.phone.number.number
             org = t1.org.id
+            hexColor = t1.hexColor
         }
         json.location = [:]
         json.location.with {

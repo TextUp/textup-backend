@@ -45,7 +45,8 @@ class TeamPhone extends Phone {
             //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
-                "in"("tag", tags.list())
+                def res = tags.list()
+                if (res) { "in"("tag", res) }
             }.deleteAll()
             //must be before we delete our contacts FOR RECORD DELETION
             def associatedRecordIds = new DetachedCriteria(Contact).build {
@@ -58,7 +59,8 @@ class TeamPhone extends Phone {
             }.list()
             //delete contacts' numbers
             new DetachedCriteria(ContactNumber).build {
-                "in"("contact", contacts.list())
+                def res = contacts.list()
+                if (res) { "in"("contact", res) }
             }.deleteAll()
             //delete contact and contact tags
             contacts.deleteAll()
@@ -66,7 +68,8 @@ class TeamPhone extends Phone {
             //delete records associated with contacts and tags, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
-                "in"("id", associatedRecordIds + tagRecordIds)
+                def res = associatedRecordIds + tagRecordIds
+                if (res) { "in"("id", res) }
             }.deleteAll()
         }
     }

@@ -32,6 +32,10 @@ class Phone {
             //embedded properties must be accessed with dot notation
             eq("number.number", num?.number)
         }
+        forContactId { Long contactId ->
+            def res = Contact.phoneIdsForContactId(contactId).list()
+            if (res) { "in"("id", res) }
+        }
     }
 
     /*
@@ -51,7 +55,8 @@ class Phone {
             //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
-                "in"("tag", tags.list())
+                def res = tags.list()
+                if (res) { "in"("tag", res) }
             }.deleteAll()
             //must be before we delete our contacts FOR RECORD DELETION
             def associatedRecordIds = new DetachedCriteria(Contact).build {
@@ -60,7 +65,8 @@ class Phone {
             }.list()
             //delete contacts' numbers
             new DetachedCriteria(ContactNumber).build {
-                "in"("contact", contacts.list())
+                def res = contacts.list()
+                if (res) { "in"("contact", res) }
             }.deleteAll()
             //delete contact and contact tags
             contacts.deleteAll()
@@ -68,7 +74,7 @@ class Phone {
             //delete records associated with contacts, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
-                "in"("id", associatedRecordIds)
+                if (associatedRecordIds) { "in"("id", associatedRecordIds) }
             }.deleteAll()
         }
     }
@@ -82,7 +88,8 @@ class Phone {
         Phone.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
-                Phone ph = Phone.forNumber(num).get()
+                TransientPhoneNumber tNum = new TransientPhoneNumber(number:num)
+                Phone ph = Phone.forNumber(tNum).get()
                 if (ph && ph.id != this.id) { hasDuplicate = true }
             }
             catch (e) { hasDuplicate = true } //get throws exception if nonunique result
@@ -97,9 +104,6 @@ class Phone {
 
     Result<RecordResult> text(String message, List<String> numbers,
         List<Long> contactableIds, List<Long> tagIds) {
-
-        println "TEXT: tagIds: $tagIds"
-
         //check message size
         Result msgSizeRes = textService.checkMessageSize(message)
         if (!msgSizeRes.success) return msgSizeRes
@@ -108,23 +112,12 @@ class Phone {
         ParsedResult<PhoneNumber,String> parsedNums = Helpers.parseIntoPhoneNumbers(numbers)
         ParsedResult<Contactable,Long> parsedContactables = parseIntoContactables(contactableIds)
         ParsedResult<ContactTag,Long> parsedTags = parseIntoTags(tagIds)
-
-        println "\t parsedNums: $parsedNums"
-        println "\t parsedContactables: $parsedContactables"
-        println "\t parsedTags: $parsedTags"
-
         recResult.invalidNumbers += parsedNums.invalid
         recResult.invalidOrForbiddenContactableIds += parsedContactables.invalid
         recResult.invalidOrForbiddenTagIds += parsedTags.invalid
-
-        println "\t recResult: $recResult"
-
         //collect all contactables into one consensus list
         Set<Contactable> contactables = collectAllContactables(recResult,
             parsedNums.valid, parsedContactables.valid, parsedTags.valid)
-
-        println "\t contactables: $contactables"
-
         //check number of contactables
         Result numContRes = textService.checkNumRecipients(contactables.size())
         if (!numContRes.success) return numContRes
@@ -204,13 +197,9 @@ class Phone {
         List<String> nums = pNums*.number
         //find the numbers that correspond to existing contacts
         List<ContactNumber> existingContactNumbers = ContactNumber.createCriteria().list {
-            "in"("number", nums); contact { eq("phone", this) };
+            if (nums) { "in"("number", nums) }
+            contact { eq("phone", this) }
         }
-
-        println "parsePhoneNumberIntoContactables"
-        println "\t pNums: $pNums"
-        println "\t existingContactNumbers: $existingContactNumbers"
-
         //add existing contacts to consensus
         existingContactNumbers.each { parsed.valid << it.contact }
         //create new contacts for new numbers, and then add these
@@ -225,9 +214,6 @@ class Phone {
     protected RecordResult sendTexts(String message, Set<Contactable> contactables) {
         RecordResult recResult = new RecordResult()
         contactables.each { Contactable c ->
-
-            println "SENDING TEXT TO $c with numbers ${c.numbers}"
-
             Result<RecordResult> res = c.text(contents:message)
             afterSendTextTo(c, res) //hook to override
             if (res.success) { recResult.merge(res.payload) }
@@ -305,9 +291,10 @@ class Phone {
     // Property Access //
     /////////////////////
 
+    // DO NOT call save as this will save many many
+    // copies of the phone number
     void setNumber(PhoneNumber pNum) {
         this.number = pNum
-        this.number?.save()
     }
     void setNumberAsString(String num) {
         if (this.number) {

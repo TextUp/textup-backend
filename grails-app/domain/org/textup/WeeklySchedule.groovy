@@ -170,22 +170,23 @@ class WeeklySchedule extends Schedule {
         DateTimeZone zone = Helpers.getZoneFromId(timezone)
         List<String> daysOfWeek = Constants.DAYS_OF_WEEK
         int numDaysPerWeek = daysOfWeek.size()
-        //parse interval strings into a list of UTC intervals where sunday corresponds to 
+        //parse interval strings into a list of UTC intervals where sunday corresponds to
         //today, monday corresponds to tomorrow and so forth
         List<Interval> utcIntervals = []
         for(int addDays = 0; addDays < numDaysPerWeek; addDays++) {
             String dayOfWeek = daysOfWeek[addDays]
             def intStrings = params[dayOfWeek]
-            if (intStrings instanceof List) {
-                Result res = parseIntervalStringsToUTCIntervals(intStrings, addDays, zone)
-                if (res.success) {
-                    utcIntervals += res.payload
+            if (intStrings) {
+                if (intStrings instanceof List) {
+                    Result res = parseIntervalStringsToUTCIntervals(intStrings, addDays, zone)
+                    if (res.success) {
+                        utcIntervals += res.payload
+                    }
+                    else { return res }
                 }
-                else { return res }
-            }
-            else {
-                return resultFactory.failWithMessage("weeklySchedule.error.strIntsNotList",
-                    [dayEntry.key])
+                else {
+                    return resultFactory.failWithMessage("weeklySchedule.error.strIntsNotList", [intStrings])
+                }
             }
         }
         //call update after converting interval strings to local intervals
@@ -203,16 +204,38 @@ class WeeklySchedule extends Schedule {
         //rehydrate the strings as INTERVALS where sunday corresponds to TODAY, monday corresponds
         //to tomorrow, and tuesday corresponds to the day after tomorrow, etc.
         List<Interval> intervals = []
-        daysOfWeek.collectEntries { String dayOfWeek ->
+        //Handle edge case where Sunday's range is actually
+        //a wraparound of a range on Saturday!
+        boolean hasWraparound
+        String firstDayWrappedEnd
+        (hasWraparound, firstDayWrappedEnd) = checkWraparoundHelper(daysOfWeek)
+        //iterate over each day, building intervals as appropriate
+        daysOfWeek.eachWithIndex { String dayOfWeek, int addDays ->
             List<Interval> intervalsForDay = []
-            this."$dayOfWeek".tokenize(_rangeDelimiter).eachWithIndex { String rangeString, int addDays ->
+            this."$dayOfWeek".tokenize(_rangeDelimiter).each { String rangeString ->
                 List<String> times = rangeString.tokenize(_timeDelimiter)
                 if (times.size() == 2) {
-                    DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
-                        .plusDays(addDays)
-                    DateTime end = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[1]), zone)
-                        .plusDays(addDays)
-                    intervalsForDay << new Interval(start, end)
+                    //if is Sunday
+                    if (dayOfWeek == daysOfWeek[0]) {
+                        if (!(hasWraparound && times[0] == "0000")) {
+                            addToIntervalsHelper(dtf, zone, intervalsForDay, times, addDays)
+                        }
+                    }
+                    // should add wraparound on Saturday
+                    else if (dayOfWeek == daysOfWeek.last()) {
+                        if (hasWraparound && times[1] == "2359") {
+                            DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
+                                .plusDays(addDays)
+                            DateTime end = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(firstDayWrappedEnd), zone)
+                                .plusDays(addDays + 1)
+                            intervalsForDay << new Interval(start, end)
+                        }
+                        else {
+                            addToIntervalsHelper(dtf, zone, intervalsForDay, times, addDays)
+                        }
+                    }
+                    //handle all other days
+                    else { addToIntervalsHelper(dtf, zone, intervalsForDay, times, addDays) }
                 }
                 else {
                     log.error("WeeklySchedule.getAsLocalIntervals: for $dayOfWeek, invalid range: $rangeString")
@@ -220,7 +243,41 @@ class WeeklySchedule extends Schedule {
             }
             intervals += intervalsForDay
         }
-        fromIntervalsToLocalIntervalsMap(intervals)
+        //finally clean to merge abutting local intervals on the same day
+        Map<String,List<LocalInterval>> mergedLocalIntMap = [:]
+        fromIntervalsToLocalIntervalsMap(intervals).each { String dayOfWeek, List<LocalInterval> localInts ->
+            mergedLocalIntMap[dayOfWeek] = cleanLocalIntervals(localInts.sort(), 1) //1 minute merge threshold
+        }
+        mergedLocalIntMap
+    }
+    private List checkWraparoundHelper(List<String> daysOfWeek) {
+        boolean lastDayAtEnd = false,
+            firstDayAtBeginning = false
+        String firstDayWrappedEnd
+        for (wrapRange in this."${daysOfWeek[0]}".tokenize(_rangeDelimiter)) {
+            if (wrapRange.tokenize(_timeDelimiter)[0] == "0000") {
+                firstDayWrappedEnd = wrapRange.tokenize(_timeDelimiter)[1]
+                firstDayAtBeginning = true
+                break
+            }
+        }
+        for (wrapRange in this."${daysOfWeek.last()}".tokenize(_rangeDelimiter)) {
+            if (wrapRange.tokenize(_timeDelimiter)[1] == "2359") {
+                lastDayAtEnd = true
+                break
+            }
+        }
+        boolean hasWraparound = lastDayAtEnd && firstDayAtBeginning
+        [hasWraparound, firstDayWrappedEnd]
+    }
+    private addToIntervalsHelper(DateTimeFormatter dtf, DateTimeZone zone,
+        List<Interval> intervalsForDay, List<String> times, int addDays) {
+
+        DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
+            .plusDays(addDays)
+        DateTime end = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[1]), zone)
+            .plusDays(addDays)
+        intervalsForDay << new Interval(start, end)
     }
 
     /*
@@ -276,14 +333,13 @@ class WeeklySchedule extends Schedule {
     // Before dehydrating, rehydrating or validating, handle non-UTC timezones first //
     ///////////////////////////////////////////////////////////////////////////////////
 
-    //iterate each interval, and bin them into the appropriate day of the week, assuming that sunday 
+    //iterate each interval, and bin them into the appropriate day of the week, assuming that sunday
     //corresponds to day, monday to tomorrow and so forth. For wraparound purposes, yesterday corresponds
     //to saturday
     protected Map<String,List<LocalInterval>> fromIntervalsToLocalIntervalsMap(List<Interval> intervals) {
-        Map<String,List<LocalInterval>> localIntervals = daysOfWeek.collectEntries { [(it):[]] }
         List<String> daysOfWeek = Constants.DAYS_OF_WEEK
-        DateTime today = DateTime.now()
-        
+        Map<String,List<LocalInterval>> localIntervals = daysOfWeek.collectEntries { [(it):[]] }
+        DateTime today = DateTime.now(DateTimeZone.UTC)
         intervals.each { Interval interval ->
             int startDayOfWeek = Helpers.getDayOfWeekIndex(Helpers.getDaysBetween(today, interval.start)),
                 endDayOfWeek = Helpers.getDayOfWeekIndex(Helpers.getDaysBetween(today, interval.end))
@@ -294,8 +350,8 @@ class WeeklySchedule extends Schedule {
                 localIntervals[startDay] << new LocalInterval(interval)
             }
             else { //interval spans two days, break interval into two local intervals
-                localIntervals[startDay] << new LocalInterval(interval.start.toLocalTime(), new LocalTime(11, 59))
-                localIntervals[endDay] << new LocalInterval(new LocalTime(12, 00), interval.end.toLocalTime())
+                localIntervals[startDay] << new LocalInterval(interval.start.toLocalTime(), new LocalTime(23, 59))
+                localIntervals[endDay] << new LocalInterval(new LocalTime(00, 00), interval.end.toLocalTime())
             }
         }
         localIntervals
@@ -306,14 +362,21 @@ class WeeklySchedule extends Schedule {
 
         List<LocalInterval> result = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
+        DateTime today = DateTime.now(DateTimeZone.UTC)
+
         for (str in intStrings) {
             try {
                 List<String> times = str.tokenize(_restDelimiter)
                 if (times.size() == 2) {
-                    DateTime start = Helpers.toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[0]), zone)
-                        .plusDays(addDays)
-                    DateTime end = Helpers.toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[1]), zone)
-                        .plusDays(addDays)
+                    DateTime start = Helpers.toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[0]), zone),
+                        end = Helpers.toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[1]), zone)
+                    //add days until we've reached the desired offset from today
+                    //we use the start date as reference and increment the end date
+                    //accordingly to preserve the range
+                    while (Helpers.getDaysBetween(today, start) < addDays) {
+                        start = start.plusDays(1)
+                        end = end.plusDays(1)
+                    }
                     result << new Interval(start, end)
                 }
                 else {
@@ -376,7 +439,8 @@ class WeeklySchedule extends Schedule {
         }
     }
 
-    private List<LocalInterval> cleanLocalIntervals(List<LocalInterval> intervals) {
+    private List<LocalInterval> cleanLocalIntervals(List<LocalInterval> intervals,
+        Integer minutesThreshold=null) {
         List<LocalInterval> sorted = intervals.sort(),
             cleaned = sorted.isEmpty() ? [] : [sorted[0]]
         int sortedLen = sorted.size()
@@ -384,8 +448,11 @@ class WeeklySchedule extends Schedule {
         for(int i = 1; i < sortedLen; i++) {
             LocalInterval int1 = sorted[i - 1], int2 = sorted[i]
             if (int1 != int2) {
-                if (int1.abuts(int2) || int1.overlaps(int2)) {
-                    LocalInterval startingInt = mergedPrevious ? cleaned.pop() : int1
+                if (int1.abuts(int2) || int1.overlaps(int2) ||
+                    (minutesThreshold && int1.withinMinutesOf(int2, minutesThreshold))) {
+
+                    LocalInterval startingInt = mergedPrevious ? cleaned.last() : int1
+                    cleaned = (cleaned.size() == 1) ? [] : cleaned[0..-2] //pop last
                     if (startingInt.end > int2.end) {
                         cleaned << new LocalInterval(start:startingInt.start, end:startingInt.end)
                     }

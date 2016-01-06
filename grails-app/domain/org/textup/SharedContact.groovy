@@ -65,21 +65,25 @@ class SharedContact implements Contactable {
         sharedContactsForSameTeamAsSharedWith { StaffPhone sWith ->
             eq("sharedWith.id", sWith.id)
             sharedBy {
-                "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list())
+                def res = TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list()
+                if (res) { "in"("ownerId", res) }
             }
         }
         sharedContactsForSameTeamAsSharedBy { StaffPhone sBy ->
             eq("sharedBy.id", sBy.id)
             sharedWith {
-                "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list())
+                def res = TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list()
+                if (res) { "in"("ownerId", res) }
             }
         }
         sharedContactsForSameTeam { StaffPhone sBy, StaffPhone sWith ->
             sharedBy {
-                "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list())
+                def res = TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list()
+                if (res) { "in"("ownerId", res) }
             }
             sharedWith {
-                "in"("ownerId", TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list())
+                def res = TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list()
+                if (res) { "in"("ownerId", res) }
             }
         }
 
@@ -94,7 +98,7 @@ class SharedContact implements Contactable {
         }
         sharedWithForContactIds { StaffPhone sWith, Collection<Long> contactIds ->
             sharedWithMe(sWith)
-            "in"("c1.id", contactIds) //alias from notExpired()
+            if (contactIds) { "in"("c1.id", contactIds) } //alias from notExpired()
         }
         sharedWithMeContactIds { StaffPhone sWith ->
             projections { property("contact.id") }
@@ -102,10 +106,19 @@ class SharedContact implements Contactable {
             notExpired()
             sharedContactsForSameTeamAsSharedWith(sWith)
         }
+        anyTeamSharedByMeIds { StaffPhone sBy ->
+            projections { property("id") }
+            eq("sharedBy", sBy)
+            notExpired()
+        }
         sharedByMe { StaffPhone sBy ->
             eq("sharedBy", sBy)
             notExpired()
             sharedContactsForSameTeamAsSharedBy(sBy)
+        }
+        sharedByMeIds { StaffPhone sBy ->
+            projections { property("id") }
+            sharedByMe(sBy)
         }
         allNonexpiredFor { Contact contact, StaffPhone sBy ->
             sharedByMe(sBy)

@@ -19,6 +19,8 @@ class OrganizationJsonMarshaller extends JsonNamedMarshaller {
             lat = org.location.lat
             lon = org.location.lon
         }
+        json.teams = org.teams
+        json.numAdmins = org.countPeople(status:[Constants.STATUS_ADMIN])
 
         json.links = [:]
         json.links << [self:linkGenerator.link(namespace:namespace, resource:"organization", action:"show", id:org.id, absolute:false)]

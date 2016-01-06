@@ -24,7 +24,7 @@ class PublicRecordController extends BaseController {
     def textService
     def staffTextService
     def teamTextService
-    
+
     def recordService
     def staffService
     def twimlBuilder
@@ -47,16 +47,11 @@ class PublicRecordController extends BaseController {
         @RestApiParam(name="handle", type="String", required=true,
             paramType=RestApiParamType.QUERY, description='''If is a text (POST body has MessageSid),
             then one of "incoming" or "status". If is a call (POST has CallSid), then one of "incoming",
-            "status", "voicemail", "digitsFromPublicForTeam" or "digitsFromStaffForStaff." If you want to
-            repeat a previous response, you can specify the handle as "repeat", and then pass in the
-            code of the response to repeat in the "for" query param'''),
+            "status", "voicemail", "digitsFromPublicForTeam" or "digitsFromStaffForStaff."'''),
         @RestApiParam(name="contactId", type="Number", required=true,
             paramType=RestApiParamType.QUERY, description='''If updating the status for a Twilio Client
             call made directly from the frontend Javascript, then you must include the id of the contact
-            that was called so we know which contact to update the status for.'''),
-        @RestApiParam(name="for", type="String", required=true,
-            paramType=RestApiParamType.QUERY, description='''The code of the response you would like
-            repeated. This is mandatory when the handle is specified as "repeat."''')
+            that was called so we know which contact to update the status for.''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="No records found that match the Sid provided."),
@@ -67,58 +62,41 @@ class PublicRecordController extends BaseController {
             body, or invalid status parameter, or contactId not provided with Twilio Client call.''')
     ])
     def save() {
-        println "PUBLIC RECORD CONTROLLER -> handle ${params.handle}"
-
-        if (params.handle == Constants.CALL_TEXT_REPEAT) { repeat(params) }
-        else {
-            if (authService.authenticateRequest(request, params)) {
-                if (params.CallSid) {
-                    switch (params.handle) {
-                        case Constants.CALL_STATUS:
-                            return callStatus(params)
-                        case Constants.CALL_INCOMING:
-                            return incomingCall(params)
-                        case Constants.CALL_VOICEMAIL:
-                            return voicemail(params)
-                        case Constants.CALL_PUBLIC_TEAM_DIGITS:
-                            return incomingTeamDigitsForCall(params)
-                        case Constants.CALL_STAFF_STAFF_DIGITS:
-                            return incomingDigitsForSelfCall(params)
-                        case Constants.CONFIRM_CALL_BRIDGE:
-                            return confirmBridgeCall(params)
-                        case Constants.CALL_BRIDGE:
-                            return startBridgeCall(params)
-                        case Constants.CALL_ANNOUNCEMENT:
-                            return startCallAnnouncement(params)
-                        case Constants.CALL_TEAM_ANNOUNCEMENT_DIGITS:
-                            return incomingDigitsForAnnouncement(params)
-                    }
+        log.debug("PUBLIC RECORD CONTROLLER -> handle ${params.handle}")
+        if (authService.authenticateRequest(request, params)) {
+            if (params.CallSid) {
+                switch (params.handle) {
+                    case Constants.CALL_STATUS:
+                        return callStatus(params)
+                    case Constants.CALL_INCOMING:
+                        return incomingCall(params)
+                    case Constants.CALL_VOICEMAIL:
+                        return voicemail(params)
+                    case Constants.CALL_SEND_TO_VOICEMAIL:
+                        return sendToVoicemail(params)
+                    case Constants.CALL_PUBLIC_TEAM_DIGITS:
+                        return incomingTeamDigitsForCall(params)
+                    case Constants.CALL_STAFF_STAFF_DIGITS:
+                        return incomingDigitsForSelfCall(params)
+                    case Constants.CONFIRM_CALL_BRIDGE:
+                        return confirmBridgeCall(params)
+                    case Constants.CALL_BRIDGE:
+                        return startBridgeCall(params)
+                    case Constants.CALL_ANNOUNCEMENT:
+                        return startCallAnnouncement(params)
+                    case Constants.CALL_TEAM_ANNOUNCEMENT_DIGITS:
+                        return incomingDigitsForAnnouncement(params)
                 }
-                else if (params.MessageSid) {
-                    switch (params.handle) {
-                        case Constants.TEXT_INCOMING:
-                            return incomingText(params)
-                        case Constants.TEXT_STATUS:
-                            return textStatus(params)
-                    }
-                }
-                else { badRequest() }
             }
-            else { forbidden() }
-        }
-    }
-
-    ////////////
-    // Repeat //
-    ////////////
-
-    protected def repeat(GrailsParameterMap params) {
-        if (params.for) { 
-            handleXmlResult(twimlBuilder.buildXmlFor(params.for))
-        }
-        else {
-            String error = g.message(code:"publicRecordController.repeat.noRepeatFor")
-            respondWithError(error, BAD_REQUEST)
+            else if (params.MessageSid) {
+                switch (params.handle) {
+                    case Constants.TEXT_INCOMING:
+                        return incomingText(params)
+                    case Constants.TEXT_STATUS:
+                        return textStatus(params)
+                }
+            }
+            else { badRequest() }
         }
     }
 
@@ -127,12 +105,12 @@ class PublicRecordController extends BaseController {
     ////////////
 
     protected def callStatus(GrailsParameterMap params) {
-        String sid = recordService.receiptExistsForApiId(params.CallSid) ? params.CallSid : 
+        String sid = recordService.receiptExistsForApiId(params.CallSid) ? params.CallSid :
             (recordService.receiptExistsForApiId(params.ParentCallSid) ? params.ParentCallSid : null),
             status = Helpers.translateCallStatus(params.CallStatus)
         Integer duration = Helpers.toInteger(params.CallDuration)
 
-        if (sid) { 
+        if (sid) {
             handleResultWithStatus(recordService.updateStatus(sid, status, duration), OK)
         }
         else if (params.contactId) { // if a Twilio Client call
@@ -173,7 +151,6 @@ class PublicRecordController extends BaseController {
     protected def incomingText(GrailsParameterMap params) {
         TransientPhoneNumber from = new TransientPhoneNumber(number:params.From),
             to = new TransientPhoneNumber(number:params.To)
-
         if (callService.staffPhoneExistsForNum(to)) {
             handleXmlResult(staffTextService.handleIncoming(from, to, params.MessageSid, params.Body))
         }
@@ -186,7 +163,7 @@ class PublicRecordController extends BaseController {
     }
 
     /*
-     * CALL 
+     * CALL
      */
 
     //////////////////
@@ -196,7 +173,6 @@ class PublicRecordController extends BaseController {
     protected def incomingCall(GrailsParameterMap params) {
         TransientPhoneNumber from = new TransientPhoneNumber(number:params.From),
             to = new TransientPhoneNumber(number:params.To)
-
         if (callService.staffPhoneExistsForNum(to)) {
             handleXmlResult(staffCallService.handleIncoming(from, to, params.CallSid))
         }
@@ -216,6 +192,14 @@ class PublicRecordController extends BaseController {
                 recordingDuration = Helpers.toInteger(params.RecordingDuration)
             handleResultWithStatus(callService.storeVoicemail(params.CallSid, status,
                 callDuration, params.RecordingUrl, recordingDuration), OK)
+        }
+        else { notFound() }
+    }
+
+    protected def sendToVoicemail(GrailsParameterMap params) {
+        if (recordService.receiptExistsForApiId(params.CallSid)) {
+            TransientPhoneNumber to = new TransientPhoneNumber(number:params.To)
+            handleXmlResult(callService.playVoicemail(to))
         }
         else { notFound() }
     }

@@ -14,7 +14,27 @@ class StaffCallService extends CallService {
         if (Staff.forPersonalAndWorkPhoneNums(from, to).count()) {
             twimlBuilder.buildXmlFor(CallResponse.SELF_GREETING)
         }
-        else { super.connect(from, to, apiId) }
+        else { //connect to staff's personal phone if available
+            Staff s = Staff.forPhoneNum(to).get()
+            if (s && s.phone) {
+                Result res = recordService.createIncomingRecordCall(from, s.phone, [apiId:apiId])
+                if (res.success) {
+                    if (s.isAvailableNow() && s.personalPhoneNumber) {
+                        twimlBuilder.buildXmlFor(CallResponse.CONNECTING,
+                            [numsToCall:[s.personalPhoneNumber.e164PhoneNumber]])
+                    }
+                    else { twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL) }
+                }
+                else {
+                    log.error("""StaffService.handleIncoming: could not add incoming record call,
+                        the result is: $res""")
+                    twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
+                }
+            }
+            else {
+                twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to])
+            }
+        }
     }
 
     ////////////////////////
@@ -43,7 +63,7 @@ class StaffCallService extends CallService {
                     else { log.debug("StaffService.handleIncomingDigitsFromSelf: ${res}") }
                 }
             }
-            
+
             if (numberToCall) {
                 twimlBuilder.buildXmlFor(CallResponse.SELF_CONNECTING, [num:numberToCall.number])
             }

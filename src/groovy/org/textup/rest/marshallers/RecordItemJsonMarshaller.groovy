@@ -16,17 +16,14 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             dateCreated = item.dateCreated
             outgoing = item.outgoing
             incoming = item.incoming
+            contact = Contact.forRecord(item.record).get()?.id //contact owner id
             if (item.authorName) authorName = item.authorName
             if (item.authorId) authorId = item.authorId
             if (item.instanceOf(RecordCall)) {
                 durationInSeconds = item.durationInSeconds
                 hasVoicemail = item.hasVoicemail
                 if (item.hasVoicemail) {
-
-                    ////////////////////////////////////////////////
-                    //TODO: generate time-sensitive voicemail Url //
-                    ////////////////////////////////////////////////
-
+                    voicemailUrl = item.voicemailUrl
                     voicemailInSeconds = item.voicemailInSeconds
                 }
                 type = Constants.RECORD_CALL

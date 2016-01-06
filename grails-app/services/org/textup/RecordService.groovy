@@ -52,7 +52,7 @@ class RecordService {
         createOutgoing(RecordItemType.RECORD_CALL, from, toNum, [:], receiptParams)
     }
 
-    Result<RecordCall> createRecordCallForContact(long contactId, TransientPhoneNumber from, 
+    Result<RecordCall> createRecordCallForContact(long contactId, TransientPhoneNumber from,
         TransientPhoneNumber to, Integer callDuration, Map receiptParams) {
 
         Phone phone = Phone.forNumber(from).get()
@@ -81,7 +81,7 @@ class RecordService {
     // Creating record items helper methods //
     //////////////////////////////////////////
 
-    protected Result<List<RecordText>> createIncoming(RecordItemType type, TransientPhoneNumber fromNum,
+    protected Result<List<RecordItem>> createIncoming(RecordItemType type, TransientPhoneNumber fromNum,
         Phone to, Map itemParams, Map receiptParams) {
         Closure listAction = { -> Contact.forPhoneAndNum(to, fromNum).list() },
             createAction = { -> to.createContact([:], [fromNum.number]) }
@@ -89,7 +89,7 @@ class RecordService {
         receiptParams.receivedBy = to.number.copy()
         createRecordItem(type, false, listAction, createAction, itemParams, receiptParams)
     }
-    protected Result<List<RecordCall>> createOutgoing(RecordItemType type, Phone from,
+    protected Result<List<RecordItem>> createOutgoing(RecordItemType type, Phone from,
         TransientPhoneNumber toNum, Map itemParams, Map receiptParams) {
         Closure listAction = { -> Contact.forPhoneAndNum(from, toNum).list() },
             createAction = { -> from.createContact([:], [toNum.number]) }
@@ -97,7 +97,7 @@ class RecordService {
         receiptParams.receivedBy = PhoneNumber.copy(toNum)
         createRecordItem(type, true, listAction, createAction, itemParams, receiptParams)
     }
-    protected Result<List<RecordCall>> createRecordItem(RecordItemType type, boolean outgoing,
+    protected Result<List<RecordItem>> createRecordItem(RecordItemType type, boolean outgoing,
         Closure listContactsAction, Closure createContactAction, Map textParams, Map receiptParams) {
         List<Contact> contacts = listContactsAction()
         if (contacts) {

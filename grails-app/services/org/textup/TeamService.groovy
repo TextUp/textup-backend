@@ -18,6 +18,7 @@ class TeamService {
                 name = body.name
                 org = o1
                 location = new Location(body.location)
+                hexColor = body.hexColor
             }
 
             if (!t1.location.save()) {
@@ -82,6 +83,7 @@ class TeamService {
 
             //Do other update operations
     		if (body.name) { t1.name = body.name }
+            if (body.hexColor) { t1.hexColor = body.hexColor }
 	    	if (body.location) {
 	    		def l = body.location
 	    		t1.location.with {

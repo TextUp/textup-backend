@@ -20,23 +20,12 @@ class MailService {
         String body = getMessage("mail.pendingForAdmin.body", [pendingName]),
             subject = getMessage("mail.pendingForAdmin.subject")
         List<Result> successes = [], failures = []
-
-        println "pendingName: $pendingName"
-        println "admins: $admins"
-
         admins.each { Staff a1 ->
             EmailEntity to = new EmailEntity(name:a1.name, email:a1.email)
             Result res = sendMail(to, getDefaultFrom(), subject, body)
-
-            println "\t res: $res"
-
             if (res.success) { successes << res }
             else { failures << res }
         }
-
-        println "successes: $successes"
-        println "failures: $failures"
-
         if (!successes.isEmpty()) { resultFactory.success() }
         else if (successes.isEmpty() && !failures.isEmpty()) { failures[0] }
         else {

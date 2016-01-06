@@ -17,7 +17,7 @@ class TeamCallService extends CallService {
             if (res.success) {
                 ClientSession ts1 = ClientSession.findOrCreateForTeamPhoneAndNumber(p1, from)
                 if (ts1) {
-                    twimlBuilder.buildXmlFor(CallResponse.TEAM_GREETING, 
+                    twimlBuilder.buildXmlFor(CallResponse.TEAM_GREETING,
                         [teamName:t.name, isSubscribed:ts1.hasCallSubscriptions()])
                 }
                 else { twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR) }
@@ -28,11 +28,11 @@ class TeamCallService extends CallService {
     }
 
     Result<Closure> handleIncomingDigits(TransientPhoneNumber from, TransientPhoneNumber to, String digits) {
-        if (digits == Constants.CALL_GREETING_CONNECT_TO_STAFF) {
-            return connect(from, to, params.CallSid)
-        }
         TeamPhone phone = TeamPhone.forTeamNumber(to).get()
-        if (phone) {
+        if (phone && digits == Constants.CALL_GREETING_CONNECT_TO_STAFF) {
+            tryToConnectToStaffOnTeam(from, phone, params.CallSid)
+        }
+        else if (phone) {
             ClientSession ts1 = ClientSession.findOrCreateForTeamPhoneAndNumber(p1, from)
             if (!ts1) { return twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR) }
             List<Contact> contacts = Contact.findOrCreateForPhoneAndNum(p1, from)
@@ -43,7 +43,7 @@ class TeamCallService extends CallService {
             switch(digits) {
                 case Constants.CALL_GREETING_HEAR_ANNOUNCEMENTS:
                     List<FeaturedAnnouncement> features = p1.currentFeatures
-                    res = features ? 
+                    res = features ?
                         twimlBuilder.buildXmlFor(CallResponse.TEAM_ANNOUNCEMENTS, [features:features]) :
                         twimlBuilder.buildXmlFor(CallResponse.TEAM_NO_ANNOUNCEMENTS)
                     break
@@ -63,16 +63,37 @@ class TeamCallService extends CallService {
                     res = twimlBuilder.buildXmlFor(CallResponse.TEAM_ERROR, [digits:digits])
                     break
             }
-            res 
+            res
         }
         else { twimlBuilder.buildXmlFor(CallResponse.DEST_NOT_FOUND, [num:to]) }
     }
-    
+    protected Result<Closure> tryToConnectToStaffOnTeam(TransientPhoneNumber from,
+        TeamPhone toPhone, String apiId) {
+        Result res = recordService.createIncomingRecordCall(from, toPhone, [apiId:apiId])
+        Team t = Team.forPhone(toPhone).get()
+        if (res.success && t) {
+            List<String> numsToCall = t.activeAndAvailableMembers.collect { Staff s1 ->
+                s1.phone.e164PhoneNumber
+            }
+            if (!numsToCall.isEmpty()) {
+                twimlBuilder.buildXmlFor(CallResponse.CONNECTING, [numsToCall:numsToCall])
+            }
+            else { twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL) }
+        }
+        else {
+            log.error("""TeamCallService.tryToConnectToStaffOnTeam: team not found for
+                team phone $phone and result of adding the incoming record call is $res""")
+            twimlBuilder.buildXmlFor(CallResponse.SERVER_ERROR)
+        }
+    }
+
     ////////////////////////////////////////////////
     // Outgoing call announcements to subscribers //
     ////////////////////////////////////////////////
 
-    Result<RecordCall> startCallAnnouncement(Phone fromPhone, Contactable toContact, RecordCall call, Long teamContactTagId, Long recordTextId) {
+    Result<RecordCall> startCallAnnouncement(Phone fromPhone, Contactable toContact,
+        RecordCall call, Long teamContactTagId, Long recordTextId) {
+
         if (call.validate()) {
             tryCall(toContact.numbers[0]?.e164PhoneNumber, call, fromPhone.number.e164PhoneNumber, toContact,
                 [handle:Constants.CALL_ANNOUNCEMENT, teamContactTagId:teamContactTagId, recordTextId:recordTextId])
@@ -89,7 +110,7 @@ class TeamCallService extends CallService {
         }
         else {
             log.error("CallService.completeCallAnnouncement: RecordText ${recordTextId} not found.")
-            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.completeCallAnnouncement.notFound", 
+            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.completeCallAnnouncement.notFound",
                 [rt1?.id, ct1?.id])
         }
     }
@@ -97,9 +118,9 @@ class TeamCallService extends CallService {
     ////////////////////////////////////////////////////////////////////////
     // Digits when subscriber wants to unsubscribe from call announcement //
     ////////////////////////////////////////////////////////////////////////
-    
-    Result<Closure> handleAnnouncementDigits(TransientPhoneNumber contactNum, TransientPhoneNumber phoneNum, 
-        String digits, Long teamContactTagId, Long recordTextId) {
+
+    Result<Closure> handleAnnouncementDigits(TransientPhoneNumber contactNum,
+        TransientPhoneNumber phoneNum, String digits, Long teamContactTagId, Long recordTextId) {
         if (digits == Constants.CALL_ANNOUNCE_UNSUBSCRIBE_ONE) {
             handleCallAnnouncementUnsubscribeOne(contactNum, phoneNum, teamContactTagId)
         }
@@ -109,8 +130,9 @@ class TeamCallService extends CallService {
         else { completeCallAnnouncement(teamContactTagId, recordTextId) }
     }
 
-    protected Result<Closure> handleCallAnnouncementUnsubscribeOne(TransientPhoneNumber contactNum, TransientPhoneNumber phoneNum, Long teamContactTagId) {
-        
+    protected Result<Closure> handleCallAnnouncementUnsubscribeOne(TransientPhoneNumber contactNum,
+        TransientPhoneNumber phoneNum, Long teamContactTagId) {
+
         TeamPhone p1 = TeamPhone.forTeamNumber(phoneNum)
         TeamContactTag ct1 = TeamContactTag.get(teamContactTagId)
         if (p1 && ct1) {
@@ -119,10 +141,13 @@ class TeamCallService extends CallService {
             twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT_UNSUBSCRIBE_ONE, [tagName:ct1.name])
         }
         else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.handleCallAnnouncementUnsubscribeOne.notFound", [p1?.id, ct1?.id])
+            resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                "callService.handleCallAnnouncementUnsubscribeOne.notFound", [p1?.id, ct1?.id])
         }
     }
-    protected Result<Closure> handleCallAnnouncementUnsubscribeAll(TransientPhoneNumber contactNum, TransientPhoneNumber phoneNum) {
+    protected Result<Closure> handleCallAnnouncementUnsubscribeAll(TransientPhoneNumber contactNum,
+        TransientPhoneNumber phoneNum) {
+
         TeamPhone p1 = TeamPhone.forTeamNumber(phoneNum)
         if (p1) {
             List<Contact> contacts = Contact.forPhoneAndNum(p1, contactNum).list()
@@ -133,7 +158,8 @@ class TeamCallService extends CallService {
             twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT_UNSUBSCRIBE_ALL)
         }
         else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND, "callService.handleCallAnnouncementUnsubscribeAll.notFound", [p1?.id])
+            resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                "callService.handleCallAnnouncementUnsubscribeAll.notFound", [p1?.id])
         }
     }
 }

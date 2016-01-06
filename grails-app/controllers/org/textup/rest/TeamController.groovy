@@ -102,7 +102,7 @@ class TeamController extends BaseController {
         Long orgId = Helpers.toLong(request.JSON.team?.org)
         if (authService.exists(Organization, orgId)) {
             if (authService.isAdminAt(orgId)) {
-                handleSaveResult(Team, teamService.save(request.JSON.team) )
+                handleSaveResult(Team, teamService.create(request.JSON.team) )
             }
             else { forbidden() }
         }

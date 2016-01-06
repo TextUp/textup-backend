@@ -39,7 +39,8 @@ class TeamContactTag extends ContactTag implements Contactable {
             //delete all receipts before deleting items
             def items = RecordItem.where { record == this.record }
             new DetachedCriteria(RecordItemReceipt).build {
-                "in"("item", items.list())
+                def res = items.list()
+                if (res) { "in"("item", res) }
             }.deleteAll()
             //delete all record items before deleting record
             items.deleteAll()

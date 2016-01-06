@@ -5,7 +5,7 @@ grails.project.test.reports.dir = "target/test-reports"
 grails.project.work.dir = "target/work"
 grails.project.target.level = 1.6
 grails.project.source.level = 1.6
-//grails.project.war.file = "target/${appName}-${appVersion}.war"
+grails.project.war.file = "target/${appName}.war"
 
 grails.project.fork = [
     // configure settings for compilation JVM, note that if you alter the Groovy version forked compilation is required
@@ -73,6 +73,8 @@ grails.project.dependency.resolution = {
         //Required by the aws-java-sdk dependency
         build "org.apache.httpcomponents:httpcore:4.3.3"
         runtime "org.apache.httpcomponents:httpcore:4.3.3"
+        //pusher for realtime status updates and notifications
+        compile "com.pusher:pusher-http-java:0.9.3"
     }
 
     plugins {
@@ -80,6 +82,7 @@ grails.project.dependency.resolution = {
         build ":tomcat:7.0.55"
 
         // plugins for the compile step
+        compile "org.grails.plugins:codenarc:0.24.1" //static source code analysis
         compile ":scaffolding:2.1.2"
         compile ':cache:1.1.8'
         compile ":asset-pipeline:1.9.9"

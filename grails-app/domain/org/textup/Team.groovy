@@ -23,6 +23,11 @@ class Team {
         description = "Id of the organization this team belongs to",
         allowedType = "Number")
 	Organization org
+    @RestApiObjectField(
+        description  = "Hex color code for this team",
+        defaultValue = "#1BA5E0",
+        mandatory    = false)
+    String hexColor = "#1BA5E0"
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -39,6 +44,10 @@ class Team {
             if (obj.hasExistingTeamName(val)) ["duplicate", obj.org?.name]
         }
         phone nullable:true
+        hexColor blank:false, nullable:false, validator:{ val, obj ->
+            //String must be a valid hex color
+            if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
+        }
     }
     static namedQueries = {
         forStaff { Staff thisStaff ->
@@ -46,14 +55,14 @@ class Team {
                 projections { property("team.id") }
                 eq("staff", thisStaff)
             }
-            "in"("id", teamIds)
+            if (teamIds) { "in"("id", teamIds) }
         }
         forStaffId { Long thisStaffId ->
             DetachedCriteria teamIds = new DetachedCriteria(TeamMembership).build {
                 projections { property("team.id") }
                 eq("staff.id", thisStaffId)
             }
-            "in"("id", teamIds)
+            if (teamIds) { "in"("id", teamIds) }
         }
         teamIdsForStaffId { Long thisStaffId ->
             forStaffId(thisStaffId)
@@ -76,6 +85,8 @@ class Team {
     // Events //
     ////////////
 
+    //TODO: update with new classes!!!
+
     def beforeDelete() {
         Team.withNewSession {
             TeamMembership.where { team == this }.deleteAll()
@@ -85,7 +96,8 @@ class Team {
             //delete tag memberships, must come before
             //deleting ContactTag and Contact
             new DetachedCriteria(TagMembership).build {
-                "in"("tag", tags.list())
+                def res = tags.list()
+                if (res) { "in"("tag", res) }
             }.deleteAll()
             //must be before we delete our contacts FOR RECORD DELETION
             def contactRecords = new DetachedCriteria(Contact).build {
@@ -99,24 +111,27 @@ class Team {
             List<Record> allRecords = contactRecords + tagRecords
             //delete contacts' numbers
             new DetachedCriteria(ContactNumber).build {
-                "in"("contact", contacts.list())
+                def res = contacts.list()
+                if (res) { "in"("contact", res) }
             }.deleteAll()
             //delete contact and contact tags
             contacts.deleteAll()
             tags.deleteAll()
             //delete all receipts before deleting items
             def items = new DetachedCriteria(RecordItem).build {
-                "in"("record", allRecords)
+                if (allRecords) { "in"("record", allRecords) }
             }
             new DetachedCriteria(RecordItemReceipt).build {
-                "in"("item", items.list())
+                def res = items.list()
+                if (res) { "in"("item", res) }
             }.deleteAll()
             //delete all record items before deleting record
             items.deleteAll()
             //delete records associated with contacts and tags, must
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
-                "in"("id", allRecords*.id)
+                def res = allRecords*.id
+                if (res) { "in"("id", res) }
             }.deleteAll()
         }
     }
@@ -142,6 +157,9 @@ class Team {
     }
     List<Staff> getActiveMembers(Map params=[:]) {
         Staff.activeForTeam(this).list(params)
+    }
+    List<Staff> getActiveAndAvailableMembers(Map params=[:]) {
+        getActiveMembers(params).findAll { it.isAvailableNow() }
     }
     int countMembers(String s) { countMembers([s]) }
     int countMembers(List<String> statuses = []) {
@@ -169,6 +187,9 @@ class Team {
     // Property Access //
     /////////////////////
 
+    //For some reason, saving the location here is okay
+    //but saving in the setteraves many duplicates for
+    //when adding numbers as strings
     void setLocation(Location l) {
         this.location = l
         this.location?.save()
