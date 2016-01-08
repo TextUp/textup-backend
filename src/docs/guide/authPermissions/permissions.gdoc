@@ -1,0 +1,9 @@
+The @AuthService@ also determines what level of permission each staff member has. Below, we detail each aspect of our data model and summarize what qualifications are needed for permission to be granted:
+* @Contact@ Can have permission if this @Contact@ belongs to your @Phone@ or if this @Contact@ belongs to a @Team@ that you are a member of.
+* @SharedContact@ Can have permission if the @Contact@ that is wrapped belongs to your @Phone@ or if you are the recipient of this unexpired @SharedContact@.
+* @Team@ Can have permission if you are a member of this @Team@ or if you an administrator at the @Organization@ this @Team@ is a part of.
+* @Staff@ If this is your account. Username and password can be changed if you are an adminstrator at the @Organization@ this @Staff@ member belongs to. If you are on the same @Team@ as this @Staff@ member, you will have viewing permissions on the @Staff@ object.
+* @ContactTag@ Can have permission if this @ContactTag@ belongs to your @Phone@ or if this @TeamContactTag@ belongs to a @Team@ that you are a member of.
+* @Record@ Can have permissionif this @Record@ belongs to one of your @Contacts@, belongs to a @Phone@ owned by one of the @Team@s that you are on, or belongs to an unexpired @SharedContact@ that has been shared with you.
+
+Implicitly, @Phone@s are only accessible to the owner of that @Phone@. Also, implicitly all permission above require that the @Staff@ member requesting these permissions to be of either status *STAFF* or *ADMIN*.

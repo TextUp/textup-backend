@@ -1,0 +1,303 @@
+We are following the instructions outlined in [Bulletproof SSL and TLS|https://www.feistyduck.com/books/bulletproof-ssl-and-tls/] for compiling the latest version of Apache (2.4.16) with static OpenSSL (1.0.1p) so that we can use any version of OpenSSL we want without conflicting with the system's version.
+
+{note}
+If at any point you run into the following error when building from source: 
+	*virtual memory exhausted: Cannot allocate memory*
+You can either stop services to increase the amount of free RAM or [temporarily allocate swap space|https://www.digitalocean.com/community/tutorials/how-to-add-swap-on-ubuntu-14-04]. When you reboot your instance, you'll no longer have this swap space. The linked-to tutorial also shows how to make this swap space persistent across reboots. 
+{note}
+
+{note}
+Before you start, check the security group of the instance you are working with to make sure that it has the standard ssl port (443) open!
+{note}
+
+h3. Install OpenSSL version 1.0.1p 
+* First, we download the most recent version with @wget http://www.openssl.org/source/openssl-1.0.1p.tar.gz@
+* Unpack the archive with @tar xvzf openssl-1.0.1p.tar.gz@ and cd into the unpacked directory with @cd openssl-1.0.1p@
+* Configure OpenSSL before compilation. We want to install OpenSSL in a different location to avoid conflict with the system-provided version. We also optimize for certain frequently used elliptic curves. You'll need to have make and gcc installed first. 
+  {code}
+    ./config \ 
+      --prefix=/opt/openssl-1.0.1p \
+      --openssldir=/opt/openssl-1.0.1p \
+      enable-ec_nistp_64_gcc_128
+  {code}
+  
+  The terminal will then prompt you since you've disabled or enabled at least one algorithm. You'll need to run @make depend@ before building.
+* Then you can compile the source file with @make@ and then install with @sudo make install@
+
+h3. Install Apache httpd version 2.4.16.
+* Get the latest version of Apache, APR, and APR-Util libraries. Get the latest version of Apache by going to @http://httpd.apache.org/download.cgi@. After downloading, verify the download following the instructions at @http://httpd.apache.org/download.cgi#verify@. Afterwards, we repeat the process with the APR and APR-util libraries found on the download page @https://apr.apache.org/download.cgi@
+* After all of the files have been downloaded, we need to unzip the Apache package and install Apache. We also need to make sure that the APR and APR-util packages are in the places that Apache expects them to be. This location is in the @srclib/@ folder. We unzip the Apache binary with @tar xvzf httpd-2.4.16.tar.gz@.
+
+Then cd in the srclib directory with @cd httpd-2.4.16/srclib@ and then extract the APR in the root directory with @tar xvzf ../../apr-1.5.2.tar.gz@. After extracting, symbolic link (symlink) the extracted directory to a folder called @apr/@ in the @srclib/@directory with @ln -s apr-1.5.2/ apr@
+
+Extract the APR-util library and symlink it as well with the following commands:
+
+{code}
+tar xvzf ../../apr-util-1.5.4.tar.gz
+ln -s apr-util-1.5.4/ apr-util
+{code}
+
+Then, we'll configure Apache after we cd into the root directory of the Apache library and statically compile our the OpenSSL we built in the previous part with the following command: 
+
+{code}
+./configure \
+  --prefix=/opt/httpd-2.4.16 \
+  --with-included-apr \
+  --enable-ssl \
+  --with-ssl=/opt/openssl-1.0.1p\
+  --enable-ssl-staticlib-deps \
+  --enable-mods-static=ssl
+{code}
+
+After configuring, we'll install Apache with @make@ then @sudo make install@.
+
+{note}
+If you run into this error: *pcre-config for libpcre not found. PCRE is required and available from http://pcre.org/*
+
+In order to resolve this, we downloaded the source from the specified website configured and installed. DO NOT USE PCRE2. YOU MUST USE PCRE.
+
+{code}
+wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre-8.36.tar.gz
+tar xvzf pcre-8.36.tar.gz
+cd pcre-8.36
+./configure --prefix=/opt/pcre-8.36
+make 
+sudo make install 
+{code}
+
+In order for the configure command above to succeed, you'll need a C++ compiler. If your machine doesn't yet have one, you can install one with the following commands: 
+
+{code}
+sudo apt-get update
+sudo apt-get install build-essential
+{code}
+
+And then finally configure Apache once more, passing in the location of pcre:
+
+{code}
+cd ~/httpd-2.4.16
+./configure \
+  --prefix=/opt/httpd-2.4.16 \
+  --with-included-apr \
+  --enable-ssl \
+  --with-ssl=/opt/openssl-1.0.1p \
+  --enable-ssl-staticlib-deps \
+  --enable-mods-static=ssl \
+  --with-pcre=/opt/pcre-8.36/bin/pcre-config
+make 
+sudo make install
+{code}
+{note}
+
+** After Apache is installed, you can make an alias to conveniently use the apachectl script for managing httpd by adding the following line to either @~/.bashrc@ or @~/.bash_profile@. 
+
+{code}
+alias apache="sudo /opt/httpd-2.4.16/bin/apachectl"
+{code}
+
+Alternately, if there is the following codeblock in your @~/.bashrc@:
+
+{code}
+if [ -f ~/.bash_aliases ]; then
+  . ~/.bash_aliases
+fi
+{code}
+
+then you can create a new file called @~/.bash_aliases@ and add your alias there.
+After enabling the alias, you can start httpd with the command @apache start@
+and stop with the command @apache stop@ and restart with the command @apache restart@.
+
+** If you want to enable the status page, make sure that @mod_status@ is enabled in @conf/httpd.conf@ and add the following directive to the file: 
+
+{code:xml}
+<Location /server-status>
+  SetHandler server-status
+  Order deny,allow
+  Deny from all
+  Allow from localhost
+</Location>
+{code}
+
+Now, if you run apache status and you have lynx installed (@sudo apt-get install lynx@), you can see the status of the server from the command line. 
+
+* Now we are going to set up TLS on Apache. In the main config file at @/opt/httpd-2.4.16/conf/httpd.conf@ (in the future, @conf/httpd.conf@), we uncomment the line:
+
+{code}
+Include conf/extra/httpd-ssl.conf
+{code}
+
+Starting from version 2.4.8, the SSLCertificateChainFile directive is deprecated and the entire certificate chain should be in the file pointed to by the SSLCertificateFile directive. We must concatenate all certificates, including our own, in one file starting from the TextUp certificate all the way to the root certificate at the bottom of the file. We already had our certificates concatenated so we concatenated the TextUp certificate into one file representing the entire certificate chain with the following command. NOTE: It is best practice to make sure that the CA root certificate is included as well here!
+
+Then, we copy the concatenated certificates the appropriate directory as follows with @sudo cp all.crt /opt/httpd-2.4.16/conf/server.crt@.
+
+We then copy the RSA key to the same @conf/@ directory as follows. Your RSA key must not be password protected. The command to copy is @sudo cp textup-ssl.key /opt/httpd-2.4.16/conf/server.key@
+
+Now, let's run @apache configtest@ (note we are using the bash alias we set up earlier) to see if there are any obvious errors in our config file. If you get the following error: 
+  
+  *SSLSessionCache: 'shmcb' session cache not supported (known names: ). Maybe you need to load the appropriate socache module (mod_socache_shmcb?).*
+
+This error means that you need to uncomment the following module in @conf/httpd.conf@:
+
+{code}
+LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
+{code}
+
+Running @apache configtest@ again should not return any more errors. 
+
+Next, we will modify @SSLProtocol@ and @SSLProxyProtocol@ directives to exclude both SSLv2 and SSLv3 as follows:
+
+{code}
+SSLProtocol all -SSLv2 -SSLv3
+SSLProxyProtocol all -SSLv2 -SSLv3
+{code}
+
+Now, we also need to specify cipher suites. Replace the existing cipher suites with this suggested list of cipher suites supporting forward secrecy. Please note that this config MUST BE on the same line with no line breaks or else you will get a syntax error if you don't escape the line break. 
+
+{code}
+SSLCipherSuite "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 
+  EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 
+  EECDH EDH+aRSA !RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS"
+SSLProxyCipherSuite "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 
+  EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH 
+  EDH+aRSA !RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS"
+{code}
+
+You then need to check to see if this configuration works on Internet Explorer, if it doesn't you need to modify your cipher suites to be compatible with IE's idiosyncrasies. If you want to print the list of cipher suites supported by the following config string, you can do so with the following command (notice the single quotes around the string):
+
+{code}
+openssl ciphers -V 'EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 
+  EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH 
+  EDH+aRSA !RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS'
+{code}
+
+* Now we will configure OCSP stapling following the instructions in Bulletproof. Enabling this feature requires the following directives in @conf/extra/httpd-ssl.conf@:
+
+{code}
+SSLUseStapling On
+SSLStaplingReturnResponderErrors off
+SSLStaplingFakeTryLater off
+SSLStaplingCache "shmcb:/opt/httpd-2.4.16/logs/ssl_stapling(32768)"
+SSLStaplingStandardCacheTimeout 3600   
+{code}
+
+Check OCSP stapling with the following command:
+
+{code}
+openssl s_client -connect dev.textup.org:443 -tls1  -tlsextdebug  -status
+{code}
+
+* To force https on all sessions, you first need to enable mod_rewrite by uncommenting the following line:
+
+{code}
+LoadModule rewrite_module modules/mod_rewrite.so
+{code}
+
+Then, delete the @Location@ direction for @/server-status@ that you put in @conf/httpd.conf@ in an earlier step. Next, add the following block to @conf/httpd.conf@ with a conditional http to https redirect using @mod_rewrite@: 
+
+{code}
+<VirtualHost *:80>
+  ServerName dev.textup.org:80
+  ServerAlias www.dev.textup.org:80
+
+  RewriteEngine on
+
+  RewriteCond %{HTTP_HOST} ^www\.(.+) [NC]
+  RewriteRule ^ http://%1%{REQUEST_URI} [L,R=301]
+
+  RewriteCond %{REQUEST_URI} !=/server-status
+  RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}
+
+  <Location /server-status>
+    SetHandler server-status
+    Require ip 127.0.0.1
+    Require ip ::1
+  </Location>
+</VirtualHost>
+{code}
+
+{note}
+
+If you're writing a specific domain name, the domain you direct to must have a slash at the end of it, such as @https://dev.textup.org/@. If the slash is not there, running apache status will send a get request to @https://dev.textup.orgserver-status@ instead of @https://dev.textup.org/server-status@. 
+{note}
+
+Now that you've started using @Virtual Hosts@, find all instances of @ServerName@ that are NOT nested inside of a @VirtualHosts@ block and comment it out. Not doing this will lead to a warning in the error log file. 
+
+* Afterwards, you want Apache to start on system boot and to use the same service commands to run as with Tomcat7. First, because @apachectl@ is also a valid SysV script, you can symlink it directly in @/etc/init.d/@ as follows: 
+
+{code}
+sudo ln -s /opt/httpd-2.4.16/bin/apachectl /etc/init.d/apache
+{code}
+
+Then, you can configure apache to start on the appropriate runlevels with the command:
+
+{code}
+sudo update-rc.d apache defaults 
+{code}
+
+h3. Set up Apache as a reverse proxy in front of Tomcat
+
+Now, we will set up a reverse proxy between httpd and Tomcat using @mod_proxy_ajp@. We will use the ajp proxy connector which does NOT support encryption. Because we have httpd and Tomcat on a single machine, encryption is less critical. If we decide we want to encrypt the reverse proxy connection between httpd and Tomcat, we can use @mod_proxy_http@ instead of @mod_proxy_ajp@. 
+
+* Since we are using @mod_proxy_ajp@, we don't have to change any of the Tomcat7 default settings. If we made changes to the Tomcat7 defaults in order to enable Tomcat7 as a standalone server, we can revert these changes as follows:
+** Remove iptables forwarding rules first by checking what iptables rules you have with the following command: 
+{code}
+sudo iptables -t nat -L --line-numbers
+{code}
+** And then you can delete iptable forwarding rules by line number as such: 
+{code}
+sudo iptables -t nat -D OUTPUT 1
+{code}
+** In Tomcat's server.xml configuration file, remove proxyPort="80" so that the connector is restored to:
+
+{code:xml}
+<Connector port="8080" protocol="HTTP/1.1"
+  connectionTimeout="20000"
+  URIEncoding="UTF-8"
+  redirectPort="8443" />
+{code}
+
+then comment out the above connector line and uncomment the connector in the server.xml file that corresponds to the AJP connector. The Connector should look like this: 
+
+{code}
+<Connector port="8009" protocol="AJP/1.3" redirectPort="8443" />
+{code}
+
+* In Apache httpd's @conf/httpd.conf@ file, first enable @mod_proxy@ and @mod_proxy_ajp@ by uncommenting
+
+{code}
+LoadModule proxy_module modules/mod_proxy.so
+LoadModule proxy_ajp_module modules/mod_proxy_ajp.so
+{code}
+
+Then go to @conf/extra/httpd-ssl.conf@ and find the @Virtual Hosts@ block and make the beginning look like the following: 
+
+{code:xml}
+<VirtualHost _default_:443>
+  DocumentRoot "/opt/httpd-2.4.16/htdocs"
+  ServerName api.textup.org:443
+  ServerAlias www.api.textup.org:443
+  ServerAdmin connect@textup.org
+  ErrorLog "/opt/httpd-2.4.16/logs/error_log"
+  TransferLog "/opt/httpd-2.4.16/logs/access_log"
+
+  ProxyRequests Off
+  ProxyPreserveHost On
+  <Proxy *>
+    Order deny,allow
+    Allow from all
+  </Proxy>
+  ProxyPass / ajp://localhost:8009/
+  ProxyPassReverse / ajp://localhost:8009/
+  ...
+</VirtualHost>
+{code}
+
+Try loading some pages after restarting the httpd server (@apache restart@) and you should be able to access Tomcat7 through httpd
+
+* Adjust the memory settings used by Tomcat7 to allow avoid OutOfMemory errors now that Apache httpd is also running on the same machine. You can check real-time memory usage with the command: 
+
+{code}
+top -o %MEM
+{code}
+
+Note that what comes after @-o@ is the name of the column. In Ubuntu, the column representing memory usage is called @%MEM@ but in other operating systems this may not be the case. We'll add permanent 1GB of swap space as a backup just in case. 

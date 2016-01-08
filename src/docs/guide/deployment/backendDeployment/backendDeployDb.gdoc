@@ -1,0 +1,10 @@
+* Install mysql with @sudo apt-get install mysql-server@. Will ask you to set a password for the mysql "root" user. Save this password.
+** We may want to [install mysql on a SEPARATE EBS volume|https://dunniganp.wordpress.com/2012/11/28/moving-a-mysql-database-from-one-ebs-volume-to-another-on-aws-ec2/]. This is because we might want to upgrade to bigger EBS volumes as the size of our database grows. The linked tutorial will walk through the process of formatting and mounting the new EBS volume in such a way as to be compatible with the AppArmor protection in the Canonical kernal. 
+* Access the mysql CLI with the command: @mysql -u root -p@. Will prompt for the password you just set. Create users and databases to match those specified in @Datasource.groovy@
+** Create database: @CREATE DATABASE prototypeDb;@
+** Check that db was created: @SHOW DATABASES;@
+** Create new user: @CREATE USER 'prod'@'localhost' IDENTIFIED BY '<redacted>';@
+** Give appropriate permissions to new user: @GRANT ALL PRIVILEGES ON prototypeDb . * TO 'prod'@'localhost';@
+** Flush privileges to put them into effect: @FLUSH PRIVILEGES;@
+** Check to see that the new user is created by attempting to log in with: @mysql -u prod -p@
+** And then checking to see which databases this user has access to with: @SHOW DATABASES;@

@@ -1,5 +1,17 @@
-To get started, first fork and clone the Git repository. Ensure that youare running *Grails 2.4.4*. 
+h3. Backend
+
+The backend source code is available from the [backend GitHub repository|https://github.com/ericbai/textup-backend]. Ensure that you are running *Grails 2.4.4*. 
 
 The development and testing environments use the built-in H2 database, but the production environment requires a MySQL database. Details about the database name, and the required name and password of the user with full permissions to this database can be found in @Datasource.groovy@.
 
 The application also requires API credentials to be provided as environment parameters or passed-in as command line parameters. If both the environment parameter and the command line parameter are specified, the environment parameter will take precedence. For a full list of api credentials required to be passed-in in this manner, consult the @textup.apiKeys@ block in @Config.groovy@.
+
+h3. Frontend 
+
+The backend source code is available from the [frontend GitHub repository|https://github.com/ericbai/textup-frontend]. The current codebase runs on ember version *1.13.8*, node version *0.12.7* and npm version *2.13.4*.
+
+To connect the frontend to the backend, instead of using the proxy feature of Ember CLI, we specify a host in @environment.js@. After specifying the appropriate host name for the backend, the ember development server can be started with the command 
+
+{code}
+ember server --environment development
+{code}

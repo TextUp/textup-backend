@@ -1,41 +1,37 @@
 introduction:
-	title: Introduction
-	gettingStarted: Getting Started
-	roadmap: Roadmap 
+  title: Introduction
+  gettingStarted: Getting Started
+  roadmap: Roadmap 
 deployment: 
-	title: Deployment
-	backendDeloyment: Backend Deployment
-	frontendDeployment: Frontend Deployment
+  title: Deployment
+  sslCertificate: Generating a SSL Certificate Request
+  backendDeployment: 
+    title: Backend Deployment
+    backendDeployDb: Setting up the MySQL database
+    backendDeployTomcat: Setting up the Apache Tomcat7 web server (optionally as standalone)
+    backendDeployHTTPD: Setting up Apache HTTPD reverse proxy for Tomcat7
+  frontendDeployment: Frontend Deployment
 dataModel: 
-	title: Backend: Data Model 
-	basicRelationships: Basic Relationships
-	phones: Phones 
-	records: Records
-	contactsAndTags: Contacts and Tags
-	sharing: Sharing
-	schedules: Schedules
-	others: Others
-frontendDataModel: Frontend: Data Model 
+  title: Data Model 
+  basicRelationships: Basic Relationships
+  phones: Phones 
+  records: Records
+  contactsAndTags: Contacts and Tags
+  sharing: Sharing
+  schedules: Schedules
 authPermissions: 
-	title: Backend: Authentication and Permissions
-	organizationApproval: Organization Approval
-	staffStatus: Staff Statuses
-	apiAuthentication: API Authentication
-	permissions: Permissions
+  title: Authentication and Permissions
+  organizationApproval: Organization Approval
+  staffStatus: Staff Statuses
+  apiAuthentication: API Authentication
+  permissions: Permissions
 texts: 
-	title: Backend: Text Messages
-	sendingTexts: Sending Texts
-	receivingTexts: Receiving Texts
+  title: Text Messages
+  sendingTexts: Sending Texts
+  receivingTexts: Receiving Texts
 calls: 
-	title: Backend: Voice Calls
-	makingCalls: Making Calls
-	receivingCalls: Receiving Calls
-	voicemails: Voicemails
-realtime: 
-	title: Realtime Communication via Web Sockets
-	backendRealtime: Backend Implementation
-	frontendRealtime: Frontend Implementation
-frontendInterface: 
-	title: Frontend: Interface Implementation
-	frontendUrls: Frontend Routes, Controllers, and Templates
-	frontendComponents: Web Components
+  title: Voice Calls
+  makingCalls: Making Calls
+  receivingCalls: Receiving Calls
+  voicemails: Voicemails
+realtime: Realtime Communication via Web Sockets

@@ -1,0 +1,6 @@
+@Record@s are kept by @Contact@s and @TeamContactTag@s to record the communication that has taken place between the owner of the @Phone@ and the @Contact@ or group of @Contact@s. Each entry in a @Record@ inherits from @RecordItem@ which specifies the date and time of communication, the direction of communication, who authored this item (if the item is ougoing), and a collection of @RecordItemReceipt@s. A @RecordItemReceipt@ specifies the status of each text sent to or call attempted for a @ContactNumber@ (a @Contact@ can have multiple numbers). 
+
+The three more specific subclasses of the @RecordItem@ superclass are:
+* @RecordCall@ representing a call. A @RecordCall@ also specifies a duration in second, as well as indicating whether or not a voicemail recording is available for this call.
+* @RecordText@ representing a text message. A @RecordText@ contains the contents of the message. Optionally, a @RecordText@ may be scheduled for some future date. 
+* @RecordNote@ representing a note. @RecordNote@s may be entered anywhere in the @Record@ and are not intended to be seen by the @Contact@. They are internal commentary pinned at a certain date and time in the @Record@.

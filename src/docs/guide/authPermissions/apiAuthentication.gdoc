@@ -1,0 +1,3 @@
+@Staff@ members are identified and allowed access to the REST API by a stateless JSON Web Token (jwt) authentication scheme provided by the [Spring Security REST Plugin|https://grails.org/plugin/spring-security-rest].
+
+The endpoint that we expose for receiving incoming messages or webhook callbacks from Twilio also checks to see the incoming requests [are signed using our Twilio account credentials|https://www.twilio.com/docs/api/security]. Since the communications data in @Record@s should only be seen by that @Staff@ member and since this endpoint exposes this private data to modification by Twilio, verifying the authenticity of this data in @AuthService@ is necessary.

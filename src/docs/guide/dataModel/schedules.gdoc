@@ -1,0 +1,5 @@
+@Staff@ members and @Team@s have a notion of availability, that is, if text and calls should be routed through or if the client calling in should be presented with an away message. A @Team@ is unavailable when all @Staff@ members that belong to that @Team@ are unavailable. @Staff@ members have the option to either manually toggle their availability or to specify a @Schedule@ that will automatically report whether or not a @Staff@ member is available and also provide answers to other questions such as 
+* When will the next change in availability status happen?
+* Based on my current @Schedule@, will I be available at a certain date and time? 
+
+Currently, all @Staff@ members use the @WeeklySchedule@ subclass of the generic @Schedule@ superclass. This design allows for increased flexibility if a user does not work hours that can be planned out on a week-by-week scheduler.

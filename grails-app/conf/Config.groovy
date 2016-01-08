@@ -176,13 +176,11 @@ cors.headers = ['Access-Control-Allow-Headers': 'Content-Type, Authorization']
 grails.plugins.restapidoc.customClassName="org.textup.rest.CustomResponseDoc"
 grails.plugins.restapidoc.outputFileGeneration="web-app/restapidoc.json"
 grails.plugins.restapidoc.outputFileReading="restapidoc.json"
-
-grails.doc {
-    title = "TextUp Backend"
-    subtitle = "The backend server powering the TextUp application"
-    authors = "Eric Bai"
-    license = "MIT"
-}
+//General developer documentation
+grails.doc.title = "TextUp"
+grails.doc.subtitle = "A getting started guide to the backend and frontend codebases that make up the TextUp application"
+grails.doc.authors = "Eric Bai"
+grails.doc.license = "MIT"
 
 textup {
     maxNumText = 50 //max number of recipients to text
@@ -190,7 +188,7 @@ textup {
     largestMax = 100 //largest max allowed during pagination
     resetTokenSize = 25
 
-    voicemailBucketName = "media.textup.org"
+    voicemailBucketName = "media-textup-org"
     mail {
         standard {
             name = "TextUp Notification"

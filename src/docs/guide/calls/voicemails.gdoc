@@ -1,0 +1,3 @@
+If the @Staff@ or @Team@ is unavailable when a @RecordCall@ is incoming, we can direct this call to voicemail. Because this logic is required for both @Staff@ members and for @Team@s, we decided to place this logic in @CallService@ instead of one of the more specific subclasses, @StaffCallService@ or @TeamCallService@. 
+
+We store encrypted voicemails in an AWS S3 bucket. Each time we return a @RecordItem@ to the user interface, we generate a signed url that allows the @Staff@ member to hear the voicemail up to one hour after the link is first generated.

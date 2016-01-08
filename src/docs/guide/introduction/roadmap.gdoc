@@ -1,0 +1,19 @@
+For the backend, next steps are
+* bring unit testing suite up-to-date
+* bring integration testing suite up-to-date
+* introduce basic functional tests for the REST API
+* implement scheduled message functionality
+* redesign the internal API for sending text messages and making phone calls
+* redesign the internal API for handling webhooks and incoming requests from Twilio for greater simplicity and testability
+* enable the @CompileStatic annotation on key areas of code for greater static guarantees
+* integrate the CodeNarc linter into the backend coding workflow to improve overall code quality
+
+For the frontend, next steps are
+* introduce basic unit test suite to frontend code
+* eliminate all deprecation warnings
+* fix bugs and add polish in the initial feature set on the frontend interface
+* implement usability improvements to the frontend interface 
+* add in media queries for a responsive design 
+* add in scheduled messages
+* add in notes functionality
+* begin transitioning codebase to CoffeeScript for greater clarity and maintainability

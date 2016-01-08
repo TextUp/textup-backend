@@ -1,0 +1,1 @@
+The data model is composed of @Organization@s with @Team@s and @Staff@ members belonging to an @Organization@. @Staff@ members are the users of our system. They can be grouped into @Team@s by other @Staff@ members who are administrators using the @TeamMembership@s to track memberships These three entities represent the fundamental basis upon which other abstractions are built. 
