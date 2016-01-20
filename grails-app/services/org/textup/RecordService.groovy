@@ -10,6 +10,7 @@ class RecordService {
 	def resultFactory
 	def authService
     def lockService
+    def socketService
 
     /////////////////////////////
     // Webhook utility methods //
@@ -108,7 +109,10 @@ class RecordService {
             if (res.success) {
                 Contact newContact = res.payload
                 res = lockService.addToRecordWithReceipt(type, outgoing, newContact, textParams, receiptParams)
-                if (res.success) { resultFactory.success([res.payload]) }
+                if (res.success) {
+                    socketService.sendContact(newContact)
+                    resultFactory.success([res.payload])
+                }
                 else { res }
             }
             else { res }

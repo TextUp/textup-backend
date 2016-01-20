@@ -72,6 +72,7 @@ class RecordItem {
             record {
                 def res3 = Contact.recordIdsForPhoneId(phoneId)
                 if (res3) { "in"("id", res3) }
+                else { eq("id", null) }
             }
             order("dateCreated", "desc")
         }

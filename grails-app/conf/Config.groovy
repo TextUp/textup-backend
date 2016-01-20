@@ -184,7 +184,7 @@ textup {
     largestMax = 100 //largest max allowed during pagination
     resetTokenSize = 25
 
-    voicemailBucketName = "media.textup.org"
+    voicemailBucketName = "media-textup-org"
     mail {
         standard {
             name = "TextUp Notification"

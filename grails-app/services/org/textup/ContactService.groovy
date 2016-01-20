@@ -37,7 +37,7 @@ class ContactService {
 	}
 
 	Result<Contact> update(Long cId, Map body) {
-		lockService.updateContact(cId, body, this.&validateNumberActions,
+        lockService.updateContact(cId, body, this.&validateNumberActions,
             this.&doShareAction, this.&doNumberAction)
 	}
 
@@ -72,7 +72,7 @@ class ContactService {
         Result res
 		switch(sAction.action) {
 			case Constants.SHARE_ACTION_MERGE:
-				res = owner.phone.shareContact(c1, s1.phone, sAction.permission)
+				res = owner.phone.shareContact(c1, s1.phone, sAction.permission ?: "")
 				break
 			case Constants.SHARE_ACTION_STOP:
 				res = owner.phone.stopSharingContactWith(c1, s1.phone)

@@ -55,14 +55,18 @@ class Team {
                 projections { property("team.id") }
                 eq("staff", thisStaff)
             }
-            if (teamIds) { "in"("id", teamIds) }
+            def res = teamIds.list()
+            if (res) { "in"("id", res) }
+            else { eq("id", null) }
         }
         forStaffId { Long thisStaffId ->
             DetachedCriteria teamIds = new DetachedCriteria(TeamMembership).build {
                 projections { property("team.id") }
                 eq("staff.id", thisStaffId)
             }
-            if (teamIds) { "in"("id", teamIds) }
+            def res = teamIds.list()
+            if (res) { "in"("id", res) }
+            else { eq("id", null) }
         }
         teamIdsForStaffId { Long thisStaffId ->
             forStaffId(thisStaffId)
@@ -98,6 +102,7 @@ class Team {
             new DetachedCriteria(TagMembership).build {
                 def res = tags.list()
                 if (res) { "in"("tag", res) }
+                else { eq("tag", null) }
             }.deleteAll()
             //must be before we delete our contacts FOR RECORD DELETION
             def contactRecords = new DetachedCriteria(Contact).build {
@@ -113,6 +118,7 @@ class Team {
             new DetachedCriteria(ContactNumber).build {
                 def res = contacts.list()
                 if (res) { "in"("contact", res) }
+                else { eq("contact", null) }
             }.deleteAll()
             //delete contact and contact tags
             contacts.deleteAll()
@@ -120,10 +126,12 @@ class Team {
             //delete all receipts before deleting items
             def items = new DetachedCriteria(RecordItem).build {
                 if (allRecords) { "in"("record", allRecords) }
+                else { eq("record", null) }
             }
             new DetachedCriteria(RecordItemReceipt).build {
                 def res = items.list()
                 if (res) { "in"("item", res) }
+                else { eq("item", null) }
             }.deleteAll()
             //delete all record items before deleting record
             items.deleteAll()
@@ -132,6 +140,7 @@ class Team {
             new DetachedCriteria(Record).build {
                 def res = allRecords*.id
                 if (res) { "in"("id", res) }
+                else { eq("id", null) }
             }.deleteAll()
         }
     }

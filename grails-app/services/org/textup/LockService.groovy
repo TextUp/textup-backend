@@ -1,7 +1,9 @@
+
 package org.textup
 
 import grails.transaction.Transactional
 import org.hibernate.StaleObjectStateException
+import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 
 @Transactional
 class LockService {
@@ -22,7 +24,7 @@ class LockService {
                 numsRemaining = cNums - alreadySent
             stopOnSuccessOrInternalError(item, contact.phone.number.e164PhoneNumber, numsRemaining)
         }
-        catch (StaleObjectStateException e) {
+        catch (StaleObjectStateException | HibernateOptimisticLockingFailureException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {
                 retry(item, contact, attemptNum++)
             }
@@ -64,7 +66,7 @@ class LockService {
             calls.each { socketService.sendRecord(it) }
             resultFactory.success(calls)
         }
-        catch (StaleObjectStateException e) {
+        catch (StaleObjectStateException | HibernateOptimisticLockingFailureException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {
                 updateVoicemailItemsAndContacts(receipts, voicemailDuration, attemptNum++)
             }
@@ -97,7 +99,7 @@ class LockService {
             }
             resultFactory.success(receipts)
         }
-        catch (StaleObjectStateException e) {
+        catch (StaleObjectStateException | HibernateOptimisticLockingFailureException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {
                 updateStatus(receipts, status, duration, attemptNum++)
             }
@@ -167,7 +169,7 @@ class LockService {
             }
             else { resultFactory.failWithMessage(BAD_REQUEST, "lockService.addToRecordWithReceipt.allBlocked") }
         }
-        catch (StaleObjectStateException e) {
+        catch (StaleObjectStateException | HibernateOptimisticLockingFailureException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {
                 addToRecordWithReceipt(type, contacts, callParams, receiptParams, attemptNum++)
             }
@@ -260,7 +262,7 @@ class LockService {
                     "contactService.update.notFound", [cId])
             }
         }
-        catch (StaleObjectStateException e) {
+        catch (StaleObjectStateException | HibernateOptimisticLockingFailureException e) {
             if (attemptNum < Constants.LOCK_RETRY_MAX) {
                 updateContact(cId, body, validateNumberActions, doShareAction,
                     doNumberAction, attemptNum++)

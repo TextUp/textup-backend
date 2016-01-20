@@ -35,6 +35,7 @@ class Phone {
         forContactId { Long contactId ->
             def res = Contact.phoneIdsForContactId(contactId).list()
             if (res) { "in"("id", res) }
+            else { eq("id", null) }
         }
     }
 
@@ -57,6 +58,7 @@ class Phone {
             new DetachedCriteria(TagMembership).build {
                 def res = tags.list()
                 if (res) { "in"("tag", res) }
+                else { eq("tag", null) }
             }.deleteAll()
             //must be before we delete our contacts FOR RECORD DELETION
             def associatedRecordIds = new DetachedCriteria(Contact).build {
@@ -67,6 +69,7 @@ class Phone {
             new DetachedCriteria(ContactNumber).build {
                 def res = contacts.list()
                 if (res) { "in"("contact", res) }
+                else { eq("contact", null) }
             }.deleteAll()
             //delete contact and contact tags
             contacts.deleteAll()
@@ -75,6 +78,7 @@ class Phone {
             //come after contacts are deleted
             new DetachedCriteria(Record).build {
                 if (associatedRecordIds) { "in"("id", associatedRecordIds) }
+                else { eq("id", null) }
             }.deleteAll()
         }
     }
@@ -198,6 +202,7 @@ class Phone {
         //find the numbers that correspond to existing contacts
         List<ContactNumber> existingContactNumbers = ContactNumber.createCriteria().list {
             if (nums) { "in"("number", nums) }
+            else { eq("number", null) }
             contact { eq("phone", this) }
         }
         //add existing contacts to consensus

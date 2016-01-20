@@ -1,15 +1,17 @@
 package org.textup.rest
 
 import grails.converters.JSON
+import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.hibernate.StaleObjectStateException
+import org.joda.time.DateTime
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
+import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
-import grails.transaction.Transactional
-import org.joda.time.DateTime
 
 @RestApi(name="Record", description = "Operations on records of communications belonging to staff and teams, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
@@ -129,7 +131,12 @@ class RecordController extends BaseController {
             Long sId = params.long("staffId")
             if (authService.exists(Staff, sId)) {
                 if (authService.isLoggedIn(sId)) {
-                    handleSaveRecordResult(recordService.create(Staff, sId, recordInfo))
+                    try {
+                        handleSaveRecordResult(recordService.create(Staff, sId, recordInfo))
+                    }
+                    catch (StaleObjectStateException | HibernateOptimisticLockingFailureException e) {
+                        handleSaveRecordResult(recordService.create(Staff, sId, recordInfo))
+                    }
                 }
                 else { forbidden() }
             }

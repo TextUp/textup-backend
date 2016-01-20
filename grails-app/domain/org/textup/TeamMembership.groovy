@@ -22,11 +22,13 @@ class TeamMembership {
             projections { distinct("staff.id") }
             def res = Team.teamIdsForStaffId(thisStaffId).list()
             if (res) { "in"("team.id", res) }
+            else { eq("team.id", null) }
         }
         staffOnSameTeamAs { Long thisStaffId ->
             projections { distinct("staff") }
             def res = Team.teamIdsForStaffId(thisStaffId).list()
             if (res) { "in"("team.id", res) }
+            else { eq("team.id", null) }
         }
         staffIdsForTeam { Team thisTeam ->
             projections { distinct("staff.id") }

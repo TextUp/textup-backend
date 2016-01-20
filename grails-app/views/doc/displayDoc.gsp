@@ -24,7 +24,7 @@
 		</section>
 		<section class="doc-detail">
 			<g:each var="e" in="${apis}">
-				<div class="detail-item detail-${e.jsondocId}">
+				<div class="detail-item detail-${e.jsondocId}" style="display:none;">
 					<p class="detail-title">
 						<span>Endpoint</span> ${e.name}
 					</p>
@@ -109,7 +109,7 @@
 				</div>
 			</g:each>
 			<g:each var="o" in="${objects}">
-				<div class="detail-item detail-${o.jsondocId}">
+				<div class="detail-item detail-${o.jsondocId}" style="display:none;">
 					<p class="detail-title">
 						<span>Model</span> ${o.name}
 					</p>

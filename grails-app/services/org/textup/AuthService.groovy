@@ -153,6 +153,7 @@ class AuthService {
                 or {
                     eq("phone", s1.phone) //(1)
                     if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
+                    else { eq("id", null) }
                 }
             } > 0
         }
@@ -185,6 +186,7 @@ class AuthService {
             List<Long> scIds = SharedContact.createCriteria().list {
                 projections { property("id") }
                 if (sWithMeIds) { "in"("id", sWithMeIds) }
+                else { eq("id", null) }
                 eq("contact.id", cId)
             }
             !scIds.isEmpty() ? scIds[0] : null
@@ -268,6 +270,7 @@ class AuthService {
                 or {
                     eq("phone", s1.phone) //(1)
                     if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
+                    else { eq("id", null) }
                 }
             } > 0
         }
@@ -312,8 +315,11 @@ class AuthService {
                 record {
                     or {
                         if (phoneRecIds) { "in"("id", phoneRecIds) } //(1)
+                        else { eq("id", null) }
                         if (sharedRecIds) { "in"("id", sharedRecIds) } //(2)
+                        else { eq("id", null) }
                         if (teamRecIds) { "in"("id", teamRecIds) } //(3)
+                        else { eq("id", null) }
                     }
                 }
             } > 0
@@ -342,9 +348,11 @@ class AuthService {
             List<Long> validIds = Contact.createCriteria().list {
                 projections { property("id") }
                 if (contactIds) { "in"("id", contactIds) }
+                else { eq("id", null) }
                 or {
                     eq("phone", s1.phone) //(1)
                     if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
+                    else { eq("id", null) }
                 }
             }
             Helpers.parseFromList(validIds, contactIds)
@@ -387,9 +395,11 @@ class AuthService {
             List<Long> validIds = ContactTag.createCriteria().list {
                 projections { property("id") }
                 if (tIds) { "in"("id", tIds) }
+                else { eq("id", null) }
                 or {
                     eq("phone", s1.phone) //(1)
                     if (tPhoneIds) { phone { "in"("id", tPhoneIds) } }//(2)
+                    else { eq("id", null) }
                 }
             }
             Helpers.parseFromList(validIds, tIds)

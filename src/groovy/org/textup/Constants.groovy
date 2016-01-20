@@ -12,6 +12,7 @@ class Constants {
 
 	static final String SOCKET_EVENT_RECORD = "record"
 	static final String SOCKET_EVENT_RECORD_STATUS = "recordStatus"
+	static final String SOCKET_EVENT_NEW_CONTACT = "newContact"
 
 	static final String SCHEDULE_AVAILABLE = "available"
 	static final String SCHEDULE_UNAVAILABLE = "unavailable"

@@ -118,11 +118,13 @@ class Contact implements Contactable {
         teamRecordIdsForStaffId { Long thisStaffId ->
             List<Long> scIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(thisStaffId).list())
             if (scIds) { phone { "in"("id", scIds) } }
+            else { eq("id", null) }
             projections { property("record.id") }
         }
         sharedRecordIdsForSharedWithId { Long sWithPhoneId ->
             List<Long> scIds = Helpers.allToLong(SharedContact.contactIdsForSharedWithId(sWithPhoneId).list())
             if (scIds) { "in"("id", scIds) }
+            else { eq("id", null) }
             projections { property("record.id") }
         }
         forPhoneAndStatuses { Phone thisPhone, List<String> statuses ->
@@ -144,6 +146,7 @@ class Contact implements Contactable {
         }
         forRecords { List<Record> records ->
             if (records) { "in"("record", records) }
+            else { eq("record", null) }
         }
         forPhoneAndContactId { Phone thisPhone, long contactId ->
             eq("phone", thisPhone)
@@ -154,6 +157,7 @@ class Contact implements Contactable {
                 eq("phone", sp)
                 def res1 = SharedContact.sharedWithMeContactIds(sp).list()
                 if (res1) { "in"("id", res1) }
+                else { eq("id", null) }
             }
             if (statuses) { "in"("status", statuses) }
             else { "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD]) }
@@ -165,6 +169,7 @@ class Contact implements Contactable {
         forTagAndStatuses { ContactTag ct, List<String> statuses ->
             def res2 = TagMembership.contactIdsForTag(ct).list()
             if (res2) { "in"("id", res2) }
+            else { eq("id", null) }
 
             if (statuses) { "in"("status", statuses) }
             else { "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD]) }
@@ -200,6 +205,7 @@ class Contact implements Contactable {
             new DetachedCriteria(RecordItemReceipt).build {
                 def res = items.list()
                 if (res) { "in"("item", res) }
+                else { eq("item", null) }
             }.deleteAll()
             //delete all record items before deleting record
             items.deleteAll()

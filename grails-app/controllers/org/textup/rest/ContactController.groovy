@@ -1,14 +1,17 @@
 package org.textup.rest
 
 import grails.converters.JSON
+import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.hibernate.StaleObjectStateException
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
+import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
+import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
-import grails.transaction.Transactional
 
 @RestApi(name="Contact", description="Operations on contacts, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
@@ -236,7 +239,13 @@ class ContactController extends BaseController {
         Long id = params.long("id")
         if (authService.exists(Contact, id)) {
             if (authService.hasPermissionsForContact(id) || authService.getSharedContactForContact(id)) {
-                handleUpdateResult(Contact, contactService.update(id, request.JSON.contact))
+                try {
+                    handleUpdateResult(Contact, contactService.update(id, request.JSON.contact))
+                }
+                catch (StaleObjectStateException | HibernateOptimisticLockingFailureException e) {
+                    log.debug("ContactController.update: caught StaleObjectStateException: e.message: e.class: ${e.class}, ${e.message}, e: $e")
+                    handleUpdateResult(Contact, contactService.update(id, request.JSON.contact))
+                }
             }
             else { forbidden() }
         }

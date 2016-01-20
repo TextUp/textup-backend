@@ -53,8 +53,8 @@ class StaffCallService extends CallService {
                 else { log.debug("StaffService.handleIncomingDigitsFromSelf: ${res}") }
             }
             //case 2: digits are a contact id
-            else if (numOrCode.isLong() && Contact.exists(numOrCode.toLong())) {
-                Contact contact = Contact.forPhoneAndContactId(phone, numOrCode.toLong()).get()
+            else if (digits.isLong() && Contact.exists(digits.toLong())) {
+                Contact contact = Contact.forPhoneAndContactId(phone, digits.toLong()).get()
                 if (contact) {
                     TransientPhoneNumber to = TransientPhoneNumber.copy(contact.numbers[0])
                     Result res = recordService.createRecordCallForContact(contact.id, workNum, to,

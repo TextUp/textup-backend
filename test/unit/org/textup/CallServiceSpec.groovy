@@ -65,7 +65,7 @@ class CallServiceSpec extends CustomSpec {
         service.metaClass.getCallFromSid = { String sid ->
             List recordings = []
             _numRecordings.times {
-                recordings << [getMedia: { String ext -> new InputStream() },
+                recordings << [getMedia: { String ext -> new BufferedInputStream() },
                     delete: { -> true }]
             }
             [getRecordings: { -> recordings as RecordingList }] as Call

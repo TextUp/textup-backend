@@ -67,6 +67,7 @@ class SharedContact implements Contactable {
             sharedBy {
                 def res = TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list()
                 if (res) { "in"("ownerId", res) }
+                else { eq("ownerId", null) }
             }
         }
         sharedContactsForSameTeamAsSharedBy { StaffPhone sBy ->
@@ -74,16 +75,19 @@ class SharedContact implements Contactable {
             sharedWith {
                 def res = TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list()
                 if (res) { "in"("ownerId", res) }
+                else { eq("ownerId", null) }
             }
         }
         sharedContactsForSameTeam { StaffPhone sBy, StaffPhone sWith ->
             sharedBy {
                 def res = TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list()
                 if (res) { "in"("ownerId", res) }
+                else { eq("ownerId", null) }
             }
             sharedWith {
                 def res = TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list()
                 if (res) { "in"("ownerId", res) }
+                else { eq("ownerId", null) }
             }
         }
 
@@ -98,7 +102,9 @@ class SharedContact implements Contactable {
         }
         sharedWithForContactIds { StaffPhone sWith, Collection<Long> contactIds ->
             sharedWithMe(sWith)
-            if (contactIds) { "in"("c1.id", contactIds) } //alias from notExpired()
+            //alias from notExpired()
+            if (contactIds) { "in"("c1.id", contactIds) }
+            else { eq("c1.id", null) }
         }
         sharedWithMeContactIds { StaffPhone sWith ->
             projections { property("contact.id") }
