@@ -1,0 +1,5 @@
+Both @Contact@s and @ContactTag@s belong to a @Phone@ object. 
+
+A @Contact@ represents a client or someone else that the owner of the @Phone@ was to communicate with. A @Contact@ can have multiple @ContactNumber@s where each time a call or text is made, the multiple @ContactNumber@s are attempted in order of preference. 
+
+A @ContactTag@ represents a group of @Contact@s. @Contact@ membership in a @ContactTag@ is stored in @TagMembership@s. The base @ContactTag@ object is an anchor for @TagMembership@s and also specifies a hexColor for display purposes. However, @TeamPhone@s have a more specialized form of tag, the @TeamContactTag@ that also maintains a @Record@ of outgoing calls, outgoing texts and internal notes that have passed through this tag.

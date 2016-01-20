@@ -1,0 +1,1 @@
+In this section, we will detail how to set up our backend production environment and deploy from our development environment to the production environment. The production environment assumed in this section is an AWS EC2 instance running Ubuntu 14.04.3 LTS.

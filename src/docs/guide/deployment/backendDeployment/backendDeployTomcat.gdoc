@@ -1,0 +1,87 @@
+* Install tomcat7 and web management interface with @sudo apt-get install tomcat7 tomcat7-admin@
+* Configure users for tomcat7 web dashboard in @tomcat-users.xml@ by adding the following:
+
+{code:xml}
+<role rolename="manager-gui"/>
+<role rolename="admin-gui"/>
+<user name="manager" password="<redacted>" roles="manager-gui, admin-gui" />
+{code}
+
+The @manager-gui@ role enables access to the manager interface. We create a user named manager and assign this user to this role. The @admin-gui@ role enables access to the host-manager interface. 
+
+* Configure war to deploy in the root path (/) in @server.xml@. Add to the @Host@ xml node the following: 
+
+{code:xml}
+<Host name="localhost" appBase="webapps"
+unpackWARs="true" autoDeploy="false"
+deployOnStartup="false">
+     <Context path="" docBase="<war name here>" />
+     <Context path="/manager" 
+    docBase="/usr/share/tomcat7-admin/manager" 
+    antiResourceLocking="false" privileged="true" />
+...
+</Host>
+{code}
+
+Note that each time you want to deploy a new war, you need to delete both the war file and the @ROOT/@ folder in @/var/lib/tomcat7/webapps@. The reason is that tomcat7 unpacks the war into the @ROOT/@ folder as specified by the empty path attribute. By default, tomcat7 ships with a success page in the @ROOT/@ folder. However, if we don't delete this folder, then tomcat7 sees that it is already there and does not unpack the war as a result.
+
+Also, we don't want to @autoDeploy@ or @deployOnStartup@ because we don't want tomcat7 double deploying. That is, first tomcat7 still look by convention at the war names in the deployment directory and launch and route url mappings to these wars according to their naming conventions. Then, it'll look into configuration file and perform the commands listed in the configuration file. The result of this is that we have two deployments. For example, if our war was named textup-core.war, then the problem is that this war would be deployed at the context root (/) and at /textup-core. We avoid this problem by disabling autoDeploy and deployOnStartup.
+
+We set the context root to point to whatever our war file is called. We also specify that the manager should be deployed and accessible at /manager. We specify that privileged is true because we require that only users configured with the appropriate permissions level can access this dashboard. Recall that we disabled @autoDeploy@ and @deployOnStartup@ earlier so we need top manually specify all of our deployments here.
+
+* Set the following JVM arguments in configuration file @/etc/default/tomcat7@. Add the following custom values. Note that we've split it into separate lines to made the config file more readable. Also, note that the config file is sensitive to spaces. You must not have spaces around the equals sign or else you'll get a @JAVA_OPTS: not found@ error.
+
+{code}
+JAVA_OPTS="${JAVA_OPTS} -Djava.awt.headless=true -server"
+JAVA_OPTS="${JAVA_OPTS} -XX:MaxPermSize=512m -XX:MaxNewSize=256m -XX:NewSize=256m"
+JAVA_OPTS="${JAVA_OPTS} -Xms1050m -Xmx1050m -XX:SurvivorRatio=128 -XX:MaxTenuringThreshold=0"
+JAVA_OPTS="${JAVA_OPTS} -XX:+UseTLAB -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled"
+{code}
+
+Check @Config.groovy@ for the which API credentials you also need to specify here.
+
+Default settings for the JVM that ship with tomcat7 are: @-Djava.awt.headless=true -Xmx128m -XX:+UseConcMarkSweepGC@
+
+* To deploy the application, copy the war file from your computer to @/var/lib/tomcat7/@webapps using scp. Make sure you either have some initial user data in @Bootstrap.groovy@ or you have a clear way to create new users from an empty database. When we are copying a new war into this folder, we need to make sure to delete the old war file AND the @ROOT/@ folder so that tomcat7 will know to unpack the war into the @ROOT/@ folder on the next startup. The command to copy is:
+
+{code}
+scp my_file.war <ssh host name>:/destination/path
+{code}
+
+If you get a permission denied error, you may need to check to see if you have the right permissions to copy to that location. You may need to add yourself to the group.
+** Check to see the group exists: @grep tomcat7 /etc/group@
+** Check the groups that you are part of: @id ubuntu@ or @groups ubuntu@
+** Add yourself to the group: @sudo usermod -a -G tomcat7 ubuntu@
+** After you've added yourself to the group, you should be able to run the scp command above without any troubles
+
+* Now, we will detail how to run Tomcat7 as a standalone web server. If you are planning on supporting HTTPS, we recommend running Tomcat7 behind an Apache HTTPD reverse proxy because of HTTPD's superior support for the latest in cryptographic best practices. You will find instructions on how to do this in the next section. Otherwise, read on to see how we configured Tomcat7 as a standalone web server.
+** Check existing iptables rules: @sudo iptables -t nat -L@. Add some forwarding rules with the following commands: 
+
+{code}
+sudo iptables -t nat -I PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080
+sudo iptables -t nat -I OUTPUT -p tcp --dport 80 -j REDIRECT --to-ports 8080
+{code}
+
+Check the iptables rules again to make sure these rules have been added
+
+If you accidentally added multiples of these rules. You can delete duplicate iptables rules by their line number. To list with line numbers: @sudo iptables -t nat -L --line-numbers@. To delete something: @sudo iptables -t nat -D OUTPUT 2@
+
+** In server.xml, find the following Connector block: 
+
+{code:xml}
+<Connector port="8080" protocol="HTTP/1.1"
+    connectionTimeout="20000"
+    URIEncoding="UTF-8"
+    redirectPort="8443" />
+{code}
+
+We want to add a proxyPort attribute of 80 to this xml node so that tomcat7 does not append the default port 8080 onto the address whenever it sends a redirect. With this change, the block should look like the following 
+
+{code:xml}
+<Connector port="8080" proxyPort="80" protocol="HTTP/1.1"
+    connectionTimeout="20000"
+    URIEncoding="UTF-8"
+    redirectPort="8443" />
+{code}
+
+Optionally, since our tomcat7 server only serves on one hostname, we can also set @proxyName@ to this one hostname. This is the server name to which Tomcat should pretend requests to the Connector were directed. If not specified, the server name from the Host HTTP header is used.

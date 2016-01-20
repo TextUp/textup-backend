@@ -1,0 +1,25 @@
+* Generate a key and self-signed certificate using the 2048 bit RSA key algorithm: 
+
+{code}
+keytool -genkeypair \
+    -keystore textup.jks \
+    -alias server \
+    -keyalg RSA \
+    -keysize 2048 \
+    -validity 365 \
+{code}
+
+Since we are using wildcards, we do not specify @-ext SAN="DNS:www.textup.org,DNS:textup.org"@
+
+When asked for the first and last name, we need to specify @*.textup.org@ for wildcard certificates.
+
+* Generate a certificate signing request (CSR) with the command
+
+{code}
+keytool -certreq \ 
+    -keystore textup.jks \ 
+    -alias server \ 
+    -file textup.csr
+{code}
+
+We submit the resulting csr file to our CA to obtain a certificate. 

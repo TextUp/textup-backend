@@ -1,0 +1,148 @@
+In this section, we will detail how to set up an S3 bucket on AWS to serve our Ember frontend application. 
+
+h3. Setting up S3 bucket for static hosting over HTTP
+* Create a bucket named as the url you'd like to access it at, for example app.textup.org. Upload your appropriate files into this bucket. 
+* In Properties tab of the bucket, go to the Permissions section and add the following bucket policy: 
+
+{code}
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "PublicReadGetObject",
+			"Effect": "Allow",
+			"Principal": {
+				"AWS": "*"
+			},
+			"Action": "s3:GetObject",
+			"Resource": "arn:aws:s3:::app.textup.org/*"
+		}
+	]
+}
+{code}
+
+Note that the resource is the same as your bucket name. 
+
+* In the Static Website Hosting section of the Properties tab, select "Enable website hosting" and set the index document to "index.html." DO NOT set the error document to be the same as the index document because this will just return a 404 response. Instead, in the environment.js file of the Ember application, set the locationType to "hash" and add the following redirection rule:
+{code:xml}
+<RoutingRules>
+	<RoutingRule>
+		<Condition>
+			<HttpErrorCodeReturnedEquals>404</HttpErrorCodeReturnedEquals>
+		</Condition>
+		<Redirect>
+			<HostName>app.textup.org.s3-website-us-east-1.amazonaws.com</HostName>
+			<ReplaceKeyPrefixWith>#/</ReplaceKeyPrefixWith>
+		</Redirect>
+	</RoutingRule>
+	<RoutingRule>
+		<Condition>
+			<HttpErrorCodeReturnedEquals>403</HttpErrorCodeReturnedEquals>
+		</Condition>
+		<Redirect>
+			<HostName>app.textup.org.s3-website-us-east-1.amazonaws.com</HostName>
+			<ReplaceKeyPrefixWith>#/</ReplaceKeyPrefixWith>
+		</Redirect>
+	</RoutingRule>
+</RoutingRules>
+{code}
+
+* Configure your DNS rules according with the static web hosting endpoint provided
+
+h3. Setting up S3 for static hosting over HTTPS
+
+For this section, we are following [Bryce's tutorial on setting up HTTPS with S3 and Cloudfront|https://bryce.fisher-fleig.org/blog/setting-up-ssl-on-aws-cloudfront-and-s3/].
+
+* After we are emailed the signed certificate from the CA, then we need to create an admin IAM user in AWS with the following user policy:
+
+{code}
+{
+	"Version": "2012-10-17",
+	"Statement": [{ "Effect": "Allow", "Action": ["*"], "Resource": ["*"] }]
+}
+{code}
+
+* Afterwards, we need to use the AWS CLI to upload the certificate from the CA. We use the following commands. When prompted, we enter the saved credentials of the IAM user we just created. 
+
+{code}
+sudo apt-get install python python-pip
+sudo pip install awscli
+aws configure 
+{code}
+     
+* However, before we do that, we need to extract our private key from the java keystore (jks) we created when we generated our initial key. We will need to upload this private key to Cloudfront. We can extract the private key from the jks as follows: 
+
+Convert the jks keystore to pkcs12 keystore with the following command:
+
+{code}
+keytool -v -importkeystore -srckeystore textup.jks -srcalias server
+	-destkeystore textup.p12 -deststoretype PKCS12
+{code}
+
+Now, we have our keystore in pkcs12 format. We extract the private key in pem format as follows:
+
+{code}
+openssl pkcs12 -in textup.p12 -out textup-ssl.pem -nodes
+{code}
+
+* Next, we need to concatenate all of the intermediate certificates into one file representing the entire certificate chain. Recall that it is unnecessary to include the root CA certificate in this certificate chain. Then, we can upload the certificate to AWS Cloudfront with the following command. 
+{code}
+aws iam upload-server-certificate \
+	--server-certificate-name textup-ssl \
+	--certificate-body file://~/STAR_textup_org.crt \
+	--private-key file://~/textup-ssl.pem \
+	--certificate-chain file://~/intermediates.crt \
+	--path /cloudfront/textup-app/
+{code}
+
+Use [modulus checks to validate your CSR, CRT and PEM key|https://forums.aws.amazon.com/thread.jspa?messageID=211713] if you have any errors. Also available is the [general documentation on adding server certificates|http://docs.aws.amazon.com/IAM/latest/UserGuide/ManagingServerCerts.html#SampleCert] to a CloudFront distribution. Be careful that your path parameter ends with a slash and includes a unique location as in this format /cloudfront/uniquelocationhere/; see an [explanation of the path parameter of the upload-server-certificate command|https://forums.aws.amazon.com/message.jspa?messageID=547263].
+
+h3. Setting up and deploying to S3 behind Cloudfront CDN
+
+Now you can set up a CloudFront distribution, following Bryce's instructions. If CloudFront is giving you an access denied message, check to see that the bucket policy on your corresponding S3 bucket matches Bryce's provided policy. 
+
+{note}
+When creating a new CloudFront distribution, don't forget to specify Alternate Domain Names as follows: @app.textup.org@, @www.app.textup.org@.
+
+Also, don't forget to specify the Default Root Object as @index.html@. 
+{note}
+
+
+* Update your DNS settings to point to the CloudFront distribution instead of the S3 bucket
+* In your Ember app, make sure that you change your fingerprinting prepend url to the appropriate CloudFront url in @ember-cli-build.js@. 
+* Now that we're using CloudFront as a CDN, we need to decide on a policy for caching in order to ensure that each time we push out a new version of the staging or production apps, users will be able to access the latest version.
+
+We will set a Cache-Control ONLY on index.html. For @index.html@ we will set a Cache-Control max age of 3 minutes. The reason why we do this is because all of the assets linked-to in the index.html page have unique fingerprints. Every time we upload a new version of the app, all users who have the newest version of the @index.html@ page will automatically be directed to the new version of the associated js and css resources. 
+
+In order to facilitate efficient implementation of the above scheme, we will use a command     line tool @s3cmd@ to streamline our workflow for adding metadata for @Cache-Control@ headers when uploading new versions of app to the staging or production environments. We install @s3cmd@ directly source via the github repo in the following manner:
+
+{code}
+sudo apt-get install python-setuptools
+sudo mkdir /opt/s3cmd 
+cd /opt/s3cmd 
+sudo git clone https://github.com/s3tools/s3cmd .
+sudo python setup.py install 
+./s3cmd --configure
+{code}
+
+When configuring @s3cmd@ you will need your IAM user access and secret keys.
+
+And then create an alias for s3cmd in @~/.bash_profile@, @~/.bashrc@ or @~/.bash_aliases@ by adding the following line:
+
+{code}
+alias s3cmd="/opt/s3cmd/s3cmd"
+{code}
+
+Don't forget to run @source ~/.bashrc@ or @source ~/.bash_profile@ to make changes show up.
+
+Then test to see if your alias worked by typing in s3cmd into the bash terminal. If successful, now that we've installed @s3cmd@, we can list all of our buckets @s3cmd ls@
+
+All commands in our deployment sequence for the staging bucket are listed below. For each command, if we wanted to perform a dry run without making any changes, we can specify the @--dry-run@ flag.
+
+{code}
+s3cmd sync ~/projects/textup-frontend/dist/ s3://staging.textup.org --exclude=index.html
+s3cmd sync ~/projects/textup-frontend/dist/index.html 
+	s3://staging.textup.org/index.html --add-header='Cache-Control:max-age=180'
+s3cmd sync ~/projects/textup-frontend/dist/ 
+	s3://staging.textup.org --delete-removed --exclude=favicon.ico
+{code}

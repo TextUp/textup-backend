@@ -1,0 +1,37 @@
+introduction:
+  title: Introduction
+  gettingStarted: Getting Started
+  roadmap: Roadmap 
+deployment: 
+  title: Deployment
+  sslCertificate: Generating a SSL Certificate Request
+  backendDeployment: 
+    title: Backend Deployment
+    backendDeployDb: Setting up the MySQL database
+    backendDeployTomcat: Setting up the Apache Tomcat7 web server (optionally as standalone)
+    backendDeployHTTPD: Setting up Apache HTTPD reverse proxy for Tomcat7
+  frontendDeployment: Frontend Deployment
+dataModel: 
+  title: Data Model 
+  basicRelationships: Basic Relationships
+  phones: Phones 
+  records: Records
+  contactsAndTags: Contacts and Tags
+  sharing: Sharing
+  schedules: Schedules
+authPermissions: 
+  title: Authentication and Permissions
+  organizationApproval: Organization Approval
+  staffStatus: Staff Statuses
+  apiAuthentication: API Authentication
+  permissions: Permissions
+texts: 
+  title: Text Messages
+  sendingTexts: Sending Texts
+  receivingTexts: Receiving Texts
+calls: 
+  title: Voice Calls
+  makingCalls: Making Calls
+  receivingCalls: Receiving Calls
+  voicemails: Voicemails
+realtime: Realtime Communication via Web Sockets

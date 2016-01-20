@@ -1,0 +1,6 @@
+Realtime connection between the backend and the frontend happens via a [hosted WebSockets solution called Pusher|https://pusher.com/]. Currently, we allocate one unique socket connection for each logged-in staff member instead of pooling @Staff@ members on a single socket
+
+On the backend, the wrapper for the Pusher library is @SocketService@, which defines simple methods that allow for sending @Contact@s or @Record@s to all relevant @Staff@ members who are logged in. Currently, the supported WebSocket events that the frontend can listen and receive data for are:
+* *record* To be used when a @Record@ receives a new item, say an incoming @RecordText@ or @RecordCall@.
+* *recordStatus* To be used when the only change to a @Record@ is that the status of one of its @RecordItemReceipt@s was updated.
+* *newContact* To notify the frontend of a new contact created in response to text or call in from a number that is not currently associated with any one @Contact@. In these cases, we will create a new @Contact@ with this number.

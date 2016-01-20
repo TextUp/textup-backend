@@ -1,0 +1,7 @@
+An @Organization@'s capability is restricted by the status that an @Organization@ has. The three possible statuses are:
+
+* *PENDING* @Organization@s have this status when a new @Organization@s is created and is pending approval from a TextUp team member. This manual approval process is in place to ensure the authenticity of each @Organization@ and to allow further discussion during our period of being in a closed beta. 
+* *APPROVED* This is the standard status that the majority of @Organization@s will have. An *APPROVED* @Organization@ has full access to TextUp's capabilities
+* *REJECTED* This is when the manual evaluation process concludes that this @Organization@ is not a suitable fit for TextUp. Such accounts will be deleted after a grace period for appeals.
+
+As a safeguard against abuse, @Organization@s that are exhibiting undesirable behavior using TextUp can be categorically banned by setting the status of this @Organization@ to *REJECTED*.
