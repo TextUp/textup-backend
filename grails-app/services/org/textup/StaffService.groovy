@@ -69,7 +69,10 @@ class StaffService {
             }
 			s1.org = org
 		}
-		if (s1.save()) { resultFactory.success(s1) }
+		if (s1.save()) {
+            new StaffRole(staff: s1, role: Role.findByAuthority("ROLE_USER")).save()
+            resultFactory.success(s1)
+        }
     	else { resultFactory.failWithValidationErrors(s1.errors) }
     }
 

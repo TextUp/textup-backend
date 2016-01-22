@@ -200,9 +200,9 @@ textup {
         }
     }
     links {
-        passwordReset = "https://app.textup.org/#/reset?token="
-        setupNewOrg = "https://app.textup.org/#/setup"
-        setupExistingOrg = "https://app.textup.org/#/setup"
+        passwordReset = System.getenv("URL_PASSWORD_RESET") ?: (System.getProperty("URL_PASSWORD_RESET") ?: "https://app.textup.org/#/reset?token=")
+        setupNewOrg = System.getenv("URL_SETUP_NEW_ORG") ?: (System.getProperty("URL_SETUP_NEW_ORG") ?: "https://app.textup.org/#/setup")
+        setupExistingOrg = System.getenv("URL_SETUP_EXISTING_ORG") ?: (System.getProperty("URL_SETUP_EXISTING_ORG") ?: "https://app.textup.org/#/setup")
     }
 
     //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
