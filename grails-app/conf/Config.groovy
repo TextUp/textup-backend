@@ -96,7 +96,7 @@ environments {
         // TODO: grails.serverURL = "http://www.changeme.com"
         grails.plugin.databasemigration.updateOnStart = true
         grails.plugin.databasemigration.updateOnStartFileNames = ['changelog.groovy']
-        textup.apiKeys.twilio.appId="AP7f44379a93c897199e9938fd5b6b3e60"
+        textup.apiKeys.twilio.appId=System.getenv("TWILIO_NUMBER_APP_ID") ?: (System.getProperty("TWILIO_NUMBER_APP_ID") ?: "APe80c7d1e8a78963cde8c95785fdd8c9d")
     }
 }
 
