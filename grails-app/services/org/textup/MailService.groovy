@@ -12,9 +12,8 @@ class MailService {
 	def messageSource
 	def resultFactory
 
-	/////////////////////////////////////
-	// Signup at existing organization //
-	/////////////////////////////////////
+	// Signup at existing organization
+    // -------------------------------
 
     Result notifyAdminsOfPendingStaff(String pendingName, List<Staff> admins) {
         String body = getMessage("mail.pendingForAdmin.body", [pendingName]),
@@ -34,7 +33,9 @@ class MailService {
     }
     Result<SendGrid.Response> notifyPendingOfApproval(Staff approvedStaff) {
         def links = grailsApplication.config.textup.links
-        String body = getMessage("mail.approveForPending.body", [approvedStaff.name, approvedStaff.org.name, approvedStaff.username, links.setupExistingOrg]),
+        String body = getMessage("mail.approveForPending.body",
+                [approvedStaff.name, approvedStaff.org.name, approvedStaff.username,
+                    links.setupExistingOrg]),
             subject = getMessage("mail.approveForPending.subject")
         EmailEntity to = new EmailEntity(name:approvedStaff.name, email:approvedStaff.email)
         sendMail(to, getDefaultFrom(), subject, body)
@@ -46,9 +47,8 @@ class MailService {
         sendMail(to, getDefaultFrom(), subject, body)
     }
 
-    //////////////////////////////////
-    // Signup with new organization //
-    //////////////////////////////////
+    // Signup with new organization
+    // ----------------------------
 
     Result<SendGrid.Response> notifySuperOfNewOrganization(String orgName) {
     	String body = getMessage("mail.newOrganizationForSuper.body", [orgName]),
@@ -59,7 +59,8 @@ class MailService {
     }
     Result<SendGrid.Response> notifyNewOrganizationOfApproval(Staff newOrgAdmin) {
         def links = grailsApplication.config.textup.links
-        String body = getMessage("mail.approveForNewOrg.body", [newOrgAdmin.name, newOrgAdmin.org.name, newOrgAdmin.username, links.setupNewOrg]),
+        String body = getMessage("mail.approveForNewOrg.body",
+                [newOrgAdmin.name, newOrgAdmin.org.name, newOrgAdmin.username, links.setupNewOrg]),
             subject = getMessage("mail.approveForNewOrg.subject")
         EmailEntity to = new EmailEntity(name:newOrgAdmin.name, email:newOrgAdmin.email)
         sendMail(to, getDefaultFrom(), subject, body)
@@ -71,9 +72,8 @@ class MailService {
         sendMail(to, getDefaultFrom(), subject, body)
     }
 
-    ////////////////////
-    // Reset password //
-    ////////////////////
+    // Reset password
+    // --------------
 
     Result<SendGrid.Response> notifyPasswordReset(Staff s1, String token) {
         def links = grailsApplication.config.textup.links
@@ -83,9 +83,8 @@ class MailService {
         sendMail(to, getDefaultFrom(), subject, body)
     }
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    // Helper methods
+    // --------------
 
     protected EmailEntity getDefaultFrom() {
     	def defaultMailConfig = grailsApplication.config.textup.mail.standard

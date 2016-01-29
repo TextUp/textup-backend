@@ -18,10 +18,10 @@ class ResultFactory {
 	/////////////
 
 	Result success(payload) {
-		new Result(success:true, payload:payload, type:Constants.RESULT_SUCCESS)
+		new Result(success:true, payload:payload, type:ResultType.SUCCESS)
 	}
 	Result<?> success() {
-		new Result<?>(success:true, payload:null, type:Constants.RESULT_SUCCESS)
+		new Result<?>(success:true, payload:null, type:ResultType.SUCCESS)
 	}
 
 	/////////////
@@ -30,65 +30,31 @@ class ResultFactory {
 
 	Result<Map> failWithMessage(String messageCode, List params=[]) {
 		String message = messageSource.getMessage(messageCode, params as Object[], LCH.getLocale())
-		new Result<Map>(success:false, payload:[code:messageCode, message:message], type:Constants.RESULT_MESSAGE)
+		new Result<Map>(success:false, payload:[code:messageCode, message:message],
+            type:ResultType.MESSAGE)
 	}
 	Result<Map> failWithMessageAndStatus(HttpStatus status, String messageCode, List params=[]) {
 		String message = messageSource.getMessage(messageCode, params as Object[], LCH.getLocale())
-		new Result<Map>(success:false, payload:[code:messageCode, message:message, status:status], type:Constants.RESULT_MESSAGE_STATUS)
+		new Result<Map>(success:false, payload:[code:messageCode, message:message, status:status],
+            type:ResultType.MESSAGE_STATUS)
 	}
     Result<Map> failWithMessagesAndStatus(HttpStatus status, Collection<String> messages) {
-        new Result<Map>(success:false, payload:[status:status, messages:messages], type:Constants.RESULT_MESSAGE_LIST_STATUS)
+        new Result<Map>(success:false, payload:[status:status, messages:messages],
+            type:ResultType.MESSAGE_LIST_STATUS)
+    }
+    Result<Map> failWithResultsAndStatus(HttpStatus status, Collection<Result> results) {
+        Collection<String> messages = []
+        results.each { Result res ->
+            if (!res.success) { messages += res.errorMessages }
+        }
+        new Result<Map>(success:false, payload:[status:status, messages:messages],
+            type:ResultType.MESSAGE_LIST_STATUS)
     }
 	Result<Throwable> failWithThrowable(Throwable t) {
-		new Result<Throwable>(success:false, payload:t, type:Constants.RESULT_THROWABLE)
+		new Result<Throwable>(success:false, payload:t, type:ResultType.THROWABLE)
 	}
     Result<ValidationErrors> failWithValidationErrors(ValidationErrors verrors) {
-    	new Result<ValidationErrors>(success:false, payload:verrors, type:Constants.RESULT_VALIDATION)
-    }
-
-    //////////////////
-    // RecordResult //
-    //////////////////
-
-    Result<RecordResult> successWithRecordResult(RecordItem item) {
-    	RecordResult recResult = new RecordResult(newItems:[item])
-        this.success(recResult)
-    }
-    Result convertToRecordResult(Result res) {
-    	if (res.success && res.payload?.instanceOf(RecordItem)) {
-            RecordResult recResult = new RecordResult(newItems:[res.payload])
-            res = this.success(recResult)
-        }
-        res
-    }
-
-    /////////////////////
-    // Utility methods //
-    /////////////////////
-
-    Collection<String> extractMessages(Result res) {
-        Collection<String> messages = []
-        switch (res.type) {
-            case Constants.RESULT_VALIDATION:
-                res.payload.allErrors.each {
-                    messages << messageSource.getMessage(it, LCH.getLocale())
-                }
-                break
-            case Constants.RESULT_MESSAGE_STATUS:
-                messages << res.payload.message
-                break
-            case Constants.RESULT_MESSAGE_LIST_STATUS:
-                messages += res.payload.messages
-                break
-            case Constants.RESULT_THROWABLE:
-                messages << res.payload.message
-                break
-            case Constants.RESULT_MESSAGE:
-                messages << res.payload.message
-                break
-            default:
-                log.error("ResultFactory.extractMessage: result $res has an invalid type!")
-        }
-        messages
+    	new Result<ValidationErrors>(success:false, payload:verrors,
+            type:ResultType.VALIDATION)
     }
 }

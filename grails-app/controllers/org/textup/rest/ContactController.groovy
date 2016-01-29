@@ -8,7 +8,6 @@ import org.hibernate.StaleObjectStateException
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
-import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
@@ -19,11 +18,11 @@ class ContactController extends BaseController {
 
     static namespace = "v1"
 
+    // authService from superclass
     def contactService
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     @RestApiMethod(description="List contacts for a specific staff or team", listing=true)
     @RestApiParams(params=[
@@ -39,8 +38,6 @@ class ContactController extends BaseController {
         @RestApiParam(name="staffStatus", type="String", required=true,
             paramType=RestApiParamType.QUERY, description='''One of sharedByMe or sharedWithMe.
             This takes precedence over the status[] parameter. Only used with a staffId.'''),
-        @RestApiParam(name="staffId", type="Number", required=true,
-        	paramType=RestApiParamType.QUERY, description="Id of the staff member"),
         @RestApiParam(name="teamId", type="Number", required=true,
         	paramType=RestApiParamType.QUERY, description="Id of the team member"),
         @RestApiParam(name="tagId", type="Number", required=true,
@@ -58,97 +55,71 @@ class ContactController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
-        //need to account for both sharedcontact and contact
-        //set tagId if in context of a tag
-        if (Helpers.moreThanOneId(["staffId", "teamId", "tagId"], params)) { badRequest() }
-        else if (params.staffId) {
-            Staff s1 = Staff.get(params.long("staffId"))
-            if (!s1 || !s1.phone) { notFound() }
-            else if (authService.isLoggedIn(s1.id)) {
-                if (params.search) {
-                    String query = params.search
-                    if (!query.startsWith("%")) query = "%$query"
-                    if (!query.endsWith("%")) query = "$query%"
-                    genericListActionForCriteria(Contact,
-                        Contact.iLikeForNameAndPhone(query, s1.phone), params)
-                }
-                else if (params.staffStatus) {
-                    if (params.staffStatus == "sharedByMe") {
-                        // We want to return the contact because we are sharing our OWN CONTACTS
-                        // and returning the shared contact would limit our ability to manipulate
-                        // this object. Also, we want to return sharedBy with ANY TEAMS. That is,
-                        // we still want to be able to see any contacts we have shared regardless
-                        // of if the staff member has moved on to a different team or not
-                        Closure count = { params ->
-                                SharedContact.createCriteria().list {
-                                  projections { distinct("contact.id") }
-                                 'in'('id', SharedContact.anyTeamSharedByMeIds(s1.phone).list())
-                                }.size()
-                            }, list  = { params -> //return CONTACT, not shared contact
-                                Contact.getAll(SharedContact.createCriteria().list {
-                                  projections { distinct("contact.id") }
-                                 'in'('id', SharedContact.anyTeamSharedByMeIds(s1.phone).list())
-                                })
-                            }
-                        genericListActionForClosures(Contact, count, list, params)
-                    }
-                    else if (params.staffStatus == "sharedWithMe") {
-                        Closure count = { params ->
-                                s1.phone.countSharedWithMe()
-                            }, list = { params ->
-                                List<SharedContact> scList = s1.phone.getSharedWithMe(params)
-                                scList ? scList : [] //return sharedContact, will be handled in marshaller
-                            }
-                        genericListActionForClosures(Contact, count, list, params)
-                    }
-                    else {
-                        respondWithError(g.message(code:"contactController.index.invalidStaffStatus",
-                            args:[params.staffStatus]), BAD_REQUEST)
-                    }
-                }
-                else {
-                    params.status = params.list("status[]")
-                    Closure count = { Map params -> s1.phone.countContacts(params) },
-                        list = { Map params -> s1.phone.getContacts(params) }
-                    genericListActionForClosures(Contact, count, list, params)
-                }
-            }
-            else { forbidden() }
+        if (!Helpers.exactly(1, ["teamId", "tagId"], params)) {
+            badRequest()
         }
         else if (params.teamId) {
-            Team t1 = Team.get(params.long("teamId"))
-            if (!t1 || !t1.phone) { notFound() }
-            else if (authService.belongsToSameTeamAs(t1.id)) {
-                if (params.search) {
-                    String query = params.search
-                    if (!query.startsWith("%")) query = "%$query"
-                    if (!query.endsWith("%")) query = "$query%"
-                    genericListActionForCriteria(Contact,
-                        Contact.iLikeForNameAndPhone(query, s1.phone), params)
-                }
-                else {
-                    genericListActionForCriteria(Contact, Contact.forPhoneAndStatuses(t1.phone,
-                        params.list("status[]")), params)
-                }
-            }
-            else { forbidden() }
+            listForTeam(params)
         }
         else if (params.tagId) {
-            ContactTag ct1 = ContactTag.get(params.long("tagId"))
-            if (!ct1) { notFound() }
-            else if (authService.hasPermissionsForTag(ct1.id)) {
-                request.tagId = ct1.id //for the json marshaller
-                genericListActionForCriteria(Contact, Contact.forTagAndStatuses(ct1,
-                    params.list("status[]")), params)
-            }
-            else { forbidden() }
+            listForTag(params)
         }
-        else { badRequest() }
+        else { listForStaff(params) }
+    }
+    protected def listForTeam(GrailsParameterMap params) {
+        Team t1 = Team.get(params.long("teamId"))
+        if (!t1 || !t1.phone) {
+            return notFound()
+        }
+        else if (!authService.hasPermissionsForTeam(t1.id)) {
+            return forbidden()
+        }
+        listForPhone(t1.phone, params)
+    }
+    protected def listForTag(GrailsParameterMap params) {
+        ContactTag ct1 = ContactTag.get(params.long("tagId"))
+        if (!ct1) {
+            return notFound()
+        }
+        else if (!authService.hasPermissionsForTag(ct1.id)) {
+            return forbidden()
+        }
+        genericListActionAllResults(Contact, ct1.getMembers(params.list("status[]")))
+    }
+    protected def listForStaff(GrailsParameterMap params) {
+        Staff s1 = authService.isLoggedInAndActive
+        if (!s1) {
+            return forbidden()
+        }
+        else if (!s1.phone) {
+            return notFound()
+        }
+        listForPhone(s1.phone, params)
+    }
+    protected def listForPhone(Phone p1, GrailsParameterMap params) {
+        Closure count, list
+        if (params.search) {
+            count = { Map params -> p1.countContacts(params.search) }
+            list = { Map params -> p1.getContacts(params.search) }
+        }
+        else if (params.staffStatus == "sharedByMe") { // returns CONTACTS
+            count = { Map params -> p1.countSharedByMe() }
+            list = { Map params -> p1.getSharedByMe(params) }
+        }
+        else if (params.staffStatus == "sharedWithMe") { // returns SHARED CONTACTS
+            count = { Map params -> p1.countSharedWithMe() }
+            list = { Map params -> p1.getSharedWithMe(params) }
+        }
+        else {
+            params.statuses = params.list("status[]")
+            count = { Map params -> p1.countContacts(params) }
+            list = { Map params -> p1.getContacts(params) }
+        }
+        genericListActionForClosures(Contact, count, list, params)
     }
 
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     @RestApiMethod(description="Show specifics about a contact")
     @RestApiParams(params=[
@@ -161,28 +132,30 @@ class ContactController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-        //id will always be for the contact to avoid collisions, but we might need to
-        //find the corresponding shared contact if we don't have permissions for the contact
+        // id will always be for the contact to avoid collisions, but we might
+        // need to find the corresponding shared contact if the contact does
+        // not belong to the staff's personal TextUp phone
         Long id = params.long("id")
         if (Contact.exists(id)) {
-            if (authService.hasPermissionsForContact(id)) { genericShowAction(Contact, id) }
+            if (authService.hasPermissionsForContact(id)) {
+                genericShowAction(Contact, id)
+            }
             else {
-                Long scId = authService.getSharedContactForContact(id)
-                if (scId) { genericShowAction(SharedContact, scId) }
+                Long scId = authService.getSharedContactIdForContact(id)
+                if (scId) {
+                    genericShowAction(SharedContact, scId)
+                }
                 else { forbidden() }
             }
         }
         else { notFound() }
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
     @RestApiMethod(description="Create a new contact for staff member or team")
     @RestApiParams(params=[
-        @RestApiParam(name="staffId", type="Number",
-        	paramType=RestApiParamType.QUERY, description="Id of the staff member"),
         @RestApiParam(name="teamId", type="Number",
         	paramType=RestApiParamType.QUERY, description="Id of the team member")
     ])
@@ -195,33 +168,24 @@ class ContactController extends BaseController {
     def save() {
     	if (!validateJsonRequest(request, "contact")) { return; }
         Map contactInfo = request.JSON.contact
-        if (params.staffId && params.teamId) { badRequest() }
-        else if (params.staffId) {
-            Long sId = params.long("staffId")
-            if (authService.exists(Staff, sId)) {
-                if (authService.isLoggedIn(sId)) {
-                    handleSaveResult(Contact, contactService.create(Staff, sId, contactInfo))
-                }
-                else { forbidden() }
-            }
-            else { notFound() }
-        }
-        else if (params.teamId) {
+        if (params.teamId) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
-                if (authService.belongsToSameTeamAs(tId)) {
-                    handleSaveResult(Contact, contactService.create(Team, tId, contactInfo))
+                if (authService.hasPermissionsForTeam(tId)) {
+                    handleSaveResult(Contact,
+                        contactService.createForTeam(tId, contactInfo))
                 }
                 else { forbidden() }
             }
             else { notFound() }
         }
-        else { badRequest() }
+        else {
+            handleSaveResult(Contact, contactService.createForStaff(contactInfo))
+        }
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     @RestApiMethod(description="Update an existing contact")
     @RestApiParams(params=[
@@ -238,13 +202,17 @@ class ContactController extends BaseController {
     	if (!validateJsonRequest(request, "contact")) { return; }
         Long id = params.long("id")
         if (authService.exists(Contact, id)) {
-            if (authService.hasPermissionsForContact(id) || authService.getSharedContactForContact(id)) {
+            if (authService.hasPermissionsForContact(id) ||
+                authService.getSharedContactIdForContact(id)) {
+                Map cInfo = request.JSON.contact
                 try {
-                    handleUpdateResult(Contact, contactService.update(id, request.JSON.contact))
+                    handleUpdateResult(Contact, contactService.update(id, cInfo))
                 }
-                catch (StaleObjectStateException | HibernateOptimisticLockingFailureException e) {
-                    log.debug("ContactController.update: caught StaleObjectStateException: e.message: e.class: ${e.class}, ${e.message}, e: $e")
-                    handleUpdateResult(Contact, contactService.update(id, request.JSON.contact))
+                catch (StaleObjectStateException |
+                    HibernateOptimisticLockingFailureException e) {
+                    log.debug("ContactController.update: concurrent exception: \
+                        e.message: e.class: ${e.class}, ${e.message}, e: $e")
+                    this.update()
                 }
             }
             else { forbidden() }
@@ -252,9 +220,8 @@ class ContactController extends BaseController {
         else { notFound() }
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     @RestApiMethod(description="Delete an existing contact")
     @RestApiParams(params=[
@@ -275,8 +242,4 @@ class ContactController extends BaseController {
         }
         else { notFound() }
     }
-
-    /////////////
-    // Helpers //
-    /////////////
 }

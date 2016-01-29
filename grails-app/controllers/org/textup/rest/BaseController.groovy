@@ -12,34 +12,39 @@ import org.codehaus.groovy.grails.orm.hibernate.cfg.NamedCriteriaProxy
 
 class BaseController {
 
-    static allowedMethods = [index:"GET", save:"POST", show:"GET", update:"PUT", delete:"DELETE"]
+    static allowedMethods = [index:"GET", save:"POST", show:"GET",
+        update:"PUT", delete:"DELETE"]
     static responseFormats = ["json"]
 
     def grailsApplication
     def springSecurityService
     def authService
 
-    //////////////////////
-    // Config constants //
-    //////////////////////
+    // Config constants
+    // ----------------
 
-    private int defaultMax() { grailsApplication.config.textup.defaultMax }
-    private int largestMax() { grailsApplication.config.textup.largestMax }
-    private def tConfig() { grailsApplication.config.textup }
+    protected int getDefaultMax() {
+        grailsApplication.config.textup.defaultMax
+    }
+    protected int getLargestMax() {
+        grailsApplication.config.textup.largestMax
+    }
 
-    ////////////////
-    // Pagination //
-    ////////////////
+    // Pagination
+    // ----------
 
     /**
-     * Handles pagination logic. Takes in some information as specified below and outputs a map of parameters as detailed below for pagination
+     * Handles pagination logic. Takes in some information as specified below
+     *     and outputs a map of parameters as detailed below for pagination
      * @param  info Map of necessary information, including:
-     *                  params = controller params object possibly containing maximum number of results to return per page and offset of results
+     *                  params = controller params object possibly containing
+     *                      maximum number of results to return per page and offset of results
      *                  total = total number of results
      *                  next = Map of options to pass to create "next" link
      *                  prev = Map of options to pass to create "prev" link
      * @return Map of pagination info, including:
-     *             meta = metainformation including total count, maximum results per page, and offset of results
+     *             meta = metainformation including total count, maximum results
+     *                 per page, and offset of results
      *             searchParams = Map of the following:
      *                 max = max number of results
      *                 offset = offset of results
@@ -47,14 +52,16 @@ class BaseController {
      */
     protected Map handlePagination(Map info) {
         Map params = parseParams(info?.params, info.total),
-        	linkParams = (info.linkParams && info.linkParams instanceof Map) ? info.linkParams : [:]
+        	linkParams = (info.linkParams && info.linkParams instanceof Map) ?
+                info.linkParams : [:]
         int max = params.max,
         	offset = params.offset,
         	total = params.total,
         	beforeTotal = total - 1
         //if not default max, then add the custom max as a url param
-        if (max != defaultMax()) linkParams << [max:max]
-
+        if (max != this.defaultMax) {
+            linkParams << [max:max]
+        }
         Map<String,String> links = [:]
         if (offset > 0) {
             int newOffset = offset - max
@@ -72,10 +79,9 @@ class BaseController {
 
         results
     }
-
     protected Map parseParams(Map params, Integer total) {
-        int defaultMax = defaultMax(),
-            largestMax = largestMax(),
+        int defaultMax = this.defaultMax,
+            largestMax = this.largestMax,
             max = Math.min(params?.int("max") ?: defaultMax, largestMax)
         max = (max > 0) ? max : defaultMax
         total = (total && total > 0) ? total: max
@@ -83,16 +89,14 @@ class BaseController {
         int offset = params?.int("offset") ?: 0
         [max:max, offset:offset, total:total]
     }
-
     protected Map mergeIntoParams(Map params, Map searchParams) {
         params.max = searchParams.max
         params.offset = searchParams.offset
         params
     }
 
-    ////////////////////////////
-    // Respond helper methods //
-    ////////////////////////////
+    // Respond helpers
+    // ---------------
 
     protected void respondHandleEmpty(String ifEmpty, def obj, Map params) {
         if (obj) { respond(obj, params + [status:OK]) }
@@ -108,7 +112,6 @@ class BaseController {
             respond([(label):[], meta:[total:0]])
         }
     }
-
     protected void respondWithError(String message, HttpStatus status) {
         respondWithErrors([message], status)
     }
@@ -120,56 +123,57 @@ class BaseController {
 
         respond errorsJson, [status:status]
     }
-
-    protected void respondWithError(def obj, String field, String rejectedValue, String message) {
+    protected void respondWithError(def obj, String field, String
+        rejectedValue, String message) {
         JSONObject errorsJson = new JSONObject()
         Collection<Map> errors = []
-        errors << [object:obj?.class?.name, field:field, "rejected-value":rejectedValue, message:message]
+        errors << [object:obj?.class?.name, field:field,
+            "rejected-value":rejectedValue, message:message]
         errorsJson.put("errors", JSON.parse((errors as JSON).toString()))
 
         respond errorsJson, [status:UNPROCESSABLE_ENTITY]
     }
-
     protected def renderAsXml(Closure xml) {
         render([contentType: "text/xml", encoding: "UTF-8"], xml)
     }
-
     protected def handleXmlResult(Result<Closure> res) {
         if (res.success) { renderAsXml(res.payload) }
         else { handleResultFailure(res) }
     }
-
     protected def handleResultWithStatus(Result res, HttpStatus status) {
         if (res.success) { render status:status }
         else { handleResultFailure(res) }
     }
-
     protected def handleResultFailure(Result res) {
         switch (res.type) {
-            case Constants.RESULT_VALIDATION:
+            case ResultType.VALIDATION:
                 respond res.payload, [status:UNPROCESSABLE_ENTITY]
                 break
-            case Constants.RESULT_MESSAGE_STATUS:
+            case ResultType.MESSAGE_STATUS:
                 respondWithError(res.payload.message, res.payload.status)
                 break
-            case Constants.RESULT_MESSAGE_LIST_STATUS:
+            case ResultType.MESSAGE_LIST_STATUS:
                 respondWithErrors(res.payload.messages, res.payload.status)
                 break
-            case Constants.RESULT_THROWABLE:
+            case ResultType.THROWABLE:
                 respondWithError(res.payload.message, BAD_REQUEST)
                 break
-            case Constants.RESULT_MESSAGE:
+            case ResultType.MESSAGE:
                 respondWithError(res.payload.message, BAD_REQUEST)
                 break
             default:
-                log.error("BaseController.handleResultFailure: result $res has an invalid type!")
-                respondWithError(message("baseController.handleResultFailure.error"), INTERNAL_SERVER_ERROR)
+                log.error("BaseController.handleResultFailure: \
+                    result $res has an invalid type!")
+                respondWithError(message("baseController.handleResultFailure.error"),
+                    INTERNAL_SERVER_ERROR)
         }
     }
+    protected def handleResultListFailure(HttpStatus errorCode, ResultList resList) {
+        respond res.failures*.errorMessages.flatten(), [status:errorCode]
+    }
 
-    ////////////////////////////////////////
-    // Standard response for index (list) //
-    ////////////////////////////////////////
+    // List
+    // ----
 
     protected def genericListAction(Class clazz, Map params) {
         genericListAction(getLowercaseSimpleName(clazz), clazz, params)
@@ -186,27 +190,24 @@ class BaseController {
             }
         }
     }
-
-    protected def genericListActionForCriteria(Class clazz, NamedCriteriaProxy criteria, Map params) {
-        genericListActionForCriteria(getLowercaseSimpleName(clazz), criteria, params)
+    protected def genericListActionAllResults(Class clazz, List results) {
+        genericListActionAllResults(getLowercaseSimpleName(clazz), clazz, results)
     }
-    protected def genericListActionForCriteria(String resourceName, NamedCriteriaProxy criteria, Map params) {
-        Map linkParams = [namespace:namespace, resource:resourceName, absolute:false],
-            options = handlePagination(params:params, total:criteria.count(),
-                next:linkParams, prev:linkParams)
-        List found = criteria.list(mergeIntoParams(params, options.searchParams))
+    protected def genericListActionAllResults(String resourceName, Class clazz, List results) {
+        int numRes = results.size()
         withFormat {
             json {
-                respondHandleEmpty("v1.${resourceName}.plural", found,
-                    [meta:options.meta, links:options.links])
+                respondHandleEmpty("v1.${resourceName}.plural", results,
+                    [meta:[total:numRes, max:numRes, offset:numRes]])
             }
         }
     }
-
-    protected def genericListActionForClosures(Class clazz, Closure count, Closure list, Map params) {
+    protected def genericListActionForClosures(Class clazz, Closure count, Closure
+        list, Map params) {
         genericListActionForClosures(getLowercaseSimpleName(clazz), count, list, params)
     }
-    protected def genericListActionForClosures(String resourceName, Closure count, Closure list, Map params) {
+    protected def genericListActionForClosures(String resourceName, Closure count,
+        Closure list, Map params) {
         Map linkParams = [namespace:namespace, resource:resourceName, absolute:false],
             options = handlePagination(params:params, total:count(params),
                 next:linkParams, prev:linkParams)
@@ -219,9 +220,8 @@ class BaseController {
         }
     }
 
-    //////////////////////////////
-    // Standard action for show //
-    //////////////////////////////
+    // Show
+    // ----
 
     protected def genericShowAction(Class clazz, Long id) {
         def found = clazz.get(id)
@@ -231,9 +231,8 @@ class BaseController {
         }
     }
 
-    //////////////////////////////
-    // Standard action for save //
-    //////////////////////////////
+    // Save
+    // ----
 
     protected def handleSaveResult(Class clazz, Result res) {
         handleSaveResult(getLowercaseSimpleName(clazz), res)
@@ -243,17 +242,33 @@ class BaseController {
             withFormat {
                 json {
                     response.addHeader(HttpHeaders.LOCATION,
-                        g.createLink(namespace:namespace, resource:resourceName, absolute:true, action:"show", id:res.payload.id))
+                        g.createLink(namespace:namespace, resource:resourceName,
+                            absolute:true, action:"show", id:res.payload.id))
                     respond res.payload, [status:CREATED]
                 }
             }
         }
         else { handleResultFailure(res) }
     }
+    protected def handleResultListForSave(Class clazz, ResList resList) {
+        handleResultListForSave(getLowercaseSimpleName(clazz), res)
+    }
+    protected def handleResultListForSave(String resourceName, ResList resList) {
+        if (resList.isAnySuccess) {
+            withFormat {
+                json {
+                    response.addHeader(HttpHeaders.LOCATION,
+                        g.createLink(namespace:namespace, resource:resourceName,
+                            absolute:true, action:"show", id:res.payload.id))
+                    respond resList.successes*.payload, [status:CREATED]
+                }
+            }
+        }
+        else { handleResultListFailure(UNPROCESSABLE_ENTITY, resList) }
+    }
 
-    ////////////////////////////////
-    // Standard action for update //
-    ////////////////////////////////
+    // Update
+    // ------
 
     protected def handleUpdateResult(Class clazz, Result res) {
         handleUpdateResult(getLowercaseSimpleName(clazz), res)
@@ -263,7 +278,8 @@ class BaseController {
             withFormat {
                 json {
                     response.addHeader(HttpHeaders.LOCATION,
-                        g.createLink(namespace:namespace, resource:resourceName, absolute:true, action:"show", id:res.payload.id))
+                        g.createLink(namespace:namespace, resource:resourceName,
+                            absolute:true, action:"show", id:res.payload.id))
                     respond res.payload, [status:OK]
                 }
             }
@@ -271,9 +287,8 @@ class BaseController {
         else { handleResultFailure(res) }
     }
 
-    ////////////////////////////////
-    // Standard action for delete //
-    ////////////////////////////////
+    // Delete
+    // ------
 
     protected def handleDeleteResult(Result res) {
         if (res.success) {
@@ -281,30 +296,45 @@ class BaseController {
         }
         else { handleResultFailure(res) }
     }
-
-    private String getLowercaseSimpleName(Class clazz) {
+    protected String getLowercaseSimpleName(Class clazz) {
         String n = clazz.simpleName
         //lowercase first letter
         n[0].toLowerCase() + n.substring(1)
     }
 
-    ////////////////////////////////
-    // HttpStatus utility methods //
-    ////////////////////////////////
+    // HttpStatus
+    // ----------
 
-    protected void ok() { render status:OK }
-    protected void notFound() { render status:NOT_FOUND }
-    protected void forbidden() { render status:FORBIDDEN }
-    protected void unauthorized() { render status:UNAUTHORIZED }
-    protected void notAllowed() { render status:METHOD_NOT_ALLOWED }
-    protected void failsValidation() { render status:UNPROCESSABLE_ENTITY }
-    protected void badRequest() { render status:BAD_REQUEST }
-    protected void noContent() { render status:NO_CONTENT }
-    protected void error() { render status:INTERNAL_SERVER_ERROR }
+    protected void ok() {
+        render status:OK
+    }
+    protected void notFound() {
+        render status:NOT_FOUND
+    }
+    protected void forbidden() {
+        render status:FORBIDDEN
+    }
+    protected void unauthorized() {
+        render status:UNAUTHORIZED
+    }
+    protected void notAllowed() {
+        render status:METHOD_NOT_ALLOWED
+    }
+    protected void failsValidation() {
+        render status:UNPROCESSABLE_ENTITY
+    }
+    protected void badRequest() {
+        render status:BAD_REQUEST
+    }
+    protected void noContent() {
+        render status:NO_CONTENT
+    }
+    protected void error() {
+        render status:INTERNAL_SERVER_ERROR
+    }
 
-    /////////////////////
-    // Utility methods //
-    /////////////////////
+    // Utility methods
+    // ---------------
 
     protected boolean validateJsonRequest(req, requiredRoot) {
         try {
@@ -315,7 +345,8 @@ class BaseController {
             }
         }
         catch (e) {
-            log.debug "BaseController.validateJsonRequest with requiredRoot '$requiredRoot': ${e.message}"
+            log.debug "BaseController.validateJsonRequest with requiredRoot \
+                '$requiredRoot': ${e.message}"
             badRequest()
             return false
         }

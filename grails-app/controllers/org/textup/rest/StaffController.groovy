@@ -17,12 +17,11 @@ class StaffController extends BaseController {
 
     static namespace = "v1"
 
-    //authService from superclass
+    // authService from superclass
     def staffService
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     @RestApiMethod(description="List staff", listing=true)
     @RestApiParams(params=[
@@ -37,7 +36,7 @@ class StaffController extends BaseController {
             required=true, description="Id of the organization to restrict results to"),
         @RestApiParam(name="teamId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description="Id of the team to restrict results to"),
-        @RestApiParam(name="onSameTeamAsStaffId", type="Number", paramType=RestApiParamType.QUERY,
+        @RestApiParam(name="canShareStaffId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description='''Restrict results to staff who are on the same
             team as the provided staff id'''),
         @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
@@ -52,41 +51,58 @@ class StaffController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (params.timezone) { request.timezone = params.timezone }
-        if (Helpers.moreThanOneId(["organizationId", "teamId", "onSameTeamAsStaffId"], params)) {
+        if (params.timezone) {
+            request.timezone = params.timezone
+        }
+        if (!Helpers.exactly(1, ["organizationId", "teamId", "canShareStaffId"], params)) {
             badRequest()
         }
         else if (params.organizationId) {
-            Organization org = Organization.get(params.long("organizationId"))
-            if (!org) { notFound(); return; }
-            if (authService.isAdminAt(org.id)) {
-                genericListActionForCriteria(Staff, Staff.forOrgAndStatuses(org,
-                    params.list("status[]")), params)
-            }
-            else { forbidden() }
+            listForOrg(params)
         }
         else if (params.teamId) {
-            Team t1 = Team.get(params.long("teamId"))
-            if (!t1) { notFound(); return; }
-            if (authService.isAdminForTeam(t1.id) || authService.belongsToSameTeamAs(t1.id)) {
-                genericListActionForCriteria(Staff, Staff.membersForTeam(t1,
-                    params.list("status[]")), params)
-            }
-            else { forbidden() }
+            listForTeam(params)
         }
-        else if (params.onSameTeamAsStaffId) {
-            Long sId = params.long("onSameTeamAsStaffId")
-            if (authService.isLoggedInAndActive(sId) || authService.isAdminAtSameOrgAs(sId)) {
-                genericListActionForCriteria(Staff, TeamMembership.staffOnSameTeamAs(sId), params)
-            }
-            else { forbidden() }
+        else { listForShareStaff(params) }
+    }
+    protected def listForOrg(GrailsParameterMap params) {
+        Organization org = Organization.get(params.long("organizationId"))
+        if (!org) {
+            return notFound()
         }
-        else { badRequest() }
+        else if (!authService.isAdminAt(org.id)) {
+            return forbidden()
+        }
+        params.statuses = params.list("status[]")
+        genericListActionForClosures(Staff, { Map params ->
+            org.countPeople(params)
+        }, { Map params ->
+            org.getPeople(params)
+        }, params)
+    }
+    protected def listForTeam(GrailsParameterMap params) {
+        Team t1 = Team.get(params.long("teamId"))
+        if (!t1) {
+            return notFound()
+        }
+        else if (!authService.hasPermissionsForTeam(t1.id)) {
+            return forbidden()
+        }
+        genericListActionAllResults(Staff,
+            t1.getMembers(params.list("status[]")))
+    }
+    protected def listForShareStaff(GrailsParameterMap params) {
+        Long sId = params.long("canShareStaffId")
+        if (!authService.isLoggedInAndActive(sId) &&
+            !authService.isAdminAtSameOrgAs(sId)) {
+            return forbidden()
+        }
+        genericListActionAllResults(Staff,
+            s1.getCanShareWith(params.list("status[]")))
     }
 
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     @RestApiMethod(description="Show specifics about a staff member")
     @RestApiParams(params=[
@@ -102,12 +118,12 @@ class StaffController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-        Long id = params.long("id")
         if (params.timezone) {
             request.timezone = params.timezone //for the json marshaller
         }
+        Long id = params.long("id")
         if (Staff.exists(id)) {
-            if (authService.isLoggedIn(id) || authService.hasPermissionsForStaff(id)) {
+            if (authService.hasPermissionsForStaff(id)) {
                 genericShowAction(Staff, id)
             }
             else { forbidden() }
@@ -115,9 +131,8 @@ class StaffController extends BaseController {
         else { notFound() }
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
     @RestApiMethod(description='''Create a new staff member and associate with
         either a new or existing organization''')
@@ -133,9 +148,8 @@ class StaffController extends BaseController {
         handleSaveResult(Staff, staffService.create(request.JSON.staff))
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     @RestApiMethod(description="Update an existing staff member")
     @RestApiParams(params=[
@@ -159,17 +173,15 @@ class StaffController extends BaseController {
         }
         Long id = params.long("id")
         if (authService.exists(Staff, id)) {
-            if (authService.isLoggedIn(id) || authService.isAdminAtSameOrgAs(id)) {
-                handleUpdateResult(Staff, staffService.update(id, request.JSON.staff, params.timezone))
+            if (authService.isLoggedIn(id) ||
+                authService.isAdminAtSameOrgAs(id)) {
+                handleUpdateResult(Staff, staffService.update(id,
+                    request.JSON.staff, params.timezone))
             }
             else { forbidden() }
         }
         else { notFound() }
     }
-
-    ////////////
-    // Delete //
-    ////////////
 
     def delete() { notAllowed() }
 }

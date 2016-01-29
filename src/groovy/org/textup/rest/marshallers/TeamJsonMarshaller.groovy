@@ -14,9 +14,12 @@ class TeamJsonMarshaller extends JsonNamedMarshaller {
         json.with {
             id = t1.id
             name = t1.name
-            if (t1.phone) phone = t1.phone.number.number
             org = t1.org.id
             hexColor = t1.hexColor
+            if (t1.phone) {
+                phone = t1.phone.number.number
+                awayMessage = t1.phone.awayMessage
+            }
         }
         json.location = [:]
         json.location.with {
@@ -26,7 +29,8 @@ class TeamJsonMarshaller extends JsonNamedMarshaller {
         }
 
         json.links = [:]
-        json.links << [self:linkGenerator.link(namespace:namespace, resource:"team", action:"show", id:t1.id, absolute:false)]
+        json.links << [self:linkGenerator.link(namespace:namespace,
+            resource:"team", action:"show", id:t1.id, absolute:false)]
         json
     }
 

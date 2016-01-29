@@ -7,44 +7,39 @@ import org.joda.time.DateTimeZone
 @EqualsAndHashCode
 class Schedule {
 
+    def resultFactory
+
     static constraints = {
     }
 
-    /*
-	Has many:
-	*/
+    // Availability
+    // ------------
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    boolean isAvailableAt(DateTime dt) {
+        resultFactory.success(false)
+    }
+    boolean isAvailableNow() {
+        isAvailableAt(DateTime.now(DateTimeZone.UTC))
+    }
 
-    /*
-    Availability
-     */
-    boolean isAvailableAt(DateTime dt) { Result.success(false) }
-    boolean isAvailableNow() { isAvailableAt(DateTime.now(DateTimeZone.UTC)) }
+    // Status changes
+    // --------------
 
-    /*
-    Status changes
-     */
     Result<ScheduleChange> nextChange(String timezone=null) {
-        Result.success(new ScheduleChange(type:Constants.SCHEDULE_AVAILABLE,
+        resultFactory.success(new ScheduleChange(type:ScheduleChange.AVAILABLE,
             when:DateTime.now(DateTimeZone.UTC).minusDays(1)))
     }
     Result<DateTime> nextAvailable(String timezone=null) {
-        Result.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
+        resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
     }
     Result<DateTime> nextUnavailable(String timezone=null) {
-        Result.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
+        resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
     }
 
-    /*
-    Operations that modify the Schedule
-     */
-    Result<Schedule> update(Map params) { Result.success(this) }
+    // Modify the Schedule
+    // -------------------
 
-    /////////////////////
-    // Property Access //
-    /////////////////////
-
+    Result<Schedule> update(Map params) {
+        resultFactory.success(this)
+    }
 }

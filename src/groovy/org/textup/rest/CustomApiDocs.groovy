@@ -1,4 +1,4 @@
-package org.textup.rest 
+package org.textup.rest
 
 import org.restapidoc.annotation.*
 
@@ -38,7 +38,7 @@ class CustomResponseDoc {
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName = "action",
-            description = "Action to take. Allowed: add, remove, subscribeCall, subscribeText, unsubscribe",
+            description = "Action to take. Allowed: ADD, REMOVE",
             allowedType = "String",
             useForCreation = true)
     ])
@@ -53,7 +53,7 @@ class CustomResponseDoc {
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName = "action",
-            description = "Action to take. Allowed: add, remove",
+            description = "Action to take. Allowed: ADD, REMOVE",
             allowedType = "String",
             useForCreation = true)
     ])
@@ -63,17 +63,17 @@ class CustomResponseDoc {
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName = "id",
-            description = "Id of the staff member",
+            description = "Id of the phone that contact is shared with",
             allowedType = "Number",
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName = "action",
-            description = "Action to take. Allowed: merge, stop",
+            description = "Action to take. Allowed: MERGE, STOP",
             allowedType = "String",
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName = "permission",
-            description = "Level of permission to share with. Allowed: delegate, view",
+            description = "Level of permission to share with. Allowed: DELEGATE, VIEW",
             allowedType = "String",
             useForCreation = true)
     ])
@@ -88,14 +88,15 @@ class CustomResponseDoc {
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName   = "preference",
-            description    = "Level of preference to use this number. Smaller number is higher preference.",
+            description    = "Level of preference to use this number. \
+                Smaller number is higher preference.",
             allowedType    = "Number",
             mandatory      = false,
             defaultValue   = "0",
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName = "action",
-            description = "Action to take. Allowed: merge, delete",
+            description = "Action to take. Allowed: MERGE, DELETE",
             allowedType = "String",
             useForCreation = true)
     ])

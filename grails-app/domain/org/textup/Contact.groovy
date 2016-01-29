@@ -2,9 +2,6 @@ package org.textup
 
 import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
-import org.jadira.usertype.dateandtime.joda.PersistentDateTime
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import groovy.util.logging.Log4j
 
@@ -13,44 +10,46 @@ import groovy.util.logging.Log4j
 @RestApiObject(name="Contact", description="A contact")
 class Contact implements Contactable {
 
-    def textService
-    def teamCallService
     def resultFactory
 
-    @RestApiObjectField(
-        description    = "Date and time of the most recent communication with this contact",
-        allowedType    = "DateTime",
-        useForCreation = false)
-    DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
-
     Phone phone //phone that owns this contact
-	@RestApiObjectField(
+    Record record
+
+    @RestApiObjectField(
         description    = "Name of this contact",
         mandatory      = false,
         defaultValue   = "",
         useForCreation = true)
     String name
+
     @RestApiObjectField(
         description = "Notes on this contact",
         mandatory      = false,
         defaultValue   = "",
         useForCreation = true)
 	String note
+
     @RestApiObjectField(
-        description    = "Status of this contact. Allowed: active, unread, archived, blocked",
-        defaultValue   = "active",
+        description    = "Status of this contact. Allowed: ACTIVE, UNREAD, ARCHIVED, BLOCKED",
+        defaultValue   = "ACTIVE",
         mandatory      = false,
         useForCreation = true)
-    String status = Constants.CONTACT_ACTIVE
-    Record record
+    ContactStatus status = ContactStatus.ACTIVE
+
     @RestApiObjectField(
         apiFieldName   = "numbers",
-        description    = "Numbers that pertain to this contact. Order in this list determines priority",
+        description    = "Numbers that pertain to this contact. Order in this \
+            list determines priority",
         allowedType    = "List<ContactNumber>",
         useForCreation = false)
     List numbers
 
     @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName   = "lastRecordActivity",
+            description    = "Date and time of the most recent communication with this contact",
+            allowedType    = "DateTime",
+            useForCreation = false),
         @RestApiObjectField(
             apiFieldName      = "doShareActions",
             description       = "List of some share or unshare actions",
@@ -80,17 +79,20 @@ class Contact implements Contactable {
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "permissions",
-            description    = "Level of permissions you have with this contact. Allowed: delegate, view",
+            description    = "Level of permissions you have with this contact. \
+                Allowed: delegate, view",
             allowedType    = "String",
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "subscribed",
-            description    = "In the context of a Tag, tells whether this contact is a subscriber",
+            description    = "In the context of a Tag, tells whether this \
+            contact is a subscriber",
             allowedType    = "Boolean",
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "tags",
-            description    = "List of tags this contact belongs to, if any. Note that this will be empty for a shared contact.",
+            description    = "List of tags this contact belongs to, if any. \
+                Note that this will be empty for a shared contact.",
             allowedType    = "List<Tag>",
             useForCreation = false)
     ])
@@ -98,124 +100,40 @@ class Contact implements Contactable {
     static constraints = {
     	name blank:true, nullable:true
     	note blank:true, nullable:true, size:1..1000
-        status blank:false, nullable:false, inList:[Constants.CONTACT_UNREAD,
-            Constants.CONTACT_ACTIVE, Constants.CONTACT_ARCHIVED, Constants.CONTACT_BLOCKED]
-    }
-    static mapping = {
-        numbers lazy:false, cascade:"all-delete-orphan", sort:"preference", order:"asc"
-        lastRecordActivity type:PersistentDateTime
     }
     static hasMany = [numbers:ContactNumber]
+    static mapping = {
+        numbers lazy:false, cascade:"all-delete-orphan", sort:"preference", order:"asc"
+    }
     static namedQueries = {
-        recordIdsForPhoneId { Long phoneId ->
-            phone { eq("id", phoneId) }
-            projections { property("record.id") }
-        }
-        phoneIdsForContactId { Long thisId ->
-            eq("id", thisId)
-            projections { property("phone.id") }
-        }
-        teamRecordIdsForStaffId { Long thisStaffId ->
-            List<Long> scIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(thisStaffId).list())
-            if (scIds) { phone { "in"("id", scIds) } }
-            else { eq("id", null) }
-            projections { property("record.id") }
-        }
-        sharedRecordIdsForSharedWithId { Long sWithPhoneId ->
-            List<Long> scIds = Helpers.allToLong(SharedContact.contactIdsForSharedWithId(sWithPhoneId).list())
-            if (scIds) { "in"("id", scIds) }
-            else { eq("id", null) }
-            projections { property("record.id") }
-        }
-        forPhoneAndStatuses { Phone thisPhone, List<String> statuses ->
-            eq("phone", thisPhone)
-
+        forPhoneAndStatuses { Phone thisPhone, Collection<ContactStatus> statuses ->
+            or {
+                eq("phone", thisPhone)
+                def shareds = SharedContact.sharedWithMe(thisPhone).list {
+                    projections { property('contact.id') }
+                }
+                if (shareds) { "in"("id", shareds) }
+                else { eq("id", null) }
+            }
             if (statuses) { "in"("status", statuses) }
-            else { "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD]) }
-
+            else { "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD]) }
             order("status", "desc") //unread first then active
             order("lastRecordActivity", "desc") //more recent first
             order("id", "desc") //by contact id
         }
-        forPhoneAndNum { Phone thisPhone, TransientPhoneNumber num ->
+        notBlockedForPhoneAndNum { Phone thisPhone, PhoneNumber num ->
             eq("phone", thisPhone)
             numbers { eq("number", num?.number) }
+            not { eq("status", ContactStatus.BLOCKED) }
         }
         forRecord { Record thisRecord ->
             eq("record", thisRecord)
         }
-        forRecords { List<Record> records ->
-            if (records) { "in"("record", records) }
-            else { eq("record", null) }
-        }
-        forPhoneAndContactId { Phone thisPhone, long contactId ->
-            eq("phone", thisPhone)
-            eq("id", contactId)
-        }
-        forStaffPhoneAndStatuses { StaffPhone sp, List<String> statuses ->
-            or {
-                eq("phone", sp)
-                def res1 = SharedContact.sharedWithMeContactIds(sp).list()
-                if (res1) { "in"("id", res1) }
-                else { eq("id", null) }
-            }
-            if (statuses) { "in"("status", statuses) }
-            else { "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD]) }
-
-            order("status", "desc") //unread first then active
-            order("lastRecordActivity", "desc") //more recent first
-            order("id", "desc") //by contact id
-        }
-        forTagAndStatuses { ContactTag ct, List<String> statuses ->
-            def res2 = TagMembership.contactIdsForTag(ct).list()
-            if (res2) { "in"("id", res2) }
-            else { eq("id", null) }
-
-            if (statuses) { "in"("status", statuses) }
-            else { "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD]) }
-
-            order("status", "desc") //unread first then active
-            order("lastRecordActivity", "desc") //more recent first
-            order("id", "desc") //by contact id
-        }
-        iLikeForNameAndPhone { String query, Phone thisPhone ->
-            ilike("name", query)
-            eq("phone", thisPhone)
-            "in"("status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD])
-        }
     }
 
-    /*
-	Has many:
-		TagMembership
-	*/
+    // Events
+    // ------
 
-    ////////////
-    // Events //
-    ////////////
-
-    def beforeDelete() {
-        Contact.withNewSession {
-            this.numbers?.clear()
-            ContactNumber.where { contact == this }.deleteAll()
-            TagMembership.where { contact == this }.deleteAll()
-            SharedContact.where { contact == this }.deleteAll()
-            //delete all receipts before deleting items
-            def items = RecordItem.where { record == this.record }
-            new DetachedCriteria(RecordItemReceipt).build {
-                def res = items.list()
-                if (res) { "in"("item", res) }
-                else { eq("item", null) }
-            }.deleteAll()
-            //delete all record items before deleting record
-            items.deleteAll()
-        }
-    }
-    def afterDelete() {
-        Contact.withNewSession {
-            Record.where { id == record.id }.deleteAll()
-        }
-    }
     def beforeValidate() {
         if (!this.record) {
             this.record = new Record([:])
@@ -223,108 +141,8 @@ class Contact implements Contactable {
         }
     }
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
-
-    static List<Contact> findOrCreateForPhoneAndNum(Phone p1, TransientPhoneNumber number) {
-        List<Contact> contacts = Contact.forPhoneAndNum(p1, number).list()
-        if (contacts.isEmpty()) {
-            Result res = p1.createContact([:], [number.number])
-            if (res.success) { contacts = [res.payload] }
-            else {
-                log.error("Contact.findOrCreateForPhoneAndNum: could not create contact: ${res.payload}")
-            }
-        }
-        contacts
-    }
-
-    /*
-    Modify status
-     */
-
-    Result<Contact> activate() {
-        this.status = Constants.CONTACT_ACTIVE
-        resultFactory.success(this)
-    }
-    Result<Contact> archive() {
-        this.status = Constants.CONTACT_ARCHIVED
-        resultFactory.success(this)
-    }
-    Result<Contact> block() {
-        this.status = Constants.CONTACT_BLOCKED
-        resultFactory.success(this)
-    }
-    Result<Contact> markRead() { activate() }
-    Result<Contact> markUnread() {
-        this.status = Constants.CONTACT_UNREAD
-        resultFactory.success(this)
-    }
-
-    void updateLastRecordActivity() {
-        this.lastRecordActivity = DateTime.now(DateTimeZone.UTC)
-    }
-
-    /*
-    Related to the client's record
-     */
-    Result<RecordResult> callNotify(Long teamContactTagId, Long recordTextId, Author auth) {
-        Result<RecordCall> tRes = record.addCall([:], auth)
-        if (tRes.success) {
-            tRes = teamCallService.startCallAnnouncement(this.phone, this, tRes.payload, teamContactTagId, recordTextId)
-            if (tRes.success) { updateLastRecordActivity() }
-        }
-        resultFactory.convertToRecordResult(tRes)
-    }
-    Result<RecordResult> call(Staff staffMakingCall, Map params) {
-        call(staffMakingCall, params, this.author)
-    }
-    Result<RecordResult> call(Staff staffMakingCall, Map params, Author auth) {
-        Result<RecordCall> tRes = record.addCall(params, auth)
-        if (tRes.success) {
-            tRes = teamCallService.startBridgeCall(staffMakingCall, this.phone, this, tRes.payload)
-            if (tRes.success) { updateLastRecordActivity() }
-        }
-        resultFactory.convertToRecordResult(tRes)
-    }
-
-    Result<RecordResult> text(Map params) {
-        text(params, this.author)
-    }
-    Result<RecordResult> text(Map params, Author auth) {
-        Result<RecordText> tRes = record.addText(params, auth)
-        if (tRes.success) {
-            tRes = textService.text(this.phone, this, tRes.payload)
-            if (tRes.success) { updateLastRecordActivity() }
-        }
-        resultFactory.convertToRecordResult(tRes)
-    }
-
-    Result<RecordResult> addNote(Map params) { addNote(params, this.author) }
-    Result<RecordResult> addNote(Map params, Author auth) {
-        resultFactory.convertToRecordResult(record.addNote(params, auth))
-    }
-
-    Result<RecordResult> editNote(long noteId, Map params) {
-        editNote(noteId, params, this.author)
-    }
-    Result<RecordResult> editNote(long noteId, Map params, Author auth) {
-        resultFactory.convertToRecordResult(record.editNote(noteId, params, auth))
-    }
-
-    Author getAuthor() {
-        def owner = this.getOwner()
-        owner ? new Author(name:owner.name, id:owner.id) : null
-    }
-    def getOwner() {
-        def owner = Staff.where { phone.id == this.phone.id }.list(max:1)[0]
-        if (!owner) { owner = Team.where { phone.id == this.phone.id }.list(max:1)[0] }
-        owner
-    }
-
-    /*
-    Client's phone numbers
-     */
+    // Numbers
+    // -------
 
     Result<PhoneNumber> mergeNumber(String num, Map params=[:]) {
         PhoneNumber temp = new PhoneNumber(number:num)
@@ -354,109 +172,106 @@ class Contact implements Contactable {
             number.delete()
             resultFactory.success()
         }
-        else { resultFactory.failWithMessage("contact.error.numberNotFound", [number]) }
+        else { resultFactory.failWithMessage("contact.numberNotFound", [number]) }
     }
 
-    /*
-    Tag memberships
-     */
-    Result<TagMembership> addToTag(String tagName) {
-        ContactTag tag = ContactTag.findByPhoneAndName(this.phone, tagName)
-        if (tag) { addToTag(tag) }
-        else { resultFactory.failWithMessage("contact.error.tagNotFound", [tagName]) }
-    }
-    Result<TagMembership> addToTag(ContactTag tag) {
-        TagMembership membership = TagMembership.findByContactAndTag(this, tag)
-        if (membership) { resultFactory.success(membership) }
-        else {
-            membership = new TagMembership(contact:this, tag:tag)
-            if (membership.save()) { resultFactory.success(membership) }
-            else { resultFactory.failWithValidationErrors(membership.errors) }
-        }
-    }
-    Result<ContactTag> removeFromTag(String tagName) {
-        ContactTag tag = ContactTag.findByPhoneAndName(this.phone, tagName)
-        if (tag) { removeFromTag(tag) }
-        else { resultFactory.failWithMessage("contact.error.tagNotFound", [tagName]) }
-    }
-    Result<ContactTag> removeFromTag(ContactTag tag) {
-        TagMembership membership = TagMembership.findByContactAndTag(this, tag)
-        if (membership) { membership.delete() }
-        resultFactory.success(tag)
-    }
-    Result<TagMembership> subscribeToTag(String tagName, String subType) {
-        ContactTag tag = ContactTag.findByPhoneAndName(this.phone, tagName)
-        if (tag) { subscribeToTag(tag, subType) }
-        else { resultFactory.failWithMessage("contact.error.tagNotFound", [tagName]) }
-    }
-    Result<TagMembership> subscribeToTag(ContactTag tag, String subType) {
-        TagMembership membership = TagMembership.findByContactAndTag(this, tag)
-        if (membership) {
-            resultFactory.success(membership.subscribe(subType))
-        }
-        else {
-            Result<TagMembership> res = addToTag(tag)
-            if (res.success) { res.payload.subscribe(subType) }
-            res
-        }
-    }
-    Result<TagMembership> unsubscribeFromTag(String tagName) {
-        ContactTag tag = ContactTag.findByPhoneAndName(this.phone, tagName)
-        if (tag) { unsubscribeFromTag(tag) }
-        else { resultFactory.failWithMessage("contact.error.tagNotFound", [tagName]) }
-    }
-    Result<TagMembership> unsubscribeFromTag(ContactTag tag) {
-        TagMembership membership = TagMembership.findByContactAndTag(this, tag)
-        if (membership) {
-            resultFactory.success(membership.unsubscribe())
-        }
-        else { resultFactory.failWithMessage("contact.error.membershipNotFound", [this.name, tag.name]) }
-    }
-    void quietUnsubscribeFromTag(ContactTag tag) {
-        TagMembership.findByContactAndTag(this, tag)?.unsubscribe()
-    }
-
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Additional Contactable methods
+    // ------------------------------
 
     Long getContactId() {
         this.id
     }
+    DateTime getLastRecordActivity() {
+        this.record.lastRecordActivity
+    }
+    List<RecordItem> getItems(Map params=[:]) {
+        this.record.getItems(params)
+    }
+    int countItems() {
+        this.record.countItems()
+    }
+    List<RecordItem> getSince(DateTime since, Map params=[:]) {
+        this.record.getSince(since, params)
+    }
+    int countSince(DateTime since) {
+        this.record.countSince(since)
+    }
+    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
+        this.record.getBetween(start, end, params)
+    }
+    int countBetween(DateTime start, DateTime end) {
+        this.record.countBetween(start, end)
+    }
+
+    // Property Access
+    // ---------------
 
     void setRecord(Record r) {
         this.record = r
         this.record?.save()
     }
-
-    /*
-    Tag members
-     */
-
-    List<TagMembership> getTags(Map params=[:]) {
-        TagMembership.findAllByContact(this, params)
+    String getNameOrNumber(boolean formatNumber=false) {
+        String num = this.numbers[0]?.number
+        this.name ?: (formatNumber ? Helpers.formatNumberForSay(num) : num)
+    }
+    List<ContactTag> getTags(Map params=[:]) {
+        ContactTag.forContact(this).list(params)
+    }
+    List<SharedContact> getSharedContacts() {
+        SharedContact.forContact(c1).activeAndSort.list()
     }
 
-    /*
-    Items for the contact's record
-     */
+    // Outgoing
+    // --------
 
-    List<RecordItem> getItems(Map params=[:]) {
-        record.getItems(params)
+    Result<RecordText> storeOutgoingText(String message, RecordItemReceipt receipt, Staff staff) {
+        Author author = new Author(id:staff.id, type:AuthorType.STAFF, name: staff.name)
+        record.addText([outgoing:true, contents:message], author).then({ RecordText rText ->
+            rText.addToReceipts(receipt)
+            if (rText.save()) {
+                resultFactory.success(rText)
+            }
+            else { resultFactory.failWithValidationErrors(rText.errors) }
+        })
     }
-    int countItems(){
-        record.countItems()
+    Result<RecordCall> storeOutgoingCall(RecordItemReceipt receipt, Staff staff) {
+        Author author = new Author(id:staff.id, type:AuthorType.STAFF, name: staff.name)
+        record.addCall([outgoing:true], author).then({ RecordCall rCall ->
+            rCall.addToReceipts(receipt)
+            if (rCall.save()) {
+                resultFactory.success(rCall)
+            }
+            else { resultFactory.failWithValidationErrors(rCall.errors) }
+        })
     }
-    List<RecordItem> getSince(DateTime since, Map params=[:]) {
-        record.getSince(since, params)
+
+    // Incoming
+    // --------
+
+    Result<RecordText> storeIncomingText(IncomingText text, IncomingSession session) {
+        Author author = new Author(id:session.id, type:AuthorType.SESSION,
+            name: session.numberAsString)
+        record.addText([outgoing:false, contents:text.message], author).then({ RecordText rText ->
+            RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId)
+            receipt.receivedBy = this.phone.number
+            rText.addToReceipts(receipt)
+            if (rText.save()) {
+                resultFactory.success(rText)
+            }
+            else { resultFactory.failWithValidationErrors(rText.errors) }
+        })
     }
-    int countSince(DateTime since) {
-        record.countSince(since)
-    }
-    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
-        record.getBetween(start, end, params)
-    }
-    int countBetween(DateTime start, DateTime end) {
-        record.countBetween(start, end)
+    Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session) {
+        Author author = new Author(id:session.id, type:AuthorType.SESSION,
+            name: session.numberAsString)
+        record.addCall([outgoing:false], author).then({ RecordCall rCall ->
+            RecordItemReceipt receipt = new RecordItemReceipt(apiId:apiId)
+            receipt.receivedBy = this.phone.number
+            rCall.addToReceipts(receipt)
+            if (rCall.save()) {
+                resultFactory.success(rCall)
+            }
+            else { resultFactory.failWithValidationErrors(rCall.errors) }
+        })
     }
 }

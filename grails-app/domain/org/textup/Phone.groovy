@@ -9,34 +9,27 @@ import static org.springframework.http.HttpStatus.*
 @EqualsAndHashCode
 class Phone {
 
-    def grailsApplication
     def resultFactory
-    def textService
+    def phoneService
+    def twimlBuilder
     def authService
 
     //unique id assigned to this phone's number
     String apiId
-	PhoneNumber number
+	String numberAsString
+    PhoneOwnership owner
+    String awayMessage = Constants.DEFAULT_AWAY_MESSAGE
 
+    static transients = ["number"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
-        number validator:{ pNum, obj ->
+        number shared: 'phoneNumber', validator:{ pNum, obj ->
             //phone number must be unique for phones
-            if (pNum && obj.existsWithSameNumber(pNum.number)) { ["duplicate"] }
+            if (pNum && obj.existsWithSameNumber(pNum.number)) {
+                ["duplicate"]
+            }
         }
-    }
-    static transients = ["numberAsString"]
-    static embedded = ["number"]
-    static namedQueries = {
-        forNumber { TransientPhoneNumber num ->
-            //embedded properties must be accessed with dot notation
-            eq("number.number", num?.number)
-        }
-        forContactId { Long contactId ->
-            def res = Contact.phoneIdsForContactId(contactId).list()
-            if (res) { "in"("id", res) }
-            else { eq("id", null) }
-        }
+        awayMessage blank:false, size:1..(Constants.TEXT_LENGTH)
     }
 
     /*
@@ -45,198 +38,26 @@ class Phone {
 		ContactTag
 	*/
 
-    ////////////
-    // Events //
-    ////////////
-
-    def beforeDelete() {
-        Phone.withNewSession {
-            def tags = ContactTag.where { phone == this }
-            def contacts = Contact.where { phone == this }
-            //delete tag memberships, must come before
-            //deleting ContactTag and Contact
-            new DetachedCriteria(TagMembership).build {
-                def res = tags.list()
-                if (res) { "in"("tag", res) }
-                else { eq("tag", null) }
-            }.deleteAll()
-            //must be before we delete our contacts FOR RECORD DELETION
-            def associatedRecordIds = new DetachedCriteria(Contact).build {
-                projections { property("record.id") }
-                eq("phone", this)
-            }.list()
-            //delete contacts' numbers
-            new DetachedCriteria(ContactNumber).build {
-                def res = contacts.list()
-                if (res) { "in"("contact", res) }
-                else { eq("contact", null) }
-            }.deleteAll()
-            //delete contact and contact tags
-            contacts.deleteAll()
-            tags.deleteAll()
-            //delete records associated with contacts, must
-            //come after contacts are deleted
-            new DetachedCriteria(Record).build {
-                if (associatedRecordIds) { "in"("id", associatedRecordIds) }
-                else { eq("id", null) }
-            }.deleteAll()
-        }
-    }
-
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    // Validator
+    // ---------
 
     private boolean existsWithSameNumber(String num) {
         boolean hasDuplicate = false
         Phone.withNewSession { session ->
             session.flushMode = FlushMode.MANUAL
             try {
-                TransientPhoneNumber tNum = new TransientPhoneNumber(number:num)
-                Phone ph = Phone.forNumber(tNum).get()
+                PhoneNumber pNum = new PhoneNumber(number:num)
+                Phone ph = Phone.findByNumberAsString(pNum.number)
                 if (ph && ph.id != this.id) { hasDuplicate = true }
             }
-            catch (e) { hasDuplicate = true } //get throws exception if nonunique result
             finally { session.flushMode = FlushMode.AUTO }
         }
         hasDuplicate
     }
 
-    /*
-    Phone capabilities
-     */
+    // Tags
+    // ----
 
-    Result<RecordResult> text(String message, List<String> numbers,
-        List<Long> contactableIds, List<Long> tagIds) {
-        //check message size
-        Result msgSizeRes = textService.checkMessageSize(message)
-        if (!msgSizeRes.success) return msgSizeRes
-        //parse and validate each
-        RecordResult recResult = new RecordResult()
-        ParsedResult<PhoneNumber,String> parsedNums = Helpers.parseIntoPhoneNumbers(numbers)
-        ParsedResult<Contactable,Long> parsedContactables = parseIntoContactables(contactableIds)
-        ParsedResult<ContactTag,Long> parsedTags = parseIntoTags(tagIds)
-        recResult.invalidNumbers += parsedNums.invalid
-        recResult.invalidOrForbiddenContactableIds += parsedContactables.invalid
-        recResult.invalidOrForbiddenTagIds += parsedTags.invalid
-        //collect all contactables into one consensus list
-        Set<Contactable> contactables = collectAllContactables(recResult,
-            parsedNums.valid, parsedContactables.valid, parsedTags.valid)
-        //check number of contactables
-        Result numContRes = textService.checkNumRecipients(contactables.size())
-        if (!numContRes.success) return numContRes
-        //send the texts and return the result
-        RecordResult textRecResult = sendTexts(message, contactables),
-            overallRecResult = recResult.merge(textRecResult)
-        if (overallRecResult.newItems ||
-            (overallRecResult.newItems.isEmpty() && overallRecResult.errorMessages.isEmpty())) {
-            resultFactory.success(overallRecResult)
-        }
-        else { resultFactory.failWithMessagesAndStatus(BAD_REQUEST, overallRecResult.errorMessages) }
-    }
-    Result<RecordResult> scheduleText(String message, DateTime sendAt,
-        List<String> numbers, List<Long> contactableIds, List<Long> tagIds) {
-        //TODO: implement me
-        resultFactory.success(new RecordResult())
-    }
-
-    Result<RecordResult> call(Staff staffMakingCall, String number) {
-        Result res = resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-            "phone.error.invalidNumber", [number])
-        ParsedResult<Contactable,String> parsedNums = parsePhoneNumberIntoContactables([number])
-        if (parsedNums.valid) {
-            Contactable c1 = parsedNums.valid[0]
-            Result<RecordResult> cRes = c1.call(staffMakingCall, [:])
-            if (cRes.success) { res = resultFactory.success(cRes.payload) }
-        }
-        res
-    }
-
-    /**
-     * Call a contact, if allowed
-     * @param  contactId Id of the contact to call. Note this contact may be the id of a contact
-     *                   that has been shared with you, NOT the shared contact id
-     * @return           RecordResult
-     */
-    Result<RecordResult> call(Staff staffMakingCall, Long contactId) {
-        Result res = resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-            "phone.error.invalidContactId", [contactId])
-        ParsedResult<Contactable,Long> parsedCs = parseIntoContactables([contactId])
-        if (parsedCs.valid) {
-            Contactable c1 = parsedCs.valid[0]
-            Result<RecordResult> cRes = c1.call(staffMakingCall, [:])
-            if (cRes.success) { res = resultFactory.success(cRes.payload) }
-        }
-        res
-    }
-
-    /*
-    Phone capabilities helper methods
-     */
-
-    protected ParsedResult<Contactable,Long> parseIntoContactables(List<Long> cIds) {
-        ParsedResult<Long,Long> parsedIds = authService.parseContactIdsByPermission(cIds)
-        List<Contact> contacts = Contact.getAll(parsedIds.valid)
-        new ParsedResult(valid:contacts, invalid:parsedIds.invalid)
-    }
-    protected ParsedResult<ContactTag,Long> parseIntoTags(List<Long> tIds) {
-        ParsedResult<Long,Long> parsedIds = authService.parseTagIdsByPermission(tIds)
-        List<ContactTag> tags = ContactTag.getAll(parsedIds.valid)
-        afterParsingTags(tags, parsedIds.invalid) //hook to override
-        new ParsedResult(valid:tags, invalid:parsedIds.invalid)
-    }
-    protected Set<Contactable> collectAllContactables(RecordResult recResult,
-        List<PhoneNumber> pNums, List<Contactable> contactables, List<ContactTag> tags) {
-        HashSet<Contactable> all = new HashSet<>(contactables)
-        //add tags
-        tags.each { ContactTag tag -> all.addAll(tag.subscribers*.contact) }
-        //parsed phone numbers and add
-        ParsedResult<Contactable,String> parsedNums = parsePhoneNumberIntoContactables(pNums)
-        recResult.invalidNumbers += parsedNums.invalid
-        all.addAll(parsedNums.valid)
-        all
-    }
-    protected ParsedResult<Contactable,String> parsePhoneNumberIntoContactables(List<PhoneNumber> pNums) {
-        ParsedResult<Contactable,String> parsed = new ParsedResult<>()
-        List<String> nums = pNums*.number
-        //find the numbers that correspond to existing contacts
-        List<ContactNumber> existingContactNumbers = ContactNumber.createCriteria().list {
-            if (nums) { "in"("number", nums) }
-            else { eq("number", null) }
-            contact { eq("phone", this) }
-        }
-        //add existing contacts to consensus
-        existingContactNumbers.each { parsed.valid << it.contact }
-        //create new contacts for new numbers, and then add these
-        List<String> existingNums = existingContactNumbers*.number
-        Helpers.parseFromList(existingNums, nums).invalid.each { String number ->
-            Result<Contact> res = this.createContact([:], [number])
-            if (res.success) { parsed.valid << res.payload }
-            else { parsed.invalid << number }
-        }
-        parsed
-    }
-    protected RecordResult sendTexts(String message, Set<Contactable> contactables) {
-        RecordResult recResult = new RecordResult()
-        contactables.each { Contactable c ->
-            Result<RecordResult> res = c.text(contents:message)
-            afterSendTextTo(c, res) //hook to override
-            if (res.success) { recResult.merge(res.payload) }
-            else {
-                recResult.invalidOrForbiddenContactableIds << c.id
-                recResult.errorMessages += resultFactory.extractMessages(res)
-            }
-        }
-        recResult
-    }
-
-    //Hooks to override, if needed
-    protected void afterSendTextTo(Contactable c, Result res) { }
-    protected void afterParsingTags(List<ContactTag> tags, List<Long> invalid) { }
-
-    /*
-    Tags
-     */
     Result<ContactTag> createTag(Map params) {
         ContactTag tag = new ContactTag()
         tag.with {
@@ -244,27 +65,15 @@ class Phone {
             name = params.name
             if (params.hexColor) hexColor = params.hexColor
         }
-        tag.phone = this
-        if (tag.save()) { resultFactory.success(tag) }
+        if (tag.save()) {
+            resultFactory.success(tag)
+        }
         else { resultFactory.failWithValidationErrors(tag.errors) }
     }
-    //deletes ContactTag and all associated TagMemberships
-    Result deleteTag(String tagName) {
-        ContactTag tag = ContactTag.findByPhoneAndName(this, tagName)
-        if (tag) { deleteTag(tag) }
-        else { resultFactory.failWithMessage("phone.error.tagNotFound", [tagName]) }
-    }
-    Result deleteTag(ContactTag tag) {
-        if (tag.phone == this) {
-            tag.delete()
-            resultFactory.success()
-        }
-        else { resultFactory.failWithMessage("phone.error.tagOwnership", [tag.name, this.number]) }
-    }
 
-    /*
-    Contacts -- are not allowed to delete contacts
-     */
+    // Contacts
+    // --------
+
     Result<Contact> createContact(Map params=[:], List<String> numbers=[]) {
         Contact contact = new Contact([:])
         contact.properties = params
@@ -292,35 +101,324 @@ class Phone {
         else { resultFactory.failWithValidationErrors(contact.errors) }
     }
 
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Sharing
+    // -------
 
-    // DO NOT call save as this will save many many
-    // copies of the phone number
-    void setNumber(PhoneNumber pNum) {
-        this.number = pNum
+    boolean canShare(Phone sWith) {
+        if (!sWith) { return false }
+        List<Team> myTeams = Team.forStaffs(this.owner.all).list(),
+            sharedWithTeams = Team.forStaffs(sWith.owner.all).list()
+        HashSet<Team> allowedTeams = new HashSet<>(myTeams)
+        sharedWithTeams.any { it in allowedTeams }
     }
-    void setNumberAsString(String num) {
-        if (this.number) {
-            this.number.number = num
+    Result<SharedContact> share(Contact c1, Phone sWith, SharePermission perm) {
+        if (contact?.phone != this) {
+            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                "phone.contactNotMine", [c1?.name])
+        }
+        if (!canShare(sWith)) {
+            return resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                "phone.share.cannotShare", [sWith?.name])
+        }
+        //check to see that there isn't already an active shared contact
+        SharedContact sc = SharedContact
+            .forContactAndSharedWith(c1, sWith).list(max:1)[0]
+        if (sc) {
+            sc.startSharing(perm)
         }
         else {
-            this.number = new PhoneNumber(number:num)
+            sc = new SharedContact(contact:c1, sharedBy:this, sharedWith:sWith,
+                permission:perm)
         }
-        this.number.save()
+        if (sc.save()) {
+            resultFactory.success(sc)
+        }
+        else { resultFactory.failWithValidationErrors(sc.errors) }
     }
-    String getNumberAsString() { this.number?.number }
+    Result<List<SharedContact>> stopShare(Phone sWith) {
+        List<SharedContact> shareds = SharedContact
+            .forSharedByAndSharedWith(this, sWith).list()
+        shareds.each { SharedContact sc -> sc.stopSharing() }
+        resultFactory.success(shareds)
+    }
+    Result<SharedContact> stopShare(Contact c1, Phone sWith) {
+        SharedContact sc1 = SharedContact
+            .forContactAndSharedWith(c1, sWith).list(max:1)[0]
+        if (sc1) {
+            sc1.stopSharing()
+            resultFactory.success(sc1)
+        }
+        else { resultFactory.failWithMessageAndStatus(NOT_FOUND,
+            "phone.stopShare.notShared", [c1?.name]) }
+    }
+    Result<List<SharedContact>> stopShare(Contact contact) {
+        if (contact?.phone != this) {
+            return resultFactory.failWithMessage("phone.contactNotMine", [contact?.name])
+        }
+        List<SharedContact> shareds = SharedContact.forContact(contact).list()
+        if (shareds) {
+            shareds.each { SharedContact sc -> sc.stopSharing() }
+            resultFactory.success(shareds)
+        }
+        else {
+            resultFactory.failWithMessage("phone.stopShare.notShared", [contact?.name])
+        }
+    }
 
+    // Property Access
+    // ---------------
+
+    String getName() {
+        this.owner.name
+    }
+    void setNumber(PhoneNumber pNum) {
+        this.numberAsString = pNum?.number
+    }
+    PhoneNumber getNumber() {
+        new PhoneNumber(number:this.numberAsString)
+    }
+    int countTags() {
+        ContactTag.countByPhone(this)
+    }
     List<ContactTag> getTags(Map params=[:]) {
-        ContactTag.findAllByPhone(this, params)
+        ContactTag.findAllByPhone(this, params + [sort: "name", order: "desc"])
     }
-
+    //Optional specify 'status' corresponding to valid contact statuses
+    int countContacts(Map params=[:]) {
+        Contact.forPhoneAndStatuses(this, Helpers.toEnumList(params.statuses)).count() ?: 0
+    }
     //Optional specify 'status' corresponding to valid contact statuses
     List<Contactable> getContacts(Map params=[:]) {
-        Contact.forPhoneAndStatuses(this, Helpers.toList(params.status)).list(params) ?: []
+        Collection<ContactStatus> statusEnums =
+            Helpers.toEnumList(ContactStatus, params.statuses)
+        //get contacts, both mine and those shared with me
+        List<Contact> contacts = Contact.forPhoneAndStatuses(this, statusEnums).list(params)
+        //identify those contacts that are shared with me and their index
+        HashSet<Long> notMyContactIds = new HashSet<>()
+        contacts.each { Contact contact ->
+            if (contact.phone != this) { notMyContactIds << contact.id }
+        }
+        //if all contacts are mine, we can return
+        if (notMyContactIdToIndex.isEmpty()) { return contacts }
+        //retrieve the corresponding SharedContact instance
+        Map<Long,SharedContact> contactIdToSharedContact = SharedContact.createCriteria()
+            .list {
+                contact {
+                    if (notMyContactIds) { "in"("id", notMyContactIds) }
+                    else { eq("id", null) }
+                }
+            }
+            .collectEntries { [(it.contact.id):it] }
+        //merge the found shared contacts into a consensus list of contactables
+        List<Contactable> contactables = []
+        contacts.each { Contact contact ->
+            if (notMyContactIds.contains(contact.id)) {
+                if (contactIdToSharedContact.containsKey(contact.id)) {
+                    contactables << contactIdToSharedContact[contact.id]
+                }
+                // if shared contact not found, silently ignore this contact
+            }
+            else { contactables << contact }
+        }
+        contactables
     }
-    int countContacts(Map params=[:]) {
-        Contact.forPhoneAndStatuses(this, Helpers.toList(params.status)).count() ?: 0
+    int countContacts(String query) {
+        Contact.countByPhoneAndNameIlike(this, Helpers.toQuery(query))
+    }
+    List<Contact> getContacts(String query, Map params=[:]) {
+        Contact.findAllByPhoneAndNameIlike(this, Helpers.toQuery(query), params)
+    }
+    int countSharedWithMe() {
+        SharedContact.sharedWithMe(this).count()
+    }
+    List<SharedContact> getSharedWithMe(Map params=[:]) {
+        SharedContact.sharedWithMe(this).list(params) ?: []
+    }
+    int countSharedByMe() {
+        SharedContact.sharedByMe(this).count()
+    }
+    List<Contact> getSharedByMe(Map params=[:]) {
+        SharedContact.sharedByMe(this).list(params) ?: []
+    }
+    List<FeaturedAnnouncement> getAnnouncements() {
+        FeaturedAnnouncement.forPhone(this).list()
+    }
+    List<Staff> getAvailableNow() {
+        List<Staff> availableNow = []
+        this.owner.all.each { Staff s1 ->
+            if (s1.isAvailableNow()) {
+                availableNow << s1
+            }
+        }
+        availableNow
+    }
+
+    // Outgoing
+    // --------
+
+    ResultList<RecordText> sendText(OutgoingText text, Staff staff) {
+        // validate text
+        if (!text.validate(this)) {
+            return new ResultList(resultFactory.failWithValidationErrors(text.errors))
+        }
+        // validate staff
+        else if (!this.owner.all.contains(staff)) {
+            return new ResultList(resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                'phone.notOwner'))
+        }
+        else { phoneService.sendText(phone, text, staff) }
+    }
+    // start bridge call, confirmed (if staff picks up) by contact
+    ResultList<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
+        if (!c1.validate()) {
+            resultFactory.failWithValidationErrors(c1.errors)
+        }
+        else if (c1.instanceOf(Contact) || c1.phone != p1) {
+            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.startBridgeCall.forbidden')
+        }
+        else if (c1.instanceOf(SharedContact) && c1.canModify) {
+            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.startBridgeCall.forbidden')
+        }
+        // validate staff
+        else if (!p1.owner.all.contains(staff)) {
+            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.notOwner')
+        }
+        else if (staff.personalPhoneNumber) {
+            resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+                'phone.startBridgeCall.noPersonalNumber')
+        }
+        else {
+            new ResultList(phoneService.startBridgeCall(phone, c1, staff))
+        }
+    }
+    Result<FeaturedAnnouncement> sendAnnouncement(String message,
+        DateTime expiresAt, Staff staff) {
+        // validate expiration
+        if (expiresAt.isBeforeNow()) {
+            return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+                "phone.sendAnnouncement.expiresInPast")
+        }
+        // validate staff
+        if (!this.owner.all.contains(staff)) {
+            return resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                "phone.notOwner")
+        }
+        // collect relevant classes
+        List<IncomingSession> textSubs = IncomingSession.subscribedToText(this).list(),
+            callSubs = IncomingSession.subscribedToCall(this).list()
+        String identifier = this.name
+        // send announcements
+        ResultMap<String,RecordItemReceipt> textRes = phoneService.startTextAnnouncement(phone,
+            message, identifier, textSubs, staff).logFail("Phone.sendAnnouncement: text")
+        ResultMap<String,RecordItemReceipt> callRes = phoneService.startCallAnnouncement(phone,
+            message, identifier, callSubs, staff).logFail("Phone.sendAnnouncement: call")
+        // build announcements class
+        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:this,
+            expiresAt:expiresAt, message:message)
+        List<IncomingSession> successTexts = textSubs.findAll {
+            textRes.isSuccess(it.numberAsString)
+        }, successCalls = callSubs.findAll {
+            callRes.isSuccess(it.numberAsString)
+        }
+        announce.addToReceipts(RecordItemType.TEXT, successTexts)
+            .logFail("Phone.sendAnnouncement: add text announce receipts")
+        announce.addToReceipts(RecordItemType.CALL, successCalls)
+            .logFail("Phone.sendAnnouncement: add call announce receipts")
+        if (announce.numReceipts > 0 && (textSubs || callSubs)) {
+            if (announce.save()) {
+                resultFactory.success(announce)
+            }
+            else { resultFactory.failWithValidationErrors(announce.errors) }
+        }
+        // return error if all subscribers failed to receive announcement
+        else {
+            resultFactory.failWithResultsAndStatus(INTERNAL_SERVER_ERROR,
+               textRes.results + callRes.results)
+        }
+    }
+
+    // Incoming
+    // --------
+
+    Result<Closure> receiveText(IncomingText text, IncomingSession session) {
+        if (!text.validate()) { //validate text
+            resultFactory.failWithValidationErrors(text.errors)
+        }
+        else if (session.phone != this) { //validate session
+            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.receive.notMine')
+        }
+        else if (this.announcements) {
+            switch (text.contents) {
+                case Constants.TEXT_SEE_ANNOUNCEMENTS:
+                    Collection<FeaturedAnnouncement> announces = this.announcements
+                    announces.each { FeaturedAnnouncement announce ->
+                        announce.addToReceipts(RecordItemType.TEXT, session)
+                            .logFail("Phone.receiveText: add announce receipt")
+                    }
+                    twimlBuilder.buildXmlFor(TextResponse.ANNOUNCEMENTS,
+                        [announcements:announces])
+                    break
+                case Constants.TEXT_SUBSCRIBE:
+                    session.isSubscribedToText = true
+                    twimlBuilder.buildXmlFor(TextResponse.SUBSCRIBED)
+                    break
+                case Constants.TEXT_UNSUBSCRIBE:
+                    session.isSubscribedToText = false
+                    twimlBuilder.buildXmlFor(TextResponse.UNSUBSCRIBED)
+                    break
+                default:
+                    phoneService.relayText(this, text, session)
+            }
+        }
+        else { phoneService.relayText(this, text, session) }
+    }
+    Result<Closure> receiveCall(String apiId, String digits, IncomingSession session) {
+        if (session.phone != this) { //validate session
+            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.receive.notMine')
+        }
+        //if staff member is calling from personal phone to TextUp phone
+        else if (this.owner.any { it.personalPhoneAsString == session.numberAsString }) {
+            Staff staff = this.owner.find { it.personalPhoneAsString == session.numberAsString }
+            phoneService.handleSelfCall(apiId, digits, staff)
+        }
+        else if (this.announcements) {
+            phoneService.handleAnnouncementCall(this, apiId, digits, session)
+        }
+        else { phoneService.relayCall(this, apiId, session) }
+    }
+    Result<Closure> receiveVoicemail(String apiId, Integer voicemailDuration,
+        IncomingSession session) {
+        if (voicemailDuration) {
+            // move the encrypted voicemail to s3 and delete recording at Twilio
+            phoneService.moveVoicemail(apiId)
+                .logFail("Phone.moveVoicemail")
+                .then({ ->
+                    phoneService.storeVoicemail(apiId, voicemailDuration)
+                        .logFail("Phone.storeVoicemail")
+                    twimlBuilder.noResponse()
+                })
+        }
+        else {
+            twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL, [name:this.name])
+        }
+    }
+    // staff must pick up and press any number to start the bridge
+    Result<Closure> confirmBridgeCall(Contact c1) {
+        twimlBuilder.buildXmlFor(CallResponse.CONFIRM_BRIDGE, [contact:c1,
+            linkParams:[contactId:c1?.contactId, handle:CallResponse.FINISH_BRIDGE]])
+    }
+    Result<Closure> finishBridgeCall(Contact c1) {
+        twimlBuilder.buildXmlFor(CallResponse.FINISH_BRIDGE, [contact:c1])
+    }
+    Result<Closure> completeCallAnnouncement(String digits, String message,
+        String identifier, IncomingSession session) {
+        if (digits == Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE) {
+            session.isSubscribedToCall = false
+            twimlBuilder.buildXmlFor(CallResponse.UNSUBSCRIBED)
+        }
+        else {
+            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT_AND_DIGITS,
+                [message:message, identifier:identifier])
+        }
     }
 }

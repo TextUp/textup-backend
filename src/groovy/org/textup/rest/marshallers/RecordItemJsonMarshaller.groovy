@@ -15,8 +15,9 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             id = item.id
             dateCreated = item.dateCreated
             outgoing = item.outgoing
-            incoming = item.incoming
             contact = Contact.forRecord(item.record).get()?.id //contact owner id
+            hasAwayMessage = item.hasAwayMessage
+            isAnnouncement = item.isAnnouncement
             if (item.authorName) authorName = item.authorName
             if (item.authorId) authorId = item.authorId
             if (item.instanceOf(RecordCall)) {
@@ -26,26 +27,24 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                     voicemailUrl = item.voicemailUrl
                     voicemailInSeconds = item.voicemailInSeconds
                 }
-                type = Constants.RECORD_CALL
+                type = RecordItemType.CALL
             }
             else if (item.instanceOf(RecordText)) {
-                futureText = item.futureText
-                if (item.sendAt) sendAt = item.sendAt
                 contents = item.contents
-                type = Constants.RECORD_TEXT
-            }
-            else if (item.instanceOf(RecordNote)) {
-                note = item.note
-                editable = item.editable
-                type = Constants.RECORD_NOTE
+                type = RecordItemType.TEXT
             }
         }
         json.receipts = item.receipts.collect { RecordItemReceipt r ->
-            [id: r.id, status:r.status, receivedBy:r.receivedBy.number]
+            [
+                id: r.id,
+                status:r.status,
+                receivedBy:r.receivedBy.number
+            ]
         }
 
         json.links = [:]
-        json.links << [self:linkGenerator.link(namespace:namespace, resource:"record", action:"show", id:item.id, absolute:false)]
+        json.links << [self:linkGenerator.link(namespace:namespace, \
+            resource:"record", action:"show", id:item.id, absolute:false)]
         json
     }
 

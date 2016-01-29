@@ -17,74 +17,81 @@ class WeeklySchedule extends Schedule {
 
     def resultFactory
 
-    /////////////////////////////////
-    // All times are stored in UTC //
-    /////////////////////////////////
+    // All times are stored in UTC!
 
     @RestApiObjectField(
-        description    = "Available times on Sunday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
+        description    = "Available times on Sunday. Strings must be in format \
+            'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
         allowedType    = "List<String>",
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
 	String sunday = ""
     @RestApiObjectField(
-        description    = "Available times on Monday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
+        description    = "Available times on Monday. Strings must be in format \
+            'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
         allowedType    = "List<String>",
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
 	String monday = ""
     @RestApiObjectField(
-        description    = "Available times on Tuesday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
+        description    = "Available times on Tuesday. Strings must be in format \
+            'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
         allowedType    = "List<String>",
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
 	String tuesday = ""
     @RestApiObjectField(
-        description    = "Available times on Wednesday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
+        description    = "Available times on Wednesday. Strings must be in format \
+            'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
         allowedType    = "List<String>",
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
 	String wednesday = ""
     @RestApiObjectField(
-        description    = "Available times on Thursday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
+        description    = "Available times on Thursday. Strings must be in format \
+            'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
         allowedType    = "List<String>",
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
 	String thursday = ""
     @RestApiObjectField(
-        description    = "Available times on Friday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
+        description    = "Available times on Friday. Strings must be in format \
+            'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
         allowedType    = "List<String>",
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
 	String friday = ""
     @RestApiObjectField(
-        description    = "Available times on Saturday. Strings must be in format 'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
+        description    = "Available times on Saturday. Strings must be in format \
+            'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
         allowedType    = "List<String>",
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
 	String saturday = ""
 
-    private String _rangeDelimiter = ";"
-    private String _timeDelimiter = ","
-    private String _restDelimiter = ":"
-    private String _timeFormat = "HHmm"
+    protected String _rangeDelimiter = ";"
+    protected String _timeDelimiter = ","
+    protected String _restDelimiter = ":"
+    protected String _timeFormat = "HHmm"
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName= "nextAvailable",
-            description = "Date and time of the next time the schedule will be available. Only appears if the schedule is not empty.",
+            description = "Date and time of the next time the schedule will be \
+                available. Only appears if the schedule is not empty.",
             allowedType =  "DateTime",
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName= "nextUnavailable",
-            description = "Date and time of the next time the schedule will be unavailable. Only appears if the schedule is not empty.",
+            description = "Date and time of the next time the schedule will be \
+                unavailable. Only appears if the schedule is not empty.",
             allowedType =  "DateTime",
             useForCreation = false),
     ])
@@ -113,13 +120,8 @@ class WeeklySchedule extends Schedule {
         }
     }
 
-    /*
-	Has many:
-	*/
-
-    ////////////////////////
-    // Accessible methods //
-    ////////////////////////
+    // Accessible methods
+    // ------------------
 
     @Override
     boolean isAvailableAt(DateTime dt) {
@@ -136,13 +138,13 @@ class WeeklySchedule extends Schedule {
     }
     @Override
     Result<DateTime> nextAvailable(String timezone=null) {
-        Result res = nextChangeForType(Constants.SCHEDULE_AVAILABLE, timezone)
+        Result res = nextChangeForType(ScheduleChange.AVAILABLE, timezone)
         if (res.success) { resultFactory.success(res.payload.when) }
         else { res }
     }
     @Override
     Result<DateTime> nextUnavailable(String timezone=null) {
-        Result res = nextChangeForType(Constants.SCHEDULE_UNAVAILABLE, timezone)
+        Result res = nextChangeForType(ScheduleChange.UNAVAILABLE, timezone)
         if (res.success) { resultFactory.success(res.payload.when) }
         else { res }
     }
@@ -185,7 +187,7 @@ class WeeklySchedule extends Schedule {
                     else { return res }
                 }
                 else {
-                    return resultFactory.failWithMessage("weeklySchedule.error.strIntsNotList", [intStrings])
+                    return resultFactory.failWithMessage("weeklySchedule.strIntsNotList", [intStrings])
                 }
             }
         }
@@ -193,9 +195,8 @@ class WeeklySchedule extends Schedule {
         update(fromIntervalsToLocalIntervalsMap(utcIntervals))
     }
 
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Property Access
+    // ---------------
 
     Map<String,List<LocalInterval>> getAllAsLocalIntervals(String timezone=null) {
         DateTimeZone zone = Helpers.getZoneFromId(timezone)
@@ -245,12 +246,14 @@ class WeeklySchedule extends Schedule {
         }
         //finally clean to merge abutting local intervals on the same day
         Map<String,List<LocalInterval>> mergedLocalIntMap = [:]
-        fromIntervalsToLocalIntervalsMap(intervals).each { String dayOfWeek, List<LocalInterval> localInts ->
-            mergedLocalIntMap[dayOfWeek] = cleanLocalIntervals(localInts.sort(), 1) //1 minute merge threshold
-        }
+        fromIntervalsToLocalIntervalsMap(intervals)
+            .each { String dayOfWeek, List<LocalInterval> localInts ->
+                //1 minute merge threshold
+                mergedLocalIntMap[dayOfWeek] = cleanLocalIntervals(localInts.sort(), 1)
+            }
         mergedLocalIntMap
     }
-    private List checkWraparoundHelper(List<String> daysOfWeek) {
+    protected List checkWraparoundHelper(List<String> daysOfWeek) {
         boolean lastDayAtEnd = false,
             firstDayAtBeginning = false
         String firstDayWrappedEnd
@@ -270,7 +273,7 @@ class WeeklySchedule extends Schedule {
         boolean hasWraparound = lastDayAtEnd && firstDayAtBeginning
         [hasWraparound, firstDayWrappedEnd]
     }
-    private addToIntervalsHelper(DateTimeFormatter dtf, DateTimeZone zone,
+    protected addToIntervalsHelper(DateTimeFormatter dtf, DateTimeZone zone,
         List<Interval> intervalsForDay, List<String> times, int addDays) {
 
         DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
@@ -280,13 +283,8 @@ class WeeklySchedule extends Schedule {
         intervalsForDay << new Interval(start, end)
     }
 
-    /*
-     * Helper methods
-     */
-
-    ///////////////////////////////////////////////////
-    // Iterating through and finding the next change //
-    ///////////////////////////////////////////////////
+    // Next change
+    // -----------
 
     protected Result<ScheduleChange> nextChangeForType(String changeType, String timezone) {
         DateTime now = DateTime.now()
@@ -299,14 +297,16 @@ class WeeklySchedule extends Schedule {
         }
         res
     }
-    private Result<ScheduleChange> nextChangeForDateTime(DateTime dt, DateTime initialDt, String timezone) {
+    protected Result<ScheduleChange> nextChangeForDateTime(DateTime dt,
+        DateTime initialDt, String timezone) {
         List<Interval> intervals = rehydrateAsIntervals(dt)
         ScheduleChange sChange = null
         //set the closest upcoming to be impossibly far into the future as an initial value
         DateTime closestUpcoming = dt.plusWeeks(1)
         for (interval in intervals) {
             if (interval.contains(initialDt)) {
-                sChange = new ScheduleChange(type:Constants.SCHEDULE_UNAVAILABLE, when:interval.end, timezone:timezone)
+                sChange = new ScheduleChange(type:ScheduleChange.UNAVAILABLE,
+                    when:interval.end, timezone:timezone)
                 break
             }
             else if (interval.isBefore(closestUpcoming) && interval.isAfter(initialDt)) {
@@ -317,7 +317,8 @@ class WeeklySchedule extends Schedule {
         if (sChange) { resultFactory.success(sChange) }
         //Otherwise, we need to find the nearest upcoming interval
         else if (closestUpcoming && !intervals.isEmpty()) {
-            resultFactory.success(new ScheduleChange(type:Constants.SCHEDULE_AVAILABLE, when:closestUpcoming, timezone:timezone))
+            resultFactory.success(new ScheduleChange(type:ScheduleChange.AVAILABLE,
+                when:closestUpcoming, timezone:timezone))
         }
         //If no upcoming intervals on this day, check the next day
         else {
@@ -325,17 +326,16 @@ class WeeklySchedule extends Schedule {
             if (initialDt.plusWeeks(1) != dt) {
                 nextChangeForDateTime(dt.plusDays(1), initialDt, timezone)
             }
-            else { resultFactory.failWithMessage("weeklySchedule.error.nextChangeNotFound") }
+            else { resultFactory.failWithMessage("weeklySchedule.nextChangeNotFound") }
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////
-    // Before dehydrating, rehydrating or validating, handle non-UTC timezones first //
-    ///////////////////////////////////////////////////////////////////////////////////
+    // Handle non-UTC timezones
+    // ------------------------
 
-    //iterate each interval, and bin them into the appropriate day of the week, assuming that sunday
-    //corresponds to day, monday to tomorrow and so forth. For wraparound purposes, yesterday corresponds
-    //to saturday
+    // iterate each interval, and bin them into the appropriate day of the week,
+    // assuming that sunday corresponds to day, monday to tomorrow and so forth.
+    // For wraparound purposes, yesterday corresponds to saturday
     protected Map<String,List<LocalInterval>> fromIntervalsToLocalIntervalsMap(List<Interval> intervals) {
         List<String> daysOfWeek = Constants.DAYS_OF_WEEK
         Map<String,List<LocalInterval>> localIntervals = daysOfWeek.collectEntries { [(it):[]] }
@@ -350,8 +350,10 @@ class WeeklySchedule extends Schedule {
                 localIntervals[startDay] << new LocalInterval(interval)
             }
             else { //interval spans two days, break interval into two local intervals
-                localIntervals[startDay] << new LocalInterval(interval.start.toLocalTime(), new LocalTime(23, 59))
-                localIntervals[endDay] << new LocalInterval(new LocalTime(00, 00), interval.end.toLocalTime())
+                localIntervals[startDay] << new LocalInterval(interval.start.toLocalTime(),
+                    new LocalTime(23, 59))
+                localIntervals[endDay] << new LocalInterval(new LocalTime(00, 00),
+                    interval.end.toLocalTime())
             }
         }
         localIntervals
@@ -380,22 +382,21 @@ class WeeklySchedule extends Schedule {
                     result << new Interval(start, end)
                 }
                 else {
-                    return resultFactory.failWithMessage("weeklySchedule.error.invalidRestTimeFormat", [str])
+                    return resultFactory.failWithMessage("weeklySchedule.invalidRestTimeFormat", [str])
                 }
             }
             catch (e) {
                 log.debug("WeeklyScheduleSpec.parseIntervalStrings: ${e.message}")
-                return resultFactory.failWithMessage("weeklySchedule.error.invalidRestTimeFormat", [str])
+                return resultFactory.failWithMessage("weeklySchedule.invalidRestTimeFormat", [str])
             }
         }
         resultFactory.success(result)
     }
 
-    ///////////////////////////////////////////////////////
-    // Dehydrating, rehydrating and validating intervals //
-    ///////////////////////////////////////////////////////
+    // Dehydrate, rehydrate and validate intervals
+    // -------------------------------------------
 
-    private List<Interval> rehydrateAsIntervals(DateTime dt, boolean stitchEndOfDay=true) {
+    protected List<Interval> rehydrateAsIntervals(DateTime dt, boolean stitchEndOfDay=true) {
         String intervalsString = getDayOfWeek(dt)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
         Interval endOfDayInterval = null //stitch intervals that cross between days
@@ -425,9 +426,9 @@ class WeeklySchedule extends Schedule {
         }
         endOfDayInterval ? intervals << endOfDayInterval : intervals
     }
-    private boolean isEndOfDay(DateTime dt) { dt.plusMinutes(2).dayOfWeek != dt.dayOfWeek }
-    private boolean isStartOfDay(DateTime dt) { dt.minusMinutes(2).dayOfWeek != dt.dayOfWeek }
-    private String getDayOfWeek(DateTime dt) {
+    protected boolean isEndOfDay(DateTime dt) { dt.plusMinutes(2).dayOfWeek != dt.dayOfWeek }
+    protected boolean isStartOfDay(DateTime dt) { dt.minusMinutes(2).dayOfWeek != dt.dayOfWeek }
+    protected String getDayOfWeek(DateTime dt) {
         switch(dt.dayOfWeek) {
             case DateTimeConstants.SUNDAY: return sunday
             case DateTimeConstants.MONDAY: return monday
@@ -439,7 +440,7 @@ class WeeklySchedule extends Schedule {
         }
     }
 
-    private List<LocalInterval> cleanLocalIntervals(List<LocalInterval> intervals,
+    protected List<LocalInterval> cleanLocalIntervals(List<LocalInterval> intervals,
         Integer minutesThreshold=null) {
         List<LocalInterval> sorted = intervals.sort(),
             cleaned = sorted.isEmpty() ? [] : [sorted[0]]
@@ -469,7 +470,7 @@ class WeeklySchedule extends Schedule {
         }
         cleaned
     }
-    private String dehydrateLocalIntervals(List<LocalInterval> intervals) {
+    protected String dehydrateLocalIntervals(List<LocalInterval> intervals) {
         List<String> intStrings = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
         intervals.each { LocalInterval i ->
@@ -477,7 +478,7 @@ class WeeklySchedule extends Schedule {
         }
         intStrings.join(_rangeDelimiter)
     }
-    private boolean validateIntervalsString(String str) {
+    protected boolean validateIntervalsString(String str) {
         List<String> strInts = str.tokenize(_rangeDelimiter)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
         List<LocalTime> times = []

@@ -1,6 +1,7 @@
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import com.pusher.rest.Pusher
+import com.twilio.sdk.TwilioRestClient
 import org.textup.*
 import org.textup.rest.*
 import org.textup.rest.marshallers.*
@@ -19,6 +20,7 @@ beans = {
 	pusherService(Pusher, apiConfig.pusher.appId, apiConfig.pusher.apiKey, apiConfig.pusher.apiSecret) {
 		encrypted = true
 	}
+	twilioService(TwilioRestClient, apiConfig.twilio.sid, apiConfig.twilio.authToken)
 	resultFactory(ResultFactory) { bean ->
 		bean.autowire = true
 	}
@@ -32,9 +34,8 @@ beans = {
 		useBearerToken = restConfig.validation.useBearerToken
 	}
 
-	/////////////////
-	// Marshallers //
-	/////////////////
+	// Marshallers
+	// -----------
 
 	contactableRenderer(ApiJsonRenderer, Contactable) {
 		label = tRestConfig.v1.contact.singular

@@ -9,8 +9,11 @@ import org.restapidoc.annotation.*
 class ContactTag {
 
 	Phone phone
+    Record record
+
     @RestApiObjectField(description = "Name of this tag")
     String name
+
     @RestApiObjectField(
         description  = "Hex color code for labels for this tag",
         defaultValue = "#1BA5E0",
@@ -18,11 +21,6 @@ class ContactTag {
 	String hexColor = "#1BA5E0"
 
     @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName   = "hasRecord",
-            description    = "Whether this tag keeps a record of messages to its members",
-            allowedType    = "Boolean",
-            useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "lastRecordActivity",
             description    = "Date and time of the most recent communication if this tag keeps a record",
@@ -36,45 +34,36 @@ class ContactTag {
             presentInResponse = false)
     ])
     static transients = []
+    static hasMany = [members:Contact]
     static constraints = {
         name blank:false, nullable:false, validator:{ val, obj ->
             //for each phone, tags must have unique name
             if (val && obj.sameTagExists()) { ["duplicate"] }
         }
-    	hexColor blank:false, nullable:false, validator:{ val, obj ->
-    		//String must be a valid hex color
-            if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
-    	}
+    	hexColor shared:"hexColor"
+    }
+    static mapping = {
+        members lazy:false, cascade:"save-update"
     }
     static namedQueries = {
-        forStaff { thisStaff ->
-            eq("phone", thisStaff.phone)
-        }
-        forTeam { thisTeam ->
-            eq("phone", thisTeam.phone)
+        forContact { Contact c1 ->
+            members { idEq(c1?.id) }
         }
     }
 
-    /*
-	Has many:
-        TagMembership
-	*/
+    // Events
+    // ------
 
-    ////////////
-    // Events //
-    ////////////
-
-    def beforeDelete() {
-        ContactTag.withNewSession {
-            TagMembership.where { tag == this }.deleteAll()
+    def beforeValidate() {
+        if (!this.record) {
+            this.record = new Record([:])
+            this.record.save()
         }
     }
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    // Validator
+    // ---------
 
-    //Validation helper
     private boolean sameTagExists() {
         boolean duplicateTag = false
         ContactTag.withNewSession { session ->
@@ -88,35 +77,32 @@ class ContactTag {
         duplicateTag
     }
 
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Property Access
+    // ---------------
 
-    int countAllMembers() {
-        TagMembership.countByTag(this)
+    void setRecord(Record r) {
+        this.record = r
+        this.record?.save()
     }
-    List<TagMembership> getAllMembers() {
-        TagMembership.findAllByTag(this)
+
+    // Record keeping
+    // --------------
+
+    Result<RecordText> addTextToRecord(Map params, Staff author) {
+        this.record.addText(params, author)
     }
-    List<TagMembership> getAllMembers(Map params) {
-        TagMembership.findAllByTag(this, params)
-    }
-    int countSubscribers() {
-        TagMembership.countByTagAndHasUnsubscribed(this, false)
-    }
-    List<TagMembership> getSubscribers() {
-        TagMembership.findAllByTagAndHasUnsubscribed(this, false)
-    }
-    List<TagMembership> getSubscribers(Map params) {
-        TagMembership.findAllByTagAndHasUnsubscribed(this, false, params)
-    }
-    int countNonsubscribers() {
-        TagMembership.countByTagAndHasUnsubscribed(this, true)
-    }
-    List<TagMembership> getNonsubscribers() {
-        TagMembership.findAllByTagAndHasUnsubscribed(this, true)
-    }
-    List<TagMembership> getNonsubscribers(Map params) {
-        TagMembership.findAllByTagAndHasUnsubscribed(this, true, params)
+
+    // Members
+    // -------
+
+    List<Contact> getMembers(Collection statuses=[]) {
+        if (statuses) {
+            HashSet<ContactStatus> findStatuses =
+                new HashSet<>(Helpers.toEnumList(ContactStatus, statuses))
+            this.members.findAll { Contact c1 ->
+                c1.status in findStatuses
+            }
+        }
+        else { this.members }
     }
 }

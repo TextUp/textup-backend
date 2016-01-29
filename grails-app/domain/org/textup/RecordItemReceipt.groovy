@@ -2,65 +2,57 @@ package org.textup
 
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
+import org.textup.ReceiptStatus
 
 @EqualsAndHashCode
-@RestApiObject(name="Receipt", description="A receipt indicating the status of a communication sent to a phone number.")
+@RestApiObject(name="Receipt", description="A receipt indicating the status \
+    of a communication sent to a phone number.")
 class RecordItemReceipt {
 
-    @RestApiObjectField(
-        description="Status of the communication. Allowed: failed, pending, success",
-        useForCreation=false,
-        defaultValue="pending")
-	String status = Constants.RECEIPT_PENDING
-	//unique id assigned to this record by the communications provider
+    //unique id assigned to this record by the communications provider
     //used for finding the RecordItem in a StatusCallback
-	String apiId
-	//if outgoing, then record the number that received the communication
+    String apiId
+    String receivedByAsString
+
     @RestApiObjectField(
+        description="Status of communication. Allowed: FAILED, PENDING, BUSY, SUCCESS",
+        useForCreation=false,
+        defaultValue="PENDING")
+	ReceiptStatus status = ReceiptStatus.PENDING
+
+    //if outgoing, then record the number that received the communication
+    @RestApiObjectField(
+        apiFieldName = 'receivedBy'
         description="Phone number that this communication was sent to",
         useForCreation=false,
         allowedType="String")
-	PhoneNumber receivedBy
-
+    static transients = ['receivedBy']
     static constraints = {
-    	status inList:[Constants.RECEIPT_FAILED, Constants.RECEIPT_PENDING, Constants.RECEIPT_SUCCESS]
+        receivedByAsString shared: 'phoneNumber'
     }
-    static embedded = ["receivedBy"]
     static belongsTo = [item:RecordItem]
     static namedQueries = {
-    	failed { recordItem ->
-    		eq("item", recordItem)
-    		eq("status", Constants.RECEIPT_FAILED)
-    	}
-    	pending { recordItem ->
-    		eq("item", recordItem)
-    		eq("status", Constants.RECEIPT_PENDING)
-    	}
-    	success { recordItem ->
-    		eq("item", recordItem)
-    		eq("status", Constants.RECEIPT_SUCCESS)
-    	}
+        forItemAndStatus { RecordItem rItem, ReceiptStatus stat ->
+            eq("item", rItem)
+            eq("status", stat)
+        }
     }
 
-    /*
-	Has many:
-	*/
+    // Helper methods
+    // --------------
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    static RecordItemReceipt copy() {
+        new RecordItemReceipt(status:this.status, apiId:this.apiId,
+            receivedByAsString:this.receivedByAsString)
+    }
 
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Property Access
+    // ---------------
 
-    void setReceivedByAsString(String num) {
-        if (this.receivedBy) {
-            this.receivedBy.number = num
-        }
-        else {
-            this.receivedBy = new PhoneNumber(number:num)
-        }
-        this.receivedBy.save()
+    void setReceivedBy(PhoneNumber pNum) {
+        this.receivedByAsString = pNum?.number
+    }
+    PhoneNumber getReceivedBy() {
+        new PhoneNumber(number:this.receivedByAsString)
     }
 }

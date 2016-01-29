@@ -14,57 +14,72 @@ class Helpers {
 
     private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1"
 
-    ////////////////
-    // Formatting //
-    ////////////////
+    // Enum
+    // ----
 
+    static <T extends Enum<T>> T convertEnum(Class<T> enumClass, String string) {
+        String enumString = string?.toUpperCase()
+        enumClass?.values().find { it.toString() == enumString } ?: null
+    }
+    static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, List enumsOrStrings) {
+        strings?.collect { !enumClass?.isInstance(it) ? it : convertEnum(enumClass, it) } ?: []
+    }
 
-    static boolean moreThanOneId(List<String> keysToLookFor, GrailsParameterMap params) {
+    // Formatting
+    // ----------
+
+    static boolean exactly(int num, List<String> keysToLookFor, GrailsParameterMap params) {
         int numFound = 0
         keysToLookFor.each {
             if (params[it]) { numFound++ }
         }
-        numFound > 1
+        numFound == num
     }
-
 	static boolean isLong(def val) {
         "${val}".isLong()
     }
-
     static Boolean toBoolean(def val) {
         String str = "${val}"
         str == "true" ? true : str == "false" ? false : null
     }
-
     static Long toLong(def val) {
         String strVal = "${val}"
         strVal.isLong() ? strVal.toLong() : null
     }
-
     static Integer toInteger(def val) {
         String strVal = "${val}"
         strVal.isInteger() ? strVal.toInteger() : null
     }
-
     static List<Long> allToLong(List l) {
         l.collect { Helpers.toLong(it) }
     }
-
     static List toList(def val) {
     	(val instanceof List)  ? val : []
     }
-
+    static List<Long> toIdsList(def data) {
+        List<Long> ids = []
+        for (rawId in Helpers.toList(data)) {
+            Long id = Helpers.toLong(rawId)
+            if (id) { ids << id }
+            else { return [] }
+        }
+        ids
+    }
     static DateTime toUTCDateTime(def val) {
         (val instanceof Date) ? new DateTime(val, DateTimeZone.UTC) : null
     }
-
     static String toString(def val) {
         "$val".toString()
     }
+    static String toQuery(String raw) {
+        String query = raw
+        if (!query?.startsWith("%")) query = "%$query"
+        if (!query?.endsWith("%")) query = "$query%"
+        query
+    }
 
-    ///////////////////////////
-    // date, time, timezones //
-    ///////////////////////////
+    // Date, time, timezones
+    // ---------------------
 
     static String printLocalInterval(LocalInterval localInt) {
         if (localInt) {
@@ -78,7 +93,6 @@ class Helpers {
         }
         else { "" }
     }
-
     static DateTimeZone getZoneFromId(String id) {
         try {
             return DateTimeZone.forID(id)
@@ -88,14 +102,12 @@ class Helpers {
             return null
         }
     }
-
     static DateTime toDateTimeTodayWithZone(LocalTime lt, DateTimeZone zone) {
         if (zone) {
             lt.toDateTimeToday(DateTimeZone.UTC).withZone(zone)
         }
         else { lt.toDateTimeToday(DateTimeZone.UTC) }
     }
-
     static DateTime toUTCDateTimeTodayFromZone(LocalTime lt, DateTimeZone zone) {
         if (zone) {
             lt.toDateTimeToday(zone).withZone(DateTimeZone.UTC)
@@ -105,97 +117,23 @@ class Helpers {
     static int getDaysBetween(DateTime dt1, DateTime dt2) {
         Days.daysBetween(dt1.toLocalDate(), dt2.toLocalDate()).getDays()
     }
-
-    /////////////////////////////
-    // Sending calls and texts //
-    /////////////////////////////
-
     //0 corresponds to sunday, 6 to saturday
-    static int getDayOfWeekIndex(int num) { Math.abs(num % 7) }
-
-    static ParsedResult<PhoneNumber,String> parseIntoPhoneNumbers(List<String> nums) {
-        List<PhoneNumber> pNums = []
-        List<String> invalidStrings = []
-        nums.each { String num ->
-            PhoneNumber pNum = new PhoneNumber(number:num)
-            if (pNum.validate()) { pNums << pNum }
-            else { invalidStrings << pNum.number }
-            pNum.discard() //temporary container
-        }
-        new ParsedResult<PhoneNumber,String>(valid:pNums, invalid:invalidStrings)
+    static int getDayOfWeekIndex(int num) {
+        Math.abs(num % 7)
     }
 
-    static ParsedResult parseFromList(List toFind, List all) {
-        ParsedResult parsed = new ParsedResult()
-        HashSet toFindHash = new HashSet(toFind)
-        all.each {
-            if (toFindHash.contains(it)) { parsed.valid << it }
-            else { parsed.invalid << it }
-        }
-        parsed
-    }
-
-    //////////////////////////////
-    // Incoming calls and texts //
-    //////////////////////////////
-
-    static String cleanIncomingText(String contents) {
-        contents?.trim()
-    }
-
-    static String cleanUsername(String username) {
-        username?.trim()?.toLowerCase()
-    }
+    // TwimlBuilder
+    // ------------
 
     static String formatNumberForSay(String number) {
         number?.replaceAll(/\D*/, "")?.replaceAll(/.(?!$)/, /$0 /)
     }
-    static String formatNumberForSay(BasePhoneNumber num) {
+    static String formatNumberForSay(PhoneNumber num) {
         formatNumberForSay(num?.number)
     }
-    static String formatTextNotification(String attribution, String contents) {
-        String notification = "${attribution}: ${contents}"
-        if (notification.size() >= Constants.TEXT_LENGTH) {
-            int trimTo = Constants.TEXT_LENGTH - 4
-            notification = "${notification[0..trimTo]}..."
-        }
-        notification
-    }
 
-    static String translateCallStatus(String status) {
-        String translated = null
-        switch (status) {
-            case "failed": translated = Constants.RECEIPT_FAILED; break;
-            case "completed": translated = Constants.RECEIPT_SUCCESS; break;
-            case "busy": translated = Constants.RECEIPT_SUCCESS; break;
-            case "no-answer": translated = Constants.RECEIPT_SUCCESS; break;
-            case "canceled": translated = Constants.RECEIPT_SUCCESS; break;
-            case "in-progress": translated = Constants.RECEIPT_PENDING; break;
-            case "ringing": translated = Constants.RECEIPT_PENDING; break;
-            case "queued": translated = Constants.RECEIPT_PENDING; break;
-        }
-        translated
-    }
-
-    static String translateTextStatus(String status) {
-        String translated = null
-        switch (status) {
-            case "failed": translated = Constants.RECEIPT_FAILED; break;
-            case "undelivered": translated = Constants.RECEIPT_FAILED; break;
-            case "sent": translated = Constants.RECEIPT_SUCCESS; break;
-            case "received": translated = Constants.RECEIPT_SUCCESS; break;
-            case "delivered": translated = Constants.RECEIPT_SUCCESS; break;
-            case "accepted": translated = Constants.RECEIPT_PENDING; break;
-            case "queued": translated = Constants.RECEIPT_PENDING; break;
-            case "sending": translated = Constants.RECEIPT_PENDING; break;
-            case "receiving": translated = Constants.RECEIPT_PENDING; break;
-        }
-        translated
-    }
-
-    //////////////
-    // Security //
-    //////////////
+    // Security
+    // --------
 
     static String getBase64HmacSHA1(String data, String key) {
         String result = ""

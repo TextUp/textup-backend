@@ -11,7 +11,7 @@ class PasswordResetToken {
 	DateTime expires = DateTime.now(DateTimeZone.UTC).plusHours(1)
     String token
     //id of the staff member who is requesting the reset
-    long toBeResetId 
+    long toBeResetId
 
     static constraints = {
     	token unique:true
@@ -20,14 +20,10 @@ class PasswordResetToken {
         expires type:PersistentDateTime
     }
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
-
-    boolean getIsExpired() { expires.isBeforeNow() }
-    void expireNow() { expires = DateTime.now(DateTimeZone.UTC).minusMinutes(1) }
-
-    /////////////////////
-    // Property access //
-    /////////////////////
+    boolean getIsExpired() {
+        expires.isBeforeNow()
+    }
+    void expireNow() {
+        this.expires = DateTime.now(DateTimeZone.UTC).minusMinutes(1)
+    }
 }

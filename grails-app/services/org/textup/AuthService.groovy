@@ -2,8 +2,6 @@ package org.textup
 
 import grails.gorm.DetachedCriteria
 import grails.transaction.Transactional
-import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 
 @Transactional(readOnly=true)
 class AuthService {
@@ -11,131 +9,61 @@ class AuthService {
     def grailsApplication
 	def springSecurityService
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    // Logged in
+    // ---------
 
     boolean exists(Class clazz, Long id) {
         id ? clazz.exists(id) : false
     }
-
-    Long getLoggedInId() {
-    	Staff staff = Staff.findByUsername(springSecurityService.principal?.username)
-    	if (!staff) { log.error("AuthService.getLoggedInId: no one is logged in!") }
-    	staff?.id
+    boolean getIsActive() {
+        this.isActive(this.loggedIn)
     }
-
+    boolean isActive(Staff s1) {
+        s1 && (s1.status == StaffStatus.STAFF || s1.status == StaffStatus.ADMIN) &&
+            s1.org.status == OrgStatus.APPROVED
+    }
     boolean isLoggedIn(Long sId) {
-        getLoggedInId() == sId
+        this.loggedInId == sId
     }
     boolean isLoggedInAndActive(Long sId) {
-        getLoggedInAndActive()?.id == sId
+        this.loggedInAndActive?.id == sId
     }
-
     Staff getLoggedIn() {
         Staff.findByUsername(springSecurityService.principal?.username)
     }
-
     Staff getLoggedInAndActive() {
-        Staff s1 = getLoggedIn()
-        isActive(s1) ? s1 : null
+        this.isActive ? this.loggedIn : null
     }
 
-    boolean isActive(Staff s1) {
-        s1 && (s1.status == Constants.STATUS_STAFF || s1.status == Constants.STATUS_ADMIN) &&
-            s1.org.status == Constants.ORG_APPROVED
-    }
-
-    //////////////////
-    // Admin status //
-    //////////////////
+    // Admin
+    // -----
 
     boolean isAdminAt(Long orgId) {
         Organization org = Organization.get(orgId)
         if (org) {
-            Staff.findByIdAndOrgAndStatus(getLoggedInId(), org, Constants.STATUS_ADMIN)
+            Staff.findByIdAndOrgAndStatus(this.loggedIn?.id, org, StaffStatus.ADMIN)
         }
         else { false }
     }
-
     boolean isAdminAtSameOrgAs(Long sId) {
-        Staff s1 = getLoggedIn()
+        Staff s1 = this.loggedIn
         if (s1) {
             Staff.where { id == sId && org == s1.org }.count() > 0 &&
-                s1.status == Constants.STATUS_ADMIN
+                s1.status == StaffStatus.ADMIN
         }
         else { false }
     }
-
     boolean isAdminForTeam(Long teamId) {
-        Staff s1 = getLoggedIn()
+        Staff s1 = this.loggedIn
         if (s1) {
             Team.where { id == teamId && org == s1.org }.count() > 0 &&
-                s1.status == Constants.STATUS_ADMIN
+                s1.status == StaffStatus.ADMIN
         }
         else { false }
     }
 
-    ///////////////////////////////////
-    // Twilio request authentication //
-    ///////////////////////////////////
-
-    boolean authenticateRequest(HttpServletRequest request, GrailsParameterMap params) {
-        String browserURL = (request.requestURL.toString() - request.requestURI) + request.forwardURI,
-            authToken = grailsApplication.config.textup.apiKeys.twilio.authToken,
-            authHeaderName = "x-twilio-signature",
-            authHeader = request.getHeader(authHeaderName)
-        if (authHeader) {
-            if (request.queryString) { browserURL = "$browserURL?${request.queryString}" }
-            Map<String,String> twilioParams = extractTwilioParams(request, params)
-
-            StringBuilder data = new StringBuilder(browserURL)
-            List<String> sortedKeys = twilioParams.keySet().toList().sort() //sort keys lexicographically
-            sortedKeys.each { String key -> data << key << twilioParams[key] }
-            //first check https then check http if fails. Scheme detection in request object is spotty
-            String dataString = data.toString(), httpsData, httpData
-            if (dataString.startsWith("http://")) {
-                httpData = dataString
-                httpsData = dataString.replace("http://", "https://")
-            }
-            else if (dataString.startsWith("https://")) {
-                httpData = dataString.replace("https://", "http://")
-                httpsData = dataString
-            }
-            else {
-                log.error("AuthService.authenticateRequest: invalid data: $dataString")
-                return false
-            }
-            //first try https
-            String encoded = Helpers.getBase64HmacSHA1(httpsData.toString(), authToken)
-            boolean isAuth = (encoded == authHeader)
-            //then fallback to checking http if needed
-            if (!isAuth) {
-                encoded = Helpers.getBase64HmacSHA1(httpData.toString(), authToken)
-                isAuth = (encoded == authHeader)
-            }
-            isAuth
-        }
-        else { false }
-    }
-
-    protected Map<String,String> extractTwilioParams(HttpServletRequest request, GrailsParameterMap allParams) {
-        Collection<String> requestParamKeys = request.parameterMap.keySet(), queryParams = []
-        request.queryString?.tokenize("&")?.each { queryParams << it.tokenize("=")[0] }
-        HashSet<String> ignoreParamKeys = new HashSet<>(queryParams),
-            keepParamKeys = new HashSet<>(requestParamKeys)
-        Map<String,String> twilioParams = [:]
-        allParams.each { String key, String val ->
-            if (keepParamKeys.contains(key) && !ignoreParamKeys.contains(key)) {
-                twilioParams[key] = val
-            }
-        }
-        twilioParams
-    }
-
-    ////////////////////////
-    // Contact permission //
-    ////////////////////////
+    // Contact
+    // -------
 
     /**
      * Can have permission for this Contact if
@@ -145,32 +73,22 @@ class AuthService {
      * @return     Whether you have permission
      */
     boolean hasPermissionsForContact(Long cId) {
-        Staff s1 = getLoggedInAndActive()
+        Staff s1 = this.loggedInAndActive
         if (s1 && cId) {
-            List<Long> tPhoneIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(s1.id).list())
+            List<Phone> phones = s1.allPhones
             Contact.createCriteria().count {
                 eq("id", cId)
-                or {
-                    eq("phone", s1.phone) //(1)
-                    if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
-                    else { eq("id", null) }
+                if (phones) {
+                    "in"("phone", phones)
                 }
+                else { eq("phone", null) }
             } > 0
         }
         else { false }
     }
 
-    /////////////////////////////////
-    // Sharing contact permissions //
-    /////////////////////////////////
-
-    boolean canShareContactWithStaff(Long cId, Long sId) {
-        Contact c1 = Contact.get(cId)
-        if (c1 && c1.phone.instanceOf(StaffPhone)) {
-            TeamMembership.staffIdsOnSameTeamAs(sId).list().contains(c1.phone.ownerId)
-        }
-        else { false }
-    }
+    // Sharing
+    // -------
 
     /**
      * Can have permission for a Contact that is not your's if
@@ -179,31 +97,25 @@ class AuthService {
      * @return      Id of unexpired SharedContact that you have
      *                 permissions for or null otherwise
      */
-    Long getSharedContactForContact(Long cId) {
-        Staff s1 = getLoggedInAndActive()
+    Long getSharedContactIdForContact(Long cId) {
+        Staff s1 = this.loggedInAndActive
         if (s1 && cId) {
-            List<Long> sWithMeIds = Helpers.allToLong(SharedContact.sharedWithMeIds(s1.phone).list())
-            List<Long> scIds = SharedContact.createCriteria().list {
+            SharedContact.createCriteria().list(max:1) {
                 projections { property("id") }
-                if (sWithMeIds) { "in"("id", sWithMeIds) }
-                else { eq("id", null) }
                 eq("contact.id", cId)
-            }
-            !scIds.isEmpty() ? scIds[0] : null
+                eq("sharedWith", s1?.phone)
+                or {
+                    isNull("dateExpired") //not expired if null
+                    le("dateExpired", DateTime.now())
+                }
+            }[0]
         }
         else { null }
     }
 
 
-    //////////////////////
-    // Team permissions //
-    //////////////////////
-
-    boolean belongsToSameTeamAs(Long teamId) {
-        Staff s1 = getLoggedIn()
-        if (s1) { TeamMembership.staffIdsForTeamId(teamId).list().contains(s1.id) }
-        else { false }
-    }
+    // Team
+    // ----
 
     /**
      * Can have permission for this team if
@@ -213,16 +125,11 @@ class AuthService {
      * @return     Whether you have permission
      */
     boolean hasPermissionsForTeam(Long tId) {
-        Staff s1 = getLoggedInAndActive()
+        Staff s1 = this.loggedInAndActive
         if (s1 && tId) {
-            int memberCount = TeamMembership.where {
-                team.id == tId && staff == s1
-            }.count()
-            if (memberCount > 0) { true } //(1)
-            else { // (2)
-                int teamCount = Team.where { id == tId && org == s1.org }.count()
-                teamCount > 0 && s1.status == Constants.STATUS_ADMIN
-            }
+            this.isAdminForTeam(tId) || Team.forStaffs([s1]).count {
+                idEq(tId)
+            } > 0
         }
         else { false }
     }
@@ -240,12 +147,10 @@ class AuthService {
      * @return     Whether you have permission for staff member
      */
     boolean hasPermissionsForStaff(Long sId) {
-        Staff s1 = getLoggedInAndActive()
-        if (s1 && sId) {
-            DetachedCriteria sQuery = Staff.where { id == sId && org == s1.org }
-            (sId == s1.id) || //(1)
-            (sQuery.count() > 0 && s1.status == Constants.STATUS_ADMIN) || //(2)
-            TeamMembership.staffIdsOnSameTeamAs(sId).list().contains(s1.id) //(3)
+        Staff s1 = this.loggedInAndActive,
+            s2 = Staff.get(sId)
+        if (s1 && s2) {
+            s1 == s2 || this.isAdminAtSameOrgAs(s2) || s1.sharesTeamWith(s2)
         }
         else { false }
     }
@@ -262,32 +167,17 @@ class AuthService {
      * @return     Whether you have permission for this Tag
      */
     boolean hasPermissionsForTag(Long tId) {
-        Staff s1 = getLoggedInAndActive()
+        Staff s1 = this.loggedInAndActive
         if (s1 && tId) {
-            List<Long> tPhoneIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(s1.id).list())
+            List<Phone> phones = s1.allPhones
             ContactTag.createCriteria().count {
                 eq("id", tId)
-                or {
-                    eq("phone", s1.phone) //(1)
-                    if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
-                    else { eq("id", null) }
+                if (phones) {
+                    "in"("phone", phones)
                 }
+                else { eq("phone", null) }
             } > 0
         }
-        else { false }
-    }
-
-    /**
-     * Determines if the given tag and contact belong
-     * to the same owner (phone)
-     * @param  t1 Tag id to inspect
-     * @param  c1 Contact id to inspect
-     * @return    Whether or not the two belong to the same owner
-     */
-    boolean tagAndContactBelongToSame(Long tId, Long cId) {
-        ContactTag t1 = ContactTag.get(tId)
-        Contact c1 = Contact.get(cId)
-        if (t1 && c1) { t1.phone == c1.phone }
         else { false }
     }
 
@@ -300,110 +190,40 @@ class AuthService {
      * (1) This item belongs to one of your contacts
      * (2) This item belongs to a contact that is currently shared with you
      * (3) This item belongs to a contact of one of the teams you're on
+     * (4 - 6) same as 1 through 3 for an item belonging to a tag
      * @param  itemId Id of the item in question
      * @return        Whether or have permission
      */
     boolean hasPermissionsForItem(Long itemId) {
-        Staff s1 = getLoggedInAndActive()
-        if (s1 && itemId) {
-            long pId = s1.phone.id
-            List<Long> phoneRecIds = Helpers.allToLong(Contact.recordIdsForPhoneId(pId).list()),
-                sharedRecIds = Helpers.allToLong(Contact.sharedRecordIdsForSharedWithId(pId).list()),
-                teamRecIds = Helpers.allToLong(Contact.teamRecordIdsForStaffId(s1.id).list())
-            RecordItem.createCriteria().count {
-                eq("id", itemId)
-                record {
-                    or {
-                        if (phoneRecIds) { "in"("id", phoneRecIds) } //(1)
-                        else { eq("id", null) }
-                        if (sharedRecIds) { "in"("id", sharedRecIds) } //(2)
-                        else { eq("id", null) }
-                        if (teamRecIds) { "in"("id", teamRecIds) } //(3)
-                        else { eq("id", null) }
-                    }
-                }
-            } > 0
+        List<Phone> staffPhones = this.loggedInAndActive?.allPhones
+        if (staffPhones && itemId) {
+            Record rec = RecordItem.get(itemId)?.record
+            if (rec) { return false }
+            HashSet<Phone> allowedPhones = getPhonesForRecords([rec])
+            staffPhones.any { it in allowedPhones }
         }
         else { false }
     }
 
-    //////////////////////////
-    // Parse by permissions //
-    //////////////////////////
-
-    /**
-     * From a list of contact ids, find any contact ids that the
-     * currently logged in staff member does NOT have permission
-     * to communicate with OR cannot be found
-     * Has permission for contact if
-     * (1) This is your contact
-     * (2) This contact belongs to one of the teams you are on
-     * @param  contactIds List of contact ids to check
-     * @return            ParsedResult of valid and invalid ids
-     */
-    ParsedResult<Long,Long> parseContactIdsByPermission(List<Long> contactIds) {
-        Staff s1 = this.getLoggedIn()
-        if (s1) {
-            List<Long> tPhoneIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(s1.id).list())
-            List<Long> validIds = Contact.createCriteria().list {
-                projections { property("id") }
-                if (contactIds) { "in"("id", contactIds) }
-                else { eq("id", null) }
-                or {
-                    eq("phone", s1.phone) //(1)
-                    if (tPhoneIds) { phone { "in"("id", tPhoneIds) } } //(2)
-                    else { eq("id", null) }
+    HashSet<Phone> getPhonesForRecords(List<Record> recs) {
+        if (!recs) { return [] }
+        List<Phone> cPhones = Contact.createCriteria().list {
+            projections { property("phone") }
+                "in"("record", recs)
+            }, tPhones = ContactTag.createCriteria().list {
+                projections { property("phone") }
+                "in"("record", recs)
+            },
+            phones = cPhones + tPhones,
+            // phones from contacts that are shared with me
+            sPhones = SharedContact.createCriteria().list {
+                projections { property("sharedWith") }
+                "in"("contact.record", recs)
+                if (phones) {
+                    "in"("sharedBy", phones)
                 }
+                else { eq("sharedBy", null) }
             }
-            Helpers.parseFromList(validIds, contactIds)
-        }
-        else { new ParsedResult<Long,Long>(invalid:contactIds) }
-    }
-
-    /**
-     * From a list of contact ids, find any contact ids that
-     * do not represent contacts that have been shared with
-     * the logged-in staff member
-     * @param  contactIds List of contact ids to check
-     * @return ParsedResult of valid SharedContacts and invalid contact ids
-     */
-    ParsedResult<SharedContact,Long> parseIntoSharedContactsByPermission(List<Long> contactIds) {
-        Staff s1 = this.getLoggedIn()
-        if (s1 && s1.phone) {
-            List<SharedContact> validSharedContacts = SharedContact.sharedWithForContactIds(s1.phone, contactIds).list()
-            List<Long> validContactIds = validSharedContacts*.contact*.id
-            new ParsedResult(invalid:Helpers.parseFromList(validContactIds, contactIds).invalid,
-                valid:validSharedContacts)
-        }
-        else { new ParsedResult<Long,Long>(invalid:contactIds) }
-    }
-
-    /**
-     * From a list of tag ids, find any tag ids that the
-     * currently logged in staff member does NOT have permission
-     * to communicate with OR cannot be found
-     * Has permission for tag if
-     * (1) This tag belongs to you
-     * (2) This tag belongs to a team you are on
-     * @param  tIds List of tag ids to check
-     * @return      ParsedResult of valid and invalid ids
-     */
-    ParsedResult<Long,Long> parseTagIdsByPermission(List<Long> tIds) {
-        Staff s1 = this.getLoggedIn()
-        if (s1) {
-            List<Long> tPhoneIds = Helpers.allToLong(Team.teamPhoneIdsForStaffId(s1.id).list())
-            List<Long> validIds = ContactTag.createCriteria().list {
-                projections { property("id") }
-                if (tIds) { "in"("id", tIds) }
-                else { eq("id", null) }
-                or {
-                    eq("phone", s1.phone) //(1)
-                    if (tPhoneIds) { phone { "in"("id", tPhoneIds) } }//(2)
-                    else { eq("id", null) }
-                }
-            }
-            Helpers.parseFromList(validIds, tIds)
-        }
-        else { new ParsedResult<Long,Long>(invalid:tIds) }
+        new HashSet<Phone>(phones + sPhones)
     }
 }

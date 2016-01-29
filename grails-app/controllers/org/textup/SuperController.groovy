@@ -77,7 +77,7 @@ class SuperController {
                 Result res = mailService.notifyNewOrganizationOfRejection(org.admins[0])
                 if (!res.success) {
                     log.error("SuperController.rejectOrg: could not notify $org of rejection: ${res.payload}")
-                    flash.messages = resultFactory.extractMessages(res)
+                    flash.messages = res.errorMessages
                 }
             }
             else {
@@ -100,7 +100,7 @@ class SuperController {
                 Result res = mailService.notifyNewOrganizationOfApproval(org.admins[0])
                 if (!res.success) {
                     log.error("SuperController.approveOrg: could not notify $org of approval: ${res.payload}")
-                    flash.messages = resultFactory.extractMessages(res)
+                    flash.messages = res.errorMessages
                 }
             }
             else {

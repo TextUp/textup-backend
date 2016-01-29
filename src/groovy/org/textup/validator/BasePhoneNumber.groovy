@@ -1,15 +1,11 @@
-package org.textup
+package org.textup.validator
 
-import groovy.transform.EqualsAndHashCode
-
-@EqualsAndHashCode
 abstract class BasePhoneNumber {
 
     String number
 
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Property Access
+    // ---------------
 
     String getPrettyPhoneNumber() {
         String n = this.number
@@ -32,5 +28,7 @@ abstract class BasePhoneNumber {
     }
 
     @Override
-    String toString() { this.getPrettyPhoneNumber() }
+    String toString() {
+        this.prettyPhoneNumber
+    }
 }

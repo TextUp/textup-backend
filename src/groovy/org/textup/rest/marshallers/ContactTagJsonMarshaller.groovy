@@ -15,14 +15,12 @@ class ContactTagJsonMarshaller extends JsonNamedMarshaller {
             id = ct.id
             name = ct.name
             hexColor = ct.hexColor
-            if (ct.instanceOf(TeamContactTag)) {
-                hasRecord = true
-                lastRecordActivity = ct.lastRecordActivity
-            }
+            lastRecordActivity = ct.record.lastRecordActivity
         }
 
         json.links = [:]
-        json.links << [self:linkGenerator.link(namespace:namespace, resource:"tag", action:"show", id:ct.id, absolute:false)]
+        json.links << [self:linkGenerator.link(namespace:namespace,
+            resource:"tag", action:"show", id:ct.id, absolute:false)]
         json
     }
 

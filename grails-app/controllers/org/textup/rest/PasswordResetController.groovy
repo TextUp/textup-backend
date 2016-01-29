@@ -10,29 +10,33 @@ import static org.springframework.http.HttpStatus.*
 @Secured("permitAll")
 class PasswordResetController extends BaseController {
 
-	static allowedMethods = [index:"GET", requestReset:"POST", resetPassword:"PUT", delete:"DELETE"]
+	static allowedMethods = [index:"GET", requestReset:"POST",
+        resetPassword:"PUT", delete:"DELETE"]
 
 	def passwordResetService
 
     def index() { notAllowed() }
     def delete() { notAllowed() }
 
-
     @RestApiMethod(description="Request a password reset")
     @RestApiResponseObject(objectIdentifier = "[passwordResetRequest]")
     @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request or could not send email."),
-        @RestApiError(code="404", description="Staff with passed-in username not found or has no email."),
+        @RestApiError(code="400", description="Malformed JSON in request or \
+            could not send email."),
+        @RestApiError(code="404", description="Staff with passed-in username \
+            not found or has no email."),
     ])
     def requestReset() {
         if (!validateJsonRequest(request)) { return }
         Map info = request.JSON
-        if (info.username) {
-            Result res = passwordResetService.requestReset(Helpers.cleanUsername(info.username))
-            if (res.success) { ok() }
-            else { handleResultFailure(res) }
+        if (!info.username) {
+            return badRequest()
         }
-        else { badRequest() }
+        Result res = passwordResetService.requestReset(info.username)
+        if (res.success) {
+            ok()
+        }
+        else { handleResultFailure(res) }
     }
 
     @RestApiMethod(description="Reset password with a valid reset tokentoken")
@@ -46,10 +50,12 @@ class PasswordResetController extends BaseController {
         if (!validateJsonRequest(request)) { return }
         Map info = request.JSON
         if (info.token && info.password) {
-            Result res = passwordResetService.resetPassword(info.token, info.password)
-            if (res.success) { ok() }
-            else { handleResultFailure(res) }
+            return badRequest()
         }
-        else { badRequest() }
+        Result res = passwordResetService.resetPassword(info.token, info.password)
+        if (res.success) {
+            ok()
+        }
+        else { handleResultFailure(res) }
     }
 }

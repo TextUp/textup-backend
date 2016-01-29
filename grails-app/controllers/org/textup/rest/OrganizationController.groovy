@@ -36,11 +36,12 @@ class OrganizationController extends BaseController {
     @Transactional(readOnly=true)
     def index() {
         if (params.search) {
-            String query = params.search
-            if (!query.startsWith("%")) query = "%$query"
-            if (!query.endsWith("%")) query = "$query%"
-            genericListActionForCriteria(Organization,
-                Organization.iLikeForNameAndAddress(query), params)
+            String query = Helpers.toQuery(params.search)
+            genericListActionForClosures(Organization, {
+                Organization.countSearch(query)
+            }, { Map params ->
+                Organization.search(query, params)
+            }, params)
         }
         else {
             genericListAction(Organization, params)
@@ -90,12 +91,15 @@ class OrganizationController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid organization.")
     ])
     def update() {
-        if (!validateJsonRequest(request, "organization")) { return; }
+        if (!validateJsonRequest(request, "organization")) { return }
         Long id = params.long("id")
         if (authService.exists(Organization, id)) {
-            if (!authService.isAdminAt(id)) { forbidden(); return; }
-            Result res = organizationService.update(params.long("id"), request.JSON.organization)
-            handleUpdateResult(Organization, res)
+            if (!authService.isAdminAt(id)) {
+                return forbidden()
+            }
+            Map oInfo = request.JSON.organization
+            handleUpdateResult(Organization,
+                organizationService.update(params.long("id"), oInfo))
         }
         else { notFound() }
     }
@@ -104,7 +108,5 @@ class OrganizationController extends BaseController {
     // Delete //
     ////////////
 
-    def delete() {
-        notAllowed()
-    }
+    def delete() { notAllowed() }
 }

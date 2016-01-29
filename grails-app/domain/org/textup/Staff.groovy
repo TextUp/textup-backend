@@ -4,6 +4,7 @@ import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
+import org.textup.enum.*
 
 @EqualsAndHashCode
 @RestApiObject(name="Staff", description="A staff member at an organization.")
@@ -17,8 +18,11 @@ class Staff {
     boolean accountLocked
     boolean passwordExpired
 
+    String personalPhoneAsString
+
     @RestApiObjectField(description="Username of the staff member.")
 	String username
+
     @RestApiObjectField(
         description       = "Password of the staff member.",
         presentInResponse = false)
@@ -26,36 +30,27 @@ class Staff {
 
     @RestApiObjectField(description="Full name of the staff member.")
 	String name
+
     @RestApiObjectField(description="Email address of the staff member.")
 	String email
+
     @RestApiObjectField(
         description    = "Id of the organization this team belongs to",
         allowedType    = "Number",
         useForCreation = false)
 	Organization org
-    @RestApiObjectField(
-        description  = "Status of the staff member. Allowed: blocked, pending, staff, admin",
-        mandatory    = false,
-        defaultValue = "pending")
-	String status = Constants.STATUS_PENDING
-    @RestApiObjectField(
-        description = "Personal phone number of the staff member.",
-        allowedType = "String")
-    PhoneNumber personalPhoneNumber
 
     @RestApiObjectField(
-        description    = "TextUp phone number of the staff member.",
-        useForCreation = false,
-        allowedType    = "String")
-	StaffPhone phone
+        description  = "Status of the staff member. Allowed: BLOCKED, PENDING, STAFF, ADMIN",
+        mandatory    = false,
+        allowedType  = "String",
+        defaultValue = "PENDING")
+	StaffStatus status = StaffStatus.PENDING
+
     @RestApiObjectField(
         description    = "Schedule of the staff member.",
         useForCreation = false)
 	Schedule schedule
-    @RestApiObjectField(
-        description    = "Away message to text back when a text comes in but the staff is unavailable.",
-        useForCreation = false)
-    String awayMessage = Constants.DEFAULT_AWAY_MESSAGE
 
     //If manual schedule is true then ignore the Schedule object and
     //look only at the 'available' boolean
@@ -64,22 +59,35 @@ class Staff {
         mandatory    = false,
         defaultValue = "false")
     boolean manualSchedule = false
+
     @RestApiObjectField(
-        description  = "If the staff member is available. Can only be mutated if the staff member is manually managing the schedule.",
+        description  = "If the staff member is available. Can only be mutated \
+            if the staff member is manually managing the schedule.",
         mandatory    = false,
         defaultValue = "true")
     boolean isAvailable = true
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
+            apiFieldField = "phone",
+            description   = "TextUp phone number",
+            allowedType   = "String"),
+        @RestApiObjectField(
+            apiFieldField = "awayMessage",
+            description   = "Away message when no staff members in this team \
+                are available to respond to texts or calls",
+            allowedType   = "String"),
+        @RestApiObjectField(
             apiFieldName   = "phoneId",
-            description    = "Id of the phone number to provision as the TextUp number of this staff member",
+            description    = "Id of the phone number to provision as the \
+                TextUp number of this staff member",
             useForCreation = false,
             allowedType    = "String",
             presentInResponse = false),
         @RestApiObjectField(
             apiFieldName      = "orgName",
-            description       = "If creating a new organization, the name of the organization to create and associate with",
+            description       = "If creating a new organization, the name of \
+                the organization to create and associate with",
             mandatory         = false,
             allowedType       = "String",
             presentInResponse = false),
@@ -97,108 +105,33 @@ class Staff {
             apiFieldName   = "teams",
             description    = "List of teams the staff member is a member of.",
             allowedType    = "List<Team>",
-            useForCreation = false)
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName = "personalPhoneNumber",
+            description  = "Personal phone number of the staff member.",
+            allowedType  = "String")
     ])
-    static transients = []
-    static embedded = ["personalPhoneNumber"]
+    static transients = ['personalPhoneNumber', 'phone']
 	static constraints = {
 		username blank:false, unique:true
 		password blank:false
 		email email:true
-        personalPhoneNumber nullable:true
-		status inList:[Constants.STATUS_BLOCKED, Constants.STATUS_PENDING,
-            Constants.STATUS_STAFF, Constants.STATUS_ADMIN]
+        personalPhoneAsString nullable:true, shared: 'phoneNumber'
         phone nullable:true
-        awayMessage blank:false, size:1..(Constants.TEXT_LENGTH)
 	}
 	static mapping = {
 		password column: '`password`'
 	}
     static namedQueries = {
-        activeForTeam { Team thisTeam ->
-            def res = TeamMembership.staffIdsForTeam(thisTeam).list()
-            if (res) { "in"("id", res) }
-            else { eq("id", null) }
-            "in"("status", [Constants.STATUS_STAFF, Constants.STATUS_ADMIN])
-        }
-        membersForTeam { Team thisTeam, Collection<String> statuses ->
-            def res = TeamMembership.staffIdsForTeam(thisTeam).list()
-            if (res) { "in"("id", res) }
-            else { eq("id", null) }
-            if (statuses) { "in"("status", statuses) }
-            else { eq("status", null) }
-        }
-        forOrgAndStatuses { Organization thisOrg, Collection<String> statuses ->
+        forOrgAndStatuses { Organization thisOrg, Collection<StaffStatus> statuses ->
             eq("org", thisOrg)
             if (statuses) { "in"("status", statuses) }
             else { eq("status", null) }
         }
-        forPersonalAndWorkPhoneNums { TransientPhoneNumber personalNum, TransientPhoneNumber workNum ->
-            eq("personalPhoneNumber.number", personalNum?.number)
-            phone { eq("number.number", workNum?.number) }
-        }
-        forContactId { Long contactId ->
-            def res4 = Phone.forContactId(contactId).list()
-            if (res4) { "in"("phone", res4) }
-            else { eq("phone", null) }
-        }
-        forPhoneNum { TransientPhoneNumber num ->
-            phone { eq("number.number", num?.number) }
-        }
     }
 
-	/*
-	Has many:
-		TeamMembership
-	*/
-
-    ////////////
-    // Events //
-    ////////////
-
-    def beforeDelete() {
-        Staff.withNewSession {
-            TeamMembership.where { staff == this }.deleteAll()
-
-            def tags = ContactTag.where { phone == this.phone }
-            def contacts = Contact.where { phone == this.phone }
-            //delete tag memberships, must come before
-            //deleting ContactTag and Contact
-            new DetachedCriteria(TagMembership).build {
-                def res = tags.list()
-                if (res) { "in"("tag", res) }
-                else { eq("tag", null) }
-            }.deleteAll()
-            //must be before we delete our contacts FOR RECORD DELETION
-            def associatedRecordIds = new DetachedCriteria(Contact).build {
-                projections { property("record.id") }
-                eq("phone", this.phone)
-            }.list()
-            //delete contacts' numbers
-            new DetachedCriteria(ContactNumber).build {
-                def res = contacts.list()
-                if (res) { "in"("contact", res) }
-                else { eq("contact", null) }
-            }.deleteAll()
-            //delete shared contacts
-            SharedContact.where { sharedBy == this.phone || sharedWith == this.phone }.deleteAll()
-            //delete contact and contact tags
-            contacts.deleteAll()
-            tags.deleteAll()
-            //delete records associated with contacts, must
-            //come after contacts are deleted
-            new DetachedCriteria(Record).build {
-                if (associatedRecordIds) { "in"("id", associatedRecordIds) }
-                else { eq("id", null) }
-            }.deleteAll()
-        }
-    }
-    def afterDelete() {
-        Staff.withNewSession {
-            StaffPhone.where { id == this.phone.id }.deleteAll()
-            Schedule.where { id == this.schedule.id }.deleteAll()
-        }
-    }
+	// Events
+    // ------
 
     def beforeValidate() {
         if (!this.schedule) {
@@ -207,102 +140,41 @@ class Staff {
         }
     }
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    // Schedule
+    // --------
 
-    /*
-    Permissions
-     */
-    Result<Staff> approve() {
-        this.status = Constants.STATUS_STAFF
-        resultFactory.success(this)
-    }
-    Result<Staff> block() {
-        this.status = Constants.STATUS_BLOCKED
-        resultFactory.success(this)
-    }
-    Result<Staff> promoteToAdmin() {
-        if (this.status == Constants.STATUS_STAFF) {
-            this.status = Constants.STATUS_ADMIN
-            resultFactory.success(this)
-        }
-        else { resultFactory.failWithMessage("staff.error.notYetApproved") }
-    }
-    Result<Staff> demoteFromAdmin() {
-        if (this.status == Constants.STATUS_ADMIN) {
-            this.status = Constants.STATUS_STAFF
-            resultFactory.success(this)
-        }
-        else { resultFactory.failWithMessage("staff.error.notAdmin") }
-    }
-
-    /*
-    Memberships
-     */
-    List<Team> getTeams(Map params=[:]) {
-        Team.forStaff(this).list(params) ?: []
-    }
-    Result<TeamMembership> addToTeam(String teamName) {
-        Team team = Team.findByOrgAndName(this.org, teamName)
-        if (team) { addToTeam(team) }
-        else { resultFactory.failWithMessage("staff.error.teamNotFound", [teamName]) }
-    }
-    Result<TeamMembership> addToTeam(Team team) {
-        TeamMembership m = TeamMembership.findByStaffAndTeam(this, team)
-        if (m) { resultFactory.success(m) }
-        else {
-            m = new TeamMembership(staff:this, team:team)
-            if (m.save()) { resultFactory.success(m) }
-            else { resultFactory.failWithValidationErrors(m.errors) }
-        }
-    }
-    Result<Team> removeFromTeam(String teamName) {
-        Team team = Team.findByOrgAndName(this.org, teamName)
-        if (team) { removeFromTeam(team) }
-        else { resultFactory.failWithMessage("staff.error.teamNotFound", [teamName]) }
-    }
-    Result<Team> removeFromTeam(Team team) {
-        TeamMembership m = TeamMembership.findByStaffAndTeam(this, team)
-        if (m) { m.delete() }
-        resultFactory.success(team)
-    }
-
-    /*
-    Schedule
-     */
     boolean isAvailableNow() {
         manualSchedule ? isAvailable : schedule.isAvailableNow()
     }
     Result<Boolean> isAvailableAt(DateTime dt) {
         if (!manualSchedule) { resultFactory.success(schedule.isAvailableAt(dt)) }
-        else { resultFactory.failWithMessage("staff.error.scheduleInfoUnavailable") }
+        else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
     }
     Result<ScheduleChange> nextChange(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextChange(timezone)
         }
-        else { resultFactory.failWithMessage("staff.error.scheduleInfoUnavailable") }
+        else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
     }
     Result<DateTime> nextAvailable(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextAvailable(timezone)
         }
-        else { resultFactory.failWithMessage("staff.error.scheduleInfoUnavailable") }
+        else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
     }
     Result<DateTime> nextUnavailable(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextUnavailable(timezone)
         }
-        else { resultFactory.failWithMessage("staff.error.scheduleInfoUnavailable") }
+        else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
     }
     Result<Schedule> updateSchedule(Map params) {
         schedule.update(params)
     }
 
-    /*
-    SpringSecurityCore methods
-     */
+    // SpringSecurityCore methods
+    // --------------------------
+
 	Set<Role> getAuthorities() {
 		StaffRole.findAllByStaff(this).collect { it.role }
 	}
@@ -315,42 +187,82 @@ class Staff {
 		}
 	}
 	protected void encodePassword() {
-		password = springSecurityService?.passwordEncoder ? springSecurityService.encodePassword(password) : password
+		password = springSecurityService?.passwordEncoder ?
+            springSecurityService.encodePassword(password) : password
 	}
 
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Team
+    // ----
 
+    boolean sharesTeamWith(Staff s1) {
+        HashSet<Teams> myTeams = new HashSet<>(this.teams)
+        s1?.teams?.any { it in myTeams }
+    }
+
+    // Sharing
+    // -------
+
+    Collection<Staff> getCanShareWith(Collection<String> statuses=[]) {
+        HashSet<Staff> staffCanShare = new HashSet<>()
+        this.teams.each { Team t1 ->
+            staffCanShare.addAll(t1.getMembers(statuses))
+        }
+        staffCanShare
+    }
+
+
+    // Property Access
+    // ---------------
+
+    int countTeams() {
+        Team.forStaffs([this]).count()
+    }
+    List<Team> getTeams(Map params=[:]) {
+        Team.forStaffs([this]).list(params)
+    }
     void setUsername(String un) {
         this.username = un?.toLowerCase()
     }
-
     void setSchedule(Schedule s) {
         this.schedule = s
         this.schedule?.save()
     }
-
-    void setPersonalPhoneNumberAsString(String num) {
-        if (this.personalPhoneNumber) {
-            this.personalPhoneNumber.number = num
-        }
-        else {
-            this.personalPhoneNumber = new PhoneNumber(number:num)
-        }
-        this.personalPhoneNumber.save()
+    void setPersonalPhoneNumber(PhoneNumber num) {
+        this.personalPhoneAsString = num?.number
     }
-    // DO NOT call save as this will save many many
-    // copies of the phone number
-    void setPersonalPhoneNumber(PhoneNumber pNum) {
-        this.personalPhoneNumber = pNum
+    PhoneNumber getPersonalPhoneNumber() {
+        new PhoneNumber(number:this.personalPhoneAsString)
     }
-
-    void setPhone(StaffPhone p) {
-        this.phone = p
-    	if (this.phone) {
-    		this.phone.ownerId = this.id
-            if (this.phone.validate()) { this.phone.save() }
-    	}
+    void setPhone(Phone p1) {
+        PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(this.id,
+            PhoneOwnershipType.INDIVIDUAL) ?:
+            new PhoneOwnership(ownerId:this.id, type:PhoneOwnershipType.INDIVIDUAL)
+        own.phone = p1
+        if (own.phone.validate()) { own.phone.save() }
+    }
+    Phone getPhone() {
+        PhoneOwnership.createCriteria().list {
+            propjections { property("phone") }
+            eq("type", PhoneOwnershipType.INDIVIDUAL)
+            eq("ownerId", this.id)
+        }[0]
+    }
+    List<Phone> getAllPhones() {
+        List<Team> teams = this.teams
+        PhoneOwnership.createCriteria().list {
+            propjections { property("phone") }
+            or {
+                and {
+                    eq("type", PhoneOwnershipType.INDIVIDUAL)
+                    eq("ownerId", this.id)
+                }
+                if (teams) {
+                    and{
+                        eq("type", PhoneOwnershipType.GROUP)
+                        "in"("ownerId", teams*.id)
+                    }
+                }
+            }
+        }
     }
 }

@@ -28,18 +28,6 @@ class Location {
         }
     }
 
-    /*
-	Has many:
-	*/
-
-    ////////////////////
-    // Helper methods //
-    ////////////////////
-
-    /////////////////////
-    // Property Access //
-    /////////////////////
-
     @Override
     String toString() { this.address }
 }

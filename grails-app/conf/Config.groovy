@@ -181,6 +181,17 @@ grails.doc.title = "TextUp"
 grails.doc.subtitle = "A getting started guide to the backend and frontend codebases that make up the TextUp application"
 grails.doc.authors = "Eric Bai"
 grails.doc.license = "MIT"
+//shared constraints
+grails.gorm.default.constraints = {
+    phoneNumber validator:{ val, obj ->
+        if (val?.toString() !=~ /(^\d){10}$/) { ["format"] }
+    }
+    textMessage blank:false, nullable:false, maxSize:320
+    hexColor blank:false, nullable:false, validator:{ val, obj ->
+        //String must be a valid hex color
+        if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
+    }
+}
 
 textup {
     maxNumText = 50 //max number of recipients to text

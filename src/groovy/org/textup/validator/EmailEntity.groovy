@@ -1,4 +1,4 @@
-package org.textup
+package org.textup.validator
 
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
@@ -8,12 +8,12 @@ import groovy.transform.ToString
 @ToString
 @Validateable
 class EmailEntity {
-    
+
     String name
-    String email 
+    String email
 
     static constraints = {
-    	name blank:false, nullable:false 
+    	name blank:false, nullable:false
     	email blank:false, nullable:false, email:true
     }
 }

@@ -19,9 +19,8 @@ class TeamController extends BaseController {
     //authService from superclass
     def teamService
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     @RestApiMethod(description="List teams", listing=true)
     @RestApiParams(params=[
@@ -35,35 +34,39 @@ class TeamController extends BaseController {
             required=true, description="Id of the staff")
     ])
     @RestApiErrors(apierrors=[
-        @RestApiError(code="404",description="The organization or staff was not found."),
-        @RestApiError(code="400", description="You must specify either an organization id or staff id, but not both."),
+        @RestApiError(code="404",description="The organization or staff was \
+            not found."),
+        @RestApiError(code="400", description="You must specify either an \
+            organization id or staff id, but not both."),
         @RestApiError(code="403", description="You do not have permission to do this.")
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (params.organizationId && params.staffId) { badRequest() }
-        else if (params.organizationId) {
+        Closure count, list
+        if (params.long("organizationId")) {
             Organization org = Organization.get(params.long("organizationId"))
-            if (!org) { notFound(); return; }
-            if (authService.isAdminAt(org.id)) {
-                genericListActionForCriteria(Team, Team.forOrg(org), params)
+            if (!org) {
+                return notFound()
             }
-            else { forbidden() }
-        }
-        else if (params.staffId) {
-            Staff s1 = Staff.get(params.long("staffId"))
-            if (!s1) { notFound(); return; }
-            if (authService.isLoggedIn(s1.id) || authService.isAdminAt(s1.org.id)) {
-                genericListActionForCriteria(Team, Team.forStaff(s1), params)
+            else if (!authService.isAdminAt(org.id)) {
+                return forbidden()
             }
-            else { forbidden() }
+            count = { org.countTeams() }
+            list = { Map params -> org.getTeams(params) }
         }
-        else { badRequest() }
+        else {
+            Staff s1 = authService.loggedInAndActive
+            if (!s1) {
+                return forbidden()
+            }
+            count = { s1.countTeams() }
+            list = { Map params -> s1.getTeams(params) }
+        }
+        genericListActionForClosures(Team, count, list, params)
     }
 
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     @RestApiMethod(description="Show specifics about a team")
     @RestApiParams(params=[
@@ -86,33 +89,27 @@ class TeamController extends BaseController {
         else { notFound() }
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
-    @RestApiMethod(description="Create a new team and associated it with an existing organization")
+    @RestApiMethod(description="Create a new team and associated it with an \
+        existing organization")
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),
-        @RestApiError(code="404",description="The organization to add the team to was not found."),
-        @RestApiError(code="422", description="The updated fields created an invalid team."),
-        @RestApiError(code="403", description="You do not permissions to create a new team for this organization.")
+        @RestApiError(code="404",description="The organization to add the team \
+            to was not found."),
+        @RestApiError(code="422", description="The updated fields created an \
+            invalid team."),
+        @RestApiError(code="403", description="You do not permissions to \
+            create a new team for this organization.")
     ])
     def save() {
-        if (!validateJsonRequest(request, "team")) { return; }
-        Long orgId = Helpers.toLong(request.JSON.team?.org)
-        if (authService.exists(Organization, orgId)) {
-            if (authService.isAdminAt(orgId)) {
-                handleSaveResult(Team, teamService.create(request.JSON.team) )
-            }
-            else { forbidden() }
-        }
-        else { notFound() }
+        if (!validateJsonRequest(request, "team")) { return }
+        handleSaveResult(Team, teamService.create(request.JSON.team))
     }
 
-
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     @RestApiMethod(description="Update an existing team")
     @RestApiParams(params=[
@@ -127,10 +124,10 @@ class TeamController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid team.")
     ])
     def update() {
-        if (!validateJsonRequest(request, "team")) { return; }
+        if (!validateJsonRequest(request, "team")) { return }
         Long id = params.long("id")
         if (authService.exists(Team, id)) {
-            if (authService.isAdminForTeam(id)) {
+            if (authService.hasPermissionsForTeam(id)) {
                 handleUpdateResult(Team, teamService.update(id, request.JSON.team))
             }
             else { forbidden() }
@@ -138,9 +135,8 @@ class TeamController extends BaseController {
         else { notFound() }
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     @RestApiMethod(description="Delete an existing team")
     @RestApiParams(params=[
@@ -149,8 +145,8 @@ class TeamController extends BaseController {
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404", description="The requested team was not found."),
-        @RestApiError(code="403", description='''The logged in staff member is
-            not an admin and so cannot delete teams.''')
+        @RestApiError(code="403", description="The logged in staff member is \
+            not an admin and so cannot delete teams.")
     ])
     def delete() {
         Long id = params.long("id")
@@ -162,9 +158,4 @@ class TeamController extends BaseController {
         }
         else { notFound() }
     }
-
-    /////////////
-    // Helpers //
-    /////////////
-
 }

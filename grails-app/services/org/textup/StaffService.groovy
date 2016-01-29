@@ -7,6 +7,7 @@ import com.twilio.sdk.TwilioRestClient
 import com.twilio.sdk.TwilioRestException
 import org.apache.http.message.BasicNameValuePair
 import org.apache.http.NameValuePair
+import com.twilio.sdk.resource.instance.Account
 
 @Transactional
 class StaffService {
@@ -14,11 +15,11 @@ class StaffService {
     def resultFactory
     def authService
     def mailService
+    def twilioService
     def grailsApplication
 
-    //////////////////
-    // REST methods //
-    //////////////////
+    // Create
+    // ------
 
     Result<Staff> create(Map body) {
     	Staff s1 = new Staff()
@@ -29,140 +30,163 @@ class StaffService {
     		email = body.email
     		if (body.manualSchedule) manualSchedule = body.manualSchedule
     		if (body.isAvailable) isAvailable = body.isAvailable
-            //NOT allowed to change status away from default 'pending' EXCEPT (see below)
 		}
-		if (body.org) {
-            Organization org
-			def o = body.org
-            //if we specify id then we must be associating with existing
-            if (o.id) {
-                org = Organization.get(o.id)
-                if (!org) {
-                    return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                        "staffService.create.orgNotFound", [o.id])
-                }
-                //if logged in is admin at org we are adding this staff to, permit status update
-                if (body.status && authService.isAdminAt(org.id)) {
-                    s1.status = body.status
-                }
-                else {
-                    s1.status = Constants.STATUS_PENDING
-                    Result res = mailService.notifyAdminsOfPendingStaff(s1.name, org.admins)
-                    if (!res.success) { return res }
-                }
+        this.addStaffToOrg(s1, body.org).then({ Organization o1 ->
+            // only allowed to change status if is admin
+            if (body.status && o1.id && authService.isAdminAt(o1.id)) {
+                s1.status = Helpers.convertEnum(StaffStatus, body.status)
             }
-            else {
-                //We will manually change this staff status to ADMIN
-                //after we approve the organization
-                s1.status = Constants.STATUS_ADMIN
-                org = new Organization(o)
-                org.status = Constants.ORG_PENDING
-                org.location = new Location(o.location)
-                if (!org.location.save()) { //needs to be before org.save()
-                    return resultFactory.failWithValidationErrors(org.location.errors)
-                }
-                if (!org.save()) {
-                    return resultFactory.failWithValidationErrors(org.errors)
-                }
-                Result res = mailService.notifySuperOfNewOrganization(org.name)
-                if (!res.success) { return res }
+            if (s1.save(flush:true)) {
+                StaffRole.create(s1, Role.findByAuthority("ROLE_USER"), true)
+                resultFactory.success(s1)
             }
-			s1.org = org
-		}
-		if (s1.save(flush:true)) {
-            StaffRole.create(s1, Role.findByAuthority("ROLE_USER"), true)
-            resultFactory.success(s1)
+            else { resultFactory.failWithValidationErrors(s1.errors) }
+        })
+    }
+    protected Result<Organization> addStaffToOrg(Staff s1, Map orgInfo) {
+        if (!orgInfo) {
+            return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+                "staffService.create.mustSpecifyOrg")
         }
-    	else { resultFactory.failWithValidationErrors(s1.errors) }
+        Organization org
+        //if we specify id then we must be associating with existing
+        if (orgInfo.id) { // existing organization
+            org = Organization.get(orgInfo.id)
+            if (!org) {
+                return resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                    "staffService.create.orgNotFound", [orgInfo.id])
+            }
+            //if logged in is admin at org we are adding this staff to, permit status update
+            s1.status = StaffStatus.PENDING
+            Result res = mailService.notifyAdminsOfPendingStaff(s1.name, org.admins)
+            if (!res.success) { return res }
+        }
+        else { // create new organization
+            s1.status = StaffStatus.ADMIN
+            org = new Organization(orgInfo)
+            org.status = OrgStatus.PENDING
+            org.location = new Location(orgInfo.location)
+            if (!org.location.save()) { //needs to be before org.save()
+                return resultFactory.failWithValidationErrors(org.location.errors)
+            }
+            if (!org.save()) {
+                return resultFactory.failWithValidationErrors(org.errors)
+            }
+            Result res = mailService.notifySuperOfNewOrganization(org.name)
+            if (!res.success) { return res }
+        }
+        s1.org = org
+
+        resultFactory.success(org)
     }
 
+    // Update
+    // ------
+
     Result<Staff> update(Long staffId, Map body, String timezone) {
-    	Staff s1 = Staff.get(staffId)
-    	if (!s1) {
-    		return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "staffService.update.notFound", [staffId])
-    	}
-    	s1.with {
-    		if (body.name) name = body.name
+        Result.<Staff>waterfall(
+            this.&findStaffForId.curry(staffId),
+            this.&updateStaff.rcurry(body, timezone),
+            this.&updatePhoneNumber.rcurry(body)
+        ).then({ Staff s1 ->
+            if (s1.save()) {
+                resultFactory.success(s1)
+            }
+            else { resultFactory.failWithValidationErrors(s1.errors) }
+        })
+    }
+    protected Result<Staff> findStaffForId(Long sId) {
+        Staff s1 = Staff.get(sId)
+        s1 ? resultFactory.success(s1) : resultFactory.failWithMessageAndStatus(NOT_FOUND,
+            "staffService.update.notFound", [sId])
+    }
+    protected Result<Staff> updateStaff(Staff s1, Map body, String timezone) {
+        s1.with {
+            if (body.name) name = body.name
             if (body.username) username = body.username
             if (body.password) password = body.password
             if (body.email) email = body.email
             if (body.manualSchedule) manualSchedule = body.manualSchedule
             if (body.isAvailable) isAvailable = body.isAvailable
-            if (body.awayMessage) awayMessage = body.awayMessage
-		}
-        if (body.personalPhoneNumber) {
-            s1.personalPhoneNumberAsString = body.personalPhoneNumber
-        }
-		if (body.schedule) {
-			Result res = s1.schedule.updateWithIntervalStrings(body.schedule, timezone)
-			if (!res.success) { return res }
-		}
-		if (body.phone || body.phoneId) {
-            StaffPhone p1 = s1.phone ?: new StaffPhone()
-            def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
-            TransientPhoneNumber bNum = new TransientPhoneNumber(number:body.phone)
-            //only proceed if we are trying to CHANGE our phone number
-            if (!((bNum.validate() && bNum.number == p1.numberAsString) ||
-                (body.phoneId && body.phoneId == p1.apiId))) {
-                try {
-                    TwilioRestClient client = new TwilioRestClient(twilioConfig.sid, twilioConfig.authToken)
-                    List<NameValuePair> params = []
-                    params.with {
-                        add(new BasicNameValuePair("FriendlyName", twilioConfig.unavailable))
-                        add(new BasicNameValuePair("SmsApplicationSid", twilioConfig.appId))
-                        add(new BasicNameValuePair("VoiceApplicationSid", twilioConfig.appId))
-                    }
-                    IncomingPhoneNumber currNum = p1.apiId ? client.account.getIncomingPhoneNumber(p1.apiId) : null,
-                        newNum
-                    if (body.phoneId) {
-                        newNum = client.account.getIncomingPhoneNumber(body.phoneId)
-                        newNum.update(params)
-                    }
-                    else {
-                        params.add(new BasicNameValuePair("PhoneNumber", body.phone))
-                        newNum = client.account.incomingPhoneNumberFactory.create(params)
-                    }
-                    //update staff phone
-                    if (currNum) {
-                        currNum.update([new BasicNameValuePair("FriendlyName", twilioConfig.available)])
-                    }
-                    p1.apiId = newNum.sid
-                    p1.numberAsString = newNum.phoneNumber
-                }
-                catch (TwilioRestException e) {
-                    return resultFactory.failWithThrowable(e)
-                }
+            if (body.personalPhoneNumber) {
+                personalPhoneNumberAsString = body.personalPhoneNumber
             }
-            s1.phone = p1
+        }
+        if (s1.phone && body.awayMessage) {
+            s1.phone.awayMessage = body.awayMessage
             if (!s1.phone.save()) {
                 return resultFactory.failWithValidationErrors(s1.phone.errors)
             }
-		}
-        if (body.status) { //can only update status if you are an admin
-            if (authService.isAdminAtSameOrgAs(s1.id)) {
-                String oldStatus = s1.status
-                s1.status = body.status
-                if (oldStatus == Constants.STATUS_PENDING &&
-                    s1.status != Constants.STATUS_PENDING && s1.save()) {
-                    Result res
-                    if (s1.status == Constants.STATUS_ADMIN ||
-                        s1.status == Constants.STATUS_STAFF) {
-                        res = mailService.notifyPendingOfApproval(s1)
-                    }
-                    else {
-                        res = mailService.notifyPendingOfRejection(s1)
-                    }
-                    if (!res.success) { return res }
-                }
+        }
+        if (body.schedule) {
+            Result res = s1.schedule.updateWithIntervalStrings(body.schedule, timezone)
+            if (!res.success) { return res }
+        }
+        //can only update status if you are an admin
+        if (body.status && authService.isAdminAtSameOrgAs(s1.id)) {
+            StaffStatus oldStatus = s1.status
+            s1.status = Helpers.convertEnum(StaffStatus, body.status)
+            if (!s1.validate()) {
+                return resultFactory.failWithValidationErrors(s1.errors)
             }
-            else {
-                s1.discard()
-                return resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                    "staffService.update.statusNotAdmin", [staffId])
+            // email notifications if changing away from pending
+            if (oldStatus.isPending && !s1.status.isPending) {
+                Result res = s1.status.isActive ?
+                    mailService.notifyPendingOfApproval(s1) :
+                    mailService.notifyPendingOfRejection(s1)
+                if (!res.success) { return res }
             }
         }
-		if (s1.save()) { resultFactory.success(s1) }
-    	else { resultFactory.failWithValidationErrors(s1.errors) }
+        resultFactory.success(s1)
+    }
+    protected Result<Staff> updatePhoneNumber(Staff s1, Map body) {
+        if (body.phone || body.phoneId) {
+            Phone p1 = s1.phone ?: new Phone()
+            s1.phone = p1
+            PhoneNumber pNum = new PhoneNumber(number:body.phone)
+            // only proceed if we are trying to CHANGE our phone number
+            if ((pNum.validate() && pNum.number == p1.numberAsString) ||
+                (body.phoneId && body.phoneId == p1.apiId)) {
+                Result<IncomingPhoneNumber> res = this.changeNumber(s1, p1, pNum, body.phoneId)
+                if (!res.success) { return res }
+                IncomingPhoneNumber newNum = res.payload
+                p1.apiId = newNum.sid
+                p1.numberAsString = newNum.phoneNumber
+                if (!p1.save()) {
+                    return resultFactory.failWithValidationErrors(p1.errors)
+                }
+            }
+        }
+        resultFactory.success(s1)
+    }
+    protected Result<IncomingPhoneNumber> changeNumber(Staff s1, Phone p1,
+        PhoneNumber pNum, String apiId) {
+        def tConfig = grailsApplication.config.textup.apiKeys.twilio
+        try {
+            Account ac = twilioService.account
+            List<NameValuePair> params = []
+            params.with {
+                add(new BasicNameValuePair("FriendlyName", tConfig.unavailable))
+                add(new BasicNameValuePair("SmsApplicationSid", tConfig.appId))
+                add(new BasicNameValuePair("VoiceApplicationSid", tConfig.appId))
+            }
+            IncomingPhoneNumber currNum = p1.apiId ? ac.getIncomingPhoneNumber(p1.apiId) : null
+            IncomingPhoneNumber newNum
+            if (apiId) { // update number that we already own
+                newNum = ac.getIncomingPhoneNumber(apiId)
+                newNum.update(params)
+            }
+            else { // purchase this new number
+                params.add(new BasicNameValuePair("PhoneNumber", pNum?.e164PhoneNumber))
+                newNum = ac.incomingPhoneNumberFactory.create(params)
+            }
+            if (currNum) { // update previous number to make available
+                currNum.update([new BasicNameValuePair("FriendlyName", tConfig.available)])
+            }
+            resultFactory.success(newNum)
+        }
+        catch (TwilioRestException e) {
+            return resultFactory.failWithThrowable(e)
+        }
     }
 }

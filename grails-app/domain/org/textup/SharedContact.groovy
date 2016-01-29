@@ -7,40 +7,48 @@ import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 
 @EqualsAndHashCode
-@RestApiObject(name="SharedContact", description="Information on how you've shared a contact with another staff member")
+@RestApiObject(
+    name="SharedContact",
+    description="Information on how you've shared a contact with another staff member")
 class SharedContact implements Contactable {
 
+    def authService
     def resultFactory
 
-    @RestApiObjectField(
-        description    = "When you started sharing this contact",
-        allowedType    = "DateTime",
-        useForCreation = false)
+    Phone sharedBy
+    // Should not access contact object directly
+    Contact contact
+    // SharedContact still active if dateExpired is null or in the future
+    DateTime dateExpired
 	DateTime dateCreated = DateTime.now(DateTimeZone.UTC)
-	DateTime dateExpired //dateExpired = null -> SharedContact still active
-    @RestApiObjectField(description="Level of permissions you shared this contact with. Allowed: delegate, view")
-    String permission
-
-	Contact contact
-	StaffPhone sharedBy
 
     @RestApiObjectField(
-        description    = "Name of the staff member you have shared this contact with",
+        description = "Level of permissions you shared this contact with. \
+            Allowed: DELEGATE, VIEW",
+        allowedType = "String")
+    SharePermission permission
+
+    @RestApiObjectField(
+        description    = "Name of the phone that contact is shared with",
         allowedType    = "String",
         useForCreation = false)
-	StaffPhone sharedWith
+    Phone sharedWith
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName   = "sharedWithId",
-            description    = "Staff member that this contact is shared with",
+            description    = "Id of the phone that contact is shared with",
             allowedType    = "Number",
-            useForCreation = true)
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "startedSharing",
+            description    = "When you started sharing this contact",
+            allowedType    = "DateTime",
+            useForCreation = false)
     ])
     static transients = []
     static constraints = {
     	dateExpired nullable:true
-        permission blank:false, nullable:false, inList:[Constants.SHARED_DELEGATE, Constants.SHARED_VIEW]
         contact validator:{ val, obj ->
             if (val.phone != obj.sharedBy) { ["contactOwnership", val.name] }
         }
@@ -54,232 +62,123 @@ class SharedContact implements Contactable {
         dateExpired type:PersistentDateTime
     }
     static namedQueries = {
-        notExpired {
-            isNull("dateExpired") //not expired if null
-            createAlias("contact", "c1")
-            order("c1.status", "desc") //unread first then active
-            order("c1.lastRecordActivity", "desc") //more recent first
-            order("c1.id", "desc") //by contact id
-            "in"("c1.status", [Constants.CONTACT_ACTIVE, Constants.CONTACT_UNREAD])
+        forContact { Contact c1 ->
+            eq('contact', c1)
+            eq('sharedBy', c1.phone)
         }
-        sharedContactsForSameTeamAsSharedWith { StaffPhone sWith ->
-            eq("sharedWith.id", sWith.id)
-            sharedBy {
-                def res = TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list()
-                if (res) { "in"("ownerId", res) }
-                else { eq("ownerId", null) }
+        forContactAndSharedWith { Contact c1, Phone sWith ->
+            eq('sharedBy', c1.phone)
+            eq('sharedWith', sWith)
+        }
+        forSharedByAndSharedWith { Phone sBy, Phone sWith ->
+            eq('sharedBy', sBy)
+            eq('sharedWith', sWith)
+        }
+        sharedWithMe { Phone sWith ->
+            eq('sharedWith', sWith)
+            activeAndSort()
+        }
+        sharedByMe { Phone sBy ->
+            projections { distinct("contact") }
+            eq('sharedBy', sBy)
+            activeAndSort()
+        }
+        activeAndSort {
+            or {
+                isNull("dateExpired") //not expired if null
+                le("dateExpired", DateTime.now())
             }
-        }
-        sharedContactsForSameTeamAsSharedBy { StaffPhone sBy ->
-            eq("sharedBy.id", sBy.id)
-            sharedWith {
-                def res = TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list()
-                if (res) { "in"("ownerId", res) }
-                else { eq("ownerId", null) }
-            }
-        }
-        sharedContactsForSameTeam { StaffPhone sBy, StaffPhone sWith ->
-            sharedBy {
-                def res = TeamMembership.staffIdsOnSameTeamAs(sWith.ownerId).list()
-                if (res) { "in"("ownerId", res) }
-                else { eq("ownerId", null) }
-            }
-            sharedWith {
-                def res = TeamMembership.staffIdsOnSameTeamAs(sBy.ownerId).list()
-                if (res) { "in"("ownerId", res) }
-                else { eq("ownerId", null) }
-            }
-        }
-
-        sharedWithMe { StaffPhone sWith ->
-            eq("sharedWith", sWith)
-            notExpired()
-            sharedContactsForSameTeamAsSharedWith(sWith)
-        }
-        sharedWithMeIds { StaffPhone sWith ->
-            projections { property("id") }
-            sharedWithMe(sWith)
-        }
-        sharedWithForContactIds { StaffPhone sWith, Collection<Long> contactIds ->
-            sharedWithMe(sWith)
-            //alias from notExpired()
-            if (contactIds) { "in"("c1.id", contactIds) }
-            else { eq("c1.id", null) }
-        }
-        sharedWithMeContactIds { StaffPhone sWith ->
-            projections { property("contact.id") }
-            eq("sharedWith", sWith)
-            notExpired()
-            sharedContactsForSameTeamAsSharedWith(sWith)
-        }
-        anyTeamSharedByMeIds { StaffPhone sBy ->
-            projections { property("id") }
-            eq("sharedBy", sBy)
-            notExpired()
-        }
-        sharedByMe { StaffPhone sBy ->
-            eq("sharedBy", sBy)
-            notExpired()
-            sharedContactsForSameTeamAsSharedBy(sBy)
-        }
-        sharedByMeIds { StaffPhone sBy ->
-            projections { property("id") }
-            sharedByMe(sBy)
-        }
-        allNonexpiredFor { Contact contact, StaffPhone sBy ->
-            sharedByMe(sBy)
-            eq("contact", contact)
-        }
-        allNonexpiredBetween { StaffPhone sBy, StaffPhone sWith ->
-            eq("sharedBy", sBy)
-            eq("sharedWith", sWith)
-            notExpired()
-        }
-        nonexpiredFor { Contact contact, StaffPhone sBy, StaffPhone sWith ->
-            eq("contact", contact)
-            eq("sharedBy", sBy)
-            eq("sharedWith", sWith)
-            notExpired()
-            sharedContactsForSameTeam(sBy, sWith)
-        }
-        nonexpiredForContact { Contact thisContact ->
-            nonexpiredForContactId(thisContact?.id)
-        }
-        nonexpiredForContactId { Long thisContactId ->
-            eq("c1.id", thisContactId)
-            notExpired()
-        }
-        contactIdsForSharedWithId { Long sWithId ->
-            sharedWith { eq("id", sWithId) }
-            isNull("dateExpired") //not expired if null
-            projections { property("contact.id") }
+            createAlias("contact", "contactShared")
+            order("contactShared.status", "desc") //unread first then active
+            order("contactShared.lastRecordActivity", "desc") //more recent first
+            order("contactShared.id", "desc") //by contact id
+            "in"("contactShared.status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
         }
     }
 
-    /*
-	Has many:
-	*/
+    // Sharing
+    // -------
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    SharedContact startSharing(SharePermission perm) {
+        this.permissions = perm
+        this.dateExpired = null
+        this
+    }
+    SharedContact stopSharing() {
+        this.dateExpired = DateTime.now(DateTimeZone.UTC)
+        this
+    }
 
-    /*
-    Permissions
-     */
-    void stopSharing() { this.dateExpired = DateTime.now(DateTimeZone.UTC) }
+    // Status
+    // ------
 
+    boolean getIsActive() {
+        this.canModify || this.canView
+    }
     //Can modify if not yet expired, and with delegate permissions
-    private boolean canModify() {
-        isSameTeam() && this.dateExpired == null && this.permission == Constants.SHARED_DELEGATE
+    boolean getCanModify() {
+        this.dateExpired == null && this.permission == SharePermission.DELEGATE
     }
-    //Can modify if not yet expired and with either delegate or
-    //view persmissions
-    private boolean canView() {
-        isSameTeam() && (canModify() ||
-            (this.dateExpired == null && this.permission == Constants.SHARED_VIEW))
-    }
-    //check that sharedBy and sharedWith Staff are still on the same Team
-    private boolean isSameTeam() {
-        SharedContact.sharedContactsForSameTeam(sharedBy, sharedWith).count() > 0
+    //Can view if not yet expired and with delegate or view persmissions
+    boolean getCanView() {
+        this.canModify || (this.dateExpired == null &&
+            this.permission == SharePermission.VIEW)
     }
 
-    /*
-    Activity
-     */
+    // Property access
+    // ---------------
 
-    DateTime getLastRecordActivity() {
-        canView() ? this.contact.lastRecordActivity : null
+    static SharedContact findByContactId(Long cId) {
+        SharedContact.createCriteria().get {
+            contact { idEq(cId) }
+        }
     }
-    void updateLastRecordActivity() {
-        if (canModify()) this.contact.updateLastRecordActivity()
-    }
-
-    /*
-    Related to the client's record
-     */
-
-    Result<RecordResult> call(Staff staffMakingCall, Map params) {
-        if (canModify()) { contact.call(staffMakingCall, params, this.author) }
-        else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
-    }
-    Result<RecordResult> call(Staff staffMakingCall, Map params, Author author) {
-        call(staffMakingCall, params)
+    static List<SharedContact> findByContactIds(Collection<Long> cIds) {
+        SharedContact.createCriteria().list {
+            contact {
+                if (cIds) { "in"("id", cIds) }
+                else { eq("id", null) }
+            }
+        }
     }
 
-    Result<RecordResult> text(Map params) {
-        if (canModify()) { contact.text(params, this.author) }
-        else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
-    }
-    Result<RecordResult> text(Map params, Author author) {
-        text(params)
-    }
-
-    Result<RecordResult> addNote(Map params) {
-        if (canModify()) { contact.addNote(params, this.author) }
-        else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
-    }
-    Result<RecordResult> addNote(Map params, Author author) {
-        addNote(params)
-    }
-
-    Result<RecordResult> editNote(long noteId, Map params) {
-        if (canModify()) { contact.editNote(noteId, params, this.author) }
-        else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
-    }
-    Result<RecordResult> editNote(long noteId, Map params, Author author) {
-        editNote(noteId, params)
-    }
-
-    Author getAuthor() {
-        Staff s = Staff.get(sharedWith.ownerId)
-        if (s) { new Author(name:s.name, id:sharedWith.ownerId) }
-        else { new Author(id:sharedWith.ownerId) }
-    }
-
-    /*
-    Client's phone numbers
-     */
-    Result<PhoneNumber> mergeNumber(String number, Map params) {
-        if (canModify()) { contact.mergeNumber(number, params) }
-        else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
-    }
-    Result deleteNumber(String number) {
-        if (canModify()) { contact.deleteNumber(number) }
-        else { resultFactory.failWithMessage("sharedContact.error.denied", [contact.name]) }
-    }
-
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Contactable methods
+    // -------------------
 
     Long getContactId() {
-        this.contact?.id
+        this.canView ? this.contact.contactId : null
     }
-
-    List<PhoneNumber> getNumbers() {
-        canView() ? contact.numbers : []
+    DateTime getLastRecordActivity() {
+        this.canView ? this.contact.lastRecordActivity : null
     }
-
-    /*
-    Retrieving items for the client's record
-     */
+    String getName() {
+        this.canView ? this.contact.name : null
+    }
+    String getNote() {
+        this.canView ? this.contact.note : null
+    }
+    ContactStatus getStatus() {
+        this.canView ? this.contact.status : null
+    }
+    List<ContactNumber> getNumbers() {
+        this.canView ? this.contact.numbers : null
+    }
     List<RecordItem> getItems(Map params=[:]) {
-        canView() ? contact.getItems(params) : []
-    }
-    List<RecordItem> getSince(DateTime since, Map params=[:]) {
-        canView() ? contact.getSince(since, params) : []
-    }
-    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
-        canView() ? contact.getBetween(start, end, params) : []
+        this.canView ? this.contact.getItems(params) : null
     }
     int countItems() {
-        canView() ? contact.countItems() : -1
+        this.canView ? this.contact.countItems() : 0
+    }
+    List<RecordItem> getSince(DateTime since, Map params=[:]) {
+        this.canView ? this.contact.getSince(since, params) : null
     }
     int countSince(DateTime since) {
-        canView() ? contact.countSince(since) : -1
+        this.canView ? this.contact.countSince(since) : 0
+    }
+    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
+        this.canView ? this.contact.getBetween(start, end, params) : null
     }
     int countBetween(DateTime start, DateTime end) {
-        canView() ? contact.countBetween(start, end) : -1
+        this.canView ? this.contact.countBetween(start, end) : 0
     }
 }

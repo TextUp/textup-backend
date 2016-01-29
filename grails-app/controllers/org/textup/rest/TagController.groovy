@@ -10,7 +10,8 @@ import static org.springframework.http.HttpStatus.*
 import org.textup.*
 import grails.transaction.Transactional
 
-@RestApi(name="Tag", description = "Operations on tags belonging to staff members or teams. Requires logging in.")
+@RestApi(name="Tag", description = "Operations on tags belonging to staff \
+    members or teams. Requires logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class TagController extends BaseController {
 
@@ -19,55 +20,58 @@ class TagController extends BaseController {
 	//authService from superclass
 	def tagService
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     @RestApiMethod(description="List tags for a specific staff or team", listing=true)
     @RestApiParams(params=[
-        @RestApiParam(name="max", type="Number", required=false, allowedvalues="YOUR MOM",
+        @RestApiParam(name="max", type="Number", required=false,
         	paramType=RestApiParamType.QUERY, description="Max number of results"),
         @RestApiParam(name="offset", type="Number", required=false,
         	paramType=RestApiParamType.QUERY, description="Offset of results"),
-        @RestApiParam(name="staffId", type="Number", required=true,
-        	paramType=RestApiParamType.QUERY, description="Id of the staff member"),
         @RestApiParam(name="teamId", type="Number", required=true,
         	paramType=RestApiParamType.QUERY, description="Id of the team member")
     ])
     @RestApiErrors(apierrors=[
-        @RestApiError(code="404",description="The staff or team was not found. Or, the staff or team is not allowed to have tags."),
-        @RestApiError(code="400", description="You must specify either a staff id or team id, but not both."),
+        @RestApiError(code="404",description="The staff or team was not found. \
+            Or, the staff or team is not allowed to have tags."),
+        @RestApiError(code="400", description="You must specify either a staff \
+            id or team id, but not both."),
         @RestApiError(code="403", description="You do not have permission to do this.")
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (params.staffId && params.teamId) { badRequest() }
-        else if (params.staffId) {
-        	Staff s1 = Staff.get(params.long("staffId"))
-        	if (!s1 || !s1.phone) { notFound() }
-        	else if (authService.isLoggedIn(s1.id)) {
-        		genericListActionForCriteria("tag", ContactTag.forStaff(s1), params)
-        	}
-        	else { forbidden() }
+        Phone p1
+        if (params.teamId) {
+            Team t1 = Team.get(params.long("teamId"))
+            if (!t1 || !t1.phone) {
+                return notFound()
+            }
+            else if (!authService.hasPermissionsForTeam(t1.id)) {
+                return forbidden()
+            }
+            p1 = t1.phone
         }
-        else if (params.teamId) {
-        	Team t1 = Team.get(params.long("teamId"))
-        	if (!t1 || !t1.phone) { notFound() }
-        	else if (authService.belongsToSameTeamAs(t1.id)) {
-        		genericListActionForCriteria("tag", ContactTag.forTeam(t1), params)
-        	}
-        	else { forbidden() }
+        else {
+            Staff s1 = authService.loggedInAndActive
+            if (!s1 || !s1.phone) {
+                return forbidden()
+            }
+            p1 = s1.phone
         }
-        else { badRequest() }
+        genericListActionForClosures("tag", { Map params ->
+            p1.phone.countTags()
+        }, { Map params ->
+            p1.phone.getTags(params)
+        }, params)
     }
 
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     @RestApiMethod(description="Show specifics about a tag")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", 
+        @RestApiParam(name="id", type="Number",
         	paramType=RestApiParamType.PATH, description="Id of the tag")
     ])
     @RestApiErrors(apierrors=[
@@ -78,20 +82,19 @@ class TagController extends BaseController {
     def show() {
     	Long id = params.long("id")
         if (ContactTag.exists(id)) {
-            if (authService.hasPermissionsForTag(id)) { genericShowAction(ContactTag, id) }
+            if (authService.hasPermissionsForTag(id)) {
+                genericShowAction(ContactTag, id)
+            }
             else { forbidden() }
         }
         else { notFound() }
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
     @RestApiMethod(description="Create a new tag for a staff member or team")
     @RestApiParams(params=[
-        @RestApiParam(name="staffId", type="Number", required=true,
-        	paramType=RestApiParamType.QUERY, description="Id of the staff member"),
         @RestApiParam(name="teamId", type="Number", required=true,
         	paramType=RestApiParamType.QUERY, description="Id of the team member")
     ])
@@ -104,37 +107,30 @@ class TagController extends BaseController {
     def save() {
     	if (!validateJsonRequest(request, "tag")) { return; }
     	Map tagInfo = request.JSON.tag
-    	if (params.staffId && params.teamId) { badRequest() }
-    	else if (params.staffId) {
-    		Long sId = params.long("staffId")
-    		if (authService.exists(Staff, sId)) {
-    			if (authService.isLoggedIn(sId)) {
-    				handleSaveResult("tag", tagService.create(Staff, sId, tagInfo))
-    			}
-    			else { forbidden() }
-    		}
-    		else { notFound() }
-    	}
-    	else if (params.teamId) {
-    		Long tId = params.long("teamId")
-    		if (authService.exists(Team, tId)) {
-    			if (authService.belongsToSameTeamAs(tId)) {
-    				handleSaveResult("tag", tagService.create(Team, tId, tagInfo))
-    			}
-    			else { forbidden() }
-    		}
-    		else { notFound() }
-    	}
-    	else { badRequest() }
+        if (params.long("teamId")) {
+            Long tId = params.long("teamId")
+            if (authService.exists(Team, tId)) {
+                if (authService.hasPermissionsForTeam(tId)) {
+                    handleSaveResult("tag", tagService.createForTeam(tId, tagInfo))
+                }
+                else { forbidden() }
+            }
+            else { notFound() }
+        }
+        else {
+            if (authService.isActive) {
+                handleSaveResult("tag", tagService.createForStaff(tagInfo))
+            }
+            else { forbidden() }
+        }
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     @RestApiMethod(description="Update an existing tag")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", 
+        @RestApiParam(name="id", type="Number",
         	paramType=RestApiParamType.PATH, description="Id of the tag")
     ])
     @RestApiErrors(apierrors=[
@@ -155,13 +151,12 @@ class TagController extends BaseController {
     	else { notFound() }
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     @RestApiMethod(description="Delete an existing tag")
     @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH, 
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
         	description="Id of the tag")
     ])
     @RestApiErrors(apierrors=[
@@ -178,8 +173,4 @@ class TagController extends BaseController {
     	}
     	else { notFound() }
     }
-
-    /////////////
-    // Helpers //
-    /////////////
 }

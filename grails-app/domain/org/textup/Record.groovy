@@ -1,15 +1,21 @@
 package org.textup
 
 import groovy.transform.EqualsAndHashCode
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 
 @EqualsAndHashCode
 class Record {
 
-    ResultFactory resultFactory
+    def resultFactory
 
-    static transients = ["resultFactory"]
+    DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
+
     static constraints = {
+    }
+    static mapping = {
+        lastRecordActivity type:PersistentDateTime
     }
 
     /*
@@ -17,23 +23,22 @@ class Record {
 		RecordItem
 	*/
 
-    ////////////
-    // Events //
-    ////////////
+    // Timestamp
+    // ---------
 
-    def beforeDelete() {
-        Record.withNewSession {
-            RecordItem.where { record == this }.deleteAll()
-        }
+    void updateLastRecordActivity() {
+        this.lastRecordActivity = DateTime.now(DateTimeZone.UTC)
     }
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    // Add to record
+    // -------------
 
-    Result<RecordText> addText(Map params, Author auth) { addAny(RecordText, params, auth) }
-    Result<RecordNote> addNote(Map params, Author auth) { addAny(RecordNote, params, auth) }
-    Result<RecordCall> addCall(Map params, Author auth) { addAny(RecordCall, params, auth) }
+    Result<RecordText> addText(Map params, Author auth) {
+        addAny(RecordText, params, auth)
+    }
+    Result<RecordCall> addCall(Map params, Author auth) {
+        addAny(RecordCall, params, auth)
+    }
     protected Result addAny(Class<RecordItem> clazz, Map params, Author auth) {
         this.add(clazz.newInstance(params), auth)
     }
@@ -41,57 +46,24 @@ class Record {
         if (item) {
             item.author = auth
             item.record = this
-            if (item.save()) { resultFactory.success(item) }
+            if (item.save()) {
+                this.updateLastRecordActivity()
+                resultFactory.success(item)
+            }
             else { resultFactory.failWithValidationErrors(item.errors) }
         }
-        else { resultFactory.failWithMessage("record.error.noRecordItem") }
-    }
-    Result<List<RecordItem>> addAll(List<RecordItem> items, Author auth) {
-        List<RecordItem> added = []
-        items.each { RecordItem item ->
-            Result<RecordItem> result = add(item, auth)
-            if (result.success) {
-                added << result.payload
-            }
-        }
-        resultFactory.success(added)
-    }
-    Result<RecordNote> editNote(long noteId, Map params, Author auth) {
-        RecordNote n1 = RecordNote.get(noteId)
-        if (n1) {
-            if (n1.editable) {
-                n1.note = params.note
-                n1.author = auth
-                if (n1.save()) { resultFactory.success(n1) }
-                else { resultFactory.failWithValidationErrors(n1.errors) }
-            }
-            else { resultFactory.failWithMessage("record.error.noteUneditable", [noteId]) }
-        }
-        else { resultFactory.failWithMessage("record.error.noteNotFound", [noteId]) }
+        else { resultFactory.failWithMessage("record.noRecordItem") }
     }
 
-    /////////////////////
-    // Property Access //
-    /////////////////////
+    // Property Access
+    // ---------------
 
-    List<RecordItem> getItems(Map params=[:]) { RecordItem.forRecord(this).list(params) }
-    int countItems() { RecordItem.forRecord(this).count() }
-
-    List<RecordCall> getCalls(Map params=[:]) { RecordCall.forRecord(this).list(params) }
-    int countCalls() { RecordCall.forRecord(this).count() }
-    List<RecordNote> getNotes(Map params=[:]) { RecordNote.forRecord(this).list(params) }
-    int countNotes() { RecordNote.forRecord(this).count() }
-
-    /**
-     * Count texts in this record.
-     * @param  params Map of parameter options. In addition to 'max' and 'offset':
-     *                'outgoing' = boolean, true if outgoing
-     *                'futureText' = boolean, true if will be sent in the future
-     * @return List of RecordTexts found
-     */
-    List<RecordText> getTexts(Map params=[:]) { RecordText.forRecordAndParams(this, params).list(params) }
-    int countTexts(Map params=[:]) { RecordText.forRecordAndParams(this, params).count() }
-
+    List<RecordItem> getItems(Map params=[:]) {
+        RecordItem.forRecord(this).list(params)
+    }
+    int countItems() {
+        RecordItem.forRecord(this).count()
+    }
     List<RecordItem> getSince(DateTime since, Map params=[:]) {
         if (!since) { return [] }
         RecordItem.forRecordDateSince(this, since).list(params) ?: []
@@ -100,7 +72,6 @@ class Record {
         if (!since) { return 0 }
         RecordItem.forRecordDateSince(this, since).count()
     }
-
     List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
         if (!start || !end) { return [] }
         if (end.isBefore(start)) {

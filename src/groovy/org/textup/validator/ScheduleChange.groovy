@@ -1,4 +1,4 @@
-package org.textup
+package org.textup.validator
 
 import grails.validation.Validateable
 import groovy.transform.ToString
@@ -10,13 +10,13 @@ import org.joda.time.DateTimeZone
 @Validateable
 @Log4j
 class ScheduleChange {
-    String type
+
+    ScheduleStatus type
     DateTime when //assume UTC timezone
     String timezone
     private DateTimeZone tz
 
     static constraints = {
-    	type blank:false, nullable:false, inList:[Constants.SCHEDULE_AVAILABLE, Constants.SCHEDULE_UNAVAILABLE]
     	when nullable:false
     	timezone blank:true, nullable:true
     	tz nullable:true

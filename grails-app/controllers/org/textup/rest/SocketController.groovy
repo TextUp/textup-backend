@@ -15,6 +15,7 @@ import static org.springframework.http.HttpStatus.*
 class SocketController extends BaseController {
 
     static namespace = "v1"
+
     //grailsApplication from superclass
     //authService from superclass
     def pusherService
@@ -34,7 +35,8 @@ class SocketController extends BaseController {
             channelName = params.channel_name,
             channelUsername = channelName ? (channelName - "private-") : null,
             socketId = params.socket_id
-        if ((authUsername && channelUsername && socketId) || (authUsername != channelUsername)) {
+        if ((authUsername && channelUsername && socketId) ||
+            authUsername != channelUsername) {
             def authResult = pusherService.authenticate(socketId, channelName)
             try {
                 withFormat {
@@ -45,7 +47,8 @@ class SocketController extends BaseController {
                 }
             }
             catch (e) {
-                log.error("SocketController.save: could not parse authResult: ${authResult} with error: ${e.message}")
+                log.error("SocketController.save: could not parse authResult: \
+                    ${authResult} with error: ${e.message}")
                 render status:FORBIDDEN
             }
         }

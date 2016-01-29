@@ -11,11 +11,11 @@ class OrganizationService {
 
     Result<Organization> update(Long orgId, Map body) {
     	Organization org = Organization.get(orgId)
-    	if (!org) { 
-    		return resultFactory.failWithMessageAndStatus(NOT_FOUND, 
+    	if (!org) {
+    		return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "organizationService.update.notFound", [orgId])
     	}
-    	org.name = body.name ?: org.name
+        if (body.name) { org.name = body.name }
     	if (body.location) {
     		def l = body.location
     		org.location.with {
@@ -27,7 +27,9 @@ class OrganizationService {
                 return resultFactory.failWithValidationErrors(org.location.errors)
             }
     	}
-    	if (org.save()) { resultFactory.success(org) }
+    	if (org.save()) {
+            resultFactory.success(org)
+        }
     	else { resultFactory.failWithValidationErrors(org.errors) }
     }
 }

@@ -9,57 +9,81 @@ import org.hibernate.FlushMode
 @EqualsAndHashCode
 class FeaturedAnnouncement {
 
-	TeamPhone owner
-	DateTime dateCreated = DateTime.now(DateTimeZone.UTC)
-	DateTime expiresAt 
-	RecordText featured
+    def resultFactory
 
+    Phone owner
+    String message
+	DateTime dateCreated = DateTime.now(DateTimeZone.UTC)
+	DateTime expiresAt
+
+    // holds references to record items of contacts that have received
+    // this announcement via text or call
     static constraints = {
-    	expiresAt validator:{ val, obj -> 
+    	expiresAt validator:{ val, obj ->
     		if (!val?.isAfter(obj.dateCreated)) { ["expiresBeforeCreation"] }
-    	}
-    	featured validator:{ val, obj ->
-    		if (!belongsToOwner(val?.id, obj.owner?.id)) { ["notOwned"] }
     	}
     }
     static mapping = {
+        autoTimestamp false
     	dateCreated type:PersistentDateTime
     	expiresAt type:PersistentDateTime
     }
     static namedQueries = {
-    	notExpiredForTeamPhone { TeamPhone p1 ->
+    	forPhone { Phone p1 ->
     		eq("owner", p1)
     		ge("expiresAt", DateTime.now(DateTimeZone.UTC)) //not expired
     		order("dateCreated", "desc")
     	}
     }
 
-    ////////////////////
-    // Helper methods //
-    ////////////////////
+    /*
+    Has many:
+        AnnouncementReceipt
+     */
 
-    protected boolean belongsToOwner(Long textId, Long phoneId) {
-    	if (textId == null || phoneId == null) { return false }
-        boolean belongs = false
-        FeaturedAnnouncement.withNewSession { session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                belongs = (RecordItem.forThisIdAndPhoneId(textId, phoneId).count() > 0)
-            }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        belongs
-    }
+    // Expiration
+    // ----------
 
     void expireNow() {
     	this.expiresAt = DateTime.now(DateTimeZone.UTC)
     }
-
-    /////////////////////
-    // Property Access //
-    /////////////////////
-
     void setExpiresAt(DateTime exp) {
     	this.expiresAt = exp?.withTimeZone(DateTimeZone.UTC)
+    }
+
+    // Receipts
+    // --------
+
+    int getNumReceipts() {
+        AnnouncementReceipt.countByAnnouncement(this)
+    }
+    ResultList<AnnouncementReceipt> addToReceipts(RecordItemType type, IncomingSession session) {
+        addToReceipts(type, [session])
+    }
+    ResultList<AnnouncementReceipt> addToReceipts(RecordItemType type,
+        List<IncomingSession> sessions) {
+        ResultList<AnnouncementReceipt> resList = new ResultList<>()
+        List<IncomingSession> repeatSessions = AnnouncementReceipt.createCriteria().list {
+            projections {
+                property("session")
+            }
+            if (sessions) { "in"("session", sessions) }
+            else { eq("session", null) }
+            eq("announcement", this)
+        }
+        HashSet<IncomingSession> sessionsWithReceipt = new HashSet<>(repeatSessions)
+        sessions.each { IncomingSession session ->
+            if (!sessionsWithReceipt.contains(session)) {
+                AnnouncementReceipt receipt = new AnnouncementReceipt(type:type,
+                    session:session, announcement:announcement)
+                if (receipt.save()) {
+                    resList << resultFactory.success(receipt)
+                }
+                else {
+                    resList << resultFactory.failWithValidationErrors(receipt.errors)
+                }
+            }
+        }
+        resList
     }
 }
