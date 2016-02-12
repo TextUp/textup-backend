@@ -31,11 +31,11 @@ class CustomRestAuthenticationTokenJsonRenderer implements RestAuthenticationTok
             if (staff) {
                 result.name = staff.name
                 result.email = staff.email
-                result.status = staff.status
+                result.status = staff.status.toString()
                 result.org = [
                     id: staff.org.id,
                     name: staff.org.name,
-                    status: staff.org.status
+                    status: staff.org.status.toString()
                 ]
             }
         }

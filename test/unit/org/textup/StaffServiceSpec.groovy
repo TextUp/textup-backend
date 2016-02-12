@@ -171,7 +171,7 @@ class StaffServiceSpec extends CustomSpec {
         Staff.count() == sBaseline + 1
         Organization.count() == oBaseline
         Location.count() == lBaseline
-        StaffRole.count() == rBaseline + 1
+        StaffRole.count() == rBaseline + 0 // adding in role a separate step
 
         res.payload instanceof Staff
         res.payload.status == StaffStatus.PENDING
@@ -206,7 +206,27 @@ class StaffServiceSpec extends CustomSpec {
         Staff.count() == sBaseline + 2
         Organization.count() == oBaseline + 1
         Location.count() == lBaseline + 1
-        StaffRole.count() == rBaseline + 2
+        StaffRole.count() == rBaseline + 0 // adding in role a separate step
+
+        res.payload instanceof Staff
+        res.payload.status == StaffStatus.ADMIN
+        res.payload.org.status == OrgStatus.PENDING
+        res.payload.username == username
+        res.payload.personalPhoneAsString == personalPhoneAsString
+        Organization.findByName(orgName) != null
+
+        when: "add staff to new user"
+        Staff newStaff = res.payload
+        res = service.addRoleToStaff(newStaff.id)
+        assert res.success
+        s1.save(flush:true, failOnError:true)
+
+        then:
+        WeeklySchedule.count() == schedBaseline + 2
+        Staff.count() == sBaseline + 2
+        Organization.count() == oBaseline + 1
+        Location.count() == lBaseline + 1
+        StaffRole.count() == rBaseline + 1
 
         res.payload instanceof Staff
         res.payload.status == StaffStatus.ADMIN

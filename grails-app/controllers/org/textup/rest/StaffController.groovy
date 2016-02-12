@@ -149,7 +149,9 @@ class StaffController extends BaseController {
     def save() {
         if (!validateJsonRequest(request, "staff")) { return; }
         Map sInfo = (request.properties.JSON as Map).staff as Map
-        handleSaveResult(Staff, staffService.create(sInfo))
+        handleSaveResult(Staff, staffService.create(sInfo).then { Staff s1 ->
+            staffService.addRoleToStaff(s1.id)
+        } as Result)
     }
 
     // Update

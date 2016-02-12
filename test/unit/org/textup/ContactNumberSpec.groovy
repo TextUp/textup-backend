@@ -10,7 +10,7 @@ import spock.lang.Unroll
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
   RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-  Schedule, Location, WeeklySchedule, PhoneOwnership])
+  Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class ContactNumberSpec extends CustomSpec {

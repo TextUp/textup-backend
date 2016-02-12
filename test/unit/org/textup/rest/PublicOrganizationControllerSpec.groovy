@@ -16,8 +16,9 @@ import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(PublicOrganizationController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership])
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
+    Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
+    AnnouncementReceipt, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
 class PublicOrganizationControllerSpec extends CustomSpec {
 

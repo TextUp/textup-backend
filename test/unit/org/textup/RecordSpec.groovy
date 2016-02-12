@@ -77,7 +77,7 @@ class RecordSpec extends Specification {
         assert rec.addCall([durationInSeconds:60], null).success
 
         then: "lastRecordActivity is updated"
-        rec.lastRecordActivity.isAfter(currentTimestamp)
+        !rec.lastRecordActivity.isBefore(currentTimestamp)
     }
 
     void "test retrieving items from the record"() {

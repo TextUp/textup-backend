@@ -95,7 +95,7 @@ grails.project.dependency.resolution = {
         compile ":functional-spock:0.7"
 
         compile ":rest-client-builder:2.0.4-SNAPSHOT"
-        compile ":remote-control:1.5"
+        compile ":remote-control:2.0"
 
         //for api documentation generation
         compile ":rest-api-doc:0.6.1"

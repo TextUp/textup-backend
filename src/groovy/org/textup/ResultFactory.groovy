@@ -21,10 +21,12 @@ class ResultFactory {
 	/////////////
 
 	Result success(payload) {
-		new Result(success:true, payload:payload, type:ResultType.SUCCESS)
+		new Result(success:true, payload:payload,
+			type:ResultType.SUCCESS, messageSource:messageSource)
 	}
 	Result<?> success() {
-		new Result<?>(success:true, payload:null, type:ResultType.SUCCESS)
+		new Result<?>(success:true, payload:null,
+			type:ResultType.SUCCESS, messageSource:messageSource)
 	}
 
 	/////////////
@@ -34,16 +36,16 @@ class ResultFactory {
 	Result failWithMessage(String messageCode, List params=[]) {
 		String message = messageSource.getMessage(messageCode, params as Object[], LCH.getLocale())
 		new Result(success:false, payload:[code:messageCode, message:message],
-            type:ResultType.MESSAGE)
+            type:ResultType.MESSAGE, messageSource:messageSource)
 	}
 	Result failWithMessageAndStatus(HttpStatus status, String messageCode, List params=[]) {
 		String message = messageSource.getMessage(messageCode, params as Object[], LCH.getLocale())
 		new Result(success:false, payload:[code:messageCode, message:message, status:status],
-            type:ResultType.MESSAGE_STATUS)
+            type:ResultType.MESSAGE_STATUS, messageSource:messageSource)
 	}
     Result failWithMessagesAndStatus(HttpStatus status, Collection<String> messages) {
         new Result(success:false, payload:[status:status, messages:messages],
-            type:ResultType.MESSAGE_LIST_STATUS)
+            type:ResultType.MESSAGE_LIST_STATUS, messageSource:messageSource)
     }
     Result failWithResultsAndStatus(HttpStatus status, Collection<Result> results) {
         Collection<String> messages = []
@@ -51,13 +53,14 @@ class ResultFactory {
             if (!res.success) { messages += res.errorMessages }
         }
         new Result(success:false, payload:[status:status, messages:messages],
-            type:ResultType.MESSAGE_LIST_STATUS)
+            type:ResultType.MESSAGE_LIST_STATUS, messageSource:messageSource)
     }
 	Result failWithThrowable(Throwable t) {
-		new Result(success:false, payload:t, type:ResultType.THROWABLE)
+		new Result(success:false, payload:t, type:ResultType.THROWABLE,
+			messageSource:messageSource)
 	}
     Result failWithValidationErrors(Errors verrors) {
     	new Result(success:false, payload:verrors,
-            type:ResultType.VALIDATION)
+            type:ResultType.VALIDATION, messageSource:messageSource)
     }
 }

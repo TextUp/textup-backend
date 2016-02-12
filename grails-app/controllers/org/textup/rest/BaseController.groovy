@@ -165,7 +165,7 @@ class BaseController {
     protected def handleResultFailure(Result res) {
         switch (res.type) {
             case ResultType.VALIDATION:
-                respond res.errorMessages, [status:UNPROCESSABLE_ENTITY]
+                respondWithErrors(res.errorMessages, UNPROCESSABLE_ENTITY)
                 break
             case ResultType.MESSAGE_STATUS:
                 respondWithErrors(res.errorMessages, res.payload.status)

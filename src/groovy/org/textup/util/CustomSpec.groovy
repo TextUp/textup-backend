@@ -35,23 +35,23 @@ class CustomSpec extends Specification {
     // Unit
     // ----
 
+
     void setupData() {
         setupData(iterationCount)
     }
-    void setupData(int customIterationCount) {
-        iterationCount = customIterationCount
-        loggedInUsername = "loggedinstaff$iterationCount"
+    void setupData(int iterNum) {
+        loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"
 
-    	overrideConstructors()
-        organizations()
-        teamsWithPhones()
-        staffWithPhones()
-        teamMemberships()
-        contactsWithItems()
-        shareContacts()
-        tags()
-        tagMemberships()
+        overrideConstructors(iterNum)
+        organizations(iterNum)
+        teamsWithPhones(iterNum)
+        staffWithPhones(iterNum)
+        teamMemberships(iterNum)
+        contactsWithItems(iterNum)
+        shareContacts(iterNum)
+        tags(iterNum)
+        tagMemberships(iterNum)
     }
     void cleanupData() { iterationCount++ }
 
@@ -59,17 +59,20 @@ class CustomSpec extends Specification {
     // -----------
 
     void setupIntegrationData() {
-        loggedInUsername = "loggedinstaff$iterationCount"
+        setupIntegrationData(iterationCount)
+    }
+    void setupIntegrationData(int iterNum) {
+        loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"
 
-        organizations()
-        teamsWithPhones()
-        staffWithPhones()
-        teamMemberships()
-        contactsWithItems()
-        shareContacts()
-        tags()
-        tagMemberships()
+        organizations(iterNum)
+        teamsWithPhones(iterNum)
+        staffWithPhones(iterNum)
+        teamMemberships(iterNum)
+        contactsWithItems(iterNum)
+        shareContacts(iterNum)
+        tags(iterNum)
+        tagMemberships(iterNum)
     }
     void cleanupIntegrationData() { cleanupData() }
 
@@ -95,7 +98,7 @@ class CustomSpec extends Specification {
     // Setup data
     // ----------
 
-    protected void overrideConstructors() {
+    protected void overrideConstructors(int iterNum) {
         ResultFactory fac = grailsApplication.mainContext.getBean("resultFactory")
         fac.messageSource = mockMessageSource()
         Staff.metaClass.constructor = { Map m->
@@ -136,19 +139,18 @@ class CustomSpec extends Specification {
         }
     }
 
-    protected void organizations() {
+    protected void organizations(int iterNum) {
         //our org
-        org = new Organization(name:"1organiz$iterationCount")
-        org.location = new Location(address:"Testing Address", lat:0G, lon:0G,
-            status:OrgStatus.APPROVED)
+        org = new Organization(name:"1organiz$iterNum", status:OrgStatus.APPROVED)
+        org.location = new Location(address:"Testing Address", lat:0G, lon:0G)
         org.save(flush:true)
         //other org
-        org2 = new Organization(name:"2organiz$iterationCount")
+        org2 = new Organization(name:"2organiz$iterNum")
         org2.location = new Location(address:"Testing Address", lat:0G, lon:0G)
         org2.save(flush:true)
     }
 
-    protected void teamsWithPhones() {
+    protected void teamsWithPhones(int iterNum) {
         //teams for our org
         t1 = new Team(name:"Team1", org:org)
         t2 = new Team(name:"Team2", org:org)
@@ -157,10 +159,10 @@ class CustomSpec extends Specification {
         t1.save(flush:true, failOnError:true)
         t2.save(flush:true, failOnError:true)
         //add team phones
-        tPh1 = new Phone(numberAsString:"${iterationCount}160333444".take(10))
+        tPh1 = new Phone(numberAsString:"${iterNum}160333444".take(10))
         tPh1.updateOwner(t1)
         tPh1.save(flush:true, failOnError:true)
-        tPh2 = new Phone(numberAsString:"${iterationCount}170333444".take(10))
+        tPh2 = new Phone(numberAsString:"${iterNum}170333444".take(10))
         tPh2.updateOwner(t2)
         tPh2.save(flush:true, failOnError:true)
 
@@ -172,65 +174,72 @@ class CustomSpec extends Specification {
         otherT1.save(flush:true, failOnError:true)
         otherT2.save(flush:true, failOnError:true)
         //add a team phone
-        otherTPh1 = new Phone(numberAsString:"${iterationCount}180333444".take(10))
+        otherTPh1 = new Phone(numberAsString:"${iterNum}180333444".take(10))
         otherTPh1.updateOwner(otherT1)
         otherTPh1.save(flush:true, failOnError:true)
-        otherTPh2 = new Phone(numberAsString:"${iterationCount}190333444".take(10))
+        otherTPh2 = new Phone(numberAsString:"${iterNum}190333444".take(10))
         otherTPh2.updateOwner(otherT2)
         otherTPh2.save(flush:true, failOnError:true)
     }
 
-    protected void staffWithPhones() {
+    protected void staffWithPhones(int iterNum) {
         //staff for our org
         s1 = new Staff(username:loggedInUsername, password:loggedInPassword,
-            name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
+            name:"Staff$iterNum", email:"staff$iterNum@textup.org",
             org:org, personalPhoneAsString:"1112223333", status:StaffStatus.ADMIN)
-        s2 = new Staff(username:"1sta$iterationCount", password:"password",
-            name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
+        s2 = new Staff(username:"1sta$iterNum", password:"password",
+            name:"Staff$iterNum", email:"staff$iterNum@textup.org",
             org:org, personalPhoneAsString:"1112223333")
-        s3 = new Staff(username:"2sta$iterationCount", password:"password",
-            name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
+        s3 = new Staff(username:"2sta$iterNum", password:"password",
+            name:"Staff$iterNum", email:"staff$iterNum@textup.org",
             org:org, personalPhoneAsString:"1112223333")
         s1.save(flush:true, failOnError:true)
         s2.save(flush:true, failOnError:true)
         s3.save(flush:true, failOnError:true)
+
         //phone numbers for staff at our org
-        p1 = new Phone(numberAsString:"${iterationCount}100333444".take(10))
+        p1 = new Phone(numberAsString:"${iterNum}100333444".take(10))
         p1.updateOwner(s1)
         p1.save(flush:true, failOnError:true)
-        p2 = new Phone(numberAsString:"${iterationCount}111333444".take(10))
+        p2 = new Phone(numberAsString:"${iterNum}111333444".take(10))
         p2.updateOwner(s2)
         p2.save(flush:true, failOnError:true)
-        p3 = new Phone(numberAsString:"${iterationCount}123333441".take(10))
+        p3 = new Phone(numberAsString:"${iterNum}123333441".take(10))
         p3.updateOwner(s3)
         p3.save(flush:true, failOnError:true)
 
         //staff for other org
-        otherS1 = new Staff(username:"3sta$iterationCount", password:"password",
-            name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
+        otherS1 = new Staff(username:"3sta$iterNum", password:"password",
+            name:"Staff$iterNum", email:"staff$iterNum@textup.org",
             org:org2, personalPhoneAsString:"1112223333")
-        otherS2 = new Staff(username:"4sta$iterationCount", password:"password",
-            name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
+        otherS2 = new Staff(username:"4sta$iterNum", password:"password",
+            name:"Staff$iterNum", email:"staff$iterNum@textup.org",
             org:org2, personalPhoneAsString:"1112223333")
-        otherS3 = new Staff(username:"5sta$iterationCount", password:"password",
-            name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
+        otherS3 = new Staff(username:"5sta$iterNum", password:"password",
+            name:"Staff$iterNum", email:"staff$iterNum@textup.org",
             org:org2, personalPhoneAsString:"1112223333")
         otherS1.save(flush:true, failOnError:true)
         otherS2.save(flush:true, failOnError:true)
         otherS3.save(flush:true, failOnError:true)
         //phone numbers for staff at our org
-        otherP1 = new Phone(numberAsString:"${iterationCount}130333444".take(10))
+        otherP1 = new Phone(numberAsString:"${iterNum}130333444".take(10))
         otherP1.updateOwner(otherS1)
         otherP1.save(flush:true, failOnError:true)
-        otherP2 = new Phone(numberAsString:"${iterationCount}141333444".take(10))
+        otherP2 = new Phone(numberAsString:"${iterNum}141333444".take(10))
         otherP2.updateOwner(otherS2)
         otherP2.save(flush:true, failOnError:true)
-        otherP3 = new Phone(numberAsString:"${iterationCount}153333441".take(10))
+        otherP3 = new Phone(numberAsString:"${iterNum}153333441".take(10))
         otherP3.updateOwner(otherS3)
         otherP3.save(flush:true, failOnError:true)
+        // staff roles
+        Role role = Role.findOrCreateByAuthority("ROLE_USER")
+        role.save(flush:true, failOnError:true)
+        [s1, s2, s3, otherS1, otherS2, otherS3].each {
+            StaffRole.create(s1, role, true)
+        }
     }
 
-    protected void teamMemberships() {
+    protected void teamMemberships(int iterNum) {
         t1.addToMembers(s1)
         t1.addToMembers(s2)
         t2.addToMembers(s2)
@@ -242,7 +251,7 @@ class CustomSpec extends Specification {
         [t1, t2, otherT1, otherT2]*.save(flush:true, failOnError:true)
     }
 
-    protected void contactsWithItems() {
+    protected void contactsWithItems(int iterNum) {
         //contacts
         c1 = p1.createContact([:], ["12223334444"]).payload
         c1_1 = p1.createContact([:], ["12223334445"]).payload
@@ -271,13 +280,13 @@ class CustomSpec extends Specification {
         	*.save(flush:true, failOnError:true)
     }
 
-    protected void shareContacts() {
+    protected void shareContacts(int iterNum) {
         sc1 = p1.share(c1, p2, SharePermission.DELEGATE).payload
         sc2 = p2.share(c2, p1, SharePermission.DELEGATE).payload
         [sc1, sc2]*.save(flush:true, failOnError:true)
     }
 
-    protected void tags() {
+    protected void tags(int iterNum) {
         tag1 = p1.createTag(name:"Tag1").payload
         tag1_1 = p1.createTag(name:"Tag2").payload
         tag2 = p2.createTag(name:"Tag1").payload
@@ -295,7 +304,7 @@ class CustomSpec extends Specification {
         	.payload.save(flush:true, failOnError:true)
     }
 
-    protected void tagMemberships() {
+    protected void tagMemberships(int iterNum) {
     	tag1.addToMembers(c1)
 		tag1.addToMembers(c1_1)
 		tag1_1.addToMembers(c1_2)

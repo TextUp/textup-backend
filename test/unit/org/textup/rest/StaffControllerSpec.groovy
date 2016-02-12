@@ -16,7 +16,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(StaffController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
 class StaffControllerSpec extends CustomSpec {
 
@@ -156,6 +156,8 @@ class StaffControllerSpec extends CustomSpec {
     void "test save"() {
         given:
         controller.staffService = [create:{ Map body ->
+            new Result(payload:s1)
+        }, addRoleToStaff: { Long sId ->
             new Result(payload:s1)
         }] as StaffService
 

@@ -14,7 +14,7 @@ import org.joda.time.DateTime
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-	Schedule, Location, WeeklySchedule, PhoneOwnership, IncomingSession])
+	Schedule, Location, WeeklySchedule, PhoneOwnership, IncomingSession, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
 class IncomingSessionSpec extends CustomSpec {
 
@@ -55,7 +55,7 @@ class IncomingSessionSpec extends CustomSpec {
     	session.updateLastSentInstructions()
 
     	then:
-    	session.lastSentInstructions.isAfter(currentTimestamp)
+    	!session.lastSentInstructions.isBefore(currentTimestamp)
     	session.shouldSendInstructions == false
 
     	when: "we change last sent to yesterday"

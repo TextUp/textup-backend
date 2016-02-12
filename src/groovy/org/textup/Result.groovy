@@ -1,19 +1,25 @@
 package org.textup
 
-import groovy.transform.ToString
-import groovy.util.logging.Log4j
-import org.textup.types.ResultType
 import grails.compiler.GrailsCompileStatic
+import groovy.transform.ToString
 import groovy.transform.TypeCheckingMode
+import groovy.util.logging.Log4j
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.i18n.LocaleContextHolder as LCH
+import org.springframework.context.MessageSource
+import org.textup.types.ResultType
 
 @GrailsCompileStatic
 @Log4j
 @ToString
 class Result<T> {
 
+    // set by resultFactory upon creation
+    MessageSource messageSource
+
     boolean success = true
     T payload
-    ResultType type //check the Constants class for valid types
+    ResultType type
 
     // Individual
     // ----------

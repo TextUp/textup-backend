@@ -21,7 +21,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(PasswordResetController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
 class PasswordResetControllerSpec extends CustomSpec {
 

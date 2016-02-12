@@ -21,7 +21,7 @@ import static org.springframework.http.HttpStatus.*
 @TestFor(PasswordResetService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-	Schedule, Location, WeeklySchedule, PhoneOwnership, PasswordResetToken])
+	Schedule, Location, WeeklySchedule, PhoneOwnership, PasswordResetToken, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
 class PasswordResetServiceSpec extends CustomSpec {
 

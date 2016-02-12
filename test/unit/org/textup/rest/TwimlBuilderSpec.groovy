@@ -19,7 +19,7 @@ import static org.springframework.http.HttpStatus.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt])
+	AnnouncementReceipt, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
 class TwimlBuilderSpec extends CustomSpec {
 

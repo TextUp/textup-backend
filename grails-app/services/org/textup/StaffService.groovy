@@ -43,19 +43,36 @@ class StaffService {
                 s1.status = Helpers.convertEnum(StaffStatus, body.status)
             }
             if (s1.save()) {
-                Role role = Role.findOrCreateByAuthority("ROLE_USER")
-                if (!role.save()) {
-                    return resultFactory.failWithValidationErrors(role.errors)
-                }
-                StaffRole sRole = new StaffRole(staff:s1, role:role)
-                if (sRole.save()) {
-                    resultFactory.success(s1)
-                }
-                else { resultFactory.failWithValidationErrors(sRole.errors) }
+                resultFactory.success(s1)
             }
-            else { resultFactory.failWithValidationErrors(s1.errors) }
+            else {
+                resultFactory.failWithValidationErrors(s1.errors)
+            }
         }) as Result
     }
+
+    Result<Staff> addRoleToStaff(Long sId) {
+        Staff s1 = Staff.get(sId)
+        if (s1) {
+            Role role = Role.findOrCreateByAuthority("ROLE_USER")
+            if (!role.save()) {
+                return resultFactory.failWithValidationErrors(role.errors)
+            }
+            try {
+                StaffRole.create(s1, role, true)
+                resultFactory.success(s1)
+            }
+            catch (e) {
+                log.error("StaffService.addRoleToStaff: ${e.message}, $e")
+                resultFactory.failWithThrowable(e)
+            }
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                "staffService.update.notFound", [sId])
+        }
+    }
+
     protected Result<Organization> addStaffToOrg(Staff s1, def rawInfo) {
         if (!rawInfo || !(rawInfo instanceof Map)) {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
