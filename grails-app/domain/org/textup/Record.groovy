@@ -1,17 +1,22 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.validator.Author
 
+@GrailsTypeChecked
 @EqualsAndHashCode
 class Record {
 
-    def resultFactory
+    ResultFactory resultFactory
 
     DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
 
+    static transients = ["resultFactory"]
     static constraints = {
     }
     static mapping = {
@@ -39,7 +44,7 @@ class Record {
     Result<RecordCall> addCall(Map params, Author auth) {
         addAny(RecordCall, params, auth)
     }
-    protected Result addAny(Class<RecordItem> clazz, Map params, Author auth) {
+    protected Result addAny(Class<? extends RecordItem> clazz, Map params, Author auth) {
         this.add(clazz.newInstance(params), auth)
     }
     Result<RecordItem> add(RecordItem item, Author auth) {
@@ -58,20 +63,25 @@ class Record {
     // Property Access
     // ---------------
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<RecordItem> getItems(Map params=[:]) {
         RecordItem.forRecord(this).list(params)
     }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     int countItems() {
         RecordItem.forRecord(this).count()
     }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<RecordItem> getSince(DateTime since, Map params=[:]) {
         if (!since) { return [] }
         RecordItem.forRecordDateSince(this, since).list(params) ?: []
     }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     int countSince(DateTime since) {
         if (!since) { return 0 }
         RecordItem.forRecordDateSince(this, since).count()
     }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
         if (!start || !end) { return [] }
         if (end.isBefore(start)) {
@@ -81,6 +91,7 @@ class Record {
         }
         RecordItem.forRecordDateBetween(this, start, end).list(params) ?: []
     }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     int countBetween(DateTime start, DateTime end) {
         if (!start || !end) { return 0 }
         if (end.isBefore(start)) {

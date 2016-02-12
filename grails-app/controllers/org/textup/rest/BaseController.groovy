@@ -1,33 +1,41 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
 import grails.gorm.DetachedCriteria
+import grails.plugin.springsecurity.SpringSecurityService
+import groovy.transform.TypeCheckingMode
+import javax.servlet.http.HttpServletRequest
+import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.codehaus.groovy.grails.orm.hibernate.cfg.NamedCriteriaProxy
 import org.codehaus.groovy.grails.web.json.JSONObject
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
+import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.types.ResultType
 import static org.springframework.http.HttpStatus.*
-import org.codehaus.groovy.grails.orm.hibernate.cfg.NamedCriteriaProxy
 
+@GrailsCompileStatic
 class BaseController {
 
     static allowedMethods = [index:"GET", save:"POST", show:"GET",
         update:"PUT", delete:"DELETE"]
     static responseFormats = ["json"]
 
-    def grailsApplication
-    def springSecurityService
-    def authService
+    GrailsApplication grailsApplication
+    SpringSecurityService springSecurityService
+    AuthService authService
 
     // Config constants
     // ----------------
 
-    protected int getDefaultMax() {
-        grailsApplication.config.textup.defaultMax
+    protected Integer getDefaultMax() {
+        Helpers.toInteger(grailsApplication.flatConfig["textup.defaultMax"])
     }
-    protected int getLargestMax() {
-        grailsApplication.config.textup.largestMax
+    protected Integer getLargestMax() {
+        Helpers.toInteger(grailsApplication.flatConfig["textup.largestMax"])
     }
 
     // Pagination
@@ -50,11 +58,12 @@ class BaseController {
      *                 offset = offset of results
      *             links = prev/next links, if needed
      */
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected Map handlePagination(Map info) {
-        Map params = parseParams(info?.params, info.total),
+        Map params = parseParams(info?.params, Helpers.toInteger(info.total)),
         	linkParams = (info.linkParams && info.linkParams instanceof Map) ?
                 info.linkParams : [:]
-        int max = params.max,
+        Integer max = params.max,
         	offset = params.offset,
         	total = params.total,
         	beforeTotal = total - 1
@@ -79,15 +88,20 @@ class BaseController {
 
         results
     }
-    protected Map parseParams(Map params, Integer total) {
-        int defaultMax = this.defaultMax,
+    protected Map parseParams(def params, Integer total) {
+        Integer defaultMax = this.defaultMax,
             largestMax = this.largestMax,
-            max = Math.min(params?.int("max") ?: defaultMax, largestMax)
+            pMax, pOffset
+        if (params instanceof GrailsParameterMap) {
+            GrailsParameterMap gMap = params as GrailsParameterMap
+            pMax = gMap?.int("max") ?:  defaultMax
+            pOffset = gMap?.int("offset") ?: 0
+        }
+        else { pOffset = 0 }
+        Integer max = Math.min(pMax, largestMax)
         max = (max > 0) ? max : defaultMax
         total = (total && total > 0) ? total: max
-
-        int offset = params?.int("offset") ?: 0
-        [max:max, offset:offset, total:total]
+        [max:max, offset:pOffset, total:total]
     }
     protected Map mergeIntoParams(Map params, Map searchParams) {
         params.max = searchParams.max
@@ -98,6 +112,7 @@ class BaseController {
     // Respond helpers
     // ---------------
 
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected void respondHandleEmpty(String ifEmpty, def obj, Map params) {
         if (obj) { respond(obj, params + [status:OK]) }
         else {
@@ -137,29 +152,32 @@ class BaseController {
         render([contentType: "text/xml", encoding: "UTF-8"], xml)
     }
     protected def handleXmlResult(Result<Closure> res) {
-        if (res.success) { renderAsXml(res.payload) }
+        if (res.success) {
+            renderAsXml(res.payload)
+        }
         else { handleResultFailure(res) }
     }
     protected def handleResultWithStatus(Result res, HttpStatus status) {
         if (res.success) { render status:status }
         else { handleResultFailure(res) }
     }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected def handleResultFailure(Result res) {
         switch (res.type) {
             case ResultType.VALIDATION:
-                respond res.payload, [status:UNPROCESSABLE_ENTITY]
+                respond res.errorMessages, [status:UNPROCESSABLE_ENTITY]
                 break
             case ResultType.MESSAGE_STATUS:
-                respondWithError(res.payload.message, res.payload.status)
+                respondWithErrors(res.errorMessages, res.payload.status)
                 break
             case ResultType.MESSAGE_LIST_STATUS:
-                respondWithErrors(res.payload.messages, res.payload.status)
+                respondWithErrors(res.errorMessages, res.payload.status)
                 break
             case ResultType.THROWABLE:
-                respondWithError(res.payload.message, BAD_REQUEST)
+                respondWithErrors(res.errorMessages, BAD_REQUEST)
                 break
             case ResultType.MESSAGE:
-                respondWithError(res.payload.message, BAD_REQUEST)
+                respondWithErrors(res.errorMessages, BAD_REQUEST)
                 break
             default:
                 log.error("BaseController.handleResultFailure: \
@@ -169,7 +187,7 @@ class BaseController {
         }
     }
     protected def handleResultListFailure(HttpStatus errorCode, ResultList resList) {
-        respond res.failures*.errorMessages.flatten(), [status:errorCode]
+        respond resList.failures*.errorMessages.flatten(), [status:errorCode]
     }
 
     // List
@@ -178,6 +196,7 @@ class BaseController {
     protected def genericListAction(Class clazz, Map params) {
         genericListAction(getLowercaseSimpleName(clazz), clazz, params)
     }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected def genericListAction(String resourceName, Class clazz, Map params) {
         Map linkParams = [namespace:namespace, resource:resourceName, absolute:false],
             options = handlePagination(params:params, total:clazz.count(),
@@ -190,10 +209,12 @@ class BaseController {
             }
         }
     }
-    protected def genericListActionAllResults(Class clazz, List results) {
+    protected def genericListActionAllResults(Class clazz, Collection results) {
         genericListActionAllResults(getLowercaseSimpleName(clazz), clazz, results)
     }
-    protected def genericListActionAllResults(String resourceName, Class clazz, List results) {
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    protected def genericListActionAllResults(String resourceName, Class clazz,
+        Collection results) {
         int numRes = results.size()
         withFormat {
             json {
@@ -206,6 +227,7 @@ class BaseController {
         list, Map params) {
         genericListActionForClosures(getLowercaseSimpleName(clazz), count, list, params)
     }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected def genericListActionForClosures(String resourceName, Closure count,
         Closure list, Map params) {
         Map linkParams = [namespace:namespace, resource:resourceName, absolute:false],
@@ -223,6 +245,7 @@ class BaseController {
     // Show
     // ----
 
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected def genericShowAction(Class clazz, Long id) {
         def found = clazz.get(id)
         if (!found) { notFound(); return; }
@@ -237,6 +260,7 @@ class BaseController {
     protected def handleSaveResult(Class clazz, Result res) {
         handleSaveResult(getLowercaseSimpleName(clazz), res)
     }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected def handleSaveResult(String resourceName, Result res) {
         if (res.success) {
             withFormat {
@@ -250,16 +274,17 @@ class BaseController {
         }
         else { handleResultFailure(res) }
     }
-    protected def handleResultListForSave(Class clazz, ResList resList) {
-        handleResultListForSave(getLowercaseSimpleName(clazz), res)
+    protected def handleResultListForSave(Class clazz, ResultList resList) {
+        handleResultListForSave(getLowercaseSimpleName(clazz), resList)
     }
-    protected def handleResultListForSave(String resourceName, ResList resList) {
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    protected def handleResultListForSave(String resourceName, ResultList resList) {
         if (resList.isAnySuccess) {
             withFormat {
                 json {
                     response.addHeader(HttpHeaders.LOCATION,
                         g.createLink(namespace:namespace, resource:resourceName,
-                            absolute:true, action:"show", id:res.payload.id))
+                            absolute:true, action:"show", id:resList.successes[0].payload.id))
                     respond resList.successes*.payload, [status:CREATED]
                 }
             }
@@ -273,6 +298,7 @@ class BaseController {
     protected def handleUpdateResult(Class clazz, Result res) {
         handleUpdateResult(getLowercaseSimpleName(clazz), res)
     }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected def handleUpdateResult(String resourceName, Result res) {
         if (res.success) {
             withFormat {
@@ -336,10 +362,10 @@ class BaseController {
     // Utility methods
     // ---------------
 
-    protected boolean validateJsonRequest(req, requiredRoot) {
+    protected boolean validateJsonRequest(HttpServletRequest req, String requiredRoot) {
         try {
-            Map json = req.JSON
-            if (json."$requiredRoot" == null) {
+            Map json = req.properties.JSON as Map
+            if (json[requiredRoot] == null) {
                 badRequest()
                 return false
             }
@@ -353,9 +379,13 @@ class BaseController {
         return true
     }
 
-    protected boolean validateJsonRequest(req) {
+    protected boolean validateJsonRequest(HttpServletRequest req) {
         try {
-            Map json = req.JSON
+            Map json = req.properties.JSON as Map
+            if (json == null) {
+                badRequest()
+                return false
+            }
         }
         catch (e) {
             log.debug "BaseController.validateJsonRequest: ${e.message}"

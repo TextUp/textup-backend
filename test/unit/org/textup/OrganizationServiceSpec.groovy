@@ -1,24 +1,23 @@
 package org.textup
 
+import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import org.joda.time.DateTime
 import org.springframework.context.MessageSource
+import org.textup.types.ResultType
+import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
-import grails.plugin.springsecurity.SpringSecurityService
-import org.textup.util.CustomSpec
-import org.joda.time.DateTime
 import static org.springframework.http.HttpStatus.*
 
 @TestFor(OrganizationService)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-	ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-	RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-	TeamMembership, StaffPhone, Staff, Team, Organization, 
-	Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class OrganizationServiceSpec extends CustomSpec {
 
@@ -29,7 +28,7 @@ class OrganizationServiceSpec extends CustomSpec {
         super.setupData()
         service.resultFactory = getResultFactory()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
@@ -38,22 +37,22 @@ class OrganizationServiceSpec extends CustomSpec {
         Map updateInfo = [:]
         Result res = service.update(-88L, updateInfo)
 
-    	then: 
-        res.success == false 
-        res.type == Constants.RESULT_MESSAGE_STATUS
+    	then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
         res.payload.code == "organizationService.update.notFound"
         res.payload.status == NOT_FOUND
 
     	when: "we update location with invalid fields"
         updateInfo = [location:[
-            lat:-1000G, 
+            lat:-1000G,
             lon:-888G
         ]]
         res = service.update(org.id, updateInfo)
 
-    	then: 
-        res.success == false 
-        res.type == Constants.RESULT_VALIDATION
+    	then:
+        res.success == false
+        res.type == ResultType.VALIDATION
         res.payload.errorCount == 2
 
     	when: "we update with valid fields"
@@ -62,13 +61,13 @@ class OrganizationServiceSpec extends CustomSpec {
         updateInfo = [
             name:newName,
             location:[
-                lat:newLat, 
+                lat:newLat,
                 lon:newLon
             ]
         ]
         res = service.update(org.id, updateInfo)
 
-    	then: 
+    	then:
     	res.success == true
         res.payload instanceof Organization
         res.payload.name == newName

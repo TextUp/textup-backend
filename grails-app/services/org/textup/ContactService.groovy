@@ -1,13 +1,18 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
+import org.hibernate.Session
+import org.textup.types.ContactStatus
+import org.textup.types.SharePermission
 import static org.springframework.http.HttpStatus.*
 
+@GrailsCompileStatic
 @Transactional
 class ContactService {
 
-	def resultFactory
-    def authService
+	ResultFactory resultFactory
+    AuthService authService
 
     // Create
     // ------
@@ -18,7 +23,7 @@ class ContactService {
     Result<Contact> createForStaff(Map body) {
         create(authService.loggedInAndActive?.phone, body)
     }
-	Result<Contact> create(Phone p1, Map body) {
+	protected Result<Contact> create(Phone p1, Map body) {
     	if (!p1) {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
                 "contactService.create.noPhone")
@@ -29,9 +34,14 @@ class ContactService {
             if (!res.success) {
                 return res
             }
-            body.doNumberActions.sort { it.preference }.each {
-                if (it.action == Constants.NUMBER_ACTION_MERGE) {
-                    nums << it.number
+            (body.doNumberActions as Collection).sort {
+                (it instanceof Map) ? (it as Map).preference : 0
+            }.each {
+                if (it instanceof Map) {
+                    Map nAction = it as Map
+                    if (nAction.action == Constants.NUMBER_ACTION_MERGE) {
+                        nums << (nAction.number as String)
+                    }
                 }
             }
 		}
@@ -42,12 +52,15 @@ class ContactService {
             return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                 "contactService.numberActionNotList")
         }
-        for (nAction in numActions) {
-            if (nAction.action != Constants.NUMBER_ACTION_MERGE &&
-                nAction.action != Constants.NUMBER_ACTION_DELETE) {
-                return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                    "contactService.numberActionInvalid",
-                    [nAction.action])
+        for (item in numActions) {
+            if (item instanceof Map) {
+                Map nAction = item as Map
+                if (nAction.action != Constants.NUMBER_ACTION_MERGE &&
+                    nAction.action != Constants.NUMBER_ACTION_DELETE) {
+                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                        "contactService.numberActionInvalid",
+                        [nAction.action])
+                }
             }
         }
         resultFactory.success()
@@ -62,27 +75,29 @@ class ContactService {
             return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "contactService.update.notFound", [cId])
         }
-        Result res = Result.waterfall(
+        Result.<Contact>waterfall(
             this.&handleNumberActions.curry(c1, body),
-            this.&handleShareActions.rcurry(body)
+            this.&handleShareActions.rcurry(body),
+            this.&updateContactInfo.rcurry(body),
         )
-        if (res.success) {
-            //update other fields
-            c1.with {
-                if (body.name) name = body.name
-                if (body.note) note = body.note
-                if (body.status) status = body.status
+	}
+    protected Result<Contact> updateContactInfo(Contact c1, Map body) {
+        //update other fields
+        c1.with {
+            if (body.name) name = body.name
+            if (body.note) note = body.note
+            if (body.status) {
+                status = Helpers.<ContactStatus>convertEnum(ContactStatus, body.status)
             }
-            if (c1.save()) {
-                resultFactory.success(c1)
-            }
-            else { resultFactory.failWithValidationErrors(c1.errors) }
+        }
+        if (c1.save()) {
+            resultFactory.success(c1)
         }
         else {
-            Contact.withSession { it.clear() }
-            return res
+            Contact.withSession { Session session -> session.clear() }
+            resultFactory.failWithValidationErrors(c1.errors)
         }
-	}
+    }
     protected Result<Contact> handleNumberActions(Contact c1, Map body) {
         //do at the beginning so we don't need to discard any field changes
         //number actions validate only, see below for number actions
@@ -91,14 +106,20 @@ class ContactService {
             if (!res.success) {
                 return res
             }
-            for (nAction in body.doNumberActions) {
-                if (nAction.action == Constants.NUMBER_ACTION_MERGE) {
-                    Map params = (nAction.preference != null) ?
-                        [preference:nAction.preference] : [:]
-                    c1.mergeNumber(nAction.number, params)
-                }
-                else { //else delete
-                    c1.deleteNumber(nAction.number)
+            for (item in body.doNumberActions) {
+                if (item instanceof Map) {
+                    Map nAction = item as Map
+                    if (nAction.action == Constants.NUMBER_ACTION_MERGE) {
+                        Map params = (nAction.preference != null) ?
+                            [preference:nAction.preference] : [:]
+                        res = c1.mergeNumber(nAction.number as String, params)
+                    }
+                    else { //else delete
+                        res = c1.deleteNumber(nAction.number as String)
+                    }
+                    if (!res.success) {
+                        return res
+                    }
                 }
             }
         }
@@ -110,50 +131,36 @@ class ContactService {
                 return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                     "contactService.update.shareActionNotList")
             }
-            for (sAction in body.doShareActions) {
-                Phone p1 = Staff.get(Helpers.toLong(sAction.id))
-                if (!p1) {
-                    return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                        "contactService.update.phoneNotFound",
-                        [sAction.action, sAction.id])
+            for (item in body.doShareActions) {
+                if (item instanceof Map) {
+                    Map sAction = item as Map
+                    Phone p1 = Phone.get(Helpers.toLong(sAction.id))
+                    if (!p1) {
+                        return resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                            "contactService.update.phoneNotFound",
+                            [sAction.action, sAction.id])
+                    }
+                    Result res
+                    switch(sAction.action) {
+                        case Constants.SHARE_ACTION_MERGE:
+                            res = c1.phone.share(c1, p1,
+                                Helpers.<SharePermission>convertEnum(SharePermission,
+                                    sAction.permission))
+                            break
+                        case Constants.SHARE_ACTION_STOP:
+                            res = c1.phone.stopShare(c1, p1)
+                            break
+                        default:
+                            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                                "contactService.update.shareActionInvalid",
+                                [sAction.action])
+                    }
+                    if (!res.success) {
+                        return res
+                    }
                 }
-                Result res
-                switch(sAction.action) {
-                    case Constants.SHARE_ACTION_MERGE:
-                        if (!c1.phone.canShare(p1)) {
-                            return resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                                "contactService.update.shareForbidden",
-                                [sAction.id])
-                        }
-                        res = c1.phone.share(c1, p1,
-                            Helpers.convertEnum(SharePermission, sAction.permission))
-                        break
-                    case Constants.SHARE_ACTION_STOP:
-                        res = c1.phone.stopShare(c1, p1)
-                        break
-                    default:
-                        return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                            "contactService.update.shareActionInvalid",
-                            [sAction.action])
-                }
-                if (!res.success) { return res }
             }
         }
         resultFactory.success(c1)
-    }
-
-    // Delete
-    // ------
-
-	Result delete(Long cId) {
-		Contact c1 = Contact.get(cId)
-    	if (c1) {
-			c1.delete()
-			resultFactory.success()
-    	}
-    	else {
-    		resultFactory.failWithMessageAndStatus(NOT_FOUND,
-    			"contactService.delete.notFound", [cId])
-    	}
     }
 }

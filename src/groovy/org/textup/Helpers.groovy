@@ -8,7 +8,12 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.Days
 import org.joda.time.LocalTime
+import org.textup.validator.LocalInterval
+import org.textup.validator.PhoneNumber
+import grails.compiler.GrailsCompileStatic
+import groovy.transform.TypeCheckingMode
 
+@GrailsCompileStatic
 @Log4j
 class Helpers {
 
@@ -17,18 +22,26 @@ class Helpers {
     // Enum
     // ----
 
-    static <T extends Enum<T>> T convertEnum(Class<T> enumClass, String string) {
-        String enumString = string?.toUpperCase()
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    static <T extends Enum<T>> T convertEnum(Class<T> enumClass, def string) {
+        String enumString = string?.toString()?.toUpperCase()
         enumClass?.values().find { it.toString() == enumString } ?: null
     }
-    static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, List enumsOrStrings) {
-        strings?.collect { !enumClass?.isInstance(it) ? it : convertEnum(enumClass, it) } ?: []
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, def enumsOrStrings) {
+        if (enumsOrStrings instanceof Collection) {
+            enumsOrStrings?.collect { enumOrString ->
+                (enumClass?.isInstance(enumOrString)) ? enumOrString :
+                    convertEnum(enumClass, enumOrString)
+            } ?: []
+        }
+        else { [] }
     }
 
     // Formatting
     // ----------
 
-    static boolean exactly(int num, List<String> keysToLookFor, GrailsParameterMap params) {
+    static boolean exactly(int num, List<String> keysToLookFor, Map params) {
         int numFound = 0
         keysToLookFor.each {
             if (params[it]) { numFound++ }
@@ -50,11 +63,15 @@ class Helpers {
         String strVal = "${val}"
         strVal.isInteger() ? strVal.toInteger() : null
     }
+    static BigDecimal toBigDecimal(def val) {
+        String strVal = "${val}"
+        strVal.isBigDecimal() ? strVal.toBigDecimal() : null
+    }
     static List<Long> allToLong(List l) {
         l.collect { Helpers.toLong(it) }
     }
     static List toList(def val) {
-    	(val instanceof List)  ? val : []
+    	(val instanceof List)  ? (val as List) : []
     }
     static List<Long> toIdsList(def data) {
         List<Long> ids = []
@@ -71,8 +88,8 @@ class Helpers {
     static String toString(def val) {
         "$val".toString()
     }
-    static String toQuery(String raw) {
-        String query = raw
+    static String toQuery(def raw) {
+        String query = "$raw"
         if (!query?.startsWith("%")) query = "%$query"
         if (!query?.endsWith("%")) query = "$query%"
         query
@@ -95,11 +112,11 @@ class Helpers {
     }
     static DateTimeZone getZoneFromId(String id) {
         try {
-            return DateTimeZone.forID(id)
+            return id ? DateTimeZone.forID(id) : DateTimeZone.UTC
         }
         catch (e) {
             log.debug("Helpers.getZoneFromId: ${e.message}")
-            return null
+            return DateTimeZone.UTC
         }
     }
     static DateTime toDateTimeTodayWithZone(LocalTime lt, DateTimeZone zone) {
@@ -150,7 +167,9 @@ class Helpers {
         result
     }
 
-    static String randomAlphanumericString(int length) {
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    static String randomAlphanumericString(Integer l) {
+        int length = (l != null) ? l : 22
         Collection<String> alphabet = ("a".."z") + (0..9)
         int lastIndex = alphabet.size() - 1
         StringBuffer result = new StringBuffer()

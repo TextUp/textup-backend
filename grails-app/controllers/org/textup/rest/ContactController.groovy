@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
@@ -12,6 +13,7 @@ import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
 
+@GrailsCompileStatic
 @RestApi(name="Contact", description="Operations on contacts, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class ContactController extends BaseController {
@@ -19,7 +21,7 @@ class ContactController extends BaseController {
     static namespace = "v1"
 
     // authService from superclass
-    def contactService
+    ContactService contactService
 
     // List
     // ----
@@ -55,7 +57,7 @@ class ContactController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (!Helpers.exactly(1, ["teamId", "tagId"], params)) {
+        if (Helpers.exactly(2, ["teamId", "tagId"], params)) {
             badRequest()
         }
         else if (params.teamId) {
@@ -84,10 +86,10 @@ class ContactController extends BaseController {
         else if (!authService.hasPermissionsForTag(ct1.id)) {
             return forbidden()
         }
-        genericListActionAllResults(Contact, ct1.getMembers(params.list("status[]")))
+        genericListActionAllResults(Contact, ct1.getMembersByStatus(params.list("status[]")))
     }
     protected def listForStaff(GrailsParameterMap params) {
-        Staff s1 = authService.isLoggedInAndActive
+        Staff s1 = authService.loggedInAndActive
         if (!s1) {
             return forbidden()
         }
@@ -99,21 +101,21 @@ class ContactController extends BaseController {
     protected def listForPhone(Phone p1, GrailsParameterMap params) {
         Closure count, list
         if (params.search) {
-            count = { Map params -> p1.countContacts(params.search) }
-            list = { Map params -> p1.getContacts(params.search) }
+            count = { Map ps -> p1.countContacts(ps.search as String) }
+            list = { Map ps -> p1.getContacts(ps.search as String) }
         }
         else if (params.staffStatus == "sharedByMe") { // returns CONTACTS
-            count = { Map params -> p1.countSharedByMe() }
-            list = { Map params -> p1.getSharedByMe(params) }
+            count = { Map ps -> p1.countSharedByMe() }
+            list = { Map ps -> p1.getSharedByMe(ps) }
         }
         else if (params.staffStatus == "sharedWithMe") { // returns SHARED CONTACTS
-            count = { Map params -> p1.countSharedWithMe() }
-            list = { Map params -> p1.getSharedWithMe(params) }
+            count = { Map ps -> p1.countSharedWithMe() }
+            list = { Map ps -> p1.getSharedWithMe(ps) }
         }
         else {
             params.statuses = params.list("status[]")
-            count = { Map params -> p1.countContacts(params) }
-            list = { Map params -> p1.getContacts(params) }
+            count = { Map ps -> p1.countContacts(ps) }
+            list = { Map ps -> p1.getContacts(ps) }
         }
         genericListActionForClosures(Contact, count, list, params)
     }
@@ -166,8 +168,8 @@ class ContactController extends BaseController {
         @RestApiError(code="404",  description="The staff or team member to add this contact to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(request, "contact")) { return; }
-        Map contactInfo = request.JSON.contact
+    	if (!validateJsonRequest(request, "contact")) { return }
+        Map contactInfo = (request.properties.JSON as Map).contact as Map
         if (params.teamId) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
@@ -204,7 +206,7 @@ class ContactController extends BaseController {
         if (authService.exists(Contact, id)) {
             if (authService.hasPermissionsForContact(id) ||
                 authService.getSharedContactIdForContact(id)) {
-                Map cInfo = request.JSON.contact
+                Map cInfo = (request.properties.JSON as Map).contact as Map
                 try {
                     handleUpdateResult(Contact, contactService.update(id, cInfo))
                 }
@@ -233,13 +235,6 @@ class ContactController extends BaseController {
         @RestApiError(code="403", description="You do not have permission to modify this contact.")
     ])
     def delete() {
-        Long id = params.long("id")
-        if (authService.exists(Contact, id)) {
-            if (authService.hasPermissionsForContact(id)) {
-                handleDeleteResult(contactService.delete(id))
-            }
-            else { forbidden() }
-        }
-        else { notFound() }
+        notAllowed()
     }
 }

@@ -2,10 +2,15 @@ package org.textup
 
 import groovy.transform.ToString
 import groovy.util.logging.Log4j
+import org.textup.types.ResultType
+import grails.compiler.GrailsCompileStatic
+import groovy.transform.TypeCheckingMode
 
+@GrailsCompileStatic
 @Log4j
 @ToString
 class Result<T> {
+
     boolean success = true
     T payload
     ResultType type //check the Constants class for valid types
@@ -28,33 +33,40 @@ class Result<T> {
         this
     }
 
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     Collection<String> getErrorMessages() {
         Collection<String> messages = []
-        switch (res.type) {
-            case ResultType.VALIDATION:
-                res.payload.allErrors.each {
-                    messages << messageSource.getMessage(it, LCH.getLocale())
-                }
-                break
-            case ResultType.MESSAGE_STATUS:
-                messages << res.payload.message
-                break
-            case ResultType.MESSAGE_LIST_STATUS:
-                messages += res.payload.messages
-                break
-            case ResultType.THROWABLE:
-                messages << res.payload.message
-                break
-            case ResultType.MESSAGE:
-                messages << res.payload.message
-                break
+        try {
+            switch (this.type) {
+                case ResultType.VALIDATION:
+                    this.payload.allErrors.each {
+                        messages << messageSource.getMessage(it, LCH.getLocale())
+                    }
+                    break
+                case ResultType.MESSAGE_STATUS:
+                    messages << this.payload.message
+                    break
+                case ResultType.MESSAGE_LIST_STATUS:
+                    messages += this.payload.messages
+                    break
+                case ResultType.THROWABLE:
+                    messages << this.payload.message
+                    break
+                case ResultType.MESSAGE:
+                    messages << this.payload.message
+                    break
+            }
+        }
+        catch (e) {
+            log.error("Result.getErrorMessages: Could not get errors for type \
+                ${this.type} with errors ${e.message}")
         }
         messages
     }
 
     protected def executeAction(Closure action) {
     	if (action.maximumNumberOfParameters == 0) { action() }
-        else (action.maximumNumberOfParameters == 1) { action(payload) }
+        else if (action.maximumNumberOfParameters == 1) { action(payload) }
         else { action(type, payload) }
     }
 
@@ -66,10 +78,10 @@ class Result<T> {
         Result prevRes, thisRes
         for (action in actions) {
             if (!prevRes) {
-                thisRes = action()
+                thisRes = action() as Result
             }
             else if (prevRes.success) {
-                thisRes = action(prevRes.payload)
+                thisRes = action(prevRes.payload) as Result
             }
             else { // prev result is failure
                 return prevRes

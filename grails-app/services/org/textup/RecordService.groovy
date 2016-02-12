@@ -1,16 +1,21 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import static org.springframework.http.HttpStatus.*
 import org.joda.time.DateTime
+import org.textup.rest.TwimlBuilder
+import org.textup.types.ReceiptStatus
+import org.textup.validator.OutgoingText
+import static org.springframework.http.HttpStatus.*
 
+@GrailsTypeChecked
 @Transactional
 class RecordService {
 
-	def resultFactory
-	def authService
-    def socketService
-    def twimlBuilder
+	ResultFactory resultFactory
+	AuthService authService
+    SocketService socketService
+    TwimlBuilder twimlBuilder
 
     // Status
     // ------
@@ -23,7 +28,7 @@ class RecordService {
                 RecordItem item = receipt.item
                 receipt.status = status
                 if (duration && item.instanceOf(RecordCall)) {
-                    item.durationInSeconds = duration
+                    (item as RecordCall).durationInSeconds = duration
                 }
                 if (!receipt.save()) {
                     return resultFactory.failWithValidationErrors(receipt.errors)
@@ -54,22 +59,25 @@ class RecordService {
     }
     protected ResultList<RecordItem> create(Phone p1, Map body) {
         if (p1) {
-            this.determineClass(body).then({ Class<RecordItem> clazz ->
-                if (res.payload == RecordText) {
+            Result<Class<RecordItem>> res = this.determineClass(body)
+            if (res.success) {
+                Class<RecordItem> clazz = res.payload
+                if (clazz == RecordText) {
                     this.createText(p1, body)
                 }
                 else {
-                    this.createCall(entity, p1, body)
+                    this.createCall(p1, body)
                 }
-            })
+            }
+            else { new ResultList(res) }
         }
         else {
-            resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-                "recordService.create.noPhone")
+            new ResultList(resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+                "recordService.create.noPhone"))
         }
     }
     protected Result<Class<RecordItem>> determineClass(Map body) {
-        if (body.callContact || body.callPhoneNumber) {
+        if (body.callContact || body.callSharedContact) {
             resultFactory.success(RecordCall)
         }
         else if (body.contents) {
@@ -81,40 +89,33 @@ class RecordService {
         }
     }
     protected ResultList<RecordText> createText(Phone p1, Map body) {
-        Long<Long> cIds = Helpers.toIdsList(body.sendToContacts),
+        List<Long> cIds = Helpers.toIdsList(body.sendToContacts),
             scIds = Helpers.toIdsList(body.sendToSharedContacts),
             tIds = Helpers.toIdsList(body.sendToTags)
         List<String> nums = Helpers.toList(body.sendToPhoneNumbers)
         if ([nums, cIds, scIds, tIds].every { it.isEmpty() }) {
-            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                "recordService.create.noTextRecipients")
+            return new ResultList(resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                "recordService.create.noTextRecipients"))
         }
-        OutgoingText text = new OutgoingText(message:body.contents,
-            contacts: Contact.getAll(cIds),
-            sharedContacts: SharedContact.findByContactIds(scIds),
-            tags:ContactTag.getAll(tIds))
+        OutgoingText text = new OutgoingText(message:body.contents as String,
+            contacts:Contact.getAll(cIds as Iterable<Serializable>) as List,
+            sharedContacts:SharedContact.findByContactIdsAndSharedWith(scIds, p1),
+            tags:ContactTag.getAll(tIds as Iterable<Serializable>) as List)
         p1.sendText(text, authService.loggedInAndActive)
     }
     protected ResultList<RecordCall> createCall(Phone p1, Map body) {
-        if (!Helpers.exactly(1, ["callPhoneNumber", "callContact",
-            "callSharedContact"], body)) {
-            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+        ResultList resList = new ResultList()
+        if (!Helpers.exactly(1, ["callContact", "callSharedContact"], body)) {
+            return resList << resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                 "recordService.create.canCallOnlyOne")
         }
         Contactable c1
-        if (Helpers.toString(body.callPhoneNumber)) {
-            Result<Contact> res = p1.createContact([:],
-                [Helpers.toString(body.callPhoneNumber)])
-            if (res.success) {
-                c1 = res.payload
-            }
-            else { return res  }
-        }
-        else if (Helpers.toLong(body.callContact)) {
+        if (Helpers.toLong(body.callContact)) {
             c1 = Contact.get(Helpers.toLong(body.callContact))
         }
         else { //shared contact
-            c1 = SharedContact.findByContactId(Helpers.toLong(body.callSharedContact))
+            c1 = SharedContact.findByContactIdAndSharedWith(
+                Helpers.toLong(body.callSharedContact), p1)
         }
         p1.startBridgeCall(c1, authService.loggedInAndActive)
     }

@@ -2,79 +2,43 @@ package org.textup
 
 import groovy.transform.EqualsAndHashCode
 import org.hibernate.FlushMode
+import org.textup.validator.BasePhoneNumber
+import grails.compiler.GrailsCompileStatic
+import org.hibernate.Session
+import groovy.transform.TypeCheckingMode
 
-@EqualsAndHashCode(callSuper=true)
+@GrailsCompileStatic
+@EqualsAndHashCode(callSuper=true, includes=["number", "preference"])
 class ContactNumber extends BasePhoneNumber {
 
-	int preference = 0
-    long ownerId
+	Integer preference
 
-    static belongsTo = [contact:Contact]
+    static belongsTo = [owner:Contact]
     static constraints = {
-        number shared:'phoneNumber', validator:{ val, obj ->
-            //number must be unique within a contact
-            if (obj.contactHasNumber(obj.contact, val)) { return ["duplicate", obj.contact?.name] }
+        number validator:{ String val, ContactNumber obj ->
+            if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
     }
 
-    // Validation
-    // ----------
-
-    def beforeValidate() {
-        //autoincrement the preference only on initial save
-        if (this.id == null && this.contact && this.number) {
-            ContactNumber.withNewSession { session ->
-                session.flushMode = FlushMode.MANUAL
-                try {
-                    List<ContactNumber> cNums = ContactNumber.findAllByOwnerId(this.contact.id,
-                        [max:1, sort:"preference", order:"desc"])
-                    if (cNums) {
-                        this.preference = cNums[0].preference + 1
-                    }
-                }
-                finally { session.flushMode = FlushMode.AUTO }
-            }
-        }
-    }
-    private boolean contactHasNumber(Contact c, String num) {
-        boolean hasDuplicate = false
-        ContactNumber.withNewSession { session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                ContactNumber cn = ContactNumber.findByOwnerIdAndNumber(c.id, num)
-                if (cn && cn.id != this.id) { hasDuplicate = true }
-            }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        hasDuplicate
-    }
-
-    // Property Access
-    // ---------------
-
-    void setContact(Contact c) {
-        if (c) {
-            this.contact = c
-            this.ownerId = c.id
-        }
-    }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
     static Map<String,List<Contact>> getContactsForPhoneAndNumbers(Phone p1,
-        Collection<String> numbers) {
+        Collection<String> nums) {
         List<ContactNumber> cNums = ContactNumber.createCriteria().list {
-            contact { eq("phone", p1) }
-            if (numbers) { "in"("number", numbers) }
+            createAlias("owner", "c1")
+            eq("c1.phone", p1)
+            if (nums) { "in"("number", nums) }
             else { eq("number", null) }
             order("number")
-        }
-        HashSet<String> numsRemaining = new HashSet<String>(numbers)
+        } as List
+        HashSet<String> numsRemaining = new HashSet<String>(nums)
         Map<String,List<Contact>> numAsStringToContacts = [:]
         cNums.each { ContactNumber cn ->
             numsRemaining.remove(cn.number)
-            if (numAsStringToContacts.contains(cn.number)) {
-                numAsStringToContacts[cn.number] << cn.contact
+            if (numAsStringToContacts.containsKey(cn.number)) {
+                numAsStringToContacts[cn.number] << cn.owner
             }
             else {
-                numAsStringToContacts[cn.number] = [cn.contact]
+                numAsStringToContacts[cn.number] = [cn.owner]
             }
         }
         numsRemaining.each { String numAsString ->

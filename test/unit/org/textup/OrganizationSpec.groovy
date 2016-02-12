@@ -9,12 +9,11 @@ import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
+import org.textup.types.OrgStatus
 
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-	ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-	RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-	TeamMembership, StaffPhone, Staff, Team, Organization, 
-	Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class OrganizationSpec extends Specification {
@@ -25,137 +24,129 @@ class OrganizationSpec extends Specification {
     def setup() {
         ResultFactory fac = getResultFactory()
         fac.messageSource = [getMessage:{ String c, Object[] p, Locale l -> c }] as MessageSource
-        Organization.metaClass.constructor = { ->
-            def instance = grailsApplication.mainContext.getBean(Organization.name)
-            instance.resultFactory = getResultFactory()
-            instance
-        }
-        Organization.metaClass.constructor = { Map m->
-            def instance = new Organization() 
-            instance.properties = m
-            instance.resultFactory = getResultFactory()
-            instance
-        }
     }
     private ResultFactory getResultFactory() {
         grailsApplication.mainContext.getBean("resultFactory")
     }
 
-    ////////////////////////////////
-    // Deletion not yet supported //
-    ////////////////////////////////
-
     void "test constraints"() {
-        when: 
+        when:
         Organization org = new Organization()
+        org.resultFactory = getResultFactory()
+        int baseline = Organization.count()
 
-        then: 
-        org.validate() == false 
+        then:
+        org.validate() == false
 
         when: "we fill in fields"
         String orgName = "OrgSpec"
         org.name = orgName
         org.location = new Location(address:"testing", lat:0G, lon:0G)
 
-        then: 
-        org.validate() == true 
+        then:
+        org.validate() == true
 
         when: "we try to create an org with duplicate name-location"
         org.save(flush:true, failOnError:true)
         Organization org2 = new Organization(name:orgName)
+        org2.resultFactory = getResultFactory()
         org2.location = new Location(address:"testing", lat:0G, lon:0G)
 
-        then: 
-        org2.validate() == false 
+        then:
+        org2.validate() == false
         org2.errors.errorCount == 1
 
         when: "we switch to a unique location but keep duplicate name"
         org2.location.lon = 8G
 
-        then: 
-        org2.validate() == true 
+        then:
+        org2.validate() == true
+
+        when: "we approve both organizations"
+        org.status = OrgStatus.APPROVED
+        org2.status = OrgStatus.APPROVED
+        org2.save(flush:true, failOnError:true)
+
+        then: "search for orgs to gives us both"
+        Organization.count() == baseline + 2
+        Organization.search(orgName).size() == 2
+        Organization.search(orgName).size() == Organization.countSearch(orgName)
     }
 
     void "test operations on staff"() {
         given: "an organization"
         Organization org = new Organization(name:"OrgSpec2")
+        org.resultFactory = getResultFactory()
         org.location = new Location(address:"testing", lat:0G, lon:0G)
         org.save(flush:true, failOnError:true)
+        int baseline = Staff.count()
 
         when: "we add a staff"
-        Result res = org.addStaff(username:"orgstaff1", password:"password", 
-            name:"Staff", email:"staff@textup.org", personalPhoneNumberAsString:"1112223333")
+        Result res = org.addStaff(username:"orgstaff1", password:"password",
+            name:"Staff", email:"staff@textup.org", personalPhoneAsString:"1112223333")
 
-        then: 
-        res.success == true 
-        res.payload instanceof Staff 
-        res.payload.validate() == true 
+        then:
+        res.success == true
+        res.payload instanceof Staff
+        res.payload.validate() == true
 
         when: "we add an invalid staff"
         res.payload.save(flush:true, failOnError:true)
-        res = org.addStaff(username:"orgstaff2", password:"password", 
-            name:"Staff", email:"staff@textup.org")
+        res = org.addStaff(username:"orgstaff2", password:"password",
+            name:"Staff")
 
-        then: 
-        res.success == false 
+        then:
+        res.success == false
         res.payload instanceof ValidationErrors
         res.payload.errorCount == 1
+
+        expect: "getting staff by status"
+        Staff.count() == baseline + 1
+        org.people.size() == 1
+        org.pending.size() == 1
+        org.admins.size() == 0
+        org.staff.size() == 0
+        org.blocked.size() == 0
     }
 
     void "test operations on teams"() {
         given: "an organization"
         Organization org = new Organization(name:"OrgSpec3")
+        org.resultFactory = getResultFactory()
         org.location = new Location(address:"testing", lat:0G, lon:0G)
         org.save(flush:true, failOnError:true)
 
         when: "we add a valid team"
-        Result res = org.addTeam(name:"Team 1", 
+        Result res = org.addTeam(name:"Team 1",
             location:new Location(address:"testing", lat:0G, lon:0G))
 
-        then: 
-        res.success == true 
+        then:
+        res.success == true
         res.payload instanceof Team
-        res.payload.validate() == true 
+        res.payload.validate() == true
 
         when: "we try to add a duplicate team"
         res.payload.save(flush:true, failOnError:true)
         res = org.addTeam(name:"Team 1",
             location:new Location(address:"testing", lat:0G, lon:0G))
 
-        then: 
+        then:
         org.teams.size() == 1
-        res.success == false 
+        res.success == false
         res.payload instanceof ValidationErrors
         res.payload.errorCount == 1
 
         when: "we switch to a unique name"
-        res = org.addTeam(name:"team 1",
-            location:new Location(address:"testing", lat:0G, lon:0G)) //team names CASE SENSITIVE!
-
-        then: 
-        res.success == true 
-        res.payload instanceof Team
-        res.payload.validate() == true 
-
-        when: "we try to delete a null team"
-        Team validTeam = res.payload
-        validTeam.save(flush:true, failOnError:true)
-        assert org.teams.size() == 2
-        res = org.deleteTeam()
-
-        then: 
-        res.success == false 
-        res.payload instanceof Map
-        res.payload.code == "organization.error.teamNotFound"
-
-        when: "we delete a team"
-        int baseline = Team.count()
-        res = org.deleteTeam(validTeam)
-        assert res.success
-        org.save(flush:true, failOnError:true)
+        res = org.addTeam(name:"team 1", //team names CASE SENSITIVE!
+            location:new Location(address:"testing", lat:0G, lon:0G))
 
         then:
-    	org.teams.size() == 1
-        Team.count() == baseline - 1
+        res.success == true
+        res.payload instanceof Team
+        res.payload.validate() == true
+        assert res.payload.save(flush:true, failOnError:true)
+
+        expect:
+        org.teams.size() == 2
     }
 }

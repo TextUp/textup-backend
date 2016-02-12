@@ -1,17 +1,25 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import grails.plugin.springsecurity.SpringSecurityService
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
-import org.textup.enum.*
+import org.textup.types.PhoneOwnershipType
+import org.textup.types.StaffStatus
+import org.textup.validator.BasePhoneNumber
+import org.textup.validator.PhoneNumber
+import org.textup.validator.ScheduleChange
 
+@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(name="Staff", description="A staff member at an organization.")
 class Staff {
 
-    def resultFactory
-	def springSecurityService
+    ResultFactory resultFactory
+	SpringSecurityService springSecurityService
 
     boolean enabled = true
     boolean accountExpired
@@ -69,11 +77,11 @@ class Staff {
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
-            apiFieldField = "phone",
+            apiFieldName  = "phone",
             description   = "TextUp phone number",
             allowedType   = "String"),
         @RestApiObjectField(
-            apiFieldField = "awayMessage",
+            apiFieldName  = "awayMessage",
             description   = "Away message when no staff members in this team \
                 are available to respond to texts or calls",
             allowedType   = "String"),
@@ -111,24 +119,19 @@ class Staff {
             description  = "Personal phone number of the staff member.",
             allowedType  = "String")
     ])
-    static transients = ['personalPhoneNumber', 'phone']
+    static transients = ["personalPhoneNumber", "phone", "resultFactory",
+        "springSecurityService"]
 	static constraints = {
 		username blank:false, unique:true
 		password blank:false
 		email email:true
-        personalPhoneAsString nullable:true, shared: 'phoneNumber'
-        phone nullable:true
+        personalPhoneAsString blank:true, nullable:true, validator:{ String val, Staff obj ->
+            if (val && !(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+        }
 	}
 	static mapping = {
 		password column: '`password`'
 	}
-    static namedQueries = {
-        forOrgAndStatuses { Organization thisOrg, Collection<StaffStatus> statuses ->
-            eq("org", thisOrg)
-            if (statuses) { "in"("status", statuses) }
-            else { eq("status", null) }
-        }
-    }
 
 	// Events
     // ------
@@ -136,7 +139,6 @@ class Staff {
     def beforeValidate() {
         if (!this.schedule) {
             this.schedule = new WeeklySchedule([:])
-            this.schedule.save()
         }
     }
 
@@ -175,6 +177,7 @@ class Staff {
     // SpringSecurityCore methods
     // --------------------------
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
 	Set<Role> getAuthorities() {
 		StaffRole.findAllByStaff(this).collect { it.role }
 	}
@@ -195,8 +198,8 @@ class Staff {
     // ----
 
     boolean sharesTeamWith(Staff s1) {
-        HashSet<Teams> myTeams = new HashSet<>(this.teams)
-        s1?.teams?.any { it in myTeams }
+        HashSet<Team> myTeams = new HashSet<>(this.getTeams())
+        s1?.getTeams()?.any { it in myTeams }
     }
 
     // Sharing
@@ -204,9 +207,10 @@ class Staff {
 
     Collection<Staff> getCanShareWith(Collection<String> statuses=[]) {
         HashSet<Staff> staffCanShare = new HashSet<>()
-        this.teams.each { Team t1 ->
-            staffCanShare.addAll(t1.getMembers(statuses))
+        this.getTeams().each { Team t1 ->
+            staffCanShare.addAll(t1.getMembersByStatus(statuses))
         }
+        staffCanShare.remove(this)
         staffCanShare
     }
 
@@ -214,9 +218,11 @@ class Staff {
     // Property Access
     // ---------------
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     int countTeams() {
         Team.forStaffs([this]).count()
     }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<Team> getTeams(Map params=[:]) {
         Team.forStaffs([this]).list(params)
     }
@@ -227,30 +233,25 @@ class Staff {
         this.schedule = s
         this.schedule?.save()
     }
-    void setPersonalPhoneNumber(PhoneNumber num) {
+    void setPersonalPhoneNumber(BasePhoneNumber num) {
         this.personalPhoneAsString = num?.number
     }
     PhoneNumber getPersonalPhoneNumber() {
         new PhoneNumber(number:this.personalPhoneAsString)
     }
-    void setPhone(Phone p1) {
-        PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(this.id,
-            PhoneOwnershipType.INDIVIDUAL) ?:
-            new PhoneOwnership(ownerId:this.id, type:PhoneOwnershipType.INDIVIDUAL)
-        own.phone = p1
-        if (own.phone.validate()) { own.phone.save() }
-    }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     Phone getPhone() {
         PhoneOwnership.createCriteria().list {
-            propjections { property("phone") }
+            projections { property("phone") }
             eq("type", PhoneOwnershipType.INDIVIDUAL)
             eq("ownerId", this.id)
         }[0]
     }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<Phone> getAllPhones() {
         List<Team> teams = this.teams
         PhoneOwnership.createCriteria().list {
-            propjections { property("phone") }
+            projections { property("phone") }
             or {
                 and {
                     eq("type", PhoneOwnershipType.INDIVIDUAL)

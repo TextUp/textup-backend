@@ -1,13 +1,15 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import grails.validation.ValidationErrors
 import static org.springframework.http.HttpStatus.*
 
+@GrailsCompileStatic
 @Transactional
 class OrganizationService {
 
-	def resultFactory
+	ResultFactory resultFactory
 
     Result<Organization> update(Long orgId, Map body) {
     	Organization org = Organization.get(orgId)
@@ -16,12 +18,12 @@ class OrganizationService {
                 "organizationService.update.notFound", [orgId])
     	}
         if (body.name) { org.name = body.name }
-    	if (body.location) {
-    		def l = body.location
+    	if (body.location instanceof Map) {
+    		Map l = body.location as Map
     		org.location.with {
     			if (l.address) address = l.address
-                if (l.lat) lat = l.lat
-                if (l.lon) lon = l.lon
+                if (l.lat) lat = Helpers.toBigDecimal(l.lat)
+                if (l.lon) lon = Helpers.toBigDecimal(l.lon)
     		}
             if (!org.location.save()) {
                 return resultFactory.failWithValidationErrors(org.location.errors)

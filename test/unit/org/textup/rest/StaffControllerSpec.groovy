@@ -14,11 +14,9 @@ import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(StaffController)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
-    Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class StaffControllerSpec extends CustomSpec {
 
@@ -28,39 +26,40 @@ class StaffControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     protected void mockForList() {
         controller.authService = [
             isAdminAt:{ Long id -> true },
-            isAdminForTeam:{ Long id -> true },
-            belongsToSameTeamAs:{ Long id -> true }
-        ]
+            isAdminAtSameOrgAs:{ Long id -> true },
+            isLoggedInAndActive:{ Long id -> true },
+            hasPermissionsForTeam:{ Long id -> true }
+        ] as AuthService
     }
 
     void "test listing with no ids"() {
-        when: 
+        when:
         request.method = "GET"
         controller.index()
 
-        then: 
+        then:
         response.status == SC_BAD_REQUEST
     }
 
     void "test listing with both ids"() {
-        when: 
+        when:
         request.method = "GET"
         params.organizationId = org.id
         params.teamId = t1.id
+        params.canShareStaffId = s1.id
         controller.index()
 
-        then: 
+        then:
         response.status == SC_BAD_REQUEST
     }
 
@@ -92,9 +91,23 @@ class StaffControllerSpec extends CustomSpec {
         response.json*.id.every { ids.contains(it as Long) }
     }
 
-    //////////
-    // Show //
-    //////////
+    void "test list staff that can share with provided staff id"() {
+        when:
+        mockForList()
+        request.method = "GET"
+        params.canShareStaffId = s1.id
+        controller.index()
+        List<Long> ids = Helpers.allToLong(s1.teams.members*.id.flatten())
+        ids.remove(s1.id)
+
+        then:
+        response.status == SC_OK
+        response.json.size() == ids.size()
+        response.json*.id.every { ids.contains(it as Long) }
+    }
+
+    // Show
+    // ----
 
     void "test show nonexistent staff"() {
         when:
@@ -102,15 +115,15 @@ class StaffControllerSpec extends CustomSpec {
         params.id = -88L
         controller.show()
 
-        then: 
+        then:
         response.status == SC_NOT_FOUND
     }
 
     void "test show a forbidden staff"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForStaff:{ Long id -> false },
-        ]
+        ] as AuthService
 
         when:
         request.method = "GET"
@@ -122,11 +135,11 @@ class StaffControllerSpec extends CustomSpec {
     }
 
     void "test show a staff"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForStaff:{ Long id -> true },
-        ]
-        
+        ] as AuthService
+
         when:
         request.method = "GET"
         params.id = s1.id
@@ -134,20 +147,19 @@ class StaffControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_OK
-        response.json.id == s1.id 
+        response.json.id == s1.id
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
     void "test save"() {
         given:
         controller.staffService = [create:{ Map body ->
             new Result(payload:s1)
-        }]
+        }] as StaffService
 
-        when: 
+        when:
         request.json = "{'staff':{}}"
         request.method = "POST"
         controller.save()
@@ -157,15 +169,14 @@ class StaffControllerSpec extends CustomSpec {
         response.json.id == s1.id
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     void "test update a nonexistent staff"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'staff':{}}"
@@ -178,12 +189,12 @@ class StaffControllerSpec extends CustomSpec {
     }
 
     void "test update a forbidden staff"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             isLoggedIn:{ Long id -> false },
             isAdminAtSameOrgAs:{ Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'staff':{}}"
@@ -196,15 +207,15 @@ class StaffControllerSpec extends CustomSpec {
     }
 
     void "test update a staff"() {
-        given: 
-        controller.staffService = [update:{ Long cId, Map body ->
+        given:
+        controller.staffService = [update:{ Long cId, Map body, String tz ->
             new Result(payload:s1)
-        }]
+        }] as StaffService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             isLoggedIn:{ Long id -> true },
             isAdminAtSameOrgAs:{ Long id -> true }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'staff':{}}"
@@ -217,9 +228,8 @@ class StaffControllerSpec extends CustomSpec {
         response.json.id == s1.id
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     void "test delete"() {
         when:

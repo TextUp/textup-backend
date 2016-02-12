@@ -15,11 +15,9 @@ import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(PublicOrganizationController)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
-    Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class PublicOrganizationControllerSpec extends CustomSpec {
 
@@ -29,13 +27,12 @@ class PublicOrganizationControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     void "test list"() {
         when:
@@ -47,9 +44,8 @@ class PublicOrganizationControllerSpec extends CustomSpec {
         response.json.size() == Organization.count()
     }
 
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     void "test show nonexistent"() {
         when:
@@ -57,7 +53,7 @@ class PublicOrganizationControllerSpec extends CustomSpec {
         params.id = -88L
         controller.show()
 
-        then: 
+        then:
         response.status == SC_NOT_FOUND
     }
 
@@ -67,17 +63,16 @@ class PublicOrganizationControllerSpec extends CustomSpec {
         params.id = org.id
         controller.show()
 
-        then: 
+        then:
         response.status == SC_OK
         response.json.id == org.id
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
     void "test save"() {
-        when: 
+        when:
         request.json = "{'organization':{}}"
         request.method = "POST"
         controller.save()
@@ -86,12 +81,11 @@ class PublicOrganizationControllerSpec extends CustomSpec {
         response.status == SC_METHOD_NOT_ALLOWED
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     void "test update"() {
-        when: 
+        when:
         request.json = "{'organization':{}}"
         request.method = "PUT"
         controller.update()
@@ -100,9 +94,8 @@ class PublicOrganizationControllerSpec extends CustomSpec {
         response.status == SC_METHOD_NOT_ALLOWED
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     void "test delete"() {
         when:

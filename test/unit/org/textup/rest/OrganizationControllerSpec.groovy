@@ -15,11 +15,9 @@ import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(OrganizationController)
-@Domain([TagMembership, Contact, Phone, ContactTag,
-    ContactNumber, Record, RecordItem, RecordNote, RecordText,
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact,
-    TeamMembership, StaffPhone, Staff, Team, Organization,
-    Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class OrganizationControllerSpec extends CustomSpec {
 
@@ -33,9 +31,8 @@ class OrganizationControllerSpec extends CustomSpec {
         super.cleanupData()
     }
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     void "test list"() {
         when:
@@ -55,7 +52,8 @@ class OrganizationControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_OK
-        response.json.size() == Organization.count()
+        response.json.organizations.size() ==
+            Organization.countSearch(Helpers.toQuery(params.search))
     }
 
     void "test list with unsuccessful search"() {
@@ -70,9 +68,8 @@ class OrganizationControllerSpec extends CustomSpec {
         response.json.organizations?.size() == 0
     }
 
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     void "test show nonexistent"() {
         when:
@@ -95,9 +92,8 @@ class OrganizationControllerSpec extends CustomSpec {
         response.json.id == org.id
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
     void "test save"() {
         when:
@@ -109,15 +105,14 @@ class OrganizationControllerSpec extends CustomSpec {
         response.status == SC_METHOD_NOT_ALLOWED
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     void "test update a nonexistent org"() {
         given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'organization':{}}"
@@ -134,7 +129,7 @@ class OrganizationControllerSpec extends CustomSpec {
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             isAdminAt:{ Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'organization':{}}"
@@ -150,11 +145,11 @@ class OrganizationControllerSpec extends CustomSpec {
         given:
         controller.organizationService = [update:{ Long cId, Map body ->
             new Result(payload:org)
-        }]
+        }] as OrganizationService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             isAdminAt:{ Long id -> true }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'organization':{}}"
@@ -167,9 +162,8 @@ class OrganizationControllerSpec extends CustomSpec {
         response.json.id == org.id
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     void "test delete"() {
         when:

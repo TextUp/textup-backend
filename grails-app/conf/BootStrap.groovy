@@ -1,7 +1,9 @@
 import grails.util.GrailsUtil
 import org.textup.*
 import org.textup.rest.*
+import org.textup.types.*
 import org.textup.util.*
+import org.textup.validator.*
 
 class BootStrap {
 
@@ -55,7 +57,7 @@ class BootStrap {
 				//create phones for teams
 				Phone tPh1 = new Phone()
 		        tPh1.numberAsString = "1112223336"
-		        t1.phone = tPh1
+		        tPh1.updateOwner(t1)
 		        tPh1.save(flush:true, failOnError:true)
 
 				//create staff
@@ -68,9 +70,9 @@ class BootStrap {
 				Staff s2 = new Staff(username:"demo-staff2", password:"password",
 					name:"Johnny Staff3", email:"connect@textup.org", org:org,
 					status:StaffStatus.PENDING)
-		    	admin.personalPhoneNumberAsString = "267 888 7452"
-		    	s1.personalPhoneNumberAsString = "267 888 7452"
-		    	s2.personalPhoneNumberAsString = "267 888 7452"
+		    	admin.personalPhoneAsString = "2678887452"
+		    	s1.personalPhoneAsString = "2678887452"
+		    	s2.personalPhoneAsString = "2678887452"
 		    	admin.save(flush:true, failOnError:true)
 				s1.save(flush:true, failOnError:true)
 				s2.save(flush:true, failOnError:true)
@@ -82,14 +84,14 @@ class BootStrap {
 		    	Phone p1 = new Phone(),
 		    		p2 = new Phone(),
 		    		p3 = new Phone()
-		    	p1.numberAsString = "925 275 5153"
-		    	admin.phone = p1
+		    	p1.numberAsString = "9252755153"
+		    	p1.updateOwner(admin)
 		    	p1.save(flush:true, failOnError:true)
-		    	p2.numberAsString = "401 234 0315"
-		    	s1.phone = p2
+		    	p2.numberAsString = "4012340315"
+		    	p2.updateOwner(s1)
 		    	p2.save(flush:true, failOnError:true)
-		    	p3.numberAsString = "111 222 3335"
-		    	s2.phone = p3
+		    	p3.numberAsString = "1112223335"
+		    	p3.updateOwner(s2)
 		    	p3.save(flush:true, failOnError:true)
 		    	// create roles for staff
 		    	StaffRole.create(admin, userRole, true)
@@ -117,8 +119,8 @@ class BootStrap {
 				[rText1, rText2, rTeText1]*.save(flush:true, failOnError:true)
 
 				//share contacts
-				SharedContact sc1 = p1.shareContact(c1, p2, SharePermission.DELEGATE).payload
-		        SharedContact sc2 = p2.shareContact(c2, p1, SharePermission.DELEGATE).payload
+				SharedContact sc1 = p1.share(c1, p2, SharePermission.DELEGATE).payload
+		        SharedContact sc2 = p2.share(c2, p1, SharePermission.DELEGATE).payload
 		        [sc1, sc2]*.save(flush:true, failOnError:true)
 
 		    	//create tags

@@ -12,345 +12,202 @@ import grails.plugin.springsecurity.SpringSecurityService
 import org.textup.util.CustomSpec
 import org.joda.time.DateTime
 import static org.springframework.http.HttpStatus.*
+import org.textup.types.ReceiptStatus
+import org.textup.types.ResultType
+import org.textup.rest.TwimlBuilder
+import org.textup.validator.OutgoingText
 
 @TestFor(RecordService)
-@Domain([TagMembership, Contact, Phone, ContactTag,
-	ContactNumber, Record, RecordItem, RecordNote, RecordText,
-	RecordCall, RecordItemReceipt, PhoneNumber, SharedContact,
-	TeamMembership, StaffPhone, Staff, Team, Organization,
-	Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class RecordServiceSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
-        lockService(LockService) { bean -> bean.autoWire = true }
     }
+
     def setup() {
         super.setupData()
         service.resultFactory = getResultFactory()
-        service.lockService = getBean("lockService")
-        [Phone, StaffPhone, TeamPhone].each { clazz ->
-            clazz.metaClass.text = { String message, List<String> numbers,
-                List<Long> contactableIds, List<Long> tagIds ->
-                new Result(payload:new RecordResult())
-            }
-            clazz.metaClass.scheduleText = {String message, DateTime sendAt,
-                List<String> numbers, List<Long> contactableIds, List<Long> tagIds ->
-                new Result(payload:new RecordResult())
-            }
-            clazz.metaClass.call = { String number ->
-                new Result(payload:new RecordResult())
-            }
-            clazz.metaClass.call = { Long contactableId ->
-                new Result(payload:new RecordResult())
-            }
+        service.twimlBuilder = [noResponse: { ->
+            new Result(type:ResultType.SUCCESS, success:true, payload:"noResponse")
+        }] as TwimlBuilder
+        service.authService = [getLoggedInAndActive: { -> s1 }] as AuthService
+        service.socketService = [sendItems:{ List<RecordItem> items, String eventName ->
+            new ResultList()
+        }] as SocketService
+        Phone.metaClass.sendText = { OutgoingText text, Staff staff ->
+            Result res = new Result(type:ResultType.SUCCESS, success:true,
+                payload:"sendText")
+            new ResultList(res)
+        }
+        Phone.metaClass.startBridgeCall = { Contactable c1, Staff staff ->
+            Result res = new Result(type:ResultType.SUCCESS, success:true,
+                payload:[
+                    methodName:"startBridgeCall",
+                    contactable:c1
+                ])
+            new ResultList(res)
         }
     }
+
     def cleanup() {
         super.cleanupData()
     }
 
-    ///////////
-    // Calls //
-    ///////////
+    // Status
+    // ------
 
-    void "test call status"() {
-        // when: "update status with nonexistent apiId"
+    void "test update status"() {
+        given: "an existing receipt"
+        String apiId = "iamsosecretApiId"
+        [rText1, rText2, rTeText1, rTeText2].each {
+            it.addToReceipts(apiId:apiId, receivedByAsString:"1112223333")
+            it.save(flush:true, failOnError:true)
+        }
 
-        // then:
-
-        // when: "update with invalid status"
-
-        // then:
-
-        // when: "update valid with duration"
-
-        // then:
-        expect:
-        1 ==2
-    }
-
-    void "test incoming call with multiple contacts"() {
-        // when: "invalid from number"
-
-        // then:
-
-        // when: "incoming to multiple contacts"
-
-        // then:
-        expect:
-        1 ==2
-    }
-
-    void "test incoming call and create new contact"() {
-        // when: "invalid from number"
-
-        // then:
-
-        // when: "incoming and create new contact"
-
-        // then:
-        expect:
-        1 ==2
-    }
-
-    void "test outgoing call with multiple contacts"() {
-        // when: "invalid to number"
-
-        // then:
-
-        // when: "outgoing to multiple contacts"
-
-        // then:
-        expect:
-        1 ==2
-    }
-
-    void "test outgoing call and create new contact"() {
-        // when: "invalid to number"
-
-        // then:
-
-        // when: "outgoing and create new contact"
-
-        // then:
-        expect:
-        1 ==2
-    }
-
-    void "test creating outgoing RecordCall for a specific contact"() {
-        // when: "no phone found for 'from' number"
-
-        // then:
-
-        // when: "invalid 'to' number"
-
-        // then:
-
-        // when: "contactId specified is not owned by 'from' phone"
-
-        // then:
-
-        // when: "valid creation of outgoing call for specified contactId"
-
-        // then:
-        expect:
-        1 ==2
-    }
-
-    void "test updating timestamps"() {
-        // when: "create call for incoming for multiple contacts"
-
-        // then: "all timestamps updated"
-
-        // when: "create call for outgoing for multiple contacts"
-
-        // then: "all timestamps updated"
-
-        // when: "create outgoing for one specific contact"
-
-        // then: "all timestamps updated"
-        expect:
-        1 ==2
-    }
-
-    ////////////
-    // Create //
-    ////////////
-
-    void "test create errors"() {
-        when: "we create record for a nonexistent team"
-        Result res = service.create(Team, -88L, [:])
+        when: "nonexistent apiId"
+        Result res = service.updateStatus(ReceiptStatus.SUCCESS, "nonexistentApiId")
 
         then:
         res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.create.noPhone"
+        res.type ==  ResultType.MESSAGE_STATUS
+        res.payload.status == NOT_FOUND
+        res.payload.code == "recordService.updateStatus.receiptsNotFound"
+
+        when: "existing with invalid status"
+        res = service.updateStatus(null, apiId)
+        // clear changes to avoid optimistic locking exception
+        RecordItemReceipt.withSession { it.clear() }
+
+        then:
+        res.success == false
+        res.type ==  ResultType.VALIDATION
+        res.payload.errorCount == 1
+
+        when: "existing with valid status"
+        res = service.updateStatus(ReceiptStatus.SUCCESS, apiId)
+
+        then:
+        res.success == true
+        res.payload == "noResponse"
+    }
+
+    // Create
+    // ------
+
+    void "test determine class"() {
+        when: "unknown entity"
+        Result res = service.determineClass([:])
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
         res.payload.status == UNPROCESSABLE_ENTITY
-
-        when: "we pass in a body that cannot be inferred to be one of the 3 record item types"
-        res = service.create(Team, t1.id, [:])
-
-        then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
         res.payload.code == "recordService.create.unknownType"
-        res.payload.status == UNPROCESSABLE_ENTITY
+
+        when: "text"
+        res = service.determineClass([contents:"hello"])
+
+        then:
+        res.success == true
+        res.payload == RecordText
+
+        when: "call"
+        res = service.determineClass([callContact:c1.id])
+
+        then:
+        res.success == true
+        res.payload == RecordCall
     }
 
-    void "create text"() {
-        when: "we specify a valid text without specifying where to send it"
+    void "test create text"() {
+        when: "no recipients"
         Map itemInfo = [contents:"hi"]
-        Result res = service.create(Team, t1.id, itemInfo)
+        ResultList resList = service.createText(t1.phone, itemInfo)
 
         then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.create.noTextRecipients"
-        res.payload.status == BAD_REQUEST
+        resList.isAnySuccess == false
+        resList.results.size() == 1
+        resList.results[0].type == ResultType.MESSAGE_STATUS
+        resList.results[0].payload.code == "recordService.create.noTextRecipients"
+        resList.results[0].payload.status == BAD_REQUEST
 
-        when: "we specify a valid text where some of the ids are not numbers"
-        itemInfo = [contents:"hi", sendToContacts:[tC1.id, "notANumber"]]
-        res = service.create(Team, t1.id, itemInfo)
-
-        then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.create.idIsNotLong"
-        res.payload.status == BAD_REQUEST
-
-        when: "we specify a valid id with valid recipients"
-        itemInfo = [contents:"hi", sendToPhoneNumbers:["2223334444"], sendToContacts:[tC1.id]]
-        res = service.create(Team, t1.id, itemInfo)
+        when:
+        itemInfo.sendToPhoneNumbers = ["2223334444"]
+        itemInfo.sendToContacts = [tC1.id]
+        resList = service.createText(t1.phone, itemInfo)
 
         then:
-        res.success == true
-        res.payload instanceof RecordResult
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload == "sendText"
     }
 
-    void "create call"() {
-        when: "we specify a valid call specifying both recipient type"
-        Map itemInfo = [callPhoneNumber:"12223334444", callContact:tC1.id]
-        Result res = service.create(Team, t1.id, itemInfo)
+    void "test create call"() {
+        when: "try to call multiple"
+        Map itemInfo = [callSharedContact:sc2.id, callContact:c1.id]
+        ResultList resList = service.createCall(s1.phone, itemInfo)
 
         then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.create.canCallOnlyOne"
-        res.payload.status == BAD_REQUEST
+        resList.isAnySuccess == false
+        resList.results.size() == 1
+        resList.results[0].type == ResultType.MESSAGE_STATUS
+        resList.results[0].payload.code == "recordService.create.canCallOnlyOne"
+        resList.results[0].payload.status == BAD_REQUEST
 
-        when: "we specify a valid call and specify a recipient"
-        itemInfo = [callContact:tC1.id]
-        res = service.create(Team, t1.id, itemInfo)
+        when: "call contact"
+        itemInfo = [callContact:c1.id]
+        resList = service.createCall(s1.phone, itemInfo)
 
         then:
-        res.success == true
-        res.payload instanceof RecordResult
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload.methodName == "startBridgeCall"
+        resList.results[0].payload.contactable == c1
+
+        when: "call shared contact"
+        itemInfo = [callSharedContact:sc2.contact.id]
+        resList = service.createCall(s1.phone, itemInfo)
+
+        then:
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload.methodName == "startBridgeCall"
+        resList.results[0].payload.contactable == sc2
     }
 
-    void "create note"() {
-        given:
-        service.authService = [hasPermissionsForContact:{ Long cId -> true },
-            getSharedContactForContact:{ Long cId -> true }] as AuthService
-
-        when: "we try to add to a nonexistent contact"
-        Map itemInfo = [note:"note", addToContact:-88L]
-        Result res = service.create(Team, t1.id, itemInfo)
+    void "test create overall"() {
+        when: "no phone"
+        ResultList resList = service.create(null, [:])
 
         then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.create.contactNotFound"
-        res.payload.status == NOT_FOUND
+        resList.isAnySuccess == false
+        resList.results.size() == 1
+        resList.results[0].type == ResultType.MESSAGE_STATUS
+        resList.results[0].payload.code == "recordService.create.noPhone"
+        resList.results[0].payload.status == UNPROCESSABLE_ENTITY
 
-        when: "we try to add to a contact that is found"
-        itemInfo = [note:"note", addToContact:tC1.id]
-        res = service.create(Team, t1.id, itemInfo)
-
-        then:
-        res.success == true
-        res.payload instanceof RecordResult
-    }
-
-    ////////////
-    // Update //
-    ////////////
-
-    void "test update errors"() {
-        given:
-        service.authService = [getLoggedIn:{ s1 }] as AuthService
-        RecordCall rCall1 = c1.record.addCall([durationInSeconds:888], null).payload
-        rCall1.save(flush:true, failOnError:true)
-
-        when: "we try to update a nonexistent item"
-        Map updateInfo = [:]
-        Result res = service.update(-88L, updateInfo)
+        when: "invalid entity"
+        resList = service.create(t1.phone, [:])
 
         then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.update.itemNotFound"
-        res.payload.status == NOT_FOUND
+        resList.isAnySuccess == false
+        resList.results.size() == 1
+        resList.results[0].type == ResultType.MESSAGE_STATUS
+        resList.results[0].payload.code == "recordService.create.unknownType"
+        resList.results[0].payload.status == UNPROCESSABLE_ENTITY
 
-        when: "we try to update a RecordCall"
-        updateInfo = [durationInSeconds:8]
-        res = service.update(rCall1.id, updateInfo)
-
-        then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.update.notEditable"
-        res.payload.status == FORBIDDEN
-    }
-
-    void "test update note"() {
-        given:
-        service.authService = [getLoggedIn:{ s1 }] as AuthService
-        RecordNote rNote1 = c1.record.addNote([note:"note", editable:false], null).payload
-        RecordNote rNote2 = c1.record.addNote([note:"note", editable:true], null).payload
-        [rNote1, rNote2]*.save(flush:true, failOnError:true)
-
-        when: "we try to update a noneditable note"
-        String updatedNote = "updated"
-        Map updateInfo = [note:updatedNote]
-        Result res = service.update(rNote1.id, updateInfo)
+        when: "text"
+        Map itemInfo = [contents:"hi", sendToPhoneNumbers:["2223334444"],
+            sendToContacts:[tC1.id]]
+        resList = service.create(t1.phone, itemInfo)
 
         then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.update.notEditable"
-        res.payload.status == FORBIDDEN
-
-        when: "we try to update an editable note"
-        updateInfo = [note:updatedNote]
-        res = service.update(rNote2.id, updateInfo)
-
-        then:
-        res.success == true
-        res.payload instanceof RecordNote
-        res.payload.id == rNote2.id
-        res.payload.note == updatedNote
-    }
-
-    void "test update text"() {
-    	given:
-        service.authService = [getLoggedIn:{ s1 }] as AuthService
-
-        when: "we try to update the contents of a text"
-        String updatedContents = "updated"
-        DateTime sendAt = DateTime.now().plusHours(2)
-        Map updateInfo = [contents:updatedContents, sendAt:sendAt]
-        Result res = service.update(rText1.id, updateInfo)
-
-        then:
-        res.success == false
-        res.type == Constants.RESULT_MESSAGE_STATUS
-        res.payload.code == "recordService.update.notEditable"
-        res.payload.status == FORBIDDEN
-
-        when: "we try to update updateable fields of a text"
-        updateInfo = [sendAt:sendAt]
-        res = service.update(rText1.id, updateInfo)
-
-        then:
-        res.success == true
-        res.payload instanceof RecordText
-        res.payload.id == rText1.id
-        res.payload.contents == rText1.contents
-        res.payload.futureText == true
-        res.payload.sendAt == sendAt
-
-        when: "we cancel future text"
-        updateInfo = [futureText:false]
-        res = service.update(rText1.id, updateInfo)
-
-        then:
-        res.success == true
-        res.payload instanceof RecordText
-        res.payload.id == rText1.id
-        res.payload.contents == rText1.contents
-        res.payload.futureText == false
-        res.payload.sendAt == sendAt
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload == "sendText"
     }
 }

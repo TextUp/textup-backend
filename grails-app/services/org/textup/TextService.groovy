@@ -2,29 +2,35 @@ package org.textup
 
 import com.twilio.sdk.resource.factory.MessageFactory
 import com.twilio.sdk.resource.instance.Message
+import com.twilio.sdk.TwilioRestClient
 import com.twilio.sdk.TwilioRestException
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.http.message.BasicNameValuePair
+import org.apache.http.NameValuePair
 import org.hibernate.FlushMode
 import org.textup.rest.TwimlBuilder
+import org.textup.validator.BasePhoneNumber
 import static org.springframework.http.HttpStatus.*
+import org.textup.validator.TempRecordReceipt
 
+@GrailsTypeChecked
 @Transactional
 class TextService {
 
-	def resultFactory
-    def twilioService
+	ResultFactory resultFactory
+    TwilioRestClient twilioService
 
-    Result<RecordItemReceipt> send(PhoneNumber fromNum, List<PhoneNumber> toNums, String message) {
+    Result<TempRecordReceipt> send(BasePhoneNumber fromNum,
+        List<? extends BasePhoneNumber> toNums, String message) {
         Result<Message> res
         for (toNum in toNums) {
-            res = this.tryText(text, toNum, from)
+            res = this.tryText(fromNum, toNum, message)
             //record receipt and return on first success
             if (res.success) {
-                Message m1 = res.payload
-                RecordItemReceipt receipt = new RecordItemReceipt(apiId:m1.sid)
+                TempRecordReceipt receipt = new TempRecordReceipt(apiId:res.payload.sid)
                 receipt.receivedBy = toNum
-                if (receipt.save()) {
+                if (receipt.validate()) {
                     return resultFactory.success(receipt)
                 }
                 else {
@@ -37,14 +43,18 @@ class TextService {
             }
         }
         // if still not returned, that means that none of the numbers worked
-        return resultFactory.failWithMessage(UNPROCESSABLE_ENTITY, "textService.text.allFailed")
+        return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+            "textService.text.allFailed")
 	}
 
-    protected Result<Message> tryText(PhoneNumber fromNum, PhoneNumber toNum, String message) {
+    protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
+        String message) {
         try {
             MessageFactory messageFactory = twilioService.account.messageFactory
             def l = [Body:message, To:toNum.e164PhoneNumber, From:fromNum.e164PhoneNumber]
-            def params = l.collect { k, v -> new BasicNameValuePair(k, v) }
+            List<NameValuePair> params = l.collect { k, v ->
+                new BasicNameValuePair(k, v) as NameValuePair
+            }
             Message m = messageFactory.create(params)
             resultFactory.success(m)
         }

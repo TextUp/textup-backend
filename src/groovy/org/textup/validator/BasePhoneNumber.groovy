@@ -1,5 +1,7 @@
 package org.textup.validator
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 abstract class BasePhoneNumber {
 
     String number
@@ -15,7 +17,6 @@ abstract class BasePhoneNumber {
         String n = this.number
         n ? "+1${n}" : ""
     }
-
     void setNumber(String n) {
         this.number = cleanPhoneNumber(n)
     }

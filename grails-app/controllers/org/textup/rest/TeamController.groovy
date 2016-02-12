@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
@@ -10,6 +11,7 @@ import static org.springframework.http.HttpStatus.*
 import org.textup.*
 import grails.transaction.Transactional
 
+@GrailsCompileStatic
 @RestApi(name="Team", description = "Operations on teams after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class TeamController extends BaseController {
@@ -17,7 +19,7 @@ class TeamController extends BaseController {
     static namespace = "v1"
 
     //authService from superclass
-    def teamService
+    TeamService teamService
 
     // List
     // ----
@@ -105,7 +107,8 @@ class TeamController extends BaseController {
     ])
     def save() {
         if (!validateJsonRequest(request, "team")) { return }
-        handleSaveResult(Team, teamService.create(request.JSON.team))
+        Map tInfo = (request.properties.JSON as Map).team as Map
+        handleSaveResult(Team, teamService.create(tInfo))
     }
 
     // Update
@@ -128,7 +131,8 @@ class TeamController extends BaseController {
         Long id = params.long("id")
         if (authService.exists(Team, id)) {
             if (authService.hasPermissionsForTeam(id)) {
-                handleUpdateResult(Team, teamService.update(id, request.JSON.team))
+                Map tInfo = (request.properties.JSON as Map).team as Map
+                handleUpdateResult(Team, teamService.update(id, tInfo))
             }
             else { forbidden() }
         }

@@ -1,21 +1,25 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
+import org.textup.types.AuthorType
+import org.textup.types.ReceiptStatus
+import org.textup.validator.Author
+import org.textup.validator.TempRecordReceipt
 
 @EqualsAndHashCode
 class RecordItem {
-
-    Record record //record this item belongs to
 
     @RestApiObjectField(
         description    = "Date this item was added to the record",
         allowedType    = "DateTime",
         useForCreation = false)
-	DateTime dateCreated = DateTime.now(DateTimeZone.UTC)
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    Record record //record this item belongs to
 
     @RestApiObjectField(
         description    = "The direction of communication. Outgoing is from staff to client.",
@@ -71,37 +75,42 @@ class RecordItem {
         authorType nullable:true
     }
     static mapping = {
-        autoTimestamp false
-        dateCreated type:PersistentDateTime
         receipts lazy:false, cascade:"all-delete-orphan"
+        whenCreated type:PersistentDateTime
     }
     static namedQueries = {
         forRecord { Record rec ->
             eq("record", rec)
-            order("dateCreated", "desc")
+            order("whenCreated", "desc")
         }
         forRecordDateSince { Record rec, DateTime s ->
             eq("record", rec)
-            ge("dateCreated", s)
-            order("dateCreated", "desc")
+            ge("whenCreated", s)
+            order("whenCreated", "desc")
         }
         forRecordDateBetween { Record rec, DateTime s, DateTime e ->
             eq("record", rec)
-            between("dateCreated", s, e)
-            order("dateCreated", "desc")
+            between("whenCreated", s, e)
+            order("whenCreated", "desc")
         }
+    }
 
+    @GrailsTypeChecked
+    RecordItem addReceipt(TempRecordReceipt r1) {
+        RecordItemReceipt receipt = new RecordItemReceipt(status:r1.status,
+            apiId:r1.apiId, receivedByAsString:r1.receivedByAsString)
+        addToReceipts(receipt)
+        this
     }
 
     // Property Access
     // ---------------
 
-    int countReceipts(ReceiptStatus stat) {
-        RecordItemReceipt.forItemAndStatus(this, stat).count()
+    @GrailsTypeChecked
+    List<RecordItemReceipt> getReceiptsByStatus(ReceiptStatus stat) {
+        RecordItemReceipt.findAllByItemAndStatus(this, stat)
     }
-    List<RecordItemReceipt> getReceipts(ReceiptStatus stat) {
-        RecordItemReceipt.forItemAndStatus(this, stat).list()
-    }
+    @GrailsTypeChecked
     void setAuthor(Author author) {
         if (author) {
             this.with {
@@ -111,6 +120,7 @@ class RecordItem {
             }
         }
     }
+    @GrailsTypeChecked
     Author getAuthor() {
         new Author(name:this.authorName, id:this.authorId, type:this.authorType)
     }

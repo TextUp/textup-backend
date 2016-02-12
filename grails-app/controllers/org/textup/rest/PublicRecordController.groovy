@@ -5,8 +5,11 @@ import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.types.ReceiptStatus
 import static org.springframework.http.HttpStatus.*
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @Secured("permitAll")
 class PublicRecordController extends BaseController {
 
@@ -14,8 +17,8 @@ class PublicRecordController extends BaseController {
 
     //grailsApplication from superclass
     //authService from superclass
-    def recordService
-    def callbackService
+    RecordService recordService
+    CallbackService callbackService
 
     def index() { notAllowed() }
     def show() { notAllowed() }
@@ -27,17 +30,20 @@ class PublicRecordController extends BaseController {
             if (params.handle == Constants.CALLBACK_STATUS) {
                 String apiId = params.CallSid ?: params.MessageSid
                 ReceiptStatus status = params.CallStatus ?
-                    ReceiptStatus.translate(params.CallStatus) :
-                    ReceiptStatus.translate(params.MessageStatus)
+                    ReceiptStatus.translate(params.CallStatus as String) :
+                    ReceiptStatus.translate(params.MessageStatus as String)
                 Integer duration = Helpers.toInteger(params.CallDuration)
                 //update status
                 Result<Closure> res = recordService.updateStatus(status, apiId, duration)
                 if (!res.success && params.ParentCallSid) {
-                    res = recordService.updateStatus(params.ParentCallSid, apiId, duration)
+                    res = recordService.updateStatus(status, params.ParentCallSid as String,
+                        duration)
                 }
-                res
+                handleXmlResult(res)
             }
-            else { callbackService.process(params) }
+            else {
+                handleXmlResult(callbackService.process(params))
+            }
         })
     }
 }

@@ -1,10 +1,13 @@
 package org.textup.rest.marshallers
 
+import grails.compiler.GrailsCompileStatic
+import grails.plugin.springsecurity.SpringSecurityService
+import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import grails.plugin.springsecurity.SpringSecurityService
+import org.textup.types.RecordItemType
 
+@GrailsCompileStatic
 class RecordItemJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace,
         SpringSecurityService springSecurityService, AuthService authService,
@@ -13,37 +16,44 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
         Map json = [:]
         json.with {
             id = item.id
-            dateCreated = item.dateCreated
+            whenCreated = item.whenCreated
             outgoing = item.outgoing
-            contact = Contact.forRecord(item.record).get()?.id //contact owner id
+            contact = Contact.findByRecord(item.record)?.id //contact owner id
             hasAwayMessage = item.hasAwayMessage
             isAnnouncement = item.isAnnouncement
-            if (item.authorName) authorName = item.authorName
-            if (item.authorId) authorId = item.authorId
+            if (item.authorName) {
+                authorName = item.authorName
+            }
+            if (item.authorId) {
+                authorId = item.authorId
+            }
+            if (item.authorType) {
+                authorType = item.authorType.toString()
+            }
             if (item.instanceOf(RecordCall)) {
-                durationInSeconds = item.durationInSeconds
-                hasVoicemail = item.hasVoicemail
-                if (item.hasVoicemail) {
-                    voicemailUrl = item.voicemailUrl
-                    voicemailInSeconds = item.voicemailInSeconds
+                RecordCall call = item as RecordCall
+                durationInSeconds = call.durationInSeconds
+                hasVoicemail = call.hasVoicemail
+                if (call.hasVoicemail) {
+                    voicemailUrl = call.voicemailUrl
+                    voicemailInSeconds = call.voicemailInSeconds
                 }
-                type = RecordItemType.CALL
+                type = RecordItemType.CALL.toString()
             }
             else if (item.instanceOf(RecordText)) {
-                contents = item.contents
-                type = RecordItemType.TEXT
+                RecordText text = item as RecordText
+                contents = text.contents
+                type = RecordItemType.TEXT.toString()
             }
         }
-        json.receipts = item.receipts.collect { RecordItemReceipt r ->
+        json.receipts = item.receipts?.collect { RecordItemReceipt r ->
             [
                 id: r.id,
-                status:r.status,
-                receivedBy:r.receivedBy.number
+                status:r.status.toString(),
+                receivedBy:r.receivedBy.e164PhoneNumber
             ]
-        }
-
-        json.links = [:]
-        json.links << [self:linkGenerator.link(namespace:namespace, \
+        } ?: []
+        json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"record", action:"show", id:item.id, absolute:false)]
         json
     }

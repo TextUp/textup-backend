@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
@@ -10,6 +11,7 @@ import static org.springframework.http.HttpStatus.*
 import org.textup.*
 import grails.transaction.Transactional
 
+@GrailsCompileStatic
 @RestApi(name="Tag", description = "Operations on tags belonging to staff \
     members or teams. Requires logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
@@ -18,7 +20,7 @@ class TagController extends BaseController {
 	static namespace = "v1"
 
 	//authService from superclass
-	def tagService
+	TagService tagService
 
     // List
     // ----
@@ -60,9 +62,9 @@ class TagController extends BaseController {
             p1 = s1.phone
         }
         genericListActionForClosures("tag", { Map params ->
-            p1.phone.countTags()
+            p1.countTags()
         }, { Map params ->
-            p1.phone.getTags(params)
+            p1.getTags(params)
         }, params)
     }
 
@@ -106,7 +108,7 @@ class TagController extends BaseController {
     ])
     def save() {
     	if (!validateJsonRequest(request, "tag")) { return; }
-    	Map tagInfo = request.JSON.tag
+    	Map tagInfo = (request.properties.JSON as Map).tag as Map
         if (params.long("teamId")) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
@@ -142,9 +144,10 @@ class TagController extends BaseController {
     def update() {
     	if (!validateJsonRequest(request, "tag")) { return; }
     	Long id = params.long("id")
+        Map tagInfo = (request.properties.JSON as Map).tag as Map
     	if (authService.exists(ContactTag, id)) {
     		if (authService.hasPermissionsForTag(id)) {
-    			handleUpdateResult("tag", tagService.update(id, request.JSON.tag))
+    			handleUpdateResult("tag", tagService.update(id, tagInfo))
 			}
 			else { forbidden() }
     	}

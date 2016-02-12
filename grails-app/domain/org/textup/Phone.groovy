@@ -1,18 +1,33 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TypeCheckingMode
 import org.hibernate.FlushMode
+import org.hibernate.Session
 import org.joda.time.DateTime
+import org.textup.rest.TwimlBuilder
+import org.textup.types.CallResponse
+import org.textup.types.ContactStatus
+import org.textup.types.PhoneOwnershipType
+import org.textup.types.RecordItemType
+import org.textup.types.SharePermission
+import org.textup.types.TextResponse
+import org.textup.validator.BasePhoneNumber
+import org.textup.validator.IncomingText
+import org.textup.validator.OutgoingText
+import org.textup.validator.PhoneNumber
+import org.textup.validator.TempRecordReceipt
 import static org.springframework.http.HttpStatus.*
 
-@EqualsAndHashCode
+@GrailsTypeChecked
+@EqualsAndHashCode(excludes="owner")
 class Phone {
 
-    def resultFactory
-    def phoneService
-    def twimlBuilder
-    def authService
+    ResultFactory resultFactory
+    PhoneService phoneService
+    TwimlBuilder twimlBuilder
 
     //unique id assigned to this phone's number
     String apiId
@@ -20,14 +35,15 @@ class Phone {
     PhoneOwnership owner
     String awayMessage = Constants.DEFAULT_AWAY_MESSAGE
 
-    static transients = ["number"]
+    static transients = ["number", "resultFactory", "phoneService", "twimlBuilder"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
-        number shared: 'phoneNumber', validator:{ pNum, obj ->
+        numberAsString validator:{ String num, Phone obj ->
             //phone number must be unique for phones
-            if (pNum && obj.existsWithSameNumber(pNum.number)) {
+            if (num && obj.existsWithSameNumber(num)) {
                 ["duplicate"]
             }
+            else if (!(num?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
         awayMessage blank:false, size:1..(Constants.TEXT_LENGTH)
     }
@@ -41,9 +57,9 @@ class Phone {
     // Validator
     // ---------
 
-    private boolean existsWithSameNumber(String num) {
+    protected boolean existsWithSameNumber(String num) {
         boolean hasDuplicate = false
-        Phone.withNewSession { session ->
+        Phone.withNewSession { Session session ->
             session.flushMode = FlushMode.MANUAL
             try {
                 PhoneNumber pNum = new PhoneNumber(number:num)
@@ -74,29 +90,21 @@ class Phone {
     // Contacts
     // --------
 
-    Result<Contact> createContact(Map params=[:], List<String> numbers=[]) {
+    Result<Contact> createContact(Map params=[:], Collection<String> numbers=[]) {
         Contact contact = new Contact([:])
         contact.properties = params
         contact.phone = this
         if (contact.save()) {
-            //merge number has a dynamic finder that will flush
-            Result prematureReturn = null
-            Phone.withNewSession { session ->
-                session.flushMode = FlushMode.MANUAL
-                try {
-                    int numbersLen = numbers.size()
-                    for (int i = 0; i < numbersLen; i++) {
-                        String num = numbers[i]
-                        Result res = contact.mergeNumber(num, [preference:i])
-                        if (!res.success) {
-                            prematureReturn = resultFactory.failWithValidationErrors(res.payload)
-                            return //return from withNewSession closure
-                        }
-                    }
+            Collection<String> toBeAdded = numbers.unique()
+            int numbersLen = toBeAdded.size()
+            for (int i = 0; i < numbersLen; i++) {
+                String num = toBeAdded[i]
+                Result res = contact.mergeNumber(num, [preference:i])
+                if (!res.success) {
+                    return res
                 }
-                finally { session.flushMode = FlushMode.AUTO }
             }
-            prematureReturn ?: resultFactory.success(contact)
+            resultFactory.success(contact)
         }
         else { resultFactory.failWithValidationErrors(contact.errors) }
     }
@@ -106,13 +114,13 @@ class Phone {
 
     boolean canShare(Phone sWith) {
         if (!sWith) { return false }
-        List<Team> myTeams = Team.forStaffs(this.owner.all).list(),
-            sharedWithTeams = Team.forStaffs(sWith.owner.all).list()
+        Collection<Team> myTeams = Team.listForStaffs(this.owner.all),
+            sharedWithTeams = Team.listForStaffs(sWith.owner.all)
         HashSet<Team> allowedTeams = new HashSet<>(myTeams)
         sharedWithTeams.any { it in allowedTeams }
     }
     Result<SharedContact> share(Contact c1, Phone sWith, SharePermission perm) {
-        if (contact?.phone != this) {
+        if (c1?.phone != this) {
             return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                 "phone.contactNotMine", [c1?.name])
         }
@@ -122,7 +130,7 @@ class Phone {
         }
         //check to see that there isn't already an active shared contact
         SharedContact sc = SharedContact
-            .forContactAndSharedWith(c1, sWith).list(max:1)[0]
+            .listForContactAndSharedWith(c1, sWith, [max:1])[0]
         if (sc) {
             sc.startSharing(perm)
         }
@@ -137,13 +145,13 @@ class Phone {
     }
     Result<List<SharedContact>> stopShare(Phone sWith) {
         List<SharedContact> shareds = SharedContact
-            .forSharedByAndSharedWith(this, sWith).list()
+            .listForSharedByAndSharedWith(this, sWith)
         shareds.each { SharedContact sc -> sc.stopSharing() }
         resultFactory.success(shareds)
     }
     Result<SharedContact> stopShare(Contact c1, Phone sWith) {
         SharedContact sc1 = SharedContact
-            .forContactAndSharedWith(c1, sWith).list(max:1)[0]
+            .listForContactAndSharedWith(c1, sWith, [max:1])[0]
         if (sc1) {
             sc1.stopSharing()
             resultFactory.success(sc1)
@@ -155,7 +163,7 @@ class Phone {
         if (contact?.phone != this) {
             return resultFactory.failWithMessage("phone.contactNotMine", [contact?.name])
         }
-        List<SharedContact> shareds = SharedContact.forContact(contact).list()
+        List<SharedContact> shareds = SharedContact.listForContact(contact)
         if (shareds) {
             shareds.each { SharedContact sc -> sc.stopSharing() }
             resultFactory.success(shareds)
@@ -171,43 +179,45 @@ class Phone {
     String getName() {
         this.owner.name
     }
-    void setNumber(PhoneNumber pNum) {
+    void setNumber(BasePhoneNumber pNum) {
         this.numberAsString = pNum?.number
     }
     PhoneNumber getNumber() {
         new PhoneNumber(number:this.numberAsString)
     }
     int countTags() {
-        ContactTag.countByPhone(this)
+        ContactTag.countByPhoneAndIsDeleted(this, false)
     }
     List<ContactTag> getTags(Map params=[:]) {
-        ContactTag.findAllByPhone(this, params + [sort: "name", order: "desc"])
+        ContactTag.findAllByPhoneAndIsDeleted(this, false,
+            params + [sort: "name", order: "desc"])
     }
     //Optional specify 'status' corresponding to valid contact statuses
     int countContacts(Map params=[:]) {
-        Contact.forPhoneAndStatuses(this, Helpers.toEnumList(params.statuses)).count() ?: 0
+        Contact.countForPhoneAndStatuses(this,
+            Helpers.<ContactStatus>toEnumList(ContactStatus, params.statuses))
     }
     //Optional specify 'status' corresponding to valid contact statuses
     List<Contactable> getContacts(Map params=[:]) {
         Collection<ContactStatus> statusEnums =
-            Helpers.toEnumList(ContactStatus, params.statuses)
+            Helpers.<ContactStatus>toEnumList(ContactStatus, params.statuses)
         //get contacts, both mine and those shared with me
-        List<Contact> contacts = Contact.forPhoneAndStatuses(this, statusEnums).list(params)
+        List<Contact> contacts = Contact.listForPhoneAndStatuses(this, statusEnums, params)
         //identify those contacts that are shared with me and their index
         HashSet<Long> notMyContactIds = new HashSet<>()
         contacts.each { Contact contact ->
             if (contact.phone != this) { notMyContactIds << contact.id }
         }
         //if all contacts are mine, we can return
-        if (notMyContactIdToIndex.isEmpty()) { return contacts }
+        if (notMyContactIds.isEmpty()) { return contacts }
         //retrieve the corresponding SharedContact instance
-        Map<Long,SharedContact> contactIdToSharedContact = SharedContact.createCriteria()
+        Map<Long,SharedContact> contactIdToSharedContact = (SharedContact.createCriteria()
             .list {
-                contact {
-                    if (notMyContactIds) { "in"("id", notMyContactIds) }
-                    else { eq("id", null) }
+                if (notMyContactIds) {
+                    "in"("contact.id", notMyContactIds)
                 }
-            }
+                else { eq("contact.id", null) }
+            } as List<SharedContact>)
             .collectEntries { [(it.contact.id):it] }
         //merge the found shared contacts into a consensus list of contactables
         List<Contactable> contactables = []
@@ -229,19 +239,19 @@ class Phone {
         Contact.findAllByPhoneAndNameIlike(this, Helpers.toQuery(query), params)
     }
     int countSharedWithMe() {
-        SharedContact.sharedWithMe(this).count()
+        SharedContact.countSharedWithMe(this)
     }
     List<SharedContact> getSharedWithMe(Map params=[:]) {
-        SharedContact.sharedWithMe(this).list(params) ?: []
+        SharedContact.listSharedWithMe(this, params)
     }
     int countSharedByMe() {
-        SharedContact.sharedByMe(this).count()
+        SharedContact.countSharedByMe(this)
     }
     List<Contact> getSharedByMe(Map params=[:]) {
-        SharedContact.sharedByMe(this).list(params) ?: []
+        SharedContact.listSharedByMe(this, params)
     }
     List<FeaturedAnnouncement> getAnnouncements() {
-        FeaturedAnnouncement.forPhone(this).list()
+        FeaturedAnnouncement.listForPhone(this)
     }
     List<Staff> getAvailableNow() {
         List<Staff> availableNow = []
@@ -252,13 +262,33 @@ class Phone {
         }
         availableNow
     }
+    Result<PhoneOwnership> updateOwner(Team t1) {
+        PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(t1.id,
+                PhoneOwnershipType.GROUP) ?:
+            new PhoneOwnership(ownerId:t1.id, type:PhoneOwnershipType.GROUP)
+        updateOwner(own)
+    }
+    Result<PhoneOwnership> updateOwner(Staff s1) {
+        PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(s1.id,
+                PhoneOwnershipType.INDIVIDUAL) ?:
+            new PhoneOwnership(ownerId:s1.id, type:PhoneOwnershipType.INDIVIDUAL)
+        updateOwner(own)
+    }
+    protected Result<PhoneOwnership> updateOwner(PhoneOwnership own) {
+        own.phone = this
+        this.owner = own
+        if (own.save()) {
+            resultFactory.success(own)
+        }
+        else { resultFactory.failWithValidationErrors(own.errors) }
+    }
 
     // Outgoing
     // --------
 
     ResultList<RecordText> sendText(OutgoingText text, Staff staff) {
         // validate text
-        if (!text.validate(this)) {
+        if (!text.validateSetPhone(this)) {
             return new ResultList(resultFactory.failWithValidationErrors(text.errors))
         }
         // validate staff
@@ -266,30 +296,31 @@ class Phone {
             return new ResultList(resultFactory.failWithMessageAndStatus(FORBIDDEN,
                 'phone.notOwner'))
         }
-        else { phoneService.sendText(phone, text, staff) }
+        else { phoneService.sendText(this, text, staff) }
     }
     // start bridge call, confirmed (if staff picks up) by contact
     ResultList<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
-        if (!c1.validate()) {
-            resultFactory.failWithValidationErrors(c1.errors)
+        ResultList<RecordCall> resList = new ResultList()
+        if ((c1 instanceof Contact || c1 instanceof SharedContact) && !c1.validate()) {
+            return resList << resultFactory.failWithValidationErrors(c1.errors)
         }
-        else if (c1.instanceOf(Contact) || c1.phone != p1) {
-            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.startBridgeCall.forbidden')
+        else if (c1 instanceof Contact && c1.phone != this) {
+            return resList << resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                'phone.startBridgeCall.forbidden')
         }
-        else if (c1.instanceOf(SharedContact) && c1.canModify) {
-            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.startBridgeCall.forbidden')
+        else if (c1 instanceof SharedContact && !(c1.canModify && c1.sharedWith == this)) {
+            return resList << resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                'phone.startBridgeCall.forbidden')
         }
-        // validate staff
-        else if (!p1.owner.all.contains(staff)) {
-            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.notOwner')
+        else if (!this.owner.all.contains(staff)) { // validate staff
+            return resList << resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                'phone.notOwner')
         }
-        else if (staff.personalPhoneNumber) {
-            resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+        else if (!staff.personalPhoneAsString) {
+            return resList << resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
                 'phone.startBridgeCall.noPersonalNumber')
         }
-        else {
-            new ResultList(phoneService.startBridgeCall(phone, c1, staff))
-        }
+        resList << phoneService.startBridgeCall(this, c1, staff)
     }
     Result<FeaturedAnnouncement> sendAnnouncement(String message,
         DateTime expiresAt, Staff staff) {
@@ -304,27 +335,38 @@ class Phone {
                 "phone.notOwner")
         }
         // collect relevant classes
-        List<IncomingSession> textSubs = IncomingSession.subscribedToText(this).list(),
-            callSubs = IncomingSession.subscribedToCall(this).list()
+        List<IncomingSession> textSubs =
+                IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true),
+            callSubs = IncomingSession.findAllByPhoneAndIsSubscribedToCall(this, true)
         String identifier = this.name
         // send announcements
-        ResultMap<String,RecordItemReceipt> textRes = phoneService.startTextAnnouncement(phone,
+        ResultMap<TempRecordReceipt> textRes = phoneService.sendTextAnnouncement(this,
             message, identifier, textSubs, staff).logFail("Phone.sendAnnouncement: text")
-        ResultMap<String,RecordItemReceipt> callRes = phoneService.startCallAnnouncement(phone,
+        ResultMap<TempRecordReceipt> callRes = phoneService.startCallAnnouncement(this,
             message, identifier, callSubs, staff).logFail("Phone.sendAnnouncement: call")
         // build announcements class
         FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:this,
             expiresAt:expiresAt, message:message)
-        List<IncomingSession> successTexts = textSubs.findAll {
+        //mark as to-be-saved to avoid TransientObjectExceptions
+        if (!announce.save()) {
+            resultFactory.failWithValidationErrors(announce.errors)
+        }
+        // collect sessions that we successfully reached
+        Collection<IncomingSession> successTexts = textSubs.findAll {
             textRes.isSuccess(it.numberAsString)
         }, successCalls = callSubs.findAll {
             callRes.isSuccess(it.numberAsString)
         }
-        announce.addToReceipts(RecordItemType.TEXT, successTexts)
-            .logFail("Phone.sendAnnouncement: add text announce receipts")
-        announce.addToReceipts(RecordItemType.CALL, successCalls)
-            .logFail("Phone.sendAnnouncement: add call announce receipts")
-        if (announce.numReceipts > 0 && (textSubs || callSubs)) {
+        // add sessions to announcement as receipts
+        ResultList<AnnouncementReceipt> textResList = announce.addToReceipts(
+                RecordItemType.TEXT, successTexts),
+            callResList = announce.addToReceipts(RecordItemType.CALL, successCalls)
+        textResList.logFail("Phone.sendAnnouncement: add text announce receipts")
+        callResList.logFail("Phone.sendAnnouncement: add call announce receipts")
+        // don't use announce.numReceipts here because the dynamic finder
+        // will flush the session
+        if ((textResList.isAnySuccess || callResList.isAnySuccess) &&
+            (textSubs || callSubs)) {
             if (announce.save()) {
                 resultFactory.success(announce)
             }
@@ -333,7 +375,7 @@ class Phone {
         // return error if all subscribers failed to receive announcement
         else {
             resultFactory.failWithResultsAndStatus(INTERNAL_SERVER_ERROR,
-               textRes.results + callRes.results)
+               textRes.getResults() + callRes.getResults())
         }
     }
 
@@ -348,23 +390,23 @@ class Phone {
             resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.receive.notMine')
         }
         else if (this.announcements) {
-            switch (text.contents) {
+            switch (text.message) {
                 case Constants.TEXT_SEE_ANNOUNCEMENTS:
                     Collection<FeaturedAnnouncement> announces = this.announcements
                     announces.each { FeaturedAnnouncement announce ->
                         announce.addToReceipts(RecordItemType.TEXT, session)
                             .logFail("Phone.receiveText: add announce receipt")
                     }
-                    twimlBuilder.buildXmlFor(TextResponse.ANNOUNCEMENTS,
+                    twimlBuilder.build(TextResponse.ANNOUNCEMENTS,
                         [announcements:announces])
                     break
                 case Constants.TEXT_SUBSCRIBE:
                     session.isSubscribedToText = true
-                    twimlBuilder.buildXmlFor(TextResponse.SUBSCRIBED)
+                    twimlBuilder.build(TextResponse.SUBSCRIBED)
                     break
                 case Constants.TEXT_UNSUBSCRIBE:
                     session.isSubscribedToText = false
-                    twimlBuilder.buildXmlFor(TextResponse.UNSUBSCRIBED)
+                    twimlBuilder.build(TextResponse.UNSUBSCRIBED)
                     break
                 default:
                     phoneService.relayText(this, text, session)
@@ -377,9 +419,11 @@ class Phone {
             resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.receive.notMine')
         }
         //if staff member is calling from personal phone to TextUp phone
-        else if (this.owner.any { it.personalPhoneAsString == session.numberAsString }) {
-            Staff staff = this.owner.find { it.personalPhoneAsString == session.numberAsString }
-            phoneService.handleSelfCall(apiId, digits, staff)
+        else if (this.owner.all.any { it.personalPhoneAsString == session.numberAsString }) {
+            Staff staff = this.owner.all.find {
+                it.personalPhoneAsString == session.numberAsString
+            }
+            phoneService.handleSelfCall(this, apiId, digits, staff)
         }
         else if (this.announcements) {
             phoneService.handleAnnouncementCall(this, apiId, digits, session)
@@ -396,28 +440,28 @@ class Phone {
                     phoneService.storeVoicemail(apiId, voicemailDuration)
                         .logFail("Phone.storeVoicemail")
                     twimlBuilder.noResponse()
-                })
+                }) as Result
         }
         else {
-            twimlBuilder.buildXmlFor(CallResponse.VOICEMAIL, [name:this.name])
+            twimlBuilder.build(CallResponse.VOICEMAIL, [name:this.name])
         }
     }
     // staff must pick up and press any number to start the bridge
     Result<Closure> confirmBridgeCall(Contact c1) {
-        twimlBuilder.buildXmlFor(CallResponse.CONFIRM_BRIDGE, [contact:c1,
+        twimlBuilder.build(CallResponse.CONFIRM_BRIDGE, [contact:c1,
             linkParams:[contactId:c1?.contactId, handle:CallResponse.FINISH_BRIDGE]])
     }
     Result<Closure> finishBridgeCall(Contact c1) {
-        twimlBuilder.buildXmlFor(CallResponse.FINISH_BRIDGE, [contact:c1])
+        twimlBuilder.build(CallResponse.FINISH_BRIDGE, [contact:c1])
     }
     Result<Closure> completeCallAnnouncement(String digits, String message,
         String identifier, IncomingSession session) {
         if (digits == Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE) {
             session.isSubscribedToCall = false
-            twimlBuilder.buildXmlFor(CallResponse.UNSUBSCRIBED)
+            twimlBuilder.build(CallResponse.UNSUBSCRIBED)
         }
         else {
-            twimlBuilder.buildXmlFor(CallResponse.ANNOUNCEMENT_AND_DIGITS,
+            twimlBuilder.build(CallResponse.ANNOUNCEMENT_AND_DIGITS,
                 [message:message, identifier:identifier])
         }
     }

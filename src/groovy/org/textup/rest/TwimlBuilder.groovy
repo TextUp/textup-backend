@@ -7,7 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.types.CallResponse
+import org.textup.types.TextResponse
 import static org.springframework.http.HttpStatus.*
+import grails.compiler.GrailsCompileStatic
+import groovy.transform.TypeCheckingMode
 
 class TwimlBuilder {
 
@@ -59,7 +63,7 @@ class TwimlBuilder {
     // -----
 
     Result<Closure> build(TextResponse code, Map params=[:]) {
-        this.translateTextResponse(code, params).then({ List<String> responses ->
+        translate(code, params).then({ List<String> responses ->
             buildTexts(responses)
         })
     }
@@ -73,9 +77,12 @@ class TwimlBuilder {
     // -----
 
     Result<Closure> build(CallResponse code, Map params=[:]) {
-        this.translate(code, params).then({ Closure callBody ->
+        translate(code, params).then({ Closure callBody ->
             resultFactory.success({
-                Response { callBody() }
+                Response {
+                    callBody.delegate = delegate
+                    callBody()
+                }
             })
         })
     }
@@ -83,22 +90,26 @@ class TwimlBuilder {
     // Utility methods
     // ---------------
 
+    @GrailsCompileStatic
     protected String getMessage(String code, Collection<String> args=[]) {
         messageSource.getMessage(code, args as Object[], LCH.getLocale())
     }
+    @GrailsCompileStatic
     protected String getLink(Map linkParams) {
         linkGenerator.link(namespace:"v1", resource:"publicRecord", action:"save",
             params:linkParams, absolute:true)
     }
+    @GrailsCompileStatic
     protected List<String> formatAnnouncements(List<FeaturedAnnouncement> announces) {
         if (announces) {
             announces.collect { FeaturedAnnouncement announce ->
-                this.formatAnnouncement(announce.dateCreated, announce.owner.name,
+                formatAnnouncement(announce.whenCreated, announce.owner.name,
                     announce.message)
             }
         }
-        else { getMessage("twimlBuilder.noAnnouncements") }
+        else { [getMessage("twimlBuilder.noAnnouncements")] }
     }
+    @GrailsCompileStatic
     protected String formatAnnouncement(DateTime dt, String identifier, String msg) {
         String timeAgo = new PrettyTime(LCH.getLocale()).format(dt.toDate())
         getMessage("twimlBuilder.announcement", [timeAgo, identifier, msg])
@@ -137,7 +148,7 @@ class TwimlBuilder {
         }
         else {
             resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                'twimlBuilder.invalidCode.', [code])
+                'twimlBuilder.invalidCode', [code])
         }
     }
     Result<Closure> translate(CallResponse code, Map params=[:]) {
@@ -245,20 +256,19 @@ class TwimlBuilder {
                             getMessage("twimlBuilder.call.announcementSubscribe",
                                 [Constants.CALL_SUBSCRIBE]),
                         connectToStaff = getMessage("twimlBuilder.call.connectToStaff")
-                    result = {
-                        Response {
-                            Gather(numDigits:1) {
-                                Say(welcome)
-                                Say(sAction)
-                                Say(connectToStaff)
-                            }
-                            Redirect(".")
+                    callBody = {
+                        Gather(numDigits:1) {
+                            Say(welcome)
+                            Say(sAction)
+                            Say(connectToStaff)
                         }
+                        Redirect(".")
                     }
                 }
                 break
             case CallResponse.HEAR_ANNOUNCEMENTS:
-                if (params.announcements instanceof Collection) {
+                if (params.announcements instanceof Collection &&
+                        params.isSubscribed != null) {
                     String sAction = params.isSubscribed ?
                             getMessage("twimlBuilder.call.announcementUnsubscribe",
                                 [Constants.CALL_GREETING_UNSUBSCRIBE]) :
@@ -267,9 +277,8 @@ class TwimlBuilder {
                         connectToStaff = getMessage("twimlBuilder.call.connectToStaff")
                     callBody = {
                         Gather(numDigits:1) {
-                            this.formatAnnouncements(params.announcements).each {
-                                Say(it)
-                            }
+                            formatAnnouncements(params.announcements)
+                                .each { Say(it) }
                             Say(sAction)
                             Say(connectToStaff)
                         }
@@ -287,8 +296,8 @@ class TwimlBuilder {
                     callBody = {
                         Say(announcementIntro)
                         Gather(numDigits:1) {
-                            formatAnnouncement(DateTime.now(), params.identifier,
-                                params.message)
+                            Say(formatAnnouncement(DateTime.now(), params.identifier,
+                                params.message))
                             Say(unsubscribe)
                         }
                         Redirect(".")
@@ -305,7 +314,8 @@ class TwimlBuilder {
                 }
                 break
             case CallResponse.SUBSCRIBED:
-                String subscribed = getMessage("twimlBuilder.call.subscribed")
+                String subscribed = getMessage("twimlBuilder.call.subscribed"),
+                    goodbye = getMessage("twimlBuilder.call.goodbye")
                 callBody = {
                     Say(subscribed)
                     Say(goodbye)
@@ -318,7 +328,7 @@ class TwimlBuilder {
         }
         else {
             resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                'twimlBuilder.invalidCode.', [code])
+                'twimlBuilder.invalidCode', [code])
         }
     }
 }

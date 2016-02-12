@@ -8,7 +8,9 @@ import org.textup.*
 import static org.springframework.http.HttpStatus.*
 import org.restapidoc.pojo.*
 import grails.transaction.Transactional
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @RestApi(name="Organization", description = "Operations on organizations after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class OrganizationController extends BaseController {
@@ -16,7 +18,7 @@ class OrganizationController extends BaseController {
 	static namespace = "v1"
 
     //authService from superclass
-    def organizationService
+    OrganizationService organizationService
 
     //////////
     // List //
@@ -97,7 +99,7 @@ class OrganizationController extends BaseController {
             if (!authService.isAdminAt(id)) {
                 return forbidden()
             }
-            Map oInfo = request.JSON.organization
+            Map oInfo = (request.properties.JSON as Map).organization as Map
             handleUpdateResult(Organization,
                 organizationService.update(params.long("id"), oInfo))
         }

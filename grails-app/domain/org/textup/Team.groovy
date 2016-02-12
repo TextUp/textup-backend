@@ -1,13 +1,19 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
 import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import org.hibernate.FlushMode
+import org.hibernate.Session
 import org.restapidoc.annotation.*
+import org.textup.types.PhoneOwnershipType
+import org.textup.types.StaffStatus
 
 @EqualsAndHashCode
 @RestApiObject(name="Team", description="A team at an organization.")
 class Team {
+
+    boolean isDeleted = false
 
     @RestApiObjectField(description="Name of the team")
 	String name
@@ -36,11 +42,11 @@ class Team {
             useForCreation    = false,
             presentInResponse = false),
         @RestApiObjectField(
-            apiFieldField = "phone",
+            apiFieldName  = "phone",
             description   = "TextUp phone number",
             allowedType   = "String"),
         @RestApiObjectField(
-            apiFieldField = "awayMessage",
+            apiFieldName  = "awayMessage",
             description   = "Away message when no staff members in this team \
                 are available to respond to texts or calls",
             allowedType   = "String")
@@ -51,29 +57,43 @@ class Team {
         members lazy:false, cascade:"save-update"
     }
     static constraints = {
-    	name blank:false, validator: { val, obj ->
+    	name blank:false, validator: { String val, Team obj ->
             //within an Org, team name must be unique
-            if (obj.hasExistingTeamName(val)) ["duplicate", obj.org?.name]
+            if (obj.hasExistingTeamName(val)) {
+                ["duplicate", obj.org?.name]
+            }
         }
-        hexColor shared:"hexColor"
+        hexColor blank:false, nullable:false, validator:{ String val, Team obj ->
+            //String must be a valid hex color
+            if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
+        }
     }
     static namedQueries = {
-        forStaffs { List<Staff> staffs ->
+        forStaffs { Collection<Staff> staffs ->
+            eq("isDeleted", false)
             members {
                 if (staffs) {
-                    "in"("id", staffs.*id)
+                    "in"("id", staffs*.id)
                 }
                 else { eq("id", null) }
             }
         }
     }
 
+    // Static finders
+    // --------------
+
+    static List<Team> listForStaffs(Collection<Staff> staffs, Map params=[:]) {
+        forStaffs(staffs).list(params)
+    }
+
     // Validator
     // ---------
 
-    private boolean hasExistingTeamName(String teamName) {
+    @GrailsCompileStatic
+    protected boolean hasExistingTeamName(String teamName) {
         boolean duplicateTeam = false
-        Team.withNewSession { session ->
+        Team.withNewSession { Session session ->
             session.flushMode = FlushMode.MANUAL
             try {
                 Team t = Team.findByOrgAndName(this.org, teamName)
@@ -87,12 +107,14 @@ class Team {
     // Members
     // -------
 
-    List<Staff> getActiveMembers() {
+    @GrailsCompileStatic
+    Collection<Staff> getActiveMembers() {
         this.members.findAll { Staff s1 ->
             s1.status == StaffStatus.STAFF || s1.status == StaffStatus.ADMIN
         }
     }
-    List<Staff> getMembers(Collection statuses=[]) {
+    @GrailsCompileStatic
+    Collection<Staff> getMembersByStatus(Collection statuses=[]) {
         if (statuses) {
             HashSet<StaffStatus> findStatuses =
                 new HashSet<>(Helpers.toEnumList(StaffStatus, statuses))
@@ -103,24 +125,17 @@ class Team {
         else { this.members }
     }
 
-
     // Property Access
     // ---------------
 
+    @GrailsCompileStatic
     void setLocation(Location l) {
         this.location = l
         this.location?.save()
     }
-    void setPhone(Phone p1) {
-        PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(this.id,
-            PhoneOwnershipType.GROUP) ?:
-            new PhoneOwnership(ownerId:this.id, type:PhoneOwnershipType.GROUP)
-        own.phone = p1
-        if (own.phone.validate()) { own.phone.save() }
-    }
     Phone getPhone() {
         PhoneOwnership.createCriteria().list {
-            propjections { property("phone") }
+            projections { property("phone") }
             eq("type", PhoneOwnershipType.GROUP)
             eq("ownerId", this.id)
         }[0]

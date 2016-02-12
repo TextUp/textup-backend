@@ -3,7 +3,12 @@ package org.textup
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 import org.textup.ReceiptStatus
+import org.textup.types.ReceiptStatus
+import org.textup.validator.BasePhoneNumber
+import org.textup.validator.PhoneNumber
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @EqualsAndHashCode
 @RestApiObject(name="Receipt", description="A receipt indicating the status \
     of a communication sent to a phone number.")
@@ -20,36 +25,25 @@ class RecordItemReceipt {
         defaultValue="PENDING")
 	ReceiptStatus status = ReceiptStatus.PENDING
 
-    //if outgoing, then record the number that received the communication
-    @RestApiObjectField(
-        apiFieldName = 'receivedBy'
-        description="Phone number that this communication was sent to",
-        useForCreation=false,
-        allowedType="String")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName = 'receivedBy',
+            description="Phone number that this communication was sent to",
+            useForCreation=false,
+            allowedType="String")
+    ])
     static transients = ['receivedBy']
-    static constraints = {
-        receivedByAsString shared: 'phoneNumber'
-    }
     static belongsTo = [item:RecordItem]
-    static namedQueries = {
-        forItemAndStatus { RecordItem rItem, ReceiptStatus stat ->
-            eq("item", rItem)
-            eq("status", stat)
+    static constraints = {
+        receivedByAsString validator:{ String val, RecordItemReceipt obj ->
+            if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
-    }
-
-    // Helper methods
-    // --------------
-
-    static RecordItemReceipt copy() {
-        new RecordItemReceipt(status:this.status, apiId:this.apiId,
-            receivedByAsString:this.receivedByAsString)
     }
 
     // Property Access
     // ---------------
 
-    void setReceivedBy(PhoneNumber pNum) {
+    void setReceivedBy(BasePhoneNumber pNum) {
         this.receivedByAsString = pNum?.number
     }
     PhoneNumber getReceivedBy() {

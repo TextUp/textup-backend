@@ -1,45 +1,64 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import org.hibernate.FlushMode
+import org.hibernate.Session
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.hibernate.FlushMode
+import org.textup.types.RecordItemType
 
+@GrailsTypeChecked
 @EqualsAndHashCode
 class FeaturedAnnouncement {
 
-    def resultFactory
+    ResultFactory resultFactory
 
     Phone owner
     String message
-	DateTime dateCreated = DateTime.now(DateTimeZone.UTC)
+	DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 	DateTime expiresAt
 
-    // holds references to record items of contacts that have received
-    // this announcement via text or call
+    // holds receipts that we are about to save in the next flush
+    private List<AnnouncementReceipt> _receiptsToBeSaved = []
+
+    static transients = ["resultFactory", "_receiptsToBeSaved"]
     static constraints = {
-    	expiresAt validator:{ val, obj ->
-    		if (!val?.isAfter(obj.dateCreated)) { ["expiresBeforeCreation"] }
+    	expiresAt validator:{ DateTime val, FeaturedAnnouncement obj ->
+    		if (!val?.isAfter(obj.whenCreated)) { ["expiresBeforeCreation"] }
     	}
     }
     static mapping = {
-        autoTimestamp false
-    	dateCreated type:PersistentDateTime
+    	whenCreated type:PersistentDateTime
     	expiresAt type:PersistentDateTime
-    }
-    static namedQueries = {
-    	forPhone { Phone p1 ->
-    		eq("owner", p1)
-    		ge("expiresAt", DateTime.now(DateTimeZone.UTC)) //not expired
-    		order("dateCreated", "desc")
-    	}
     }
 
     /*
     Has many:
         AnnouncementReceipt
      */
+
+    // Static finders
+    // --------------
+
+    static List<FeaturedAnnouncement> listForPhone(Phone p1, Map params=[:]) {
+        FeaturedAnnouncement.createCriteria().list(params) {
+            eq("owner", p1)
+            ge("expiresAt", DateTime.now(DateTimeZone.UTC)) //not expired
+            order("whenCreated", "desc")
+        } as List
+    }
+
+    // Events
+    // ------
+
+    def afterInsert() {
+        _receiptsToBeSaved?.clear()
+    }
+    def afterUpdate() {
+        _receiptsToBeSaved?.clear()
+    }
 
     // Expiration
     // ----------
@@ -48,7 +67,7 @@ class FeaturedAnnouncement {
     	this.expiresAt = DateTime.now(DateTimeZone.UTC)
     }
     void setExpiresAt(DateTime exp) {
-    	this.expiresAt = exp?.withTimeZone(DateTimeZone.UTC)
+    	this.expiresAt = exp?.withZone(DateTimeZone.UTC)
     }
 
     // Receipts
@@ -61,22 +80,17 @@ class FeaturedAnnouncement {
         addToReceipts(type, [session])
     }
     ResultList<AnnouncementReceipt> addToReceipts(RecordItemType type,
-        List<IncomingSession> sessions) {
+        Collection<IncomingSession> sessions) {
         ResultList<AnnouncementReceipt> resList = new ResultList<>()
-        List<IncomingSession> repeatSessions = AnnouncementReceipt.createCriteria().list {
-            projections {
-                property("session")
-            }
-            if (sessions) { "in"("session", sessions) }
-            else { eq("session", null) }
-            eq("announcement", this)
-        }
-        HashSet<IncomingSession> sessionsWithReceipt = new HashSet<>(repeatSessions)
+        HashSet<IncomingSession> sessionsWithReceipt = repeatsForTypeAndSessions(type, sessions)
         sessions.each { IncomingSession session ->
             if (!sessionsWithReceipt.contains(session)) {
                 AnnouncementReceipt receipt = new AnnouncementReceipt(type:type,
-                    session:session, announcement:announcement)
+                    session:session, announcement:this)
                 if (receipt.save()) {
+                    _receiptsToBeSaved = _receiptsToBeSaved ?:
+                        new ArrayList<AnnouncementReceipt>()
+                    _receiptsToBeSaved << receipt
                     resList << resultFactory.success(receipt)
                 }
                 else {
@@ -85,5 +99,24 @@ class FeaturedAnnouncement {
             }
         }
         resList
+    }
+    protected HashSet<IncomingSession> repeatsForTypeAndSessions(RecordItemType type,
+        Collection<IncomingSession> sessions) {
+        Collection<AnnouncementReceipt> repeats = _receiptsToBeSaved?.findAll {
+            it.type == type && it.session in sessions
+        } ?: new ArrayList<AnnouncementReceipt>()
+        HashSet<IncomingSession> sessionsWithReceipt = new HashSet<>(repeats*.session)
+        AnnouncementReceipt.withNewSession { Session session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                repeats = AnnouncementReceipt
+                    .findAllByAnnouncementAndTypeAndSessionInList(this, type, sessions)
+                sessionsWithReceipt.addAll(repeats*.session)
+            }
+            finally {
+                session.flushMode = FlushMode.AUTO
+            }
+        }
+        sessionsWithReceipt
     }
 }

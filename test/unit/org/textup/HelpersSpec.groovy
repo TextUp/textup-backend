@@ -2,28 +2,31 @@ package org.textup
 
 import spock.lang.Specification
 import grails.test.mixin.support.GrailsUnitTestMixin
+import org.textup.types.CallResponse
 
 @TestMixin(GrailsUnitTestMixin)
 class HelpersSpec extends Specification {
 
-    void "test parsing from list"() {
-    	given:
-    	List<Integer> toFind1 = [1, 2, 3, 4, 5]
-        List<Integer> all1 = [1, 3, 5, 6, 7]
-        List<Integer> all2 = [1, 2, 3, 4, 5, 6, 7]
+    void "test converting enums"() {
+        expect: "an invalid enum returns null"
+        Helpers.<CallResponse>convertEnum(CallResponse, "invalid") == null
 
-    	when:
-    	ParsedResult<Integer, Integer> p = Helpers.parseFromList(toFind1, all1)
+        and: "a valid enum (case insensitive) returns that enum"
+        Helpers.<CallResponse>convertEnum(CallResponse,
+            "SelF_COnnECTing") == CallResponse.SELF_CONNECTING
+    }
 
-        then: 
-        p.valid == [1, 3, 5]
-        p.invalid == [6, 7]
+    void "test converting list of enums"() {
+        expect: "we pass in not a list and get null"
+        Helpers.<CallResponse>toEnumList(CallResponse, "hello").isEmpty()
 
-        when: 
-        p = Helpers.parseFromList(toFind1, all2)
+        and: "we have an invalid list get null at invalid positions"
+        Helpers.<CallResponse>toEnumList(CallResponse, ["SelF_COnnECTing",
+            "AnnounceMENT_GREE"]) == [CallResponse.SELF_CONNECTING, null]
 
-        then: 
-        p.valid == toFind1
-        p.invalid == [6, 7]
+        and: "we have a mixed valid list get all enums returned"
+        Helpers.<CallResponse>toEnumList(CallResponse, ["SelF_COnnECTing",
+            "AnnounceMENT_GREEting"]) == [CallResponse.SELF_CONNECTING,
+            CallResponse.ANNOUNCEMENT_GREETING]
     }
 }

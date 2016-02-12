@@ -14,11 +14,9 @@ import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(PublicStaffController)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
-    Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class PublicStaffControllerSpec extends CustomSpec {
 
@@ -28,7 +26,7 @@ class PublicStaffControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
@@ -54,9 +52,9 @@ class PublicStaffControllerSpec extends CustomSpec {
         given:
         controller.staffService = [create:{ Map body ->
             new Result(payload:s1)
-        }]
+        }] as StaffService
 
-        when: 
+        when:
         request.json = "{'staff':{}}"
         request.method = "POST"
         controller.save()

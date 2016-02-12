@@ -2,13 +2,16 @@ package org.textup
 
 import grails.transaction.Transactional
 import static org.springframework.http.HttpStatus.*
+import grails.compiler.GrailsCompileStatic
+import org.codehaus.groovy.grails.commons.GrailsApplication
 
+@GrailsCompileStatic
 @Transactional
 class PasswordResetService {
 
-	def grailsApplication
-	def resultFactory
-	def mailService
+	GrailsApplication grailsApplication
+	ResultFactory resultFactory
+	MailService mailService
 
     // Request
     // -------
@@ -23,13 +26,12 @@ class PasswordResetService {
             return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "passwordResetService.requestReset.staffNoEmail")
         }
-        Result<PasswordResetToken> tokenRes =
         generateResetToken(s1).then({ PasswordResetToken pr ->
             mailService.notifyPasswordReset(s1, pr.token)
-        })
+        }) as Result
     }
     protected Result<PasswordResetToken> generateResetToken(Staff s1) {
-        int resetTokenSize = grailsApplication.config.textup.resetTokenSize
+        Integer resetTokenSize = Helpers.toInteger(grailsApplication.flatConfig["textup.resetTokenSize"])
         String tokenString = Helpers.randomAlphanumericString(resetTokenSize)
         //ensure that our generated token is unique
         while (PasswordResetToken.findByToken(tokenString) != null) {
@@ -53,7 +55,7 @@ class PasswordResetService {
                 "passwordResetService.resetPassword.tokenNotFound", [token])
         }
         else if (resetToken.isExpired) {
-            return resultFactory(BAD_REQUEST,
+            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                 "passwordResetService.resetPassword.tokenExpired")
         }
         Staff s1 = Staff.get(resetToken.toBeResetId)

@@ -4,7 +4,9 @@ import org.textup.*
 import org.textup.rest.*
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import grails.plugin.springsecurity.SpringSecurityService
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 class TeamJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace,
         SpringSecurityService springSecurityService, AuthService authService,
@@ -17,19 +19,16 @@ class TeamJsonMarshaller extends JsonNamedMarshaller {
             org = t1.org.id
             hexColor = t1.hexColor
             if (t1.phone) {
-                phone = t1.phone.number.number
+                phone = t1.phone.number.e164PhoneNumber
                 awayMessage = t1.phone.awayMessage
             }
         }
-        json.location = [:]
-        json.location.with {
-            address = t1.location.address
-            lat = t1.location.lat
-            lon = t1.location.lon
-        }
-
-        json.links = [:]
-        json.links << [self:linkGenerator.link(namespace:namespace,
+        json.location = [:] << [
+            address:t1.location.address,
+            lat:t1.location.lat,
+            lon:t1.location.lon
+        ]
+        json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"team", action:"show", id:t1.id, absolute:false)]
         json
     }

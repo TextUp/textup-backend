@@ -1,41 +1,52 @@
 package org.textup
 
-import grails.transaction.Transactional
 import com.sendgrid.SendGrid
 import com.sendgrid.SendGridException
+import grails.compiler.GrailsTypeChecked
+import grails.transaction.Transactional
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.springframework.context.i18n.LocaleContextHolder as LCH
+import org.springframework.context.MessageSource
+import org.textup.validator.EmailEntity
 
+@GrailsTypeChecked
 @Transactional
 class MailService {
 
-    def grailsApplication
-	def messageSource
-	def resultFactory
+    GrailsApplication grailsApplication
+	MessageSource messageSource
+	ResultFactory resultFactory
 
 	// Signup at existing organization
     // -------------------------------
 
-    Result notifyAdminsOfPendingStaff(String pendingName, List<Staff> admins) {
+    Result<List<SendGrid.Response>> notifyAdminsOfPendingStaff(String pendingName,
+        List<Staff> admins) {
         String body = getMessage("mail.pendingForAdmin.body", [pendingName]),
             subject = getMessage("mail.pendingForAdmin.subject")
-        List<Result> successes = [], failures = []
+        List<SendGrid.Response> successes = []
+        List<Result> failures = []
         admins.each { Staff a1 ->
             EmailEntity to = new EmailEntity(name:a1.name, email:a1.email)
             Result res = sendMail(to, getDefaultFrom(), subject, body)
-            if (res.success) { successes << res }
+            if (res.success) { successes << res.payload }
             else { failures << res }
         }
-        if (!successes.isEmpty()) { resultFactory.success() }
-        else if (successes.isEmpty() && !failures.isEmpty()) { failures[0] }
+        if (!successes.isEmpty()) {
+            resultFactory.success(successes)
+        }
+        else if (successes.isEmpty() && !failures.isEmpty()) {
+            failures[0]
+        }
         else {
             resultFactory.failWithMessage("mailService.notifyAdminsOfPendingStaff.noAdmins")
         }
     }
     Result<SendGrid.Response> notifyPendingOfApproval(Staff approvedStaff) {
-        def links = grailsApplication.config.textup.links
-        String body = getMessage("mail.approveForPending.body",
+        String existingLink = config("textup.links.setupExistingOrg"),
+            body = getMessage("mail.approveForPending.body",
                 [approvedStaff.name, approvedStaff.org.name, approvedStaff.username,
-                    links.setupExistingOrg]),
+                    existingLink]),
             subject = getMessage("mail.approveForPending.subject")
         EmailEntity to = new EmailEntity(name:approvedStaff.name, email:approvedStaff.email)
         sendMail(to, getDefaultFrom(), subject, body)
@@ -53,14 +64,15 @@ class MailService {
     Result<SendGrid.Response> notifySuperOfNewOrganization(String orgName) {
     	String body = getMessage("mail.newOrganizationForSuper.body", [orgName]),
     		subject = getMessage("mail.newOrganizationForSuper.subject")
-        def selfMailConfig = grailsApplication.config.textup.mail.self
-        EmailEntity to = new EmailEntity(name:selfMailConfig.name, email:selfMailConfig.email)
+        String name = config("textup.mail.self.name"),
+            email = config("textup.mail.self.email")
+        EmailEntity to = new EmailEntity(name:name, email:email)
         sendMail(to, getDefaultFrom(), subject, body)
     }
     Result<SendGrid.Response> notifyNewOrganizationOfApproval(Staff newOrgAdmin) {
-        def links = grailsApplication.config.textup.links
-        String body = getMessage("mail.approveForNewOrg.body",
-                [newOrgAdmin.name, newOrgAdmin.org.name, newOrgAdmin.username, links.setupNewOrg]),
+        String newLink = config("textup.links.setupNewOrg"),
+            body = getMessage("mail.approveForNewOrg.body",
+                [newOrgAdmin.name, newOrgAdmin.org.name, newOrgAdmin.username, newLink]),
             subject = getMessage("mail.approveForNewOrg.subject")
         EmailEntity to = new EmailEntity(name:newOrgAdmin.name, email:newOrgAdmin.email)
         sendMail(to, getDefaultFrom(), subject, body)
@@ -76,8 +88,8 @@ class MailService {
     // --------------
 
     Result<SendGrid.Response> notifyPasswordReset(Staff s1, String token) {
-        def links = grailsApplication.config.textup.links
-        String body = getMessage("mail.passwordReset.body", [s1.username, links.passwordReset + token]),
+        String resetLink = config("textup.links.passwordReset"),
+            body = getMessage("mail.passwordReset.body", [s1.username, resetLink + token]),
     		subject = getMessage("mail.passwordReset.subject")
         EmailEntity to = new EmailEntity(name:s1.name, email:s1.email)
         sendMail(to, getDefaultFrom(), subject, body)
@@ -87,20 +99,24 @@ class MailService {
     // --------------
 
     protected EmailEntity getDefaultFrom() {
-    	def defaultMailConfig = grailsApplication.config.textup.mail.standard
-    	new EmailEntity(name:defaultMailConfig.name, email:defaultMailConfig.email)
+        String name = config("textup.mail.standard.name"),
+            email = config("textup.mail.standard.email")
+    	new EmailEntity(name:name, email:email)
     }
 
     protected String getMessage(String code, List<String> options=[]) {
     	messageSource.getMessage(code, options as Object[], LCH.getLocale())
     }
 
+    protected String config(String key) {
+        grailsApplication.flatConfig[key]
+    }
+
     protected Result<SendGrid.Response> sendMail(EmailEntity to, EmailEntity from, String subject,
     	String contents, String templateId=null) {
     	if (!to.validate()) { return resultFactory.failWithValidationErrors(to.errors) }
     	if (!from.validate()) { return resultFactory.failWithValidationErrors(from.errors) }
-    	def sgConfig = grailsApplication.config.textup.apiKeys.sendGrid
-    	templateId = templateId ?: sgConfig.templateIds.standard
+    	templateId = templateId ?: config("textup.apiKeys.sendGrid.templateIds.standard")
         SendGrid.Email email = new SendGrid.Email()
         email.with {
             addTo to.email
@@ -112,7 +128,9 @@ class MailService {
             setTemplateId templateId
         }
         try {
-            SendGrid.Response response = new SendGrid(sgConfig.username, sgConfig.password).send(email)
+            String username = config("textup.apiKeys.sendGrid.username"),
+                password = config("textup.apiKeys.sendGrid.password")
+            SendGrid.Response response = new SendGrid(username, password).send(email)
             if (response.status) { resultFactory.success(response) }
             else { resultFactory.failWithMessage("resultFactory.echoMessage", [response.message]) }
         }

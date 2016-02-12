@@ -5,7 +5,9 @@ import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @RestApi(name="PasswordReset", description = "Password reset")
 @Secured("permitAll")
 class PasswordResetController extends BaseController {
@@ -13,7 +15,7 @@ class PasswordResetController extends BaseController {
 	static allowedMethods = [index:"GET", requestReset:"POST",
         resetPassword:"PUT", delete:"DELETE"]
 
-	def passwordResetService
+	PasswordResetService passwordResetService
 
     def index() { notAllowed() }
     def delete() { notAllowed() }
@@ -28,11 +30,11 @@ class PasswordResetController extends BaseController {
     ])
     def requestReset() {
         if (!validateJsonRequest(request)) { return }
-        Map info = request.JSON
+        Map info = request.properties.JSON as Map
         if (!info.username) {
             return badRequest()
         }
-        Result res = passwordResetService.requestReset(info.username)
+        Result res = passwordResetService.requestReset(info.username as String)
         if (res.success) {
             ok()
         }
@@ -48,11 +50,12 @@ class PasswordResetController extends BaseController {
     ])
     def resetPassword() {
         if (!validateJsonRequest(request)) { return }
-        Map info = request.JSON
-        if (info.token && info.password) {
+        Map info = request.properties.JSON as Map
+        if (!info.token || !info.password) {
             return badRequest()
         }
-        Result res = passwordResetService.resetPassword(info.token, info.password)
+        Result res = passwordResetService.resetPassword(info.token as String,
+            info.password as String)
         if (res.success) {
             ok()
         }

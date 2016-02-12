@@ -5,6 +5,7 @@ import com.twilio.sdk.resource.list.AvailablePhoneNumberList
 import com.twilio.sdk.resource.list.IncomingPhoneNumberList
 import com.twilio.sdk.TwilioRestClient
 import com.twilio.sdk.TwilioRestException
+import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
@@ -14,7 +15,9 @@ import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
+import com.twilio.sdk.TwilioRestClient
 
+@GrailsCompileStatic
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class LookupNumberController extends BaseController {
 
@@ -22,10 +25,10 @@ class LookupNumberController extends BaseController {
 
     //grailsApplication from superclass
     //authService from superclass
-    def twilioService
+    TwilioRestClient twilioService
 
     def index() {
-        def tConfig = grailsApplication.config.textup.apiKeys.twilio
+        String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
         Staff s1 = authService.loggedInAndActive
         Location loc = s1.org.location
         if (s1) {
@@ -34,7 +37,7 @@ class LookupNumberController extends BaseController {
         try {
             Account ac = twilioService.account
             IncomingPhoneNumberList existingNumbers =
-                ac.getIncomingPhoneNumbers("FriendlyName":tConfig.available);
+                ac.getIncomingPhoneNumbers("FriendlyName":available);
             Map<String, String> newParams = [
                 "NearLatLong":"${loc.lat}, ${loc.lon}".toString(),
                 "ExcludeAllAddressRequired":"false",
@@ -58,11 +61,7 @@ class LookupNumberController extends BaseController {
                     phoneNumber:it.phoneNumber
                 ]
             }
-            withFormat {
-                json {
-                    respond availableNumbers, [status:OK]
-                }
-            }
+            respond availableNumbers, [status:OK]
         }
         catch (TwilioRestException e) {
             log.error("LookupNumberController.index: ${e.message}")

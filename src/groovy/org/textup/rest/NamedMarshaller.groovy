@@ -8,7 +8,9 @@ import org.codehaus.groovy.grails.web.converters.marshaller.ClosureObjectMarshal
 import org.codehaus.groovy.grails.web.converters.marshaller.ObjectMarshaller
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.beans.factory.annotation.Autowired
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 class NamedMarshaller {
 
     @Autowired

@@ -1,57 +1,97 @@
 package org.textup
 
-import com.pusher.rest.data.Result
-import com.pusher.rest.data.Result.Status
 import grails.converters.JSON
 import grails.transaction.Transactional
 import groovy.json.JsonSlurper
+import org.codehaus.groovy.grails.commons.GrailsApplication
+import com.pusher.rest.Pusher
+import com.pusher.rest.data.Result as PResult
+import com.pusher.rest.data.Result.Status as PStatus
+import org.springframework.http.HttpStatus
 
 @Transactional(readOnly=true)
 class SocketService {
 
-    def grailsApplication
-    def pusherService
-    def authService
+    GrailsApplication grailsApplication
+    Pusher pusherService
+    AuthService authService
+    ResultFactory resultFactory
 
-    void sendItems(List<RecordItem> items, String eventName=Constants.SOCKET_EVENT_RECORDS) {
-        if (!items) { return }
-        HashSet<Staff> staffList = authService.getPhonesForRecords(items*.record)
-        Map serialized
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+    ResultList<Staff> sendItems(List<RecordItem> items,
+        String eventName=Constants.SOCKET_EVENT_RECORDS) {
+        ResultList<Staff> resList = new ResultList<>()
+        if (!items) {
+            return resList
+        }
+        HashSet<Staff> staffList = getStaffsForRecords(items*.record)
+        List serialized
+        JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
             serialized = new JsonSlurper().parseText((items as JSON).toString())
         }
-        staffList.each { Staff s1 -> sendToDataToStaff(s1, eventName, serialized) }
+        staffList.each { Staff s1 ->
+            resList << sendToDataToStaff(s1, eventName, serialized)
+        }
+        resList
     }
-    void sendContacts(List<Contact> contacts, String eventName=Constants.SOCKET_EVENT_CONTACTS) {
-        HashSet<Staff> staffList = authService.getPhonesForRecords(contacts*.record)
-        Map serialized
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+    ResultList<Staff> sendContacts(List<Contact> contacts,
+        String eventName=Constants.SOCKET_EVENT_CONTACTS) {
+        ResultList<Staff> resList = new ResultList<>()
+        if (!contacts) {
+            return resList
+        }
+        HashSet<Staff> staffList = getStaffsForRecords(contacts*.record)
+        List serialized
+        JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
             serialized = new JsonSlurper().parseText((contacts as JSON).toString())
         }
-        staffList.each { Staff s1 -> sendToDataToStaff(s1, eventName, serialized) }
+        staffList.each { Staff s1 ->
+            resList << sendToDataToStaff(s1, eventName, serialized)
+        }
+        resList
     }
 
     // Helper methods
     // --------------
 
-    protected void sendToDataToStaff(Staff s1, String eventName, Map data) {
+    protected HashSet<Staff> getStaffsForRecords(List<Record> recs) {
+        HashSet<Phone> phones = authService.getPhonesForRecords(recs)
+        HashSet<Staff> staffs = new HashSet<Staff>()
+        phones.each { staffs.addAll(it.owner.all) }
+        staffs
+    }
+    protected Result<Staff> sendToDataToStaff(Staff s1, String eventName, Object data) {
         String channelName = "private-${s1.username}"
-        Result pusherRes = pusherService.get("/channels/$channelName")
-        if (pusherRes.status == Status.SUCCESS) {
+        PResult pRes = pusherService.get("/channels/$channelName")
+        if (pRes.status == Status.SUCCESS) {
             try {
-                Map channelInfo = new JsonSlurper().parseText(pusherRes.message)
+                Map channelInfo = new JsonSlurper().parseText(pRes.message)
                 if (channelInfo.occupied) {
-                    pusherService.trigger(channelName, eventName, data)
+                    pRes = pusherService.trigger(channelName, eventName, data)
+                    if (pRes.status == PStatus.SUCCESS) {
+                        resultFactory.success(s1)
+                    }
+                    else { convertPusherResultOnError(pRes) }
                 }
             }
             catch (e) {
                 log.error("SocketService.sendToDataToStaff: error: ${e.message}")
+                resultFactory.failWithThrowable(e)
             }
         }
         else {
-            log.error("SocketService.sendToDataToStaff: error: ${pusherRes}, \
-                pusherRes.status: ${pusherRes.status}, \
-                pusherRes.message: ${pusherRes.message}")
+            log.error("SocketService.sendToDataToStaff: error: ${pRes}, \
+                pRes.status: ${pRes.status}, \
+                pRes.message: ${pRes.message}")
+            convertPusherResultOnError(pRes)
+        }
+    }
+    protected Result convertPusherResultOnError(PResult pRes) {
+        try {
+            HttpStatus stat = HttpStatus.valueOf(pRes.httpStatus)
+            resultFactory.failWithMessagesAndStatus(stat, pRes.message)
+        }
+        catch (e) {
+            resultFactory.failWithThrowable(e)
         }
     }
 }

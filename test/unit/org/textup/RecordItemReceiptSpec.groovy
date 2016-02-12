@@ -4,13 +4,14 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
+import org.textup.types.ReceiptStatus
+import org.textup.validator.PhoneNumber
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
 
-@Domain([Record, RecordItem, RecordNote, RecordText, RecordCall, 
-	RecordItemReceipt, PhoneNumber])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class RecordItemReceiptSpec extends Specification {
@@ -22,34 +23,34 @@ class RecordItemReceiptSpec extends Specification {
 		RecordItemReceipt receipt = new RecordItemReceipt()
 
 		then:
-		receipt.validate() == false 
+		receipt.validate() == false
 		receipt.errors.errorCount == 3
 
 		when: "we we fill in the required fields except for phone number"
-		receipt.item = rItem 
-		receipt.apiId = "testing" 
+		receipt.item = rItem
+		receipt.apiId = "testing"
 
-		then: 
-		receipt.validate() == false 
+		then:
+		receipt.validate() == false
 		receipt.errors.errorCount == 1
 
 		when: "we set an invalid phone number"
-		receipt.receivedByAsString = "invalid123"
+		receipt.receivedBy = new PhoneNumber(number:"invalid123")
 
 		then:
-		receipt.validate() == false 
+		receipt.validate() == false
 		receipt.errors.errorCount == 1
 
 		when: "we set a valid phone number"
-		receipt.receivedByAsString = "222 333 4444"
+		receipt.receivedBy = new PhoneNumber(number:"222 333 4444")
 
-		then: 
-		receipt.validate() == true 
+		then:
+		receipt.validate() == true
 	}
 
-	private void addReceiptToItem(RecordItem rItem, String status) {
-		RecordItemReceipt receipt = new RecordItemReceipt(apiId:"test", status:status)
-		receipt.receivedByAsString = "222 333 4444"
+	private void addReceiptToItem(RecordItem rItem, ReceiptStatus status) {
+		RecordItemReceipt receipt = new RecordItemReceipt(apiId:"test",
+			status:status, receivedByAsString:"2223334444")
 		rItem.addToReceipts(receipt)
 		receipt.save(flush:true)
 	}
@@ -59,16 +60,17 @@ class RecordItemReceiptSpec extends Specification {
 		rec.save(flush:true)
 		RecordItem rItem = new RecordItem(record:rec)
 		rItem.save(flush:true)
-		int numFailed = 3, numPending = 4, numSuccess = 5
-		numFailed.times { addReceiptToItem(rItem, Constants.RECEIPT_FAILED) }
-		numPending.times { addReceiptToItem(rItem, Constants.RECEIPT_PENDING) }
-		numSuccess.times { addReceiptToItem(rItem, Constants.RECEIPT_SUCCESS) }
+		int baseline = RecordItemReceipt.count(),
+			numFailed = 3, numPending = 4, numSuccess = 5
+		numFailed.times { addReceiptToItem(rItem, ReceiptStatus.FAILED) }
+		numPending.times { addReceiptToItem(rItem, ReceiptStatus.PENDING) }
+		numSuccess.times { addReceiptToItem(rItem, ReceiptStatus.SUCCESS) }
 
 		then:
-		RecordItemReceipt.countByItem(rItem) == numFailed + numPending + numSuccess 
-		RecordItemReceipt.failed(rItem).count() == numFailed
-		RecordItemReceipt.pending(rItem).count() == numPending
-		RecordItemReceipt.success(rItem).count() == numSuccess
+		RecordItemReceipt.countByItem(rItem) == numFailed + numPending + numSuccess
+		RecordItemReceipt.countByItemAndStatus(rItem, ReceiptStatus.FAILED) == numFailed
+		RecordItemReceipt.countByItemAndStatus(rItem, ReceiptStatus.PENDING) == numPending
+		RecordItemReceipt.countByItemAndStatus(rItem, ReceiptStatus.SUCCESS) == numSuccess
 
 		when: "we delete all added RecordItemReceipts"
 		//Cannot just call delete directly, doing so would re-save object on cascade
@@ -77,7 +79,7 @@ class RecordItemReceiptSpec extends Specification {
 		RecordItemReceipt.findAllByItem(rItem)*.delete()
 		rItem.save(flush:true)
 
-		then: 
-		RecordItemReceipt.countByItem(rItem) == 0
+		then:
+		RecordItemReceipt.countByItem(rItem) == baseline
     }
 }

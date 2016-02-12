@@ -4,7 +4,9 @@ import grails.converters.JSON
 import org.restapidoc.annotation.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @RestApi(name="[Public] Staff", description = "Creating new staff members only. Accessible to all.")
 @Secured("permitAll")
 class PublicStaffController extends StaffController {

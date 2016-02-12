@@ -2,12 +2,12 @@ package org.textup
 
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
+import grails.compiler.GrailsTypeChecked
 
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="RecordText", description="A text message entry in a contact's record.")
 class RecordText extends RecordItem {
-
-    def resultFactory
 
     @RestApiObjectField(description = "Contents of the text")
 	String contents
@@ -49,6 +49,6 @@ class RecordText extends RecordItem {
     ])
     static transients = []
     static constraints = {
-    	contents shared: 'textMessage'
+    	contents blank:false, nullable:false, maxSize:320
     }
 }

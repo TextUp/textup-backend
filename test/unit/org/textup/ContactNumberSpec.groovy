@@ -5,60 +5,49 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import spock.lang.Ignore
 import spock.lang.Shared
-import spock.lang.Specification
+import org.textup.util.CustomSpec
 import spock.lang.Unroll
 
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
-    Schedule, Location, TeamPhone])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+  RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+  Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 @Unroll
-class ContactNumberSpec extends Specification {
+class ContactNumberSpec extends CustomSpec {
 
-    void "test no duplicate numbers for one contact, autoincrement preference"() {
-    	given: 
-    	Phone p = new Phone()
-    	p.numberAsString = "122 333 4444"
-    	p.save(flush:true)
-		Contact c = new Contact(phone:p)
-		c.save(flush:true)
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    	when: "we try to add a unique number"
-    	String num = "123 434 9230"
-    	ContactNumber cn = new ContactNumber(number:num)
-		cn.contact = c
+    def setup() {
+        setupData()
+    }
 
-    	then:
-    	cn.validate() == true 
-    	cn.preference == 0
+    def cleanup() {
+        cleanupData()
+    }
 
-    	when: "we try to add a duplicate number"
-    	cn.save(flush:true)
+    void "test constraints"() {
+        when: "we have an empty contact number"
+        ContactNumber cn = new ContactNumber()
 
-    	cn = new ContactNumber(number:num)
-    	cn.contact = c
+        then: "invalid"
+        cn.validate() == false
+        cn.errors.errorCount == 3
 
-    	then: 
-    	cn.validate() == false 
-    	cn.preference == 1
+        when: "we fill out fields"
+        String number = "1233940349"
+        cn = new ContactNumber(preference:8, owner:c1, number:number)
 
-    	when: "we try to add another unique number"
-    	cn.number = "123 439 0980"
-    	cn.contact = c
+        then: "valid"
+        cn.validate() == true
 
-    	then:
-    	cn.validate() == true 
-    	cn.preference == 1
+        when: "we officially add to relationship"
+        c1.addToNumbers(cn)
+        c1.save(flush:true, failOnError:true)
 
-		when: "we try to add another unique number"
-    	cn.save(flush:true)
-    	cn = new ContactNumber(number:"123 439 0981")
-    	cn.contact = c 
-
-    	then:
-    	cn.validate() == true 
-    	cn.preference == 2 	
+        then: "getting contacts for phone and numbers"
+        ContactNumber.getContactsForPhoneAndNumbers(p1,
+            ["2390254789", number])[number] == [c1]
     }
 }

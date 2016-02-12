@@ -4,199 +4,184 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.springframework.context.MessageSource
+import org.textup.types.AuthorType
+import org.textup.util.CustomSpec
+import org.textup.validator.Author
+import org.textup.validator.IncomingText
+import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
 import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
 
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-	ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-	RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-	TeamMembership, StaffPhone, Staff, Team, Organization, 
-	Schedule, Location, TeamPhone])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
+	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
+	AnnouncementReceipt])
 @TestMixin(HibernateTestMixin)
-@Unroll
-class ContactSpec extends Specification {
+class ContactSpec extends CustomSpec {
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
 	}
-	def setup() {
-		ResultFactory f = getResultFactory()
-		f.messageSource = [getMessage:{ String c, Object[] p, Locale l -> c }] as MessageSource
-	}
-    private ResultFactory getResultFactory() {
-        grailsApplication.mainContext.getBean("resultFactory")
+
+    def setup() {
+    	setupData()
     }
 
-	void "test constraints and deletion"() {
-    	given: 
-    	Phone p = new Phone()
-    	p.numberAsString = "422 333 4444"
-    	p.save(flush:true)
-    	ContactTag t = new ContactTag(phone:p, name:"tag1")
-    	t.save(flush:true)
+    def cleanup() {
+    	cleanupData()
+    }
 
+    void "test constraints"() {
     	when: "we have a contact with only a phone defined"
-    	Contact c = new Contact(phone:p)
-    	c.resultFactory = getResultFactory()
+    	Contact c1 = new Contact(phone:p1)
+    	c1.resultFactory = getResultFactory()
 
     	then: "an empty record is automatically added"
-    	c.validate() == true 
-    	c.record != null
+    	c1.validate() == true
+    	c1.record != null
 
     	when: "we add a tag membership and define a too-long note"
-    	c.save(flush:true)
-    	assert (new TagMembership(tag:t, contact:c)).save(flush:true)
-
-    	c.note = '''
-			Far far away, behind the word mountains, far from the countries Vokalia and 
-			Consonantia, there live the blind texts. Separated they live in Bookmarksgrove 
-			right at the coast of the Semantics, a large language ocean. A small river named 
-			Duden flows by their place and supplies it with the necessary regelialia. It is a 
-			paradisematic country, in which roasted parts of sentences fly into your mouth. 
-			Even the all-powerful Pointing has no control about the blind texts it is an almost 
-			unorthographic life One day however a small line of blind text by the name of Lorem 
-			Ipsum decided to leave for the far World of Grammar. The Big Oxmox advised her not 
-			to do so, because there were thousands of bad Commas, wild Question Marks and 
-			devious Semikoli, but the Little Blind Text didn’t listen. She packed her seven 
-			versalia, put her initial into the belt and made herself on the way. When she 
-			reached the first hills of the Italic Mountains, she had a last view back on the 
-			skyline of her hometown Bookmarksgrove, the headline of Alphabet Village and the 
+    	c1.save(flush:true, failOnError:true)
+    	c1.note = '''
+			Far far away, behind the word mountains, far from the countries Vokalia and
+			Consonantia, there live the blind texts. Separated they live in Bookmarksgrove
+			right at the coast of the Semantics, a large language ocean. A small river named
+			Duden flows by their place and supplies it with the necessary regelialia. It is a
+			paradisematic country, in which roasted parts of sentences fly into your mouth.
+			Even the all-powerful Pointing has no control about the blind texts it is an almost
+			unorthographic life One day however a small line of blind text by the name of Lorem
+			Ipsum decided to leave for the far World of Grammar. The Big Oxmox advised her not
+			to do so, because there were thousands of bad Commas, wild Question Marks and
+			devious Semikoli, but the Little Blind Text didn’t listen. She packed her seven
+			versalia, put her initial into the belt and made herself on the way. When she
+			reached the first hills of the Italic Mountains, she had a last view back on the
+			skyline of her hometown Bookmarksgrove, the headline of Alphabet Village and the
 			subline of her own road, the Line Lane. Pityful a ret
     	'''
-    	
-    	then: 
-    	c.validate() == false 
-    	c.errors.errorCount == 1
-
-    	when: "we remove the note"
-    	c.note = null
-
-    	then: 
-    	c.validate() == true 
-
-    	when: "we delete the contact"
-    	int mBaseline = TagMembership.count(), 
-    		rBaseline = Record.count(), 
-    		cBaseline = Contact.count()
-    	c.delete(flush:true) 
-
-    	then: 
-    	TagMembership.count() == mBaseline - 1
-    	Record.count() == rBaseline - 1
-    	Contact.count() == cBaseline - 1
-    }
-
-    //////////////////////////////////////////////////////////////
-    // Testing named queries out of the scope of this unit test //
-    //////////////////////////////////////////////////////////////
-
-    void "test methods that modify status"() {
-    	given: 
-    	Phone p = new Phone()
-    	p.numberAsString = "422 333 4445"
-    	p.save(flush:true)
-    	Contact c = new Contact(phone:p)
-    	c.resultFactory = getResultFactory()
-    	c.save(flush:true)
-
-    	when: "we archive a contact"
-    	c.archive()
-
-    	then: 
-    	c.status == Constants.CONTACT_ARCHIVED
-
-    	when: "we block a contact"
-    	c.block()
-
-    	then: 
-    	c.status == Constants.CONTACT_BLOCKED
-
-    	when: "we unblock a contact"
-    	c.activate()
-
-    	then: 
-    	c.status == Constants.CONTACT_ACTIVE
-
-    	when: "we mark a contact as unread"
-    	c.markUnread()
-
-    	then: 
-    	c.status == Constants.CONTACT_UNREAD
-
-    	when: "we mark a contact as read"
-    	c.markRead()
 
     	then:
-    	c.status == Constants.CONTACT_ACTIVE
+    	c1.validate() == false
+    	c1.errors.errorCount == 1
+
+    	when: "we remove the note"
+    	c1.note = null
+
+    	then:
+    	c1.validate() == true
     }
 
-    @Ignore
-    void "test scheduled texts"() {
+ 	void "test no duplicate numbers for one contact, autoincrement preference"() {
+ 		given:
+ 		int maxPref = c1.numbers.max { it.preference }.preference
+ 		int numNums = c1.numbers.size()
+ 		int numBaseline = ContactNumber.count()
+ 		String number = "123 434 9230"
+
+    	when: "we try to add a unique number"
+    	ContactNumber cn = c1.mergeNumber(number).payload
+    	cn.save(flush:true, failOnError:true)
+
+    	then:
+    	c1.numbers.size() == numNums + 1
+    	cn.preference == maxPref + 1
+    	ContactNumber.count() == numBaseline + 1
+
+    	when: "we try to add a duplicate number"
+    	cn = c1.mergeNumber(number).payload
+    	cn.save(flush:true, failOnError:true)
+
+    	then:
+    	c1.numbers.size() == numNums + 1
+    	cn.preference == maxPref + 1
+    	ContactNumber.count() == numBaseline + 1
+
+    	when: "we try to add another unique number"
+    	cn = c1.mergeNumber("123 439 0980").payload
+    	cn.save(flush:true, failOnError:true)
+
+    	then:
+    	c1.numbers.size() == numNums + 2
+    	cn.preference == maxPref + 2
+    	ContactNumber.count() == numBaseline + 2
+
+		when: "we try to add another unique number"
+		cn = c1.mergeNumber("123 439 0981").payload
+    	cn.save(flush:true, failOnError:true)
+
+    	then:
+    	c1.numbers.size() == numNums + 3
+    	cn.preference == maxPref + 3
+    	ContactNumber.count() == numBaseline + 3
+
+    	when: "we delete a number"
+    	c1.deleteNumber(number)
+    	c1.save(flush:true, failOnError:true)
+
+    	then:
+    	c1.numbers.size() == numNums + 2
+    	ContactNumber.count() == numBaseline + 2
     }
 
-    void "test methods related to tags"() {
-    	given: 
-    	Phone p = new Phone()
-    	p.numberAsString = "422 333 4448"
-    	p.save(flush:true)
-    	Contact c = new Contact(phone:p)
-    	c.resultFactory = getResultFactory()
-    	c.save(flush:true)
-    	ContactTag t1 = new ContactTag(phone:p, name:"tag1"), 
-    		t2 = new ContactTag(phone:p, name:"tag2"), 
-    		t3 = new ContactTag(phone:p, name:"tag3")
-		t1.save(flush:true)
-    	t2.save(flush:true)
-    	t3.save(flush:true)
+    void "test store record items"() {
+    	given:
+    	int textBaseline = RecordText.count()
+    	int callBaseline = RecordCall.count()
+    	int receiptBaseline = RecordItemReceipt.count()
 
-    	when: "add to tag"
-    	assert c.addToTag(t1).success
-    	assert c.addToTag(t2.name).success
-    	c.save(flush:true)
+    	when: "we store outgoing text"
+    	TempRecordReceipt receipt = new TempRecordReceipt(apiId:"testing",
+    		receivedByAsString:"1112223333")
+    	RecordText outText = c1.storeOutgoingText("hello", receipt, s1).payload
+    	c1.save(flush:true, failOnError:true)
 
-    	then: 
-    	c.tags.size() == 2
+    	then:
+    	RecordText.count() == textBaseline  + 1
+    	RecordItemReceipt.count() == receiptBaseline  + 1
+    	outText.authorType == AuthorType.STAFF
+    	outText.authorId == s1.id
+    	outText.authorName == s1.name
+    	outText.receipts.any { it.receivedByAsString == receipt.receivedByAsString }
+    	outText.outgoing == true
 
-    	when: "unsubscribe from tag that hasn't been added yet"
-    	Result res = c.unsubscribeFromTag(t3)
+    	when: "store outgoing call"
+    	receipt = new TempRecordReceipt(apiId:"testing",
+    		receivedByAsString:"1112223333")
+    	RecordCall outCall = c1.storeOutgoingCall(receipt, s1).payload
+    	c1.save(flush:true, failOnError:true)
 
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map
-    	res.payload.code == "contact.error.membershipNotFound"
+    	then:
+    	RecordCall.count() == callBaseline  + 1
+    	RecordItemReceipt.count() == receiptBaseline  + 2
+    	outCall.authorType == AuthorType.STAFF
+    	outCall.authorId == s1.id
+    	outCall.authorName == s1.name
+    	outText.receipts.any { it.receivedByAsString == receipt.receivedByAsString }
+    	outCall.outgoing == true
 
-    	when: "add nonexistent tag"
-    	res = c.addToTag("nonexistent")
+    	when: "store incoming text"
+    	IncomingText textValidator = new IncomingText(apiId:"testing", message:"hello")
+    	IncomingSession session = new IncomingSession(phone:p1, numberAsString:"1112223333")
+    	RecordText inText = c1.storeIncomingText(textValidator, session).payload
+    	c1.save(flush:true, failOnError:true)
 
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map
-    	res.payload.code == "contact.error.tagNotFound"
+    	then:
+    	RecordText.count() == textBaseline  + 2
+    	RecordItemReceipt.count() == receiptBaseline  + 3
+    	inText.authorType == AuthorType.SESSION
+    	inText.authorId == session.id
+    	inText.authorName == session.numberAsString
+    	inText.outgoing == false
 
-    	when: "remove some tags"
-    	assert c.removeFromTag(t1).success
-    	c.save(flush:true)
+    	when: "store incoming call"
+    	RecordCall inCall = c1.storeIncomingCall("apiId", session).payload
+    	c1.save(flush:true, failOnError:true)
 
-    	then: 
-    	c.tags.size() == 1
-    	c.tags[0].tag == t2 
-
-    	when: "remove tag where is not member"
-    	res = c.removeFromTag(t3)
-
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map
-    	res.payload.code == "contact.error.membershipNotFound"
-
-    	when: "remove from nonexistent tag"
-	    res = c.removeFromTag("nonexistent")
-
-    	then: 
-    	res.success == false 
-    	res.payload instanceof Map
-    	res.payload.code == "contact.error.tagNotFound"
+    	then:
+    	RecordCall.count() == callBaseline  + 2
+    	RecordItemReceipt.count() == receiptBaseline  + 4
+    	inCall.authorType == AuthorType.SESSION
+    	inCall.authorId == session.id
+    	inCall.authorName == session.numberAsString
+    	inCall.outgoing == false
     }
 }

@@ -3,13 +3,20 @@ package org.textup
 import groovy.transform.EqualsAndHashCode
 import org.hibernate.FlushMode
 import org.restapidoc.annotation.*
+import org.textup.types.AuthorType
+import org.textup.types.ContactStatus
+import org.textup.validator.Author
+import grails.compiler.GrailsTypeChecked
+import org.hibernate.Session
 
+@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(name="Tag", description="A tag for grouping contacts")
 class ContactTag {
 
 	Phone phone
     Record record
+    boolean isDeleted = false
 
     @RestApiObjectField(description = "Name of this tag")
     String name
@@ -23,12 +30,14 @@ class ContactTag {
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName   = "lastRecordActivity",
-            description    = "Date and time of the most recent communication if this tag keeps a record",
+            description    = "Date and time of the most recent communication \
+                if this tag keeps a record",
             allowedType    = "DateTime",
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName      = "doTagActions",
-            description       = "List of some actions to perform on contacts with relation to this tag",
+            description       = "List of some actions to perform on contacts \
+                with relation to this tag",
             allowedType       = "List<[tagAction]>",
             useForCreation    = false,
             presentInResponse = false)
@@ -36,19 +45,17 @@ class ContactTag {
     static transients = []
     static hasMany = [members:Contact]
     static constraints = {
-        name blank:false, nullable:false, validator:{ val, obj ->
+        name blank:false, nullable:false, validator:{ String val, ContactTag obj ->
             //for each phone, tags must have unique name
-            if (val && obj.sameTagExists()) { ["duplicate"] }
+            if (val && obj.sameTagExists(val)) { ["duplicate"] }
         }
-    	hexColor shared:"hexColor"
+    	hexColor blank:false, nullable:false, validator:{ String val, ContactTag obj ->
+            //String must be a valid hex color
+            if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
+        }
     }
     static mapping = {
         members lazy:false, cascade:"save-update"
-    }
-    static namedQueries = {
-        forContact { Contact c1 ->
-            members { idEq(c1?.id) }
-        }
     }
 
     // Events
@@ -57,19 +64,19 @@ class ContactTag {
     def beforeValidate() {
         if (!this.record) {
             this.record = new Record([:])
-            this.record.save()
         }
     }
 
     // Validator
     // ---------
 
-    private boolean sameTagExists() {
+    protected boolean sameTagExists(String name) {
         boolean duplicateTag = false
-        ContactTag.withNewSession { session ->
+        ContactTag.withNewSession { Session session ->
             session.flushMode = FlushMode.MANUAL
             try {
-                ContactTag tag = ContactTag.findByPhoneAndName(phone, name)
+                ContactTag tag = ContactTag.findByPhoneAndNameAndIsDeleted(phone,
+                    name, false)
                 if (tag && tag.id != this.id) { duplicateTag = true }
             }
             finally { session.flushMode = FlushMode.AUTO }
@@ -88,17 +95,19 @@ class ContactTag {
     // Record keeping
     // --------------
 
-    Result<RecordText> addTextToRecord(Map params, Staff author) {
+    Result<RecordText> addTextToRecord(Map params, Staff staff) {
+        Author author = new Author(id:staff.id, type:AuthorType.STAFF,
+            name: staff.name)
         this.record.addText(params, author)
     }
 
     // Members
     // -------
 
-    List<Contact> getMembers(Collection statuses=[]) {
+    Collection<Contact> getMembersByStatus(Collection statuses=[]) {
         if (statuses) {
             HashSet<ContactStatus> findStatuses =
-                new HashSet<>(Helpers.toEnumList(ContactStatus, statuses))
+                new HashSet<>(Helpers.<ContactStatus>toEnumList(ContactStatus, statuses))
             this.members.findAll { Contact c1 ->
                 c1.status in findStatuses
             }

@@ -1,160 +1,120 @@
 package org.textup.rest
 
-import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import groovy.xml.MarkupBuilder
+import javax.servlet.http.HttpServletRequest
+import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.types.ReceiptStatus
+import org.textup.types.ResultType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(PublicRecordController)
-@Domain([TagMembership, Contact, Phone, ContactTag,
-    ContactNumber, Record, RecordItem, RecordNote, RecordText,
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact,
-    TeamMembership, StaffPhone, Staff, Team, Organization,
-    Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class PublicRecordControllerSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
-        twimlBuilder(TwimlBuilder)
     }
     def setup() {
         super.setupData()
-        controller.twimlBuilder = getBean("twimlBuilder")
-
-        //TODO: need to mock
-        // callService
-        // textService
-        // recordService
-        // staffService
-        // authenticateRequest
-
     }
     def cleanup() {
         super.cleanupData()
     }
 
-    void "test invalid action"() {
-        expect:
-        1 == 2
+    // Process
+    // -------
+
+    private String _apiId
+    private ReceiptStatus _receiptStatus
+    private Integer _duration
+    private Closure _closure = { Test() }
+
+    protected mockForProcess() {
+        controller.callbackService = [validate:{ HttpServletRequest request,
+            GrailsParameterMap params ->
+            new Result(type:ResultType.SUCCESS, success:true, payload:null)
+        }, process:{ GrailsParameterMap params ->
+            new Result(type:ResultType.SUCCESS, success:true, payload:_closure)
+        }] as CallbackService
+        controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
+            Integer duration ->
+            _receiptStatus = status
+            _apiId = apiId
+            _duration = duration
+            new Result(type:ResultType.SUCCESS, success:true, payload:_closure)
+        }] as RecordService
+    }
+    protected String buildXml(Closure data) {
+        StringWriter writer = new StringWriter()
+        MarkupBuilder xmlBuilder = new MarkupBuilder(writer)
+        xmlBuilder(data)
+        writer.toString().replaceAll(/<call>|<\/call>|(\s+)/, "")
     }
 
-    ////////////////////////
-    // Repeating messages //
-    ////////////////////////
+    void "test update invalid status"() {
+        when:
+        mockForProcess()
+        request.method = "POST"
+        params.handle = Constants.CALLBACK_STATUS
+        params.CallSid = "sid"
+        params.CallStatus = "invalid"
+        params.CallDuration = 123
+        controller.save()
 
-    void "test repeating for invalid response code"() {
-
+        then:
+        response.status == SC_OK
+        response.contentAsString == buildXml(_closure)
+        _receiptStatus == ReceiptStatus.SUCCESS
+        _apiId == params.CallSid
+        _duration == params.CallDuration
     }
 
-    void "test repeating a response that requires parameters"() {
+    void "test update valid status"() {
+        when:
+        mockForProcess()
+        request.method = "POST"
+        params.handle = Constants.CALLBACK_STATUS
+        params.CallSid = "sid"
+        params.CallStatus = "undelivered"
+        params.CallDuration = 123
+        controller.save()
 
+        then:
+        response.status == SC_OK
+        response.contentAsString == buildXml(_closure)
+        _receiptStatus == ReceiptStatus.FAILED
+        _apiId == params.CallSid
+        _duration == params.CallDuration
     }
 
-    ////////////////////
-    // Incoming calls //
-    ////////////////////
+    void "test process xml"() {
+        when: "handle is not CALLBACK_STATUS"
+        mockForProcess()
+        request.method = "POST"
+        params.handle = "NOT CALLBACK STATUS!!!"
+        controller.save()
 
-    void "test incoming call to own staff phone"() {
-
+        then:
+        response.status == SC_OK
+        response.contentAsString == buildXml(_closure)
     }
 
-    void "test incoming call to a staff phone"() {
-
-    }
-
-    void "test incoming call to team phone"() {
-
-    }
-
-    void "test incoming call to nonexistent phone"() {
-
-    }
-
-    /////////////////////////
-    // Setting call status //
-    /////////////////////////
-
-    void "test set status for existing receipt"() {
-
-    }
-
-    void "test set status for existing receipt for forwarded call"() {
-
-    }
-
-    void "test set status for nonexistent receipt with missing contactId"() {
-
-    }
-
-    void "test set status for nonexistent receipt from Twilio Client call"() {
-
-    }
-
-    ///////////////
-    // Voicemail //
-    ///////////////
-
-    void "test voicemail for nonexistent receipt"() {
-
-    }
-
-    void "test voicemail for existing receipt"() {
-
-    }
-
-    /////////////////
-    // Team digits //
-    /////////////////
-
-    void "test team digits for directly connecting to staff"() {
-
-    }
-
-    void "test handling digits that are not direct connection to staff"() {
-
-    }
-
-    //////////////////
-    // Staff digits //
-    //////////////////
-
-    void "test self digits are valid code or number"() {
-
-    }
-
-    void "test self digits are invalid"() {
-
-    }
-
-    ///////////////////
-    // Incoming text //
-    ///////////////////
-
-    void "test incoming text"() {
-
-    }
-
-    /////////////////////////
-    // Setting text status //
-    /////////////////////////
-
-    void "test setting text status"() {
-
-    }
-
-    /////////////////////////
-    // Not allowed methods //
-    /////////////////////////
+    // Not allowed
+    // -----------
 
     void "test index"() {
         when:

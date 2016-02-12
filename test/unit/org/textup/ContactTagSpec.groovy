@@ -3,87 +3,134 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import org.textup.types.ContactStatus
+import org.textup.types.AuthorType
+import org.textup.util.CustomSpec
 import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
 
-@Domain([TagMembership, Contact, Phone, ContactTag,
-	Record, RecordItem, RecordNote, RecordText, RecordCall, 
-	RecordItemReceipt, PhoneNumber, ContactNumber])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
-@Unroll
-class ContactTagSpec extends Specification {
+class ContactTagSpec extends CustomSpec {
 
-    void "test constraints and deletion"() {
-    	given: "a phone and a ContactTag"
-    	Phone p = new Phone()
-    	p.numberAsString = "322 333 4444"
-    	p.save(flush:true)
-		assert (new ContactTag(phone:p, name:"tag1")).save(flush:true)
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    	when: "we add a tag with a duplicate name"
-	   	ContactTag t = new ContactTag(phone:p, name:"tag1")
+    def setup() {
+        setupData()
+    }
 
-    	then: 
-    	t.validate() == false 
-    	t.errors.errorCount == 1
+    def cleanup() {
+        cleanupData()
+    }
 
-    	when: "we add a tag with a unique name"
-    	t.name = "tag2"
+    void "test constraints"() {
+        when: "we have a blank tag"
+        ContactTag t1 = new ContactTag()
 
-    	then: 
-    	t.validate() == true 
+        then: "invalid"
+        t1.validate() == false
+        t1.errors.errorCount == 2
 
-    	when: "we delete the new tag"
-    	t.save(flush:true)
-    	int baseline = ContactTag.count()
-    	t.delete(flush:true)
+        when: "we add a tag with all fields filled"
+        String tagName = "tag1"
+        t1 = new ContactTag(phone:p1, name:tagName)
 
-    	then: 
-    	ContactTag.count() == baseline - 1
+        then: "valid"
+        t1.validate()
+        t1.save(flush:true, failOnError:true)
+
+        when: "we add a tag with a duplicate name"
+        t1 = new ContactTag(phone:p1, name:tagName)
+
+        then:
+        t1.validate() == false
+        t1.errors.errorCount == 1
+
+        when: "we add a tag with a unique name"
+        t1.name = "${tagName}UNIQUE"
+
+        then:
+        t1.validate() == true
     }
 
     void "test retrieving members"() {
-    	given: "a phone, a ContactTag with several members"
-    	Phone p = new Phone()
-    	p.numberAsString = "322 333 4445"
-    	p.save(flush:true)
-		ContactTag t = new ContactTag(phone:p, name:"tag1")
-    	t.save(flush:true)
+        when: "tag with no members"
+        ContactTag t1 = new ContactTag(phone:p1, name:"tag1")
+        t1.save(flush:true, failOnError:true)
 
-    	int numSubscribers = 10, numNonsubscribers = 5, 
-    		baseline = TagMembership.count()
-    	List<TagMembership> subs = [], nonSubs = []
-    	numSubscribers.times {
-    		Contact c = new Contact(phone:p)
-	    	c.save(flush:true)
-	    	TagMembership m = new TagMembership(contact:c, tag:t)
-	    	m.save(flush:true)
-	    	subs << m
-    	}
-    	numNonsubscribers.times {
-    		Contact c = new Contact(phone:p)
-	    	c.save(flush:true)
-	    	TagMembership m = new TagMembership(contact:c, tag:t, hasUnsubscribed:true)
-	    	m.save(flush:true)
-	    	nonSubs << m
-    	}
-    	
-    	expect: 
-    	TagMembership.count() == baseline + numSubscribers + numNonsubscribers
-    	t.countAllMembers() == numSubscribers + numNonsubscribers
-    	t.countSubscribers() == numSubscribers
-		t.countNonsubscribers() == numNonsubscribers
+        then:
+        t1.members == null
 
-		t.subscribers.each { TagMembership s1 ->
-			assert subs.find { s2 -> s1 == s2  }
-		}
-		t.nonsubscribers.each { TagMembership n1 ->
-			assert nonSubs.find { TagMembership n2 -> n1 == n2  }
-		}
-		t.allMembers.each { TagMembership m ->
-			assert subs.find { TagMembership s -> s == m  } ||
-				nonSubs.find { TagMembership n -> n == m  }
-		}
+        when: "we add an active contact"
+        c1.status == ContactStatus.ACTIVE
+        t1.addToMembers(c1)
+        t1.save(flush:true, failOnError:true)
+
+        then:
+        t1.members.size() == 1
+        c1.tags.contains(t1)
+        t1.getMembersByStatus([ContactStatus.ACTIVE]).size() == 1
+        t1.getMembersByStatus([ContactStatus.ACTIVE])[0] == c1
+        t1.getMembersByStatus([ContactStatus.UNREAD]).size() == 0
+        t1.getMembersByStatus([ContactStatus.ARCHIVED]).size() == 0
+        t1.getMembersByStatus([ContactStatus.BLOCKED]).size() == 0
+
+        when: "we change contact status to unread"
+        c1.status = ContactStatus.UNREAD
+        c1.save(flush:true, failOnError:true)
+
+        then:
+        c1.tags.contains(t1)
+        t1.getMembersByStatus([ContactStatus.UNREAD]).size() == 1
+        t1.getMembersByStatus([ContactStatus.UNREAD])[0] == c1
+        t1.getMembersByStatus([ContactStatus.ACTIVE]).size() == 0
+        t1.getMembersByStatus([ContactStatus.ARCHIVED]).size() == 0
+        t1.getMembersByStatus([ContactStatus.BLOCKED]).size() == 0
+
+        when: "we change contact status to archived"
+        c1.status = ContactStatus.ARCHIVED
+        c1.save(flush:true, failOnError:true)
+
+        then:
+        c1.tags.contains(t1)
+        t1.getMembersByStatus([ContactStatus.ARCHIVED]).size() == 1
+        t1.getMembersByStatus([ContactStatus.ARCHIVED])[0] == c1
+        t1.getMembersByStatus([ContactStatus.ACTIVE]).size() == 0
+        t1.getMembersByStatus([ContactStatus.UNREAD]).size() == 0
+        t1.getMembersByStatus([ContactStatus.BLOCKED]).size() == 0
+
+        when: "we change contact status to blocked"
+        c1.status = ContactStatus.BLOCKED
+        c1.save(flush:true, failOnError:true)
+
+        then:
+        c1.tags.contains(t1)
+        t1.getMembersByStatus([ContactStatus.BLOCKED]).size() == 1
+        t1.getMembersByStatus([ContactStatus.BLOCKED])[0] == c1
+        t1.getMembersByStatus([ContactStatus.ACTIVE]).size() == 0
+        t1.getMembersByStatus([ContactStatus.ARCHIVED]).size() == 0
+        t1.getMembersByStatus([ContactStatus.UNREAD]).size() == 0
+
+        when: "we remove the contact from tag"
+        t1.removeFromMembers(c1)
+        t1.save(flush:true, failOnError:true)
+
+        then: "removed"
+        t1.members.isEmpty() == true
+    }
+
+    void "test adding text to record"() {
+        when: "adding text to record"
+        String message = "hello!"
+        RecordText rText = tag1.addTextToRecord([contents:message], s1).payload
+
+        then:
+        rText.contents == message
+        rText.authorId == s1.id
+        rText.authorType == AuthorType.STAFF
+        rText.authorName == s1.name
     }
 }

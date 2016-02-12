@@ -1,0 +1,63 @@
+package org.textup.rest.marshallers
+
+import org.textup.util.CustomSpec
+import grails.converters.JSON
+import org.textup.*
+
+class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
+
+    def grailsApplication
+
+    def setup() {
+    	setupIntegrationData()
+    }
+
+    def cleanup() {
+    	cleanupIntegrationData()
+    }
+
+    void "test marshalling team"() {
+    	when:
+    	Map json
+    	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+    		json = jsonToObject(t1 as JSON) as Map
+    	}
+
+    	then:
+    	json.id == t1.id
+    	json.name == t1.name
+    	json.hexColor == t1.hexColor
+        json.org == t1.org.id
+        json.phone == t1.phone.number.e164PhoneNumber
+        json.awayMessage == t1.phone.awayMessage
+    	json.location instanceof Map
+        json.location.address == t1.location.address
+        json.location.lat == t1.location.lat
+        json.location.lon == t1.location.lon
+    }
+
+    void "test marshalling team without phone"() {
+        given: "team without phone"
+        Team team1 = new Team(name:"UniqueTeam1", org:org)
+        team1.location = new Location(address:"Testing Address", lat:0G, lon:1G)
+        team1.save(flush:true, failOnError:true)
+
+        when:
+        Map json
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = jsonToObject(team1 as JSON) as Map
+        }
+
+        then:
+        json.id == team1.id
+        json.name == team1.name
+        json.hexColor == team1.hexColor
+        json.org == team1.org.id
+        json.phone == null
+        json.awayMessage == null
+        json.location instanceof Map
+        json.location.address == team1.location.address
+        json.location.lat == team1.location.lat
+        json.location.lon == team1.location.lon
+    }
+}

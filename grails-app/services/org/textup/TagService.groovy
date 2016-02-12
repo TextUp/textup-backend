@@ -1,13 +1,16 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
+import org.hibernate.Session
 import static org.springframework.http.HttpStatus.*
 
+@GrailsCompileStatic
 @Transactional
 class TagService {
 
-	def resultFactory
-    def authService
+	ResultFactory resultFactory
+    AuthService authService
 
     // Create
     // ------
@@ -19,7 +22,9 @@ class TagService {
         create(authService.loggedInAndActive?.phone, body)
     }
     protected Result<ContactTag> create(Phone p1, Map body) {
-        if (p1) { p1.createTag(body) }
+        if (p1) {
+            p1.createTag(body)
+        }
         else {
             resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
                 "tagService.create.noPhone")
@@ -33,14 +38,17 @@ class TagService {
         Result.<ContactTag>waterfall(
             this.&findTagFromId.curry(tId),
             //do at the beginning so we don't need to discard any field changes
-            this.&doTagActions.rcurry(body.doTagActions),
-            this.&updateTag.rcurry(body)
+            this.&doTagActions.rcurry(body),
+            this.&updateTagInfo.rcurry(body)
         ).then({ ContactTag ct1 ->
             if (ct1.save()) {
                 resultFactory.success(ct1)
             }
-            else { resultFactory.failWithValidationErrors(ct1.errors) }
-        })
+            else {
+                ContactTag.withSession { Session session -> session.clear() }
+                resultFactory.failWithValidationErrors(ct1.errors)
+            }
+        }) as Result
     }
     protected Result<ContactTag> findTagFromId(Long ctId) {
         ContactTag ct1 = ContactTag.get(ctId)
@@ -52,19 +60,27 @@ class TagService {
                 "tagService.update.notFound", [ctId])
         }
     }
-    protected Result<ContactTag> updateTag(ContactTag ct1, Map body) {
+    protected Result<ContactTag> updateTagInfo(ContactTag ct1, Map body) {
         ct1.with {
             if (body.name) name = body.name
             if (body.hexColor) hexColor = body.hexColor
         }
-        resultFactory.success(ct1)
+        if (ct1.save()) {
+            resultFactory.success(ct1)
+        }
+        else { resultFactory.failWithValidationErrors(ct1.errors) }
     }
-    protected Result<ContactTag> doTagActions(ContactTag ct1, Map tagActions) {
-        if (tagActions instanceof List) {
+    protected Result<ContactTag> doTagActions(ContactTag ct1, Map body) {
+        if (!body.doTagActions) {
+            return resultFactory.success(ct1)
+        }
+        if (body.doTagActions && !(body.doTagActions instanceof List)) {
             return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                 "tagService.update.tagActionNotList")
         }
-        for (tAction in tagActions) {
+        for (item in body.doTagActions) {
+            if (!(item instanceof Map)) { continue }
+            Map tAction = item as Map
             Contact c1 = Contact.get(Helpers.toLong(tAction.id))
             if (!c1) {
                 return resultFactory.failWithMessageAndStatus(NOT_FOUND,
@@ -98,8 +114,11 @@ class TagService {
     Result delete(Long tId) {
 		ContactTag t1 = ContactTag.get(tId)
     	if (t1) {
-			t1.delete()
-			resultFactory.success()
+			t1.isDeleted = true
+            if (t1.save()) {
+                resultFactory.success()
+            }
+            else { resultFactory.failWithValidationErrors(t1.errors) }
     	}
     	else {
     		resultFactory.failWithMessageAndStatus(NOT_FOUND,

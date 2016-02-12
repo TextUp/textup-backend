@@ -1,7 +1,9 @@
 package org.textup
 
 import groovy.transform.ToString
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @ToString
 class ResultList<T> {
 
@@ -9,6 +11,10 @@ class ResultList<T> {
 
 	// Constructors
 	// ------------
+
+	ResultList() {
+		this.results = []
+	}
 
 	ResultList(Result<T> res) {
 		this.results << res
@@ -35,12 +41,12 @@ class ResultList<T> {
 		this
 	}
 
-	ResultList<T> leftShit(Result<T> res) {
+	ResultList<T> leftShift(Result<T> res) {
 		this.results << res
 		this
 	}
 
-	ResultList<T> leftShit(ResultList<T> resList) {
+	ResultList<T> leftShift(ResultList<T> resList) {
 		this.results += resList.results
 		this
 	}
@@ -55,29 +61,29 @@ class ResultList<T> {
 		this.successes.size() == this.results.size()
 	}
 
-	List<Result<T>> getSuccesses() {
+	Collection<Result<T>> getSuccesses() {
 		this.results.findAll { it.success }
 	}
-	List<Result<T>> getFailures() {
+	Collection<Result<T>> getFailures() {
 		this.results.findAll { !it.success }
 	}
 
 	def any(Closure successAction) {
-		List<Result<T>> successes = this.successes
+		Collection<Result<T>> successes = this.successes
 		successes ? successAction(successes) : this
 	}
 	def any(Closure successAction, Closure failAction) {
-		List<Result<T>> successes = this.successes
+		Collection<Result<T>> successes = this.successes
 		successes ? successAction(successes) : failAction(this.failures)
 	}
 
 	def every(Closure successAction) {
-		List<Result<T>> successes = this.successes
+		Collection<Result<T>> successes = this.successes
 		(successes.size() == this.results.size()) ? successAction(successes) : this
 	}
 
 	ResultList<T> logFail(String prefix="") {
-		this.results.each { it.logIfFail(prefix) }
+		this.results.each { Result<T> res -> res.logFail(prefix) }
 		this
 	}
 }

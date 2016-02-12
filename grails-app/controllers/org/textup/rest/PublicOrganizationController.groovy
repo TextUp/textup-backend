@@ -4,7 +4,9 @@ import grails.converters.JSON
 import org.restapidoc.annotation.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @RestApi(name="[Public] Organization", description = "Listing and showing organizations. Accessible to all.")
 @Secured("permitAll")
 class PublicOrganizationController extends OrganizationController {

@@ -3,20 +3,29 @@ package org.textup
 import grails.transaction.Transactional
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.textup.validator.IncomingText
+import org.textup.validator.PhoneNumber
+import grails.compiler.GrailsTypeChecked
+import org.textup.rest.TwimlBuilder
+import static org.springframework.http.HttpStatus.*
+import org.textup.types.CallResponse
+import org.codehaus.groovy.grails.commons.GrailsApplication
 
+@GrailsTypeChecked
 @Transactional
 class CallbackService {
 
-	def resultFactory
-	def twimlBuilder
+    GrailsApplication grailsApplication
+	ResultFactory resultFactory
+	TwimlBuilder twimlBuilder
 
 	// Validate request
 	// ----------------
 
     Result validate(HttpServletRequest request, GrailsParameterMap params) {
         String browserURL = (request.requestURL.toString() - request.requestURI) +
-        		request.forwardURI,
-            authToken = grailsApplication.config.textup.apiKeys.twilio.authToken,
+        		request.getAttribute("forwardURI"),
+            authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
             authHeaderName = "x-twilio-signature",
             authHeader = request.getHeader(authHeaderName)
         Result invalidResult = resultFactory.failWithMessageAndStatus(BAD_REQUEST,
@@ -62,7 +71,8 @@ class CallbackService {
         HashSet<String> ignoreParamKeys = new HashSet<>(queryParams),
             keepParamKeys = new HashSet<>(requestParamKeys)
         Map<String,String> twilioParams = [:]
-        allParams.each { String key, String val ->
+        allParams.each {
+            String key = it.key, val = it.value
             if (keepParamKeys.contains(key) && !ignoreParamKeys.contains(key)) {
                 twilioParams[key] = val
             }
@@ -76,8 +86,8 @@ class CallbackService {
     Result<Closure> process(GrailsParameterMap params) {
     	String apiId = params.CallSid ?: params.MessageSid,
     		digits = params.Digits
-    	PhoneNumber fromNum = new PhoneNumber(number:params.From),
-    		toNum = new PhoneNumber(number:params.To)
+    	PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
+    		toNum = new PhoneNumber(number:params.To as String)
     	Phone phone = Phone.findByNumberAsString(toNum.number)
     	if (!phone) {
     		return params.CallSid ? twimlBuilder.notFoundForCall() :
@@ -100,23 +110,24 @@ class CallbackService {
                     phone.receiveVoicemail(apiId, voicemailDuration, session)
                     break
                 case CallResponse.CONFIRM_BRIDGE.toString():
-                	Contact c1 = Contact.get(params.contactId)
+                	Contact c1 = Contact.get(params.long("contactId"))
                     phone.confirmBridgeCall(c1)
                     break
                 case CallResponse.FINISH_BRIDGE.toString():
-                	Contact c1 = Contact.get(params.contactId)
+                	Contact c1 = Contact.get(params.long("contactId"))
                     phone.finishBridgeCall(c1)
                     break
                 case CallResponse.ANNOUNCEMENT_AND_DIGITS.toString():
-                    phone.completeCallAnnouncement(digits, params.message,
-                    	params.identifier, session)
+                    String msg = params.message,
+                        ident = params.identifier
+                    phone.completeCallAnnouncement(digits, msg, ident, session)
                     break
                 default:
                     phone.receiveCall(apiId, digits, session)
             }
         }
         else if (params.MessageSid) {
-        	IncomingText text = new IncomingText(apiId:apiId, message:params.Body)
+        	IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)
             phone.receiveText(text, session)
         }
         else {

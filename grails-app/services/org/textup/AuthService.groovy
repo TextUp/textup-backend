@@ -1,13 +1,16 @@
 package org.textup
 
 import grails.gorm.DetachedCriteria
+import grails.plugin.springsecurity.SpringSecurityService
 import grails.transaction.Transactional
+import org.joda.time.DateTime
+import org.textup.types.OrgStatus
+import org.textup.types.StaffStatus
 
 @Transactional(readOnly=true)
 class AuthService {
 
-    def grailsApplication
-	def springSecurityService
+	SpringSecurityService springSecurityService
 
     // Logged in
     // ---------
@@ -23,10 +26,10 @@ class AuthService {
             s1.org.status == OrgStatus.APPROVED
     }
     boolean isLoggedIn(Long sId) {
-        this.loggedInId == sId
+        getLoggedIn()?.id == sId
     }
     boolean isLoggedInAndActive(Long sId) {
-        this.loggedInAndActive?.id == sId
+        getLoggedInAndActive()?.id == sId
     }
     Staff getLoggedIn() {
         Staff.findByUsername(springSecurityService.principal?.username)
@@ -73,7 +76,7 @@ class AuthService {
      * @return     Whether you have permission
      */
     boolean hasPermissionsForContact(Long cId) {
-        Staff s1 = this.loggedInAndActive
+        Staff s1 = getLoggedInAndActive()
         if (s1 && cId) {
             List<Phone> phones = s1.allPhones
             Contact.createCriteria().count {
@@ -98,7 +101,7 @@ class AuthService {
      *                 permissions for or null otherwise
      */
     Long getSharedContactIdForContact(Long cId) {
-        Staff s1 = this.loggedInAndActive
+        Staff s1 = getLoggedInAndActive()
         if (s1 && cId) {
             SharedContact.createCriteria().list(max:1) {
                 projections { property("id") }
@@ -106,7 +109,7 @@ class AuthService {
                 eq("sharedWith", s1?.phone)
                 or {
                     isNull("dateExpired") //not expired if null
-                    le("dateExpired", DateTime.now())
+                    ge("dateExpired", DateTime.now())
                 }
             }[0]
         }
@@ -125,7 +128,7 @@ class AuthService {
      * @return     Whether you have permission
      */
     boolean hasPermissionsForTeam(Long tId) {
-        Staff s1 = this.loggedInAndActive
+        Staff s1 = getLoggedInAndActive()
         if (s1 && tId) {
             this.isAdminForTeam(tId) || Team.forStaffs([s1]).count {
                 idEq(tId)
@@ -147,10 +150,10 @@ class AuthService {
      * @return     Whether you have permission for staff member
      */
     boolean hasPermissionsForStaff(Long sId) {
-        Staff s1 = this.loggedInAndActive,
+        Staff s1 = getLoggedInAndActive(),
             s2 = Staff.get(sId)
         if (s1 && s2) {
-            s1 == s2 || this.isAdminAtSameOrgAs(s2) || s1.sharesTeamWith(s2)
+            s1 == s2 || this.isAdminAtSameOrgAs(s2.id) || s1.sharesTeamWith(s2)
         }
         else { false }
     }
@@ -167,7 +170,7 @@ class AuthService {
      * @return     Whether you have permission for this Tag
      */
     boolean hasPermissionsForTag(Long tId) {
-        Staff s1 = this.loggedInAndActive
+        Staff s1 = getLoggedInAndActive()
         if (s1 && tId) {
             List<Phone> phones = s1.allPhones
             ContactTag.createCriteria().count {
@@ -195,10 +198,10 @@ class AuthService {
      * @return        Whether or have permission
      */
     boolean hasPermissionsForItem(Long itemId) {
-        List<Phone> staffPhones = this.loggedInAndActive?.allPhones
+        List<Phone> staffPhones = getLoggedInAndActive()?.allPhones
         if (staffPhones && itemId) {
             Record rec = RecordItem.get(itemId)?.record
-            if (rec) { return false }
+            if (!rec) { return false }
             HashSet<Phone> allowedPhones = getPhonesForRecords([rec])
             staffPhones.any { it in allowedPhones }
         }
@@ -218,7 +221,9 @@ class AuthService {
             // phones from contacts that are shared with me
             sPhones = SharedContact.createCriteria().list {
                 projections { property("sharedWith") }
-                "in"("contact.record", recs)
+                contact {
+                    "in"("record", recs)
+                }
                 if (phones) {
                     "in"("sharedBy", phones)
                 }

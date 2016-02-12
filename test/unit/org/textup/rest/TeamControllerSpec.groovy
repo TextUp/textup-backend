@@ -14,11 +14,9 @@ import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(TeamController)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
-    Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class TeamControllerSpec extends CustomSpec {
 
@@ -28,72 +26,61 @@ class TeamControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     protected mockForList() {
         controller.authService = [
-            isLoggedIn:{ Long id -> true },
+            getLoggedInAndActive:{ Staff.findByUsername(loggedInUsername) },
             isAdminAt:{ Long id -> true }
-        ]
+        ] as AuthService
     }
 
-    void "test list with no ids"() {
-        when: 
+    void "test list with staff id"() {
+        when:
+        mockForList()
         request.method = "GET"
         controller.index()
+        Staff loggedIn = Staff.findByUsername(loggedInUsername)
+        List<Long> ids = Helpers.allToLong(loggedIn.teams*.id)
 
-        then: 
-        response.status == SC_BAD_REQUEST
+        then:
+        response.status == SC_OK
+        response.json.size() == ids.size()
+        response.json*.id.every { ids.contains(it as Long) }
     }
 
-    void "test list with both ids"() {
-        when: 
+    void "test list with nonexistent org id"() {
+        when:
+        mockForList()
         request.method = "GET"
-        params.organizationId = org.id
-        params.staffId = s1.id
+        params.organizationId = -88L
         controller.index()
 
-        then: 
-        response.status == SC_BAD_REQUEST
+        then:
+        response.status == SC_NOT_FOUND
     }
 
     void "test list with org id"() {
-        when: 
+        when:
         mockForList()
         request.method = "GET"
         params.organizationId = org.id
         controller.index()
         List<Long> ids = Helpers.allToLong(org.teams*.id)
 
-        then: 
+        then:
         response.status == SC_OK
-        response.json.size() == ids.size() 
+        response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
-    void "test list with staff id"() {
-        when: 
-        mockForList()
-        request.method = "GET"
-        params.staffId = s1.id
-        controller.index()
-        List<Long> ids = Helpers.allToLong(s1.teams*.id)
-
-        then: 
-        response.status == SC_OK
-        response.json.size() == ids.size() 
-        response.json*.id.every { ids.contains(it as Long) }
-    }
-
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     void "test show nonexistent team"() {
         when:
@@ -101,7 +88,7 @@ class TeamControllerSpec extends CustomSpec {
         params.id = -88L
         controller.show()
 
-        then: 
+        then:
         response.status == SC_NOT_FOUND
     }
 
@@ -109,7 +96,7 @@ class TeamControllerSpec extends CustomSpec {
         given:
         controller.authService = [
             hasPermissionsForTeam:{ Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         request.method = "GET"
@@ -124,8 +111,8 @@ class TeamControllerSpec extends CustomSpec {
         given:
         controller.authService = [
             hasPermissionsForTeam:{ Long id -> true },
-        ]
-        
+        ] as AuthService
+
         when:
         request.method = "GET"
         params.id = t1.id
@@ -133,55 +120,17 @@ class TeamControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_OK
-        response.json.id == t1.id 
+        response.json.id == t1.id
     }
 
-    //////////
-    // Save //
-    //////////
-
-    void "test save nonexistent team"() {
-        given: 
-        controller.authService = [
-            exists:{ Class clazz, Long id -> false }
-        ]
-
-        when:
-        request.json = "{'team':{}}"
-        params.id = -88L
-        request.method = "POST"
-        controller.save()
-
-        then:
-        response.status == SC_NOT_FOUND
-    }
-
-    void "test save forbidden team"() {
-        given: 
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            isAdminAt:{ Long id -> false }
-        ]
-
-        when:
-        request.json = "{'team':{}}"
-        params.id = t1.id
-        request.method = "POST"
-        controller.save()
-
-        then:
-        response.status == SC_FORBIDDEN
-    }
+    // Save
+    // ----
 
     void "test save team"() {
-        given: 
-        controller.teamService = [save:{ Map body ->
+        given:
+        controller.teamService = [create:{ Map body ->
             new Result(payload:t1)
-        }]
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            isAdminAt:{ Long id -> true }
-        ]
+        }] as TeamService
 
         when:
         request.json = "{'team':{}}"
@@ -195,15 +144,14 @@ class TeamControllerSpec extends CustomSpec {
 
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     void "test update nonexistent team"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'team':{}}"
@@ -216,11 +164,11 @@ class TeamControllerSpec extends CustomSpec {
     }
 
     void "test update forbidden team"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
-            isAdminForTeam:{ Long id -> false }
-        ]
+            hasPermissionsForTeam:{ Long id -> false }
+        ] as AuthService
 
         when:
         request.json = "{'team':{}}"
@@ -233,14 +181,14 @@ class TeamControllerSpec extends CustomSpec {
     }
 
     void "test update team"() {
-        given: 
+        given:
         controller.teamService = [update:{ Long cId, Map body ->
             new Result(payload:t1)
-        }]
+        }] as TeamService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
-            isAdminForTeam:{ Long id -> true }
-        ]
+            hasPermissionsForTeam:{ Long id -> true }
+        ] as AuthService
 
         when:
         request.json = "{'team':{}}"
@@ -253,15 +201,14 @@ class TeamControllerSpec extends CustomSpec {
         response.json.id == t1.id
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     void "test delete nonexistent team"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         params.id = -88L
@@ -273,11 +220,11 @@ class TeamControllerSpec extends CustomSpec {
     }
 
     void "test delete forbidden team"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             isAdminForTeam:{ Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         params.id = t1.id
@@ -289,14 +236,14 @@ class TeamControllerSpec extends CustomSpec {
     }
 
     void "test delete team"() {
-        given: 
-        controller.teamService = [delete:{ Long cId ->
+        given:
+        controller.teamService = [delete:{ Long tId ->
             new Result(payload:t1)
-        }]
+        }] as TeamService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             isAdminForTeam:{ Long id -> true }
-        ]
+        ] as AuthService
 
         when:
         params.id = t1.id

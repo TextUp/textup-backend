@@ -6,7 +6,9 @@ import groovy.transform.ToString
 import org.joda.time.LocalTime
 import org.joda.time.Interval
 import org.joda.time.Minutes
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @EqualsAndHashCode
 @ToString
 @Validateable
@@ -16,8 +18,8 @@ class LocalInterval implements Comparable<LocalInterval> {
 
     LocalInterval() {}
     LocalInterval(Map m) {
-    	this.start = m.start
-    	this.end = m.end
+    	this.start = m.start as LocalTime
+    	this.end = m.end as LocalTime
     }
     LocalInterval(LocalTime s, LocalTime e) {
     	this.start = s
@@ -29,7 +31,7 @@ class LocalInterval implements Comparable<LocalInterval> {
     }
 
     static constraints = {
-    	start nullable:false, validator:{ s, obj ->
+    	start nullable:false, validator:{ LocalTime s, LocalInterval obj ->
     		if (s.isAfter(obj.end) || s.isEqual(obj.end)) { ["invalid"] }
     	}
     	end nullable:false

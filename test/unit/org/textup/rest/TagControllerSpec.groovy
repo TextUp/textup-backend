@@ -14,11 +14,9 @@ import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(TagController)
-@Domain([TagMembership, Contact, Phone, ContactTag, 
-    ContactNumber, Record, RecordItem, RecordNote, RecordText, 
-    RecordCall, RecordItemReceipt, PhoneNumber, SharedContact, 
-    TeamMembership, StaffPhone, Staff, Team, Organization, 
-    Schedule, Location, TeamPhone, WeeklySchedule, TeamContactTag])
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership])
 @TestMixin(HibernateTestMixin)
 class TagControllerSpec extends CustomSpec {
 
@@ -28,57 +26,36 @@ class TagControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
     }
-    def cleanup() { 
+    def cleanup() {
         super.cleanupData()
     }
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     protected void mockForList() {
         controller.authService = [
-            isLoggedIn:{ Long id -> true },
-            belongsToSameTeamAs:{ Long id -> true }
-        ]
+            getLoggedInAndActive:{ Staff.findByUsername(loggedInUsername) },
+            hasPermissionsForTeam:{ Long id -> true }
+        ] as AuthService
     }
 
     void "test list with no ids"() {
-        when: 
-        request.method = "GET"
-        controller.index()
-
-        then: 
-        response.status == SC_BAD_REQUEST
-    }
-
-    void "test list with both ids"() {
-        when: 
-        params.staffId = s1.id
-        params.teamId = t1.id
-        request.method = "GET"
-        controller.index()
-
-        then:
-        response.status == SC_BAD_REQUEST
-    }
-
-    void "test list with staff id"() {
-        when: 
+        when:
         mockForList()
-        params.staffId = s1.id
         request.method = "GET"
         controller.index()
-        List<Long> ids = Helpers.allToLong(s1.phone.tags*.id)
+        Staff loggedIn = Staff.findByUsername(loggedInUsername)
+        List<Long> ids = Helpers.allToLong(loggedIn.phone.tags*.id)
 
         then:
         response.status == SC_OK
-        response.json.size() == ids.size() 
+        response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
     void "test list with team id"() {
-        when: 
+        when:
         mockForList()
         params.teamId = t1.id
         request.method = "GET"
@@ -87,13 +64,12 @@ class TagControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_OK
-        response.json.size() == ids.size() 
+        response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
     }
 
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     void "test show nonexistent tag"() {
         when:
@@ -101,15 +77,15 @@ class TagControllerSpec extends CustomSpec {
         params.id = -88L
         controller.show()
 
-        then: 
+        then:
         response.status == SC_NOT_FOUND
     }
 
     void "test show forbidden tag"() {
-        given: 
+        given:
         controller.authService = [
             hasPermissionsForTag:{ Long id -> false },
-        ]
+        ] as AuthService
 
         when:
         request.method = "GET"
@@ -124,7 +100,7 @@ class TagControllerSpec extends CustomSpec {
         given:
         controller.authService = [
             hasPermissionsForTag:{ Long id -> true },
-        ]
+        ] as AuthService
 
         when:
         request.method = "GET"
@@ -133,51 +109,29 @@ class TagControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_OK
-        response.json.id == tag1.id 
+        response.json.id == tag1.id
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
     protected void mockForSave() {
-        controller.tagService = [create:{ Class clazz, Long id, Map body ->
+        controller.tagService = [createForStaff:{ Map body ->
             new Result(payload:tag1)
-        }]
+        }, createForTeam:{ Long tId, Map body ->
+            new Result(payload:teTag1)
+        }] as TagService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
-            isLoggedIn:{ Long id -> true },
-            belongsToSameTeamAs:{ Long id -> true }
-        ]
+            getIsActive:{ true },
+            hasPermissionsForTeam:{ Long id -> true }
+        ] as AuthService
     }
 
-    void "test save with no ids"() {
-        when: 
-        request.json = "{'tag':{}}"
-        request.method = "POST"
-        controller.save()
-
-        then:
-        response.status == SC_BAD_REQUEST
-    }
-
-    void "test save with both ids"() {
-        when: 
-        request.json = "{'tag':{}}"
-        params.staffId = s1.id
-        params.teamId = t1.id
-        request.method = "POST"
-        controller.save()
-
-        then:
-        response.status == SC_BAD_REQUEST
-    }
-
-    void "test save with staff id"() {
-        when: 
+    void "test save with no id"() {
+        when:
         mockForSave()
         request.json = "{'tag':{}}"
-        params.staffId = s1.id
         request.method = "POST"
         controller.save()
 
@@ -187,7 +141,7 @@ class TagControllerSpec extends CustomSpec {
     }
 
     void "test save with team id"() {
-        when: 
+        when:
         mockForSave()
         request.json = "{'tag':{}}"
         params.teamId = t1.id
@@ -196,18 +150,17 @@ class TagControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_CREATED
-        response.json.id == tag1.id
+        response.json.id == teTag1.id
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     void "test update nonexistent tag"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'tag':{}}"
@@ -220,11 +173,11 @@ class TagControllerSpec extends CustomSpec {
     }
 
     void "test update forbidden tag"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             hasPermissionsForTag:{ Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'tag':{}}"
@@ -237,14 +190,14 @@ class TagControllerSpec extends CustomSpec {
     }
 
     void "test update tag"() {
-        given: 
+        given:
         controller.tagService = [update:{ Long cId, Map body ->
             new Result(payload:tag1)
-        }]
+        }] as TagService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             hasPermissionsForTag:{ Long id -> true }
-        ]
+        ] as AuthService
 
         when:
         request.json = "{'tag':{}}"
@@ -257,15 +210,14 @@ class TagControllerSpec extends CustomSpec {
         response.json.id == tag1.id
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     void "test delete nonexistent tag"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         params.id = -88L
@@ -277,11 +229,11 @@ class TagControllerSpec extends CustomSpec {
     }
 
     void "test delete forbidden tag"() {
-        given: 
+        given:
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             hasPermissionsForTag:{ Long id -> false }
-        ]
+        ] as AuthService
 
         when:
         params.id = tag1.id
@@ -293,14 +245,14 @@ class TagControllerSpec extends CustomSpec {
     }
 
     void "test delete tag"() {
-        given: 
+        given:
         controller.tagService = [delete:{ Long cId ->
             new Result(payload:tag1)
-        }]
+        }] as TagService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
             hasPermissionsForTag:{ Long id -> true }
-        ]
+        ] as AuthService
 
         when:
         params.id = tag1.id

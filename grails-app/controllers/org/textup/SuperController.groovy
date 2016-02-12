@@ -3,32 +3,34 @@ package org.textup
 import grails.plugin.springsecurity.SpringSecurityUtils
 import org.springframework.security.access.annotation.Secured
 import grails.transaction.Transactional
+import grails.compiler.GrailsCompileStatic
+import grails.plugin.springsecurity.SpringSecurityService
+import org.textup.types.OrgStatus
 
+@GrailsCompileStatic
 @Secured("ROLE_ADMIN")
 @Transactional
 class SuperController {
 
-    def springSecurityService
-    def mailService
-    def resultFactory
+    SpringSecurityService springSecurityService
+    MailService mailService
 
-    ///////////////////
-    // Page handlers //
-    ///////////////////
+    // Page handlers
+    // -------------
 
     def index() {
         flash.previousPage = "index"
-        [unverifiedOrgs:Organization.findAllByStatus(Constants.ORG_PENDING)]
+        [unverifiedOrgs:Organization.findAllByStatus(OrgStatus.PENDING)]
     }
 
     def approved() {
         flash.previousPage = "approved"
-        [orgs:Organization.findAllByStatus(Constants.ORG_APPROVED)]
+        [orgs:Organization.findAllByStatus(OrgStatus.APPROVED)]
     }
 
     def rejected() {
         flash.previousPage = "rejected"
-        [orgs:Organization.findAllByStatus(Constants.ORG_REJECTED)]
+        [orgs:Organization.findAllByStatus(OrgStatus.REJECTED)]
     }
 
     def settings() {
@@ -40,11 +42,12 @@ class SuperController {
             flash.messages = ["New passwords must match."]
         }
         else {
-            Staff s1 = springSecurityService.currentUser
+            Staff s1 = springSecurityService.currentUser as Staff
             String oldUsername = s1.username
-            s1.properties.each { String prop, val ->
-                if (params."${prop}") {
-                    s1."${prop}" = params."${prop}"
+            s1.properties.each { obj, val ->
+                String prop = obj as String
+                if (params[prop]) {
+                    s1.setProperty(prop, params[prop])
                 }
             }
             if (s1.save()) {
@@ -59,24 +62,24 @@ class SuperController {
         redirect(action: "settings")
     }
 
-    /////////////
-    // Actions //
-    /////////////
+    // Actions
+    // -------
 
     def logout() {
         // '/j_spring_security_logout'
-        redirect uri: SpringSecurityUtils.securityConfig.logout.filterProcessesUrl
+        redirect uri: (SpringSecurityUtils.securityConfig.logout as Map).filterProcessesUrl
     }
 
     def rejectOrg() {
         Organization org = Organization.get(params.long("id"))
-        if (org && org.admins[0]) {
-            org.status = Constants.ORG_REJECTED
+        if (org && org.getAdmins()[0]) {
+            org.status = OrgStatus.REJECTED
             if (org.save()) {
                 flash.messages = ["Successfully rejected ${org.name}"]
-                Result res = mailService.notifyNewOrganizationOfRejection(org.admins[0])
+                Result res = mailService.notifyNewOrganizationOfRejection(org.getAdmins()[0])
                 if (!res.success) {
-                    log.error("SuperController.rejectOrg: could not notify $org of rejection: ${res.payload}")
+                    log.error("SuperController.rejectOrg: could not notify \
+                        $org of rejection: ${res.payload}")
                     flash.messages = res.errorMessages
                 }
             }
@@ -93,13 +96,14 @@ class SuperController {
 
     def approveOrg() {
         Organization org = Organization.get(params.long("id"))
-        if (org && org.admins[0]) {
-            org.status = Constants.ORG_APPROVED
+        if (org && org.getAdmins()[0]) {
+            org.status = OrgStatus.APPROVED
             if (org.save()) {
                 flash.messages = ["Successfully approved ${org.name}"]
-                Result res = mailService.notifyNewOrganizationOfApproval(org.admins[0])
+                Result res = mailService.notifyNewOrganizationOfApproval(org.getAdmins()[0])
                 if (!res.success) {
-                    log.error("SuperController.approveOrg: could not notify $org of approval: ${res.payload}")
+                    log.error("SuperController.approveOrg: could not notify \
+                        $org of approval: ${res.payload}")
                     flash.messages = res.errorMessages
                 }
             }

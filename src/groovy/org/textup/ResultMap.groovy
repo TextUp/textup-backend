@@ -1,30 +1,32 @@
 package org.textup
 
 import groovy.transform.ToString
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @ToString
-class ResultMap<T,P> {
+class ResultMap<P> {
 
-	Map<T,Result<P>> results = []
+	Map<String,Result<P>> results = [:]
 
 	// CRUD
 	// ----
 
-	boolean contains(T key) {
+	boolean contains(String key) {
 		results.containsKey(key)
 	}
-	boolean isSuccess(T key) {
+	boolean isSuccess(String key) {
 		results.containsKey(key) ? results[key].success : false
 	}
-	boolean isFail(T key) {
+	boolean isFail(String key) {
 		results.containsKey(key) ? !results[key].success : false
 	}
 
-	Result<P> getAt(T key) {
+	Result<P> getAt(String key) {
 		results[key]
 	}
 
-	Result<P> putAt(T key, Result<P> value) {
+	Result<P> putAt(String key, Result<P> value) {
 		results[key] = value
 		value
 	}
@@ -36,30 +38,30 @@ class ResultMap<T,P> {
 	// Helpers
 	// -------
 
-	Map<T,Result<P>> getSuccesses() {
-		this.results.findAll { it.success }
+	Map<String,Result<P>> getSuccesses() {
+		this.results.findAll { it.value.success }
 	}
-	Map<T,Result<P>> getFailures() {
-		this.results.findAll { !it.success }
+	Map<String,Result<P>> getFailures() {
+		this.results.findAll { !it.value.success }
 	}
 
 	def any(Closure successAction) {
-		Map<T,Result<P>> successes = this.successes
+		Map<String,Result<P>> successes = this.successes
 		successes ? successAction(successes) : this
 	}
 	def any(Closure successAction, Closure failAction) {
-		Map<T,Result<P>> successes = this.successes
+		Map<String,Result<P>> successes = this.successes
 		successes ? successAction(successes) : failAction(this.failures)
 	}
 
 	def every(Closure successAction) {
-		Map<T,Result<P>> successes = this.successes
+		Map<String,Result<P>> successes = this.successes
 		(successes.size() == this.results.size()) ? successAction(successes) : this
 	}
 
-	ResultMap<T,P> logFail(String prefix="") {
-		this.results.each { T key, Result<P> value ->
-			value.logIfFail("${prefix}: ${key}")
+	ResultMap<P> logFail(String prefix="") {
+		this.results.each { String key, Result<P> value ->
+			value.logFail("${prefix}: ${key}")
 		}
 		this
 	}

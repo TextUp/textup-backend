@@ -3,13 +3,16 @@ package org.textup
 import groovy.transform.EqualsAndHashCode
 import org.hibernate.FlushMode
 import org.restapidoc.annotation.*
-import org.textup.enum.*
+import org.textup.types.StaffStatus
+import org.textup.types.OrgStatus
+import grails.compiler.GrailsCompileStatic
+import org.hibernate.Session
 
 @EqualsAndHashCode
 @RestApiObject(name="Organization", description="An organization of staff members and teams.")
 class Organization {
 
-    def resultFactory
+    ResultFactory resultFactory
 
     @RestApiObjectField(description="Name of the organization")
 	String name
@@ -24,9 +27,9 @@ class Organization {
         description    = "Number of admins this organization has",
         useForCreation = false,
         allowedType    = "Number")
-    static transients = []
+    static transients = ["resultFactory"]
     static constraints = {
-    	name blank:false, validator:{ val, obj ->
+    	name blank:false, validator:{ String val, Organization obj ->
     		//must have unique (name, location) combination
     		if (obj.hasNameAndLocation(val, obj.location)) {
                 ["duplicate", obj.location?.address]
@@ -50,13 +53,24 @@ class Organization {
 		Team
 	*/
 
+    // Static finders
+    // --------------
+
+    static int countSearch(String query) {
+        ilikeForNameAndAddress(query).count()
+    }
+    static List<Organization> search(String query, Map params=[:]) {
+        ilikeForNameAndAddress(query).list(params)
+    }
+
     // Validator
     // ---------
 
-    private boolean hasNameAndLocation(String n, Location loc) {
+    @GrailsCompileStatic
+    protected boolean hasNameAndLocation(String n, Location loc) {
         if ([n, loc].any { it == null }) return false
         boolean hasDuplicate = false
-        Organization.withNewSession { session ->
+        Organization.withNewSession { Session session ->
             session.flushMode = FlushMode.MANUAL
             try {
                 Organization org = Organization.where {
@@ -81,11 +95,12 @@ class Organization {
      * Creates a staff for this organization
      * @param  params Map of parameters for this staff with some exceptions:
      *                personalPhoneNumber must be passed in with the key
-     *                'personalPhoneNumberAsString' and this methods DOES NOT
+     *                'personalPhoneAsString' and this methods DOES NOT
      *                support adding a StaffPhone.
      * @return        Result object containing the new Staff is success,
      *                ValidationError otherwise
      */
+    @GrailsCompileStatic
     Result<Staff> addStaff(Map params) {
         Staff s = new Staff()
         //prevent intervening on these internal fields
@@ -93,7 +108,7 @@ class Organization {
             params.remove(it)
         }
         s.properties = params
-        s.personalPhoneNumberAsString = params.personalPhoneNumberAsString
+        s.personalPhoneAsString = params.personalPhoneAsString
         s.org = this
         if (s.save()) { resultFactory.success(s) }
         else { resultFactory.failWithValidationErrors(s.errors) }
@@ -102,6 +117,7 @@ class Organization {
     // Teams
     // -----
 
+    @GrailsCompileStatic
     Result<Team> addTeam(Map params) {
         Team t = new Team()
         t.properties = params
@@ -110,48 +126,54 @@ class Organization {
         else { resultFactory.failWithValidationErrors(t.errors) }
     }
 
-    // Search
-    // ------
-
-    static int countSearch(String query) {
-        ilikeForNameAndAddress(query).count()
-    }
-    static List<Organization> search(String query, Map params=[:]) {
-        ilikeForNameAndAddress(query).list(params)
-    }
-
-
     // Property Access
     // ---------------
 
+    @GrailsCompileStatic
     void setLocation(Location l) {
         this.location = l
         l.save()
     }
+    @GrailsCompileStatic
     List<Staff> getAdmins(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.ADMIN]])
     }
+    @GrailsCompileStatic
     List<Staff> getStaff(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.STAFF]])
     }
+    @GrailsCompileStatic
     List<Staff> getPending(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.PENDING]])
     }
+    @GrailsCompileStatic
     List<Staff> getBlocked(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.BLOCKED]])
     }
-    List<Staff> getPeople(Map params=[:]) {
-        List statusEnums = Helpers.toEnumList(StaffStatus, params.statuses)
-        Staff.forOrgAndStatuses(this, statusEnums).list(params) ?: []
-    }
+    @GrailsCompileStatic
     int countPeople(Map params) {
-        List statusEnums = Helpers.toEnumList(StaffStatus, params.statuses)
-        Staff.forOrgAndStatuses(this, statusEnums).count()
+        List<StaffStatus> statusEnums =
+            Helpers.<StaffStatus>toEnumList(StaffStatus, params.statuses)
+        if (statusEnums) {
+            Staff.countByOrgAndStatusInList(this, statusEnums)
+        }
+        else { Staff.countByOrg(this) }
     }
+    @GrailsCompileStatic
+    List<Staff> getPeople(Map params=[:]) {
+        List<StaffStatus> statusEnums =
+            Helpers.<StaffStatus>toEnumList(StaffStatus, params.statuses)
+        if (statusEnums) {
+            Staff.findAllByOrgAndStatusInList(this, statusEnums, params)
+        }
+        else { Staff.findAllByOrg(this, params) }
+    }
+    @GrailsCompileStatic
     int countTeams() {
-        Team.countByOrg(this)
+        Team.countByOrgAndIsDeleted(this, false)
     }
+    @GrailsCompileStatic
     List<Team> getTeams(Map params=[:]) {
-        Team.findAllByOrg(this, params)
+        Team.findAllByOrgAndIsDeleted(this, false, params)
     }
 }

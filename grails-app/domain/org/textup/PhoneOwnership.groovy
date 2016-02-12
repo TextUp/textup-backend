@@ -2,7 +2,11 @@ package org.textup
 
 import groovy.transform.EqualsAndHashCode
 import org.hibernate.FlushMode
+import org.textup.types.PhoneOwnershipType
+import grails.compiler.GrailsCompileStatic
+import org.hibernate.Session
 
+@GrailsCompileStatic
 @EqualsAndHashCode
 class PhoneOwnership {
 
@@ -11,7 +15,7 @@ class PhoneOwnership {
 	PhoneOwnershipType type
 
     static constraints = {
-    	ownerId validator: { val, obj ->
+    	ownerId validator: { Long val, PhoneOwnership obj ->
             if (!obj.isValidId(obj.type, val)) {
                 ["invalidId"]
             }
@@ -26,11 +30,15 @@ class PhoneOwnership {
             return false
         }
         boolean validId = false
-        PhoneOwnership.withNewSession { session ->
+        PhoneOwnership.withNewSession { Session session ->
             session.flushMode = FlushMode.MANUAL
             try {
-                Class clazz = (type == PhoneOwnershipType.INDIVIDUAL) ? Staff : Team
-                validId = clazz.exists(ownerId)
+                if (type == PhoneOwnershipType.INDIVIDUAL) {
+                    validId = Staff.exists(ownerId)
+                }
+                else {
+                    validId = Team.exists(ownerId)
+                }
             }
             finally { session.flushMode = FlushMode.AUTO }
         }
@@ -41,8 +49,8 @@ class PhoneOwnership {
     // Property access
     // ---------------
 
-    List<Staff> getAll() {
-        if (this.type === PhoneOwnershipType.INDIVIDUAL) {
+    Collection<Staff> getAll() {
+        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
             Staff s1 = Staff.get(this.ownerId)
             s1 ? [s1] : []
         }
@@ -52,7 +60,11 @@ class PhoneOwnership {
     }
 
     String getName() {
-        Class clazz = (this.type === PhoneOwnershipType.INDIVIDUAL) ? Staff : Team
-        clazz.get(this.ownerId)?.name ?: ''
+        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
+            Staff.get(this.ownerId)?.name ?: ''
+        }
+        else {
+            Team.get(this.ownerId)?.name ?: ''
+        }
     }
 }

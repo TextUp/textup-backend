@@ -3,60 +3,45 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import org.textup.types.AuthorType
+import org.textup.validator.Author
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
 
-@Domain([Record, RecordItem, RecordNote, RecordText, RecordCall, 
-	RecordItemReceipt, PhoneNumber])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt])
 @TestMixin(HibernateTestMixin)
-@Unroll
 class RecordItemSpec extends Specification {
 
     void "test constraints"() {
     	when: "we have a record item"
-    	Record rec = new Record() 
+    	Record rec = new Record()
     	RecordItem rItem = new RecordItem()
 
-    	then: 
-    	rItem.validate() == false 
+    	then:
+    	rItem.validate() == false
     	rItem.errors.errorCount == 1
 
     	when: "we add all other fields"
-    	rItem.record = rec 
-    	rItem.authorName = "name"
-    	rItem.authorId = 12L
-
-    	then: 
-    	rItem.validate()
-    	rItem.outgoing == !rItem.incoming
-    }
-
-    private void addReceiptToItem(RecordItem rItem) {
-		RecordItemReceipt receipt = new RecordItemReceipt(apiId:"test")
-		receipt.receivedByAsString = "222 333 4444"
-		rItem.addToReceipts(receipt)
-		receipt.save(flush:true)
-	}
-    void "test deleting"() {
-    	when: "we have a record item with some receipts"
-    	Record rec = new Record() 
-    	rec.save(flush:true)
-    	RecordItem rItem = new RecordItem(record:rec)
-    	rItem.save(flush:true)
-    	int numReceipts = 10
-    	numReceipts.times { addReceiptToItem(rItem) }
-
-    	then: 
-    	RecordItemReceipt.countByItem(rItem) == numReceipts
-    	RecordItem.countByRecord(rec) == 1
-
-    	when: 
-    	int baseline = RecordItemReceipt.count()
-    	rItem.delete(flush:true)
+    	rItem.record = rec
 
     	then:
-    	RecordItemReceipt.countByItem(rItem) == baseline - numReceipts
-    	RecordItem.countByRecord(rec) == 0
+    	rItem.validate() == true
+    }
+
+    void "test adding author"() {
+        given: "a valid record item"
+        Record rec = new Record()
+        RecordItem rItem = new RecordItem(record:rec)
+        assert rItem.validate()
+
+        when: "we add an author"
+        rItem.author = new Author(id:88L, name:"hello", type:AuthorType.STAFF)
+
+        then: "fields are correctly populated"
+        rItem.validate() == true
+        rItem.authorName == "hello"
+        rItem.authorId == 88L
+        rItem.authorType == AuthorType.STAFF
     }
 }

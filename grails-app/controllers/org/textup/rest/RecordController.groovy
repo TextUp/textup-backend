@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
@@ -13,6 +14,7 @@ import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
 
+@GrailsCompileStatic
 @RestApi(name="Record",description = "Operations on records of communications \
     belonging to staff and teams, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
@@ -21,7 +23,7 @@ class RecordController extends BaseController {
     static namespace = "v1"
 
     //authService from superclass
-    def recordService
+    RecordService recordService
 
     // List
     // ----
@@ -67,18 +69,30 @@ class RecordController extends BaseController {
                 Closure count, list
                 if (params.since && !params.before) {
                     DateTime since = Helpers.toUTCDateTime(params.since)
-                    count = { Map params -> cont.countSince(since) }
-                    list = { Map params -> cont.getSince(since, params) }
+                    count = { Map params ->
+                        (cont as Contactable).countSince(since)
+                    }
+                    list = { Map params ->
+                        (cont as Contactable).getSince(since, params)
+                    }
                 }
                 else if (params.since && params.before) {
                     DateTime start = Helpers.toUTCDateTime(params.since),
                         end = Helpers.toUTCDateTime(params.before)
-                    count = { Map params -> cont.countBetween(start, end) }
-                    list = { Map params -> cont.getBetween(start, end, params) }
+                    count = { Map params ->
+                        (cont as Contactable).countBetween(start, end)
+                    }
+                    list = { Map params ->
+                        (cont as Contactable).getBetween(start, end, params)
+                    }
                 }
                 else {
-                    count = { Map params -> cont.countItems() }
-                    list = { Map params -> cont.getItems(params) }
+                    count = { Map params ->
+                        (cont as Contactable).countItems()
+                    }
+                    list = { Map params ->
+                        (cont as Contactable).getItems(params)
+                    }
                 }
                 genericListActionForClosures("record", count, list, params)
             }
@@ -135,14 +149,14 @@ class RecordController extends BaseController {
     ])
     def save() {
         if (!validateJsonRequest(request, "record")) { return; }
-        Map rInfo = request.JSON.record
+        Map rInfo = (request.properties.JSON as Map).record as Map
         try {
             if (params.long("teamId")) {
                 Long tId = params.long("teamId")
-                handleResultListForSave(recordService.createForTeam(tId, rInfo))
+                handleResultListForSave("record", recordService.createForTeam(tId, rInfo))
             }
             else {
-                handleResultListForSave(recordService.createForStaff(rInfo))
+                handleResultListForSave("record", recordService.createForStaff(rInfo))
             }
         }
         catch (StaleObjectStateException |

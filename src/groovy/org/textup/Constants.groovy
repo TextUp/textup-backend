@@ -1,5 +1,8 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
+
+@GrailsCompileStatic
 class Constants {
 
 	static final int TEXT_LENGTH = 160

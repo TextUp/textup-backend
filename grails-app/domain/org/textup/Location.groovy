@@ -2,7 +2,9 @@ package org.textup
 
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
+import grails.compiler.GrailsCompileStatic
 
+@GrailsCompileStatic
 @EqualsAndHashCode
 @RestApiObject(name="Location", description="A location")
 class Location {
@@ -20,10 +22,10 @@ class Location {
 
     static constraints = {
         address nullable:false, blank:false
-        lat validator: { l, obj ->
+        lat validator: { BigDecimal l, Location obj ->
             if (l > 90 || l < -90) { ["outOfBounds"] }
         }
-        lon validator: { l, obj ->
+        lon validator: { BigDecimal l, Location obj ->
             if (l > 180 || l < -180) { ["outOfBounds"] }
         }
     }

@@ -1,10 +1,15 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
+import org.textup.types.ContactStatus
+import org.textup.types.SharePermission
+import org.textup.validator.TempRecordReceipt
+import static org.springframework.http.HttpStatus.*
 
 @EqualsAndHashCode
 @RestApiObject(
@@ -12,15 +17,14 @@ import org.restapidoc.annotation.*
     description="Information on how you've shared a contact with another staff member")
 class SharedContact implements Contactable {
 
-    def authService
-    def resultFactory
+    ResultFactory resultFactory
 
     Phone sharedBy
     // Should not access contact object directly
     Contact contact
     // SharedContact still active if dateExpired is null or in the future
     DateTime dateExpired
-	DateTime dateCreated = DateTime.now(DateTimeZone.UTC)
+	DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     @RestApiObjectField(
         description = "Level of permissions you shared this contact with. \
@@ -46,19 +50,18 @@ class SharedContact implements Contactable {
             allowedType    = "DateTime",
             useForCreation = false)
     ])
-    static transients = []
+    static transients = ["resultFactory"]
     static constraints = {
     	dateExpired nullable:true
-        contact validator:{ val, obj ->
+        contact validator:{ Contact val, SharedContact obj ->
             if (val.phone != obj.sharedBy) { ["contactOwnership", val.name] }
         }
-        sharedBy validator:{ sBy, obj ->
+        sharedBy validator:{ Phone sBy, SharedContact obj ->
             if (sBy == obj.sharedWith) { ["shareWithMyself"] }
         }
     }
     static mapping = {
-        autoTimestamp false
-        dateCreated type:PersistentDateTime
+        whenCreated type:PersistentDateTime
         dateExpired type:PersistentDateTime
     }
     static namedQueries = {
@@ -76,34 +79,84 @@ class SharedContact implements Contactable {
         }
         sharedWithMe { Phone sWith ->
             eq('sharedWith', sWith)
-            activeAndSort()
+            or {
+                isNull("dateExpired") //not expired if null
+                ge("dateExpired", DateTime.now())
+            }
+            contact {
+                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+            }
+            order("whenCreated", "desc")
         }
         sharedByMe { Phone sBy ->
             projections { distinct("contact") }
             eq('sharedBy', sBy)
-            activeAndSort()
-        }
-        activeAndSort {
             or {
                 isNull("dateExpired") //not expired if null
-                le("dateExpired", DateTime.now())
+                ge("dateExpired", DateTime.now())
             }
-            createAlias("contact", "contactShared")
-            order("contactShared.status", "desc") //unread first then active
-            order("contactShared.lastRecordActivity", "desc") //more recent first
-            order("contactShared.id", "desc") //by contact id
-            "in"("contactShared.status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+            contact {
+                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+            }
+        }
+    }
+
+    // Static finders
+    // --------------
+
+    static List<SharedContact> listForContact(Contact c1, Map params=[:]) {
+        SharedContact.forContact(c1).list(params)
+    }
+    static List<SharedContact> listForContactAndSharedWith(Contact c1, Phone sWith,
+        Map params=[:]) {
+        SharedContact.forContactAndSharedWith(c1, sWith).list(params)
+    }
+    static List<SharedContact> listForSharedByAndSharedWith(Phone sBy, Phone sWith,
+        Map params=[:]) {
+        SharedContact.forSharedByAndSharedWith(sBy, sWith).list(params)
+    }
+    static int countSharedWithMe(Phone sWith) {
+        SharedContact.sharedWithMe(sWith).count()
+    }
+    static List<SharedContact> listSharedWithMe(Phone sWith, Map params=[:]) {
+        SharedContact.sharedWithMe(sWith).list(params)
+    }
+    static int countSharedByMe(Phone sBy) {
+        SharedContact.sharedByMe(sBy).count()
+    }
+    static List<Contact> listSharedByMe(Phone sBy, Map params=[:]) {
+        SharedContact.sharedByMe(sBy).list(params)
+    }
+    static SharedContact findByContactIdAndSharedWith(Long cId, Phone sWith) {
+        findByContactIdsAndSharedWith([cId], sWith)[0]
+    }
+    static List<SharedContact> findByContactIdsAndSharedWith(Collection<Long> cIds,
+        Phone sWith) {
+        SharedContact.createCriteria().list {
+            eq("sharedWith", sWith)
+            or {
+                isNull("dateExpired") //not expired if null
+                ge("dateExpired", DateTime.now())
+            }
+            contact {
+                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                if (cIds) { "in"("id", cIds) }
+                else { eq("id", null) }
+            }
+            order("whenCreated", "desc")
         }
     }
 
     // Sharing
     // -------
 
+    @GrailsCompileStatic
     SharedContact startSharing(SharePermission perm) {
-        this.permissions = perm
+        this.permission = perm
         this.dateExpired = null
         this
     }
+    @GrailsCompileStatic
     SharedContact stopSharing() {
         this.dateExpired = DateTime.now(DateTimeZone.UTC)
         this
@@ -112,73 +165,83 @@ class SharedContact implements Contactable {
     // Status
     // ------
 
+    @GrailsCompileStatic
     boolean getIsActive() {
         this.canModify || this.canView
     }
     //Can modify if not yet expired, and with delegate permissions
+    @GrailsCompileStatic
     boolean getCanModify() {
         this.dateExpired == null && this.permission == SharePermission.DELEGATE
     }
     //Can view if not yet expired and with delegate or view persmissions
+    @GrailsCompileStatic
     boolean getCanView() {
         this.canModify || (this.dateExpired == null &&
             this.permission == SharePermission.VIEW)
     }
 
-    // Property access
-    // ---------------
-
-    static SharedContact findByContactId(Long cId) {
-        SharedContact.createCriteria().get {
-            contact { idEq(cId) }
-        }
-    }
-    static List<SharedContact> findByContactIds(Collection<Long> cIds) {
-        SharedContact.createCriteria().list {
-            contact {
-                if (cIds) { "in"("id", cIds) }
-                else { eq("id", null) }
-            }
-        }
-    }
-
     // Contactable methods
     // -------------------
 
+    @GrailsCompileStatic
     Long getContactId() {
         this.canView ? this.contact.contactId : null
     }
+    @GrailsCompileStatic
     DateTime getLastRecordActivity() {
         this.canView ? this.contact.lastRecordActivity : null
     }
+    @GrailsCompileStatic
     String getName() {
         this.canView ? this.contact.name : null
     }
+    @GrailsCompileStatic
     String getNote() {
         this.canView ? this.contact.note : null
     }
+    @GrailsCompileStatic
     ContactStatus getStatus() {
         this.canView ? this.contact.status : null
     }
+    @GrailsCompileStatic
     List<ContactNumber> getNumbers() {
         this.canView ? this.contact.numbers : null
     }
+    @GrailsCompileStatic
     List<RecordItem> getItems(Map params=[:]) {
         this.canView ? this.contact.getItems(params) : null
     }
+    @GrailsCompileStatic
     int countItems() {
         this.canView ? this.contact.countItems() : 0
     }
+    @GrailsCompileStatic
     List<RecordItem> getSince(DateTime since, Map params=[:]) {
         this.canView ? this.contact.getSince(since, params) : null
     }
+    @GrailsCompileStatic
     int countSince(DateTime since) {
         this.canView ? this.contact.countSince(since) : 0
     }
+    @GrailsCompileStatic
     List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
         this.canView ? this.contact.getBetween(start, end, params) : null
     }
+    @GrailsCompileStatic
     int countBetween(DateTime start, DateTime end) {
         this.canView ? this.contact.countBetween(start, end) : 0
+    }
+    @GrailsCompileStatic
+    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt, Staff staff) {
+        this.canModify ? this.contact.storeOutgoingText(message, receipt, staff) :
+            resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                "sharedContact.insufficientPermission")
+    }
+    @GrailsCompileStatic
+    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff) {
+        this.canModify ? this.contact.storeOutgoingCall(receipt, staff) :
+            resultFactory.failWithMessageAndStatus(FORBIDDEN,
+                "sharedContact.insufficientPermission")
     }
 }

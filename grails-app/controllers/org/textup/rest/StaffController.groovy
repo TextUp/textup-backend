@@ -1,16 +1,18 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
+import grails.transaction.Transactional
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.restapidoc.annotation.*
+import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import static org.springframework.http.HttpStatus.*
-import org.restapidoc.pojo.*
-import grails.transaction.Transactional
 
+@GrailsCompileStatic
 @RestApi(name="Staff", description = "Operations on staff members after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class StaffController extends BaseController {
@@ -18,7 +20,7 @@ class StaffController extends BaseController {
     static namespace = "v1"
 
     // authService from superclass
-    def staffService
+    StaffService staffService
 
     // List
     // ----
@@ -51,19 +53,19 @@ class StaffController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (params.timezone) {
-            request.timezone = params.timezone
+        if (params.timezone) { //for the json marshaller
+            request.setAttribute("timezone", params.timezone as String)
         }
-        if (!Helpers.exactly(1, ["organizationId", "teamId", "canShareStaffId"], params)) {
-            badRequest()
+        if (Helpers.exactly(1, ["organizationId", "teamId", "canShareStaffId"], params)) {
+            if (params.organizationId) {
+                listForOrg(params)
+            }
+            else if (params.teamId) {
+                listForTeam(params)
+            }
+            else { listForShareStaff(params) }
         }
-        else if (params.organizationId) {
-            listForOrg(params)
-        }
-        else if (params.teamId) {
-            listForTeam(params)
-        }
-        else { listForShareStaff(params) }
+        else { badRequest() }
     }
     protected def listForOrg(GrailsParameterMap params) {
         Organization org = Organization.get(params.long("organizationId"))
@@ -74,10 +76,10 @@ class StaffController extends BaseController {
             return forbidden()
         }
         params.statuses = params.list("status[]")
-        genericListActionForClosures(Staff, { Map params ->
-            org.countPeople(params)
-        }, { Map params ->
-            org.getPeople(params)
+        genericListActionForClosures(Staff, { Map ps ->
+            org.countPeople(ps)
+        }, { Map ps ->
+            org.getPeople(ps)
         }, params)
     }
     protected def listForTeam(GrailsParameterMap params) {
@@ -89,7 +91,7 @@ class StaffController extends BaseController {
             return forbidden()
         }
         genericListActionAllResults(Staff,
-            t1.getMembers(params.list("status[]")))
+            t1.getMembersByStatus(params.list("status[]")))
     }
     protected def listForShareStaff(GrailsParameterMap params) {
         Long sId = params.long("canShareStaffId")
@@ -97,6 +99,7 @@ class StaffController extends BaseController {
             !authService.isAdminAtSameOrgAs(sId)) {
             return forbidden()
         }
+        Staff s1 = Staff.get(sId)
         genericListActionAllResults(Staff,
             s1.getCanShareWith(params.list("status[]")))
     }
@@ -118,8 +121,8 @@ class StaffController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-        if (params.timezone) {
-            request.timezone = params.timezone //for the json marshaller
+        if (params.timezone) { //for the json marshaller
+            request.setAttribute("timezone", params.timezone as String)
         }
         Long id = params.long("id")
         if (Staff.exists(id)) {
@@ -145,7 +148,8 @@ class StaffController extends BaseController {
     ])
     def save() {
         if (!validateJsonRequest(request, "staff")) { return; }
-        handleSaveResult(Staff, staffService.create(request.JSON.staff))
+        Map sInfo = (request.properties.JSON as Map).staff as Map
+        handleSaveResult(Staff, staffService.create(sInfo))
     }
 
     // Update
@@ -168,15 +172,16 @@ class StaffController extends BaseController {
     ])
     def update() {
         if (!validateJsonRequest(request, "staff")) { return; }
-        if (params.timezone) {
-            request.timezone = params.timezone //for the json marshaller
+        if (params.timezone) { //for the json marshaller
+            request.setAttribute("timezone", params.timezone as String)
         }
+        Map sInfo = (request.properties.JSON as Map).staff as Map
         Long id = params.long("id")
         if (authService.exists(Staff, id)) {
             if (authService.isLoggedIn(id) ||
                 authService.isAdminAtSameOrgAs(id)) {
-                handleUpdateResult(Staff, staffService.update(id,
-                    request.JSON.staff, params.timezone))
+                handleUpdateResult(Staff, staffService.update(id, sInfo,
+                    params.timezone as String))
             }
             else { forbidden() }
         }

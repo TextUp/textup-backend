@@ -13,6 +13,9 @@ import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
+import org.textup.types.ScheduleStatus
+import org.textup.validator.ScheduleChange
+import org.textup.validator.LocalInterval
 
 /////////////////////////////////////////////////
 // WeeklySchedule assumes all times are in UTC //
@@ -88,7 +91,8 @@ class WeeklyScheduleSpec extends Specification {
     	res.payload instanceof Throwable
 
     	when: "update with both the same valid time interval"
-	    res = s.update(friday:[new LocalInterval(midnight, t1), new LocalInterval(t3, t4), new LocalInterval(t3, t4)])
+	    res = s.update(friday:[new LocalInterval(midnight, t1),
+	    	new LocalInterval(t3, t4), new LocalInterval(t3, t4)])
 
     	then:
     	s.validate() == true
@@ -149,7 +153,7 @@ class WeeklyScheduleSpec extends Specification {
         then:
         res.success == false
         res.payload instanceof Map
-        res.payload.code == "weeklySchedule.error.strIntsNotList"
+        res.payload.code == "weeklySchedule.strIntsNotList"
 
         when: "the interval strings are invalidly formatted"
         updateInfo = [monday:["invalid", "0130:0230"]]
@@ -158,7 +162,7 @@ class WeeklyScheduleSpec extends Specification {
         then:
         res.success == false
         res.payload instanceof Map
-        res.payload.code == "weeklySchedule.error.invalidRestTimeFormat"
+        res.payload.code == "weeklySchedule.invalidRestTimeFormat"
 
         when: "we have a map of lists of valid interval strings"
         updateInfo = [monday:["0130:0231", "0230:0330", "0400:0430"]]
@@ -216,6 +220,40 @@ class WeeklyScheduleSpec extends Specification {
         s.getAllAsLocalIntervals().tuesday.every { it in tuesdayInts }
     }
 
+    void "test updating across different time zones"() {
+    	given: "a weekly schedule"
+        WeeklySchedule s = new WeeklySchedule()
+        s.resultFactory = getResultFactory()
+        s.save(flush:true, failOnError:true)
+        String tz = "America/New_York"
+
+    	when: "we update from eastern time zone"
+    	assert s.updateWithIntervalStrings([monday:["0100:0600", "0530:0730"]], tz).success
+
+    	then: "data is stored in UTC"
+    	s.monday == "0600,1230"
+    	s.getAllAsLocalIntervals().monday == [new LocalInterval(
+    		new LocalTime(6, 0), new LocalTime(12, 30))]
+
+    	and: "we can retrieve in eastern time zone"
+    	s.getAllAsLocalIntervals(tz).monday == [new LocalInterval(
+    		new LocalTime(1, 0), new LocalTime(7, 30))]
+
+    	when: "we store as UTC, we don't have to specify time zone"
+    	assert s.updateWithIntervalStrings([monday:["0100:0600", "0530:0730"]]).success
+
+    	then: "data is stored in UTC"
+    	s.monday == "0100,0730"
+    	s.getAllAsLocalIntervals().monday == [new LocalInterval(
+    		new LocalTime(1, 0), new LocalTime(7, 30))]
+
+    	and: "we can retrieve in eastern time zone"
+    	s.getAllAsLocalIntervals(tz).sunday == [new LocalInterval(
+    		new LocalTime(20, 0), new LocalTime(23, 59))]
+    	s.getAllAsLocalIntervals(tz).monday == [new LocalInterval(
+    		new LocalTime(0, 0), new LocalTime(2, 30))]
+    }
+
     void "test updating and asking availability"() {
     	given:
     	LocalTime midnight = new LocalTime(0, 0)
@@ -233,7 +271,7 @@ class WeeklyScheduleSpec extends Specification {
     	then:
     	res.success == false
     	res.payload instanceof Map
-    	res.payload.code == "weeklySchedule.error.nextChangeNotFound"
+    	res.payload.code == "weeklySchedule.nextChangeNotFound"
 
     	when:
     	res = s.nextAvailable()
@@ -241,7 +279,7 @@ class WeeklyScheduleSpec extends Specification {
     	then:
     	res.success == false
     	res.payload instanceof Map
-    	res.payload.code == "weeklySchedule.error.nextChangeNotFound"
+    	res.payload.code == "weeklySchedule.nextChangeNotFound"
 
     	when:
     	res = s.nextUnavailable()
@@ -249,11 +287,13 @@ class WeeklyScheduleSpec extends Specification {
     	then:
     	res.success == false
     	res.payload instanceof Map
-    	res.payload.code == "weeklySchedule.error.nextChangeNotFound"
+    	res.payload.code == "weeklySchedule.nextChangeNotFound"
 
     	when: "we add some times"
     	String tomString = getDayOfWeekStringFor(DateTime.now(DateTimeZone.UTC).plusDays(1))
-    	s.update((tomString):[new LocalInterval(midnight, t1), new LocalInterval(t3, t4), new LocalInterval(t3, t4), new LocalInterval(t2, endOfDay)])
+    	s.update((tomString):[new LocalInterval(midnight, t1),
+    		new LocalInterval(t3, t4), new LocalInterval(t3, t4),
+    		new LocalInterval(t2, endOfDay)])
     	s.save(flush:true, failOnError:true)
 
     	DateTime availableTime = DateTime.now(DateTimeZone.UTC).plusDays(1).withHourOfDay(6),
@@ -269,7 +309,7 @@ class WeeklyScheduleSpec extends Specification {
     	s.isAvailableAt(availableTime) == true
     	s.isAvailableAt(unavailableTime) == false
     	nextChange.payload instanceof ScheduleChange
-    	nextChange.payload.type == Constants.SCHEDULE_AVAILABLE
+    	nextChange.payload.type == ScheduleStatus.AVAILABLE
     	nextChange.payload.when == tomorrowAvailable
     	nextAvail.payload instanceof DateTime
     	nextAvail.payload == tomorrowAvailable
@@ -279,7 +319,8 @@ class WeeklyScheduleSpec extends Specification {
     	when: "we test wrapping around times"
     	String todayString = getDayOfWeekStringFor(DateTime.now(DateTimeZone.UTC)),
     		followingString = getDayOfWeekStringFor(DateTime.now(DateTimeZone.UTC).plusDays(2))
-    	s.update((todayString):[], (tomString):[new LocalInterval(t2, endOfDay)], (followingString):[new LocalInterval(midnight, t1)])
+    	s.update((todayString):[], (tomString):[new LocalInterval(t2, endOfDay)],
+    		(followingString):[new LocalInterval(midnight, t1)])
     	s.save(flush:true, failOnError:true)
 
     	nextChange = s.nextChange()
@@ -297,7 +338,7 @@ class WeeklyScheduleSpec extends Specification {
     	s."$tomString" == "2059,2359"
     	s."$followingString" == "0000,0100"
     	nextChange.payload instanceof ScheduleChange
-    	nextChange.payload.type == Constants.SCHEDULE_AVAILABLE
+    	nextChange.payload.type == ScheduleStatus.AVAILABLE
     	nextChange.payload.when == nextAvailTime
     	nextAvail.payload instanceof DateTime
     	nextAvail.payload == nextAvailTime

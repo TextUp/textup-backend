@@ -2,78 +2,123 @@ package org.textup
 
 import grails.transaction.Transactional
 import static org.springframework.http.HttpStatus.*
+import grails.compiler.GrailsTypeChecked
+import org.textup.validator.PhoneNumber
 
+@GrailsTypeChecked
 @Transactional
 class TeamService {
 
-	def resultFactory
-    def authService
+	ResultFactory resultFactory
+    AuthService authService
+    PhoneService phoneService
 
     // Create
     // ------
 
     Result<Team> create(Map body) {
-        Organization o1 = Organization.get(body.org)
+        Organization o1 = Organization.get(Helpers.toLong(body.org))
         if (!o1) {
             return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "teamService.create.orgNotFound", [orgId])
+                "teamService.create.orgNotFound", [body.org])
         }
-    	Team t1 = new Team()
-        t1.with {
-            name = body.name
-            org = o1
-            location = new Location(body.location)
-            if (body.hexColor) hexColor = body.hexColor
-        }
-        if (!t1.location.save()) {
-            return resultFactory.failWithValidationErrors(t1.location.errors)
-        }
-    	if (body.phone) {
-    		Phone p1 = new Phone()
-    		p1.numberAsString = body.phone
-    		t1.phone = p1
-            if (!p1.save()) {
-                return resultFactory.failWithValidationErrors(p1.errors)
+    	Team t1 = new Team(org:o1)
+        Result.<Team>waterfall(
+            this.&updateTeamInfo.curry(t1, body),
+            this.&updateOrCreatePhone.rcurry(body)
+        ).then({
+            if (t1.save()) {
+                resultFactory.success(t1)
             }
-    	}
-    	if (t1.save()) {
+            else { resultFactory.failWithValidationErrors(t1.errors) }
+        }) as Result<Team>
+    }
+    protected Result<Team> updateTeamInfo(Team t1, Map body) {
+        if (body.name) { t1.name = body.name }
+        if (body.hexColor) { t1.hexColor = body.hexColor }
+        if (body.location instanceof Map) {
+            Map l = body.location as Map
+            Location loc = t1.location ?: new Location()
+            loc.with {
+                if (l.address) address = l.address
+                if (l.lat) lat = Helpers.toBigDecimal(l.lat)
+                if (l.lon) lon = Helpers.toBigDecimal(l.lon)
+            }
+            t1.location = loc
+            if (!loc.save()) {
+                return resultFactory.failWithValidationErrors(loc.errors)
+            }
+        }
+        if (t1.phone && body.awayMessage) {
+            t1.phone.awayMessage = body.awayMessage
+            if (!t1.phone.save()) {
+                return resultFactory.failWithValidationErrors(t1.phone.errors)
+            }
+        }
+        if (t1.save()) {
             resultFactory.success(t1)
         }
-    	else { resultFactory.failWithValidationErrors(t1.errors) }
+        else { resultFactory.failWithValidationErrors(t1.errors) }
+    }
+    protected Result<Team> updateOrCreatePhone(Team t1, Map body) {
+        if (body.phone || body.phoneId) {
+            Phone p1 = t1.phone ?: new Phone([:])
+            p1.updateOwner(t1)
+            Result<Phone> res
+            if (body.phone) {
+                PhoneNumber pNum = new PhoneNumber(number:body.phone as String)
+                res = phoneService.updatePhoneForNumber(p1, pNum)
+            }
+            else {
+                res = phoneService.updatePhoneForApiId(p1, body.phoneId as String)
+            }
+            res.then({
+                if (p1.save()) {
+                    resultFactory.success(t1)
+                }
+                else { resultFactory.failWithValidationErrors(p1.errors) }
+            }) as Result<Staff>
+        }
+        else { resultFactory.success(t1) }
     }
 
     // Update
     // ------
 
-    Result<Team> update(Long teamId, Map body) {
+    Result<Team> update(Long tId, Map body) {
         Result.<Team>waterfall(
-            this.&findTeamFromId.curry(teamId),
+            this.&findTeamFromId.curry(tId),
             this.&handleTeamActions.rcurry(body),
-            this.&updateTeam.rcurry(body)
+            this.&updateTeamInfo.rcurry(body),
+            this.&updateOrCreatePhone.rcurry(body)
         ).then({ Team t1 ->
             if (t1.save()) {
                 resultFactory.success(t1)
             }
             else { resultFactory.failWithValidationErrors(t1.errors) }
-        })
+        }) as Result
     }
     protected Result<Team> findTeamFromId(Long tId) {
-        Team t1 = Team.get(teamId)
+        Team t1 = Team.get(tId)
         if (t1) {
             resultFactory.success(t1)
         }
         else {
             resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "teamService.update.notFound", [teamId])
+                "teamService.update.notFound", [tId])
         }
     }
     protected Result<Team> handleTeamActions(Team t1, Map body) {
-        if (body.doTeamActions) { return }
-        else if (body.doTeamActions instanceof List) {
+        if (!body.doTeamActions) {
+            return resultFactory.success(t1)
+        }
+        else if (!(body.doTeamActions instanceof List)) {
             return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                 "teamService.update.teamActionNotList")
         }
-        for (tAction in teamActions) {
+        for (item in body.doTeamActions) {
+            if (!(item instanceof Map)) { continue }
+            Map tAction = item as Map
             Staff s1 = Staff.get(Helpers.toLong(tAction.id))
             if (!s1) {
                 return resultFactory.failWithMessageAndStatus(NOT_FOUND,
@@ -100,41 +145,6 @@ class TeamService {
         }
         resultFactory.success(t1)
     }
-    protected Result<Team> updateTeam(Team t1, Map body) {
-        if (body.name) { t1.name = body.name }
-        if (body.hexColor) { t1.hexColor = body.hexColor }
-        if (body.location) {
-            def l = body.location
-            t1.location.with {
-                if (l.address) address = l.address
-                if (l.lat) lat = l.lat
-                if (l.lon) lon = l.lon
-            }
-            if (!t1.location.save()) {
-                return resultFactory.failWithValidationErrors(t1.location.errors)
-            }
-        }
-        if (t1.phone && body.awayMessage) {
-            t1.phone.awayMessage = body.awayMessage
-            if (!t1.phone.save()) {
-                return resultFactory.failWithValidationErrors(t1.phone.errors)
-            }
-        }
-        if (body.phone) {
-            if (t1.phone) {
-                t1.phone.numberAsString = body.phone
-            }
-            else {
-                Phone p1 = new Phone()
-                p1.numberAsString = body.phone
-                t1.phone = p1
-            }
-            if (!t1.phone.save()) {
-                return resultFactory.failWithValidationErrors(t1.phone.errors)
-            }
-        }
-        resultFactory.success(t1)
-    }
 
     // Delete
     // ------
@@ -142,8 +152,11 @@ class TeamService {
     Result delete(Long tId) {
     	Team t1 = Team.get(tId)
     	if (t1) {
-    		t1.delete()
-    		resultFactory.success()
+    		t1.isDeleted = true
+            if (t1.save()) {
+                resultFactory.success()
+            }
+            else { resultFactory.failWithValidationErrors(t1.errors) }
     	}
     	else {
     		resultFactory.failWithMessageAndStatus(NOT_FOUND,
