@@ -90,6 +90,7 @@ class CallbackServiceSpec extends CustomSpec {
     		getParameterMap: { [test1:"hello", test2:"bye"] },
     		getQueryString: { "test3=bye&" }
     	] as HttpServletRequest
+        request.metaClass.getProperties = { ["forwardURI":""] }
     	GrailsParameterMap allParams = new GrailsParameterMap([test1:"hello",
     		test2:"bye", test3:"kiki"], request)
     	Map<String,String> params = service.extractTwilioParams(request, allParams)
@@ -115,6 +116,7 @@ class CallbackServiceSpec extends CustomSpec {
 			getAttribute: { String n -> "" },
 			getHeader: { String n -> toMatch }
     	] as HttpServletRequest
+        request.metaClass.getProperties = { ["forwardURI":""] }
     	GrailsParameterMap allParams = new GrailsParameterMap([test1:"hello",
     		test2:"bye", test3:"kiki"], request)
     	Result res = service.validate(request, allParams)

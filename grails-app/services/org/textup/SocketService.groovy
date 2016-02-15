@@ -62,7 +62,7 @@ class SocketService {
     protected Result<Staff> sendToDataToStaff(Staff s1, String eventName, Object data) {
         String channelName = "private-${s1.username}"
         PResult pRes = pusherService.get("/channels/$channelName")
-        if (pRes.status == Status.SUCCESS) {
+        if (pRes.status == PStatus.SUCCESS) {
             try {
                 Map channelInfo = new JsonSlurper().parseText(pRes.message)
                 if (channelInfo.occupied) {
@@ -72,6 +72,7 @@ class SocketService {
                     }
                     else { convertPusherResultOnError(pRes) }
                 }
+                else { resultFactory.success(s1) }
             }
             catch (e) {
                 log.error("SocketService.sendToDataToStaff: error: ${e.message}")

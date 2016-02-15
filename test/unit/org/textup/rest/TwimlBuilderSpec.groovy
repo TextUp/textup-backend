@@ -248,6 +248,8 @@ class TwimlBuilderSpec extends CustomSpec {
         when: "self greeting"
         Result<Closure> res = builder.build(CallResponse.SELF_GREETING)
 
+        println buildXml(res.payload)
+
         then:
         res.success == true
         buildXml(res.payload) == buildXml({
@@ -255,21 +257,7 @@ class TwimlBuilderSpec extends CustomSpec {
                 Gather(numDigits:11) {
                     Say("twimlBuilder.call.selfGreeting")
                 }
-                Redirect(".")
-            }
-        })
-
-        when: "voicemail"
-        res = builder.build(CallResponse.VOICEMAIL)
-
-        then:
-        res.success == true
-        buildXml(res.payload) == buildXml({
-            Response {
-                Say("twimlBuilder.call.voicemail")
-                Record(maxLength:160)
-                Say("twimlBuilder.call.goodbye")
-                Hangup()
+                Redirect("[:]")
             }
         })
 
@@ -348,7 +336,7 @@ class TwimlBuilderSpec extends CustomSpec {
         buildXml(res.payload) == buildXml({
             Response {
                 Say("twimlBuilder.call.selfInvalidDigits")
-                Redirect(".")
+                Redirect("[:]")
             }
         })
     }
@@ -360,8 +348,31 @@ class TwimlBuilderSpec extends CustomSpec {
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
+        when: "voicemail invalid"
+        Result<Closure> res = builder.build(CallResponse.VOICEMAIL)
+
+        then:
+        res.success == false
+        res.payload.status == BAD_REQUEST
+        res.payload.code == "twimlBuilder.invalidCode"
+
+        when: "voicemail valid"
+        Map linkParams =  [you:"got this!"]
+        res = builder.build(CallResponse.VOICEMAIL, [linkParams:linkParams])
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Say("twimlBuilder.call.voicemail")
+                Record(action:linkParams.toString(), maxLength:160)
+                Say("twimlBuilder.call.goodbye")
+                Hangup()
+            }
+        })
+
         when: "connect incoming invalid"
-        Result<Closure> res = builder.build(CallResponse.CONNECT_INCOMING)
+        res = builder.build(CallResponse.CONNECT_INCOMING)
 
         then:
         res.success == false
@@ -370,7 +381,6 @@ class TwimlBuilderSpec extends CustomSpec {
 
         when: "connect incoming valid"
         String num = "1112223333"
-        Map linkParams =  [you:"got this!"]
         res = builder.build(CallResponse.CONNECT_INCOMING,
             [nameOrNumber:"kiki", numsToCall:[num], linkParams:linkParams])
 
@@ -475,7 +485,7 @@ class TwimlBuilderSpec extends CustomSpec {
                     Say("twimlBuilder.call.announcementUnsubscribe")
                     Say("twimlBuilder.call.connectToStaff")
                 }
-                Redirect(".")
+                Redirect("[:]")
             }
         })
 
@@ -492,7 +502,7 @@ class TwimlBuilderSpec extends CustomSpec {
                     Say("twimlBuilder.call.announcementSubscribe")
                     Say("twimlBuilder.call.connectToStaff")
                 }
-                Redirect(".")
+                Redirect("[:]")
             }
         })
 
@@ -527,7 +537,7 @@ class TwimlBuilderSpec extends CustomSpec {
                     Say("twimlBuilder.call.announcementUnsubscribe")
                     Say("twimlBuilder.call.connectToStaff")
                 }
-                Redirect(".")
+                Redirect("[:]")
             }
         })
 
@@ -545,7 +555,7 @@ class TwimlBuilderSpec extends CustomSpec {
                     Say("twimlBuilder.call.announcementSubscribe")
                     Say("twimlBuilder.call.connectToStaff")
                 }
-                Redirect(".")
+                Redirect("[:]")
             }
         })
 
@@ -570,7 +580,7 @@ class TwimlBuilderSpec extends CustomSpec {
                     Say("twimlBuilder.announcement")
                     Say("twimlBuilder.call.announcementUnsubscribe")
                 }
-                Redirect(".")
+                Redirect("[:]")
             }
         })
     }

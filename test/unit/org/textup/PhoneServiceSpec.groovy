@@ -282,7 +282,7 @@ class PhoneServiceSpec extends CustomSpec {
         String n1 = service.getNameOrNumber([], session)
 
         then:
-        n1 == session.numberAsString
+        n1 == Helpers.formatNumberForSay(session.numberAsString)
 
         when: "some contacts"
         c1.name = "kiki's chicken"
@@ -495,9 +495,11 @@ class PhoneServiceSpec extends CustomSpec {
         res.success == true
         res.payload == CallResponse.HEAR_ANNOUNCEMENTS
 
-        when: "digits, subscribe"
+        when: "digits, is NOT subscriber, toggle subscribe"
+        session.isSubscribedToCall = false
+        session.save(flush:true, failOnError:true)
         res = service.handleAnnouncementCall(p1, "apiId",
-            Constants.CALL_SUBSCRIBE, session)
+            Constants.CALL_TOGGLE_SUBSCRIBE, session)
 
         then:
         Contact.count() == cBaseline + 1
@@ -507,9 +509,11 @@ class PhoneServiceSpec extends CustomSpec {
         res.success == true
         res.payload == CallResponse.SUBSCRIBED
 
-        when: "digits, greeting unsubscribe"
+        when: "digits, is subscriber, toggle subscribe"
+        session.isSubscribedToCall = true
+        session.save(flush:true, failOnError:true)
         res = service.handleAnnouncementCall(p1, "apiId",
-            Constants.CALL_GREETING_UNSUBSCRIBE, session)
+            Constants.CALL_TOGGLE_SUBSCRIBE, session)
 
         then:
         Contact.count() == cBaseline + 1

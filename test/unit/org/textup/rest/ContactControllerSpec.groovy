@@ -89,7 +89,7 @@ class ContactControllerSpec extends CustomSpec {
         mockForList()
         request.method = "GET"
         params.staffId = s1.id
-        params.staffStatus = "invalid"
+        params.shareStatus = "invalid"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
         List<Long> ids = Helpers.allToLong(loggedIn.phone.getContacts()*.id)
@@ -104,7 +104,7 @@ class ContactControllerSpec extends CustomSpec {
         when:
         mockForList()
         request.method = "GET"
-        params.staffStatus = "sharedByMe"
+        params.shareStatus = "sharedByMe"
         params["status[]"] = [ContactStatus.UNREAD, ContactStatus.ACTIVE]
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
@@ -120,7 +120,7 @@ class ContactControllerSpec extends CustomSpec {
         when:
         mockForList()
         request.method = "GET"
-        params.staffStatus = "sharedWithMe"
+        params.shareStatus = "sharedWithMe"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
         List<Long> ids = Helpers.allToLong(loggedIn.phone.getSharedWithMe()*.id)

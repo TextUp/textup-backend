@@ -24,7 +24,7 @@ class CallbackService {
 
     Result validate(HttpServletRequest request, GrailsParameterMap params) {
         String browserURL = (request.requestURL.toString() - request.requestURI) +
-        		request.getAttribute("forwardURI"),
+        		request.properties.forwardURI,
             authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
             authHeaderName = "x-twilio-signature",
             authHeader = request.getHeader(authHeaderName)
@@ -88,7 +88,9 @@ class CallbackService {
     		digits = params.Digits
     	PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
     		toNum = new PhoneNumber(number:params.To as String)
-    	Phone phone = Phone.findByNumberAsString(toNum.number)
+    	Phone phone = (params.CallSid && (params.Direction as String)?.contains("outbound")) ?
+            Phone.findByNumberAsString(fromNum.number) :
+            Phone.findByNumberAsString(toNum.number)
     	if (!phone) {
     		return params.CallSid ? twimlBuilder.notFoundForCall() :
     			twimlBuilder.notFoundForText()

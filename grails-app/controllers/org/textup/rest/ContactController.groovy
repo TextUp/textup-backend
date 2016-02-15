@@ -37,7 +37,7 @@ class ContactController extends BaseController {
             required=false, description='''List of staff statuses to restrict to.
             Default showing unread and active. The two shared stauses are only valid when
             specifying a staffId and will result in a 400 error otherwise.'''),
-        @RestApiParam(name="staffStatus", type="String", required=true,
+        @RestApiParam(name="shareStatus", type="String", required=true,
             paramType=RestApiParamType.QUERY, description='''One of sharedByMe or sharedWithMe.
             This takes precedence over the status[] parameter. Only used with a staffId.'''),
         @RestApiParam(name="teamId", type="Number", required=true,
@@ -52,7 +52,7 @@ class ContactController extends BaseController {
         @RestApiError(code="404",description='''The staff or team was not found. Or, the
             staff or team specified is not allowed to have contacts.'''),
         @RestApiError(code="400", description='''You must specify either a staff id or
-            team id or tag id, but not more than one. Or you specified an invalid staffStatus.'''),
+            team id or tag id, but not more than one. Or you specified an invalid shareStatus.'''),
         @RestApiError(code="403", description="You do not have permission to do this.")
     ])
     @Transactional(readOnly=true)
@@ -104,11 +104,11 @@ class ContactController extends BaseController {
             count = { Map ps -> p1.countContacts(ps.search as String) }
             list = { Map ps -> p1.getContacts(ps.search as String) }
         }
-        else if (params.staffStatus == "sharedByMe") { // returns CONTACTS
+        else if (params.shareStatus == "sharedByMe") { // returns CONTACTS
             count = { Map ps -> p1.countSharedByMe() }
             list = { Map ps -> p1.getSharedByMe(ps) }
         }
-        else if (params.staffStatus == "sharedWithMe") { // returns SHARED CONTACTS
+        else if (params.shareStatus == "sharedWithMe") { // returns SHARED CONTACTS
             count = { Map ps -> p1.countSharedWithMe() }
             list = { Map ps -> p1.getSharedWithMe(ps) }
         }

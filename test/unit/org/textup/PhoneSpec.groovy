@@ -609,8 +609,10 @@ class PhoneSpec extends CustomSpec {
         res.success == true
         res.payload == TextResponse.ANNOUNCEMENTS
 
-        when: "have announcements and subscribe"
-        text.message = Constants.TEXT_SUBSCRIBE
+        when: "have announcements, is NOT subscribed, toggle subscription"
+        session.isSubscribedToText = false
+        session.save(flush:true, failOnError:true)
+        text.message = Constants.TEXT_TOGGLE_SUBSCRIBE
         assert text.validate()
         res = p1.receiveText(text, session)
 
@@ -619,8 +621,10 @@ class PhoneSpec extends CustomSpec {
         res.success == true
         res.payload == TextResponse.SUBSCRIBED
 
-        when: "have announcements and unsubscribe"
-        text.message = Constants.TEXT_UNSUBSCRIBE
+        when: "have announcementsm, is subscribed, toggle subscription"
+        session.isSubscribedToText = true
+        session.save(flush:true, failOnError:true)
+        text.message = Constants.TEXT_TOGGLE_SUBSCRIBE
         assert text.validate()
         res = p1.receiveText(text, session)
 

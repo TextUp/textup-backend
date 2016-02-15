@@ -8,7 +8,6 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.validator.EmailEntity
-import grails.util.Environment
 
 @GrailsTypeChecked
 @Transactional
@@ -115,9 +114,6 @@ class MailService {
 
     protected Result<SendGrid.Response> sendMail(EmailEntity to, EmailEntity from, String subject,
     	String contents, String templateId=null) {
-        if (Environment.current == Environment.TEST) {
-            return resultFactory.success()
-        }
     	if (!to.validate()) {
             return resultFactory.failWithValidationErrors(to.errors)
         }

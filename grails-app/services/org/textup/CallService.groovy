@@ -36,7 +36,7 @@ class CallService {
             else { resultFactory.failWithValidationErrors(receipt.errors) }
         }
         catch (Throwable e) {
-            log.error("CallService.startBridgeCall: ${e.message}")
+            log.error("CallService.start: ${e.message}")
             resultFactory.failWithThrowable(e)
         }
     }

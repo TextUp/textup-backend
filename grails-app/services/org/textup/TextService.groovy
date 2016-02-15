@@ -8,16 +8,18 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.http.message.BasicNameValuePair
 import org.apache.http.NameValuePair
+import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.hibernate.FlushMode
 import org.textup.rest.TwimlBuilder
 import org.textup.validator.BasePhoneNumber
-import static org.springframework.http.HttpStatus.*
 import org.textup.validator.TempRecordReceipt
+import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @Transactional
 class TextService {
 
+    LinkGenerator grailsLinkGenerator
 	ResultFactory resultFactory
     TwilioRestClient twilioService
 
@@ -49,9 +51,12 @@ class TextService {
 
     protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         String message) {
+        String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
+                action:"save", absolute:true, params:[handle:Constants.CALLBACK_STATUS])
         try {
             MessageFactory messageFactory = twilioService.account.messageFactory
-            def l = [Body:message, To:toNum.e164PhoneNumber, From:fromNum.e164PhoneNumber]
+            def l = [Body:message, To:toNum.e164PhoneNumber, From:fromNum.e164PhoneNumber,
+                StatusCallback:callback]
             List<NameValuePair> params = l.collect { k, v ->
                 new BasicNameValuePair(k, v) as NameValuePair
             }

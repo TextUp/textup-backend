@@ -5,11 +5,20 @@ import org.textup.types.OrgStatus
 import org.textup.types.StaffStatus
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
+import org.textup.validator.EmailEntity
 
 class SignupSpec extends RestSpec {
 
     def setup() {
         setupData()
+        // mock mail sending
+        remote.exec({
+            ctx.mailService.metaClass.sendMail { EmailEntity to, EmailEntity from, String subject,
+                String contents, String templateId=null ->
+                ctx.resultFactory.success()
+            }
+            return
+        })
     }
 
     def cleanup() {

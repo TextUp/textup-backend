@@ -64,15 +64,16 @@ class CustomSpec extends Specification {
     void setupIntegrationData(int iterNum) {
         loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"
-
-        organizations(iterNum)
-        teamsWithPhones(iterNum)
-        staffWithPhones(iterNum)
-        teamMemberships(iterNum)
-        contactsWithItems(iterNum)
-        shareContacts(iterNum)
-        tags(iterNum)
-        tagMemberships(iterNum)
+        if (Organization.countByName("1organiz$iterNum") == 0) {
+            organizations(iterNum)
+            teamsWithPhones(iterNum)
+            staffWithPhones(iterNum)
+            teamMemberships(iterNum)
+            contactsWithItems(iterNum)
+            shareContacts(iterNum)
+            tags(iterNum)
+            tagMemberships(iterNum)
+        }
     }
     void cleanupIntegrationData() { cleanupData() }
 

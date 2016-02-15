@@ -331,7 +331,8 @@ class PhoneService {
                 rCalls.each { RecordCall rCall ->
                     rCall.hasAwayMessage = true
                 }
-                twimlBuilder.build(CallResponse.VOICEMAIL)
+                twimlBuilder.build(CallResponse.VOICEMAIL,
+                    [linkParams:[handle:CallResponse.VOICEMAIL]])
             }
         }) as Result
     }
@@ -375,13 +376,15 @@ class PhoneService {
                     twimlBuilder.build(CallResponse.HEAR_ANNOUNCEMENTS,
                         [announcements:announces, isSubscribed:session.isSubscribedToCall])
                     break
-                case Constants.CALL_SUBSCRIBE:
-                    session.isSubscribedToCall = true
-                    twimlBuilder.build(CallResponse.SUBSCRIBED)
-                    break
-                case Constants.CALL_GREETING_UNSUBSCRIBE:
-                    session.isSubscribedToCall = false
-                    twimlBuilder.build(CallResponse.UNSUBSCRIBED)
+                case Constants.CALL_TOGGLE_SUBSCRIBE:
+                    if (session.isSubscribedToCall) {
+                        session.isSubscribedToCall = false
+                        twimlBuilder.build(CallResponse.UNSUBSCRIBED)
+                    }
+                    else {
+                        session.isSubscribedToCall = true
+                        twimlBuilder.build(CallResponse.SUBSCRIBED)
+                    }
                     break
                 default:
                     this.relayCall(phone, apiId, session)
@@ -391,7 +394,9 @@ class PhoneService {
             twimlBuilder.build(CallResponse.ANNOUNCEMENT_GREETING,
                 [name:phone.owner.name, isSubscribed:session.isSubscribedToCall])
         }
-        else { this.relayCall(phone, apiId, session) }
+        else {
+            this.relayCall(phone, apiId, session)
+        }
     }
     Result<Closure> handleSelfCall(Phone phone, String apiId, String digits, Staff staff) {
         if (digits) {
@@ -492,6 +497,6 @@ class PhoneService {
         for (contact in contacts) {
             if (contact.name) { return contact.name }
         }
-        return session.numberAsString
+        return Helpers.formatNumberForSay(session.numberAsString)
     }
 }

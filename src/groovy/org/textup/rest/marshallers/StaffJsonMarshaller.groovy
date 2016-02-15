@@ -41,7 +41,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
         json.tags = s1.phone ? s1.phone.getTags() : []
         json.teams = s1.getTeams()
         if (s1.schedule?.instanceOf(WeeklySchedule)) {
-            WeeklySchedule wkSched = s1.schedule as WeeklySchedule
+            WeeklySchedule wkSched = WeeklySchedule.get(s1.schedule.id)
             String timezone = WebUtils.retrieveGrailsWebRequest().currentRequest
                 .getAttribute("timezone") as String
             Map jsonSched = [:]

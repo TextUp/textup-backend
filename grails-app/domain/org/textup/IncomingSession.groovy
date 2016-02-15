@@ -15,7 +15,9 @@ import grails.compiler.GrailsCompileStatic
 class IncomingSession {
 
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-    DateTime lastSentInstructions = DateTime.now(DateTimeZone.UTC)
+    // initialize last sent in past so that we send instructions when the user
+    // first tests in, if needed
+    DateTime lastSentInstructions = DateTime.now(DateTimeZone.UTC).minusDays(2)
 	Phone phone
     String numberAsString
     boolean isSubscribedToText = false

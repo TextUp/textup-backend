@@ -400,13 +400,15 @@ class Phone {
                     twimlBuilder.build(TextResponse.ANNOUNCEMENTS,
                         [announcements:announces])
                     break
-                case Constants.TEXT_SUBSCRIBE:
-                    session.isSubscribedToText = true
-                    twimlBuilder.build(TextResponse.SUBSCRIBED)
-                    break
-                case Constants.TEXT_UNSUBSCRIBE:
-                    session.isSubscribedToText = false
-                    twimlBuilder.build(TextResponse.UNSUBSCRIBED)
+                case Constants.TEXT_TOGGLE_SUBSCRIBE:
+                    if (session.isSubscribedToText) {
+                        session.isSubscribedToText = false
+                        twimlBuilder.build(TextResponse.UNSUBSCRIBED)
+                    }
+                    else {
+                        session.isSubscribedToText = true
+                        twimlBuilder.build(TextResponse.SUBSCRIBED)
+                    }
                     break
                 default:
                     phoneService.relayText(this, text, session)
@@ -428,7 +430,9 @@ class Phone {
         else if (this.announcements) {
             phoneService.handleAnnouncementCall(this, apiId, digits, session)
         }
-        else { phoneService.relayCall(this, apiId, session) }
+        else {
+            phoneService.relayCall(this, apiId, session)
+        }
     }
     Result<Closure> receiveVoicemail(String apiId, Integer voicemailDuration,
         IncomingSession session) {
@@ -443,7 +447,8 @@ class Phone {
                 }) as Result
         }
         else {
-            twimlBuilder.build(CallResponse.VOICEMAIL, [name:this.name])
+            twimlBuilder.build(CallResponse.VOICEMAIL,
+                [linkParams:[handle:CallResponse.VOICEMAIL]])
         }
     }
     // staff must pick up and press any number to start the bridge

@@ -95,7 +95,7 @@ class TwimlBuilder {
         messageSource.getMessage(code, args as Object[], LCH.getLocale())
     }
     @GrailsCompileStatic
-    protected String getLink(Map linkParams) {
+    protected String getLink(Map linkParams=[:]) {
         linkGenerator.link(namespace:"v1", resource:"publicRecord", action:"save",
             params:linkParams, absolute:true)
     }
@@ -120,14 +120,14 @@ class TwimlBuilder {
 
     Result<List<String>> translate(TextResponse code, Map params=[:]) {
         List<String> responses = []
-         switch (code) {
+        switch (code) {
             case TextResponse.INSTRUCTIONS_UNSUBSCRIBED:
                 responses << getMessage("twimlBuilder.text.instructionsUnsubscribed",
-                    [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_SUBSCRIBE])
+                    [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
                 break
             case TextResponse.INSTRUCTIONS_SUBSCRIBED:
                 responses << getMessage("twimlBuilder.text.instructionsSubscribed",
-                    [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_UNSUBSCRIBE])
+                    [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
                 break
             case TextResponse.ANNOUNCEMENTS:
                 if (params.announcements instanceof List) {
@@ -136,11 +136,11 @@ class TwimlBuilder {
                 break
             case TextResponse.SUBSCRIBED:
                 responses << getMessage("twimlBuilder.text.subscribed",
-                    [Constants.TEXT_UNSUBSCRIBE])
+                    [Constants.TEXT_TOGGLE_SUBSCRIBE])
                 break
             case TextResponse.UNSUBSCRIBED:
                 responses << getMessage("twimlBuilder.text.unsubscribed",
-                    [Constants.TEXT_SUBSCRIBE])
+                    [Constants.TEXT_TOGGLE_SUBSCRIBE])
                 break
         }
         if (responses) {
@@ -158,7 +158,7 @@ class TwimlBuilder {
                 String directions = getMessage("twimlBuilder.call.selfGreeting")
                 callBody = {
                     Gather(numDigits:11) { Say(directions) }
-                    Redirect(".")
+                    Redirect(getLink())
                 }
                 break
             case CallResponse.SELF_CONNECTING:
@@ -180,7 +180,7 @@ class TwimlBuilder {
                         [Helpers.formatNumberForSay(params.digits)])
                     callBody = {
                         Say(error)
-                        Redirect(".")
+                        Redirect(getLink())
                     }
                 }
                 break
@@ -201,13 +201,16 @@ class TwimlBuilder {
                 }
                 break
             case CallResponse.VOICEMAIL:
-                String directions = getMessage("twimlBuilder.call.voicemail"),
-                    goodbye = getMessage("twimlBuilder.call.goodbye")
-                callBody = {
-                    Say(directions)
-                    Record(maxLength:160)
-                    Say(goodbye)
-                    Hangup()
+                if (params.linkParams instanceof Map) {
+                    String directions = getMessage("twimlBuilder.call.voicemail"),
+                        goodbye = getMessage("twimlBuilder.call.goodbye"),
+                        recordWebhook = getLink(params.linkParams)
+                    callBody = {
+                        Say(directions)
+                        Record(action:recordWebhook, maxLength:160)
+                        Say(goodbye)
+                        Hangup()
+                    }
                 }
                 break
             case CallResponse.CONFIRM_BRIDGE:
@@ -252,9 +255,9 @@ class TwimlBuilder {
                             [params.name, Constants.CALL_HEAR_ANNOUNCEMENTS]),
                         sAction = params.isSubscribed ?
                             getMessage("twimlBuilder.call.announcementUnsubscribe",
-                                [Constants.CALL_GREETING_UNSUBSCRIBE]) :
+                                [Constants.CALL_TOGGLE_SUBSCRIBE]) :
                             getMessage("twimlBuilder.call.announcementSubscribe",
-                                [Constants.CALL_SUBSCRIBE]),
+                                [Constants.CALL_TOGGLE_SUBSCRIBE]),
                         connectToStaff = getMessage("twimlBuilder.call.connectToStaff")
                     callBody = {
                         Gather(numDigits:1) {
@@ -262,7 +265,7 @@ class TwimlBuilder {
                             Say(sAction)
                             Say(connectToStaff)
                         }
-                        Redirect(".")
+                        Redirect(getLink())
                     }
                 }
                 break
@@ -271,9 +274,9 @@ class TwimlBuilder {
                         params.isSubscribed != null) {
                     String sAction = params.isSubscribed ?
                             getMessage("twimlBuilder.call.announcementUnsubscribe",
-                                [Constants.CALL_GREETING_UNSUBSCRIBE]) :
+                                [Constants.CALL_TOGGLE_SUBSCRIBE]) :
                             getMessage("twimlBuilder.call.announcementSubscribe",
-                                [Constants.CALL_SUBSCRIBE]),
+                                [Constants.CALL_TOGGLE_SUBSCRIBE]),
                         connectToStaff = getMessage("twimlBuilder.call.connectToStaff")
                     callBody = {
                         Gather(numDigits:1) {
@@ -282,7 +285,7 @@ class TwimlBuilder {
                             Say(sAction)
                             Say(connectToStaff)
                         }
-                        Redirect(".")
+                        Redirect(getLink())
                     }
                 }
                 break
@@ -300,7 +303,7 @@ class TwimlBuilder {
                                 params.message))
                             Say(unsubscribe)
                         }
-                        Redirect(".")
+                        Redirect(getLink())
                     }
                 }
                 break

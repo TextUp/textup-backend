@@ -28,13 +28,11 @@ class Constants {
 	static final String CALLBACK_STATUS = "status"
 
 	static final String TEXT_SEE_ANNOUNCEMENTS = "0"
-	static final String TEXT_SUBSCRIBE = "1"
-	static final String TEXT_UNSUBSCRIBE = "2"
+	static final String TEXT_TOGGLE_SUBSCRIBE = "1"
 
 	static final String CALL_HEAR_ANNOUNCEMENTS = "1"
-	static final String CALL_SUBSCRIBE = "2"
+	static final String CALL_TOGGLE_SUBSCRIBE = "2"
 	static final String CALL_ANNOUNCEMENT_UNSUBSCRIBE = "1"
-	static final String CALL_GREETING_UNSUBSCRIBE = "3"
 
 	// Socket events
 	// -------------
