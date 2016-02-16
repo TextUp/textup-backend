@@ -129,9 +129,17 @@ class TwimlBuilder {
                 responses << getMessage("twimlBuilder.text.instructionsSubscribed",
                     [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
                 break
-            case TextResponse.ANNOUNCEMENTS:
+            case TextResponse.SEE_ANNOUNCEMENTS:
                 if (params.announcements instanceof List) {
                     responses += this.formatAnnouncements(params.announcements)
+                }
+                break
+            case TextResponse.ANNOUNCEMENT:
+                if (params.identifier instanceof String &&
+                    params.message instanceof String) {
+                    String unsubscribe = getMessage("twimlBuilder.text.announcementUnsubscribe",
+                        [Constants.TEXT_TOGGLE_SUBSCRIBE])
+                    responses << "${params.identifier}: ${params.message}. $unsubscribe"
                 }
                 break
             case TextResponse.SUBSCRIBED:

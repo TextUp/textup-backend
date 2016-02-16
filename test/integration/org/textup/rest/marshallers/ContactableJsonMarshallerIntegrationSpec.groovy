@@ -31,6 +31,11 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
     }
 
     void "test marshalling contact"() {
+        given:
+        IncomingSession sess1 = new IncomingSession(phone:c1.phone,
+            numberAsString:"1112223333")
+        sess1.save(flush:true, failOnError:true)
+
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
@@ -42,6 +47,11 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         json.tags instanceof List
         json.tags.size() == c1.tags.size()
         c1.tags.every { ContactTag ct1 -> json.tags.find { it.id == ct1.id } }
+        json.sessions instanceof List
+        json.sessions.size() == c1.sessions.size()
+        c1.sessions.every { IncomingSession session ->
+            json.sessions.find { it.id == session.id }
+        }
         json.sharedWith instanceof List
         json.sharedWith.size() == c1.sharedContacts.size()
         c1.sharedContacts.every { SharedContact sc1 ->

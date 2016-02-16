@@ -233,7 +233,6 @@ textup {
     }
     rest {
         defaultLabel = "default" //default is to link to relationships
-        detailLabel = "detail" //detailed view
         v1 {
             contact = [singular:"contact", plural:"contacts"]
             record = [singular:"record", plural:"records"]
@@ -241,6 +240,8 @@ textup {
             staff = [singular:"staff", plural:"staff"]
             team = [singular:"team", plural:"teams"]
             organization = [singular:"organization", plural:"organizations"]
+            announcement = [singular:"announcement", plural:"announcements"]
+            session = [singular:"session", plural:"sessions"]
         }
     }
 }

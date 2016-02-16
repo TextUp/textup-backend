@@ -1,22 +1,24 @@
 package org.textup
 
+import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import org.joda.time.DateTime
 import org.springframework.context.MessageSource
+import org.textup.types.OrgStatus
+import org.textup.types.StaffStatus
+import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
-import grails.plugin.springsecurity.SpringSecurityService
-import org.textup.util.CustomSpec
-import org.textup.types.StaffStatus
-import org.textup.types.OrgStatus
 
 @TestFor(AuthService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-	Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt])
 @TestMixin(HibernateTestMixin)
 class AuthServiceSpec extends CustomSpec {
 
@@ -311,5 +313,97 @@ class AuthServiceSpec extends CustomSpec {
         then:
         phones.size() == 3
         [p1, p2, tPh1].every { it in phones }
+    }
+
+    void "test permissions for session"() {
+        given: "we are active"
+        s1.org.status = OrgStatus.APPROVED
+        s1.status = StaffStatus.STAFF
+        s1.save(flush:true, failOnError:true)
+
+        when: "This tag belongs to you"
+        String num = "1233920399"
+        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString:num)
+        sess1.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForSession(sess1.id) == true
+
+        when: "This tag belongs to a team you are on"
+        sess1 = new IncomingSession(phone:tPh1, numberAsString:num)
+        sess1.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForSession(sess1.id) == true
+
+        when: "This is another staff member at the same org"
+        sess1 = new IncomingSession(phone:p2, numberAsString:num)
+        sess1.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForSession(sess1.id) == false
+
+        when: "This is another staff member at a different org"
+        sess1 = new IncomingSession(phone:otherP1, numberAsString:num)
+        sess1.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForSession(sess1.id) == false
+
+        when: "This contact belongs to one of the teams you are NOT on"
+        sess1 = new IncomingSession(phone:tPh2, numberAsString:num)
+        sess1.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForSession(sess1.id) == false
+    }
+
+    void "test permissions for announcement"() {
+        given: "we are active"
+        s1.org.status = OrgStatus.APPROVED
+        s1.status = StaffStatus.STAFF
+        s1.save(flush:true, failOnError:true)
+
+        when: "This tag belongs to you"
+        String msg = "hi!"
+        DateTime expires = DateTime.now().plusMinutes(30)
+        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
+            message:msg, expiresAt:expires)
+        announce.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForAnnouncement(announce.id) == true
+
+        when: "This tag belongs to a team you are on"
+        announce = new FeaturedAnnouncement(owner:tPh1,
+            message:msg, expiresAt:expires)
+        announce.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForAnnouncement(announce.id) == true
+
+        when: "This is another staff member at the same org"
+        announce = new FeaturedAnnouncement(owner:p2,
+            message:msg, expiresAt:expires)
+        announce.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForAnnouncement(announce.id) == false
+
+        when: "This is another staff member at a different org"
+        announce = new FeaturedAnnouncement(owner:otherP1,
+            message:msg, expiresAt:expires)
+        announce.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForAnnouncement(announce.id) == false
+
+        when: "This contact belongs to one of the teams you are NOT on"
+        announce = new FeaturedAnnouncement(owner:tPh2,
+            message:msg, expiresAt:expires)
+        announce.save(flush:true, failOnError:true)
+
+        then:
+        service.hasPermissionsForAnnouncement(announce.id) == false
     }
 }

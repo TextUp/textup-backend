@@ -15,7 +15,7 @@ import org.textup.validator.TempRecordReceipt
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 
-class OutgoingTextSpec extends RestSpec {
+class OutgoingTextFunctionalSpec extends RestSpec {
 
     String _apiId
 

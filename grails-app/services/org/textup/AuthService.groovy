@@ -137,9 +137,8 @@ class AuthService {
         else { false }
     }
 
-    ///////////////////////
-    // Staff permissions //
-    ///////////////////////
+    // Staff
+    // -----
 
     /**
      * Can have permission for this staff member if
@@ -158,9 +157,8 @@ class AuthService {
         else { false }
     }
 
-    /////////////////////
-    // Tag permissions //
-    /////////////////////
+    // Tag
+    // ---
 
     /**
      * Can have permission for this Tag if
@@ -184,9 +182,8 @@ class AuthService {
         else { false }
     }
 
-    ////////////////////////
-    // Record permissions //
-    ////////////////////////
+    // Record item
+    // -----------
 
     /**
      * Can have permission for this RecordItem if
@@ -230,5 +227,41 @@ class AuthService {
                 else { eq("sharedBy", null) }
             }
         new HashSet<Phone>(phones + sPhones)
+    }
+
+    // Session
+    // -------
+
+    boolean hasPermissionsForSession(Long sId) {
+        Staff s1 = getLoggedInAndActive()
+        if (s1 && sId) {
+            List<Phone> phones = s1.allPhones
+            IncomingSession.createCriteria().count {
+                eq("id", sId)
+                if (phones) {
+                    "in"("phone", phones)
+                }
+                else { eq("phone", null) }
+            } > 0
+        }
+        else { false }
+    }
+
+    // Announcement
+    // ------------
+
+    boolean hasPermissionsForAnnouncement(Long aId) {
+        Staff s1 = getLoggedInAndActive()
+        if (s1 && aId) {
+            List<Phone> phones = s1.allPhones
+            FeaturedAnnouncement.createCriteria().count {
+                eq("id", aId)
+                if (phones) {
+                    "in"("owner", phones)
+                }
+                else { eq("owner", null) }
+            } > 0
+        }
+        else { false }
     }
 }

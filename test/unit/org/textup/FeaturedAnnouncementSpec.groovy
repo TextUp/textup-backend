@@ -70,6 +70,7 @@ class FeaturedAnnouncementSpec extends CustomSpec {
 
     	then:
     	FeaturedAnnouncement.listForPhone(p1).size() == 1
+        FeaturedAnnouncement.countForPhone(p1) == 1
     	FeaturedAnnouncement.listForPhone(p1)[0] == announce
 
     	when: "we add calls"

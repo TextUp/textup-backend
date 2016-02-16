@@ -197,7 +197,10 @@ class PhoneService {
     }
     ResultMap<TempRecordReceipt> sendTextAnnouncement(Phone phone, String message,
         String identifier, List<IncomingSession> sessions, Staff staff) {
-        String announcement = "$identifier: $message"
+        Result res = twimlBuilder.translate(TextResponse.ANNOUNCEMENT,
+            [identifier:identifier, message:message])
+            .logFail("PhoneService.sendTextAnnouncement")
+        String announcement = res.success ? res.payload : "$identifier: $message"
         startAnnouncement(phone, sessions, { IncomingSession s1 ->
             textService.send(phone.number, [s1.number], announcement)
         }, { Contact c1, TempRecordReceipt receipt ->
@@ -290,7 +293,7 @@ class PhoneService {
                 responses << phone.awayMessage
             }
             // remind about instructions if phone has announcements enabled
-            if (phone.announcements && session.shouldSendInstructions) {
+            if (phone.getAnnouncements() && session.shouldSendInstructions) {
                 session.updateLastSentInstructions()
                 TextResponse code = session.isSubscribedToText ?
                     TextResponse.INSTRUCTIONS_SUBSCRIBED :
@@ -368,7 +371,7 @@ class PhoneService {
         if (digits) {
             switch(digits) {
                 case Constants.CALL_HEAR_ANNOUNCEMENTS:
-                    List<FeaturedAnnouncement> announces = phone.announcements
+                    List<FeaturedAnnouncement> announces = phone.getAnnouncements()
                     announces.each { FeaturedAnnouncement announce ->
                         announce.addToReceipts(RecordItemType.CALL, session)
                             .logFail("Phone.handleAnnouncementCall: add announce receipt")
@@ -390,7 +393,7 @@ class PhoneService {
                     this.relayCall(phone, apiId, session)
             }
         }
-        else if (phone.announcements) {
+        else if (phone.getAnnouncements()) {
             twimlBuilder.build(CallResponse.ANNOUNCEMENT_GREETING,
                 [name:phone.owner.name, isSubscribed:session.isSubscribedToCall])
         }

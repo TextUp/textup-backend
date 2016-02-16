@@ -284,6 +284,10 @@ class Contact implements Contactable {
             }
         }
     }
+    List<IncomingSession> getSessions(Map params=[:]) {
+        this.numbers ? IncomingSession.findAllByPhoneAndNumberAsStringInList(this.phone,
+            this.numbers*.number) : []
+    }
 
     // Outgoing
     // --------

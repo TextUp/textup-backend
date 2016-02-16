@@ -20,8 +20,8 @@ class IncomingSession {
     DateTime lastSentInstructions = DateTime.now(DateTimeZone.UTC).minusDays(2)
 	Phone phone
     String numberAsString
-    boolean isSubscribedToText = false
-    boolean isSubscribedToCall = false
+    Boolean isSubscribedToText = false
+    Boolean isSubscribedToCall = false
 
     static transients = ["number"]
     static mapping = {

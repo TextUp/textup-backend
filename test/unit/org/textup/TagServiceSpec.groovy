@@ -10,7 +10,6 @@ import org.springframework.context.MessageSource
 import org.textup.types.ResultType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
-import spock.lang.Specification
 import static org.springframework.http.HttpStatus.*
 
 @TestFor(TagService)

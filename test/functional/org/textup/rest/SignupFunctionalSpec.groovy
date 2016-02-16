@@ -7,7 +7,7 @@ import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 import org.textup.validator.EmailEntity
 
-class SignupSpec extends RestSpec {
+class SignupFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()

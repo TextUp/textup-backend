@@ -29,7 +29,7 @@ class UrlMappings {
             "/public/staff"(resources:"publicStaff", namespace:"v1") {
                 format = "json"
             }
-            //for webhooks requests from Twilio
+            //for webhook requests from Twilio
             "/public/records"(resources:"publicRecord", namespace:"v1") {
                 format = "json"
             }
@@ -68,6 +68,12 @@ class UrlMappings {
             }
             "/tags"(resources:"tag", namespace:"v1") {
             	format = "json"
+            }
+            "/sessions"(resources:"session", namespace:"v1") {
+                format = "json"
+            }
+            "/announcements"(resources:"announcement", namespace:"v1") {
+                format = "json"
             }
         }
 	}

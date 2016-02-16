@@ -40,6 +40,7 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         if (c1.instanceOf(Contact)) {
             Contact contact = c1 as Contact
             json.tags = contact.getTags()
+            json.sessions = contact.getSessions()
             json.sharedWith = contact.sharedContacts.collect { SharedContact sc ->
                 [
                     id:sc.id,

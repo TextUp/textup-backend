@@ -42,12 +42,12 @@ class FeaturedAnnouncement {
     // Static finders
     // --------------
 
+    static int countForPhone(Phone p1) {
+        FeaturedAnnouncement.countByOwnerAndExpiresAtGreaterThan(p1, DateTime.now())
+    }
     static List<FeaturedAnnouncement> listForPhone(Phone p1, Map params=[:]) {
-        FeaturedAnnouncement.createCriteria().list(params) {
-            eq("owner", p1)
-            ge("expiresAt", DateTime.now(DateTimeZone.UTC)) //not expired
-            order("whenCreated", "desc")
-        } as List
+        FeaturedAnnouncement.findAllByOwnerAndExpiresAtGreaterThan(p1,
+            DateTime.now(), params + [sort:"whenCreated", order:"desc"])
     }
 
     // Events
@@ -68,6 +68,9 @@ class FeaturedAnnouncement {
     }
     void setExpiresAt(DateTime exp) {
     	this.expiresAt = exp?.withZone(DateTimeZone.UTC)
+    }
+    boolean getIsExpired() {
+        this.expiresAt?.isBefore(DateTime.now())
     }
 
     // Receipts

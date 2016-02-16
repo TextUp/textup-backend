@@ -102,4 +102,26 @@ beans = {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}
+
+	sessionRenderer(ApiJsonRenderer, IncomingSession) {
+		label = tRestConfig.v1.session.singular
+	}
+	sessionCollectionRenderer(ApiJsonCollectionRenderer, IncomingSession) {
+		label = tRestConfig.v1.session.plural
+	}
+	sessionJsonMarshaller(SessionJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	announcementRenderer(ApiJsonRenderer, FeaturedAnnouncement) {
+		label = tRestConfig.v1.announcement.singular
+	}
+	announcementCollectionRenderer(ApiJsonCollectionRenderer, FeaturedAnnouncement) {
+		label = tRestConfig.v1.announcement.plural
+	}
+	announcementJsonMarshaller(AnnouncementJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
 }

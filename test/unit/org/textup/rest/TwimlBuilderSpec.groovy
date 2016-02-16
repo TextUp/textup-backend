@@ -149,7 +149,7 @@ class TwimlBuilderSpec extends CustomSpec {
         })
 
         when: "announcements, no params"
-        res = builder.build(TextResponse.ANNOUNCEMENTS)
+        res = builder.build(TextResponse.SEE_ANNOUNCEMENTS)
 
         then:
         res.success == false
@@ -157,7 +157,7 @@ class TwimlBuilderSpec extends CustomSpec {
         res.payload.code == "twimlBuilder.invalidCode"
 
         when: "announcements, invalid params"
-        res = builder.build(TextResponse.ANNOUNCEMENTS, [announcements:"kiki"])
+        res = builder.build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:"kiki"])
 
         then:
         res.success == false
@@ -165,7 +165,7 @@ class TwimlBuilderSpec extends CustomSpec {
         res.payload.code == "twimlBuilder.invalidCode"
 
         when: "announcements empty list"
-        res = builder.build(TextResponse.ANNOUNCEMENTS, [announcements:[]])
+        res = builder.build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:[]])
 
         then:
         res.success == true
@@ -183,7 +183,7 @@ class TwimlBuilderSpec extends CustomSpec {
             owner: p1,
             message: "hello2"
         ] as FeaturedAnnouncement]
-        res = builder.build(TextResponse.ANNOUNCEMENTS, [announcements:announces])
+        res = builder.build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:announces])
 
         then:
         res.success == true
@@ -210,6 +210,34 @@ class TwimlBuilderSpec extends CustomSpec {
         res.success == true
         buildXml(res.payload) == buildXml({
             Response { Message("twimlBuilder.text.unsubscribed") }
+        })
+    }
+
+    void "test building text announcement"() {
+        given: "twiml builder"
+        TwimlBuilder builder = new TwimlBuilder()
+        builder.resultFactory = getResultFactory()
+        builder.messageSource = mockMessageSource()
+        builder.linkGenerator = mockLinkGenerator()
+
+        when: "invalid"
+        Result res = builder.build(TextResponse.ANNOUNCEMENT, [:])
+
+        then:
+        res.success == false
+        res.payload.status == BAD_REQUEST
+        res.payload.code == "twimlBuilder.invalidCode"
+
+        when: "valid"
+        Map info = [identifier:"kiki", message:"hello!"]
+        res = builder.build(TextResponse.ANNOUNCEMENT, info)
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Message("${info.identifier}: ${info.message}. twimlBuilder.text.announcementUnsubscribe")
+            }
         })
     }
 

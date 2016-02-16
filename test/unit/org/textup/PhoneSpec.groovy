@@ -599,7 +599,7 @@ class PhoneSpec extends CustomSpec {
         then:
         AnnouncementReceipt.count() == aReceiptBaseline + 1
         res.success == true
-        res.payload == TextResponse.ANNOUNCEMENTS
+        res.payload == TextResponse.SEE_ANNOUNCEMENTS
 
         when: "multiple receipts are not added for same announcement and session"
         res = p1.receiveText(text, session)
@@ -607,7 +607,7 @@ class PhoneSpec extends CustomSpec {
         then:
         AnnouncementReceipt.count() == aReceiptBaseline + 1
         res.success == true
-        res.payload == TextResponse.ANNOUNCEMENTS
+        res.payload == TextResponse.SEE_ANNOUNCEMENTS
 
         when: "have announcements, is NOT subscribed, toggle subscription"
         session.isSubscribedToText = false

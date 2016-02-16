@@ -15,7 +15,7 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import static org.springframework.http.HttpStatus.*
 
-class OutgoingCallSpec extends RestSpec {
+class OutgoingCallFunctionalSpec extends RestSpec {
 
     String _apiId
 

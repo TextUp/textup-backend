@@ -250,8 +250,29 @@ class Phone {
     List<Contact> getSharedByMe(Map params=[:]) {
         SharedContact.listSharedByMe(this, params)
     }
-    List<FeaturedAnnouncement> getAnnouncements() {
-        FeaturedAnnouncement.listForPhone(this)
+    int countAnnouncements() {
+        FeaturedAnnouncement.countForPhone(this)
+    }
+    List<FeaturedAnnouncement> getAnnouncements(Map params=[:]) {
+        FeaturedAnnouncement.listForPhone(this, params)
+    }
+    int countSessions() {
+        IncomingSession.countByPhone(this)
+    }
+    List<IncomingSession> getSessions(Map params=[:]) {
+        IncomingSession.findAllByPhone(this, params)
+    }
+    int countCallSubscribedSessions() {
+        IncomingSession.countByPhoneAndIsSubscribedToText(this, true)
+    }
+    List<IncomingSession> getCallSubscribedSessions(Map params=[:]) {
+        IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true, params)
+    }
+    int countTextSubscribedSessions() {
+        IncomingSession.countByPhoneAndIsSubscribedToCall(this, true)
+    }
+    List<IncomingSession> getTextSubscribedSessions(Map params=[:]) {
+        IncomingSession.findAllByPhoneAndIsSubscribedToCall(this, true, params)
     }
     List<Staff> getAvailableNow() {
         List<Staff> availableNow = []
@@ -325,7 +346,7 @@ class Phone {
     Result<FeaturedAnnouncement> sendAnnouncement(String message,
         DateTime expiresAt, Staff staff) {
         // validate expiration
-        if (expiresAt.isBeforeNow()) {
+        if (!expiresAt || expiresAt.isBeforeNow()) {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
                 "phone.sendAnnouncement.expiresInPast")
         }
@@ -389,15 +410,15 @@ class Phone {
         else if (session.phone != this) { //validate session
             resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.receive.notMine')
         }
-        else if (this.announcements) {
+        else if (this.getAnnouncements()) {
             switch (text.message) {
                 case Constants.TEXT_SEE_ANNOUNCEMENTS:
-                    Collection<FeaturedAnnouncement> announces = this.announcements
+                    Collection<FeaturedAnnouncement> announces = this.getAnnouncements()
                     announces.each { FeaturedAnnouncement announce ->
                         announce.addToReceipts(RecordItemType.TEXT, session)
                             .logFail("Phone.receiveText: add announce receipt")
                     }
-                    twimlBuilder.build(TextResponse.ANNOUNCEMENTS,
+                    twimlBuilder.build(TextResponse.SEE_ANNOUNCEMENTS,
                         [announcements:announces])
                     break
                 case Constants.TEXT_TOGGLE_SUBSCRIBE:
@@ -427,7 +448,7 @@ class Phone {
             }
             phoneService.handleSelfCall(this, apiId, digits, staff)
         }
-        else if (this.announcements) {
+        else if (this.getAnnouncements()) {
             phoneService.handleAnnouncementCall(this, apiId, digits, session)
         }
         else {

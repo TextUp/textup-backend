@@ -15,7 +15,7 @@ import org.textup.validator.TempRecordReceipt
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 
-class IncomingTextSpec extends RestSpec {
+class IncomingTextFunctionalSpec extends RestSpec {
 
     String requestUrl = "${baseUrl}/v1/public/records"
 

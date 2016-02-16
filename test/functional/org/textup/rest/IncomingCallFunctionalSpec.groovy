@@ -13,7 +13,7 @@ import org.textup.types.StaffStatus
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 
-class IncomingCallSpec extends RestSpec {
+class IncomingCallFunctionalSpec extends RestSpec {
 
     String requestUrl = "${baseUrl}/v1/public/records"
 
