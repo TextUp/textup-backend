@@ -303,15 +303,20 @@ class TwimlBuilder {
                     String announcementIntro = getMessage("twimlBuilder.call.announcementIntro",
                             [params.identifier]),
                         unsubscribe = getMessage("twimlBuilder.call.announcementUnsubscribe",
-                            [Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE])
+                            [Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE]),
+                        // must have same handle or else from and to numbers are still
+                        // reversed and will result in a "no phone for that number" error
+                        repeatWebhook = getLink(handle:CallResponse.ANNOUNCEMENT_AND_DIGITS,
+                            identifier:params.identifier, message:params.message)
                     callBody = {
                         Say(announcementIntro)
                         Gather(numDigits:1) {
                             Say(formatAnnouncement(DateTime.now(), params.identifier,
                                 params.message))
+                            Pause(length:"1")
                             Say(unsubscribe)
                         }
-                        Redirect(getLink())
+                        Redirect(repeatWebhook)
                     }
                 }
                 break

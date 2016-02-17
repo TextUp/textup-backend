@@ -175,22 +175,42 @@ class CallbackServiceSpec extends CustomSpec {
 		res.payload == "receiveText"
     }
 
-    void "test process for calls"() {
+    void "test process for incoming calls"() {
+        when: "voicemail"
+        HttpServletRequest request = [:] as HttpServletRequest
+        String clientNum = "1233834920"
+        GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
+            handle:CallResponse.VOICEMAIL.toString()],
+            request)
+        // voicemail is inbound so from client to TextUp phone
+        params.From = clientNum
+        params.To = p1.numberAsString
+        Result<Closure> res = service.process(params)
+
+        then:
+        res.success == true
+        res.payload == "receiveVoicemail"
+
+        when: "unspecified or invalid"
+        params.handle = "blahblahinvalid"
+        res = service.process(params)
+
+        then: "receive call"
+        res.success == true
+        res.payload == "receiveCall"
+    }
+
+    void "test process for outbound calls"() {
     	when: "voicemail"
     	HttpServletRequest request = [:] as HttpServletRequest
-    	String fromNum = "1233834920"
-    	GrailsParameterMap params = new GrailsParameterMap([To:p1.numberAsString,
-    		From:fromNum, CallSid:"iamasid!!", handle:CallResponse.VOICEMAIL.toString()],
+    	String clientNum = "1233834920"
+    	GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
+            handle:CallResponse.CONFIRM_BRIDGE.toString()],
     		request)
+        // outbound so from TextUp phone to client
+        params.From = p1.numberAsString
+        params.To = clientNum
     	Result<Closure> res = service.process(params)
-
-    	then:
-    	res.success == true
-		res.payload == "receiveVoicemail"
-
-    	when: "confirm bridge"
-    	params.handle = CallResponse.CONFIRM_BRIDGE.toString()
-		res = service.process(params)
 
     	then:
     	res.success == true
@@ -211,13 +231,5 @@ class CallbackServiceSpec extends CustomSpec {
 		then:
 		res.success == true
 		res.payload == "completeCallAnnouncement"
-
-		when: "unspecified or invalid"
-		params.handle = "blahblahinvalid"
-		res = service.process(params)
-
-		then: "receive call"
-		res.success == true
-		res.payload == "receiveCall"
     }
 }

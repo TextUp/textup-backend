@@ -87,19 +87,28 @@ class CallbackService {
     	String apiId = params.CallSid ?: params.MessageSid,
     		digits = params.Digits
     	PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
-    		toNum = new PhoneNumber(number:params.To as String)
-    	Phone phone = (params.CallSid && (params.Direction as String)?.contains("outbound")) ?
-            Phone.findByNumberAsString(fromNum.number) :
-            Phone.findByNumberAsString(toNum.number)
+    		toNum = new PhoneNumber(number:params.To as String),
+            //usually handle incoming from session (client) to phone (staff)
+            phoneNum = toNum,
+            sessionNum = fromNum
+        // confirm and finish bridge is call from phone to personal phone
+        // announcements are from phone to session (client)
+        if (params.handle == CallResponse.CONFIRM_BRIDGE.toString() ||
+            params.handle == CallResponse.FINISH_BRIDGE.toString() ||
+            params.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()) {
+            phoneNum = fromNum
+            sessionNum = toNum
+        }
+    	Phone phone = Phone.findByNumberAsString(phoneNum.number)
     	if (!phone) {
     		return params.CallSid ? twimlBuilder.notFoundForCall() :
     			twimlBuilder.notFoundForText()
     	}
     	IncomingSession session = IncomingSession.findByPhoneAndNumberAsString(phone,
-    		fromNum.number)
+    		sessionNum.number)
     	// create session for this phone if one doesn't exist yet
     	if (!session) {
-    		session = new IncomingSession(phone:phone, numberAsString:fromNum.number)
+    		session = new IncomingSession(phone:phone, numberAsString:sessionNum.number)
     		if (!session.save()) {
     			return resultFactory.failWithValidationErrors(session.errors)
     		}

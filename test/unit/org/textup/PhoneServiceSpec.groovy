@@ -207,6 +207,10 @@ class PhoneServiceSpec extends CustomSpec {
         assert IncomingSession.findByPhoneAndNumberAsString(p1,
             session.numberAsString) == null
         session.save(flush:true, failOnError:true)
+        // mock twimlbuilder to return a list of strings, as expected
+        service.twimlBuilder = [translate:{ code, params=[:] ->
+            new Result(type:ResultType.SUCCESS, success:true, payload:[params.message])
+        }] as TwimlBuilder
 
         when: "for session with no contacts"
         String message = "hello"

@@ -83,7 +83,13 @@ class Helpers {
         ids
     }
     static DateTime toUTCDateTime(def val) {
-        (val instanceof Date) ? new DateTime(val, DateTimeZone.UTC) : null
+        try {
+            new DateTime(val, DateTimeZone.UTC)
+        }
+        catch (e) {
+            log.debug("Helpers.toUTCDateTime: $e")
+            null
+        }
     }
     static String toString(def val) {
         "$val".toString()

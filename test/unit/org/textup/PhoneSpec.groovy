@@ -454,51 +454,15 @@ class PhoneSpec extends CustomSpec {
         res.payload == CallResponse.FINISH_BRIDGE
     }
 
-    void "test starting and completing announcement"() {
+    void "test announcement success"() {
         given: "phone and incoming sessions, some coinciding with contacts"
         p1.twimlBuilder = getTwimlBuilder()
-
-        when: "expires in the past"
-        Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",
-            DateTime.now().minusDays(1), s1)
-
-        then:
-        res.success == false
-        res.payload instanceof Map
-        res.payload.status == UNPROCESSABLE_ENTITY
-        res.payload.message == "phone.sendAnnouncement.expiresInPast"
-
-        when: "pass in staff that is not an owner"
-        res = p1.sendAnnouncement("hello", DateTime.now().plusDays(1), otherS1)
-
-        then:
-        res.success == false
-        res.payload instanceof Map
-        res.payload.status == FORBIDDEN
-        res.payload.message == "phone.notOwner"
-
-        when: "valid but no subscribers successfully reached"
-        p1.phoneService = [sendTextAnnouncement:{ Phone phone, String message,
-            String identifier, List<IncomingSession> sessions, Staff staff ->
-            new ResultMap<TempRecordReceipt>()
-        }, startCallAnnouncement:{ Phone phone, String message,
-            String identifier, List<IncomingSession> sessions, Staff staff ->
-            new ResultMap<TempRecordReceipt>()
-        }] as PhoneService
-        res = p1.sendAnnouncement("hello", DateTime.now().plusDays(1), s1)
-
-        then:
-        res.success == false
-        res.payload instanceof Map
-        res.type == ResultType.MESSAGE_LIST_STATUS
-        res.payload.status == INTERNAL_SERVER_ERROR
-
-        when: "valid and some subscribers successfully reached"
+        // subscriber
         String subNum = "1223334445"
         IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
             isSubscribedToText:true, isSubscribedToCall:true)
         sess.save(flush:true, failOnError:true)
-
+        // mock services
         p1.phoneService = [sendTextAnnouncement:{ Phone phone, String message,
             String identifier, List<IncomingSession> sessions, Staff staff ->
             ResultMap<TempRecordReceipt> resMap = new ResultMap<>()
@@ -510,9 +474,13 @@ class PhoneSpec extends CustomSpec {
             resMap[subNum] = new Result(type:ResultType.SUCCESS, success:true)
             resMap
         }] as PhoneService
+        // baselines
         int featBaseline = FeaturedAnnouncement.count(),
             aReceiptBaseline = AnnouncementReceipt.count()
-        res = p1.sendAnnouncement("hello", DateTime.now().plusDays(1), s1)
+
+        when: "valid and some subscribers successfully reached"
+        Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",
+            DateTime.now().plusDays(1), s1)
         assert res.success
         p1.save(flush:true, failOnError:true)
 
@@ -538,6 +506,65 @@ class PhoneSpec extends CustomSpec {
         session.isSubscribedToCall == false
         closureRes.success == true
         closureRes.payload == CallResponse.UNSUBSCRIBED
+    }
+
+    void "test announcement error conditions"() {
+        given: "phone and incoming sessions, some coinciding with contacts"
+        p1.twimlBuilder = getTwimlBuilder()
+
+        when: "expires in the past"
+        Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",
+            DateTime.now().minusDays(1), s1)
+
+        then:
+        res.success == false
+        res.payload instanceof Map
+        res.payload.status == UNPROCESSABLE_ENTITY
+        res.payload.message == "phone.sendAnnouncement.expiresInPast"
+
+        when: "pass in staff that is not an owner"
+        res = p1.sendAnnouncement("hello", DateTime.now().plusDays(1), otherS1)
+
+        then:
+        res.success == false
+        res.payload instanceof Map
+        res.payload.status == FORBIDDEN
+        res.payload.message == "phone.notOwner"
+    }
+
+    void "test announcement none reached"() {
+        given: "phone and incoming sessions, some coinciding with contacts"
+        p1.twimlBuilder = getTwimlBuilder()
+        p1.phoneService = [sendTextAnnouncement:{ Phone phone, String message,
+            String identifier, List<IncomingSession> sessions, Staff staff ->
+            new ResultMap<TempRecordReceipt>()
+        }, startCallAnnouncement:{ Phone phone, String message,
+            String identifier, List<IncomingSession> sessions, Staff staff ->
+            new ResultMap<TempRecordReceipt>()
+        }] as PhoneService
+
+        when: "none reached with no subscribers"
+        Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",
+            DateTime.now().plusDays(1), s1)
+
+        then:
+        res.success == true
+        res.payload instanceof FeaturedAnnouncement
+
+        when: "none reached with some subscribers"
+        // add a subscriber
+        String subNum = "1223334445"
+        IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
+            isSubscribedToText:true, isSubscribedToCall:true)
+        sess.save(flush:true, failOnError:true)
+        // another announcement
+        res = p1.sendAnnouncement("hello", DateTime.now().plusDays(1), s1)
+
+        then:
+        res.success == false
+        res.payload instanceof Map
+        res.type == ResultType.MESSAGE_LIST_STATUS
+        res.payload.status == INTERNAL_SERVER_ERROR
     }
 
     void "test receiving text"() {

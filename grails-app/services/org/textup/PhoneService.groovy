@@ -197,10 +197,10 @@ class PhoneService {
     }
     ResultMap<TempRecordReceipt> sendTextAnnouncement(Phone phone, String message,
         String identifier, List<IncomingSession> sessions, Staff staff) {
-        Result res = twimlBuilder.translate(TextResponse.ANNOUNCEMENT,
+        Result<List<String>> res = twimlBuilder.translate(TextResponse.ANNOUNCEMENT,
             [identifier:identifier, message:message])
             .logFail("PhoneService.sendTextAnnouncement")
-        String announcement = res.success ? res.payload : "$identifier: $message"
+        String announcement = res.success ? res.payload[0] : "$identifier: $message"
         startAnnouncement(phone, sessions, { IncomingSession s1 ->
             textService.send(phone.number, [s1.number], announcement)
         }, { Contact c1, TempRecordReceipt receipt ->

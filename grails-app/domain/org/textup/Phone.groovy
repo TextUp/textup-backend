@@ -263,16 +263,16 @@ class Phone {
         IncomingSession.findAllByPhone(this, params)
     }
     int countCallSubscribedSessions() {
-        IncomingSession.countByPhoneAndIsSubscribedToText(this, true)
-    }
-    List<IncomingSession> getCallSubscribedSessions(Map params=[:]) {
-        IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true, params)
-    }
-    int countTextSubscribedSessions() {
         IncomingSession.countByPhoneAndIsSubscribedToCall(this, true)
     }
-    List<IncomingSession> getTextSubscribedSessions(Map params=[:]) {
+    List<IncomingSession> getCallSubscribedSessions(Map params=[:]) {
         IncomingSession.findAllByPhoneAndIsSubscribedToCall(this, true, params)
+    }
+    int countTextSubscribedSessions() {
+        IncomingSession.countByPhoneAndIsSubscribedToText(this, true)
+    }
+    List<IncomingSession> getTextSubscribedSessions(Map params=[:]) {
+        IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true, params)
     }
     List<Staff> getAvailableNow() {
         List<Staff> availableNow = []
@@ -386,8 +386,10 @@ class Phone {
         callResList.logFail("Phone.sendAnnouncement: add call announce receipts")
         // don't use announce.numReceipts here because the dynamic finder
         // will flush the session
-        if ((textResList.isAnySuccess || callResList.isAnySuccess) &&
-            (textSubs || callSubs)) {
+        boolean noSubscribers = (!textSubs && !callSubs),
+            anySuccessWithSubscribers = (textResList.isAnySuccess ||
+                callResList.isAnySuccess) && (textSubs || callSubs)
+        if (noSubscribers || anySuccessWithSubscribers) {
             if (announce.save()) {
                 resultFactory.success(announce)
             }

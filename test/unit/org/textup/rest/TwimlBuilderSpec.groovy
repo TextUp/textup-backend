@@ -276,8 +276,6 @@ class TwimlBuilderSpec extends CustomSpec {
         when: "self greeting"
         Result<Closure> res = builder.build(CallResponse.SELF_GREETING)
 
-        println buildXml(res.payload)
-
         then:
         res.success == true
         buildXml(res.payload) == buildXml({
@@ -596,20 +594,23 @@ class TwimlBuilderSpec extends CustomSpec {
         res.payload.code == "twimlBuilder.invalidCode"
 
         when: "announcement and digits valid"
-        res = builder.build(CallResponse.ANNOUNCEMENT_AND_DIGITS,
-            [message:"hello", identifier:"kiki"])
+        Map params = [identifier:"kiki", message:"hello"]
+        res = builder.build(CallResponse.ANNOUNCEMENT_AND_DIGITS, params)
+
+        String bodyString = buildXml({
+            Say("twimlBuilder.call.announcementIntro")
+            Gather(numDigits:1) {
+                Say("twimlBuilder.announcement")
+                Pause(length:"1")
+                Say("twimlBuilder.call.announcementUnsubscribe")
+            }
+        }).replaceAll(/<call>|<\/call>/, "").replaceAll(/\s+/, "")
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
-            Response {
-                Say("twimlBuilder.call.announcementIntro")
-                Gather(numDigits:1) {
-                    Say("twimlBuilder.announcement")
-                    Say("twimlBuilder.call.announcementUnsubscribe")
-                }
-                Redirect("[:]")
-            }
-        })
+        buildXml(res.payload).replaceAll(/\s+/, "").contains(bodyString)
+        buildXml(res.payload).contains(params.identifier)
+        buildXml(res.payload).contains(params.message)
+        buildXml(res.payload).contains(CallResponse.ANNOUNCEMENT_AND_DIGITS.toString())
     }
 }

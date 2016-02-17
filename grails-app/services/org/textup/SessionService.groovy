@@ -56,10 +56,10 @@ class SessionService {
 	// -------
 
 	protected Result<IncomingSession> updateFields(IncomingSession s1, Map body) {
-		if (body.isSubscribedToText) {
+		if (body.isSubscribedToText != null) {
 			s1.isSubscribedToText = Helpers.toBoolean(body.isSubscribedToText)
 		}
-		if (body.isSubscribedToCall) {
+		if (body.isSubscribedToCall != null) {
 			s1.isSubscribedToCall = Helpers.toBoolean(body.isSubscribedToCall)
 		}
 

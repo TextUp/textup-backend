@@ -17,6 +17,7 @@ import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
+import static org.springframework.http.HttpStatus.*
 
 @TestFor(PublicRecordController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -43,13 +44,15 @@ class PublicRecordControllerSpec extends CustomSpec {
     private Integer _duration
     private Closure _closure = { Test() }
 
-    protected mockForProcess() {
+    protected mockValidate() {
         controller.callbackService = [validate:{ HttpServletRequest request,
             GrailsParameterMap params ->
             new Result(type:ResultType.SUCCESS, success:true, payload:null)
         }, process:{ GrailsParameterMap params ->
             new Result(type:ResultType.SUCCESS, success:true, payload:_closure)
         }] as CallbackService
+    }
+    protected mockUpdateStatus() {
         controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
             Integer duration ->
             _receiptStatus = status
@@ -65,9 +68,30 @@ class PublicRecordControllerSpec extends CustomSpec {
         writer.toString().replaceAll(/<call>|<\/call>|(\s+)/, "")
     }
 
+    void "test updating status for not found receipt"() {
+        when:
+        mockValidate()
+        request.method = "POST"
+        controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
+            Integer duration ->
+            getResultFactory().failWithMessageAndStatus(NOT_FOUND,
+                "recordService.updateStatus.receiptsNotFound", [apiId])
+        }] as RecordService
+        params.handle = Constants.CALLBACK_STATUS
+        params.CallSid = "sid"
+        params.CallStatus = "validStatus"
+        params.CallDuration = 123
+        controller.save()
+
+        then: "return ok when not found because not found is expected"
+        response.status == SC_OK
+        response.contentAsString == ""
+    }
+
     void "test update invalid status"() {
         when:
-        mockForProcess()
+        mockValidate()
+        mockUpdateStatus()
         request.method = "POST"
         params.handle = Constants.CALLBACK_STATUS
         params.CallSid = "sid"
@@ -85,7 +109,8 @@ class PublicRecordControllerSpec extends CustomSpec {
 
     void "test update valid status"() {
         when:
-        mockForProcess()
+        mockValidate()
+        mockUpdateStatus()
         request.method = "POST"
         params.handle = Constants.CALLBACK_STATUS
         params.CallSid = "sid"
@@ -103,7 +128,7 @@ class PublicRecordControllerSpec extends CustomSpec {
 
     void "test process xml"() {
         when: "handle is not CALLBACK_STATUS"
-        mockForProcess()
+        mockValidate()
         request.method = "POST"
         params.handle = "NOT CALLBACK STATUS!!!"
         controller.save()

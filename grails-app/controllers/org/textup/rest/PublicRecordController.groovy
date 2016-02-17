@@ -4,6 +4,8 @@ import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.hibernate.StaleObjectStateException
+import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.types.ReceiptStatus
@@ -34,8 +36,17 @@ class PublicRecordController extends BaseController {
                     ReceiptStatus.translate(params.CallStatus as String) :
                     ReceiptStatus.translate(params.MessageStatus as String)
                 Integer duration = Helpers.toInteger(params.CallDuration)
-                //update status
-                Result<Closure> res = recordService.updateStatus(status, apiId, duration)
+                // update status
+                Result<Closure> res
+                try {
+                    res = recordService.updateStatus(status, apiId, duration)
+                }
+                catch (StaleObjectStateException |
+                    HibernateOptimisticLockingFailureException e) {
+                    log.debug("PublicRecordController: concurrent exception: \
+                        e.message: e.class: ${e.class}, ${e.message}, e: $e")
+                    res = recordService.updateStatus(status, apiId, duration)
+                }
                 if (!res.success && params.ParentCallSid) {
                     res = recordService.updateStatus(status, params.ParentCallSid as String,
                         duration)
@@ -44,7 +55,7 @@ class PublicRecordController extends BaseController {
                 // the receipt will not be found. If we have a not found error,
                 // then catch this and just return an OK status
                 if (!res.success && res.type == ResultType.MESSAGE_STATUS &&
-                    (res.payload as Map).code == NOT_FOUND) {
+                    (res.payload as Map).status == NOT_FOUND) {
                     res.logFail("PublicRecordController: could not find receipt")
                     ok()
                 }
