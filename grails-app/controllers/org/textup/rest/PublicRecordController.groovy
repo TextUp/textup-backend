@@ -4,12 +4,11 @@ import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
-import org.hibernate.StaleObjectStateException
-import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.types.ReceiptStatus
 import org.textup.types.ResultType
+import org.textup.util.OptimisticLockingRetry
 import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
@@ -28,6 +27,7 @@ class PublicRecordController extends BaseController {
     def update() { notAllowed() }
     def delete() { notAllowed() }
 
+    @OptimisticLockingRetry
     def save() {
         callbackService.validate(request, params).then({ ->
             if (params.handle == Constants.CALLBACK_STATUS) {
@@ -37,16 +37,7 @@ class PublicRecordController extends BaseController {
                     ReceiptStatus.translate(params.MessageStatus as String)
                 Integer duration = Helpers.toInteger(params.CallDuration)
                 // update status
-                Result<Closure> res
-                try {
-                    res = recordService.updateStatus(status, apiId, duration)
-                }
-                catch (StaleObjectStateException |
-                    HibernateOptimisticLockingFailureException e) {
-                    log.debug("PublicRecordController: concurrent exception: \
-                        e.message: e.class: ${e.class}, ${e.message}, e: $e")
-                    res = recordService.updateStatus(status, apiId, duration)
-                }
+                Result<Closure> res = recordService.updateStatus(status, apiId, duration)
                 if (!res.success && params.ParentCallSid) {
                     res = recordService.updateStatus(status, params.ParentCallSid as String,
                         duration)

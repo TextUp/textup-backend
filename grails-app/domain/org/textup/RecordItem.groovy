@@ -23,6 +23,7 @@ class RecordItem {
 
     @RestApiObjectField(
         description    = "The direction of communication. Outgoing is from staff to client.",
+        allowedType    = "Boolean",
         useForCreation = false)
 	boolean outgoing = true //true is CM->client, false is CM<-client
 

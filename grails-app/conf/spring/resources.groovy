@@ -9,6 +9,17 @@ import org.textup.util.*
 
 // Place your Spring DSL code here
 beans = {
+
+	// Spring AOP
+	// ----------
+
+	xmlns aop:"http://www.springframework.org/schema/aop"
+	optimisticLockingRetryAspect(OptimisticLockingRetryAspect)
+	aop.config("proxy-target-class":true)
+
+	// src/groovy Helpers
+	// ------------------
+
 	def tConfig = application.config.textup
 	def tRestConfig = tConfig.rest
 	def apiConfig = tConfig.apiKeys

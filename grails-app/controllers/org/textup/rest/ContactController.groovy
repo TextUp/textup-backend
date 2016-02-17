@@ -5,12 +5,11 @@ import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
-import org.hibernate.StaleObjectStateException
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
-import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.util.OptimisticLockingRetry
 import static org.springframework.http.HttpStatus.*
 
 @GrailsCompileStatic
@@ -51,8 +50,6 @@ class ContactController extends BaseController {
     @RestApiErrors(apierrors=[
         @RestApiError(code="404",description='''The staff or team was not found. Or, the
             staff or team specified is not allowed to have contacts.'''),
-        @RestApiError(code="400", description='''You must specify either a staff id or
-            team id or tag id, but not more than one. Or you specified an invalid shareStatus.'''),
         @RestApiError(code="403", description="You do not have permission to do this.")
     ])
     @Transactional(readOnly=true)
@@ -162,10 +159,12 @@ class ContactController extends BaseController {
         	paramType=RestApiParamType.QUERY, description="Id of the team member")
     ])
     @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request. Or, you did not specify either staff id or team id (but not both)"),
+        @RestApiError(code="400", description="Malformed JSON in request."),
         @RestApiError(code="422", description="The updated fields created an invalid contact."),
-        @RestApiError(code="403", description="You do not permissions to create a new contact for this staff member or team."),
-        @RestApiError(code="404",  description="The staff or team member to add this contact to was not found.")
+        @RestApiError(code="403", description="You do not permissions to create \
+            a new contact for this team."),
+        @RestApiError(code="404",  description="The team member to \
+            add this contact to was not found.")
     ])
     def save() {
     	if (!validateJsonRequest(request, "contact")) { return }
@@ -200,6 +199,7 @@ class ContactController extends BaseController {
         @RestApiError(code="403", description="You do not have permission to modify this contact."),
         @RestApiError(code="422", description="The updated fields created an invalid contact.")
     ])
+    @OptimisticLockingRetry
     def update() {
     	if (!validateJsonRequest(request, "contact")) { return; }
         Long id = params.long("id")
@@ -207,15 +207,7 @@ class ContactController extends BaseController {
             if (authService.hasPermissionsForContact(id) ||
                 authService.getSharedContactIdForContact(id)) {
                 Map cInfo = (request.properties.JSON as Map).contact as Map
-                try {
-                    handleUpdateResult(Contact, contactService.update(id, cInfo))
-                }
-                catch (StaleObjectStateException |
-                    HibernateOptimisticLockingFailureException e) {
-                    log.debug("ContactController.update: concurrent exception: \
-                        e.message: e.class: ${e.class}, ${e.message}, e: $e")
-                    this.update()
-                }
+                handleUpdateResult(Contact, contactService.update(id, cInfo))
             }
             else { forbidden() }
         }
@@ -225,16 +217,5 @@ class ContactController extends BaseController {
     // Delete
     // ------
 
-    @RestApiMethod(description="Delete an existing contact")
-    @RestApiParams(params=[
-        @RestApiParam(name="id", type="number", paramType=RestApiParamType.PATH,
-        	description="Id of the contact")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="404", description="The requested contact was not found."),
-        @RestApiError(code="403", description="You do not have permission to modify this contact.")
-    ])
-    def delete() {
-        notAllowed()
-    }
+    def delete() { notAllowed() }
 }

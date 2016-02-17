@@ -11,6 +11,7 @@ import org.textup.*
 import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
+@RestApi(name="Announcement", description="Operations on announcements, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class AnnouncementController extends BaseController {
 
@@ -22,6 +23,20 @@ class AnnouncementController extends BaseController {
     // List
     // ----
 
+    @RestApiMethod(description="List announcement for a specific staff or team", listing=true)
+    @RestApiParams(params=[
+        @RestApiParam(name="max", type="Number", required=false,
+            paramType=RestApiParamType.QUERY, description="Max number of results"),
+        @RestApiParam(name="offset", type="Number", required=false,
+            paramType=RestApiParamType.QUERY, description="Offset of results"),
+        @RestApiParam(name="teamId", type="Number", required=true,
+            paramType=RestApiParamType.QUERY, description="Id of the team member"),
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="404",description='''The staff or team was not found. Or, the
+            staff or team specified is not allowed to have announcement.'''),
+        @RestApiError(code="403", description="You do not have permission to do this.")
+    ])
     @Transactional(readOnly=true)
     def index() {
     	Phone p1
@@ -52,6 +67,16 @@ class AnnouncementController extends BaseController {
     // Show
     // ----
 
+    @RestApiMethod(description="Show specifics about a announcement")
+    @RestApiParams(params=[
+        @RestApiParam(name="id", type="Number",
+            paramType=RestApiParamType.PATH, description="Id of the announcement")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="403", description="You do not have permissions \
+            to view this announcement."),
+        @RestApiError(code="404",  description="The requested announcement was not found.")
+    ])
     @Transactional(readOnly=true)
     def show() {
     	Long id = params.long("id")
@@ -67,6 +92,20 @@ class AnnouncementController extends BaseController {
     // Save
     // ----
 
+    @RestApiMethod(description="Create a new announcement for staff member or team")
+    @RestApiParams(params=[
+        @RestApiParam(name="teamId", type="Number",
+            paramType=RestApiParamType.QUERY, description="Id of the team member")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="400", description="Malformed JSON in request."),
+        @RestApiError(code="422", description="The updated fields created an \
+            invalid announcement."),
+        @RestApiError(code="403", description="You do not permissions to create \
+            a new announcement for this team."),
+        @RestApiError(code="404",  description="The team member to \
+            add this announcement to was not found.")
+    ])
     def save() {
     	if (!validateJsonRequest(request, "announcement")) { return }
     	Map aInfo = (request.properties.JSON as Map).announcement as Map
@@ -93,6 +132,19 @@ class AnnouncementController extends BaseController {
     // Update
     // ------
 
+    @RestApiMethod(description="Update an existing announcement")
+    @RestApiParams(params=[
+        @RestApiParam(name="id", type="Number",
+            paramType=RestApiParamType.PATH, description="Id of the announcement")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="400", description="Malformed JSON in request."),
+        @RestApiError(code="404", description="The requested announcement was not found."),
+        @RestApiError(code="403", description="You do not have permission to \
+            modify this announcement."),
+        @RestApiError(code="422", description="The updated fields created an \
+            invalid announcement.")
+    ])
     def update() {
     	if (!validateJsonRequest(request, "announcement")) { return }
     	Long id = params.long("id")

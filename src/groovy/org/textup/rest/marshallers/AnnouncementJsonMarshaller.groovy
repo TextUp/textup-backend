@@ -21,6 +21,8 @@ class AnnouncementJsonMarshaller extends JsonNamedMarshaller {
             message = announce.message
             whenCreated = announce.whenCreated
             numReceipts = announce.numReceipts
+            numCallReceipts = announce.numCallReceipts
+            numTextReceipts = announce.numTextReceipts
         }
         if (announce.owner.owner.type == PhoneOwnershipType.INDIVIDUAL) {
             json.staff = announce.owner.owner.ownerId

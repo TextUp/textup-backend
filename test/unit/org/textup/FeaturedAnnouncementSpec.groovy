@@ -83,6 +83,8 @@ class FeaturedAnnouncementSpec extends CustomSpec {
     	RecordCall.count() == callBaseline //no calls added
         AnnouncementReceipt.count() == aRecBaseline + 3
     	announce.numReceipts == 3
+        announce.numCallReceipts == 3
+        announce.numTextReceipts == 0
 
     	when: "we add texts"
         int textBaseline = RecordText.count()
@@ -93,5 +95,7 @@ class FeaturedAnnouncementSpec extends CustomSpec {
         RecordText.count() == textBaseline //no texts added
         AnnouncementReceipt.count() == aRecBaseline + 6
         announce.numReceipts == 6
+        announce.numCallReceipts == 3
+        announce.numTextReceipts == 3
     }
 }

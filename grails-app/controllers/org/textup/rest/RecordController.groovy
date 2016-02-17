@@ -5,13 +5,12 @@ import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
-import org.hibernate.StaleObjectStateException
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
-import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.util.OptimisticLockingRetry
 import static org.springframework.http.HttpStatus.*
 
 @GrailsCompileStatic
@@ -147,23 +146,16 @@ class RecordController extends BaseController {
         @RestApiError(code="422", description="The fields created an invalid \
             record item.")
     ])
+    @OptimisticLockingRetry
     def save() {
         if (!validateJsonRequest(request, "record")) { return; }
         Map rInfo = (request.properties.JSON as Map).record as Map
-        try {
-            if (params.long("teamId")) {
-                Long tId = params.long("teamId")
-                handleResultListForSave("record", recordService.createForTeam(tId, rInfo))
-            }
-            else {
-                handleResultListForSave("record", recordService.createForStaff(rInfo))
-            }
+        if (params.long("teamId")) {
+            Long tId = params.long("teamId")
+            handleResultListForSave("record", recordService.createForTeam(tId, rInfo))
         }
-        catch (StaleObjectStateException |
-            HibernateOptimisticLockingFailureException e) {
-            log.debug("RecordController.save: concurrent exception: \
-                e.message: e.class: ${e.class}, ${e.message}, e: $e")
-            this.save()
+        else {
+            handleResultListForSave("record", recordService.createForStaff(rInfo))
         }
     }
 

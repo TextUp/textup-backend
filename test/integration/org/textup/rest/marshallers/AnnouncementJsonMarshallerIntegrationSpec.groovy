@@ -37,6 +37,8 @@ class AnnouncementJsonMarshallerIntegrationSpec extends CustomSpec {
         json.message == announce.message
         json.whenCreated == announce.whenCreated.toString()
         json.numReceipts == announce.numReceipts
+        json.numCallReceipts == announce.numCallReceipts
+        json.numTextReceipts == announce.numTextReceipts
         json.staff == announce.owner.owner.ownerId
         json.team == null
     }

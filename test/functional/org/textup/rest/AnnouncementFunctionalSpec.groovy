@@ -146,6 +146,8 @@ class AnnouncementFunctionalSpec extends RestSpec {
         response.json.announcement.expiresAt == expires.withZone(DateTimeZone.UTC).toString()
         response.json.announcement.isExpired == false
         response.json.announcement.numReceipts == numCallSubs + numTextSubs
+        response.json.announcement.numCallReceipts == numCallSubs
+        response.json.announcement.numTextReceipts == numTextSubs
         response.json.announcement.numReceipts ==
             doneData.callParams.size() + doneData.textRecipients.size()
         doneData.callParams.every { it.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS }
