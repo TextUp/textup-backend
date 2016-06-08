@@ -161,10 +161,8 @@ class PhoneSpec extends CustomSpec {
         c1_3.save(flush:true, failOnError:true)
     	res = p1.stopShare(c1_3)
 
-    	then:
-    	res.success == false
-    	res.payload instanceof Map
-        res.payload.code == "phone.stopShare.notShared"
+    	then: "silently ignore that contact is not shared"
+    	res.success == true
 
     	when: "we stop sharing by phones"
     	assert p1.stopShare(p2).success

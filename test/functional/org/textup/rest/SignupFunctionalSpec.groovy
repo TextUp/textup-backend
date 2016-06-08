@@ -64,11 +64,10 @@ class SignupFunctionalSpec extends RestSpec {
         response.json.staff.username == un
         response.json.staff.password == null
         response.json.staff.status == StaffStatus.ADMIN.toString()
-        response.json.staff.orgName == orgN
+        response.json.staff.org == null // because not logged in
 
         when: "log in with new user"
         Long staffId = response.json.staff.id
-        Long orgId = response.json.staff.org
         response = rest.post("$baseUrl/login") {
             contentType "application/json"
             json {
@@ -79,19 +78,21 @@ class SignupFunctionalSpec extends RestSpec {
 
         then:
         response.status == OK.value()
-        response.json.id == staffId
-        response.json.name == n
-        response.json.email == em
-        response.json.status == StaffStatus.ADMIN.toString()
+        response.json.staff instanceof Map
+        response.json.staff.id == staffId
+        response.json.staff.name == n
+        response.json.staff.email == em
+        response.json.staff.status == StaffStatus.ADMIN.toString()
+        response.json.staff.org instanceof Map
+        response.json.staff.org.name == orgN
+        response.json.staff.org.status == OrgStatus.PENDING.toString()
         response.json.roles instanceof List
         response.json.roles.isEmpty() == false
         response.json.roles.contains("ROLE_NO_ROLES") == false
         response.json.roles.contains("ROLE_USER") == true
-        response.json.org.id == orgId
-        response.json.org.name == orgN
-        response.json.org.status == OrgStatus.PENDING.toString()
 
         when: "view org we just created"
+        Long orgId = response.json.staff.org.id
         String newAuthToken = response.json.access_token
         response = rest.get("$baseUrl/v1/organizations/${orgId}") {
             header("Authorization", "Bearer $newAuthToken")
@@ -150,12 +151,10 @@ class SignupFunctionalSpec extends RestSpec {
         response.json.staff.username == un
         response.json.staff.password == null
         response.json.staff.status == StaffStatus.PENDING.toString()
-        response.json.staff.orgName == existingOrg.name
-        response.json.staff.org == existingOrg.id
+        response.json.staff.org == null // not logged in
 
         when: "log in with new user"
         Long staffId = response.json.staff.id
-        Long orgId = response.json.staff.org
         response = rest.post("$baseUrl/login") {
             contentType "application/json"
             json {
@@ -166,19 +165,21 @@ class SignupFunctionalSpec extends RestSpec {
 
         then:
         response.status == OK.value()
-        response.json.id == staffId
-        response.json.name == n
-        response.json.email == em
-        response.json.status == StaffStatus.PENDING.toString()
+        response.json.staff instanceof Map
+        response.json.staff.id == staffId
+        response.json.staff.name == n
+        response.json.staff.email == em
+        response.json.staff.status == StaffStatus.PENDING.toString()
+        response.json.staff.org instanceof Map
+        response.json.staff.org.name == existingOrg.name
+        response.json.staff.org.status == existingOrg.status
         response.json.roles instanceof List
         response.json.roles.isEmpty() == false
         response.json.roles.contains("ROLE_NO_ROLES") == false
         response.json.roles.contains("ROLE_USER") == true
-        response.json.org.id == orgId
-        response.json.org.name == existingOrg.name
-        response.json.org.status == existingOrg.status
 
         when: "view org we just created"
+        Long orgId = response.json.staff.org.id
         String newAuthToken = response.json.access_token
         response = rest.get("$baseUrl/v1/organizations/${orgId}") {
             header("Authorization", "Bearer $newAuthToken")

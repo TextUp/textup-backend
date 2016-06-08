@@ -41,8 +41,8 @@ class SocketController extends BaseController {
             channelName = params.channel_name,
             channelUsername = channelName ? (channelName - "private-") : null,
             socketId = params.socket_id
-        if ((authUsername && channelUsername && socketId) ||
-            authUsername != channelUsername) {
+        if ((authUsername && channelUsername && socketId) &&
+            authUsername == channelUsername) {
             def authResult = pusherService.authenticate(socketId, channelName)
             try {
                 render status:OK

@@ -143,34 +143,27 @@ class Phone {
         }
         else { resultFactory.failWithValidationErrors(sc.errors) }
     }
-    Result<List<SharedContact>> stopShare(Phone sWith) {
+    Result stopShare(Phone sWith) {
         List<SharedContact> shareds = SharedContact
             .listForSharedByAndSharedWith(this, sWith)
         shareds.each { SharedContact sc -> sc.stopSharing() }
-        resultFactory.success(shareds)
+        resultFactory.success()
     }
-    Result<SharedContact> stopShare(Contact c1, Phone sWith) {
+    Result stopShare(Contact c1, Phone sWith) {
         SharedContact sc1 = SharedContact
             .listForContactAndSharedWith(c1, sWith, [max:1])[0]
         if (sc1) {
             sc1.stopSharing()
-            resultFactory.success(sc1)
         }
-        else { resultFactory.failWithMessageAndStatus(NOT_FOUND,
-            "phone.stopShare.notShared", [c1?.name]) }
+        resultFactory.success()
     }
-    Result<List<SharedContact>> stopShare(Contact contact) {
+    Result stopShare(Contact contact) {
         if (contact?.phone != this) {
             return resultFactory.failWithMessage("phone.contactNotMine", [contact?.name])
         }
         List<SharedContact> shareds = SharedContact.listForContact(contact)
-        if (shareds) {
-            shareds.each { SharedContact sc -> sc.stopSharing() }
-            resultFactory.success(shareds)
-        }
-        else {
-            resultFactory.failWithMessage("phone.stopShare.notShared", [contact?.name])
-        }
+        shareds?.each { SharedContact sc -> sc.stopSharing() }
+        resultFactory.success()
     }
 
     // Property Access

@@ -25,7 +25,7 @@ class TeamService {
     	Team t1 = new Team(org:o1)
         Result.<Team>waterfall(
             this.&updateTeamInfo.curry(t1, body),
-            this.&updateOrCreatePhone.rcurry(body)
+            this.&createOrUpdatePhone.rcurry(body)
         ).then({
             if (t1.save()) {
                 resultFactory.success(t1)
@@ -49,34 +49,22 @@ class TeamService {
                 return resultFactory.failWithValidationErrors(loc.errors)
             }
         }
-        if (t1.phone && body.awayMessage) {
-            t1.phone.awayMessage = body.awayMessage
-            if (!t1.phone.save()) {
-                return resultFactory.failWithValidationErrors(t1.phone.errors)
-            }
-        }
         if (t1.save()) {
             resultFactory.success(t1)
         }
         else { resultFactory.failWithValidationErrors(t1.errors) }
     }
-    protected Result<Team> updateOrCreatePhone(Team t1, Map body) {
-        if (body.phone || body.phoneId) {
+    protected Result<Team> createOrUpdatePhone(Team t1, Map body) {
+        if (body.phone instanceof Map) {
             Phone p1 = t1.phone ?: new Phone([:])
             p1.updateOwner(t1)
-            Result<Phone> res
-            if (body.phone) {
-                PhoneNumber pNum = new PhoneNumber(number:body.phone as String)
-                res = phoneService.updatePhoneForNumber(p1, pNum)
-            }
-            else {
-                res = phoneService.updatePhoneForApiId(p1, body.phoneId as String)
-            }
-            res.then({
+            phoneService.update(p1, body.phone as Map).then({
                 if (p1.save()) {
                     resultFactory.success(t1)
                 }
-                else { resultFactory.failWithValidationErrors(p1.errors) }
+                else {
+                    resultFactory.failWithValidationErrors(p1.errors)
+                }
             }) as Result<Staff>
         }
         else { resultFactory.success(t1) }
@@ -90,7 +78,7 @@ class TeamService {
             this.&findTeamFromId.curry(tId),
             this.&handleTeamActions.rcurry(body),
             this.&updateTeamInfo.rcurry(body),
-            this.&updateOrCreatePhone.rcurry(body)
+            this.&createOrUpdatePhone.rcurry(body)
         ).then({ Team t1 ->
             if (t1.save()) {
                 resultFactory.success(t1)
@@ -130,7 +118,7 @@ class TeamService {
                     "teamService.update.staffForbidden",
                     [tAction.id])
             }
-            switch(tAction.action) {
+            switch(Helpers.toLowerCaseString(tAction.action)) {
                 case Constants.TEAM_ACTION_ADD:
                     t1.addToMembers(s1)
                     break

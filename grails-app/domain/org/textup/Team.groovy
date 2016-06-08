@@ -109,9 +109,9 @@ class Team {
 
     @GrailsCompileStatic
     Collection<Staff> getActiveMembers() {
-        this.members.findAll { Staff s1 ->
+        this.members?.findAll { Staff s1 ->
             s1.status == StaffStatus.STAFF || s1.status == StaffStatus.ADMIN
-        }
+        } ?: []
     }
     @GrailsCompileStatic
     Collection<Staff> getMembersByStatus(Collection statuses=[]) {

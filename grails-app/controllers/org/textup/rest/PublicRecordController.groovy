@@ -8,7 +8,6 @@ import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.types.ReceiptStatus
 import org.textup.types.ResultType
-import org.textup.util.OptimisticLockingRetry
 import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
@@ -27,7 +26,6 @@ class PublicRecordController extends BaseController {
     def update() { notAllowed() }
     def delete() { notAllowed() }
 
-    @OptimisticLockingRetry
     def save() {
         callbackService.validate(request, params).then({ ->
             if (params.handle == Constants.CALLBACK_STATUS) {

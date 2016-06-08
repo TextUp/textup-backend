@@ -28,14 +28,11 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         if (c1.status) {
             json.status = c1.status.toString()
         }
-        json.numbers = c1.numbers?.collect { ContactNumber num ->
-            [
-                id:num.id,
-                number:num.prettyPhoneNumber,
-                preference:num.preference,
-                contactId:c1.contactId
-            ]
-        } ?: []
+        json.numbers = c1.numbers
+            ?.sort { ContactNumber num -> num.preference }
+            ?.collect { ContactNumber num ->
+                [number:num.prettyPhoneNumber]
+            } ?: []
         // add fields specific to Contacts or SharedContacts
         if (c1.instanceOf(Contact)) {
             Contact contact = c1 as Contact
@@ -46,16 +43,18 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
                     id:sc.id,
                     whenCreated:sc.whenCreated,
                     permission:sc.permission.toString(),
-                    sharedWith:sc.sharedWith.name
+                    sharedWith:sc.sharedWith.id // use the PHONE's id
                 ]
             }
+            json.phone = contact.phone.id
         }
         else if (c1.instanceOf(SharedContact)) {
             SharedContact sc = c1 as SharedContact
             json.permission = sc.permission.toString()
             json.startedSharing = sc.whenCreated
-            json.sharedWith = sc.sharedWith.name
-            json.sharedWithId = sc.sharedWith.id
+            json.sharedBy = sc.sharedBy.name
+            json.sharedById = sc.sharedBy.id
+            json.phone = sc.sharedWith.id
         }
         else {
             log.error("ContactableJsonMarshaller: passed in Contactable $c1 is \

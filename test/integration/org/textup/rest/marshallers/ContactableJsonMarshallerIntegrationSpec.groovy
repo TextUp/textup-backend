@@ -25,7 +25,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.numbers instanceof List
         assert json.numbers.size() == (c1.numbers ? c1.numbers.size() : 0)
         c1.numbers?.each { ContactNumber num ->
-            assert json.numbers.find { it.id == num.id }
+            assert json.numbers.find { it.number == num.prettyPhoneNumber }
         }
         true
     }
@@ -70,7 +70,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         validate(json, sc2)
         json.permission == sc2.permission.toString()
         json.startedSharing == sc2.whenCreated.toString()
-        json.sharedWith == sc2.sharedWith.name
-        json.sharedWithId == sc2.sharedWith.id
+        json.sharedBy == sc2.sharedBy.name
+        json.sharedById == sc2.sharedBy.id
     }
 }

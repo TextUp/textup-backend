@@ -147,4 +147,26 @@ class SharedContactSpec extends CustomSpec {
     	sCont == null
 		scList.isEmpty() == true
     }
+
+    @FreshRuntime
+    void "test finding by contact ids and shared by"() {
+        when: "none are expired"
+        SharedContact sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
+        List<SharedContact> scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+
+        then: "both show up"
+        sCont == sc2
+        scList.size() == 1
+        scList[0] == sc2
+
+        when: "one is expired"
+        sc2.stopSharing()
+        sc2.save(flush:true, failOnError:true)
+        sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
+        scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+
+        then: "does not show up anymore"
+        sCont == null
+        scList.isEmpty() == true
+    }
 }

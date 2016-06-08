@@ -187,6 +187,7 @@ textup {
     defaultMax = 10 //default max during pagination
     largestMax = 100 //largest max allowed during pagination
     resetTokenSize = 25
+    verifyTokenSize = 5
 
     voicemailBucketName = "media-textup-org"
     mail {
@@ -213,6 +214,7 @@ textup {
             authToken = System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
             unavailable="assigned"
             available="unassigned"
+            notificationNumber = System.getenv("TWILIO_NOTIFICATIONS_NUMBER") ?: System.getProperty("TWILIO_NOTIFICATIONS_NUMBER")
         }
         aws {
             accessKey = System.getenv("AWS_ACCESS_KEY") ?: System.getProperty("AWS_ACCESS_KEY")
@@ -234,14 +236,17 @@ textup {
     rest {
         defaultLabel = "default" //default is to link to relationships
         v1 {
-            contact = [singular:"contact", plural:"contacts"]
-            record = [singular:"record", plural:"records"]
-            tag = [singular:"tag", plural:"tags"]
-            staff = [singular:"staff", plural:"staff"]
-            team = [singular:"team", plural:"teams"]
-            organization = [singular:"organization", plural:"organizations"]
             announcement = [singular:"announcement", plural:"announcements"]
+            contact = [singular:"contact", plural:"contacts"]
+            location = [singular:"location", plural:"locations"]
+            organization = [singular:"organization", plural:"organizations"]
+            phone = [singular:"phone", plural:"phones"]
+            record = [singular:"record", plural:"records"]
+            schedule = [singular:"schedule", plural:"schedules"]
             session = [singular:"session", plural:"sessions"]
+            staff = [singular:"staff", plural:"staff"]
+            tag = [singular:"tag", plural:"tags"]
+            team = [singular:"team", plural:"teams"]
         }
     }
 }

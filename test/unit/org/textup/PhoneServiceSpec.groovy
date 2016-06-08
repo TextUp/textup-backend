@@ -11,13 +11,13 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
+import org.textup.types.CallResponse
+import org.textup.types.ContactStatus
 import org.textup.types.PhoneOwnershipType
 import org.textup.types.RecordItemType
 import org.textup.types.ResultType
 import org.textup.types.StaffStatus
-import org.textup.types.ContactStatus
 import org.textup.types.TextResponse
-import org.textup.types.CallResponse
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
@@ -26,6 +26,7 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
 import spock.lang.Shared
+import static org.springframework.http.HttpStatus.*
 
 @TestFor(PhoneService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -42,6 +43,7 @@ class PhoneServiceSpec extends CustomSpec {
     String _apiId = "iamsospecial!!!"
     int _maxNumReceipients = 100
     String _textedMessage
+    int _numTextsSent = 0
 
     def setup() {
         setupData()
@@ -52,6 +54,7 @@ class PhoneServiceSpec extends CustomSpec {
         service.textService = [send:{ BasePhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String message ->
             _textedMessage = message
+            _numTextsSent++
             new Result(type:ResultType.SUCCESS, success:true,
                 payload: new TempRecordReceipt(apiId:_apiId,
                     receivedByAsString:toNums[0].number))
@@ -74,16 +77,74 @@ class PhoneServiceSpec extends CustomSpec {
         }, translate:{ code, params=[:] ->
             new Result(type:ResultType.SUCCESS, success:true, payload:code)
         }] as TwimlBuilder
+        service.authService = [getIsActive: { true }] as AuthService
     }
 
     def cleanup() {
         cleanupData()
     }
 
-    // Numbers
-    // -------
+    // Updating (including numbers)
+    // ----------------------------
 
-    void "test update phone number degenerate cases"() {
+    // Can only test edge cases because have not discovered a way to mock
+    // Twilio api library classes such as IncomingPhoneNumber
+
+    void "test updating phone away message"() {
+        when:
+        String msg = "ting ting 123"
+        Result<Phone> res = service.update(s1.phone, [awayMessage:msg])
+
+        then:
+        res.success == true
+        res.payload instanceof Phone
+        res.payload.awayMessage == msg
+    }
+    void "test updating phone number when not active"() {
+        given:
+        service.authService = [getIsActive: { false }] as AuthService
+
+        when:
+        PhoneNumber newNum = new PhoneNumber(number:'1112223333')
+        assert newNum.validate()
+        Result<Phone> res = service.update(s1.phone, [number:newNum.number])
+        String originalNum = s1.phone.numberAsString
+
+        then: "new number is ignored"
+        res.success == true
+        res.payload instanceof Phone
+        res.payload.numberAsString == originalNum
+    }
+    @FreshRuntime
+    void "test updating phone number with apiId"() {
+        given: "baseline"
+        int baseline = Phone.count()
+        String oldApiId = "kikiIsCute",
+            anotherApiId = "tingtingIsAwesome"
+        s1.phone.apiId = oldApiId
+        s2.phone.apiId = anotherApiId
+        [s1, s2]*.save(flush:true, failOnError:true)
+
+        when: "with same phone number apiId"
+        Result<Phone> res = service.updatePhoneForApiId(s1.phone, oldApiId)
+
+        then:
+        res.success == true
+        res.payload instanceof Phone
+        res.payload.apiId == oldApiId
+        Phone.count() == baseline
+
+        when: "with apiId belonging to another phone"
+        res = service.updatePhoneForApiId(s1.phone, anotherApiId)
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == UNPROCESSABLE_ENTITY
+        res.payload.message == "phoneService.changeNumber.duplicate"
+    }
+    @FreshRuntime
+    void "test updating phone number with new number"() {
         given: "baseline"
         int baseline = Phone.count()
         String oldApiId = "kikiIsCute"
@@ -107,15 +168,6 @@ class PhoneServiceSpec extends CustomSpec {
         res.success == false
         res.payload instanceof ValidationErrors
         res.payload.errorCount == 1
-        Phone.count() == baseline
-
-        when: "with same phone number apiId"
-        res = service.updatePhoneForApiId(s1.phone, oldApiId)
-
-        then:
-        res.success == true
-        res.payload instanceof Phone
-        res.payload.apiId == oldApiId
         Phone.count() == baseline
     }
 
@@ -403,6 +455,66 @@ class PhoneServiceSpec extends CustomSpec {
     }
 
     @FreshRuntime
+    void "test relaying text for contact that is shared"() {
+        given: "baselines, availability, new session"
+        int cBaseline = Contact.count()
+        int tBaseline = RecordText.count()
+        int rBaseline = RecordItemReceipt.count()
+        IncomingSession session = new IncomingSession(phone:p1,
+            numberAsString:sc1.numbers[0].number,
+            lastSentInstructions:DateTime.now().minusDays(1))
+        session.save(flush:true, failOnError:true)
+        Phone sBy = sc1.sharedBy,
+            sWith = sc1.sharedWith
+        assert sBy.announcements.isEmpty()
+
+        when: """
+            we receive text to a TextUp phone that is unavailable but one of
+            the contact that matches the incoming number is shared with a phone
+            whose owner(s) are available
+        """
+        // phone that owns contact isn't available
+        sBy.owner.all.each { Staff s1 ->
+            s1.manualSchedule = true
+            s1.isAvailable = false
+            s1.save(flush:true, failOnError:true)
+        }
+        // phone that contact is shared with has staff that are available
+        sWith.owner.all.each { Staff s1 ->
+            s1.manualSchedule = true
+            s1.isAvailable = true
+            s1.save(flush:true, failOnError:true)
+        }
+        [sBy, sWith]*.save(flush:true, failOnError:true)
+
+        IncomingText text = new IncomingText(apiId:"iamsosecret", message:"hello")
+        assert text.validate()
+        _numTextsSent = 0
+        Result res = service.relayText(sBy, text, session)
+
+        then: "no away message sent and only available staff notified"
+        res.success == true
+        res.payload == []
+        _numTextsSent == sWith.owner.all.size()
+
+        when: "that shared with phone's staff owner is no longer available"
+        // phone that contact is shared with has staff that are available
+        sWith.owner.all.each { Staff s1 ->
+            s1.manualSchedule = true
+            s1.isAvailable = false
+            s1.save(flush:true, failOnError:true)
+        }
+        sWith.save(flush:true, failOnError:true)
+        _numTextsSent = 0
+        res = service.relayText(sBy, text, session)
+
+        then: "away message is sent since no staff are available"
+        res.success == true
+        res.payload == [sBy.awayMessage]
+        _numTextsSent == 0
+    }
+
+    @FreshRuntime
     void "test relay call"() {
         given: "session with no corresponding contact"
         int cBaseline = Contact.count()
@@ -438,6 +550,55 @@ class PhoneServiceSpec extends CustomSpec {
 
         then: "no additional contact created, voicemail"
         Contact.count() == cBaseline + 1
+        RecordCall.count() == iBaseline + 2
+        RecordItemReceipt.count() == rBaseline + 2
+        res.success == true
+        res.payload == CallResponse.VOICEMAIL
+    }
+
+    @FreshRuntime
+    void "test relaying call for contact that is shared"() {
+        given: "session with no corresponding contact"
+        int cBaseline = Contact.count()
+        int iBaseline = RecordCall.count()
+        int rBaseline = RecordItemReceipt.count()
+        Phone sWith = sc1.sharedWith,
+            sBy = sc1.sharedBy
+        IncomingSession session = new IncomingSession(phone:sBy,
+            numberAsString:sc1.numbers[0].number,
+            lastSentInstructions:DateTime.now().minusDays(1))
+        session.save(flush:true, failOnError:true)
+
+        when: "call sharedBy is unavailable but sharedWith is available"
+        sBy.owner.all.each { Staff s1 ->
+            s1.manualSchedule = true
+            s1.isAvailable = false
+            s1.save(flush:true, failOnError:true)
+        }
+        sWith.owner.all.each { Staff s1 ->
+            s1.manualSchedule = true
+            s1.isAvailable = true
+            s1.save(flush:true, failOnError:true)
+        }
+        Result res = service.relayCall(sBy, "apiId", session)
+
+        then: "call connecting"
+        Contact.count() == cBaseline
+        RecordCall.count() == iBaseline + 1
+        RecordItemReceipt.count() == rBaseline + 1
+        res.success == true
+        res.payload == CallResponse.CONNECT_INCOMING
+
+        when: "none avabilable"
+        sWith.owner.all.each { Staff s1 ->
+            s1.manualSchedule = true
+            s1.isAvailable = false
+            s1.save(flush:true, failOnError:true)
+        }
+        res = service.relayCall(sBy, "apiId", session)
+
+        then: "voicemail"
+        Contact.count() == cBaseline
         RecordCall.count() == iBaseline + 2
         RecordItemReceipt.count() == rBaseline + 2
         res.success == true

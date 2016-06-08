@@ -17,9 +17,7 @@ import org.textup.types.ScheduleStatus
 import org.textup.validator.ScheduleChange
 import org.textup.validator.LocalInterval
 
-/////////////////////////////////////////////////
-// WeeklySchedule assumes all times are in UTC //
-/////////////////////////////////////////////////
+// WeeklySchedule assumes all times are in UTC
 
 @Domain([Schedule, WeeklySchedule])
 @TestMixin(HibernateTestMixin)
@@ -225,17 +223,17 @@ class WeeklyScheduleSpec extends Specification {
         WeeklySchedule s = new WeeklySchedule()
         s.resultFactory = getResultFactory()
         s.save(flush:true, failOnError:true)
-        String tz = "America/New_York"
+        String tz = "America/Phoenix" // use this one to avoid daylight savings complications
 
-    	when: "we update from eastern time zone"
+    	when: "we update from specified time zone"
     	assert s.updateWithIntervalStrings([monday:["0100:0600", "0530:0730"]], tz).success
 
     	then: "data is stored in UTC"
-    	s.monday == "0600,1230"
+    	s.monday == "0800,1430"
     	s.getAllAsLocalIntervals().monday == [new LocalInterval(
-    		new LocalTime(6, 0), new LocalTime(12, 30))]
+    		new LocalTime(8, 0), new LocalTime(14, 30))]
 
-    	and: "we can retrieve in eastern time zone"
+    	and: "we can retrieve in specified time zone"
     	s.getAllAsLocalIntervals(tz).monday == [new LocalInterval(
     		new LocalTime(1, 0), new LocalTime(7, 30))]
 
@@ -247,11 +245,11 @@ class WeeklyScheduleSpec extends Specification {
     	s.getAllAsLocalIntervals().monday == [new LocalInterval(
     		new LocalTime(1, 0), new LocalTime(7, 30))]
 
-    	and: "we can retrieve in eastern time zone"
+    	and: "we can retrieve in specified time zone"
     	s.getAllAsLocalIntervals(tz).sunday == [new LocalInterval(
-    		new LocalTime(20, 0), new LocalTime(23, 59))]
+    		new LocalTime(18, 0), new LocalTime(23, 59))]
     	s.getAllAsLocalIntervals(tz).monday == [new LocalInterval(
-    		new LocalTime(0, 0), new LocalTime(2, 30))]
+    		new LocalTime(0, 0), new LocalTime(0, 30))]
     }
 
     void "test updating and asking availability"() {
@@ -344,8 +342,8 @@ class WeeklyScheduleSpec extends Specification {
     	nextAvail.payload == nextAvailTime
     	nextUnavail.payload instanceof DateTime
     	nextUnavail.payload == nextUnavailTime
-
     }
+
     private String getDayOfWeekStringFor(DateTime dt) {
     	switch(dt.dayOfWeek) {
             case DateTimeConstants.SUNDAY: return "sunday"

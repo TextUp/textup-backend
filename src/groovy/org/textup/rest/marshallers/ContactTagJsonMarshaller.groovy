@@ -1,10 +1,11 @@
 package org.textup.rest.marshallers
 
+import grails.compiler.GrailsCompileStatic
+import grails.plugin.springsecurity.SpringSecurityService
+import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.compiler.GrailsCompileStatic
+import org.textup.types.ContactStatus
 
 @GrailsCompileStatic
 class ContactTagJsonMarshaller extends JsonNamedMarshaller {
@@ -18,6 +19,7 @@ class ContactTagJsonMarshaller extends JsonNamedMarshaller {
             name = ct.name
             hexColor = ct.hexColor
             lastRecordActivity = ct.record.lastRecordActivity
+            numMembers = ct.getMembersByStatus([ContactStatus.ACTIVE, ContactStatus.UNREAD]).size()
         }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"tag", action:"show", id:ct.id, absolute:false)]

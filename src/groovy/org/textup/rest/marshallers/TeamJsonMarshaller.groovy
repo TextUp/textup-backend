@@ -1,10 +1,10 @@
 package org.textup.rest.marshallers
 
+import grails.compiler.GrailsCompileStatic
+import grails.plugin.springsecurity.SpringSecurityService
+import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 class TeamJsonMarshaller extends JsonNamedMarshaller {
@@ -16,18 +16,12 @@ class TeamJsonMarshaller extends JsonNamedMarshaller {
         json.with {
             id = t1.id
             name = t1.name
-            org = t1.org.id
+            org = t1.org.id // MUST BE id or else you have circular reference in json
             hexColor = t1.hexColor
-            if (t1.phone) {
-                phone = t1.phone.number.e164PhoneNumber
-                awayMessage = t1.phone.awayMessage
-            }
+            phone = t1.phone
+            location = t1.location
+            numMembers = t1.activeMembers.size()
         }
-        json.location = [:] << [
-            address:t1.location.address,
-            lat:t1.location.lat,
-            lon:t1.location.lon
-        ]
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"team", action:"show", id:t1.id, absolute:false)]
         json

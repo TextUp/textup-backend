@@ -14,17 +14,14 @@ class OrganizationJsonMarshaller extends JsonNamedMarshaller {
         LinkGenerator linkGenerator, Organization org ->
 
         Map json = [:]
-        json.id = org.id
-        json.name = org.name
-        json.status = org.status.toString()
-        json.location = [:] << [
-            address:org.location.address,
-            lat:org.location.lat,
-            lon:org.location.lon
-        ]
-        json.teams = org.getTeams()
-        json.numAdmins = org.countPeople(statuses:[StaffStatus.ADMIN])
-
+        json.with {
+            id = org.id
+            name = org.name
+            status = org.status.toString()
+            location = org.location
+            teams = org.getTeams()
+            numAdmins = org.countPeople(statuses:[StaffStatus.ADMIN])
+        }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"organization", action:"show", id:org.id, absolute:false)]
         json

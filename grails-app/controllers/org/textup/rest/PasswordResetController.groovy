@@ -15,7 +15,7 @@ class PasswordResetController extends BaseController {
 	static allowedMethods = [index:"GET", requestReset:"POST",
         resetPassword:"PUT", delete:"DELETE"]
 
-	PasswordResetService passwordResetService
+	TokenService tokenService
 
     def index() { notAllowed() }
     def delete() { notAllowed() }
@@ -34,9 +34,9 @@ class PasswordResetController extends BaseController {
         if (!info.username) {
             return badRequest()
         }
-        Result res = passwordResetService.requestReset(info.username as String)
+        Result res = tokenService.requestReset(info.username as String)
         if (res.success) {
-            ok()
+            noContent()
         }
         else { handleResultFailure(res) }
     }
@@ -54,10 +54,10 @@ class PasswordResetController extends BaseController {
         if (!info.token || !info.password) {
             return badRequest()
         }
-        Result res = passwordResetService.resetPassword(info.token as String,
+        Result res = tokenService.resetPassword(info.token as String,
             info.password as String)
         if (res.success) {
-            ok()
+            noContent()
         }
         else { handleResultFailure(res) }
     }

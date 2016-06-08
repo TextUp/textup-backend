@@ -27,20 +27,11 @@ class TeamServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    String _methodJustCalled
-
     def setup() {
         super.setupData()
         service.resultFactory = getResultFactory()
         service.phoneService = [
-            updatePhoneForNumber: { Phone p1, PhoneNumber pNum ->
-                p1.number = pNum
-                _methodJustCalled = "updatePhoneForNumber"
-                new Result(type:ResultType.SUCCESS, success:true, payload:p1)
-            },
-            updatePhoneForApiId: { Phone p1, String apiId ->
-                p1.numberAsString = "${iterationCount}123324901".take(10)
-                _methodJustCalled = "updatePhoneForApiId"
+            update: { Phone p1, Map body ->
                 new Result(type:ResultType.SUCCESS, success:true, payload:p1)
             }
         ] as PhoneService
@@ -49,142 +40,151 @@ class TeamServiceSpec extends CustomSpec {
         super.cleanupData()
     }
 
-    // // Create
-    // // ------
+    // Create
+    // ------
 
-    // void "test update team info"() {
-    //     given: "baselines"
-    //     int baseline = Team.count()
-    //     int lBaseline = Location.count()
-    //     int pBaseline = Phone.count()
+    void "test update team info"() {
+        given: "baselines"
+        int baseline = Team.count()
+        int lBaseline = Location.count()
+        int pBaseline = Phone.count()
 
-    //     when: "we create a team with an invalid location"
-    //     String name = "Team 77"
-    //     String hex = "#909"
-    //     String address = "testing address"
-    //     Map createInfo = [
-    //         name:name,
-    //         org:org.id,
-    //         hexColor:hex,
-    //         location:[
-    //             address:address,
-    //             lat:-888G,
-    //             lon:-888G
-    //         ]
-    //     ]
-    //     Team team1 = new Team(org:org)
-    //     Result res = service.updateTeamInfo(team1, createInfo)
+        when: "we create a team with an invalid location"
+        String name = "Team 77"
+        String hex = "#909"
+        String address = "testing address"
+        Map createInfo = [
+            name:name,
+            org:org.id,
+            hexColor:hex,
+            location:[
+                address:address,
+                lat:-888G,
+                lon:-888G
+            ]
+        ]
+        Team team1 = new Team(org:org)
+        Result res = service.updateTeamInfo(team1, createInfo)
 
-    //     then:
-    //     res.success == false
-    //     res.type == ResultType.VALIDATION
-    //     res.payload.errorCount == 2
-    //     Team.count() == baseline
-    //     Location.count() == lBaseline
-    //     Phone.count() == pBaseline
+        then:
+        res.success == false
+        res.type == ResultType.VALIDATION
+        res.payload.errorCount == 2
+        Team.count() == baseline
+        Location.count() == lBaseline
+        Phone.count() == pBaseline
 
-    //     when: "we create a valid team"
-    //     BigDecimal lat = 8G, lon = 10G
-    //     createInfo.location.lat = lat
-    //     createInfo.location.lon = lon
-    //     res = service.updateTeamInfo(team1, createInfo)
-    //     assert res.success
-    //     org.save(flush:true, failOnError:true)
+        when: "we create a valid team"
+        BigDecimal lat = 8G, lon = 10G
+        createInfo.location.lat = lat
+        createInfo.location.lon = lon
+        res = service.updateTeamInfo(team1, createInfo)
+        assert res.success
+        org.save(flush:true, failOnError:true)
 
-    //     then:
-    //     res.payload instanceof Team
-    //     res.payload.name == name
-    //     res.payload.org.id == org.id
-    //     res.payload.hexColor == hex
-    //     res.payload.location.address == address
-    //     res.payload.location.lat == lat
-    //     res.payload.location.lon == lon
-    //     Team.count() == baseline + 1
-    //     Location.count() == lBaseline + 1
-    //     Phone.count() == pBaseline
+        then:
+        res.payload instanceof Team
+        res.payload.name == name
+        res.payload.org.id == org.id
+        res.payload.hexColor == hex
+        res.payload.location.address == address
+        res.payload.location.lat == lat
+        res.payload.location.lon == lon
+        Team.count() == baseline + 1
+        Location.count() == lBaseline + 1
+        Phone.count() == pBaseline
 
-    //     when: "update away message when team has phone"
-    //     tPh1.updateOwner(team1)
-    //     tPh1.save(flush:true, failOnError:true)
-    //     String msg = "you da best mon"
-    //     res = service.updateTeamInfo(team1, [awayMessage:msg])
+        when: "update away message when team has phone"
+        tPh1.updateOwner(team1)
+        tPh1.save(flush:true, failOnError:true)
+        String msg = "you da best mon",
+            originalAwayMsg = team1.phone.awayMessage
+        res = service.updateTeamInfo(team1, [awayMessage:msg])
 
-    //     then:
-    //     res.payload instanceof Team
-    //     res.payload.phone.awayMessage == msg
-    //     Team.count() == baseline + 1
-    //     Location.count() == lBaseline + 1
-    //     Phone.count() == pBaseline
-    // }
+        then: "no change because update happens in phoneService"
+        res.payload instanceof Team
+        res.payload.phone.awayMessage != msg
+        res.payload.phone.awayMessage == originalAwayMsg
+        Team.count() == baseline + 1
+        Location.count() == lBaseline + 1
+        Phone.count() == pBaseline
+    }
 
-    // void "test create phone for team"() {
-    //     given: "staff with no phone"
-    //     Team team1 = new Team(name:"kiki's mane", org:org.id,
-    //         location:new Location(address:"address", lat:8G, lon:10G).save())
-    //     team1.save(flush:true, failOnError:true)
-    //     int pBaseline = Phone.count()
-    //     int oBaseline = PhoneOwnership.count()
+    void "test create or update phone"() {
+        given: "staff with no phone"
+        Team team1 = new Team(name:"kiki's mane", org:org.id,
+            location:new Location(address:"address", lat:8G, lon:10G).save())
+        team1.save(flush:true, failOnError:true)
+        int pBaseline = Phone.count()
+        int oBaseline = PhoneOwnership.count()
 
-    //     when: "try with neither phone nor phoneId"
-    //     Result<Team> res = service.updateOrCreatePhone(team1, [:])
+        when: "try with neither phone nor phoneId"
+        Result<Team> res = service.createOrUpdatePhone(team1, [:])
 
-    //     then:
-    //     res.success == true
-    //     res.payload instanceof Team
-    //     Phone.count() == pBaseline
-    //     PhoneOwnership.count() == oBaseline
+        then:
+        res.success == true
+        res.payload instanceof Team
+        Phone.count() == pBaseline
+        PhoneOwnership.count() == oBaseline
 
-    //     when: "update with phone"
-    //     String number = "${iterationCount}163388441".take(10)
-    //     res = service.updateOrCreatePhone(team1, [phone:number])
-    //     assert res.success
-    //     team1.save(flush:true, failOnError:true)
+        when: "update with phone"
+        service.phoneService = [
+            update: { Phone p1, Map body ->
+                p1.number = new PhoneNumber(number:body.number)
+                new Result(type:ResultType.SUCCESS, success:true, payload:p1)
+            }
+        ] as PhoneService
 
-    //     then:
-    //     Phone.count() == pBaseline + 1
-    //     PhoneOwnership.count() == oBaseline + 1
-    //     res.payload instanceof Team
-    //     res.payload.id == team1.id
-    //     res.payload.phone != null
-    // }
+        String number = "${iterationCount}163388441".take(10)
+        res = service.createOrUpdatePhone(team1, [phone:[number:number]])
+        assert res.success
+        team1.save(flush:true, failOnError:true)
 
-    // void "test create"() {
-    //     given: "baselines"
-    //     int baseline = Team.count()
-    //     int lBaseline = Location.count()
+        then:
+        Phone.count() == pBaseline + 1
+        PhoneOwnership.count() == oBaseline + 1
+        res.payload instanceof Team
+        res.payload.id == team1.id
+        res.payload.phone != null
+    }
 
-    // 	when: "creation of a team with a nonexistent organization"
-    //     Map createInfo = [:]
-    //     Result res = service.create(createInfo)
+    void "test create"() {
+        given: "baselines"
+        int baseline = Team.count()
+        int lBaseline = Location.count()
 
-    // 	then:
-    //     res.success == false
-    //     res.type == ResultType.MESSAGE_STATUS
-    //     res.payload.code == "teamService.create.orgNotFound"
-    //     res.payload.status == NOT_FOUND
+    	when: "creation of a team with a nonexistent organization"
+        Map createInfo = [:]
+        Result res = service.create(createInfo)
 
-    // 	when: "we create a valid team"
-    //     String name = "Team 888"
-    //     createInfo = [
-    //         name:name,
-    //         org:org.id,
-    //         location:[
-    //             address:"testing address",
-    //             lat:8G,
-    //             lon:10G
-    //         ]
-    //     ]
-    //     res = service.create(createInfo)
-    //     assert res.success
-    //     org.save(flush:true, failOnError:true)
+    	then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.code == "teamService.create.orgNotFound"
+        res.payload.status == NOT_FOUND
 
-    // 	then:
-    //     res.payload instanceof Team
-    //     res.payload.name == name
-    //     res.payload.org.id == org.id
-    //     Team.count() == baseline + 1
-    //     Location.count() == lBaseline + 1
-    // }
+    	when: "we create a valid team"
+        String name = "Team 888"
+        createInfo = [
+            name:name,
+            org:org.id,
+            location:[
+                address:"testing address",
+                lat:8G,
+                lon:10G
+            ]
+        ]
+        res = service.create(createInfo)
+        assert res.success
+        org.save(flush:true, failOnError:true)
+
+    	then:
+        res.payload instanceof Team
+        res.payload.name == name
+        res.payload.org.id == org.id
+        Team.count() == baseline + 1
+        Location.count() == lBaseline + 1
+    }
 
     // Update
     // ------
@@ -206,31 +206,6 @@ class TeamServiceSpec extends CustomSpec {
         res.success == true
         res.payload instanceof Team
         res.payload == t1
-    }
-
-    void "test update phone number with phone number"() {
-        given:
-        int baseline = Phone.count()
-
-        when: "with phone number"
-        _methodJustCalled = null
-        Result<Team> res = service.updateOrCreatePhone(t1, [phone:"1112223333"])
-
-        then:
-        res.success == true
-        res.payload instanceof Team
-        _methodJustCalled == "updatePhoneForNumber"
-        Phone.count() == baseline
-
-        when: "with api id"
-        _methodJustCalled = null
-        res = service.updateOrCreatePhone(t1, [phoneId:"hello!"])
-
-        then:
-        res.success == true
-        res.payload instanceof Team
-        _methodJustCalled == "updatePhoneForApiId"
-        Phone.count() == baseline
     }
 
     void "test team actions edge cases"() {

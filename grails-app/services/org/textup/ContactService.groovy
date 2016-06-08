@@ -39,7 +39,8 @@ class ContactService {
             }.each {
                 if (it instanceof Map) {
                     Map nAction = it as Map
-                    if (nAction.action == Constants.NUMBER_ACTION_MERGE) {
+                    if (Helpers.toLowerCaseString(nAction.action) ==
+                            Constants.NUMBER_ACTION_MERGE) {
                         nums << (nAction.number as String)
                     }
                 }
@@ -55,8 +56,10 @@ class ContactService {
         for (item in numActions) {
             if (item instanceof Map) {
                 Map nAction = item as Map
-                if (nAction.action != Constants.NUMBER_ACTION_MERGE &&
-                    nAction.action != Constants.NUMBER_ACTION_DELETE) {
+                if (Helpers.toLowerCaseString(nAction.action) !=
+                        Constants.NUMBER_ACTION_MERGE &&
+                    Helpers.toLowerCaseString(nAction.action) !=
+                        Constants.NUMBER_ACTION_DELETE) {
                     return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                         "contactService.numberActionInvalid",
                         [nAction.action])
@@ -109,7 +112,8 @@ class ContactService {
             for (item in body.doNumberActions) {
                 if (item instanceof Map) {
                     Map nAction = item as Map
-                    if (nAction.action == Constants.NUMBER_ACTION_MERGE) {
+                    if (Helpers.toLowerCaseString(nAction.action) ==
+                            Constants.NUMBER_ACTION_MERGE) {
                         Map params = (nAction.preference != null) ?
                             [preference:nAction.preference] : [:]
                         res = c1.mergeNumber(nAction.number as String, params)
@@ -141,7 +145,7 @@ class ContactService {
                             [sAction.action, sAction.id])
                     }
                     Result res
-                    switch(sAction.action) {
+                    switch(Helpers.toLowerCaseString(sAction.action)) {
                         case Constants.SHARE_ACTION_MERGE:
                             res = c1.phone.share(c1, p1,
                                 Helpers.<SharePermission>convertEnum(SharePermission,

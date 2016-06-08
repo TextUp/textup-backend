@@ -56,21 +56,37 @@ class SocketControllerSpec extends CustomSpec {
     	response.status == SC_FORBIDDEN
     }
 
+    void "test forbidden from accessing private channel outside your own"() {
+        when:
+        request.method = "POST"
+        request.userPrincipal = [
+            getPrincipal: {
+                [getUsername:{ loggedInUsername }] as UserDetails
+            }
+        ] as Authentication
+        params.channel_name = "private-someothernameherechannel"
+        params.socket_id = "socket"
+        controller.save()
+
+        then:
+        response.status == SC_FORBIDDEN
+    }
+
     void "test successfully authenticate private channel"() {
     	when:
-    	request.method = "POST"
-    	request.userPrincipal = [
-    		getPrincipal: {
-    			[getUsername:{ loggedInUsername }] as UserDetails
-    		}
-    	] as Authentication
-    	params.channel_name = "channel"
-		params.socket_id = "socket"
-		controller.save()
+        request.method = "POST"
+        request.userPrincipal = [
+            getPrincipal: {
+                [getUsername:{ loggedInUsername }] as UserDetails
+            }
+        ] as Authentication
+        params.channel_name = "private-${loggedInUsername}"
+        params.socket_id = "socket"
+        controller.save()
 
-		then:
-		response.status == SC_OK
-		response.json.socketId == params.socket_id
-		response.json.channelName == params.channel_name
+        then:
+        response.status == SC_OK
+        response.json.socketId == params.socket_id
+        response.json.channelName == params.channel_name
     }
 }

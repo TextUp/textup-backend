@@ -43,7 +43,7 @@ class Staff {
 	String email
 
     @RestApiObjectField(
-        description    = "Id of the organization this team belongs to",
+        description    = "The organization this staff member belongs to",
         allowedType    = "Number",
         useForCreation = false)
 	Organization org
@@ -92,18 +92,6 @@ class Staff {
             useForCreation = false,
             allowedType    = "String",
             presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "orgName",
-            description       = "If creating a new organization, the name of \
-                the organization to create and associate with",
-            mandatory         = false,
-            allowedType       = "String",
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName   = "isAvailableNow",
-            description    = "If the staff member is available right now.",
-            allowedType    = "Boolean",
-            useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "tags",
             description    = "List of tags the staff member's TextUp phone, if any.",
@@ -208,7 +196,9 @@ class Staff {
     Collection<Staff> getCanShareWith(Collection<String> statuses=[]) {
         HashSet<Staff> staffCanShare = new HashSet<>()
         this.getTeams().each { Team t1 ->
-            staffCanShare.addAll(t1.getMembersByStatus(statuses))
+            Collection<Staff> members = t1.getMembersByStatus(statuses)
+            // add only staff members that have a phone!
+            staffCanShare.addAll(members.findAll { it.phone })
         }
         staffCanShare.remove(this)
         staffCanShare

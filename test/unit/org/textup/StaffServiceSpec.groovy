@@ -32,8 +32,6 @@ class StaffServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    private String _methodJustCalled
-
     def setup() {
         super.setupData()
         service.resultFactory = getResultFactory()
@@ -49,17 +47,13 @@ class StaffServiceSpec extends CustomSpec {
             },
             notifyPendingOfRejection: { Staff rejectedStaff ->
                 new Result(type:ResultType.SUCCESS, success:true, payload:null)
+            },
+            notifyStaffOfSignup: { Staff s1, String password ->
+                new Result(type:ResultType.SUCCESS, success:true, payload:null)
             }
         ] as MailService
         service.phoneService = [
-            updatePhoneForNumber: { Phone p1, PhoneNumber pNum ->
-                p1.number = pNum
-                _methodJustCalled = "updatePhoneForNumber"
-                new Result(type:ResultType.SUCCESS, success:true, payload:p1)
-            },
-            updatePhoneForApiId: { Phone p1, String apiId ->
-                p1.numberAsString = "${iterationCount}123324901".take(10)
-                _methodJustCalled = "updatePhoneForApiId"
+            update: { Phone p1, Map body ->
                 new Result(type:ResultType.SUCCESS, success:true, payload:p1)
             }
         ] as PhoneService
@@ -274,10 +268,28 @@ class StaffServiceSpec extends CustomSpec {
     // ------
 
     void "test update"() {
-        when: "update staff valid"
+        given:
         int pBaseline = Phone.count()
-        String awayMsg = "calm down."
-        Result<Staff> res = service.update(s1.id, [awayMessage:awayMsg], null)
+        String awayMsg = "calm down.",
+            newName = "ting ting bai"
+
+        when: "updating away message"
+        String originalAwayMsg = s1.phone.awayMessage
+        Result<Staff> res = service.update(s1.id, [
+            phone:[awayMessage:awayMsg]
+        ], null)
+        assert res.success
+        s1.save(flush:true, failOnError:true)
+
+        then: "away message is updated in the phoneService"
+        Phone.count() == pBaseline
+        res.payload instanceof Staff
+        res.payload.id == s1.id
+        res.payload.phone.awayMessage != awayMsg
+        res.payload.phone.awayMessage == originalAwayMsg
+
+        when: "update staff valid"
+        res = service.update(s1.id, [name:newName], null)
         assert res.success
         s1.save(flush:true, failOnError:true)
 
@@ -285,7 +297,7 @@ class StaffServiceSpec extends CustomSpec {
         Phone.count() == pBaseline
         res.payload instanceof Staff
         res.payload.id == s1.id
-        res.payload.phone.awayMessage == awayMsg
+        res.payload.name == newName
 
         when: "update staff invalid"
         res = service.update(s1.id, [email:"invalid"], null)
@@ -367,21 +379,6 @@ class StaffServiceSpec extends CustomSpec {
         res.payload.email == email
         res.payload.personalPhoneAsString == personalPhoneAsString
 
-        when: "update away message"
-        String awayMsg = "i am away right now. calm down."
-        updateInfo = [awayMessage:awayMsg]
-        res = service.updateStaffInfo(s1, updateInfo, null)
-
-        then:
-        Staff.count() == sBaseline
-        Organization.count() == oBaseline
-        Location.count() == lBaseline
-        StaffRole.count() == rBaseline
-        WeeklySchedule.count() == schedBaseline
-        res.success == true
-        res.payload instanceof Staff
-        res.payload.phone.awayMessage == awayMsg
-
         when: "update schedule"
         updateInfo = [
             schedule:[
@@ -453,42 +450,51 @@ class StaffServiceSpec extends CustomSpec {
         res.payload.errorCount == 1
     }
 
-    void "test update phone number with phone number"() {
+    void "test create or update phone"() {
         given:
-        int baseline = Phone.count()
-
-        when: "with phone number"
-        _methodJustCalled = null
-        Result<Staff> res = service.updatePhoneNumber(s1, [phone:"1112223333"])
-
-        then:
-        res.success == true
-        res.payload instanceof Staff
-        _methodJustCalled == "updatePhoneForNumber"
-        Phone.count() == baseline
-
-        when: "with api id"
-        _methodJustCalled = null
-        res = service.updatePhoneNumber(s1, [phoneId:"hello!"])
-
-        then:
-        res.success == true
-        res.payload instanceof Staff
-        _methodJustCalled == "updatePhoneForApiId"
-        Phone.count() == baseline
-    }
-    void "test create phone for staff"() {
-        given: "staff with no phone"
         Staff staff = new Staff(username:"6sta$iterationCount", password:"password",
             name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
             org:org, personalPhoneAsString:"1112223333")
         staff.save(flush:true, failOnError:true)
         int pBaseline = Phone.count()
         int oBaseline = PhoneOwnership.count()
-
-        when: "update with phone"
         String number = "163333441$iterationCount"
-        Result<Staff> res = service.updatePhoneNumber(staff, [phone:number])
+
+        when: "for staff without a phone with invalidly formatted body"
+        Result<Staff> res = service.createOrUpdatePhone(staff, [
+            phone:number
+        ])
+        assert res.success
+        staff.save(flush:true, failOnError:true)
+
+        then:
+        Phone.count() == pBaseline
+        PhoneOwnership.count() == oBaseline
+        res.payload instanceof Staff
+        res.payload.id == staff.id
+
+        when: "for staff with existing phone"
+        res = service.createOrUpdatePhone(s1, [
+            phone:[number:"1112223333"]
+        ])
+
+        then:
+        res.success == true
+        res.payload instanceof Staff
+        Phone.count() == pBaseline
+        PhoneOwnership.count() == oBaseline
+
+        when: "for staff without a phone with validly formatted body"
+        service.phoneService = [
+            update: { Phone p1, Map body ->
+                p1.number = new PhoneNumber(number:body.number)
+                new Result(type:ResultType.SUCCESS, success:true, payload:p1)
+            }
+        ] as PhoneService
+
+        res = service.createOrUpdatePhone(staff, [
+            phone:[number:number]
+        ])
         assert res.success
         staff.save(flush:true, failOnError:true)
 

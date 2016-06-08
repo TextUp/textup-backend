@@ -70,7 +70,7 @@ class SharedContact implements Contactable {
             eq('sharedBy', c1.phone)
         }
         forContactAndSharedWith { Contact c1, Phone sWith ->
-            eq('sharedBy', c1.phone)
+            eq('contact', c1)
             eq('sharedWith', sWith)
         }
         forSharedByAndSharedWith { Phone sBy, Phone sWith ->
@@ -140,6 +140,24 @@ class SharedContact implements Contactable {
             }
             contact {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                if (cIds) { "in"("id", cIds) }
+                else { eq("id", null) }
+            }
+            order("whenCreated", "desc")
+        }
+    }
+    static SharedContact findByContactIdAndSharedBy(Long cId, Phone sBy) {
+        findByContactIdsAndSharedBy([cId], sBy)[0]
+    }
+    static List<SharedContact> findByContactIdsAndSharedBy(Collection<Long> cIds,
+        Phone sBy) {
+        SharedContact.createCriteria().list {
+            eq("sharedBy", sBy)
+            or {
+                isNull("dateExpired") //not expired if null
+                ge("dateExpired", DateTime.now())
+            }
+            contact {
                 if (cIds) { "in"("id", cIds) }
                 else { eq("id", null) }
             }

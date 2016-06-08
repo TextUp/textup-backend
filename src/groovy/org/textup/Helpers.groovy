@@ -94,6 +94,9 @@ class Helpers {
     static String toString(def val) {
         "$val".toString()
     }
+    static String toLowerCaseString(def val) {
+        "$val".toString().toLowerCase()
+    }
     static String toQuery(def raw) {
         String query = "$raw"
         if (!query?.startsWith("%")) query = "%$query"

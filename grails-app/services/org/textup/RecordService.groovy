@@ -5,6 +5,7 @@ import grails.transaction.Transactional
 import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
 import org.textup.types.ReceiptStatus
+import org.textup.util.OptimisticLockingRetry
 import org.textup.validator.OutgoingText
 import static org.springframework.http.HttpStatus.*
 
@@ -20,6 +21,7 @@ class RecordService {
     // Status
     // ------
 
+    @OptimisticLockingRetry
     Result<Closure> updateStatus(ReceiptStatus status, String apiId, Integer duration=null) {
         List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
         if (receipts) {

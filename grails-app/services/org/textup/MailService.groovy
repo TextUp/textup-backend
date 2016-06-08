@@ -57,6 +57,15 @@ class MailService {
         EmailEntity to = new EmailEntity(name:rejectedStaff.name, email:rejectedStaff.email)
         sendMail(to, getDefaultFrom(), subject, body)
     }
+    Result<SendGrid.Response> notifyStaffOfSignup(Staff s1, String password) {
+        String link = config("textup.links.setupExistingOrg"),
+            body = getMessage("mail.signupForStaff.body",
+                [s1.name, s1.org.name, s1.username, password, link]),
+            subject = getMessage("mail.signupForStaff.subject",
+                [s1.name, s1.org.name])
+        EmailEntity to = new EmailEntity(name:s1.name, email:s1.email)
+        sendMail(to, getDefaultFrom(), subject, body)
+    }
 
     // Signup with new organization
     // ----------------------------
@@ -128,7 +137,7 @@ class MailService {
             setFrom from.email
             setFromName from.name
             setSubject subject
-            setText contents
+            setHtml contents
             setTemplateId templateId
         }
         try {

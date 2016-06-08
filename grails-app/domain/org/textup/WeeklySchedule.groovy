@@ -100,6 +100,11 @@ class WeeklySchedule extends Schedule {
                 unavailable. Only appears if the schedule is not empty.",
             allowedType =  "DateTime",
             useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "isAvailableNow",
+            description    = "If the schedule shows that it is available right now.",
+            allowedType    = "Boolean",
+            useForCreation = false),
     ])
     static transients=["resultFactory"]
     static constraints = {
@@ -347,7 +352,9 @@ class WeeklySchedule extends Schedule {
             if (initialDt.plusWeeks(1) != dt) {
                 nextChangeForDateTime(dt.plusDays(1), initialDt, timezone)
             }
-            else { resultFactory.failWithMessage("weeklySchedule.nextChangeNotFound") }
+            else {
+                resultFactory.failWithMessage("weeklySchedule.nextChangeNotFound")
+            }
         }
     }
 

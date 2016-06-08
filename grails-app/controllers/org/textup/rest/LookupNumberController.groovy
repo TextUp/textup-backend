@@ -4,6 +4,7 @@ import com.twilio.sdk.resource.instance.Account
 import com.twilio.sdk.resource.list.AvailablePhoneNumberList
 import com.twilio.sdk.resource.list.IncomingPhoneNumberList
 import com.twilio.sdk.TwilioRestClient
+import com.twilio.sdk.TwilioRestClient
 import com.twilio.sdk.TwilioRestException
 import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
@@ -14,8 +15,8 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.validator.PhoneNumber
 import static org.springframework.http.HttpStatus.*
-import com.twilio.sdk.TwilioRestClient
 
 @GrailsCompileStatic
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
@@ -26,12 +27,13 @@ class LookupNumberController extends BaseController {
     //grailsApplication from superclass
     //authService from superclass
     TwilioRestClient twilioService
+    TokenService tokenService
 
     def index() {
         String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
         Staff s1 = authService.loggedInAndActive
         Location loc = s1.org.location
-        if (s1) {
+        if (!s1) {
             return forbidden()
         }
         try {
@@ -55,10 +57,8 @@ class LookupNumberController extends BaseController {
             }
             newNumbers.toList().each {
                 availableNumbers << [
-                    friendlyName:it.friendlyName,
-                    region:it.region,
-                    isoCountry:it.isoCountry,
-                    phoneNumber:it.phoneNumber
+                    phoneNumber:it.phoneNumber,
+                    region: "${it.region}, ${it.isoCountry}"
                 ]
             }
             respond availableNumbers, [status:OK]
@@ -69,8 +69,22 @@ class LookupNumberController extends BaseController {
         }
     }
 
+    def save() {
+        Map vInfo = (request.properties.JSON as Map) as Map
+        PhoneNumber pNum = new PhoneNumber(number:vInfo.phoneNumber as String)
+        String token = vInfo.token
+        if (!pNum.validate()) {
+            return failsValidation()
+        }
+        Result res = token ? tokenService.verifyNumber(token, pNum) :
+            tokenService.requestVerify(pNum)
+        if (res.success) {
+            noContent()
+        }
+        else { handleResultFailure(res) }
+    }
+
     def show() { notAllowed() }
-    def save() { notAllowed() }
     def update() { notAllowed() }
     def delete() { notAllowed() }
 }

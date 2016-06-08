@@ -100,7 +100,7 @@ class BaseController {
         else { pOffset = 0 }
         Integer max = Math.min(pMax, largestMax)
         max = (max > 0) ? max : defaultMax
-        total = (total && total > 0) ? total: max
+        total = (total >= 0) ? total: max
         [max:max, offset:pOffset, total:total]
     }
     protected Map mergeIntoParams(Map params, Map searchParams) {
@@ -123,8 +123,14 @@ class BaseController {
                 else { break }
             }
             String label = (target && target instanceof String) ? target : "result"
+            if (!params.meta) {
+                params.meta = [total:0]
+            } else if (params.meta.total == null) {
+                params.meta.total = 0
+            }
+            params[label] = []
             render status:OK
-            respond([(label):[], meta:[total:0]])
+            respond(params)
         }
     }
     protected void respondWithError(String message, HttpStatus status) {

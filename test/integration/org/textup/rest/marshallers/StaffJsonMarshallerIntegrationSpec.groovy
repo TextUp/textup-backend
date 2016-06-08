@@ -22,23 +22,13 @@ class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.username == s1.username
         assert json.email == s1.email
         assert json.status == s1.status.toString()
-        assert json.org == s1.org.id
-        assert json.orgName == s1.org.name
-        assert json.awayMessage == s1.phone.awayMessage
-        assert json.phone == s1.phone.number.e164PhoneNumber
-        assert json.personalPhoneNumber == s1.personalPhoneNumber.e164PhoneNumber
         assert json.manualSchedule == s1.manualSchedule
-        assert json.isAvailableNow == s1.isAvailableNow()
-        assert json.tags instanceof List
-        assert json.tags.size() == s1.phone.tags.size()
-        assert json.teams instanceof List
-        assert json.teams.size() == s1.teams.size()
         assert json.schedule instanceof Map
-        assert Constants.DAYS_OF_WEEK.every { json.schedule[it] instanceof List }
+        assert json.phone instanceof Map
         true
     }
 
-    void "test marshalling staff, weekly schedule"() {
+    void "test marshalling staff, weekly schedule, not logged in"() {
         given:
         s1.manualSchedule = false
         s1.schedule.updateWithIntervalStrings([
@@ -54,12 +44,10 @@ class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
 
     	then:
     	validate(json, s1)
-        json.schedule.nextAvailable != null
-        json.schedule.nextUnavailable != null
         json.isAvailable == null
     }
 
-    void "test marshalling staff, manual schedule"() {
+    void "test marshalling staff, manual schedule, not logged in"() {
         given:
         s1.manualSchedule = true
         s1.isAvailable = true
@@ -73,8 +61,6 @@ class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
 
         then:
         validate(json, s1)
-        json.schedule.nextAvailable == null
-        json.schedule.nextUnavailable == null
         json.isAvailable != null
     }
 }

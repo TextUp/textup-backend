@@ -81,6 +81,28 @@ beans = {
 		namespace = v1Namespace
 	}
 
+	locationRenderer(ApiJsonRenderer, Location) {
+		label = tRestConfig.v1.location.singular
+	}
+	locationCollectionRenderer(ApiJsonCollectionRenderer, Location) {
+		label = tRestConfig.v1.location.plural
+	}
+	locationJsonMarshaller(LocationJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	phoneRenderer(ApiJsonRenderer, Phone) {
+		label = tRestConfig.v1.phone.singular
+	}
+	phoneCollectionRenderer(ApiJsonCollectionRenderer, Phone) {
+		label = tRestConfig.v1.phone.plural
+	}
+	phoneJsonMarshaller(PhoneJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
 	recordRenderer(ApiJsonRenderer, RecordItem) {
 		label = tRestConfig.v1.record.singular
 	}
@@ -99,6 +121,17 @@ beans = {
 		label = tRestConfig.v1.staff.plural
 	}
 	staffJsonMarshaller(StaffJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	scheduleRenderer(ApiJsonRenderer, Schedule) {
+		label = tRestConfig.v1.schedule.singular
+	}
+	scheduleCollectionRenderer(ApiJsonCollectionRenderer, Schedule) {
+		label = tRestConfig.v1.schedule.plural
+	}
+	scheduleJsonMarshaller(ScheduleJsonMarshaller) {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}

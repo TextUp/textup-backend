@@ -30,7 +30,10 @@ class ContactController extends BaseController {
         @RestApiParam(name="max", type="Number", required=false,
         	paramType=RestApiParamType.QUERY, description="Max number of results"),
         @RestApiParam(name="offset", type="Number", required=false,
-        	paramType=RestApiParamType.QUERY, description="Offset of results"),
+            paramType=RestApiParamType.QUERY, description="Offset of results"),
+        @RestApiParam(name="id[]", type="List", required=false,
+            paramType=RestApiParamType.QUERY,
+            description="Show only the contacts that match the list of ids"),
         @RestApiParam(name="status[]", type="List", paramType=RestApiParamType.QUERY,
             allowedvalues=["unread", "active", "archived", "blocked"],
             required=false, description='''List of staff statuses to restrict to.
@@ -54,7 +57,10 @@ class ContactController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (Helpers.exactly(2, ["teamId", "tagId"], params)) {
+        if (params.list('ids[]')) {
+            listForIds(params)
+        }
+        else if (Helpers.exactly(2, ["teamId", "tagId"], params)) {
             badRequest()
         }
         else if (params.teamId) {
@@ -115,6 +121,27 @@ class ContactController extends BaseController {
             list = { Map ps -> p1.getContacts(ps) }
         }
         genericListActionForClosures(Contact, count, list, params)
+    }
+    protected def listForIds(GrailsParameterMap params) {
+        Collection<Long> ids = Helpers.toIdsList(params.list('ids[]')),
+            cIds = [],
+            scIds = []
+        ids.each { Long id ->
+            if (!Contact.exists(id)) { return }
+            if (authService.hasPermissionsForContact(id)) {
+                cIds << id
+            }
+            else {
+                Long scId = authService.getSharedContactIdForContact(id)
+                if (scId) {
+                    scIds << scId
+                }
+            }
+        }
+        Collection results = []
+        results += Contact.getAll(cIds as Iterable)
+        results += SharedContact.getAll(scIds as Iterable)
+        genericListActionAllResults(Contact, results)
     }
 
     // Show

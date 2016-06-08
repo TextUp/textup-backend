@@ -149,10 +149,12 @@ class AuthService {
      * @return     Whether you have permission for staff member
      */
     boolean hasPermissionsForStaff(Long sId) {
-        Staff s1 = getLoggedInAndActive(),
+        Staff loggedIn = getLoggedIn(),
             s2 = Staff.get(sId)
-        if (s1 && s2) {
-            s1 == s2 || this.isAdminAtSameOrgAs(s2.id) || s1.sharesTeamWith(s2)
+        if (loggedIn && s2) {
+            loggedIn == s2 ||
+            this.isAdminAtSameOrgAs(s2.id) ||
+            (isActive(loggedIn) && loggedIn.sharesTeamWith(s2))
         }
         else { false }
     }

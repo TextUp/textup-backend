@@ -92,7 +92,7 @@ class TagService {
                     "tagService.update.contactForbidden",
                     [tAction.id])
             }
-            switch(tAction.action) {
+            switch(Helpers.toLowerCaseString(tAction.action)) {
                 case Constants.TAG_ACTION_ADD:
                     ct1.addToMembers(c1)
                     break

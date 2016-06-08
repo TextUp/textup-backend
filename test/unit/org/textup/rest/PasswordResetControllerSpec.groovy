@@ -33,13 +33,13 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        controller.passwordResetService = [requestReset:{ String un ->
+        controller.tokenService = [requestReset:{ String un ->
         	_username = un
         	new Result(type:ResultType.SUCCESS, success:true, payload:null)
     	}, resetPassword: { String token, String pwd ->
     		_token = token
     		new Result(type:ResultType.SUCCESS, success:true, payload:null)
-		}] as PasswordResetService
+		}] as TokenService
     }
     def cleanup() {
         super.cleanupData()
@@ -73,7 +73,7 @@ class PasswordResetControllerSpec extends CustomSpec {
     	controller.requestReset()
 
     	then:
-    	response.status == SC_OK
+    	response.status == SC_NO_CONTENT
     	_username == s1.username
     }
 
@@ -103,7 +103,7 @@ class PasswordResetControllerSpec extends CustomSpec {
     	controller.resetPassword()
 
     	then:
-    	response.status == SC_OK
+    	response.status == SC_NO_CONTENT
     	 _token == tok
     }
 }

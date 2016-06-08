@@ -28,12 +28,9 @@ class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
     	json.name == t1.name
     	json.hexColor == t1.hexColor
         json.org == t1.org.id
-        json.phone == t1.phone.number.e164PhoneNumber
-        json.awayMessage == t1.phone.awayMessage
+        json.phone instanceof Map
     	json.location instanceof Map
-        json.location.address == t1.location.address
-        json.location.lat == t1.location.lat
-        json.location.lon == t1.location.lon
+    	json.numMembers == t1.activeMembers.size()
     }
 
     void "test marshalling team without phone"() {
@@ -54,10 +51,7 @@ class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
         json.hexColor == team1.hexColor
         json.org == team1.org.id
         json.phone == null
-        json.awayMessage == null
         json.location instanceof Map
-        json.location.address == team1.location.address
-        json.location.lat == team1.location.lat
-        json.location.lon == team1.location.lon
+        json.numMembers == team1.activeMembers.size()
     }
 }

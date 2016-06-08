@@ -16,6 +16,15 @@ class ResultFactory {
 	@Autowired
 	MessageSource messageSource
 
+	Result duplicate(ResultType type, Object payload) {
+		if (type == ResultType.SUCCESS) {
+			success(payload)
+		} else {
+			new Result(success:false, payload:payload, type:type,
+				messageSource:messageSource)
+		}
+	}
+
 	/////////////
 	// Success //
 	/////////////
@@ -32,6 +41,7 @@ class ResultFactory {
 	/////////////
 	// Failure //
 	/////////////
+
 
 	Result failWithMessage(String messageCode, List params=[]) {
 		String message = messageSource.getMessage(messageCode, params as Object[], LCH.getLocale())

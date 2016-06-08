@@ -111,4 +111,27 @@ class OutgoingTextSpec extends CustomSpec {
 		then: "valid"
 		text.validateSetPhone(p1) == true
 	}
+
+	void "test generating recipients"() {
+		when: "an empty outgoing text"
+		OutgoingText text = new OutgoingText(message:"hello")
+
+		then: "no recipients"
+		text.toRecipients().isEmpty() == true
+
+		when: "populated outgoing text"
+		text = new OutgoingText(message:"hello")
+		text.sharedContacts = [sc1, sc2]
+		text.contacts = [c1, c1_1]
+		text.tags = [tag1, tag1_1]
+
+		int numUniqueContactables = 0
+		text.tags.each { ContactTag ct1 ->
+			numUniqueContactables += (ct1.members - text.contacts).size()
+		}
+
+		then:
+		text.toRecipients().size() == text.sharedContacts.size() +
+			text.contacts.size() + numUniqueContactables
+	}
 }

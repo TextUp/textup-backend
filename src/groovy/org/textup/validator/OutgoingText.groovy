@@ -59,4 +59,14 @@ class OutgoingText {
 		this.phone = p1
 		this.validate()
 	}
+
+	HashSet<Contactable> toRecipients() {
+		HashSet<Contactable> recipients = new HashSet<>()
+        // add all contactables to a hashset to avoid duplication
+        recipients.addAll(this.contacts)
+        recipients.addAll(this.sharedContacts)
+        this.tags.each { ContactTag ct1 -> recipients.addAll(ct1.members) }
+
+        recipients
+	}
 }

@@ -1,42 +1,46 @@
 package org.textup.util
 
-import org.textup.Staff
-import com.odobo.grails.plugin.springsecurity.rest.token.rendering.RestAuthenticationTokenJsonRenderer
 import com.odobo.grails.plugin.springsecurity.rest.RestAuthenticationToken
+import com.odobo.grails.plugin.springsecurity.rest.token.rendering.RestAuthenticationTokenJsonRenderer
+import grails.converters.JSON
+import groovy.json.JsonSlurper
 import groovy.util.logging.Log4j
+import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.util.Assert
-import grails.converters.JSON
+import org.textup.Staff
 
 @Log4j
 class CustomRestAuthenticationTokenJsonRenderer implements RestAuthenticationTokenJsonRenderer {
-    String usernamePropertyName
-    String tokenPropertyName
-    String authoritiesPropertyName
+
+    @Autowired
+    GrailsApplication grailsApplication
+
     Boolean useBearerToken
+    String authoritiesPropertyName
+    String tokenPropertyName
+    String usernamePropertyName
 
     @Override
     String generateJson(RestAuthenticationToken restAuthenticationToken) {
         Assert.isInstanceOf(UserDetails, restAuthenticationToken.principal, "A UserDetails implementation is required")
         UserDetails userDetails = restAuthenticationToken.principal as UserDetails
 
-        def result = [
+        Map result = [
             (usernamePropertyName) : userDetails.username,
             (authoritiesPropertyName) : userDetails.authorities.collect {GrantedAuthority role -> role.authority },
-            id : userDetails.id
+            id: userDetails.id
         ]
         Staff.withNewSession {
             Staff staff = Staff.get(userDetails.id)
             if (staff) {
-                result.name = staff.name
-                result.email = staff.email
-                result.status = staff.status.toString()
-                result.org = [
-                    id: staff.org.id,
-                    name: staff.org.name,
-                    status: staff.org.status.toString()
-                ]
+                Map data = [:]
+                JSON.use('default') {
+                    data += new JsonSlurper().parseText((staff as JSON).toString())
+                }
+                result.staff = data
             }
         }
         result["$tokenPropertyName"] = restAuthenticationToken.tokenValue

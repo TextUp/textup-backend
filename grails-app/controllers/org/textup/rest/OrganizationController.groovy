@@ -20,9 +20,8 @@ class OrganizationController extends BaseController {
     //authService from superclass
     OrganizationService organizationService
 
-    //////////
-    // List //
-    //////////
+    // List
+    // ----
 
     @RestApiMethod(description="List organizations", listing=true)
     @RestApiResponseObject(objectIdentifier = "Organization")
@@ -50,9 +49,8 @@ class OrganizationController extends BaseController {
         }
     }
 
-    //////////
-    // Show //
-    //////////
+    // Show
+    // ----
 
     @RestApiMethod(description="Show specifics about an organization")
     @RestApiResponseObject(objectIdentifier = "Organization")
@@ -68,17 +66,15 @@ class OrganizationController extends BaseController {
         genericShowAction(Organization, params.long("id"))
     }
 
-    //////////
-    // Save //
-    //////////
+    // Save
+    // ----
 
     def save() {
         notAllowed()
     }
 
-    ////////////
-    // Update //
-    ////////////
+    // Update
+    // ------
 
     @RestApiMethod(description="Update an existing organization")
     @RestApiParams(params=[
@@ -106,9 +102,8 @@ class OrganizationController extends BaseController {
         else { notFound() }
     }
 
-    ////////////
-    // Delete //
-    ////////////
+    // Delete
+    // ------
 
     def delete() { notAllowed() }
 }

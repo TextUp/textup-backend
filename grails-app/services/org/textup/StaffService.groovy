@@ -38,12 +38,24 @@ class StaffService {
                 body.personalPhoneNumber as String)
         }
         addStaffToOrg(s1, body.org).then({ Organization o1 ->
-            // only allowed to change status if is admin
-            if (body.status && o1.id && authService.isAdminAt(o1.id)) {
+            // only allowed to change status if is admin and organization
+            // is not pending
+            if (body.status && o1.id && authService.isAdminAt(o1.id) &&
+                o1.status != OrgStatus.PENDING) {
                 s1.status = Helpers.convertEnum(StaffStatus, body.status)
             }
+            // initially validate first so we know that staff is valid
+            // before trying to send out email notification and adding a phone
             if (s1.save()) {
-                resultFactory.success(s1)
+                Result.<Staff>waterfall(
+                    this.&createOrUpdatePhone.rcurry(s1, body),
+                    this.&notifyAfterCreation.rcurry(o1, body)
+                ).then({ Staff sameS1 ->
+                    if (sameS1.save()) {
+                        resultFactory.success(sameS1)
+                    }
+                    else { resultFactory.failWithValidationErrors(sameS1.errors) }
+                }) as Result
             }
             else {
                 resultFactory.failWithValidationErrors(s1.errors)
@@ -89,8 +101,6 @@ class StaffService {
             }
             //if logged in is admin at org we are adding this staff to, permit status update
             s1.status = StaffStatus.PENDING
-            Result res = mailService.notifyAdminsOfPendingStaff(s1.name, org.getAdmins())
-            if (!res.success) { return res }
         }
         else { // create new organization
             s1.status = StaffStatus.ADMIN
@@ -103,12 +113,25 @@ class StaffService {
             if (!org.save()) {
                 return resultFactory.failWithValidationErrors(org.errors)
             }
-            Result res = mailService.notifySuperOfNewOrganization(org.name)
-            if (!res.success) { return res }
         }
         s1.org = org
 
         resultFactory.success(org)
+    }
+
+    protected Result<Staff> notifyAfterCreation(Staff s1, Organization o1, Map body) {
+        Result res
+        if (o1.status == OrgStatus.PENDING) {
+            res = mailService.notifySuperOfNewOrganization(o1.name)
+        }
+        else {
+            if (s1.status == StaffStatus.PENDING) {
+                res = mailService.notifyAdminsOfPendingStaff(s1.name, o1.getAdmins())
+            } else if (s1.status == StaffStatus.STAFF) {
+                res = mailService.notifyStaffOfSignup(s1, body.password as String)
+            }
+        }
+        (res && !res.success) ? res : resultFactory.success(s1)
     }
 
     // Update
@@ -118,7 +141,7 @@ class StaffService {
         Result.<Staff>waterfall(
             this.&findStaffForId.curry(staffId),
             this.&updateStaffInfo.rcurry(body, timezone),
-            this.&updatePhoneNumber.rcurry(body)
+            this.&createOrUpdatePhone.rcurry(body)
         ).then({ Staff s1 ->
             if (s1.save()) {
                 resultFactory.success(s1)
@@ -139,15 +162,10 @@ class StaffService {
             if (body.email) email = body.email
             if (body.manualSchedule) manualSchedule = body.manualSchedule
             if (body.isAvailable) isAvailable = body.isAvailable
-            if (body.personalPhoneNumber) {
-                personalPhoneAsString = body.personalPhoneNumber
-            }
         }
-        if (s1.phone && body.awayMessage) {
-            s1.phone.awayMessage = body.awayMessage
-            if (!s1.phone.save()) {
-                return resultFactory.failWithValidationErrors(s1.phone.errors)
-            }
+        if (body.personalPhoneNumber) {
+            s1.personalPhoneNumber = new PhoneNumber(number:
+                body.personalPhoneNumber as String)
         }
         if (body.schedule instanceof Map && s1.schedule.instanceOf(WeeklySchedule)) {
             Result res = (s1.schedule as WeeklySchedule)
@@ -176,23 +194,17 @@ class StaffService {
             resultFactory.failWithValidationErrors(s1.errors)
         }
     }
-    protected Result<Staff> updatePhoneNumber(Staff s1, Map body) {
-        if (body.phone || body.phoneId) {
+    protected Result<Staff> createOrUpdatePhone(Staff s1, Map body) {
+        if (body.phone instanceof Map) {
             Phone p1 = s1.phone ?: new Phone([:])
             p1.updateOwner(s1)
-            Result<Phone> res
-            if (body.phone) {
-                PhoneNumber pNum = new PhoneNumber(number:body.phone as String)
-                res = phoneService.updatePhoneForNumber(p1, pNum)
-            }
-            else {
-                res = phoneService.updatePhoneForApiId(p1, body.phoneId as String)
-            }
-            res.then({
+            phoneService.update(p1, body.phone as Map).then({
                 if (p1.save()) {
                     resultFactory.success(s1)
                 }
-                else { resultFactory.failWithValidationErrors(p1.errors) }
+                else {
+                    resultFactory.failWithValidationErrors(p1.errors)
+                }
             }) as Result<Staff>
         }
         else { resultFactory.success(s1) }

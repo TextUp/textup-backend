@@ -48,7 +48,7 @@ class BootStrap {
 	    		StaffRole.create(superUser, adminRole, true)
 
 		    	//create teams
-		    	Team t1 = new Team(name:"Rapid Rehousing", org:org)
+		    	Team t1 = new Team(name:"Rhode Island House", org:org)
 				Team t2 = new Team(name:"Housing First", org:org)
 				t1.location = new Location(address:"577 Cranston St", lat:0G, lon:1G)
 				t2.location = new Location(address:"577 Cranston St", lat:1G, lon:1G)
@@ -56,7 +56,7 @@ class BootStrap {
 				t2.save(flush:true, failOnError:true)
 				//create phones for teams
 				Phone tPh1 = new Phone()
-		        tPh1.numberAsString = "1112223336"
+		        tPh1.numberAsString = "4012340315"
 		        tPh1.updateOwner(t1)
 		        tPh1.save(flush:true, failOnError:true)
 
@@ -78,8 +78,9 @@ class BootStrap {
 				s2.save(flush:true, failOnError:true)
 				//set availability
 				admin.schedule.updateWithIntervalStrings(wednesday:["0100:2300"])
-				s1.schedule.updateWithIntervalStrings(wednesday:["0100:2300"])
+				s1.schedule.updateWithIntervalStrings(friday:["0100:2300"])
 				s2.schedule.updateWithIntervalStrings(wednesday:["0100:2300"])
+				s1.save(flush:true, failOnError:true)
 				//create staff phones
 		    	Phone p1 = new Phone(),
 		    		p2 = new Phone(),
@@ -87,7 +88,7 @@ class BootStrap {
 		    	p1.numberAsString = "9252755153"
 		    	p1.updateOwner(admin)
 		    	p1.save(flush:true, failOnError:true)
-		    	p2.numberAsString = "4012340315"
+		    	p2.numberAsString = "1112223336"
 		    	p2.updateOwner(s1)
 		    	p2.save(flush:true, failOnError:true)
 		    	p3.numberAsString = "1112223335"
@@ -125,8 +126,8 @@ class BootStrap {
 
 		    	//create tags
 		    	ContactTag tag1 = p1.createTag(name:"New Clients").payload
-				ContactTag tag2 = p2.createTag(name:"New Clients").payload
-    		    ContactTag teTag1 = tPh1.createTag(name:"New Clients").payload
+				ContactTag tag2 = p2.createTag(name:"Monday Group").payload
+    		    ContactTag teTag1 = tPh1.createTag(name:"Shared New Clients").payload
         		[tag1, tag2, teTag1]*.save(flush:true, failOnError:true)
 		    	//create items for team tags
 		    	teTag1.record.addText([contents:"Hi! Hope you're doing well today."], null)

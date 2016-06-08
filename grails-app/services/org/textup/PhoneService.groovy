@@ -15,10 +15,14 @@ import grails.transaction.Transactional
 import org.apache.http.message.BasicNameValuePair
 import org.apache.http.NameValuePair
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.hibernate.FlushMode
+import org.hibernate.Session
+import org.springframework.transaction.TransactionStatus
 import org.textup.rest.TwimlBuilder
 import org.textup.types.CallResponse
 import org.textup.types.ContactStatus
 import org.textup.types.RecordItemType
+import org.textup.types.ResultType
 import org.textup.types.TextResponse
 import org.textup.validator.IncomingText
 import org.textup.validator.OutgoingText
@@ -35,6 +39,7 @@ class PhoneService {
 	SocketService socketService
     TextService textService
     CallService callService
+    AuthService authService
     ResultFactory resultFactory
     AmazonS3Client s3Service
     TwilioRestClient twilioService
@@ -42,12 +47,60 @@ class PhoneService {
     // Numbers
     // -------
 
-    Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {
+    Result<Phone> update(Phone p1, Map body) {
+        if (body.awayMessage) {
+            p1.awayMessage = body.awayMessage
+        }
+        boolean isActive = false
+        Phone.withNewSession { Session session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                isActive = authService.isActive
+            }
+            finally { session.flushMode = FlushMode.AUTO }
+        }
+        if (isActive && (body.number || body.newApiId)) {
+            Result<Phone> res
+            if (body.phone) {
+                PhoneNumber pNum = new PhoneNumber(number:body.number as String)
+                res = this.updatePhoneForNumber(p1, pNum)
+            }
+            else {
+                res = this.updatePhoneForApiId(p1, body.newApiId as String)
+            }
+            res.then({
+                if (p1.save()) {
+                    resultFactory.success(p1)
+                }
+                else { resultFactory.failWithValidationErrors(p1.errors) }
+            }, { ResultType type, Object payload ->
+                Phone.withTransaction { TransactionStatus status ->
+                    status.setRollbackOnly()
+                }
+                resultFactory.duplicate(type, payload)
+            }) as Result<Staff>
+        }
+        else { resultFactory.success(p1) }
+    }
+
+    protected Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {
         if (!pNum.validate()) {
             return resultFactory.failWithValidationErrors(pNum.errors)
         }
         if (pNum.number == p1.numberAsString) {
             return resultFactory.success(p1)
+        }
+        boolean isDuplicate = false
+        Phone.withNewSession { Session session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                isDuplicate = (Phone.countByNumberAsString(pNum.number) > 0)
+            }
+            finally { session.flushMode = FlushMode.AUTO }
+        }
+        if (isDuplicate) {
+            return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+                "phoneService.changeNumber.duplicate")
         }
         Result.<Phone>waterfall(
             this.&changeForNumber.curry(pNum),
@@ -55,9 +108,21 @@ class PhoneService {
         )
     }
 
-    Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
+    protected Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
         if (apiId == p1.apiId) {
             return resultFactory.success(p1)
+        }
+        boolean isDuplicate = false
+        Phone.withNewSession { Session session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                isDuplicate = (Phone.countByApiId(apiId) > 0)
+            }
+            finally { session.flushMode = FlushMode.AUTO }
+        }
+        if (isDuplicate) {
+            return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+                'phoneService.changeNumber.duplicate')
         }
         Result.<Phone>waterfall(
             this.&changeForApiId.curry(apiId),
@@ -81,7 +146,8 @@ class PhoneService {
         try {
             Account ac = twilioService.account
             IncomingPhoneNumber newNum = ac.getIncomingPhoneNumber(newApiId as String)
-            newNum.update(getBasicParams())
+            List<NameValuePair> params = getBasicParams()
+            newNum.update(params)
             resultFactory.success(newNum)
         }
         catch (TwilioRestException e) {
@@ -90,19 +156,15 @@ class PhoneService {
     }
     protected Result<Phone> updatePhoneWithNewNumber(IncomingPhoneNumber newNum,
         Phone p1) {
+        String oldApiId = p1.apiId
         p1.apiId = newNum.sid
-        p1.numberAsString = newNum.phoneNumber
-        if (p1.save()) {
-            if (p1.apiId) {
-                freeExistingNumber(p1.apiId).then({
-                    resultFactory.success(p1)
-                }) as Result<Phone>
-            }
-            else { resultFactory.success(p1) }
+        p1.number = new PhoneNumber(number:newNum.phoneNumber as String)
+        if (oldApiId) {
+            freeExistingNumber(oldApiId).then({
+                resultFactory.success(p1)
+            }) as Result<Phone>
         }
-        else {
-            resultFactory.failWithValidationErrors(p1.errors)
-        }
+        else { resultFactory.success(p1) }
     }
     protected Result<IncomingPhoneNumber> freeExistingNumber(String oldApiId) {
         String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
@@ -136,59 +198,34 @@ class PhoneService {
 
     ResultList<RecordText> sendText(Phone phone, OutgoingText text, Staff staff) {
         ResultList<RecordText> resList = new ResultList<>()
-        // define datastructures
-        Map<Long, HashSet<Contact>> tagIdToContacts = [:]
+        HashSet<Contactable> recipients = text.toRecipients()
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
-        HashSet<Contactable> recipients = new HashSet<>()
-        // build map of tags to members
-        text.tags.each { ContactTag ct1 ->
-            tagIdToContacts[ct1.id] = new HashSet<Contact>(ct1.members)
-        }
-        // add all contactables to a hashset to avoid duplication
-        recipients.addAll(text.contacts)
-        recipients.addAll(text.sharedContacts)
-        tagIdToContacts.values().each { recipients.addAll(it) }
+            .withDefault { [] as List<TempRecordReceipt> }
+        // check number of recipients below maximum (to avoid abuse)
         Integer maxNumRecip = Helpers.toInteger(grailsApplication.flatConfig["textup.maxNumText"])
         if (recipients.size() > maxNumRecip) {
             return (resList << resultFactory.failWithMessage("phone.sendText.tooMany"))
         }
         // call sendText on each contactable
         recipients.each { Contactable c1 ->
-            textService.send(phone.number, c1.numbers,
-                text.message).then({ TempRecordReceipt receipt ->
-                Result<RecordText> res = c1.storeOutgoingText(text.message, receipt, staff)
-                // only contacts (NOT shared) can be member of a tag
-                if (res.success && c1.instanceOf(Contact)) {
-                    Contact cont = c1 as Contact
-                    if (contactIdToReceipts.containsKey(cont)) {
-                        (contactIdToReceipts[cont.id] as List<TempRecordReceipt>) << receipt
-                    }
-                    else { contactIdToReceipts[cont.id] = [receipt] }
-
-                }
-                resList << res
-            })
+            if (c1.instanceOf(SharedContact)) {
+                resList << sendTextToSharedContact(c1 as SharedContact, text, staff)
+            }
+            else if (c1.instanceOf(Contact)) {
+                resList << sendTextToContact(phone, c1 as Contact, text, staff, contactIdToReceipts)
+            }
+            else {
+                log.error("PhoneService.sendText: contactable '${c1}' not a SharedContact or a Contact")
+            }
         }
         // record all receipts on each tag, if applicable
         text.tags.each { ContactTag ct1 ->
-            // create a new text on the tag's record
-            Result<RecordText> res = ct1.addTextToRecord([contents:text.message], staff)
-            if (res.success) {
-                RecordText tagText = res.payload
-                tagIdToContacts[ct1.id]?.each { Contact c1 ->
-                    // add contact text's receipts to tag's text
-                    contactIdToReceipts[c1.id]?.each { TempRecordReceipt r ->
-                        tagText.addReceipt(r)
-                        tagText.save()
-                    }
-                }
-            }
-            resList << res
+            resList << storeTextInTag(ct1, text, staff, contactIdToReceipts)
         }
         resList
     }
     Result<RecordCall> startBridgeCall(Phone phone, Contactable c1, Staff staff) {
-        PhoneNumber fromNum = phone.number,
+        PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : phone.number,
             toNum = staff.personalPhoneNumber
         Map afterPickup = [contactId:c1.contactId, handle:CallResponse.CONFIRM_BRIDGE]
         callService.start(fromNum, toNum, afterPickup).then({ TempRecordReceipt receipt ->
@@ -216,6 +253,42 @@ class PhoneService {
         }, { Contact c1, TempRecordReceipt receipt ->
             c1.storeOutgoingCall(receipt, staff)
         })
+    }
+
+    // Outgoing helper methods
+    // -----------------------
+
+    protected Result<RecordText> sendTextToContact(Phone phone, Contact c1, OutgoingText text,
+        Staff staff, Map<Long, List<TempRecordReceipt>> contactIdToReceipts) {
+        textService.send(phone.number, c1.numbers, text.message)
+            .then({ TempRecordReceipt receipt ->
+                Result<RecordText> res = c1.storeOutgoingText(text.message, receipt, staff)
+                if (res.success) {
+                    (contactIdToReceipts[c1.id] as List<TempRecordReceipt>) << receipt
+                }
+                res
+            }) as Result<RecordText>
+    }
+    protected Result<RecordText> sendTextToSharedContact(SharedContact sc1,
+        OutgoingText text, Staff staff) {
+        textService.send(sc1.sharedBy.number, sc1.numbers, text.message)
+            .then({ TempRecordReceipt receipt ->
+                sc1.storeOutgoingText(text.message, receipt, staff)
+            }) as Result<RecordText>
+    }
+    protected Result<RecordText> storeTextInTag(ContactTag ct1, OutgoingText text, Staff staff,
+        Map<Long, List<TempRecordReceipt>> contactIdToReceipts) {
+        // create a new text on the tag's record
+        ct1.addTextToRecord([contents:text.message], staff).then({ RecordText tagText ->
+            ct1.members.each { Contact c1 ->
+                // add contact text's receipts to tag's text
+                contactIdToReceipts[c1.id]?.each { TempRecordReceipt r ->
+                    tagText.addReceipt(r)
+                    tagText.save()
+                }
+            }
+            resultFactory.success(tagText)
+        }) as Result<RecordText>
     }
     protected ResultMap<TempRecordReceipt> startAnnouncement(Phone phone,
         List<IncomingSession> sessions, Closure receiptAction,
@@ -278,18 +351,17 @@ class PhoneService {
         }).then({ List<Contact> contacts ->
             // notify available staff members
             List responses = [] // list of string and text resonses
-            String nameOrNumber = getNameOrNumber(contacts, session)
-            List<Staff> availableNow = phone.availableNow
+            HashSet<Staff> availableNow = getAllAvailableForContacts(contacts, phone)
+            // if none of the staff for any of the phones are available
             if (availableNow) {
+                String nameOrNumber = getNameOrNumber(contacts, session)
                 availableNow.each { Staff s1 ->
                     this.notifyStaff(s1, text, nameOrNumber)
                         .logFail("PhoneService.relayText: notify staff ${s1.id}")
                 }
             }
             else {
-                rTexts.each { RecordText rText ->
-                    rText.hasAwayMessage = true
-                }
+                rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
                 responses << phone.awayMessage
             }
             // remind about instructions if phone has announcements enabled
@@ -304,6 +376,10 @@ class PhoneService {
                 }
                 else { return res }
             }
+            // For outgoing messages and all calls, we rely on status callbacks
+            // to push record items to the frontend. However, for incoming texts
+            // no status callback happens so we need to push the item here
+            socketService.sendItems(rTexts as List<RecordItem>)
             twimlBuilder.buildTexts(responses)
         }) as Result
     }
@@ -317,8 +393,8 @@ class PhoneService {
             }
         }).then({ List<Contact> contacts ->
             // notify available staff members
-            List<Staff> availableNow = phone.availableNow
-            List<String> numsToCall = []
+            HashSet<Staff> availableNow = getAllAvailableForContacts(contacts, phone)
+            HashSet<String> numsToCall = new HashSet<>()
             availableNow.each { Staff s1 ->
                 if (s1.personalPhoneAsString) {
                     numsToCall << s1.personalPhoneNumber.e164PhoneNumber
@@ -487,6 +563,19 @@ class PhoneService {
         socketService.sendItems(voicemailItems)
 
         resList
+    }
+
+    // Incoming helper methods
+    // -----------------------
+
+    protected HashSet<Staff> getAllAvailableForContacts(List<Contact> contacts, Phone phone) {
+        List<Long> cIds = contacts.collect { it.id }
+        List<Phone> sharedWithPhones = SharedContact
+            .findByContactIdsAndSharedBy(cIds, phone)
+            .collect { it.sharedWith }
+        HashSet<Staff> availableNow = new HashSet<>(phone.availableNow)
+        sharedWithPhones.each { Phone p1 -> availableNow.addAll(p1.availableNow) }
+        availableNow
     }
     protected Result notifyStaff(Staff s1, IncomingText text, String identifier) {
         String notification = "${identifier}: ${text.message}"
