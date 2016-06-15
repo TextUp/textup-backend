@@ -1,7 +1,8 @@
 package org.textup.util
 
-import com.odobo.grails.plugin.springsecurity.rest.RestAuthenticationToken
-import com.odobo.grails.plugin.springsecurity.rest.token.rendering.RestAuthenticationTokenJsonRenderer
+import grails.plugin.springsecurity.rest.token.AccessToken
+import grails.plugin.springsecurity.rest.token.rendering.AccessTokenJsonRenderer
+
 import grails.converters.JSON
 import groovy.json.JsonSlurper
 import groovy.util.logging.Log4j
@@ -13,7 +14,7 @@ import org.springframework.util.Assert
 import org.textup.Staff
 
 @Log4j
-class CustomRestAuthenticationTokenJsonRenderer implements RestAuthenticationTokenJsonRenderer {
+class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
 
     @Autowired
     GrailsApplication grailsApplication
@@ -24,15 +25,16 @@ class CustomRestAuthenticationTokenJsonRenderer implements RestAuthenticationTok
     String usernamePropertyName
 
     @Override
-    String generateJson(RestAuthenticationToken restAuthenticationToken) {
-        Assert.isInstanceOf(UserDetails, restAuthenticationToken.principal, "A UserDetails implementation is required")
-        UserDetails userDetails = restAuthenticationToken.principal as UserDetails
-
+    String generateJson(AccessToken accessToken) {
+        Assert.isInstanceOf(UserDetails, accessToken.principal, "A UserDetails implementation is required")
+        // add basic information
+        UserDetails userDetails = accessToken.principal as UserDetails
         Map result = [
             (usernamePropertyName) : userDetails.username,
             (authoritiesPropertyName) : userDetails.authorities.collect {GrantedAuthority role -> role.authority },
             id: userDetails.id
         ]
+        // add additional information about the staff
         Staff.withNewSession {
             Staff staff = Staff.get(userDetails.id)
             if (staff) {
@@ -43,8 +45,21 @@ class CustomRestAuthenticationTokenJsonRenderer implements RestAuthenticationTok
                 result.staff = data
             }
         }
-        result["$tokenPropertyName"] = restAuthenticationToken.tokenValue
-        if (useBearerToken) { result.token_type = 'Bearer' }
+        // add token information
+        if (useBearerToken) {
+            result.token_type = 'Bearer'
+            result.access_token = accessToken.accessToken
+            if (accessToken.expiration) {
+                result.expires_in = accessToken.expiration
+            }
+            if (accessToken.refreshToken) {
+                result.refresh_token = accessToken.refreshToken
+            }
+        }
+        else {
+            result["$tokenPropertyName"] = accessToken.accessToken
+        }
+        // build json string result
         def jsonResult = result as JSON
         log.debug "CUSTOM Generated JSON:\n${jsonResult.toString(true)}"
         return jsonResult.toString()

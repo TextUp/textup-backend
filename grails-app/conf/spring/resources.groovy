@@ -38,7 +38,7 @@ beans = {
 	twimlBuilder(TwimlBuilder) { bean ->
 		bean.autowire = true
 	}
-	restAuthenticationTokenJsonRenderer(CustomRestAuthenticationTokenJsonRenderer) {
+	accessTokenJsonRenderer(CustomTokenJsonRenderer) {
 		usernamePropertyName = restConfig.rendering.usernamePropertyName
 		tokenPropertyName = restConfig.rendering.tokenPropertyName
 		authoritiesPropertyName = restConfig.rendering.authoritiesPropertyName

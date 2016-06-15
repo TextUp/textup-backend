@@ -75,6 +75,14 @@ grails.project.dependency.resolution = {
         runtime "org.apache.httpcomponents:httpcore:4.3.3"
         //pusher for realtime status updates and notifications
         compile "com.pusher:pusher-http-java:0.9.3"
+
+        // for spring security rest 1.5.3
+        compile 'xml-apis:xml-apis:1.4.01'
+        // for encrypted jwts, exclude outdated dependencies to prevent conflict
+        // see Token Storage section of spring-security-rest docs for 1.5.3
+        // build("com.lowagie:itext:2.0.8") {
+        //     excludes "bouncycastle:bcprov-jdk14:138", "org.bouncycastle:bcprov-jdk14:1.38"
+        // }
     }
 
     plugins {
@@ -89,7 +97,7 @@ grails.project.dependency.resolution = {
         compile ":joda-time:1.5"
 
         compile ":spring-security-core:2.0-RC4"
-        compile ":spring-security-rest:1.5.0.M1", {
+        compile ":spring-security-rest:1.5.3", {
             excludes: 'spring-security-core'
         } //includes cors
         compile ":functional-spock:0.7"

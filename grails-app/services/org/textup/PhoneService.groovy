@@ -61,7 +61,7 @@ class PhoneService {
         }
         if (isActive && (body.number || body.newApiId)) {
             Result<Phone> res
-            if (body.phone) {
+            if (body.number) {
                 PhoneNumber pNum = new PhoneNumber(number:body.number as String)
                 res = this.updatePhoneForNumber(p1, pNum)
             }

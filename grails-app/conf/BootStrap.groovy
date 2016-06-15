@@ -34,7 +34,7 @@ class BootStrap {
 		    	pendingOrgStaff.save(flush:true, failOnError:true)
 				StaffRole.create(pendingOrgStaff, userRole, true)
 
-	    		//create our full-fleges demo org
+	    		//create our full-fledged demo org
 	    		Organization org = new Organization(name:"Rhode Island House",
 	    			status: OrgStatus.APPROVED)
 		    	org.location = new Location(address:"577 Cranston St",
@@ -48,7 +48,7 @@ class BootStrap {
 	    		StaffRole.create(superUser, adminRole, true)
 
 		    	//create teams
-		    	Team t1 = new Team(name:"Rhode Island House", org:org)
+		    	Team t1 = new Team(name:"Rapid Rehousing", org:org)
 				Team t2 = new Team(name:"Housing First", org:org)
 				t1.location = new Location(address:"577 Cranston St", lat:0G, lon:1G)
 				t2.location = new Location(address:"577 Cranston St", lat:1G, lon:1G)
@@ -56,22 +56,22 @@ class BootStrap {
 				t2.save(flush:true, failOnError:true)
 				//create phones for teams
 				Phone tPh1 = new Phone()
-		        tPh1.numberAsString = "4012340315"
+		        tPh1.numberAsString = "9252755153"
 		        tPh1.updateOwner(t1)
 		        tPh1.save(flush:true, failOnError:true)
 
 				//create staff
-				Staff admin = new Staff(username:"demo-admin", password:"password",
-		    		name:"Mike Staff1", email:"connect@textup.org", org:org,
+				Staff admin = new Staff(username:"demo-eric", password:"password",
+		    		name:"Eric Bai", email:"eric@textup.org", org:org,
 		    		status:StaffStatus.ADMIN)
-		    	Staff s1 = new Staff(username:"demo-staff1", password:"password",
-		    		name:"Eva Staff2", email:"connect@textup.org", org:org,
-		    		status:StaffStatus.STAFF)
+		    	Staff s1 = new Staff(username:"demo-michelle", password:"password",
+		    		name:"Michelle Petersen", email:"michelle@textup.org", org:org,
+		    		status:StaffStatus.ADMIN)
 				Staff s2 = new Staff(username:"demo-staff2", password:"password",
 					name:"Johnny Staff3", email:"connect@textup.org", org:org,
 					status:StaffStatus.PENDING)
-		    	admin.personalPhoneAsString = "2678887452"
-		    	s1.personalPhoneAsString = "2678887452"
+		    	admin.personalPhoneAsString = "6262027548"
+		    	s1.personalPhoneAsString = "5865338761"
 		    	s2.personalPhoneAsString = "2678887452"
 		    	admin.save(flush:true, failOnError:true)
 				s1.save(flush:true, failOnError:true)
@@ -85,10 +85,10 @@ class BootStrap {
 		    	Phone p1 = new Phone(),
 		    		p2 = new Phone(),
 		    		p3 = new Phone()
-		    	p1.numberAsString = "9252755153"
+		    	p1.numberAsString = "4012340315"
 		    	p1.updateOwner(admin)
 		    	p1.save(flush:true, failOnError:true)
-		    	p2.numberAsString = "1112223336"
+		    	p2.numberAsString = "4012878248"
 		    	p2.updateOwner(s1)
 		    	p2.save(flush:true, failOnError:true)
 		    	p3.numberAsString = "1112223335"
@@ -107,9 +107,9 @@ class BootStrap {
 				t2.save(flush:true, failOnError:true)
 
 		    	//create contacts with items
-		    	Contact c1 = p1.createContact([name:'John Smith'], ["626 202 7548"]).payload
-				Contact c2 = p2.createContact([:], ["626 202 7548"]).payload
-				Contact tC1 = tPh1.createContact([:], ["626 202 7548"]).payload
+		    	Contact c1 = p1.createContact([name:'John Smith'], ["2678887452"]).payload
+				Contact c2 = p2.createContact([:], ["2678887452"]).payload
+				Contact tC1 = tPh1.createContact([:], ["2678887452"]).payload
 				[c1, c2, tC1]*.save(flush:true, failOnError:true)
 				RecordText rText1 = c1.record
 					.addText([contents:"Hi! Hope you're doing well today."], null).payload
