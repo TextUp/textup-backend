@@ -17,6 +17,8 @@ import org.apache.http.NameValuePair
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.hibernate.FlushMode
 import org.hibernate.Session
+import org.springframework.context.i18n.LocaleContextHolder as LCH
+import org.springframework.context.MessageSource
 import org.springframework.transaction.TransactionStatus
 import org.textup.rest.TwimlBuilder
 import org.textup.types.CallResponse
@@ -34,14 +36,15 @@ import static org.springframework.http.HttpStatus.*
 @Transactional
 class PhoneService {
 
-    GrailsApplication grailsApplication
-	TwimlBuilder twimlBuilder
-	SocketService socketService
-    TextService textService
-    CallService callService
-    AuthService authService
-    ResultFactory resultFactory
+    SocketService socketService
+    TwimlBuilder twimlBuilder
     AmazonS3Client s3Service
+    AuthService authService
+    CallService callService
+    GrailsApplication grailsApplication
+    MessageSource messageSource
+    ResultFactory resultFactory
+    TextService textService
     TwilioRestClient twilioService
 
     // Numbers
@@ -201,11 +204,6 @@ class PhoneService {
         HashSet<Contactable> recipients = text.toRecipients()
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
             .withDefault { [] as List<TempRecordReceipt> }
-        // check number of recipients below maximum (to avoid abuse)
-        Integer maxNumRecip = Helpers.toInteger(grailsApplication.flatConfig["textup.maxNumText"])
-        if (recipients.size() > maxNumRecip) {
-            return (resList << resultFactory.failWithMessage("phone.sendText.tooMany"))
-        }
         // call sendText on each contactable
         recipients.each { Contactable c1 ->
             if (c1.instanceOf(SharedContact)) {
@@ -356,7 +354,7 @@ class PhoneService {
             if (availableNow) {
                 String nameOrNumber = getNameOrNumber(contacts, session)
                 availableNow.each { Staff s1 ->
-                    this.notifyStaff(s1, text, nameOrNumber)
+                    this.notifyStaff(s1, nameOrNumber)
                         .logFail("PhoneService.relayText: notify staff ${s1.id}")
                 }
             }
@@ -577,13 +575,10 @@ class PhoneService {
         sharedWithPhones.each { Phone p1 -> availableNow.addAll(p1.availableNow) }
         availableNow
     }
-    protected Result notifyStaff(Staff s1, IncomingText text, String identifier) {
-        String notification = "${identifier}: ${text.message}"
-        if (notification.size() >= Constants.TEXT_LENGTH) {
-            int trimTo = Constants.TEXT_LENGTH - 4 // for the ellipses
-            notification = "${notification[0..trimTo]}..."
-        }
-        textService.send(s1.phone.number, [s1.personalPhoneNumber], notification)
+    protected Result notifyStaff(Staff s1, String identifier) {
+        String msg = messageSource.getMessage('phoneService.notifyStaff.notification',
+            [Helpers.formatNumberForRead(identifier)] as Object[], LCH.getLocale())
+        textService.send(s1.phone.number, [s1.personalPhoneNumber], msg)
     }
     protected String getNameOrNumber(List<Contact> contacts, IncomingSession session) {
         for (contact in contacts) {

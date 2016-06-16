@@ -1,9 +1,10 @@
 package org.textup.validator
 
+import grails.compiler.GrailsCompileStatic
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
-import grails.compiler.GrailsCompileStatic
+import grails.util.Holders
 
 @GrailsCompileStatic
 @EqualsAndHashCode
@@ -57,7 +58,22 @@ class OutgoingText {
 
 	def validateSetPhone(Phone p1) {
 		this.phone = p1
-		this.validate()
+		// after setting phone, then run validations
+		boolean isValid = this.validate()
+		// then manually check the number of recipients
+		HashSet<Contactable> recipients = this.toRecipients()
+		// check number of recipients below maximum (to avoid abuse)
+        Integer maxNumRecip = Helpers.toInteger(Holders.flatConfig["textup.maxNumText"])
+        if (recipients.size() > maxNumRecip) {
+        	isValid = false
+            this.errors.reject('outgoingText.tooManyRecipients')
+        }
+        else if (recipients.size() == 0) {
+        	isValid = false
+        	this.errors.reject('outgoingText.noRecipients')
+        }
+        // finally, return validation result
+		isValid
 	}
 
 	HashSet<Contactable> toRecipients() {
@@ -65,7 +81,7 @@ class OutgoingText {
         // add all contactables to a hashset to avoid duplication
         recipients.addAll(this.contacts)
         recipients.addAll(this.sharedContacts)
-        this.tags.each { ContactTag ct1 -> recipients.addAll(ct1.members) }
+        this.tags.each { ContactTag ct1 -> recipients.addAll(ct1.members ?: []) }
 
         recipients
 	}

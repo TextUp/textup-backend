@@ -157,6 +157,10 @@ class Helpers {
     static String formatNumberForSay(PhoneNumber num) {
         formatNumberForSay(num?.number)
     }
+    static String formatNumberForRead(String number) {
+        PhoneNumber pNum = new PhoneNumber(number:number)
+        pNum.validate() ? pNum.prettyPhoneNumber : number
+    }
 
     // Security
     // --------

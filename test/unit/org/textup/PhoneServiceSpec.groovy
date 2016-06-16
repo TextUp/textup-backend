@@ -41,16 +41,12 @@ class PhoneServiceSpec extends CustomSpec {
     }
 
     String _apiId = "iamsospecial!!!"
-    int _maxNumReceipients = 100
     String _textedMessage
     int _numTextsSent = 0
 
     def setup() {
         setupData()
         service.resultFactory = getResultFactory()
-        service.grailsApplication = [getFlatConfig: {
-            ["textup.maxNumText":_maxNumReceipients]
-        }] as GrailsApplication
         service.textService = [send:{ BasePhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String message ->
             _textedMessage = message
@@ -179,29 +175,12 @@ class PhoneServiceSpec extends CustomSpec {
         int tBaseline = RecordText.count()
         int rBaseline = RecordItemReceipt.count()
 
-        when: "too many recipients"
-        _maxNumReceipients = 1
-        OutgoingText text = new OutgoingText(message:"hello",
-            contacts:[c1, c1_1, c1_2])
-        assert text.validateSetPhone(p1)
-        ResultList resList = service.sendText(p1, text, s1)
-
-        then:
-        resList.isAnySuccess == false
-        resList.results.size() == 1
-        resList.results[0].success == false
-        resList.results[0].type == ResultType.MESSAGE
-        resList.results[0].payload.code == "phone.sendText.tooMany"
-        RecordText.count() == tBaseline
-        RecordItemReceipt.count() == rBaseline
-
         when: "we send to contacts, shared contacts and tags"
-        _maxNumReceipients = 100
-        text = new OutgoingText(message:"hello",
+        OutgoingText text = new OutgoingText(message:"hello",
             contacts:[c1, c1_1, c1_2], sharedContacts:[sc2],
             tags:[tag1, tag1_1])
         assert text.validateSetPhone(p1)
-        resList = service.sendText(p1, text, s1)
+        ResultList resList = service.sendText(p1, text, s1)
         p1.save(flush:true, failOnError:true)
 
         HashSet<Contact> uniqueContacts = new HashSet<>(text.contacts)

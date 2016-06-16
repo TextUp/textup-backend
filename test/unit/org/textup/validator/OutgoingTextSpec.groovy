@@ -25,15 +25,33 @@ class OutgoingTextSpec extends CustomSpec {
 	}
 
 	void "test validation with phone"() {
-		given: "a valid outgoing text"
+		when: "a valid outgoing text without any recipients"
 		OutgoingText text = new OutgoingText(message:"hello")
 
-		expect: "call validatate without phone to be invalid"
+		then: "call validatate without phone to be invalid"
 		text.validate() == false
+		// recipients check only happens when calling validateSetPhone!
 		text.errors.errorCount == 1
+		text.errors.globalErrorCount == 0
+
+		and: "call validate with phone to be also be invalid because no recipients"
+		text.validateSetPhone(p1) == false
+		text.errors.errorCount == 1
+		text.errors.globalErrorCount == 1
+
+		when: "a valid outgoing text with at least one recipient"
+		text = new OutgoingText(message:"hello", contacts:[c1])
+
+		then: "call validatate without phone to be invalid"
+		text.validate() == false
+		// recipients check only happens when calling validateSetPhone!
+		text.errors.errorCount == 2
+		text.errors.globalErrorCount == 0
 
 		and: "call validate with phone to be valid"
 		text.validateSetPhone(p1) == true
+		text.errors.errorCount == 0
+		text.errors.globalErrorCount == 0
 	}
 
 	void "test message constraints"() {
@@ -42,7 +60,8 @@ class OutgoingTextSpec extends CustomSpec {
 
 		then: "invalid"
 		text.validateSetPhone(p1) == false
-		text.errors.errorCount == 1
+		text.errors.errorCount == 2
+		text.errors.globalErrorCount == 1
 
 		when: "message too long"
 		text = new OutgoingText(message:"I am way too long. I am way too long. \
@@ -55,10 +74,11 @@ class OutgoingTextSpec extends CustomSpec {
 
 		then: "invalid"
 		text.validateSetPhone(p1) == false
-		text.errors.errorCount == 1
+		text.errors.errorCount == 2
+		text.errors.globalErrorCount == 1
 
 		when: "message of valid length "
-		text = new OutgoingText(message:"I am just right.")
+		text = new OutgoingText(message:"I am just right.", contacts:[c1])
 
 		then: "valid"
 		text.validateSetPhone(p1) == true

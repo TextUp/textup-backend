@@ -193,7 +193,7 @@ class BaseController {
         }
     }
     protected def handleResultListFailure(HttpStatus errorCode, ResultList resList) {
-        respond resList.failures*.errorMessages.flatten(), [status:errorCode]
+        respondWithErrors(resList.failures*.errorMessages.flatten() as Collection<String>, errorCode)
     }
 
     // List

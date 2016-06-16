@@ -1,21 +1,22 @@
 package org.textup
 
+import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
-import spock.lang.Shared
-import spock.lang.Specification
-import grails.plugin.springsecurity.SpringSecurityService
-import org.textup.util.CustomSpec
 import org.joda.time.DateTime
-import static org.springframework.http.HttpStatus.*
+import org.springframework.context.MessageSource
+import org.textup.rest.TwimlBuilder
 import org.textup.types.ReceiptStatus
 import org.textup.types.ResultType
-import org.textup.rest.TwimlBuilder
+import org.textup.util.CustomSpec
 import org.textup.validator.OutgoingText
+import org.textup.validator.PhoneNumber
+import spock.lang.Shared
+import spock.lang.Specification
+import static org.springframework.http.HttpStatus.*
 
 @TestFor(RecordService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -124,19 +125,20 @@ class RecordServiceSpec extends CustomSpec {
     }
 
     void "test create text"() {
+        given:
+        int cBaseline = Contact.count()
+
         when: "no recipients"
         Map itemInfo = [contents:"hi"]
         ResultList resList = service.createText(t1.phone, itemInfo)
 
-        then:
-        resList.isAnySuccess == false
+        then: "this class does not handle validation for number of recipients"
+        resList.isAnySuccess == true
         resList.results.size() == 1
-        resList.results[0].type == ResultType.MESSAGE_STATUS
-        resList.results[0].payload.code == "recordService.create.noTextRecipients"
-        resList.results[0].payload.status == BAD_REQUEST
+        resList.results[0].payload == "sendText"
+        Contact.count() == cBaseline
 
-        when:
-        itemInfo.sendToPhoneNumbers = ["2223334444"]
+        when: "send to a contact"
         itemInfo.sendToContacts = [tC1.id]
         resList = service.createText(t1.phone, itemInfo)
 
@@ -144,6 +146,30 @@ class RecordServiceSpec extends CustomSpec {
         resList.isAnySuccess == true
         resList.results.size() == 1
         resList.results[0].payload == "sendText"
+        Contact.count() == cBaseline
+
+        when: "send to a phone number that belongs to a existing contact"
+        itemInfo.sendToPhoneNumbers = [tC1.numbers[0].number]
+        resList = service.createText(t1.phone, itemInfo)
+
+        then: "no new contact created"
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload == "sendText"
+        Contact.count() == cBaseline
+
+        when: "send to a phone number that you've never seen before"
+        PhoneNumber newNum = new PhoneNumber(number:"888 888 8888")
+        assert newNum.validate()
+        assert Contact.listForPhoneAndNum(t1.phone, newNum) == []
+        itemInfo.sendToPhoneNumbers = [newNum.number]
+        resList = service.createText(t1.phone, itemInfo)
+
+        then: "new contact created for novel number"
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload == "sendText"
+        Contact.count() == cBaseline + 1
     }
 
     void "test create call"() {

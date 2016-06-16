@@ -7,6 +7,7 @@ import org.textup.rest.TwimlBuilder
 import org.textup.types.ReceiptStatus
 import org.textup.util.OptimisticLockingRetry
 import org.textup.validator.OutgoingText
+import org.textup.validator.PhoneNumber
 import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
@@ -94,13 +95,26 @@ class RecordService {
         List<Long> cIds = Helpers.toIdsList(body.sendToContacts),
             scIds = Helpers.toIdsList(body.sendToSharedContacts),
             tIds = Helpers.toIdsList(body.sendToTags)
-        List<String> nums = Helpers.toList(body.sendToPhoneNumbers)
-        if ([nums, cIds, scIds, tIds].every { it.isEmpty() }) {
-            return new ResultList(resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                "recordService.create.noTextRecipients"))
+        List<Contact> contacts = Contact.getAll(cIds as Iterable<Serializable>) as List
+        List<PhoneNumber> pNums = Helpers.toList(body.sendToPhoneNumbers)
+            .collect { new PhoneNumber(number:it as String) }
+        // process raw phone numbers into contacts
+        for (pNum in pNums) {
+            if (!pNum.validate()) { continue } // ignore invalid phone numbers
+            List<Contact> existing = Contact.listForPhoneAndNum(p1, pNum)
+            // add existing contacts to recipients
+            if (existing) { contacts += existing }
+            else { // if no existing, create new contact with this number
+                Result<Contact> res = p1.createContact([:], [pNum.number])
+                if (res.success) {
+                    contacts << res.payload
+                }
+                else { return new ResultList(res) }
+            }
         }
+        // build outgoing text and delegate subsequent actions to the phone
         OutgoingText text = new OutgoingText(message:body.contents as String,
-            contacts:Contact.getAll(cIds as Iterable<Serializable>) as List,
+            contacts:contacts,
             sharedContacts:SharedContact.findByContactIdsAndSharedWith(scIds, p1),
             tags:ContactTag.getAll(tIds as Iterable<Serializable>) as List)
         p1.sendText(text, authService.loggedInAndActive)
