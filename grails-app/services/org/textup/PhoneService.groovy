@@ -47,45 +47,108 @@ class PhoneService {
     TextService textService
     TwilioRestClient twilioService
 
-    // Numbers
-    // -------
+    // Update
+    // ------
 
+    Result<Staff> createOrUpdatePhone(Staff s1, Map body) {
+        if (body.phone instanceof Map) {
+            Phone p1 = s1.phoneWithAnyStatus ?: new Phone([:])
+            p1.updateOwner(s1)
+            phoneService.update(p1, body.phone as Map).then({
+                resultFactory.success(s1)
+            }) as Result<Staff>
+        }
+        else { resultFactory.success(s1) }
+    }
+    Result<Team> createOrUpdatePhone(Team t1, Map body) {
+        if (body.phone instanceof Map) {
+            Phone p1 = t1.phoneWithAnyStatus ?: new Phone([:])
+            p1.updateOwner(t1)
+            phoneService.update(p1, body.phone as Map).then({
+                resultFactory.success(t1)
+            }) as Result<Team>
+        }
+        else { resultFactory.success(t1) }
+    }
     Result<Phone> update(Phone p1, Map body) {
         if (body.awayMessage) {
             p1.awayMessage = body.awayMessage
         }
-        boolean isActive = false
-        Phone.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                isActive = authService.isActive
-            }
-            finally { session.flushMode = FlushMode.AUTO }
+        if (!checkIsActive()) { // short circuit if not active
+            return resultFactory.success(p1)
         }
-        if (isActive && (body.number || body.newApiId)) {
+        handlePhoneActions(p1, body).then({ Phone phone1 ->
+            if (phone1.save()) {
+                resultFactory.success(phone1)
+            }
+            else { resultFactory.failWithValidationErrors(phone1.errors) }
+        }) as Result<Phone>
+    }
+
+    protected Result<Phone> handlePhoneActions(Phone p1, Collection phoneActions) {
+        if (!body.doPhoneActions) {
+            return resultFactory.success(p1)
+        }
+        else if (!(body.doPhoneActions instanceof Collection)) {
+            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                "phoneService.update.phoneActionNotList")
+        }
+        for (item in body.doPhoneActions) {
+            if (!(item instanceof Map)) { continue }
+            Map pAction = item as Map
             Result<Phone> res
-            if (body.number) {
-                PhoneNumber pNum = new PhoneNumber(number:body.number as String)
-                res = this.updatePhoneForNumber(p1, pNum)
+            switch(Helpers.toLowerCaseString(pAction.action)) {
+                case Constants.PHONE_ACTION_DEACTIVATE:
+                    res = deactivatePhone(p1)
+                    break
+                case Constants.PHONE_ACTION_TRANSFER:
+                    res = transferPhone(p1, Helpers.toLong(pAction.id),
+                        Helpers.<PhoneOwnershipType>convertEnum(PhoneOwnershipType,
+                            pAction.type))
+                    break
+                case Constants.PHONE_ACTION_NEW_NUM_BY_NUM:
+                    PhoneNumber pNum = new PhoneNumber(number:item.number as String)
+                    res = this.updatePhoneForNumber(p1, pNum)
+                    break
+                case Constants.PHONE_ACTION_NEW_NUM_BY_ID:
+                    res = this.updatePhoneForApiId(p1, item.numberId as String)
+                    break
+                default:
+                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
+                        "phoneService.update.phoneActionInvalid",
+                        [pAction.action])
             }
-            else {
-                res = this.updatePhoneForApiId(p1, body.newApiId as String)
-            }
-            res.then({
-                if (p1.save()) {
-                    resultFactory.success(p1)
-                }
-                else { resultFactory.failWithValidationErrors(p1.errors) }
-            }, { ResultType type, Object payload ->
+            if (!res.success) {
                 Phone.withTransaction { TransactionStatus status ->
                     status.setRollbackOnly()
                 }
-                resultFactory.duplicate(type, payload)
-            }) as Result<Staff>
+                return res
+            }
+        }
+        if (p1.save()) {
+            resultFactory.success(p1)
+        }
+        else { resultFactory.failWithValidationErrors(p1.errors) }
+    }
+
+    protected Result<Phone> deactivatePhone(Phone p1) {
+        String oldApiId = p1.apiId
+        p1.numberAsString = null
+        p1.apiId = null
+        if (!p1.validate()) {
+            return result.failWithValidationErrors(p1.errors)
+        }
+        if (oldApiId) {
+            freeExistingNumber(oldApiId).then({ ->
+                resultFactory.success(p1)
+            })
         }
         else { resultFactory.success(p1) }
     }
-
+    protected Result<Phone> transferPhone(Phone p1, Long id, PhoneOwnershipType type) {
+        Result<PhoneOwnership> res = p1.transferTo(id, type)
+        res.success ? resultFactory.success(p1) : res
+    }
     protected Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {
         if (!pNum.validate()) {
             return resultFactory.failWithValidationErrors(pNum.errors)
@@ -93,15 +156,7 @@ class PhoneService {
         if (pNum.number == p1.numberAsString) {
             return resultFactory.success(p1)
         }
-        boolean isDuplicate = false
-        Phone.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                isDuplicate = (Phone.countByNumberAsString(pNum.number) > 0)
-            }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        if (isDuplicate) {
+        if (checkIsDuplicate({ -> Phone.countByNumberAsString(pNum.number) })) {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
                 "phoneService.changeNumber.duplicate")
         }
@@ -110,20 +165,11 @@ class PhoneService {
             this.&updatePhoneWithNewNumber.rcurry(p1)
         )
     }
-
     protected Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
         if (apiId == p1.apiId) {
             return resultFactory.success(p1)
         }
-        boolean isDuplicate = false
-        Phone.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                isDuplicate = (Phone.countByApiId(apiId) > 0)
-            }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        if (isDuplicate) {
+        if (checkIsDuplicate({ -> Phone.countByApiId(apiId) })) {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
                 'phoneService.changeNumber.duplicate')
         }
@@ -132,6 +178,9 @@ class PhoneService {
             this.&updatePhoneWithNewNumber.rcurry(p1)
         )
     }
+
+    // Update helpers
+    // --------------
 
     protected Result<IncomingPhoneNumber> changeForNumber(PhoneNumber pNum) {
         try {
@@ -182,6 +231,29 @@ class PhoneService {
         catch (TwilioRestException e) {
             return resultFactory.failWithThrowable(e)
         }
+    }
+
+    protected boolean checkIsActive() {
+        boolean isActive = false
+        Phone.withNewSession { Session session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                isActive = authService.isActive
+            }
+            finally { session.flushMode = FlushMode.AUTO }
+        }
+        isActive
+    }
+    protected boolean checkIsDuplicate(Closure doCheck) {
+        boolean isDuplicate = false
+        Phone.withNewSession { Session session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                isDuplicate = (doCheck() > 0)
+            }
+            finally { session.flushMode = FlushMode.AUTO }
+        }
+        isDuplicate
     }
     protected List<NameValuePair> getBasicParams() {
         String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],

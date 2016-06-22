@@ -43,13 +43,13 @@ class Team {
             presentInResponse = false),
         @RestApiObjectField(
             apiFieldName  = "phone",
-            description   = "TextUp phone number",
-            allowedType   = "String"),
+            description   = "TextUp phone",
+            allowedType   = "Phone"),
         @RestApiObjectField(
-            apiFieldName  = "awayMessage",
-            description   = "Away message when no staff members in this team \
-                are available to respond to texts or calls",
-            allowedType   = "String")
+            apiFieldName = "hasInactivePhone",
+            description  = "Whether this staff has an inactive TextUp phone",
+            allowedType  = "Boolean",
+            mandatory    = false)
     ])
     static transients = ["phone"]
     static hasMany = [members:Staff]
@@ -133,9 +133,21 @@ class Team {
         this.location = l
         this.location?.save()
     }
+    boolean getHasInactivePhone() {
+        Phone ph = this.phoneWithAnyStatus
+        ph ? !ph.isActive : false
+    }
+    Phone getPhoneWithAnyStatus() {
+        PhoneOwnership.createCriteria().list {
+            projections { property("phone") }
+            eq("type", PhoneOwnershipType.GROUP)
+            eq("ownerId", this.id)
+        }[0]
+    }
     Phone getPhone() {
         PhoneOwnership.createCriteria().list {
             projections { property("phone") }
+            phone { isNotNull("numberAsString") }
             eq("type", PhoneOwnershipType.GROUP)
             eq("ownerId", this.id)
         }[0]

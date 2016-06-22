@@ -10,7 +10,7 @@ import grails.compiler.GrailsCompileStatic
 class PhoneNumber extends BasePhoneNumber {
 
     static constraints = {
-        number nullable: false, validator:{ String val, PhoneNumber obj ->
+        number nullable:false, validator:{ String val, PhoneNumber obj ->
 	        if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
 	    }
     }

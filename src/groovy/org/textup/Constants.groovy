@@ -55,4 +55,9 @@ class Constants {
 
 	static final String NUMBER_ACTION_MERGE = "merge"
 	static final String NUMBER_ACTION_DELETE = "delete"
+
+	static final String PHONE_ACTION_DEACTIVATE = "deactivate"
+	static final String PHONE_ACTION_TRANSFER = "transfer"
+	static final String PHONE_ACTION_NEW_NUM_BY_NUM  = "numbynum"
+	static final String PHONE_ACTION_NEW_NUM_BY_ID = "numbyid"
 }

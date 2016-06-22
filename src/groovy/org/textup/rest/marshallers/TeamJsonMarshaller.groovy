@@ -19,6 +19,7 @@ class TeamJsonMarshaller extends JsonNamedMarshaller {
             org = t1.org.id // MUST BE id or else you have circular reference in json
             hexColor = t1.hexColor
             phone = t1.phone
+            hasInactivePhone = t1.hasInactivePhone
             location = t1.location
             numMembers = t1.activeMembers.size()
         }

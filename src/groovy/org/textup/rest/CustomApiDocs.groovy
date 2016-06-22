@@ -101,4 +101,38 @@ class CustomResponseDoc {
             useForCreation = true)
     ])
     static def numberAction
+
+    @RestApiObjectField(description = "Deactivate or transfer phone")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName   = "action"
+            description    = "Action to take. Allowed: DEACTIVATE, TRANSFER, NUMBYNUM, NUMBYID"
+            allowedType    = "String",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "id"
+            description    = "TRANSFER: Id of the entity to transfer to"
+            allowedType    = "Number",
+            mandatory      = false,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "type"
+            description    = "TRANSFER: Type of the entity. Allowed: GROUP, INDIVIDUAL"
+            allowedType    = "String",
+            mandatory      = false,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "number"
+            description    = "NUMBYNUM: New phone number to update phone with"
+            allowedType    = "String",
+            mandatory      = false,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "numberId"
+            description    = "NUMBYID: Id of new phone number to update phone with"
+            allowedType    = "String",
+            mandatory      = false,
+            useForCreation = true)
+    ])
+    static def phoneAction
 }
