@@ -25,7 +25,7 @@ class TeamService {
     	Team t1 = new Team(org:o1)
         Result.<Team>waterfall(
             this.&updateTeamInfo.curry(t1, body),
-            this.&createOrUpdatePhone.rcurry(body)
+            phoneService.&createOrUpdatePhone.rcurry(body)
         ).then({
             if (t1.save()) {
                 resultFactory.success(t1)
@@ -54,21 +54,6 @@ class TeamService {
         }
         else { resultFactory.failWithValidationErrors(t1.errors) }
     }
-    protected Result<Team> createOrUpdatePhone(Team t1, Map body) {
-        if (body.phone instanceof Map) {
-            Phone p1 = t1.phone ?: new Phone([:])
-            p1.updateOwner(t1)
-            phoneService.update(p1, body.phone as Map).then({
-                if (p1.save()) {
-                    resultFactory.success(t1)
-                }
-                else {
-                    resultFactory.failWithValidationErrors(p1.errors)
-                }
-            }) as Result<Staff>
-        }
-        else { resultFactory.success(t1) }
-    }
 
     // Update
     // ------
@@ -78,7 +63,7 @@ class TeamService {
             this.&findTeamFromId.curry(tId),
             this.&handleTeamActions.rcurry(body),
             this.&updateTeamInfo.rcurry(body),
-            this.&createOrUpdatePhone.rcurry(body)
+            phoneService.&createOrUpdatePhone.rcurry(body)
         ).then({ Team t1 ->
             if (t1.save()) {
                 resultFactory.success(t1)
@@ -100,7 +85,7 @@ class TeamService {
         if (!body.doTeamActions) {
             return resultFactory.success(t1)
         }
-        else if (!(body.doTeamActions instanceof List)) {
+        else if (!(body.doTeamActions instanceof Collection)) {
             return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
                 "teamService.update.teamActionNotList")
         }

@@ -48,7 +48,7 @@ class StaffService {
             // before trying to send out email notification and adding a phone
             if (s1.save()) {
                 Result.<Staff>waterfall(
-                    this.&createOrUpdatePhone.rcurry(s1, body),
+                    phoneService.&createOrUpdatePhone.rcurry(s1, body),
                     this.&notifyAfterCreation.rcurry(o1, body)
                 ).then({ Staff sameS1 ->
                     if (sameS1.save()) {
@@ -141,7 +141,7 @@ class StaffService {
         Result.<Staff>waterfall(
             this.&findStaffForId.curry(staffId),
             this.&updateStaffInfo.rcurry(body, timezone),
-            this.&createOrUpdatePhone.rcurry(body)
+            phoneService.&createOrUpdatePhone.rcurry(body)
         ).then({ Staff s1 ->
             if (s1.save()) {
                 resultFactory.success(s1)
@@ -193,20 +193,5 @@ class StaffService {
         else {
             resultFactory.failWithValidationErrors(s1.errors)
         }
-    }
-    protected Result<Staff> createOrUpdatePhone(Staff s1, Map body) {
-        if (body.phone instanceof Map) {
-            Phone p1 = s1.phone ?: new Phone([:])
-            p1.updateOwner(s1)
-            phoneService.update(p1, body.phone as Map).then({
-                if (p1.save()) {
-                    resultFactory.success(s1)
-                }
-                else {
-                    resultFactory.failWithValidationErrors(p1.errors)
-                }
-            }) as Result<Staff>
-        }
-        else { resultFactory.success(s1) }
     }
 }

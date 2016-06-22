@@ -68,6 +68,7 @@ class SharedContact implements Contactable {
         forContact { Contact c1 ->
             eq('contact', c1)
             eq('sharedBy', c1.phone)
+            sharedBy { isNotNull("numberAsString") }
         }
         forContactAndSharedWith { Contact c1, Phone sWith ->
             eq('contact', c1)
@@ -76,6 +77,7 @@ class SharedContact implements Contactable {
         forSharedByAndSharedWith { Phone sBy, Phone sWith ->
             eq('sharedBy', sBy)
             eq('sharedWith', sWith)
+            sharedBy { isNotNull("numberAsString") }
         }
         sharedWithMe { Phone sWith ->
             eq('sharedWith', sWith)
@@ -91,6 +93,7 @@ class SharedContact implements Contactable {
         sharedByMe { Phone sBy ->
             projections { distinct("contact") }
             eq('sharedBy', sBy)
+            sharedBy { isNotNull("numberAsString") }
             or {
                 isNull("dateExpired") //not expired if null
                 ge("dateExpired", DateTime.now())
@@ -153,6 +156,7 @@ class SharedContact implements Contactable {
         Phone sBy) {
         SharedContact.createCriteria().list {
             eq("sharedBy", sBy)
+            sharedBy { isNotNull("numberAsString") }
             or {
                 isNull("dateExpired") //not expired if null
                 ge("dateExpired", DateTime.now())

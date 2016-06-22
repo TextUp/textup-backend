@@ -23,6 +23,7 @@ import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes="owner")
+@RestApiObject(name="Staff", description="A TextUp phone.")
 class Phone {
 
     ResultFactory resultFactory
@@ -33,12 +34,35 @@ class Phone {
     String apiId
 	String numberAsString
     PhoneOwnership owner
+
+    @RestApiObjectField(
+            apiFieldName  = "awayMessage",
+            description   = "Away message when no staff members in this team \
+                are available to respond to texts or calls",
+            allowedType   = "String")
     String awayMessage = Constants.DEFAULT_AWAY_MESSAGE
 
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName = "number",
+            description  = "Phone number of this TextUp phone.",
+            allowedType  = "String"),
+        @RestApiObjectField(
+            apiFieldName      = "doPhoneActions",
+            description       = "List of some actions to perform on this phone",
+            allowedType       = "List<[phoneAction]>",
+            useForCreation    = false,
+            presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName   = "tags",
+            description    = "List of tags, if any.",
+            allowedType    = "List<Tag>",
+            useForCreation = false)
+    ])
     static transients = ["number", "resultFactory", "phoneService", "twimlBuilder"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
-        numberAsString validator:{ String num, Phone obj ->
+        numberAsString blank:true, nullable:true, validator:{ String num, Phone obj ->
             //phone number must be unique for phones
             if (num && obj.existsWithSameNumber(num)) {
                 ["duplicate"]
@@ -69,6 +93,31 @@ class Phone {
             finally { session.flushMode = FlushMode.AUTO }
         }
         hasDuplicate
+    }
+
+    // Ownership
+    // ---------
+
+    Result<PhoneOwnership> transferTo(Long id, PhoneOwnershipType type) {
+        PhoneOwnership own = this.owner
+        Phone otherPhone = (type == PhoneOwnershipType.INDIVIDUAL) ?
+            Staff.get(id)?.phone : Team.get(id)?.phone
+        // if other phone is present, copy this owner over
+        if (otherPhone?.owner) {
+            PhoneOwnership otherOwn = otherPhone.owner
+            otherOwn.type = own.type
+            otherOwn.ownerId = own.ownerId
+            if (!otherOwn.save()) {
+                return resultFactory.failWithValidationErrors(otherOwn.errors)
+            }
+        }
+        // then associate this phone with new owner
+        own.type = type
+        own.ownerId = id
+        if (own.save()) {
+            resultFactory.success(own)
+        }
+        else { resultFactory.failWithValidationErrors(own.errors) }
     }
 
     // Tags
@@ -171,6 +220,9 @@ class Phone {
 
     String getName() {
         this.owner.name
+    }
+    boolean getIsActive() {
+        this.getNumber().validate()
     }
     void setNumber(BasePhoneNumber pNum) {
         this.numberAsString = pNum?.number
@@ -301,6 +353,10 @@ class Phone {
     // --------
 
     ResultList<RecordText> sendText(OutgoingText text, Staff staff) {
+        if (!this.isActive) {
+            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                'phone.isInactive')
+        }
         // validate text
         if (!text.validateSetPhone(this)) {
             return new ResultList(resultFactory.failWithValidationErrors(text.errors))
@@ -314,6 +370,10 @@ class Phone {
     }
     // start bridge call, confirmed (if staff picks up) by contact
     ResultList<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
+        if (!this.isActive) {
+            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                'phone.isInactive')
+        }
         ResultList<RecordCall> resList = new ResultList()
         if ((c1 instanceof Contact || c1 instanceof SharedContact) && !c1.validate()) {
             return resList << resultFactory.failWithValidationErrors(c1.errors)
@@ -338,6 +398,10 @@ class Phone {
     }
     Result<FeaturedAnnouncement> sendAnnouncement(String message,
         DateTime expiresAt, Staff staff) {
+        if (!this.isActive) {
+            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                'phone.isInactive')
+        }
         // validate expiration
         if (!expiresAt || expiresAt.isBeforeNow()) {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,

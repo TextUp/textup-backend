@@ -78,25 +78,13 @@ class Staff {
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName  = "phone",
-            description   = "TextUp phone number",
-            allowedType   = "String"),
+            description   = "TextUp phone",
+            allowedType   = "Phone"),
         @RestApiObjectField(
-            apiFieldName  = "awayMessage",
-            description   = "Away message when no staff members in this team \
-                are available to respond to texts or calls",
-            allowedType   = "String"),
-        @RestApiObjectField(
-            apiFieldName   = "phoneId",
-            description    = "Id of the phone number to provision as the \
-                TextUp number of this staff member",
-            useForCreation = false,
-            allowedType    = "String",
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName   = "tags",
-            description    = "List of tags the staff member's TextUp phone, if any.",
-            allowedType    = "List<Tag>",
-            useForCreation = false),
+            apiFieldName = "hasInactivePhone",
+            description  = "Whether this staff has an inactive TextUp phone",
+            allowedType  = "Boolean",
+            mandatory    = false),
         @RestApiObjectField(
             apiFieldName   = "teams",
             description    = "List of teams the staff member is a member of.",
@@ -229,10 +217,23 @@ class Staff {
     PhoneNumber getPersonalPhoneNumber() {
         new PhoneNumber(number:this.personalPhoneAsString)
     }
+    boolean getHasInactivePhone() {
+        Phone ph = this.phoneWithAnyStatus
+        ph ? !ph.isActive : false
+    }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    Phone getPhoneWithAnyStatus() {
+        PhoneOwnership.createCriteria().list {
+            projections { property("phone") }
+            eq("type", PhoneOwnershipType.INDIVIDUAL)
+            eq("ownerId", this.id)
+        }[0]
+    }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     Phone getPhone() {
         PhoneOwnership.createCriteria().list {
             projections { property("phone") }
+            phone { isNotNull("numberAsString") }
             eq("type", PhoneOwnershipType.INDIVIDUAL)
             eq("ownerId", this.id)
         }[0]
@@ -242,6 +243,7 @@ class Staff {
         List<Team> teams = this.teams
         PhoneOwnership.createCriteria().list {
             projections { property("phone") }
+            phone { isNotNull("numberAsString") }
             or {
                 and {
                     eq("type", PhoneOwnershipType.INDIVIDUAL)
