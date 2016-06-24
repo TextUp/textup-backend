@@ -895,4 +895,6 @@ databaseChangeLog = {
 	changeSet(author: "eb27 (generated)", id: "1465832309673-50") {
 		addForeignKeyConstraint(baseColumnNames: "team_members_id", baseTableName: "team_staff", constraintName: "FK_dlhtktc631u2ui5we007uif0g", deferrable: "false", initiallyDeferred: "false", referencedColumnNames: "id", referencedTableName: "team", referencesUniqueColumn: "false")
 	}
+
+	include file: 'inactive-phone.groovy'
 }

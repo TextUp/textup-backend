@@ -78,13 +78,33 @@ class StaffSpec extends CustomSpec {
     	staff2.errors.getFieldErrorCount("username") == 1
     }
 
-    void "test getting phones and all phones"() {
-    	expect:
+    void "test getting phones"() {
+        given: "phone"
+        Phone ph = s1.phone
+
+    	when: "phone is active"
+        assert ph.isActive
+
+        then:
+        s1.hasInactivePhone == false
     	s1.phone == p1
+        s1.phoneWithAnyStatus == p1
     	s1.allPhones.size() == 2
     	s1.allPhones.every {
     		it == p1 || it == tPh1
     	}
+
+        when: "phone is inactive"
+        ph.deactivate()
+        ph.save(flush:true, failOnError:true)
+        assert !ph.isActive
+
+        then:
+        s1.hasInactivePhone == true
+        s1.phone == null
+        s1.phoneWithAnyStatus == p1
+        s1.allPhones.size() == 1
+        s1.allPhones.every { it == tPh1 }
     }
 
     void "test operations on schedules"() {

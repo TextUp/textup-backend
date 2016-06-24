@@ -53,8 +53,8 @@ class StaffServiceSpec extends CustomSpec {
             }
         ] as MailService
         service.phoneService = [
-            update: { Phone p1, Map body ->
-                new Result(type:ResultType.SUCCESS, success:true, payload:p1)
+            createOrUpdatePhone: { Staff s1, Map body ->
+                new Result(type:ResultType.SUCCESS, success:true, payload:s1)
             }
         ] as PhoneService
     }
@@ -448,60 +448,5 @@ class StaffServiceSpec extends CustomSpec {
         res.success == false
         res.type == ResultType.VALIDATION
         res.payload.errorCount == 1
-    }
-
-    void "test create or update phone"() {
-        given:
-        Staff staff = new Staff(username:"6sta$iterationCount", password:"password",
-            name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
-            org:org, personalPhoneAsString:"1112223333")
-        staff.save(flush:true, failOnError:true)
-        int pBaseline = Phone.count()
-        int oBaseline = PhoneOwnership.count()
-        String number = "163333441$iterationCount"
-
-        when: "for staff without a phone with invalidly formatted body"
-        Result<Staff> res = service.createOrUpdatePhone(staff, [
-            phone:number
-        ])
-        assert res.success
-        staff.save(flush:true, failOnError:true)
-
-        then:
-        Phone.count() == pBaseline
-        PhoneOwnership.count() == oBaseline
-        res.payload instanceof Staff
-        res.payload.id == staff.id
-
-        when: "for staff with existing phone"
-        res = service.createOrUpdatePhone(s1, [
-            phone:[number:"1112223333"]
-        ])
-
-        then:
-        res.success == true
-        res.payload instanceof Staff
-        Phone.count() == pBaseline
-        PhoneOwnership.count() == oBaseline
-
-        when: "for staff without a phone with validly formatted body"
-        service.phoneService = [
-            update: { Phone p1, Map body ->
-                p1.number = new PhoneNumber(number:body.number)
-                new Result(type:ResultType.SUCCESS, success:true, payload:p1)
-            }
-        ] as PhoneService
-
-        res = service.createOrUpdatePhone(staff, [
-            phone:[number:number]
-        ])
-        assert res.success
-        staff.save(flush:true, failOnError:true)
-
-        then:
-        Phone.count() == pBaseline + 1
-        PhoneOwnership.count() == oBaseline + 1
-        res.payload instanceof Staff
-        res.payload.id == staff.id
     }
 }

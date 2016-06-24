@@ -116,4 +116,27 @@ class TeamSpec extends CustomSpec {
     	staffMembers.every { team1.getMembers().contains(it) }
     	(staff + admins).every { team1.getActiveMembers().contains(it) }
     }
+
+    void "test getting phones"() {
+        given: "phone"
+        Phone ph = t1.phone
+
+        when: "phone is active"
+        assert ph.isActive
+
+        then:
+        t1.hasInactivePhone == false
+        t1.phone == tPh1
+        t1.phoneWithAnyStatus == tPh1
+
+        when: "phone is inactive"
+        ph.deactivate()
+        ph.save(flush:true, failOnError:true)
+        assert !ph.isActive
+
+        then:
+        t1.hasInactivePhone == true
+        t1.phone == null
+        t1.phoneWithAnyStatus == tPh1
+    }
 }

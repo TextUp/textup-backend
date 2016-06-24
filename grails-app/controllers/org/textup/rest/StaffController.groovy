@@ -43,7 +43,10 @@ class StaffController extends BaseController {
             team as the provided staff id'''),
         @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
             required=false, description='''IANA zone info key to convert times to,
-            include schedule intervals, defaults to UTC if unspecified or invalid''')
+            include schedule intervals, defaults to UTC if unspecified or invalid'''),
+        @RestApiParam(name="search", type="String", required=false,
+            paramType=RestApiParamType.QUERY, description='''String to search for in staff
+            name, username or email. Limited to staff in the logged-in user\'s organization.''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404",description="The organization or team was not found."),
@@ -56,7 +59,10 @@ class StaffController extends BaseController {
         if (params.timezone) { //for the json marshaller
             request.setAttribute("timezone", params.timezone as String)
         }
-        if (Helpers.exactly(1, ["organizationId", "teamId", "canShareStaffId"], params)) {
+        if (params.search) {
+            listSearch(params)
+        }
+        else if (Helpers.exactly(1, ["organizationId", "teamId", "canShareStaffId"], params)) {
             if (params.organizationId) {
                 listForOrg(params)
             }
@@ -66,6 +72,16 @@ class StaffController extends BaseController {
             else { listForShareStaff(params) }
         }
         else { badRequest() }
+    }
+    protected def listSearch(GrailsParameterMap params) {
+        if (!authService.isActive) {
+            return forbidden()
+        }
+        Staff loggedInStaff = authService.loggedInAndActive
+        Organization org = loggedInStaff.org
+        Closure count = { Map ps -> org.countStaff(ps.search as String) },
+            list = { Map ps -> org.getStaff(ps.search as String, ps) }
+        genericListActionForClosures(Staff, count, list, params)
     }
     protected def listForOrg(GrailsParameterMap params) {
         Organization org = Organization.get(params.long("organizationId"))

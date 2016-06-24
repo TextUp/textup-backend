@@ -9,6 +9,7 @@ import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
 import org.textup.types.CallResponse
 import org.textup.types.ContactStatus
+import org.textup.types.PhoneOwnershipType
 import org.textup.types.ResultType
 import org.textup.types.SharePermission
 import org.textup.types.StaffStatus
@@ -53,9 +54,10 @@ class PhoneSpec extends CustomSpec {
     	Phone p1 = new Phone()
         p1.resultFactory = getResultFactory()
 
-    	then:
+    	then: // no owner
     	p1.validate() == false
-    	p1.errors.errorCount == 2
+    	p1.errors.errorCount == 1
+        p1.isActive == false
 
     	when: "we have a phone with a unique number"
         String num = "5223334444"
@@ -64,6 +66,7 @@ class PhoneSpec extends CustomSpec {
 
     	then:
     	p1.validate() == true
+        p1.isActive == true
 
     	when: "we try to add a phone with a duplicate number"
     	p1.save(flush:true, failOnError:true)
@@ -109,6 +112,85 @@ class PhoneSpec extends CustomSpec {
         then:
         p1.availableNow.size() == t1.activeMembers.size() - 1
         p1.availableNow.every { it in t1.activeMembers && it != unavailableStaff }
+    }
+
+    void "test transferring phone"() {
+        given: "baselines, staff without phone"
+        int oBaseline = PhoneOwnership.count()
+        int pBaseline = Phone.count()
+
+        Staff noPhoneStaff = new Staff(username:"888-8sta$iterationCount",
+            password:"password", name:"Staff", email:"staff@textup.org",
+            org:org, personalPhoneAsString:"1112223333", status: StaffStatus.STAFF)
+        noPhoneStaff.save(flush:true, failOnError:true)
+
+        when: "transferring to a nonexistent entity"
+        Result<PhoneOwnership> res = s1.phone.transferTo(-88888,
+            PhoneOwnershipType.INDIVIDUAL)
+
+        then:
+        res.success == false
+        res.type == ResultType.VALIDATION
+        res.payload.errorCount == 1
+
+        when: "transferring to an entity that doesn't already have a phone"
+        Phone myPhone = s1.phone,
+            targetPhone = null
+        def initialOwner = s1,
+            targetOwner = noPhoneStaff
+        res = myPhone.transferTo(targetOwner.id, PhoneOwnershipType.INDIVIDUAL)
+        myPhone.save(flush:true, failOnError:true)
+
+        then: "phone is transferred"
+        res.success == true
+        res.payload instanceof PhoneOwnership
+        res.payload.ownerId == targetOwner.id
+        res.payload.type == PhoneOwnershipType.INDIVIDUAL
+        myPhone.owner.ownerId == targetOwner.id
+        myPhone.owner.type == PhoneOwnershipType.INDIVIDUAL
+        PhoneOwnership.count() == oBaseline
+        Phone.count() == pBaseline
+
+        when: "transferring to an entity that has an INactive phone"
+        initialOwner = targetOwner
+        targetPhone = s2.phone
+        targetOwner = s2
+
+        targetPhone.deactivate()
+        targetPhone.save(flush:true, failOnError:true)
+        res = myPhone.transferTo(targetOwner.id, PhoneOwnershipType.INDIVIDUAL)
+
+        then: "phones are swapped"
+        res.success == true
+        res.payload instanceof PhoneOwnership
+        res.payload.ownerId == targetOwner.id
+        res.payload.type == PhoneOwnershipType.INDIVIDUAL
+        myPhone.owner.ownerId == targetOwner.id
+        myPhone.owner.type == PhoneOwnershipType.INDIVIDUAL
+        targetPhone.owner.ownerId == initialOwner.id
+        targetPhone.owner.type == PhoneOwnershipType.INDIVIDUAL
+        PhoneOwnership.count() == oBaseline
+        Phone.count() == pBaseline
+
+        when: "transferring to an entity that has an active phone"
+        initialOwner = targetOwner
+        targetPhone = t1.phone
+        targetOwner = t1
+
+        assert targetPhone.isActive
+        res = myPhone.transferTo(targetOwner.id, PhoneOwnershipType.GROUP)
+
+        then: "phones are swapped"
+        res.success == true
+        res.payload instanceof PhoneOwnership
+        res.payload.ownerId == targetOwner.id
+        res.payload.type == PhoneOwnershipType.GROUP
+        myPhone.owner.ownerId == targetOwner.id
+        myPhone.owner.type == PhoneOwnershipType.GROUP
+        targetPhone.owner.ownerId == initialOwner.id
+        targetPhone.owner.type == PhoneOwnershipType.INDIVIDUAL
+        PhoneOwnership.count() == oBaseline
+        Phone.count() == pBaseline
     }
 
     void "test sharing contact operations"() {
@@ -320,6 +402,45 @@ class PhoneSpec extends CustomSpec {
     // Communications functionality
     // ----------------------------
 
+    void "test outgoing communication when phone is inactive"() {
+        given: "an inactive phone"
+        p1.deactivate()
+        p1.save(flush:true, failOnError:true)
+        assert !p1.isActive
+
+        when: "send text"
+        OutgoingText text = new OutgoingText(message:'hi')
+        text.contacts << c1
+        ResultList resList = p1.sendText(text, s1)
+
+        then:
+        resList.isAnySuccess == false
+        resList.results.size() == 1
+        resList.results[0].success == false
+        resList.results[0].type == ResultType.MESSAGE_STATUS
+        resList.results[0].payload.status == NOT_FOUND
+        resList.results[0].payload.code == "phone.isInactive"
+
+        when: "start bridge call"
+        resList = p1.startBridgeCall(c1, s1)
+
+        then:
+        resList.isAnySuccess == false
+        resList.results.size() == 1
+        resList.results[0].success == false
+        resList.results[0].type == ResultType.MESSAGE_STATUS
+        resList.results[0].payload.status == NOT_FOUND
+        resList.results[0].payload.code == "phone.isInactive"
+
+        when: "send announcement"
+        Result res = p1.sendAnnouncement("hi", DateTime.now().plusDays(1), s1)
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == NOT_FOUND
+        res.payload.code == "phone.isInactive"
+    }
     void "test sending text"() {
         given: "a phone"
         p1.phoneService = [sendText:{ Phone phone, OutgoingText text, Staff staff ->

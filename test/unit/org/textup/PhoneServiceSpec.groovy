@@ -26,6 +26,7 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
 import spock.lang.Shared
+import spock.lang.Unroll
 import static org.springframework.http.HttpStatus.*
 
 @TestFor(PhoneService)
@@ -41,15 +42,14 @@ class PhoneServiceSpec extends CustomSpec {
     }
 
     String _apiId = "iamsospecial!!!"
-    String _textedMessage
     int _numTextsSent = 0
 
     def setup() {
         setupData()
         service.resultFactory = getResultFactory()
+        service.messageSource = mockMessageSource()
         service.textService = [send:{ BasePhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String message ->
-            _textedMessage = message
             _numTextsSent++
             new Result(type:ResultType.SUCCESS, success:true,
                 payload: new TempRecordReceipt(apiId:_apiId,
@@ -80,8 +80,8 @@ class PhoneServiceSpec extends CustomSpec {
         cleanupData()
     }
 
-    // Updating (including numbers)
-    // ----------------------------
+    // Updating
+    // --------
 
     // Can only test edge cases because have not discovered a way to mock
     // Twilio api library classes such as IncomingPhoneNumber
@@ -165,6 +165,221 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload instanceof ValidationErrors
         res.payload.errorCount == 1
         Phone.count() == baseline
+    }
+
+    @Unroll
+    void "test create or update phone for staff OR team"() {
+        given:
+        def noPhoneEntity = forStaff ?
+            new Staff(username:"6sta$iterationCount", password:"password",
+                name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
+                org:org, personalPhoneAsString:"1112223333") :
+            new Team(name:"kiki's mane", org:org.id,
+                location:new Location(address:"address", lat:8G, lon:10G))
+        noPhoneEntity.save(flush:true, failOnError:true)
+        def withPhoneEntity = forStaff ? s1 : t1
+
+        int pBaseline = Phone.count()
+        int oBaseline = PhoneOwnership.count()
+        String msg = "I am away",
+            msg2 = "I am a different message!",
+            msg3 = "still another message!"
+
+        when: "for staff without a phone with invalidly formatted body"
+        Result<Staff> res = service.createOrUpdatePhone(
+            forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team, [
+            phone:msg
+        ])
+        assert res.success
+        noPhoneEntity.save(flush:true, failOnError:true)
+
+        then:
+        if (forStaff) {
+            assert res.payload instanceof Staff
+        }
+        else { assert res.payload instanceof Team }
+        res.payload.id == noPhoneEntity.id
+        Phone.count() == pBaseline
+        PhoneOwnership.count() == oBaseline
+
+        when: "when logged in staff is inactive"
+        service.authService = [getIsActive: { false }] as AuthService
+        withPhoneEntity.phone.awayMessage = msg2
+        withPhoneEntity.phone.save(flush:true, failOnError:true)
+        res = service.createOrUpdatePhone(
+            forStaff ? withPhoneEntity as Staff : withPhoneEntity as Team,
+            [ phone:[awayMessage:msg] ])
+
+        then:
+        res.success == true
+        if (forStaff) {
+            assert res.payload instanceof Staff
+        }
+        else { assert res.payload instanceof Team }
+        res.payload.phone.awayMessage != msg
+        res.payload.phone.awayMessage == msg2
+        Phone.count() == pBaseline
+        PhoneOwnership.count() == oBaseline
+
+        when: "for ACTIVE staff with existing phone"
+        service.authService = [getIsActive: { true }] as AuthService
+        res = service.createOrUpdatePhone(
+            forStaff ? withPhoneEntity as Staff : withPhoneEntity as Team,
+            [ phone:[awayMessage:msg] ])
+
+        then:
+        res.success == true
+        if (forStaff) {
+            assert res.payload instanceof Staff
+        }
+        else { assert res.payload instanceof Team }
+        res.payload.phone.awayMessage == msg
+        Phone.count() == pBaseline
+        PhoneOwnership.count() == oBaseline
+
+        when: "for staff without a phone with validly formatted body"
+        res = service.createOrUpdatePhone(
+            forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team,
+            [ phone:[awayMessage:msg] ])
+        assert res.success
+        noPhoneEntity.save(flush:true, failOnError:true)
+
+        then: "phone is created, but inactive because no number"
+        Phone.count() == pBaseline + 1
+        PhoneOwnership.count() == oBaseline + 1
+        if (forStaff) {
+            assert res.payload instanceof Staff
+        }
+        else { assert res.payload instanceof Team }
+        res.payload.id == noPhoneEntity.id
+        res.payload.hasInactivePhone == true
+        res.payload.phone == null
+        res.payload.phoneWithAnyStatus.awayMessage == msg
+        res.payload.phoneWithAnyStatus.isActive == false
+
+        when: "for active staff with inactive phone with validly formatted body"
+        res = service.createOrUpdatePhone(
+            forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team,
+            [ phone:[awayMessage:msg3] ])
+        assert res.success
+        noPhoneEntity.save(flush:true, failOnError:true)
+
+        then: "no new phone created"
+        Phone.count() == pBaseline + 1
+        PhoneOwnership.count() == oBaseline + 1
+        if (forStaff) {
+            assert res.payload instanceof Staff
+        }
+        else { assert res.payload instanceof Team }
+        res.payload.id == noPhoneEntity.id
+        res.payload.hasInactivePhone == true
+        res.payload.phone == null
+        res.payload.phoneWithAnyStatus.awayMessage == msg3
+        res.payload.phoneWithAnyStatus.isActive == false
+
+        where:
+        forStaff | _
+        true     | _
+        false    | _
+    }
+
+    void "test phone action error handling"() {
+        when: "no phone actions"
+        Result<Phone> res = service.handlePhoneActions(p1, [:])
+
+        then: "return passed-in phone with no modifications"
+        res.success == true
+        res.payload == p1
+
+        when: "phone actions not a list"
+        res = service.handlePhoneActions(p1, [doPhoneActions: [
+            hello:"i am not a list"
+        ]])
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == BAD_REQUEST
+        res.payload.code == "phoneService.update.phoneActionNotList"
+
+        when: "item in phone actions is not a map"
+        res = service.handlePhoneActions(p1, [doPhoneActions: [
+            ["i", "am", "not", "a", "map"]
+        ]])
+
+        then: "ignored"
+        res.success == true
+        res.payload == p1
+
+        when: "item in phone actions has an invalid action"
+        res = service.handlePhoneActions(p1, [doPhoneActions: [
+            [action: "i am an invalid action"]
+        ]])
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == BAD_REQUEST
+        res.payload.code == "phoneService.update.phoneActionInvalid"
+    }
+
+    void "test phone actions calling each branch"() {
+        when: "deactivating phone"
+        Result<Phone> res = service.handlePhoneActions(p1, [doPhoneActions: [
+            [action: Constants.PHONE_ACTION_DEACTIVATE]
+        ]])
+        p1.save(flush:true, failOnError:true)
+
+        then:
+        res.success == true
+        res.payload == p1
+        res.payload.isActive == false
+
+        when: "transferring phone"
+        p1.apiId = null // to avoid calling freeExisting number
+        p1.save(flush:true, failOnError:true)
+        res = service.handlePhoneActions(p1, [doPhoneActions: [
+            [
+                action: Constants.PHONE_ACTION_TRANSFER,
+                id: t1.id,
+                type: PhoneOwnershipType.GROUP.toString()
+            ]
+        ]])
+        p1.save(flush:true, failOnError:true)
+
+        then:
+        res.success == true
+        res.payload == p1
+        res.payload.owner.ownerId == t1.id
+        res.payload.owner.type == PhoneOwnershipType.GROUP
+
+        when: "picking new number by passing in a number"
+        res = service.handlePhoneActions(p1, [doPhoneActions: [
+            [
+                action: Constants.PHONE_ACTION_NEW_NUM_BY_NUM,
+                number: "invalidNum123" // so that short circuits
+            ]
+        ]])
+
+        then:
+        res.success == false
+        res.type == ResultType.VALIDATION
+        res.payload.errorCount == 1
+
+        when: "picking new number by passing in an apiId"
+        p1.apiId = "iamsospecial"
+        p1.save(flush:true, failOnError:true)
+        res = service.handlePhoneActions(p1, [doPhoneActions: [
+            [
+                action: Constants.PHONE_ACTION_NEW_NUM_BY_ID,
+                numberId: p1.apiId // so that short circuits
+            ]
+        ]])
+
+        then:
+        res.success == true
+        res.payload == p1
+        res.payload.isActive == false
     }
 
     // Outgoing
@@ -329,26 +544,14 @@ class PhoneServiceSpec extends CustomSpec {
     }
 
     void "test notify staff"() {
-        when: "notify for message longer than text length"
+        when:
         String message = Helpers.randomAlphanumericString(Constants.TEXT_LENGTH)
         String ident = "kiki bai"
-        IncomingText text = new IncomingText(apiId:"apiId", message:message)
-        Result<TempRecordReceipt> res = service.notifyStaff(s1, text, ident)
+        Result<TempRecordReceipt> res = service.notifyStaff(s1, ident)
 
         then:
         res.success == true
         res.payload instanceof TempRecordReceipt
-        _textedMessage.size() == Constants.TEXT_LENGTH
-
-        when: "shorter than text length"
-        message = Helpers.randomAlphanumericString(2)
-        text = new IncomingText(apiId:"apiId", message:message)
-        res = service.notifyStaff(s1, text, ident)
-
-        then:
-        res.success == true
-        res.payload instanceof TempRecordReceipt
-        _textedMessage.size() < Constants.TEXT_LENGTH
     }
 
     @FreshRuntime

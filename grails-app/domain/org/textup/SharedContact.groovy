@@ -66,20 +66,22 @@ class SharedContact implements Contactable {
     }
     static namedQueries = {
         forContact { Contact c1 ->
+            sharedBy { isNotNull("numberAsString") }
             eq('contact', c1)
             eq('sharedBy', c1.phone)
-            sharedBy { isNotNull("numberAsString") }
         }
         forContactAndSharedWith { Contact c1, Phone sWith ->
+            sharedBy { isNotNull("numberAsString") }
             eq('contact', c1)
             eq('sharedWith', sWith)
         }
         forSharedByAndSharedWith { Phone sBy, Phone sWith ->
+            sharedBy { isNotNull("numberAsString") }
             eq('sharedBy', sBy)
             eq('sharedWith', sWith)
-            sharedBy { isNotNull("numberAsString") }
         }
         sharedWithMe { Phone sWith ->
+            sharedBy { isNotNull("numberAsString") }
             eq('sharedWith', sWith)
             or {
                 isNull("dateExpired") //not expired if null
@@ -91,9 +93,9 @@ class SharedContact implements Contactable {
             order("whenCreated", "desc")
         }
         sharedByMe { Phone sBy ->
+            sharedBy { isNotNull("numberAsString") }
             projections { distinct("contact") }
             eq('sharedBy', sBy)
-            sharedBy { isNotNull("numberAsString") }
             or {
                 isNull("dateExpired") //not expired if null
                 ge("dateExpired", DateTime.now())
@@ -136,6 +138,7 @@ class SharedContact implements Contactable {
     static List<SharedContact> findByContactIdsAndSharedWith(Collection<Long> cIds,
         Phone sWith) {
         SharedContact.createCriteria().list {
+            sharedBy { isNotNull("numberAsString") }
             eq("sharedWith", sWith)
             or {
                 isNull("dateExpired") //not expired if null
@@ -155,8 +158,8 @@ class SharedContact implements Contactable {
     static List<SharedContact> findByContactIdsAndSharedBy(Collection<Long> cIds,
         Phone sBy) {
         SharedContact.createCriteria().list {
-            eq("sharedBy", sBy)
             sharedBy { isNotNull("numberAsString") }
+            eq("sharedBy", sBy)
             or {
                 isNull("dateExpired") //not expired if null
                 ge("dateExpired", DateTime.now())

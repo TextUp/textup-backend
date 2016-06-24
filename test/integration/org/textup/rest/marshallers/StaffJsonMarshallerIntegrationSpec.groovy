@@ -24,7 +24,7 @@ class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.status == s1.status.toString()
         assert json.manualSchedule == s1.manualSchedule
         assert json.schedule instanceof Map
-        assert json.phone instanceof Map
+        assert json.hasInactivePhone == s1.hasInactivePhone
         true
     }
 
@@ -44,6 +44,7 @@ class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
 
     	then:
     	validate(json, s1)
+        json.phone instanceof Map
         json.isAvailable == null
     }
 
@@ -61,6 +62,23 @@ class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
 
         then:
         validate(json, s1)
+        json.phone instanceof Map
         json.isAvailable != null
+    }
+
+    void "test marshalling staff with inactive phone, not logged in"() {
+        given:
+        s1.phone.deactivate()
+        s1.phone.save(flush:true, failOnError:true)
+
+        when:
+        Map json
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = jsonToObject(s1 as JSON) as Map
+        }
+
+        then:
+        validate(json, s1)
+        json.phone == null
     }
 }

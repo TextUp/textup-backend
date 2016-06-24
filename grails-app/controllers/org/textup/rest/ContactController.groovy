@@ -105,7 +105,7 @@ class ContactController extends BaseController {
         Closure count, list
         if (params.search) {
             count = { Map ps -> p1.countContacts(ps.search as String) }
-            list = { Map ps -> p1.getContacts(ps.search as String) }
+            list = { Map ps -> p1.getContacts(ps.search as String, ps) }
         }
         else if (params.shareStatus == "sharedByMe") { // returns CONTACTS
             count = { Map ps -> p1.countSharedByMe() }

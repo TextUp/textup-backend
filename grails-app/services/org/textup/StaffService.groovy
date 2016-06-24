@@ -48,7 +48,7 @@ class StaffService {
             // before trying to send out email notification and adding a phone
             if (s1.save()) {
                 Result.<Staff>waterfall(
-                    phoneService.&createOrUpdatePhone.rcurry(s1, body),
+                    phoneService.&createOrUpdatePhone.curry(s1, body),
                     this.&notifyAfterCreation.rcurry(o1, body)
                 ).then({ Staff sameS1 ->
                     if (sameS1.save()) {

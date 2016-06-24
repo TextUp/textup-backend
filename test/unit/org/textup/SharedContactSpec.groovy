@@ -124,10 +124,37 @@ class SharedContactSpec extends CustomSpec {
 		SharedContact.listForContactAndSharedWith(c2, p1)[0] == sc2
 		SharedContact.listForSharedByAndSharedWith(p2, p1).size() == 1
 		SharedContact.listForSharedByAndSharedWith(p2, p1)[0] == sc2
+
+        when: "we deactivate p1, the phone that shared sc1"
+        p1.deactivate()
+        p1.save(flush:true, failOnError:true)
+        assert !p1.isActive
+        sWithMe = SharedContact.listSharedWithMe(p1)
+        sByMe = SharedContact.listSharedByMe(p1)
+
+        then:
+        sWithMe == []
+        sByMe == []
+        sc1.isActive == true
+        sc2.isActive == false
+        sc1.canModify == true
+        sc1.canView == true
+        sc2.canModify == false
+        sc2.canView == false
+
+        // these three don't exclude expired shared contacts!!!
+        SharedContact.listForContact(c1).size() == 0
+        SharedContact.listForContact(c2).size() == 1
+        SharedContact.listForContact(c2)[0] == sc2
+        SharedContact.listForContactAndSharedWith(c1, p2).size() == 0
+        SharedContact.listForContactAndSharedWith(c2, p1).size() == 1
+        SharedContact.listForContactAndSharedWith(c2, p1)[0] == sc2
+        SharedContact.listForSharedByAndSharedWith(p2, p1).size() == 1
+        SharedContact.listForSharedByAndSharedWith(p2, p1)[0] == sc2
     }
 
     @FreshRuntime
-    void "test finding by contact id and shared with"() {
+    void "test finding by contact id and shared with for expiration"() {
     	when: "none are expired"
     	SharedContact sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
 		List<SharedContact> scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
@@ -149,7 +176,42 @@ class SharedContactSpec extends CustomSpec {
     }
 
     @FreshRuntime
-    void "test finding by contact ids and shared by"() {
+    void "test finding by contact id and shared with for deactivation"() {
+        when: "none are expired"
+        SharedContact sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
+        List<SharedContact> scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
+
+        then: "both show up"
+        sCont == sc2
+        scList.size() == 1
+        scList[0] == sc2
+
+        when: "the phone shared with is deactivated"
+        p1.deactivate()
+        p1.save(flush:true, failOnError:true)
+        assert !p1.isActive
+        sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
+        scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
+
+        then: "both show up"
+        sCont == sc2
+        scList.size() == 1
+        scList[0] == sc2
+
+        when: "the phone doing the sharing (sharedBy) is deactivated"
+        p2.deactivate()
+        p2.save(flush:true, failOnError:true)
+        assert !p2.isActive
+        sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
+        scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
+
+        then: "does not show up anymore"
+        sCont == null
+        scList.isEmpty() == true
+    }
+
+    @FreshRuntime
+    void "test finding by contact ids and shared by for expiration"() {
         when: "none are expired"
         SharedContact sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
         List<SharedContact> scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
@@ -162,6 +224,39 @@ class SharedContactSpec extends CustomSpec {
         when: "one is expired"
         sc2.stopSharing()
         sc2.save(flush:true, failOnError:true)
+        sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
+        scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+
+        then: "does not show up anymore"
+        sCont == null
+        scList.isEmpty() == true
+    }
+
+    @FreshRuntime
+    void "test finding by contact ids and shared by for deactivation"() {
+        when: "none are expired"
+        SharedContact sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
+        List<SharedContact> scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+
+        then: "both show up"
+        sCont == sc2
+        scList.size() == 1
+        scList[0] == sc2
+
+        when: "phone shared with is deactivated"
+        p1.deactivate()
+        p1.save(flush:true, failOnError:true)
+        sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
+        scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+
+        then: "both still show up"
+        sCont == sc2
+        scList.size() == 1
+        scList[0] == sc2
+
+        when: "phone doing the sharing (sharedBy) is deactivated"
+        p2.deactivate()
+        p2.save(flush:true, failOnError:true)
         sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
         scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
 

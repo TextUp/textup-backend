@@ -7,6 +7,7 @@ import groovy.transform.TypeCheckingMode
 import org.hibernate.FlushMode
 import org.hibernate.Session
 import org.joda.time.DateTime
+import org.restapidoc.annotation.*
 import org.textup.rest.TwimlBuilder
 import org.textup.types.CallResponse
 import org.textup.types.ContactStatus
@@ -23,7 +24,7 @@ import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes="owner")
-@RestApiObject(name="Staff", description="A TextUp phone.")
+@RestApiObject(name="Phone", description="A TextUp phone.")
 class Phone {
 
     ResultFactory resultFactory
@@ -63,11 +64,16 @@ class Phone {
     static constraints = {
         apiId blank:true, nullable:true, unique:true
         numberAsString blank:true, nullable:true, validator:{ String num, Phone obj ->
+            if (!num) { // short circuit if number is blank
+                return;
+            }
             //phone number must be unique for phones
-            if (num && obj.existsWithSameNumber(num)) {
+            if (obj.existsWithSameNumber(num)) {
                 ["duplicate"]
             }
-            else if (!(num?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+            else if (!(num.toString() ==~ /^(\d){10}$/)) {
+                ["format"]
+            }
         }
         awayMessage blank:false, size:1..(Constants.TEXT_LENGTH)
     }
@@ -95,13 +101,22 @@ class Phone {
         hasDuplicate
     }
 
+    // Status
+    // ------
+
+    Phone deactivate() {
+        this.numberAsString = null
+        this.apiId = null
+        this
+    }
+
     // Ownership
     // ---------
 
     Result<PhoneOwnership> transferTo(Long id, PhoneOwnershipType type) {
         PhoneOwnership own = this.owner
         Phone otherPhone = (type == PhoneOwnershipType.INDIVIDUAL) ?
-            Staff.get(id)?.phone : Team.get(id)?.phone
+            Staff.get(id)?.phoneWithAnyStatus : Team.get(id)?.phoneWithAnyStatus
         // if other phone is present, copy this owner over
         if (otherPhone?.owner) {
             PhoneOwnership otherOwn = otherPhone.owner
@@ -354,8 +369,8 @@ class Phone {
 
     ResultList<RecordText> sendText(OutgoingText text, Staff staff) {
         if (!this.isActive) {
-            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                'phone.isInactive')
+            return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                'phone.isInactive'))
         }
         // validate text
         if (!text.validateSetPhone(this)) {
@@ -371,8 +386,8 @@ class Phone {
     // start bridge call, confirmed (if staff picks up) by contact
     ResultList<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
         if (!this.isActive) {
-            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                'phone.isInactive')
+            return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                'phone.isInactive'))
         }
         ResultList<RecordCall> resList = new ResultList()
         if ((c1 instanceof Contact || c1 instanceof SharedContact) && !c1.validate()) {

@@ -134,6 +134,12 @@ class Organization {
         this.location = l
         l.save()
     }
+    int countStaff(String searchString) {
+        Staff.ilikeForOrgAndQuery(this, Helpers.toQuery(searchString)).count()
+    }
+    List<Staff> getStaff(String searchString, Map params = [:]) {
+        Staff.ilikeForOrgAndQuery(this, Helpers.toQuery(searchString)).list(params)
+    }
     @GrailsCompileStatic
     List<Staff> getAdmins(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.ADMIN]])

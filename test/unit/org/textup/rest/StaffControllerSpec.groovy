@@ -38,7 +38,9 @@ class StaffControllerSpec extends CustomSpec {
             isAdminAt:{ Long id -> true },
             isAdminAtSameOrgAs:{ Long id -> true },
             isLoggedInAndActive:{ Long id -> true },
-            hasPermissionsForTeam:{ Long id -> true }
+            hasPermissionsForTeam:{ Long id -> true },
+            getIsActive: { -> true },
+            getLoggedInAndActive: { -> s1 }
         ] as AuthService
     }
 
@@ -104,6 +106,20 @@ class StaffControllerSpec extends CustomSpec {
         response.status == SC_OK
         response.json.size() == ids.size()
         response.json*.id.every { ids.contains(it as Long) }
+    }
+
+    void "test list search"() {
+        when:
+        mockForList()
+        request.method = "GET"
+        params.search = "demo"
+        controller.index()
+        List<Long> ids = Helpers.allToLong(org.getStaff(params.search)*.id)
+
+        then:
+        response.status == SC_OK
+        response.json.staff.size() == ids.size()
+        response.json.staff*.id.every { ids.contains(it as Long) }
     }
 
     // Show

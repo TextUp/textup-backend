@@ -31,8 +31,8 @@ class TeamServiceSpec extends CustomSpec {
         super.setupData()
         service.resultFactory = getResultFactory()
         service.phoneService = [
-            update: { Phone p1, Map body ->
-                new Result(type:ResultType.SUCCESS, success:true, payload:p1)
+            createOrUpdatePhone: { Team t1, Map body ->
+                new Result(type:ResultType.SUCCESS, success:true, payload:t1)
             }
         ] as PhoneService
     }
@@ -108,44 +108,6 @@ class TeamServiceSpec extends CustomSpec {
         Team.count() == baseline + 1
         Location.count() == lBaseline + 1
         Phone.count() == pBaseline
-    }
-
-    void "test create or update phone"() {
-        given: "staff with no phone"
-        Team team1 = new Team(name:"kiki's mane", org:org.id,
-            location:new Location(address:"address", lat:8G, lon:10G).save())
-        team1.save(flush:true, failOnError:true)
-        int pBaseline = Phone.count()
-        int oBaseline = PhoneOwnership.count()
-
-        when: "try with neither phone nor phoneId"
-        Result<Team> res = service.createOrUpdatePhone(team1, [:])
-
-        then:
-        res.success == true
-        res.payload instanceof Team
-        Phone.count() == pBaseline
-        PhoneOwnership.count() == oBaseline
-
-        when: "update with phone"
-        service.phoneService = [
-            update: { Phone p1, Map body ->
-                p1.number = new PhoneNumber(number:body.number)
-                new Result(type:ResultType.SUCCESS, success:true, payload:p1)
-            }
-        ] as PhoneService
-
-        String number = "${iterationCount}163388441".take(10)
-        res = service.createOrUpdatePhone(team1, [phone:[number:number]])
-        assert res.success
-        team1.save(flush:true, failOnError:true)
-
-        then:
-        Phone.count() == pBaseline + 1
-        PhoneOwnership.count() == oBaseline + 1
-        res.payload instanceof Team
-        res.payload.id == team1.id
-        res.payload.phone != null
     }
 
     void "test create"() {

@@ -13,7 +13,6 @@ import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import org.textup.validator.ScheduleChange
 
-@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(name="Staff", description="A staff member at an organization.")
 class Staff {
@@ -108,10 +107,22 @@ class Staff {
 	static mapping = {
 		password column: '`password`'
 	}
+    static namedQueries = {
+        ilikeForOrgAndQuery { Organization org, String query ->
+            eq("org", org)
+            or {
+                ilike("name", query)
+                ilike("username", query)
+                ilike("email", query)
+            }
+            "in"("status", [StaffStatus.STAFF, StaffStatus.ADMIN])
+        }
+    }
 
 	// Events
     // ------
 
+    @GrailsTypeChecked
     def beforeValidate() {
         if (!this.schedule) {
             this.schedule = new WeeklySchedule([:])
@@ -121,31 +132,37 @@ class Staff {
     // Schedule
     // --------
 
+    @GrailsTypeChecked
     boolean isAvailableNow() {
         manualSchedule ? isAvailable : schedule.isAvailableNow()
     }
+    @GrailsTypeChecked
     Result<Boolean> isAvailableAt(DateTime dt) {
         if (!manualSchedule) { resultFactory.success(schedule.isAvailableAt(dt)) }
         else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
     }
+    @GrailsTypeChecked
     Result<ScheduleChange> nextChange(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextChange(timezone)
         }
         else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
     }
+    @GrailsTypeChecked
     Result<DateTime> nextAvailable(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextAvailable(timezone)
         }
         else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
     }
+    @GrailsTypeChecked
     Result<DateTime> nextUnavailable(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextUnavailable(timezone)
         }
         else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
     }
+    @GrailsTypeChecked
     Result<Schedule> updateSchedule(Map params) {
         schedule.update(params)
     }
@@ -153,18 +170,20 @@ class Staff {
     // SpringSecurityCore methods
     // --------------------------
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
 	Set<Role> getAuthorities() {
 		StaffRole.findAllByStaff(this).collect { it.role }
 	}
+    @GrailsTypeChecked
 	def beforeInsert() {
 		encodePassword()
 	}
+    @GrailsTypeChecked
 	def beforeUpdate() {
 		if (isDirty('password')) {
 			encodePassword()
 		}
 	}
+    @GrailsTypeChecked
 	protected void encodePassword() {
 		password = springSecurityService?.passwordEncoder ?
             springSecurityService.encodePassword(password) : password
@@ -173,6 +192,7 @@ class Staff {
     // Team
     // ----
 
+    @GrailsTypeChecked
     boolean sharesTeamWith(Staff s1) {
         HashSet<Team> myTeams = new HashSet<>(this.getTeams())
         s1?.getTeams()?.any { it in myTeams }
@@ -181,6 +201,7 @@ class Staff {
     // Sharing
     // -------
 
+    @GrailsTypeChecked
     Collection<Staff> getCanShareWith(Collection<String> statuses=[]) {
         HashSet<Staff> staffCanShare = new HashSet<>()
         this.getTeams().each { Team t1 ->
@@ -196,32 +217,34 @@ class Staff {
     // Property Access
     // ---------------
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     int countTeams() {
         Team.forStaffs([this]).count()
     }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<Team> getTeams(Map params=[:]) {
         Team.forStaffs([this]).list(params)
     }
+    @GrailsTypeChecked
     void setUsername(String un) {
         this.username = un?.toLowerCase()
     }
+    @GrailsTypeChecked
     void setSchedule(Schedule s) {
         this.schedule = s
         this.schedule?.save()
     }
+    @GrailsTypeChecked
     void setPersonalPhoneNumber(BasePhoneNumber num) {
         this.personalPhoneAsString = num?.number
     }
+    @GrailsTypeChecked
     PhoneNumber getPersonalPhoneNumber() {
         new PhoneNumber(number:this.personalPhoneAsString)
     }
+    @GrailsTypeChecked
     boolean getHasInactivePhone() {
         Phone ph = this.phoneWithAnyStatus
         ph ? !ph.isActive : false
     }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     Phone getPhoneWithAnyStatus() {
         PhoneOwnership.createCriteria().list {
             projections { property("phone") }
@@ -229,7 +252,6 @@ class Staff {
             eq("ownerId", this.id)
         }[0]
     }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     Phone getPhone() {
         PhoneOwnership.createCriteria().list {
             projections { property("phone") }
@@ -238,7 +260,6 @@ class Staff {
             eq("ownerId", this.id)
         }[0]
     }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<Phone> getAllPhones() {
         List<Team> teams = this.teams
         PhoneOwnership.createCriteria().list {

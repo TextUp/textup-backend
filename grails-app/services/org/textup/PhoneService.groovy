@@ -23,6 +23,7 @@ import org.springframework.transaction.TransactionStatus
 import org.textup.rest.TwimlBuilder
 import org.textup.types.CallResponse
 import org.textup.types.ContactStatus
+import org.textup.types.PhoneOwnershipType
 import org.textup.types.RecordItemType
 import org.textup.types.ResultType
 import org.textup.types.TextResponse
@@ -51,31 +52,28 @@ class PhoneService {
     // ------
 
     Result<Staff> createOrUpdatePhone(Staff s1, Map body) {
-        if (body.phone instanceof Map) {
+        if (body.phone instanceof Map && checkIsActive()) {
             Phone p1 = s1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(s1)
-            phoneService.update(p1, body.phone as Map).then({
+            this.update(p1, body.phone as Map).then({
                 resultFactory.success(s1)
             }) as Result<Staff>
         }
         else { resultFactory.success(s1) }
     }
     Result<Team> createOrUpdatePhone(Team t1, Map body) {
-        if (body.phone instanceof Map) {
+        if (body.phone instanceof Map && checkIsActive()) {
             Phone p1 = t1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(t1)
-            phoneService.update(p1, body.phone as Map).then({
+            this.update(p1, body.phone as Map).then({
                 resultFactory.success(t1)
             }) as Result<Team>
         }
         else { resultFactory.success(t1) }
     }
-    Result<Phone> update(Phone p1, Map body) {
+    protected Result<Phone> update(Phone p1, Map body) {
         if (body.awayMessage) {
             p1.awayMessage = body.awayMessage
-        }
-        if (!checkIsActive()) { // short circuit if not active
-            return resultFactory.success(p1)
         }
         handlePhoneActions(p1, body).then({ Phone phone1 ->
             if (phone1.save()) {
@@ -84,8 +82,7 @@ class PhoneService {
             else { resultFactory.failWithValidationErrors(phone1.errors) }
         }) as Result<Phone>
     }
-
-    protected Result<Phone> handlePhoneActions(Phone p1, Collection phoneActions) {
+    protected Result<Phone> handlePhoneActions(Phone p1, Map body) {
         if (!body.doPhoneActions) {
             return resultFactory.success(p1)
         }
@@ -107,11 +104,11 @@ class PhoneService {
                             pAction.type))
                     break
                 case Constants.PHONE_ACTION_NEW_NUM_BY_NUM:
-                    PhoneNumber pNum = new PhoneNumber(number:item.number as String)
+                    PhoneNumber pNum = new PhoneNumber(number:pAction.number as String)
                     res = this.updatePhoneForNumber(p1, pNum)
                     break
                 case Constants.PHONE_ACTION_NEW_NUM_BY_ID:
-                    res = this.updatePhoneForApiId(p1, item.numberId as String)
+                    res = this.updatePhoneForApiId(p1, pAction.numberId as String)
                     break
                 default:
                     return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
@@ -133,15 +130,14 @@ class PhoneService {
 
     protected Result<Phone> deactivatePhone(Phone p1) {
         String oldApiId = p1.apiId
-        p1.numberAsString = null
-        p1.apiId = null
+        p1.deactivate()
         if (!p1.validate()) {
-            return result.failWithValidationErrors(p1.errors)
+            return resultFactory.failWithValidationErrors(p1.errors)
         }
         if (oldApiId) {
             freeExistingNumber(oldApiId).then({ ->
                 resultFactory.success(p1)
-            })
+            }) as Result<Phone>
         }
         else { resultFactory.success(p1) }
     }
@@ -249,7 +245,7 @@ class PhoneService {
         Phone.withNewSession { Session session ->
             session.flushMode = FlushMode.MANUAL
             try {
-                isDuplicate = (doCheck() > 0)
+                isDuplicate = (Helpers.toInteger(doCheck()) > 0)
             }
             finally { session.flushMode = FlushMode.AUTO }
         }
@@ -648,7 +644,7 @@ class PhoneService {
         availableNow
     }
     protected Result notifyStaff(Staff s1, String identifier) {
-        String msg = messageSource.getMessage('phoneService.notifyStaff.notification',
+        String msg = messageSource.getMessage("phoneService.notifyStaff.notification",
             [Helpers.formatNumberForRead(identifier)] as Object[], LCH.getLocale())
         textService.send(s1.phone.number, [s1.personalPhoneNumber], msg)
     }
