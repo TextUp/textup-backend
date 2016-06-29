@@ -16,7 +16,7 @@ import org.textup.types.StaffStatus
 import org.textup.types.TextResponse
 import org.textup.util.CustomSpec
 import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -409,7 +409,7 @@ class PhoneSpec extends CustomSpec {
         assert !p1.isActive
 
         when: "send text"
-        OutgoingText text = new OutgoingText(message:'hi')
+        OutgoingMessage text = new OutgoingMessage(message:'hi')
         text.contacts << c1
         ResultList resList = p1.sendText(text, s1)
 
@@ -443,12 +443,12 @@ class PhoneSpec extends CustomSpec {
     }
     void "test sending text"() {
         given: "a phone"
-        p1.phoneService = [sendText:{ Phone phone, OutgoingText text, Staff staff ->
+        p1.phoneService = [sendText:{ Phone phone, OutgoingMessage text, Staff staff ->
             new ResultList()
         }] as PhoneService
 
         when: "we have an invalid outgoing text"
-        OutgoingText text = new OutgoingText()
+        OutgoingMessage text = new OutgoingMessage()
         assert text.validateSetPhone(p1) == false
         ResultList<RecordText> resList = p1.sendText(text, s1)
 
@@ -459,7 +459,7 @@ class PhoneSpec extends CustomSpec {
         resList.results[0].payload instanceof ValidationErrors
 
         when: "we pass in a staff that is not an owner"
-        text = new OutgoingText(message:"hello", contacts:[c1, c1_1])
+        text = new OutgoingMessage(message:"hello", contacts:[c1, c1_1])
         assert text.validateSetPhone(p1) == true
         resList = p1.sendText(text, otherS2)
 

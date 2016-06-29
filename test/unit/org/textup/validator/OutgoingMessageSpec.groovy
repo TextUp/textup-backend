@@ -12,7 +12,7 @@ import spock.lang.Specification
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
-class OutgoingTextSpec extends CustomSpec {
+class OutgoingMessageSpec extends CustomSpec {
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
@@ -26,7 +26,7 @@ class OutgoingTextSpec extends CustomSpec {
 
 	void "test validation with phone"() {
 		when: "a valid outgoing text without any recipients"
-		OutgoingText text = new OutgoingText(message:"hello")
+		OutgoingMessage text = new OutgoingMessage(message:"hello")
 
 		then: "call validatate without phone to be invalid"
 		text.validate() == false
@@ -40,7 +40,7 @@ class OutgoingTextSpec extends CustomSpec {
 		text.errors.globalErrorCount == 1
 
 		when: "a valid outgoing text with at least one recipient"
-		text = new OutgoingText(message:"hello", contacts:[c1])
+		text = new OutgoingMessage(message:"hello", contacts:[c1])
 
 		then: "call validatate without phone to be invalid"
 		text.validate() == false
@@ -56,7 +56,7 @@ class OutgoingTextSpec extends CustomSpec {
 
 	void "test message constraints"() {
 		when: "no fields filled out"
-		OutgoingText text = new OutgoingText()
+		OutgoingMessage text = new OutgoingMessage()
 
 		then: "invalid"
 		text.validateSetPhone(p1) == false
@@ -64,7 +64,7 @@ class OutgoingTextSpec extends CustomSpec {
 		text.errors.globalErrorCount == 1
 
 		when: "message too long"
-		text = new OutgoingText(message:"I am way too long. I am way too long. \
+		text = new OutgoingMessage(message:"I am way too long. I am way too long. \
 			I am way too long. I am way too long. I am way too long. I am way \
 			too long. I am way too long. I am way too long. I am way too long. \
 			I am way too long. I am way too long. I am way too long. I am way \
@@ -78,7 +78,7 @@ class OutgoingTextSpec extends CustomSpec {
 		text.errors.globalErrorCount == 1
 
 		when: "message of valid length "
-		text = new OutgoingText(message:"I am just right.", contacts:[c1])
+		text = new OutgoingMessage(message:"I am just right.", contacts:[c1])
 
 		then: "valid"
 		text.validateSetPhone(p1) == true
@@ -86,7 +86,7 @@ class OutgoingTextSpec extends CustomSpec {
 
 	void "test contacts constraints"() {
 		when: "contacts that do not all belong to this phone"
-		OutgoingText text = new OutgoingText(message:"hello")
+		OutgoingMessage text = new OutgoingMessage(message:"hello")
 		text.contacts = [c1, c1_1, c1_2, c2]
 
 		then: "invalid"
@@ -102,7 +102,7 @@ class OutgoingTextSpec extends CustomSpec {
 
 	void "test shared contacts constraints"() {
 		when: "some shared contacts not shared with us or inactive"
-		OutgoingText text = new OutgoingText(message:"hello")
+		OutgoingMessage text = new OutgoingMessage(message:"hello")
 		text.sharedContacts = [sc1, sc2]
 
 		then: "invalid"
@@ -118,7 +118,7 @@ class OutgoingTextSpec extends CustomSpec {
 
 	void "test tags constraints"() {
 		when: "some tags do not belong to this phone"
-		OutgoingText text = new OutgoingText(message:"hello")
+		OutgoingMessage text = new OutgoingMessage(message:"hello")
 		text.tags = [tag1, tag1_1, tag2]
 
 		then: "invalid"
@@ -134,13 +134,13 @@ class OutgoingTextSpec extends CustomSpec {
 
 	void "test generating recipients"() {
 		when: "an empty outgoing text"
-		OutgoingText text = new OutgoingText(message:"hello")
+		OutgoingMessage text = new OutgoingMessage(message:"hello")
 
 		then: "no recipients"
 		text.toRecipients().isEmpty() == true
 
 		when: "populated outgoing text"
-		text = new OutgoingText(message:"hello")
+		text = new OutgoingMessage(message:"hello")
 		text.sharedContacts = [sc1, sc2]
 		text.contacts = [c1, c1_1]
 		text.tags = [tag1, tag1_1]

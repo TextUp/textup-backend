@@ -17,7 +17,7 @@ import org.textup.types.SharePermission
 import org.textup.types.TextResponse
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import static org.springframework.http.HttpStatus.*
@@ -367,21 +367,21 @@ class Phone {
     // Outgoing
     // --------
 
-    ResultList<RecordText> sendText(OutgoingText text, Staff staff) {
+    ResultList<RecordText> sendText(OutgoingMessage msg, Staff staff) {
         if (!this.isActive) {
             return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 'phone.isInactive'))
         }
-        // validate text
-        if (!text.validateSetPhone(this)) {
-            return new ResultList(resultFactory.failWithValidationErrors(text.errors))
+        // validate msg
+        if (!msg.validateSetPhone(this)) {
+            return new ResultList(resultFactory.failWithValidationErrors(msg.errors))
         }
         // validate staff
         else if (!this.owner.all.contains(staff)) {
             return new ResultList(resultFactory.failWithMessageAndStatus(FORBIDDEN,
                 'phone.notOwner'))
         }
-        else { phoneService.sendText(this, text, staff) }
+        else { phoneService.sendMessage(this, msg, staff) }
     }
     // start bridge call, confirmed (if staff picks up) by contact
     ResultList<RecordCall> startBridgeCall(Contactable c1, Staff staff) {

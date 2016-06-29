@@ -207,7 +207,7 @@ class AuthService {
         else { false }
     }
 
-    HashSet<Phone> getPhonesForRecords(List<Record> recs) {
+    HashSet<Phone> getPhonesForRecords(List<Record> recs, boolean includeShared = true) {
         if (!recs) { return [] }
         List<Phone> cPhones = Contact.createCriteria().list {
             projections { property("phone") }
@@ -217,7 +217,9 @@ class AuthService {
                 "in"("record", recs)
             },
             phones = cPhones + tPhones,
-            // phones from contacts that are shared with me
+            sPhones = []
+        // phones from contacts that are shared with me
+        if (includeShared) {
             sPhones = SharedContact.createCriteria().list {
                 projections { property("sharedWith") }
                 contact {
@@ -228,6 +230,7 @@ class AuthService {
                 }
                 else { eq("sharedBy", null) }
             }
+        }
         new HashSet<Phone>(phones + sPhones)
     }
 

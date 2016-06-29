@@ -12,7 +12,7 @@ import org.textup.rest.TwimlBuilder
 import org.textup.types.ReceiptStatus
 import org.textup.types.ResultType
 import org.textup.util.CustomSpec
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import spock.lang.Shared
 import spock.lang.Specification
@@ -39,7 +39,7 @@ class RecordServiceSpec extends CustomSpec {
         service.socketService = [sendItems:{ List<RecordItem> items, String eventName ->
             new ResultList()
         }] as SocketService
-        Phone.metaClass.sendText = { OutgoingText text, Staff staff ->
+        Phone.metaClass.sendText = { OutgoingMessage text, Staff staff ->
             Result res = new Result(type:ResultType.SUCCESS, success:true,
                 payload:"sendText")
             new ResultList(res)

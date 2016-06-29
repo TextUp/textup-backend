@@ -21,7 +21,7 @@ import org.textup.types.TextResponse
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
@@ -391,7 +391,7 @@ class PhoneServiceSpec extends CustomSpec {
         int rBaseline = RecordItemReceipt.count()
 
         when: "we send to contacts, shared contacts and tags"
-        OutgoingText text = new OutgoingText(message:"hello",
+        OutgoingMessage text = new OutgoingMessage(message:"hello",
             contacts:[c1, c1_1, c1_2], sharedContacts:[sc2],
             tags:[tag1, tag1_1])
         assert text.validateSetPhone(p1)

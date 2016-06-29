@@ -6,7 +6,7 @@ import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
 import org.textup.types.ReceiptStatus
 import org.textup.util.OptimisticLockingRetry
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import static org.springframework.http.HttpStatus.*
 
@@ -37,7 +37,7 @@ class RecordService {
                     return resultFactory.failWithValidationErrors(receipt.errors)
                 }
                 if (!item.save()) {
-                    return resultFactory.failWithValidationErrors(item.errors)
+                    return resultFactory.failWithValidatstartCallAnnouncementionErrors(item.errors)
                 }
                 items << item
             }
@@ -113,7 +113,7 @@ class RecordService {
             }
         }
         // build outgoing text and delegate subsequent actions to the phone
-        OutgoingText text = new OutgoingText(message:body.contents as String,
+        OutgoingMessage text = new OutgoingMessage(message:body.contents as String,
             contacts:contacts,
             sharedContacts:SharedContact.findByContactIdsAndSharedWith(scIds, p1),
             tags:ContactTag.getAll(tIds as Iterable<Serializable>) as List)

@@ -49,6 +49,6 @@ class RecordText extends RecordItem {
     ])
     static transients = []
     static constraints = {
-    	contents blank:false, nullable:false, maxSize:320
+    	contents blank:false, nullable:false, maxSize:(Constants.TEXT_LENGTH * 2)
     }
 }
