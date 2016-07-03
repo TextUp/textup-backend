@@ -277,7 +277,7 @@ class Contact implements Contactable {
             eq('sharedBy', this.phone)
             or {
                 isNull("dateExpired") //not expired if null
-                ge("dateExpired", DateTime.now())
+                gt("dateExpired", DateTime.now())
             }
             contact {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])

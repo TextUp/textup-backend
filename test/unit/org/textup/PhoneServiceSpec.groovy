@@ -546,8 +546,7 @@ class PhoneServiceSpec extends CustomSpec {
     void "test notify staff"() {
         when:
         String message = Helpers.randomAlphanumericString(Constants.TEXT_LENGTH)
-        String ident = "kiki bai"
-        Result<TempRecordReceipt> res = service.notifyStaff(s1, ident)
+        Result<TempRecordReceipt> res = service.notifyStaff(s1)
 
         then:
         res.success == true

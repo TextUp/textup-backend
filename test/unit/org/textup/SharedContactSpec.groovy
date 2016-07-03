@@ -157,7 +157,7 @@ class SharedContactSpec extends CustomSpec {
     void "test finding by contact id and shared with for expiration"() {
     	when: "none are expired"
     	SharedContact sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
-		List<SharedContact> scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
+		List<SharedContact> scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
     	then: "both show up"
     	sCont == sc2
@@ -168,7 +168,7 @@ class SharedContactSpec extends CustomSpec {
     	sc2.stopSharing()
     	sc2.save(flush:true, failOnError:true)
     	sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
-		scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
+		scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
     	then: "does not show up anymore"
     	sCont == null
@@ -179,7 +179,7 @@ class SharedContactSpec extends CustomSpec {
     void "test finding by contact id and shared with for deactivation"() {
         when: "none are expired"
         SharedContact sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
-        List<SharedContact> scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
+        List<SharedContact> scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
         then: "both show up"
         sCont == sc2
@@ -191,7 +191,7 @@ class SharedContactSpec extends CustomSpec {
         p1.save(flush:true, failOnError:true)
         assert !p1.isActive
         sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
-        scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
+        scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
         then: "both show up"
         sCont == sc2
@@ -203,7 +203,7 @@ class SharedContactSpec extends CustomSpec {
         p2.save(flush:true, failOnError:true)
         assert !p2.isActive
         sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
-        scList = SharedContact.findByContactIdsAndSharedWith([c2.id], p1)
+        scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
         then: "does not show up anymore"
         sCont == null
@@ -214,7 +214,7 @@ class SharedContactSpec extends CustomSpec {
     void "test finding by contact ids and shared by for expiration"() {
         when: "none are expired"
         SharedContact sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
-        List<SharedContact> scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+        List<SharedContact> scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "both show up"
         sCont == sc2
@@ -225,7 +225,7 @@ class SharedContactSpec extends CustomSpec {
         sc2.stopSharing()
         sc2.save(flush:true, failOnError:true)
         sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
-        scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+        scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "does not show up anymore"
         sCont == null
@@ -236,7 +236,7 @@ class SharedContactSpec extends CustomSpec {
     void "test finding by contact ids and shared by for deactivation"() {
         when: "none are expired"
         SharedContact sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
-        List<SharedContact> scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+        List<SharedContact> scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "both show up"
         sCont == sc2
@@ -247,7 +247,7 @@ class SharedContactSpec extends CustomSpec {
         p1.deactivate()
         p1.save(flush:true, failOnError:true)
         sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
-        scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+        scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "both still show up"
         sCont == sc2
@@ -258,7 +258,7 @@ class SharedContactSpec extends CustomSpec {
         p2.deactivate()
         p2.save(flush:true, failOnError:true)
         sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
-        scList = SharedContact.findByContactIdsAndSharedBy([c2.id], p2)
+        scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "does not show up anymore"
         sCont == null

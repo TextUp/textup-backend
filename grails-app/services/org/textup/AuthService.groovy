@@ -109,7 +109,7 @@ class AuthService {
                 eq("sharedWith", s1?.phone)
                 or {
                     isNull("dateExpired") //not expired if null
-                    ge("dateExpired", DateTime.now())
+                    gt("dateExpired", DateTime.now())
                 }
             }[0]
         }

@@ -420,9 +420,8 @@ class PhoneService {
             HashSet<Staff> availableNow = getAllAvailableForContacts(contacts, phone)
             // if none of the staff for any of the phones are available
             if (availableNow) {
-                String nameOrNumber = getNameOrNumber(contacts, session)
                 availableNow.each { Staff s1 ->
-                    this.notifyStaff(s1, nameOrNumber)
+                    this.notifyStaff(s1)
                         .logFail("PhoneService.relayText: notify staff ${s1.id}")
                 }
             }
@@ -637,15 +636,15 @@ class PhoneService {
     protected HashSet<Staff> getAllAvailableForContacts(List<Contact> contacts, Phone phone) {
         List<Long> cIds = contacts.collect { it.id }
         List<Phone> sharedWithPhones = SharedContact
-            .findByContactIdsAndSharedBy(cIds, phone)
-            .collect { it.sharedWith }
+            .findEveryByContactIdsAndSharedBy(cIds, phone)
+            .collect { SharedContact sc1 -> sc1.sharedWith }
         HashSet<Staff> availableNow = new HashSet<>(phone.availableNow)
         sharedWithPhones.each { Phone p1 -> availableNow.addAll(p1.availableNow) }
         availableNow
     }
-    protected Result notifyStaff(Staff s1, String identifier) {
+    protected Result notifyStaff(Staff s1) {
         String msg = messageSource.getMessage("phoneService.notifyStaff.notification",
-            [Helpers.formatNumberForRead(identifier)] as Object[], LCH.getLocale())
+            null, LCH.getLocale())
         textService.send(s1.phone.number, [s1.personalPhoneNumber], msg)
     }
     protected String getNameOrNumber(List<Contact> contacts, IncomingSession session) {

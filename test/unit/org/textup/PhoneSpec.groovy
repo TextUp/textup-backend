@@ -314,6 +314,29 @@ class PhoneSpec extends CustomSpec {
         p2Contactables == [c2, c2_1]
 	}
 
+    void "test listing contacts excludes expired"() {
+        given: "a contact shared by p1, shared with p2"
+        assert sc1.isActive
+        assert sc1.sharedBy == p1
+        assert sc1.sharedWith == p2
+
+        when: "we have a shared contact"
+        List<Contactable> contactables = p2.getContacts(statuses:
+            [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+
+        then: "shared shows up"
+        contactables.contains(sc1)
+
+        when: "we expire"
+        sc1.stopSharing()
+        sc1.save(flush:true, failOnError:true)
+        contactables = p2.getContacts(statuses:
+            [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+
+        then: "shared does not show up anymore"
+        !contactables.contains(sc1)
+    }
+
     void "test creating contacts"() {
         when: "we create a blank contact"
         Result res = p1.createContact()

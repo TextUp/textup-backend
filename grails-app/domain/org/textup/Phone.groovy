@@ -277,6 +277,15 @@ class Phone {
                     "in"("contact.id", notMyContactIds)
                 }
                 else { eq("contact.id", null) }
+                // Ensure that SharedContact is not expired. This might become a problem
+                // when a contact has two SharedContacts, one active and one expired.
+                // The contact will show up in the contacts list and when we find the shared
+                // contacts from the contact ids, we want to only get the SharedContact
+                // that is active and exclude the one that is expired
+                or {
+                    isNull("dateExpired") //not expired if null
+                    gt("dateExpired", DateTime.now())
+                }
             } as List<SharedContact>)
             .collectEntries { [(it.contact.id):it] }
         //merge the found shared contacts into a consensus list of contactables

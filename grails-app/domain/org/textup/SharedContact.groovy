@@ -85,7 +85,7 @@ class SharedContact implements Contactable {
             eq('sharedWith', sWith)
             or {
                 isNull("dateExpired") //not expired if null
-                ge("dateExpired", DateTime.now())
+                gt("dateExpired", DateTime.now(DateTimeZone.UTC))
             }
             contact {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
@@ -98,7 +98,7 @@ class SharedContact implements Contactable {
             eq('sharedBy', sBy)
             or {
                 isNull("dateExpired") //not expired if null
-                ge("dateExpired", DateTime.now())
+                gt("dateExpired", DateTime.now(DateTimeZone.UTC))
             }
             contact {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
@@ -133,16 +133,16 @@ class SharedContact implements Contactable {
         SharedContact.sharedByMe(sBy).list(params)
     }
     static SharedContact findByContactIdAndSharedWith(Long cId, Phone sWith) {
-        findByContactIdsAndSharedWith([cId], sWith)[0]
+        findEveryByContactIdsAndSharedWith([cId], sWith)[0]
     }
-    static List<SharedContact> findByContactIdsAndSharedWith(Collection<Long> cIds,
+    static List<SharedContact> findEveryByContactIdsAndSharedWith(Collection<Long> cIds,
         Phone sWith) {
         SharedContact.createCriteria().list {
             sharedBy { isNotNull("numberAsString") }
             eq("sharedWith", sWith)
             or {
                 isNull("dateExpired") //not expired if null
-                ge("dateExpired", DateTime.now())
+                gt("dateExpired", DateTime.now())
             }
             contact {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
@@ -153,16 +153,16 @@ class SharedContact implements Contactable {
         }
     }
     static SharedContact findByContactIdAndSharedBy(Long cId, Phone sBy) {
-        findByContactIdsAndSharedBy([cId], sBy)[0]
+        findEveryByContactIdsAndSharedBy([cId], sBy)[0]
     }
-    static List<SharedContact> findByContactIdsAndSharedBy(Collection<Long> cIds,
+    static List<SharedContact> findEveryByContactIdsAndSharedBy(Collection<Long> cIds,
         Phone sBy) {
         SharedContact.createCriteria().list {
             sharedBy { isNotNull("numberAsString") }
             eq("sharedBy", sBy)
             or {
                 isNull("dateExpired") //not expired if null
-                ge("dateExpired", DateTime.now())
+                gt("dateExpired", DateTime.now())
             }
             contact {
                 if (cIds) { "in"("id", cIds) }
@@ -197,12 +197,13 @@ class SharedContact implements Contactable {
     //Can modify if not yet expired, and with delegate permissions
     @GrailsCompileStatic
     boolean getCanModify() {
-        this.dateExpired == null && this.permission == SharePermission.DELEGATE
+        (this.dateExpired == null || this.dateExpired?.isAfterNow()) &&
+            this.permission == SharePermission.DELEGATE
     }
     //Can view if not yet expired and with delegate or view persmissions
     @GrailsCompileStatic
     boolean getCanView() {
-        this.canModify || (this.dateExpired == null &&
+        this.canModify || ((this.dateExpired == null || this.dateExpired?.isAfterNow()) &&
             this.permission == SharePermission.VIEW)
     }
 

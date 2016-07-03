@@ -115,7 +115,7 @@ class RecordService {
         // build outgoing text and delegate subsequent actions to the phone
         OutgoingText text = new OutgoingText(message:body.contents as String,
             contacts:contacts,
-            sharedContacts:SharedContact.findByContactIdsAndSharedWith(scIds, p1),
+            sharedContacts:SharedContact.findEveryByContactIdsAndSharedWith(scIds, p1),
             tags:ContactTag.getAll(tIds as Iterable<Serializable>) as List)
         p1.sendText(text, authService.loggedInAndActive)
     }
