@@ -4,6 +4,10 @@ dataSource {
     // logSql = true
 }
 hibernate {
+    charSet = 'utf8mb4'
+    characterEncoding='utf8mb4'
+    useUnicode=true
+
     reload = false //disables recreation of the Hibernate session factory on reload, workaround for error when editing domain subclass
     cache.use_second_level_cache = true
     cache.use_query_cache = false
@@ -39,8 +43,11 @@ environments {
         dataSource {
             // dbCreate = "update" //use dbmigration plugin to manage schema changes
             driverClassName = "com.mysql.jdbc.Driver"
-            dialect = "org.hibernate.dialect.MySQL5InnoDBDialect"
-            url = "jdbc:mysql://localhost/prodDb?useUnicode=true&characterEncoding=utf8"
+            dialect = "org.textup.util.MySQL5UTF8MB4InnoDBDialect"
+            // url CANNOT HAVE characterEncoding=utf8 because that will
+            // override our settings in /etc/mysql/my.cnf to set the character
+            // encoding to utf8mb4
+            url = "jdbc:mysql://localhost/prodDb?useUnicode=true"
             username = "prod"
             password = "textupprod"
 

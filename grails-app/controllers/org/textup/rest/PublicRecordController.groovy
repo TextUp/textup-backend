@@ -20,6 +20,7 @@ class PublicRecordController extends BaseController {
     //authService from superclass
     RecordService recordService
     CallbackService callbackService
+    TwimlBuilder twimlBuilder
 
     def index() { notAllowed() }
     def show() { notAllowed() }
@@ -42,11 +43,12 @@ class PublicRecordController extends BaseController {
                 }
                 // we don't always immediately store the receipt so sometimes
                 // the receipt will not be found. If we have a not found error,
-                // then catch this and just return an OK status
+                // then catch this and still return an empty response TwiML
+                // because the Twilio API always expects TwiMl in the response
                 if (!res.success && res.type == ResultType.MESSAGE_STATUS &&
                     (res.payload as Map).status == NOT_FOUND) {
                     res.logFail("PublicRecordController: could not find receipt")
-                    ok()
+                    handleXmlResult(twimlBuilder.noResponse())
                 }
                 else { handleXmlResult(res) }
             }

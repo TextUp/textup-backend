@@ -77,15 +77,18 @@ class PublicRecordControllerSpec extends CustomSpec {
             getResultFactory().failWithMessageAndStatus(NOT_FOUND,
                 "recordService.updateStatus.receiptsNotFound", [apiId])
         }] as RecordService
+        controller.twimlBuilder = [noResponse: { ->
+            new Result(type:ResultType.SUCCESS, success:true, payload:_closure)
+        }] as TwimlBuilder
         params.handle = Constants.CALLBACK_STATUS
         params.CallSid = "sid"
         params.CallStatus = "validStatus"
         params.CallDuration = 123
         controller.save()
 
-        then: "return ok when not found because not found is expected"
+        then: "return ok when not found and still return no response closure"
         response.status == SC_OK
-        response.contentAsString == ""
+        response.contentAsString == buildXml(_closure)
     }
 
     void "test update invalid status"() {
