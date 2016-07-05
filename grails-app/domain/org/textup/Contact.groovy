@@ -251,6 +251,14 @@ class Contact implements Contactable {
     int countBetween(DateTime start, DateTime end) {
         this.record.countBetween(start, end)
     }
+    @GrailsTypeChecked
+    List<FutureMessage> getFutureMessages(Map params=[:]) {
+        this.record.getFutureMessages(params)
+    }
+    @GrailsTypeChecked
+    int countFutureMessages() {
+        this.record.countFutureMessages()
+    }
 
     // Property Access
     // ---------------
@@ -293,50 +301,48 @@ class Contact implements Contactable {
     // --------
 
     @GrailsTypeChecked
-    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt, Staff staff) {
-        Author author = new Author(id:staff.id, type:AuthorType.STAFF, name: staff.name)
-        record.addText([outgoing:true, contents:message], author).then({ RecordText rText ->
-            rText.addReceipt(receipt)
-            if (rText.save()) {
-                resultFactory.success(rText)
-            }
-            else { resultFactory.failWithValidationErrors(rText.errors) }
-        }) as Result
+    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt,
+        Staff staff = null) {
+        record.addText([outgoing:true, contents:message], staff?.toAuthor())
+            .then({ RecordText rText ->
+                rText.addReceipt(receipt)
+                if (rText.save()) {
+                    resultFactory.success(rText)
+                }
+                else { resultFactory.failWithValidationErrors(rText.errors) }
+            }) as Result<RecordText>
     }
     @GrailsTypeChecked
-    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff) {
-        Author author = new Author(id:staff.id, type:AuthorType.STAFF, name: staff.name)
-        record.addCall([outgoing:true], author).then({ RecordCall rCall ->
+    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt,
+        Staff staff = null) {
+        record.addCall([outgoing:true], staff?.toAuthor()).then({ RecordCall rCall ->
             rCall.addReceipt(receipt)
             if (rCall.save()) {
                 resultFactory.success(rCall)
             }
             else { resultFactory.failWithValidationErrors(rCall.errors) }
-        }) as Result
+        }) as Result<RecordCall>
     }
 
     // Incoming
     // --------
 
     @GrailsTypeChecked
-    Result<RecordText> storeIncomingText(IncomingText text, IncomingSession session) {
-        Author author = new Author(id:session.id, type:AuthorType.SESSION,
-            name: session.numberAsString)
-        record.addText([outgoing:false, contents:text.message], author).then({ RecordText rText ->
-            RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId)
-            receipt.receivedBy = this.phone.number
-            rText.addToReceipts(receipt)
-            if (rText.save()) {
-                resultFactory.success(rText)
-            }
-            else { resultFactory.failWithValidationErrors(rText.errors) }
-        }) as Result
+    Result<RecordText> storeIncomingText(IncomingText text, IncomingSession session = null) {
+        record.addText([outgoing:false, contents:text.message], session?.toAuthor())
+            .then({ RecordText rText ->
+                RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId)
+                receipt.receivedBy = this.phone.number
+                rText.addToReceipts(receipt)
+                if (rText.save()) {
+                    resultFactory.success(rText)
+                }
+                else { resultFactory.failWithValidationErrors(rText.errors) }
+            }) as Result<RecordText>
     }
     @GrailsTypeChecked
-    Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session) {
-        Author author = new Author(id:session.id, type:AuthorType.SESSION,
-            name: session.numberAsString)
-        record.addCall([outgoing:false], author).then({ RecordCall rCall ->
+    Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session = null) {
+        record.addCall([outgoing:false], session?.toAuthor()).then({ RecordCall rCall ->
             RecordItemReceipt receipt = new RecordItemReceipt(apiId:apiId)
             receipt.receivedBy = this.phone.number
             rCall.addToReceipts(receipt)
@@ -344,6 +350,6 @@ class Contact implements Contactable {
                 resultFactory.success(rCall)
             }
             else { resultFactory.failWithValidationErrors(rCall.errors) }
-        }) as Result
+        }) as Result<RecordCall>
     }
 }

@@ -7,6 +7,8 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
+import org.textup.types.AuthorType
+import org.textup.validator.Author
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 
@@ -84,6 +86,10 @@ class IncomingSession {
 
     // Property Access
     // ---------------
+
+    Author toAuthor() {
+        new Author(id:this.id, type:AuthorType.SESSION, name:this.numberAsString)
+    }
 
     boolean getShouldSendInstructions() {
         this.lastSentInstructions.isBefore(DateTime.now().withTimeAtStartOfDay())

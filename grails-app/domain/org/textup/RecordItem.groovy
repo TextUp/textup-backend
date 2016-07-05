@@ -113,11 +113,11 @@ class RecordItem {
     }
     @GrailsTypeChecked
     void setAuthor(Author author) {
-        if (author) {
+        if (author?.validate()) {
             this.with {
-                authorName = author?.name
-                authorId = author?.id
-                authorType = author?.type
+                authorName = author.name
+                authorId = author.id
+                authorType = author.type
             }
         }
     }

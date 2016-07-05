@@ -391,18 +391,18 @@ class PhoneServiceSpec extends CustomSpec {
         int rBaseline = RecordItemReceipt.count()
 
         when: "we send to contacts, shared contacts and tags"
-        OutgoingMessage text = new OutgoingMessage(message:"hello",
+        OutgoingMessage msg = new OutgoingMessage(message:"hello",
             contacts:[c1, c1_1, c1_2], sharedContacts:[sc2],
             tags:[tag1, tag1_1])
-        assert text.validateSetPhone(p1)
-        ResultList resList = service.sendText(p1, text, s1)
+        assert msg.validateSetPhone(p1)
+        ResultList resList = service.sendMessage(p1, msg, s1)
         p1.save(flush:true, failOnError:true)
 
-        HashSet<Contact> uniqueContacts = new HashSet<>(text.contacts)
-        text.tags.each { ContactTag ct1 ->
+        HashSet<Contact> uniqueContacts = new HashSet<>(msg.contacts)
+        msg.tags.each { ContactTag ct1 ->
             if (ct1.members) { uniqueContacts.addAll(ct1.members) }
         }
-        List<Integer> tagNumMembers = text.tags.collect { it.members.size() ?: 0 }
+        List<Integer> tagNumMembers = msg.tags.collect { it.members.size() ?: 0 }
         int totalTagMembers = tagNumMembers.sum()
 
         then: "no duplication, also stored in tags"
@@ -411,18 +411,18 @@ class PhoneServiceSpec extends CustomSpec {
         // one result for each shared contact
         // one result for each tag
         resList.results.size() == uniqueContacts.size() +
-            text.sharedContacts.size() + text.tags.size()
+            msg.sharedContacts.size() + msg.tags.size()
         resList.results.each { it.payload instanceof RecordText }
-        // one text for each contact
-        // one text for each shared contact
-        // one text for each tag
+        // one msg for each contact
+        // one msg for each shared contact
+        // one msg for each tag
         RecordText.count() == tBaseline + uniqueContacts.size() +
-            text.sharedContacts.size() + text.tags.size()
+            msg.sharedContacts.size() + msg.tags.size()
         // one receipt for each contact
         // one receipt for each shared contact
         // one receipt for each member of each tag
         RecordItemReceipt.count() == rBaseline + uniqueContacts.size() +
-            text.sharedContacts.size() + totalTagMembers
+            msg.sharedContacts.size() + totalTagMembers
     }
 
     void "test starting bridge call"() {

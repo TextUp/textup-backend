@@ -85,6 +85,54 @@ class PhoneSpec extends CustomSpec {
     	p1.validate() == true
     }
 
+    void "test getting phones for records"() {
+        when: "we pass in shared contact"
+        HashSet<Phone> phones = Phone.getPhonesForRecords([sc1.contact.record])
+
+        then: "we should get back both shared with and shared by phones"
+        phones.size() == 2
+        [p1, p2].every { it in phones }
+
+        when: "have records belonging to our tags, records, and shared FOR ONE PHONE"
+        List<Record> myContactRecs = Contact.findByPhone(p1)*.record,
+            myTagRecs = p1.tags*.record,
+            sWithMeRecs = p1.sharedWithMe.collect { it.contact.record },
+            allRecs = myContactRecs + myTagRecs + sWithMeRecs
+        assert allRecs.isEmpty() == false
+        phones = Phone.getPhonesForRecords(allRecs)
+
+        then:
+        phones.size() == 2
+        [p1, p2].every { it in phones }
+
+        when: "we pass in records belonging to various phones"
+        List<Record> otherCRecs = Contact.findByPhone(p2)*.record +
+                Contact.findByPhone(tPh1)*.record,
+            otherTRecs = p2.tags*.record + tPh1.tags*.record
+        allRecs += otherCRecs += otherTRecs
+        phones = Phone.getPhonesForRecords(allRecs)
+
+        then:
+        phones.size() == 3
+        [p1, p2, tPh1].every { it in phones }
+    }
+    void "test getting phones to available now for contact ids"() {
+        expect:
+        1 == 2
+
+        // when: "some available, no contacts shared"
+
+        // then: "only this phone to list of available now"
+
+        // when: "some available, some contacts shared"
+
+        // then: "this phone and other sharedWith phones too"
+
+        // when: "none available"
+
+        // then: "map should be empty, should not have any entries"
+
+    }
     void "test owner and availability"() {
         given: "a phone belonging to a team"
         Phone p1 = new Phone(numberAsString:"1233348934")
@@ -411,7 +459,7 @@ class PhoneSpec extends CustomSpec {
         when: "send text"
         OutgoingMessage text = new OutgoingMessage(message:'hi')
         text.contacts << c1
-        ResultList resList = p1.sendText(text, s1)
+        ResultList resList = p1.sendMessage(text, s1)
 
         then:
         resList.isAnySuccess == false
@@ -443,14 +491,14 @@ class PhoneSpec extends CustomSpec {
     }
     void "test sending text"() {
         given: "a phone"
-        p1.phoneService = [sendText:{ Phone phone, OutgoingMessage text, Staff staff ->
+        p1.phoneService = [sendMessage:{ Phone phone, OutgoingMessage text, Staff staff ->
             new ResultList()
         }] as PhoneService
 
         when: "we have an invalid outgoing text"
         OutgoingMessage text = new OutgoingMessage()
         assert text.validateSetPhone(p1) == false
-        ResultList<RecordText> resList = p1.sendText(text, s1)
+        ResultList<RecordText> resList = p1.sendMessage(text, s1)
 
         then:
         resList.isAnySuccess == false
@@ -461,7 +509,7 @@ class PhoneSpec extends CustomSpec {
         when: "we pass in a staff that is not an owner"
         text = new OutgoingMessage(message:"hello", contacts:[c1, c1_1])
         assert text.validateSetPhone(p1) == true
-        resList = p1.sendText(text, otherS2)
+        resList = p1.sendMessage(text, otherS2)
 
         then:
         resList.isAnySuccess == false
@@ -472,7 +520,7 @@ class PhoneSpec extends CustomSpec {
         resList.results[0].payload.message == "phone.notOwner"
 
         when: "we pass in a valid outgoing text and staff that is owner"
-        resList = p1.sendText(text, s1)
+        resList = p1.sendMessage(text, s1)
 
         then:
         resList.results.isEmpty() == true

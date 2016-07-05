@@ -201,37 +201,17 @@ class AuthService {
         if (staffPhones && itemId) {
             Record rec = RecordItem.get(itemId)?.record
             if (!rec) { return false }
-            HashSet<Phone> allowedPhones = getPhonesForRecords([rec])
+            HashSet<Phone> allowedPhones = Phone.getPhonesForRecords([rec])
             staffPhones.any { it in allowedPhones }
         }
         else { false }
     }
 
-    HashSet<Phone> getPhonesForRecords(List<Record> recs, boolean includeShared = true) {
-        if (!recs) { return [] }
-        List<Phone> cPhones = Contact.createCriteria().list {
-            projections { property("phone") }
-                "in"("record", recs)
-            }, tPhones = ContactTag.createCriteria().list {
-                projections { property("phone") }
-                "in"("record", recs)
-            },
-            phones = cPhones + tPhones,
-            sPhones = []
-        // phones from contacts that are shared with me
-        if (includeShared) {
-            sPhones = SharedContact.createCriteria().list {
-                projections { property("sharedWith") }
-                contact {
-                    "in"("record", recs)
-                }
-                if (phones) {
-                    "in"("sharedBy", phones)
-                }
-                else { eq("sharedBy", null) }
-            }
-        }
-        new HashSet<Phone>(phones + sPhones)
+    // Future Message
+    // --------------
+
+    boolean hasPermissionsForFutureMessage(Long fMsgId) {
+
     }
 
     // Session

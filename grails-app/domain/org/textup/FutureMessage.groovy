@@ -7,47 +7,49 @@ import java.util.UUID
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.quartz.ScheduleBuilder
+import org.quartz.Scheduler
+import org.quartz.SimpleScheduleBuilder
 import org.quartz.SimpleTrigger
 import org.quartz.Trigger
 import org.quartz.TriggerKey
 import org.restapidoc.annotation.*
-import org.textup.types.AuthorType
 import org.textup.types.FutureMessageType
-import org.textup.validator.Author
+import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
 @GrailsTypeChecked
 class FutureMessage {
 
 	Trigger trigger
+    FutureMessageService futureMessageService
+    Scheduler quartzScheduler
 
+    boolean isDeleted = false
 	DateTime whenCreated = DateTime.now()
 	String key = UUID.randomUUID().toString()
 	Record record
 
-    String authorName
-    Long authorId
-    AuthorType authorType
-
 	DateTime startDate = DateTime.now()
-	String message
-	long repeatIntervalInMillis
-	FutureMessageType type
     boolean notifySelf = false
+    FutureMessageType type
+    long repeatIntervalInMillis = TimeUnit.DAYS.toMillis(1)
+	String message
 
 	Integer repeatCount
 	DateTime endDate
 
-	static transients = ["trigger", "author"]
+	static transients = ["trigger", "futureMessageService", "quartzScheduler",
+        "repeatIntervalInDays"]
     static constraints = {
     	message blank:false, nullable:false, maxSize:(Constants.TEXT_LENGTH * 2)
-    	repeatIntervalInMillis minSize: TimeUnit.DAYS.toMillis(1)
-		repeatCount nullable:true, validator { Integer rNum, FutureMessage msg ->
+    	repeatIntervalInMillis minSize:TimeUnit.DAYS.toMillis(1)
+		repeatCount nullable:true, validator:{ Integer rNum, FutureMessage msg ->
 			if (rNum == SimpleTrigger.REPEAT_INDEFINITELY && msg.endDate) {
 				["unboundedNeedsEndDate"]
 			}
 		}
-		endDate nullable:true, validator { DateTime end, FutureMessage msg ->
+		endDate nullable:true, validator:{ DateTime end, FutureMessage msg ->
 			if (end && end.isBeforeNow()) {
 				["notInFuture"]
 			}
@@ -63,47 +65,70 @@ class FutureMessage {
     // ------
 
     def beforeInsert() {
-    	schedule()
+    	futureMessageService.schedule(this)
             .logFail("FutureMessage.beforeInsert")
             .success // return boolean false to cancel if error
+
+        // TODO: what happens if we return boolean false and cancels? an exception? or silent?
     }
     def beforeUpdate() {
-    	if (['repeatIntervalInMillis', 'repeatCount', 'endDate'].any(this.&isDirty) {
-    		schedule()
+    	if (['repeatIntervalInMillis', 'repeatCount', 'endDate'].any(this.&isDirty)) {
+    		futureMessageService.schedule(this)
                 .logFail("FutureMessage.beforeUpdate")
                 .success // return boolean false to cancel if error
     	}
-    }
-    def beforeDelete() {
-    	unschedule()
-            .logFail("FutureMessage.beforeDelete")
-            .success // return boolean false to cancel if error
     }
     def afterLoad() {
     	this.trigger = quartzScheduler.getTrigger(this.triggerKey)
     }
 
+    // Static Finders
+    // --------------
+
+
+
+    // Methods
+    // -------
+
+    Result cancel() {
+        this.isDeleted = true
+        futureMessageService.unschedule(this)
+            .logFail("FutureMessage.cancel")
+    }
+
+    // Helper Methods
+    // --------------
+
+    protected SimpleScheduleBuilder getScheduleBuilder() {
+        SimpleScheduleBuilder builder = SimpleScheduleBuilder.simpleSchedule()
+        builder.withIntervalInMilliseconds(this.repeatIntervalInMillis)
+        !this.getIsRepeating() ? builder :
+            (this.getWillEndOnDate() ? builder.repeatForever() :
+                builder.withRepeatCount(this.repeatCount))
+    }
+    protected TriggerKey getTriggerKey() {
+        String recordId = this.record?.id?.toString()
+        recordId ? TriggerKey.triggerKey(this.key, recordId) : null
+    }
+
     // Property Access
     // ---------------
 
-    void setAuthor(Author author) {
-        if (author) {
-            this.with {
-                authorName = author?.name
-                authorId = author?.id
-                authorType = author?.type
-            }
+    OutgoingMessage toOutgoingMessage() {
+        OutgoingMessage msg = new OutgoingMessage(message:this.message)
+        // set type
+        msg.type == this.type?.toRecordItemType()
+        // set recipients
+        ContactTag tag = ContactTag.findByRecord(this.record)
+        if (tag) { msg.tags << tag  }
+        else {
+            Contact contact = Contact.findByRecord(this.record)
+            if (contact) { msg.contacts << contact }
         }
-    }
-    Author getAuthor() {
-        new Author(name:this.authorName, id:this.authorId, type:this.authorType)
+        msg
     }
 
-    TriggerKey getTriggerKey() {
-    	String recordId = this.record?.id?.toString()
-    	recordId ? TriggerKey.triggerKey(this.key, recordId) : null
-    }
-    DateTime getNextFire() {
+    DateTime getNextFireDate() {
     	this.trigger ? new DateTime(this.trigger.nextFireTime) : null
     }
     Integer getTimesTriggered() {
@@ -118,7 +143,22 @@ class FutureMessage {
     boolean getIsDone() {
     	!this.trigger || !this.trigger.mayFireAgain()
     }
-    void setRepeatIntervalInDays(int numDays) {
+
+    long getRepeatIntervalInDays() {
+        TimeUnit.MILLISECONDS.toDays(this.repeatIntervalInMillis)
+    }
+    void setRepeatIntervalInDays(long numDays) {
     	this.repeatIntervalInMillis = TimeUnit.DAYS.toMillis(numDays)
+    }
+    void setTargetIfAllowed(Phone p1, Long contactId, Long tagId) {
+        if (contactId) {
+            Contact c1 = Contact.get(contactId)
+            if (c1.phone == p1) {
+
+            }
+        }
+        else if (tagId) {
+
+        }
     }
 }

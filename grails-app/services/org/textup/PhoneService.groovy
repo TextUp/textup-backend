@@ -267,26 +267,18 @@ class PhoneService {
     // Outgoing
     // --------
 
-    ResultList<RecordItem> sendMessage(Phone phone, OutgoingMessage text, Staff staff) {
+    ResultList<RecordItem> sendMessage(Phone phone, OutgoingMessage msg, Staff staff = null) {
         ResultList<RecordItem> resList = new ResultList<>()
-        HashSet<Contactable> recipients = text.toRecipients()
+        HashSet<Contactable> recipients = msg.toRecipients()
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
             .withDefault { [] as List<TempRecordReceipt> }
-        // call sendMessage on each contactable
+        // send to each contactable
         recipients.each { Contactable c1 ->
-            if (c1.instanceOf(SharedContact)) {
-                resList << sendToSharedContact(c1 as SharedContact, text, staff)
-            }
-            else if (c1.instanceOf(Contact)) {
-                resList << sendToContact(phone, c1 as Contact, text, staff, contactIdToReceipts)
-            }
-            else {
-                log.error("PhoneService.sendMessage: contactable '${c1}' not a SharedContact or a Contact")
-            }
+            resList << sendToContactable(phone, c1, msg, staff, contactIdToReceipts)
         }
         // record all receipts on each tag, if applicable
-        text.tags.each { ContactTag ct1 ->
-            resList << storeMessageInTag(ct1, text, staff, contactIdToReceipts)
+        msg.tags.each { ContactTag ct1 ->
+            resList << storeMessageInTag(ct1, msg, staff, contactIdToReceipts)
         }
         resList
     }
@@ -298,11 +290,11 @@ class PhoneService {
             c1.storeOutgoingCall(receipt, staff)
         }) as Result
     }
-    ResultMap<TempRecordReceipt> sendMessageAnnouncement(Phone phone, String message,
+    ResultMap<TempRecordReceipt> sendTextAnnouncement(Phone phone, String message,
         String identifier, List<IncomingSession> sessions, Staff staff) {
         Result<List<String>> res = twimlBuilder.translate(TextResponse.ANNOUNCEMENT,
             [identifier:identifier, message:message])
-            .logFail("PhoneService.sendMessageAnnouncement")
+            .logFail("PhoneService.sendTextAnnouncement")
         String announcement = res.success ? res.payload[0] : "$identifier: $message"
         startAnnouncement(phone, sessions, { IncomingSession s1 ->
             textService.send(phone.number, [s1.number], announcement)
@@ -324,30 +316,33 @@ class PhoneService {
     // Outgoing helper methods
     // -----------------------
 
-    protected Result<RecordItem> sendToContact(Phone phone, Contact c1, OutgoingMessage text,
-        Staff staff, Map<Long, List<TempRecordReceipt>> contactIdToReceipts) {
-        textService.send(phone.number, c1.numbers, text.message)
-            .then({ TempRecordReceipt receipt ->
-                Result<RecordItem> res = c1.storeOutgoingText(text.message, receipt, staff)
-                if (res.success) {
-                    (contactIdToReceipts[c1.id] as List<TempRecordReceipt>) << receipt
-                }
-                res
-            }) as Result<RecordItem>
+    protected Result<RecordItem> sendToContactable(Phone phone,
+        Contactable c1, OutgoingMessage msg, Staff staff = null,
+        Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
+        boolean isContact = c1.instanceOf(Contact)
+        PhoneNumber fromNum = isContact ? phone.number :
+            ((c1 instanceof SharedContact) ? c1.sharedBy.number : null)
+        Result<TempRecordReceipt> res = msg.isText ?
+            textService.send(fromNum, c1.numbers, msg.message) :
+            callService.start(fromNum, c1.numbers[0] as PhoneNumber,
+                [handle:CallResponse.DIRECT_MESSAGE, message:msg.message,
+                    identifier:staff?.name])
+        res.then({ TempRecordReceipt receipt ->
+            Result storeRes = msg.isText ?
+                c1.storeOutgoingText(msg.message, receipt, staff) :
+                c1.storeOutgoingCall(receipt, staff)
+            if (isContact && storeRes.success) {
+                (contactIdToReceipts[c1.contactId] as List<TempRecordReceipt>) << receipt
+            }
+            storeRes
+        }) as Result<RecordItem>
     }
-    protected Result<RecordItem> sendToSharedContact(SharedContact sc1,
-        OutgoingMessage text, Staff staff) {
-        textService.send(sc1.sharedBy.number, sc1.numbers, text.message)
-            .then({ TempRecordReceipt receipt ->
-                sc1.storeOutgoingText(text.message, receipt, staff)
-            }) as Result<RecordItem>
-    }
-    protected Result<RecordItem> storeMessageInTag(ContactTag ct1, OutgoingMessage text, Staff staff,
-        Map<Long, List<TempRecordReceipt>> contactIdToReceipts) {
-        // create a new text on the tag's record
-        ct1.addTextToRecord([contents:text.message], staff).then({ RecordItem tagText ->
+    protected Result<RecordItem> storeMessageInTag(ContactTag ct1, OutgoingMessage msg,
+        Staff staff = null, Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
+        // create a new msg on the tag's record
+        ct1.addTextToRecord([contents:msg.message], staff).then({ RecordItem tagText ->
             ct1.members.each { Contact c1 ->
-                // add contact text's receipts to tag's text
+                // add contact msg's receipts to tag's msg
                 contactIdToReceipts[c1.id]?.each { TempRecordReceipt r ->
                     tagText.addReceipt(r)
                     tagText.save()
@@ -417,13 +412,16 @@ class PhoneService {
         }).then({ List<Contact> contacts ->
             // notify available staff members
             List responses = [] // list of string and text resonses
-            HashSet<Staff> availableNow = getAllAvailableForContacts(contacts, phone)
+            Map<Phone, List<Staff>> phonesToAvailableNow =
+                phone.getPhonesToAvailableNowForContactIds(contacts*.id)
             // if none of the staff for any of the phones are available
-            if (availableNow) {
-                String nameOrNumber = getNameOrNumber(contacts, session)
-                availableNow.each { Staff s1 ->
-                    this.notifyStaff(s1, nameOrNumber)
-                        .logFail("PhoneService.relayText: notify staff ${s1.id}")
+            if (phonesToAvailableNow) {
+                phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
+                    String name = p1.owner.name
+                    staffs.each { Staff s1 ->
+                        this.notifyStaff(s1, p1, name)
+                            .logFail("PhoneService.relayText: calling notifyStaff")
+                    }
                 }
             }
             else {
@@ -459,13 +457,16 @@ class PhoneService {
             }
         }).then({ List<Contact> contacts ->
             // notify available staff members
-            HashSet<Staff> availableNow = getAllAvailableForContacts(contacts, phone)
             HashSet<String> numsToCall = new HashSet<>()
-            availableNow.each { Staff s1 ->
-                if (s1.personalPhoneAsString) {
-                    numsToCall << s1.personalPhoneNumber.e164PhoneNumber
+            (phone
+                .getPhonesToAvailableNowForContactIds(contacts*.id)
+                .values()
+                .flatten() as Collection<Staff>)
+                .each { Staff s1 ->
+                    if (s1.personalPhoneAsString) {
+                        numsToCall << s1.personalPhoneNumber.e164PhoneNumber
+                    }
                 }
-            }
             if (numsToCall) {
                 String nameOrNumber = getNameOrNumber(contacts, session)
                 twimlBuilder.build(CallResponse.CONNECT_INCOMING,
@@ -634,19 +635,10 @@ class PhoneService {
     // Incoming helper methods
     // -----------------------
 
-    protected HashSet<Staff> getAllAvailableForContacts(List<Contact> contacts, Phone phone) {
-        List<Long> cIds = contacts.collect { it.id }
-        List<Phone> sharedWithPhones = SharedContact
-            .findByContactIdsAndSharedBy(cIds, phone)
-            .collect { it.sharedWith }
-        HashSet<Staff> availableNow = new HashSet<>(phone.availableNow)
-        sharedWithPhones.each { Phone p1 -> availableNow.addAll(p1.availableNow) }
-        availableNow
-    }
-    protected Result notifyStaff(Staff s1, String identifier) {
+    protected Result notifyStaff(Staff s1, Phone p1, String name) {
         String msg = messageSource.getMessage("phoneService.notifyStaff.notification",
-            [Helpers.formatNumberForRead(identifier)] as Object[], LCH.getLocale())
-        textService.send(s1.phone.number, [s1.personalPhoneNumber], msg)
+            [name] as Object[], LCH.getLocale())
+        textService.send(p1.number, [s1.personalPhoneNumber], msg)
     }
     protected String getNameOrNumber(List<Contact> contacts, IncomingSession session) {
         for (contact in contacts) {

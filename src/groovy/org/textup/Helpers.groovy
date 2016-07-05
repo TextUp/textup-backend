@@ -56,12 +56,12 @@ class Helpers {
         str == "true" ? true : str == "false" ? false : null
     }
     static Long toLong(def val) {
-        String strVal = "${val}"
-        strVal.isLong() ? strVal.toLong() : null
+        BigDecimal res = toBigDecimal(val)
+        (res != null) ? res as Long : null
     }
     static Integer toInteger(def val) {
-        String strVal = "${val}"
-        strVal.isInteger() ? strVal.toInteger() : null
+        BigDecimal res = toBigDecimal(val)
+        (res != null) ? res as Integer : null
     }
     static BigDecimal toBigDecimal(def val) {
         String strVal = "${val}"
@@ -107,6 +107,9 @@ class Helpers {
     // Date, time, timezones
     // ---------------------
 
+    static DateTime toDateTimeWithZone(def time, def zone) {
+
+    }
     static String printLocalInterval(LocalInterval localInt) {
         if (localInt) {
             String start1 = localInt.start.hourOfDay.toString().padLeft(2, "0"),

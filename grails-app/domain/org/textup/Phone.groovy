@@ -101,6 +101,34 @@ class Phone {
         hasDuplicate
     }
 
+    // Static finders
+    // --------------
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static HashSet<Phone> getPhonesForRecords(List<Record> recs) {
+        if (!recs) { return new HashSet<Phone>() }
+        List<Phone> cPhones = Contact.createCriteria().list {
+            projections { property("phone") }
+                "in"("record", recs)
+            }, tPhones = ContactTag.createCriteria().list {
+                projections { property("phone") }
+                "in"("record", recs)
+            },
+            phones = cPhones + tPhones,
+            // phones from contacts that are shared with me
+            sPhones = SharedContact.createCriteria().list {
+                projections { property("sharedWith") }
+                contact {
+                    "in"("record", recs)
+                }
+                if (phones) {
+                    "in"("sharedBy", phones)
+                }
+                else { eq("sharedBy", null) }
+            }
+        new HashSet<Phone>(phones + sPhones)
+    }
+
     // Status
     // ------
 
@@ -245,6 +273,7 @@ class Phone {
     PhoneNumber getNumber() {
         new PhoneNumber(number:this.numberAsString)
     }
+
     int countTags() {
         ContactTag.countByPhoneAndIsDeleted(this, false)
     }
@@ -310,6 +339,7 @@ class Phone {
     List<Contact> getSharedByMe(Map params=[:]) {
         SharedContact.listSharedByMe(this, params)
     }
+
     int countAnnouncements() {
         FeaturedAnnouncement.countForPhone(this)
     }
@@ -334,6 +364,7 @@ class Phone {
     List<IncomingSession> getTextSubscribedSessions(Map params=[:]) {
         IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true, params)
     }
+
     List<Staff> getAvailableNow() {
         List<Staff> availableNow = []
         this.owner.all.each { Staff s1 ->
@@ -343,6 +374,20 @@ class Phone {
         }
         availableNow
     }
+    Map<Phone, List<Staff>> getPhonesToAvailableNowForContactIds(Collection<Long> cIds) {
+        List<Phone> sharedWithPhones = SharedContact
+            .findByContactIdsAndSharedBy(cIds, this)
+            .collect { SharedContact sc1 -> sc1.sharedWith }
+        Map<Phone, List<Staff>> phonesToAvailableNow = [:]
+        ((sharedWithPhones + this) as Collection<Phone>).each { Phone p1 ->
+            List<Staff> availableNow = p1.availableNow
+            if (availableNow) {
+                phonesToAvailableNow[p1] = availableNow
+            }
+        }
+        phonesToAvailableNow
+    }
+
     Result<PhoneOwnership> updateOwner(Team t1) {
         PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(t1.id,
                 PhoneOwnershipType.GROUP) ?:
@@ -367,7 +412,7 @@ class Phone {
     // Outgoing
     // --------
 
-    ResultList<RecordText> sendText(OutgoingMessage msg, Staff staff) {
+    ResultList<RecordItem> sendMessage(OutgoingMessage msg, Staff staff = null) {
         if (!this.isActive) {
             return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 'phone.isInactive'))

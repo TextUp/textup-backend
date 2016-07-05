@@ -7,8 +7,10 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
+import org.textup.types.AuthorType
 import org.textup.types.PhoneOwnershipType
 import org.textup.types.StaffStatus
+import org.textup.validator.Author
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import org.textup.validator.ScheduleChange
@@ -216,6 +218,11 @@ class Staff {
 
     // Property Access
     // ---------------
+
+    @GrailsTypeChecked
+    Author toAuthor() {
+        new Author(id:this.id, type:AuthorType.STAFF, name:this.name)
+    }
 
     int countTeams() {
         Team.forStaffs([this]).count()

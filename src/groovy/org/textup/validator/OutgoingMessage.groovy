@@ -58,6 +58,9 @@ class OutgoingMessage {
 		phone nullable:false
 	}
 
+	// Validation
+	// ----------
+
 	def validateSetPhone(Phone p1) {
 		this.phone = p1
 		// after setting phone, then run validations
@@ -78,6 +81,9 @@ class OutgoingMessage {
 		isValid
 	}
 
+	// Property Access
+	// ---------------
+
 	HashSet<Contactable> toRecipients() {
 		HashSet<Contactable> recipients = new HashSet<>()
         // add all contactables to a hashset to avoid duplication
@@ -86,5 +92,24 @@ class OutgoingMessage {
         this.tags.each { ContactTag ct1 -> recipients.addAll(ct1.members ?: []) }
 
         recipients
+	}
+
+	String getName() {
+        (this.contacts?.find { Contact c1 -> c1.getNameOrNumber() }?.getNameOrNumber()) ?:
+        	(this.tags?.find { ContactTag ct1 -> ct1.name }?.name ?: "")
+    }
+	boolean getIsText() {
+		this.type == RecordItemType.TEXT
+	}
+	HashSet<Phone> getPhones() {
+		HashSet<Phone> phones = new HashSet<>()
+		this.contacts.each { Contact c1 -> phones.add(c1.phone) }
+		this.sharedContacts.each { SharedContact sc1 ->
+			phones.add(sc1.sharedBy)
+			phones.add(sc1.sharedWith)
+		}
+		this.tags.each { ContactTag ct1 -> phones.add(ct1.phone) }
+
+		phones
 	}
 }

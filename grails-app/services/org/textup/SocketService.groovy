@@ -14,7 +14,6 @@ class SocketService {
 
     GrailsApplication grailsApplication
     Pusher pusherService
-    AuthService authService
     ResultFactory resultFactory
 
     ResultList<Staff> sendItems(List<RecordItem> items,
@@ -54,7 +53,7 @@ class SocketService {
     // --------------
 
     protected HashSet<Staff> getStaffsForRecords(List<Record> recs) {
-        HashSet<Phone> phones = authService.getPhonesForRecords(recs)
+        HashSet<Phone> phones = Phone.getPhonesForRecords(recs)
         HashSet<Staff> staffs = new HashSet<Staff>()
         phones.each { staffs.addAll(it.owner.all) }
         staffs

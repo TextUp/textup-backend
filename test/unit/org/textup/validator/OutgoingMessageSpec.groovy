@@ -132,6 +132,24 @@ class OutgoingMessageSpec extends CustomSpec {
 		text.validateSetPhone(p1) == true
 	}
 
+	void "test getting name"() {
+		expect:
+		1 == 2
+
+		// when: "empty outgoing text"
+
+		// then:
+
+		// when: "some contacts"
+
+		// then:
+
+		// when: "some tags"
+
+		// then:
+
+	}
+
 	void "test generating recipients"() {
 		when: "an empty outgoing text"
 		OutgoingMessage text = new OutgoingMessage(message:"hello")
