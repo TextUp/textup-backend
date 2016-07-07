@@ -184,34 +184,35 @@ class AuthService {
         else { false }
     }
 
-    // Record item
-    // -----------
+    // Record
+    // ------
+
+    boolean hasPermissionsForItem(Long itemId) {
+        this.hasPermissionForRecord(RecordItem.get(itemId)?.record)
+    }
+    boolean hasPermissionsForFutureMessage(Long fMsgId) {
+         this.hasPermissionForRecord(FutureMessage.get(fMsgId)?.record)
+    }
 
     /**
-     * Can have permission for this RecordItem if
-     * (1) This item belongs to one of your contacts
-     * (2) This item belongs to a contact that is currently shared with you
-     * (3) This item belongs to a contact of one of the teams you're on
-     * (4 - 6) same as 1 through 3 for an item belonging to a tag
-     * @param  itemId Id of the item in question
+     * Can have permission for this Record if
+     * (1) This record belongs to one of your contacts
+     * (2) This record belongs to a contact that is currently shared with you
+     * (3) This record belongs to a contact of one of the teams you're on
+     * (4 - 6) same as 1 through 3 for an record belonging to a tag
+     * @param  Record in question
      * @return        Whether or have permission
      */
-    boolean hasPermissionsForItem(Long itemId) {
+    protected boolean hasPermissionForRecord(Record rec) {
+        if (!rec) {
+            return false
+        }
         List<Phone> staffPhones = getLoggedInAndActive()?.allPhones
-        if (staffPhones && itemId) {
-            Record rec = RecordItem.get(itemId)?.record
-            if (!rec) { return false }
+        if (staffPhones) {
             HashSet<Phone> allowedPhones = Phone.getPhonesForRecords([rec])
             staffPhones.any { it in allowedPhones }
         }
         else { false }
-    }
-
-    // Future Message
-    // --------------
-
-    boolean hasPermissionsForFutureMessage(Long fMsgId) {
-
     }
 
     // Session

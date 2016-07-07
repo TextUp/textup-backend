@@ -72,6 +72,7 @@ class Record {
     int countItems() {
         RecordItem.forRecord(this).count()
     }
+
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<RecordItem> getSince(DateTime since, Map params=[:]) {
         if (!since) { return [] }
@@ -104,9 +105,9 @@ class Record {
     }
 
     List<FutureMessage> getFutureMessages(Map params=[:]) {
-
+        FutureMessage.findAllByRecordAndIsDone(this, false, params)
     }
     int countFutureMessages() {
-
+        FutureMessage.countByRecordAndIsDone(this, false)
     }
 }

@@ -1,8 +1,6 @@
 package org.textup
 
-import grails.converters.JSON
 import grails.transaction.Transactional
-import groovy.json.JsonSlurper
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import com.pusher.rest.Pusher
 import com.pusher.rest.data.Result as PResult
@@ -23,10 +21,8 @@ class SocketService {
             return resList
         }
         HashSet<Staff> staffList = getStaffsForRecords(items*.record)
-        List serialized
-        JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
-            serialized = new JsonSlurper().parseText((items as JSON).toString())
-        }
+        List serialized = Helpers.toJson(items,
+            grailsApplication.flatConfig["textup.rest.defaultLabel"])
         staffList.each { Staff s1 ->
             resList << sendToDataToStaff(s1, eventName, serialized)
         }
@@ -39,10 +35,8 @@ class SocketService {
             return resList
         }
         HashSet<Staff> staffList = getStaffsForRecords(contacts*.record)
-        List serialized
-        JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
-            serialized = new JsonSlurper().parseText((contacts as JSON).toString())
-        }
+        List serialized = Helpers.toJson(contacts,
+            grailsApplication.flatConfig["textup.rest.defaultLabel"])
         staffList.each { Staff s1 ->
             resList << sendToDataToStaff(s1, eventName, serialized)
         }
@@ -63,7 +57,7 @@ class SocketService {
         PResult pRes = pusherService.get("/channels/$channelName")
         if (pRes.status == PStatus.SUCCESS) {
             try {
-                Map channelInfo = new JsonSlurper().parseText(pRes.message)
+                Map channelInfo = Helpers.toJson(pRes.message)
                 if (channelInfo.occupied) {
                     pRes = pusherService.trigger(channelName, eventName, data)
                     if (pRes.status == PStatus.SUCCESS) {

@@ -319,14 +319,14 @@ class PhoneService {
     protected Result<RecordItem> sendToContactable(Phone phone,
         Contactable c1, OutgoingMessage msg, Staff staff = null,
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
+
         boolean isContact = c1.instanceOf(Contact)
         PhoneNumber fromNum = isContact ? phone.number :
             ((c1 instanceof SharedContact) ? c1.sharedBy.number : null)
         Result<TempRecordReceipt> res = msg.isText ?
             textService.send(fromNum, c1.numbers, msg.message) :
-            callService.start(fromNum, c1.numbers[0] as PhoneNumber,
-                [handle:CallResponse.DIRECT_MESSAGE, message:msg.message,
-                    identifier:staff?.name])
+            callService.start(fromNum, c1.numbers, [handle:CallResponse.DIRECT_MESSAGE,
+                message:msg.message, identifier:staff?.name])
         res.then({ TempRecordReceipt receipt ->
             Result storeRes = msg.isText ?
                 c1.storeOutgoingText(msg.message, receipt, staff) :

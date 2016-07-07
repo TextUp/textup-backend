@@ -53,7 +53,7 @@ class FutureMessageController extends BaseController {
             }
             else { forbidden(); return; }
         }
-        genericListActionForClosures(FutureMessage, { ->
+        genericListActionForClosures(FutureMessage, { Map options ->
         	cont.countFutureMessages()
     	}, { Map options ->
     		cont.getFutureMessages(options)
@@ -68,7 +68,7 @@ class FutureMessageController extends BaseController {
     	if (!authService.hasPermissionsForTag(ctId)) {
     		forbidden()
     	}
-    	genericListActionForClosures(FutureMessage, { ->
+    	genericListActionForClosures(FutureMessage, { Map options ->
         	ct1.record.countFutureMessages()
     	}, { Map options ->
     		ct1.record.getFutureMessages(options)
@@ -99,11 +99,12 @@ class FutureMessageController extends BaseController {
         if (params.long("teamId")) {
             Long tId = params.long("teamId")
             handleSaveResult(FutureMessage,
-            	futureMessageService.createForTeam(tId, fInfo))
+            	futureMessageService.createForTeam(tId, fInfo,
+                    params.timezone as String))
         }
         else {
             handleSaveResult(FutureMessage,
-            	futureMessageService.createForStaff(fInfo))
+            	futureMessageService.createForStaff(fInfo, params.timezone as String))
         }
     }
 
@@ -117,7 +118,7 @@ class FutureMessageController extends BaseController {
             if (authService.hasPermissionsForFutureMessage(id)) {
                 Map fInfo = (request.properties.JSON as Map)["future-message"] as Map
                 handleUpdateResult(FutureMessage,
-                	futureMessageService.update(id, fInfo))
+                	futureMessageService.update(id, fInfo, params.timezone as String))
             }
             else { forbidden() }
         }

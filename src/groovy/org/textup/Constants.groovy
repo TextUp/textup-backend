@@ -44,7 +44,6 @@ class Constants {
 	// Quartz jobs
 	// -----------
 
-	static final String JOB_FUTURE_MESSAGE = "futureMessage"
 	static final String JOB_DATA_FUTURE_MESSAGE_KEY = "futureMessageKey"
 	static final String JOB_DATA_STAFF_ID = "futureMessageStaffId"
 

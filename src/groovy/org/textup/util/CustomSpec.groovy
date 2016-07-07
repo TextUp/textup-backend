@@ -1,7 +1,6 @@
 package org.textup.util
 
 import grails.converters.JSON
-import groovy.json.JsonSlurper
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.types.OrgStatus
@@ -81,9 +80,8 @@ class CustomSpec extends Specification {
     // -------
 
     protected Object jsonToObject(JSON data) {
-        new JsonSlurper().parseText(data.toString())
+        Helpers.toJson(data.toString())
     }
-
     protected def getBean(String beanName) {
         grailsApplication.mainContext.getBean(beanName)
     }

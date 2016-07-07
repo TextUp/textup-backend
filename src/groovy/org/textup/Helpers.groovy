@@ -1,5 +1,11 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
+import grails.converters.JSON
+import groovy.json.JsonBuilder
+import groovy.json.JsonException
+import groovy.json.JsonSlurper
+import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -10,8 +16,6 @@ import org.joda.time.Days
 import org.joda.time.LocalTime
 import org.textup.validator.LocalInterval
 import org.textup.validator.PhoneNumber
-import grails.compiler.GrailsCompileStatic
-import groovy.transform.TypeCheckingMode
 
 @GrailsCompileStatic
 @Log4j
@@ -107,8 +111,9 @@ class Helpers {
     // Date, time, timezones
     // ---------------------
 
-    static DateTime toDateTimeWithZone(def time, def zone) {
-
+    static DateTime toDateTimeWithZone(def time, def zone = null) {
+        new DateTime(toString(time))
+            .withZoneRetainFields(getZoneFromId(zone as String))
     }
     static String printLocalInterval(LocalInterval localInt) {
         if (localInt) {
@@ -149,6 +154,24 @@ class Helpers {
     //0 corresponds to sunday, 6 to saturday
     static int getDayOfWeekIndex(int num) {
         Math.abs(num % 7)
+    }
+
+    // Json
+    // ----
+
+    static String toJsonString(Object data, String marshaller = null) {
+        if (marshaller) {
+            JSON.use(marshaller) {
+                (data as JSON).toString()
+            }
+        }
+        else { new JsonBuilder(data).toString() }
+    }
+    static Object toJson(Object data, String marshaller = null) throws JsonException {
+        new JsonSlurper().parseText(toJsonString(data))
+    }
+    static Object toJson(String str) throws JsonException {
+        new JsonSlurper().parseText(str)
     }
 
     // TwimlBuilder

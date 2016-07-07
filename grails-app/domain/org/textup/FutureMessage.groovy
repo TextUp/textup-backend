@@ -21,16 +21,25 @@ import org.textup.validator.OutgoingMessage
 @GrailsTypeChecked
 class FutureMessage {
 
-	Trigger trigger
+    Trigger trigger
+    AuthService authService
     FutureMessageService futureMessageService
     Scheduler quartzScheduler
 
-    boolean isDeleted = false
-	DateTime whenCreated = DateTime.now()
+    // In the job, when this message will not be executed again, we manually mark
+    // the job as 'done'. We have to rely on this manual bookkeeping because we want
+    // to keep our implementation of done-ness agnostic of the Quartz jobstore we
+    // choose. If we choose the in-memory jobstore, there isn't a way that we can
+    // incorporate the information in the scheduler about the done-ness in our db query
+    // However, after retrieving this instance, we can double check to see if we
+    // were correct by calling the getIsActuallyDone method
+    boolean isDone = false
+
+	DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 	String key = UUID.randomUUID().toString()
 	Record record
 
-	DateTime startDate = DateTime.now()
+	DateTime startDate = DateTime.now(DateTimeZone.UTC)
     boolean notifySelf = false
     FutureMessageType type
     long repeatIntervalInMillis = TimeUnit.DAYS.toMillis(1)
@@ -40,8 +49,9 @@ class FutureMessage {
 	DateTime endDate
 
 	static transients = ["trigger", "futureMessageService", "quartzScheduler",
-        "repeatIntervalInDays"]
+        "repeatIntervalInDays", "authService"]
     static constraints = {
+        record nullable: false
     	message blank:false, nullable:false, maxSize:(Constants.TEXT_LENGTH * 2)
     	repeatIntervalInMillis minSize:TimeUnit.DAYS.toMillis(1)
 		repeatCount nullable:true, validator:{ Integer rNum, FutureMessage msg ->
@@ -64,34 +74,15 @@ class FutureMessage {
     // Events
     // ------
 
-    def beforeInsert() {
-    	futureMessageService.schedule(this)
-            .logFail("FutureMessage.beforeInsert")
-            .success // return boolean false to cancel if error
-
-        // TODO: what happens if we return boolean false and cancels? an exception? or silent?
-    }
-    def beforeUpdate() {
-    	if (['repeatIntervalInMillis', 'repeatCount', 'endDate'].any(this.&isDirty)) {
-    		futureMessageService.schedule(this)
-                .logFail("FutureMessage.beforeUpdate")
-                .success // return boolean false to cancel if error
-    	}
-    }
     def afterLoad() {
     	this.trigger = quartzScheduler.getTrigger(this.triggerKey)
     }
-
-    // Static Finders
-    // --------------
-
-
 
     // Methods
     // -------
 
     Result cancel() {
-        this.isDeleted = true
+        this.isDone = true
         futureMessageService.unschedule(this)
             .logFail("FutureMessage.cancel")
     }
@@ -109,6 +100,9 @@ class FutureMessage {
     protected TriggerKey getTriggerKey() {
         String recordId = this.record?.id?.toString()
         recordId ? TriggerKey.triggerKey(this.key, recordId) : null
+    }
+    protected boolean getShouldReschedule() {
+    	["repeatIntervalInMillis", "repeatCount", "endDate"].any(this.&isDirty)
     }
 
     // Property Access
@@ -140,7 +134,7 @@ class FutureMessage {
     boolean getIsRepeating() {
     	this.repeatCount || this.endDate
     }
-    boolean getIsDone() {
+    boolean getIsReallyDone() {
     	!this.trigger || !this.trigger.mayFireAgain()
     }
 
@@ -150,15 +144,19 @@ class FutureMessage {
     void setRepeatIntervalInDays(long numDays) {
     	this.repeatIntervalInMillis = TimeUnit.DAYS.toMillis(numDays)
     }
-    void setTargetIfAllowed(Phone p1, Long contactId, Long tagId) {
-        if (contactId) {
-            Contact c1 = Contact.get(contactId)
-            if (c1.phone == p1) {
-
+    void setTargetIfAllowed(Long cId, Long ctId) {
+        if (cId) {
+            Contact c1 = Contact.get(cId)
+            if (c1 && (authService.hasPermissionsForContact(cId) ||
+                authService.getSharedContactIdForContact(cId))) {
+                this.record = c1.record
             }
         }
-        else if (tagId) {
-
+        else if (ctId) {
+            ContactTag ct1 = ContactTag.get(ctId)
+            if (ct1 && authService.hasPermissionsForTag(ctId)) {
+                this.record = ct1.record
+            }
         }
     }
 }

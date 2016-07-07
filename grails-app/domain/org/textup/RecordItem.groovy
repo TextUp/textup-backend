@@ -96,6 +96,20 @@ class RecordItem {
         }
     }
 
+    // Static Finders
+    // --------------
+
+    @GrailsTypeChecked
+    static HashSet<RecordItem> findEveryByApiId(String apiId) {
+        HashSet<RecordItem> items = new HashSet<>()
+        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
+        receipts.each { RecordItemReceipt receipt -> items << receipt.item }
+        items
+    }
+
+    // Methods
+    // -------
+
     @GrailsTypeChecked
     RecordItem addReceipt(TempRecordReceipt r1) {
         RecordItemReceipt receipt = new RecordItemReceipt(status:r1.status,

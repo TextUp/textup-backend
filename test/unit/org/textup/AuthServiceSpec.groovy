@@ -258,29 +258,29 @@ class AuthServiceSpec extends CustomSpec {
     	service.hasPermissionsForTag(teTag2.id) == false
     }
 
-    void "test permissions for record item"() {
+    void "test permissions for record"() {
         given: "we are active"
         s1.org.status = OrgStatus.APPROVED
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
 
     	expect: "This item belongs to one of your contacts"
-    	service.hasPermissionsForItem(rText1.id) == true
+    	service.hasPermissionsForRecord(rText1.record) == true
 
     	and: "This item belongs to a contact that is currently shared with you"
-    	service.hasPermissionsForItem(rText2.id) == true
+    	service.hasPermissionsForRecord(rText2.record) == true
 
     	and: "This item belongs to a contact of one of the teams you're on"
-    	service.hasPermissionsForItem(rTeText1.id) == true
+    	service.hasPermissionsForRecord(rTeText1.record) == true
 
     	and: "This item belongs to a different team at same org"
-    	service.hasPermissionsForItem(rTeText2.id) == false
+    	service.hasPermissionsForRecord(rTeText2.record) == false
 
     	and: "This item belongs to a staff member at a different org"
-    	service.hasPermissionsForItem(otherRText2.id) == false
+    	service.hasPermissionsForRecord(otherRText2.record) == false
 
     	and: "This item belongs to a team at a different org"
-    	service.hasPermissionsForItem(otherRTeText2.id) == false
+    	service.hasPermissionsForRecord(otherRTeText2.record) == false
     }
 
     void "test permissions for session"() {
