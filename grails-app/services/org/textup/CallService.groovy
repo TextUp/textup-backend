@@ -29,8 +29,7 @@ class CallService {
     }
     Result<TempRecordReceipt> start(PhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, Map afterPickup) {
-
-        if (toNums.size() > 1) { // if multiple numbers, we want to add in retry logic
+        if (toNums?.size() > 1) { // if multiple numbers, we want to add in retry logic
             List<String> remaining = toNums[1..-1]
                 .collect { BasePhoneNumber pNum -> pNum.e164PhoneNumber }
             Map callbackParams = [handle:Constants.CALLBACK_STATUS, remaining:remaining,
@@ -41,7 +40,7 @@ class CallService {
                     action:"save", absolute:true, params:callbackParams)
             this.doCall(fromNum, toNums[0], afterLink, callback)
         }
-        else { this.start(fromNum, toNums[0], afterPickup) }
+        else { this.start(fromNum, toNums ? toNums[0] : null, afterPickup) }
     }
     Result<TempRecordReceipt> retry(PhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup) {

@@ -159,13 +159,13 @@ class Helpers {
     // ----
 
     static String toJsonString(Object data) {
-        new JsonBuilder(data).toString()
+        data ? new JsonBuilder(data).toString() : null
     }
     static Object toJson(Object data) throws JsonException {
-        new JsonSlurper().parseText(toJsonString(data))
+        data ? new JsonSlurper().parseText(toJsonString(data)) : null
     }
     static Object toJson(String str) throws JsonException {
-        new JsonSlurper().parseText(str)
+        str ? new JsonSlurper().parseText(str) : null
     }
 
     // TwimlBuilder

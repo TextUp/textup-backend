@@ -1,13 +1,13 @@
 package org.textup.jobs
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.quartz.JobDataMap
 import org.quartz.JobExecutionContext
 import org.quartz.utils.Key
 import org.springframework.beans.factory.annotation.Autowired
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class FutureMessageJob {
 
 	@Autowired
@@ -16,12 +16,10 @@ class FutureMessageJob {
     @Autowired
     ResultFactory resultFactory
 
+    boolean concurrent = false
     String group = Key.DEFAULT_GROUP
 
     void execute(JobExecutionContext context) {
-
-        println "FUTURE MESSAGE JOB! execute: context: $context"
-
     	JobDataMap data = context.mergedJobDataMap
         String futureKey = Helpers.toString(data.get(Constants.JOB_DATA_FUTURE_MESSAGE_KEY))
         ResultList<RecordItem> resList = futureMessageService

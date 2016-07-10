@@ -70,7 +70,8 @@ class RecordSpec extends Specification {
         assert rec.addText([contents:"hello"], null).success
 
         then: "lastRecordActivity is updated"
-        rec.lastRecordActivity.isAfter(currentTimestamp)
+        rec.lastRecordActivity.isAfter(currentTimestamp) ||
+            rec.lastRecordActivity.isEqual(currentTimestamp)
 
         when: "we add a call"
         currentTimestamp = rec.lastRecordActivity
