@@ -133,43 +133,80 @@ class OutgoingMessageSpec extends CustomSpec {
 	}
 
 	void "test getting name"() {
-		expect:
-		1 == 2
+		when: "empty outgoing message"
+		OutgoingMessage msg = new OutgoingMessage(message:"hello")
 
-		// when: "empty outgoing text"
+		then:
+		msg.name == ""
 
-		// then:
+		when: "some contacts"
+		msg.contacts << c1
 
-		// when: "some contacts"
+		then:
+		msg.name == c1.nameOrNumber
 
-		// then:
+		when: "some tags and some contacts"
+		msg.tags << tag1
 
-		// when: "some tags"
+		then:
+		msg.name == c1.nameOrNumber
 
-		// then:
+		when: "some tags but no contacts"
+		msg.contacts.clear()
 
+		then:
+		msg.name == tag1.name
+	}
+
+	void "test getting phones"() {
+		when: "empty outgoing message"
+		OutgoingMessage msg = new OutgoingMessage(message:"hello")
+
+		then:
+		msg.phones.isEmpty() == true
+
+		when: "some contacts"
+		msg.contacts << c1
+		Collection<Phone> phones = msg.phones
+
+		then:
+		[c1.phone].every { it in phones }
+
+		when: "some tags and some contacts"
+		msg.tags << tag1
+		phones = msg.phones
+
+		then:
+		[c1.phone, tag1.phone].every { it in phones }
+
+		when: "some tags, contacts and shared contacts"
+		msg.sharedContacts << sc1
+		phones = msg.phones
+
+		then:
+		[c1.phone, tag1.phone, sc1.sharedWith, sc1.sharedBy].every { it in phones }
 	}
 
 	void "test generating recipients"() {
-		when: "an empty outgoing text"
-		OutgoingMessage text = new OutgoingMessage(message:"hello")
+		when: "an empty outgoing msg"
+		OutgoingMessage msg = new OutgoingMessage(message:"hello")
 
 		then: "no recipients"
-		text.toRecipients().isEmpty() == true
+		msg.toRecipients().isEmpty() == true
 
-		when: "populated outgoing text"
-		text = new OutgoingMessage(message:"hello")
-		text.sharedContacts = [sc1, sc2]
-		text.contacts = [c1, c1_1]
-		text.tags = [tag1, tag1_1]
+		when: "populated outgoing msg"
+		msg = new OutgoingMessage(message:"hello")
+		msg.sharedContacts = [sc1, sc2]
+		msg.contacts = [c1, c1_1]
+		msg.tags = [tag1, tag1_1]
 
 		int numUniqueContactables = 0
-		text.tags.each { ContactTag ct1 ->
-			numUniqueContactables += (ct1.members - text.contacts).size()
+		msg.tags.each { ContactTag ct1 ->
+			numUniqueContactables += (ct1.members - msg.contacts).size()
 		}
 
 		then:
-		text.toRecipients().size() == text.sharedContacts.size() +
-			text.contacts.size() + numUniqueContactables
+		msg.toRecipients().size() == msg.sharedContacts.size() +
+			msg.contacts.size() + numUniqueContactables
 	}
 }

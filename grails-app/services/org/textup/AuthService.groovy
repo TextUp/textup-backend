@@ -188,10 +188,10 @@ class AuthService {
     // ------
 
     boolean hasPermissionsForItem(Long itemId) {
-        this.hasPermissionForRecord(RecordItem.get(itemId)?.record)
+        this.hasPermissionsForRecord(RecordItem.get(itemId)?.record)
     }
     boolean hasPermissionsForFutureMessage(Long fMsgId) {
-         this.hasPermissionForRecord(FutureMessage.get(fMsgId)?.record)
+         this.hasPermissionsForRecord(FutureMessage.get(fMsgId)?.record)
     }
 
     /**
@@ -203,7 +203,7 @@ class AuthService {
      * @param  Record in question
      * @return        Whether or have permission
      */
-    protected boolean hasPermissionForRecord(Record rec) {
+    protected boolean hasPermissionsForRecord(Record rec) {
         if (!rec) {
             return false
         }

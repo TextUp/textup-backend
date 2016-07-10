@@ -1,9 +1,11 @@
 package org.textup
 
-import grails.compiler.GrailsTypeChecked
+import grails.compiler.GrailsCompileStatic
 import groovy.transform.EqualsAndHashCode
 import java.util.concurrent.TimeUnit
 import java.util.UUID
+import org.hibernate.FlushMode
+import org.hibernate.Session
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -18,11 +20,10 @@ import org.textup.types.FutureMessageType
 import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
-@GrailsTypeChecked
+@GrailsCompileStatic
 class FutureMessage {
 
     Trigger trigger
-    AuthService authService
     FutureMessageService futureMessageService
     Scheduler quartzScheduler
 
@@ -39,7 +40,7 @@ class FutureMessage {
 	String key = UUID.randomUUID().toString()
 	Record record
 
-	DateTime startDate = DateTime.now(DateTimeZone.UTC)
+	DateTime startDate = DateTime.now(DateTimeZone.UTC).plusDays(1)
     boolean notifySelf = false
     FutureMessageType type
     long repeatIntervalInMillis = TimeUnit.DAYS.toMillis(1)
@@ -49,19 +50,19 @@ class FutureMessage {
 	DateTime endDate
 
 	static transients = ["trigger", "futureMessageService", "quartzScheduler",
-        "repeatIntervalInDays", "authService"]
+        "repeatIntervalInDays"]
     static constraints = {
+        repeatIntervalInMillis min:Helpers.toLong(TimeUnit.DAYS.toMillis(1))
         record nullable: false
     	message blank:false, nullable:false, maxSize:(Constants.TEXT_LENGTH * 2)
-    	repeatIntervalInMillis minSize:TimeUnit.DAYS.toMillis(1)
 		repeatCount nullable:true, validator:{ Integer rNum, FutureMessage msg ->
-			if (rNum == SimpleTrigger.REPEAT_INDEFINITELY && msg.endDate) {
+			if (rNum == SimpleTrigger.REPEAT_INDEFINITELY && !msg.endDate) {
 				["unboundedNeedsEndDate"]
 			}
 		}
 		endDate nullable:true, validator:{ DateTime end, FutureMessage msg ->
-			if (end && end.isBeforeNow()) {
-				["notInFuture"]
+			if (end && end.isBefore(msg.startDate)) {
+				["endBeforeStart"]
 			}
 		}
     }
@@ -111,13 +112,19 @@ class FutureMessage {
     OutgoingMessage toOutgoingMessage() {
         OutgoingMessage msg = new OutgoingMessage(message:this.message)
         // set type
-        msg.type == this.type?.toRecordItemType()
-        // set recipients
-        ContactTag tag = ContactTag.findByRecord(this.record)
-        if (tag) { msg.tags << tag  }
-        else {
-            Contact contact = Contact.findByRecord(this.record)
-            if (contact) { msg.contacts << contact }
+        msg.type = this.type?.toRecordItemType()
+        // set recipients (manual flush)
+        FutureMessage.withSession { Session session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                ContactTag tag = ContactTag.findByRecord(this.record)
+                if (tag) { msg.tags << tag  }
+                else {
+                    Contact contact = Contact.findByRecord(this.record)
+                    if (contact) { msg.contacts << contact }
+                }
+            }
+            finally { session.flushMode = FlushMode.AUTO }
         }
         msg
     }
@@ -126,7 +133,7 @@ class FutureMessage {
     	this.trigger ? new DateTime(this.trigger.nextFireTime) : null
     }
     Integer getTimesTriggered() {
-    	(this.trigger instanceof SimpleTrigger) ? this.trigger.timesTriggered : null
+    	(this.trigger instanceof SimpleTrigger) ? this.trigger.getTimesTriggered() : null
     }
     boolean getWillEndOnDate() {
     	!!this.endDate
@@ -143,20 +150,5 @@ class FutureMessage {
     }
     void setRepeatIntervalInDays(long numDays) {
     	this.repeatIntervalInMillis = TimeUnit.DAYS.toMillis(numDays)
-    }
-    void setTargetIfAllowed(Long cId, Long ctId) {
-        if (cId) {
-            Contact c1 = Contact.get(cId)
-            if (c1 && (authService.hasPermissionsForContact(cId) ||
-                authService.getSharedContactIdForContact(cId))) {
-                this.record = c1.record
-            }
-        }
-        else if (ctId) {
-            ContactTag ct1 = ContactTag.get(ctId)
-            if (ct1 && authService.hasPermissionsForTag(ctId)) {
-                this.record = ct1.record
-            }
-        }
     }
 }

@@ -258,13 +258,19 @@ class SharedContact implements Contactable {
         this.canView ? this.contact.countBetween(start, end) : 0
     }
 
+    @GrailsCompileStatic
     List<FutureMessage> getFutureMessages(Map params=[:]) {
         this.canView ? this.contact.getFutureMessages(params) : null
     }
+    @GrailsCompileStatic
     int countFutureMessages() {
         this.canView ? this.contact.countFutureMessages() : 0
     }
 
+    @GrailsCompileStatic
+    Record getRecord() {
+        this.canModify ? this.contact.record : null
+    }
     @GrailsCompileStatic
     Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt, Staff staff) {
         this.canModify ? this.contact.storeOutgoingText(message, receipt, staff) :

@@ -229,7 +229,6 @@ class ContactControllerSpec extends CustomSpec {
         when:
         mockForSave()
         request.json = "{'contact':{}}"
-        params.staffId = s1.id
         request.method = "POST"
         controller.save()
 

@@ -3,6 +3,7 @@ package org.textup.util
 import grails.converters.JSON
 import grails.plugin.springsecurity.rest.token.AccessToken
 import grails.plugin.springsecurity.rest.token.rendering.AccessTokenJsonRenderer
+import groovy.json.JsonSlurper
 import groovy.util.logging.Log4j
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.springframework.beans.factory.annotation.Autowired
@@ -36,8 +37,9 @@ class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
         Staff.withNewSession {
             Staff staff = Staff.get(userDetails.id)
             if (staff) {
-                result.staff = Helpers.toJson(staff,
-                    grailsApplication.flatConfig["textup.rest.defaultLabel"])
+                JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
+                    result.staff = new JsonSlurper().parseText((staff as JSON).toString())
+                }
             }
         }
         // add token information

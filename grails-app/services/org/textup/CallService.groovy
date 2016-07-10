@@ -3,7 +3,7 @@ package org.textup
 import com.twilio.sdk.resource.factory.CallFactory
 import com.twilio.sdk.resource.instance.Call
 import com.twilio.sdk.TwilioRestClient
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.hibernate.FlushMode
@@ -12,7 +12,7 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import static org.springframework.http.HttpStatus.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Transactional
 class CallService {
 
@@ -47,6 +47,7 @@ class CallService {
         List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup) {
 
         this.start(fromNum, toNums, afterPickup).then({ TempRecordReceipt r1 ->
+            List<RecordItem> items = RecordItem.findEveryByApiId(apiId)
             RecordItem.findEveryByApiId(apiId).each { RecordItem item1 ->
                 item1.addReceipt(r1)
                 item1.save()

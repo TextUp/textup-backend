@@ -1,7 +1,6 @@
 package org.textup
 
 import grails.compiler.GrailsCompileStatic
-import grails.converters.JSON
 import groovy.json.JsonBuilder
 import groovy.json.JsonException
 import groovy.json.JsonSlurper
@@ -159,15 +158,10 @@ class Helpers {
     // Json
     // ----
 
-    static String toJsonString(Object data, String marshaller = null) {
-        if (marshaller) {
-            JSON.use(marshaller) {
-                (data as JSON).toString()
-            }
-        }
-        else { new JsonBuilder(data).toString() }
+    static String toJsonString(Object data) {
+        new JsonBuilder(data).toString()
     }
-    static Object toJson(Object data, String marshaller = null) throws JsonException {
+    static Object toJson(Object data) throws JsonException {
         new JsonSlurper().parseText(toJsonString(data))
     }
     static Object toJson(String str) throws JsonException {

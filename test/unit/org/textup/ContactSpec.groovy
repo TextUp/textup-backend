@@ -161,6 +161,7 @@ class ContactSpec extends CustomSpec {
     	when: "store incoming text"
     	IncomingText textValidator = new IncomingText(apiId:"testing", message:"hello")
     	IncomingSession session = new IncomingSession(phone:p1, numberAsString:"1112223333")
+        session.save(flush:true, failOnError:true)
     	RecordText inText = c1.storeIncomingText(textValidator, session).payload
     	c1.save(flush:true, failOnError:true)
 

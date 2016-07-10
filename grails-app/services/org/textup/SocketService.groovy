@@ -1,10 +1,12 @@
 package org.textup
 
-import grails.transaction.Transactional
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import com.pusher.rest.Pusher
 import com.pusher.rest.data.Result as PResult
 import com.pusher.rest.data.Result.Status as PStatus
+import com.pusher.rest.Pusher
+import grails.converters.JSON
+import grails.transaction.Transactional
+import groovy.json.JsonSlurper
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.springframework.http.HttpStatus
 
 @Transactional(readOnly=true)
@@ -21,8 +23,10 @@ class SocketService {
             return resList
         }
         HashSet<Staff> staffList = getStaffsForRecords(items*.record)
-        List serialized = Helpers.toJson(items,
-            grailsApplication.flatConfig["textup.rest.defaultLabel"])
+        List serialized
+        JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
+            serialized = new JsonSlurper().parseText((items as JSON).toString())
+        }
         staffList.each { Staff s1 ->
             resList << sendToDataToStaff(s1, eventName, serialized)
         }
@@ -35,8 +39,10 @@ class SocketService {
             return resList
         }
         HashSet<Staff> staffList = getStaffsForRecords(contacts*.record)
-        List serialized = Helpers.toJson(contacts,
-            grailsApplication.flatConfig["textup.rest.defaultLabel"])
+        List serialized
+        JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
+            serialized = new JsonSlurper().parseText((contacts as JSON).toString())
+        }
         staffList.each { Staff s1 ->
             resList << sendToDataToStaff(s1, eventName, serialized)
         }

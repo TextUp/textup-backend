@@ -33,8 +33,6 @@ class FutureMessageService {
 
     @Transactional(readOnly=true)
 	Result schedule(FutureMessage fMsg) {
-        println "FutureMessageService.schedule: fMsg: $fMsg"
-
         try {
             TriggerKey trigKey = fMsg.triggerKey
             Trigger trig = quartzScheduler.getTrigger(trigKey)
@@ -137,20 +135,21 @@ class FutureMessageService {
     // Create
     // ------
 
-    Result<FutureMessage> createForStaff(Map body, String timezone = null) {
-        this.create(authService.loggedInAndActive?.phone, body, timezone)
+    Result<FutureMessage> createForContact(Long cId, Map body, String timezone = null) {
+        this.create(Contact.get(cId)?.record, body, timezone)
     }
-    Result<FutureMessage> createForTeam(Long teamId, Map body, String timezone = null) {
-        this.create(Team.get(teamId)?.phone, body, timezone)
+    Result<FutureMessage> createForSharedContact(Long scId, Map body, String timezone = null) {
+        this.create(SharedContact.get(scId)?.record, body, timezone)
     }
-    protected Result<FutureMessage> create(Phone p1, Map body, String timezone = null) {
-        if (!p1) {
+    Result<FutureMessage> createForTag(Long ctId, Map body, String timezone = null) {
+        this.create(ContactTag.get(ctId)?.record, body, timezone)
+    }
+    protected Result<FutureMessage> create(Record rec, Map body, String timezone = null) {
+        if (!rec) {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-                "futureMessageService.create.noPhone")
+                "futureMessageService.create.noRecord")
         }
-        FutureMessage fMsg = new FutureMessage()
-        fMsg.setTargetIfAllowed(Helpers.toLong(body.messageContact),
-            Helpers.toLong(body.messageTag))
+        FutureMessage fMsg = new FutureMessage(record:rec)
         this.setFromBody(fMsg, body, timezone)
     }
 

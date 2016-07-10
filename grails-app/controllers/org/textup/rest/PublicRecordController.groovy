@@ -50,13 +50,13 @@ class PublicRecordController extends BaseController {
                         new PhoneNumber(number:num as String)
                     } ?: new ArrayList<PhoneNumber>()
                     try {
-                        Map afterPickup = Helpers.toJson(params.afterPickup) as Map
+                        Map afterPickup = (Helpers.toJson(params.afterPickup) ?: [:]) as Map
                         callService
                             .retry(fromNum, toNums, apiId, afterPickup)
                             .logFail("PublicRecordController: retrying call: params: ${params}")
                     }
                     catch (e) {
-                        log.debug("PublicRecordController: retry: ${e.message}")
+                        log.error("PublicRecordController: retry: ${e.message}")
                     }
                 }
                 // We don't always immediately store the receipt so sometimes

@@ -35,6 +35,7 @@ import static org.springframework.http.HttpStatus.*
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
+@Unroll
 class PhoneServiceSpec extends CustomSpec {
 
     static doWithSpring = {
@@ -385,13 +386,20 @@ class PhoneServiceSpec extends CustomSpec {
     // Outgoing
     // --------
 
-    void "test outgoing text"() {
+    void "test outgoing message that is a #type"() {
         given: "baselines"
-        int tBaseline = RecordText.count()
+        int iBaseline = RecordItem.count()
         int rBaseline = RecordItemReceipt.count()
 
+        service.callService = [start:{ PhoneNumber fromNum,
+            List<? extends BasePhoneNumber> toNums, Map afterPickup ->
+            new Result(type:ResultType.SUCCESS, success:true,
+                payload: new TempRecordReceipt(apiId:_apiId,
+                    receivedByAsString:toNums[0].number))
+        }] as CallService
+
         when: "we send to contacts, shared contacts and tags"
-        OutgoingMessage msg = new OutgoingMessage(message:"hello",
+        OutgoingMessage msg = new OutgoingMessage(message:"hello", type:type,
             contacts:[c1, c1_1, c1_2], sharedContacts:[sc2],
             tags:[tag1, tag1_1])
         assert msg.validateSetPhone(p1)
@@ -412,17 +420,22 @@ class PhoneServiceSpec extends CustomSpec {
         // one result for each tag
         resList.results.size() == uniqueContacts.size() +
             msg.sharedContacts.size() + msg.tags.size()
-        resList.results.each { it.payload instanceof RecordText }
+        resList.results.each { it.payload instanceof RecordItem }
         // one msg for each contact
         // one msg for each shared contact
         // one msg for each tag
-        RecordText.count() == tBaseline + uniqueContacts.size() +
+        RecordItem.count() == iBaseline + uniqueContacts.size() +
             msg.sharedContacts.size() + msg.tags.size()
         // one receipt for each contact
         // one receipt for each shared contact
         // one receipt for each member of each tag
         RecordItemReceipt.count() == rBaseline + uniqueContacts.size() +
             msg.sharedContacts.size() + totalTagMembers
+
+        where:
+        type                | _
+        RecordItemType.TEXT | _
+        RecordItemType.CALL | _
     }
 
     void "test starting bridge call"() {
@@ -545,9 +558,8 @@ class PhoneServiceSpec extends CustomSpec {
 
     void "test notify staff"() {
         when:
-        String message = Helpers.randomAlphanumericString(Constants.TEXT_LENGTH)
-        String ident = "kiki bai"
-        Result<TempRecordReceipt> res = service.notifyStaff(s1, ident)
+        String name = "kiki bai"
+        Result<TempRecordReceipt> res = service.notifyStaff(s1, p1, name)
 
         then:
         res.success == true

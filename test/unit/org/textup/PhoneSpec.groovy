@@ -116,23 +116,7 @@ class PhoneSpec extends CustomSpec {
         phones.size() == 3
         [p1, p2, tPh1].every { it in phones }
     }
-    void "test getting phones to available now for contact ids"() {
-        expect:
-        1 == 2
 
-        // when: "some available, no contacts shared"
-
-        // then: "only this phone to list of available now"
-
-        // when: "some available, some contacts shared"
-
-        // then: "this phone and other sharedWith phones too"
-
-        // when: "none available"
-
-        // then: "map should be empty, should not have any entries"
-
-    }
     void "test owner and availability"() {
         given: "a phone belonging to a team"
         Phone p1 = new Phone(numberAsString:"1233348934")
@@ -160,6 +144,55 @@ class PhoneSpec extends CustomSpec {
         then:
         p1.availableNow.size() == t1.activeMembers.size() - 1
         p1.availableNow.every { it in t1.activeMembers && it != unavailableStaff }
+    }
+    void "test getting phones to available now for contact ids"() {
+        given: "phone with one unshared contact"
+        Phone phone1 = new Phone(numberAsString:"3921920392")
+        phone1.resultFactory = getResultFactory()
+        phone1.updateOwner(t1)
+        phone1.save(flush:true, failOnError:true)
+        Contact contact1 = phone1.createContact([:], ["12223334447"]).payload
+        phone1.save(flush:true, failOnError:true)
+
+        when: "none available"
+        t1.activeMembers.each {
+            it.status = StaffStatus.STAFF
+            it.manualSchedule = true
+            it.isAvailable = false
+        }
+        t1.save(flush:true, failOnError:true)
+        Map<Phone, List<Staff>> phonesToAvailableNow = phone1.
+            getPhonesToAvailableNowForContactIds([contact1.id])
+
+        then: "map should be empty, should not have any entries"
+        phonesToAvailableNow.isEmpty() == true
+
+        when: "has available, no contacts shared"
+        t1.activeMembers.each { it.isAvailable = true }
+        t1.save(flush:true, failOnError:true)
+        phonesToAvailableNow = phone1.
+            getPhonesToAvailableNowForContactIds([contact1.id])
+
+        then: "only this phone to list of available now"
+        phonesToAvailableNow.size() == 1
+        phonesToAvailableNow[phone1] instanceof List
+        t1.activeMembers.every { it in phonesToAvailableNow[phone1] }
+
+        when: "has available, has contacts shared"
+        assert s1 in t1.activeMembers
+        assert s1.phone
+        Result res = phone1.share(contact1, s1.phone, SharePermission.DELEGATE)
+        assert res.success
+        phonesToAvailableNow = phone1.
+            getPhonesToAvailableNowForContactIds([contact1.id])
+
+        then: "this phone and other sharedWith phones too"
+        phonesToAvailableNow.size() == 2
+        phonesToAvailableNow[phone1] instanceof List
+        t1.activeMembers.every { it in phonesToAvailableNow[phone1] }
+        phonesToAvailableNow[s1.phone] instanceof List
+        phonesToAvailableNow[s1.phone].size() == 1
+        phonesToAvailableNow[s1.phone] == [s1]
     }
 
     void "test transferring phone"() {

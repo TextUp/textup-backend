@@ -15,6 +15,7 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 
         Map json = [:]
         json.with {
+        	id = fMsg.id
         	whenCreated = fMsg.whenCreated
 			startDate = fMsg.startDate
 			notifySelf = fMsg.notifySelf

@@ -100,11 +100,17 @@ class RecordItem {
     // --------------
 
     @GrailsTypeChecked
-    static HashSet<RecordItem> findEveryByApiId(String apiId) {
-        HashSet<RecordItem> items = new HashSet<>()
+    static List<RecordItem> findEveryByApiId(String apiId) {
+        List<RecordItem> results = []
+        HashSet<Long> itemIds = new HashSet<>()
         List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
-        receipts.each { RecordItemReceipt receipt -> items << receipt.item }
-        items
+        receipts.each { RecordItemReceipt receipt ->
+            if (!itemIds.contains(receipt.item.id)) {
+                results << receipt.item
+                itemIds << receipt.item.id
+            }
+        }
+        results
     }
 
     // Methods

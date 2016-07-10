@@ -322,13 +322,15 @@ class TwimlBuilder {
                 break
             case CallResponse.DIRECT_MESSAGE:
                 if (params.message instanceof String) {
+                    Map linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:params.message]
+                    if (params.identifier) linkParams.identifier = params.identifier
+
                     String ident = params.identifier ?
-                            Helpers.toString(params.identifier) : null
+                            Helpers.toString(params.identifier) : null,
                         messageIntro = ident ?
                             getMessage("twimlBuilder.call.messageIntro", [ident]) :
-                            getMessage("twimlBuilder.call.anonymousMessageIntro")
-                        repeatWebhook = getLink(handle:CallResponse.DIRECT_MESSAGE,
-                            identifier:params.identifier, message:params.message)
+                            getMessage("twimlBuilder.call.anonymousMessageIntro"),
+                        repeatWebhook = getLink(linkParams)
                     callBody = {
                         Say(messageIntro)
                         Pause(length:"1")

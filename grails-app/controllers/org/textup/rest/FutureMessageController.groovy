@@ -44,12 +44,12 @@ class FutureMessageController extends BaseController {
         }
         Contactable cont
         if (authService.hasPermissionsForContact(cId)) {
-            cont = c1
+            cont = c1 as Contactable
         }
         else {
             Long scId = authService.getSharedContactIdForContact(c1.id)
             if (scId) {
-                cont = SharedContact.get(scId)
+                cont = SharedContact.get(scId) as Contactable
             }
             else { forbidden(); return; }
         }
@@ -81,7 +81,7 @@ class FutureMessageController extends BaseController {
     @Transactional(readOnly=true)
     def show() {
     	Long id = params.long("id")
-        if (FutureMessage.exists(id)) {
+        if (authService.exists(FutureMessage, id)) {
             if (authService.hasPermissionsForFutureMessage(id)) {
                 genericShowAction(FutureMessage, id)
             }
@@ -96,15 +96,37 @@ class FutureMessageController extends BaseController {
     def save() {
     	if (!validateJsonRequest(request, "future-message")) { return; }
     	Map fInfo = (request.properties.JSON as Map)["future-message"] as Map
-        if (params.long("teamId")) {
-            Long tId = params.long("teamId")
-            handleSaveResult(FutureMessage,
-            	futureMessageService.createForTeam(tId, fInfo,
-                    params.timezone as String))
+        String tz = params.timezone as String
+        if (!Helpers.exactly(1, ["contactId", "tagId"], params)) {
+            badRequest()
         }
-        else {
-            handleSaveResult(FutureMessage,
-            	futureMessageService.createForStaff(fInfo, params.timezone as String))
+        else if (params.long("contactId")) {
+            Long cId = params.long("contactId")
+            if (!authService.exists(Contact, cId)) {
+                return notFound()
+            }
+            // try to create, if allowed
+            if (authService.hasPermissionsForContact(cId)) {
+                handleSaveResult(FutureMessage,
+                    futureMessageService.createForContact(cId, fInfo, tz))
+            }
+            else if (authService.getSharedContactIdForContact(cId)) {
+                handleSaveResult(FutureMessage,
+                    futureMessageService.createForSharedContact(cId, fInfo, tz))
+            }
+            else { forbidden() }
+        }
+        else { // tag id
+            Long ctId = params.long("tagId")
+            if (!authService.exists(ContactTag, ctId)) {
+                return notFound()
+            }
+            // try to create, if allowed
+            if (authService.hasPermissionsForTag(ctId)) {
+                handleSaveResult(FutureMessage,
+                    futureMessageService.createForTag(ctId, fInfo, tz))
+            }
+            else { forbidden() }
         }
     }
 
