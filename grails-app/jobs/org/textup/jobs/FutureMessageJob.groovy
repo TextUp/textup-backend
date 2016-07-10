@@ -19,6 +19,9 @@ class FutureMessageJob {
     String group = Key.DEFAULT_GROUP
 
     void execute(JobExecutionContext context) {
+
+        println "FUTURE MESSAGE JOB! execute: context: $context"
+
     	JobDataMap data = context.mergedJobDataMap
         String futureKey = Helpers.toString(data.get(Constants.JOB_DATA_FUTURE_MESSAGE_KEY))
         ResultList<RecordItem> resList = futureMessageService

@@ -44,7 +44,7 @@ class PublicRecordController extends BaseController {
                 // If multiple phone numbers on a call and the status is
                 // failure, then retry the call. See CallService.start for
                 // the parameters passed into the status callback
-                if (res.success && status == ReceiptStatus.FAILED) {
+                if (params.CallSid && res.success && status == ReceiptStatus.FAILED) {
                     PhoneNumber fromNum = new PhoneNumber(number:params.From as String)
                     List<PhoneNumber> toNums = params.list("remaining[]")?.collect { Object num ->
                         new PhoneNumber(number:num as String)
