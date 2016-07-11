@@ -64,6 +64,9 @@ class UrlMappings {
             "/records"(resources:"record", namespace:"v1") {
             	format = "json"
             }
+            "/future-messages"(resources:"futureMessage", namespace:"v1") {
+                format = "json"
+            }
             "/contacts"(resources:"contact", namespace:"v1") {
             	format = "json"
             }

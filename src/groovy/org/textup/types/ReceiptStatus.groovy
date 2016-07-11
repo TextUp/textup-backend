@@ -17,7 +17,7 @@ enum ReceiptStatus {
 		else if (status in Constants.PENDING_STATUSES) {
 			PENDING
 		}
-		else if (status in Constants.FAILED_STATUSES) {
+		else if (status in Constants.BUSY_STATUSES) {
 			BUSY
 		}
 		else {

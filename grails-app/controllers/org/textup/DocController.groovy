@@ -1,6 +1,5 @@
 package org.textup
 
-import groovy.json.JsonSlurper
 import org.springframework.security.access.annotation.Secured
 import grails.compiler.GrailsCompileStatic
 import org.codehaus.groovy.grails.commons.GrailsApplication
@@ -17,8 +16,7 @@ class DocController {
     	InputStream input
         try {
             input = servletContext.getResourceAsStream(outputFile)
-           	JsonSlurper jsonSlurper = new JsonSlurper()
-            jsonSlurper.parseText(input.text)
+            Helpers.toJson(input.text)
         }
         finally {
             input.close()

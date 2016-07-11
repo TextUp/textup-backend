@@ -95,10 +95,8 @@ class ContactTag {
     // Record keeping
     // --------------
 
-    Result<RecordText> addTextToRecord(Map params, Staff staff) {
-        Author author = new Author(id:staff.id, type:AuthorType.STAFF,
-            name: staff.name)
-        this.record.addText(params, author)
+    Result<RecordText> addTextToRecord(Map params, Staff staff = null) {
+        this.record.addText(params, staff?.toAuthor())
     }
 
     // Members

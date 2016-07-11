@@ -237,6 +237,7 @@ textup {
         v1 {
             announcement = [singular:"announcement", plural:"announcements"]
             contact = [singular:"contact", plural:"contacts"]
+            futureMessage = [singular:"future-message", plural:"future-messages"]
             location = [singular:"location", plural:"locations"]
             organization = [singular:"organization", plural:"organizations"]
             phone = [singular:"phone", plural:"phones"]

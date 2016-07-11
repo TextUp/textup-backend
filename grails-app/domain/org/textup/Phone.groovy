@@ -17,7 +17,7 @@ import org.textup.types.SharePermission
 import org.textup.types.TextResponse
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import static org.springframework.http.HttpStatus.*
@@ -99,6 +99,34 @@ class Phone {
             finally { session.flushMode = FlushMode.AUTO }
         }
         hasDuplicate
+    }
+
+    // Static finders
+    // --------------
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static HashSet<Phone> getPhonesForRecords(List<Record> recs) {
+        if (!recs) { return new HashSet<Phone>() }
+        List<Phone> cPhones = Contact.createCriteria().list {
+            projections { property("phone") }
+                "in"("record", recs)
+            }, tPhones = ContactTag.createCriteria().list {
+                projections { property("phone") }
+                "in"("record", recs)
+            },
+            phones = cPhones + tPhones,
+            // phones from contacts that are shared with me
+            sPhones = SharedContact.createCriteria().list {
+                projections { property("sharedWith") }
+                contact {
+                    "in"("record", recs)
+                }
+                if (phones) {
+                    "in"("sharedBy", phones)
+                }
+                else { eq("sharedBy", null) }
+            }
+        new HashSet<Phone>(phones + sPhones)
     }
 
     // Status
@@ -245,6 +273,7 @@ class Phone {
     PhoneNumber getNumber() {
         new PhoneNumber(number:this.numberAsString)
     }
+
     int countTags() {
         ContactTag.countByPhoneAndIsDeleted(this, false)
     }
@@ -319,6 +348,7 @@ class Phone {
     List<Contact> getSharedByMe(Map params=[:]) {
         SharedContact.listSharedByMe(this, params)
     }
+
     int countAnnouncements() {
         FeaturedAnnouncement.countForPhone(this)
     }
@@ -343,6 +373,7 @@ class Phone {
     List<IncomingSession> getTextSubscribedSessions(Map params=[:]) {
         IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true, params)
     }
+
     List<Staff> getAvailableNow() {
         List<Staff> availableNow = []
         this.owner.all.each { Staff s1 ->
@@ -352,6 +383,20 @@ class Phone {
         }
         availableNow
     }
+    Map<Phone, List<Staff>> getPhonesToAvailableNowForContactIds(Collection<Long> cIds) {
+        List<Phone> sharedWithPhones = SharedContact
+            .findByContactIdsAndSharedBy(cIds, this)
+            .collect { SharedContact sc1 -> sc1.sharedWith }
+        Map<Phone, List<Staff>> phonesToAvailableNow = [:]
+        ((sharedWithPhones + this) as Collection<Phone>).each { Phone p1 ->
+            List<Staff> availableNow = p1.availableNow
+            if (availableNow) {
+                phonesToAvailableNow[p1] = availableNow
+            }
+        }
+        phonesToAvailableNow
+    }
+
     Result<PhoneOwnership> updateOwner(Team t1) {
         PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(t1.id,
                 PhoneOwnershipType.GROUP) ?:
@@ -376,21 +421,21 @@ class Phone {
     // Outgoing
     // --------
 
-    ResultList<RecordText> sendText(OutgoingText text, Staff staff) {
+    ResultList<RecordItem> sendMessage(OutgoingMessage msg, Staff staff = null) {
         if (!this.isActive) {
             return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 'phone.isInactive'))
         }
-        // validate text
-        if (!text.validateSetPhone(this)) {
-            return new ResultList(resultFactory.failWithValidationErrors(text.errors))
+        // validate msg
+        if (!msg.validateSetPhone(this)) {
+            return new ResultList(resultFactory.failWithValidationErrors(msg.errors))
         }
         // validate staff
         else if (!this.owner.all.contains(staff)) {
             return new ResultList(resultFactory.failWithMessageAndStatus(FORBIDDEN,
                 'phone.notOwner'))
         }
-        else { phoneService.sendText(this, text, staff) }
+        else { phoneService.sendMessage(this, msg, staff) }
     }
     // start bridge call, confirmed (if staff picks up) by contact
     ResultList<RecordCall> startBridgeCall(Contactable c1, Staff staff) {

@@ -897,4 +897,8 @@ databaseChangeLog = {
 	}
 
 	include file: 'inactive-phone.groovy'
+
+	include file: 'scheduled-message.groovy'
+
+	include file: 'quartz-innodb.groovy'
 }

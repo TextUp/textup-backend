@@ -45,7 +45,7 @@ class Token {
 
     void setData(Map p) {
         if (p != null) {
-            this._stringData = new JsonBuilder(p).toString()
+            this._stringData = Helpers.toJsonString(p)
         }
     }
 
@@ -54,7 +54,7 @@ class Token {
         	return [:]
     	}
         try {
-            new JsonSlurper().parseText(this._stringData) as Map
+            Helpers.toJson(this._stringData) as Map
         }
         catch (e) {
             log.error("Token.getData: invalid json string '${this._stringData}'")

@@ -114,6 +114,17 @@ beans = {
 		namespace = v1Namespace
 	}
 
+	futureMessageRenderer(ApiJsonRenderer, FutureMessage) {
+		label = tRestConfig.v1.futureMessage.singular
+	}
+	futureMessageCollectionRenderer(ApiJsonCollectionRenderer, FutureMessage) {
+		label = tRestConfig.v1.futureMessage.plural
+	}
+	futureMessageJsonMarshaller(FutureMessageJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
 	staffRenderer(ApiJsonRenderer, Staff) {
 		label = tRestConfig.v1.staff.singular
 	}

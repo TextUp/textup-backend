@@ -184,51 +184,35 @@ class AuthService {
         else { false }
     }
 
-    // Record item
-    // -----------
+    // Record
+    // ------
+
+    boolean hasPermissionsForItem(Long itemId) {
+        this.hasPermissionsForRecord(RecordItem.get(itemId)?.record)
+    }
+    boolean hasPermissionsForFutureMessage(Long fMsgId) {
+         this.hasPermissionsForRecord(FutureMessage.get(fMsgId)?.record)
+    }
 
     /**
-     * Can have permission for this RecordItem if
-     * (1) This item belongs to one of your contacts
-     * (2) This item belongs to a contact that is currently shared with you
-     * (3) This item belongs to a contact of one of the teams you're on
-     * (4 - 6) same as 1 through 3 for an item belonging to a tag
-     * @param  itemId Id of the item in question
+     * Can have permission for this Record if
+     * (1) This record belongs to one of your contacts
+     * (2) This record belongs to a contact that is currently shared with you
+     * (3) This record belongs to a contact of one of the teams you're on
+     * (4 - 6) same as 1 through 3 for an record belonging to a tag
+     * @param  Record in question
      * @return        Whether or have permission
      */
-    boolean hasPermissionsForItem(Long itemId) {
+    protected boolean hasPermissionsForRecord(Record rec) {
+        if (!rec) {
+            return false
+        }
         List<Phone> staffPhones = getLoggedInAndActive()?.allPhones
-        if (staffPhones && itemId) {
-            Record rec = RecordItem.get(itemId)?.record
-            if (!rec) { return false }
-            HashSet<Phone> allowedPhones = getPhonesForRecords([rec])
+        if (staffPhones) {
+            HashSet<Phone> allowedPhones = Phone.getPhonesForRecords([rec])
             staffPhones.any { it in allowedPhones }
         }
         else { false }
-    }
-
-    HashSet<Phone> getPhonesForRecords(List<Record> recs) {
-        if (!recs) { return [] }
-        List<Phone> cPhones = Contact.createCriteria().list {
-            projections { property("phone") }
-                "in"("record", recs)
-            }, tPhones = ContactTag.createCriteria().list {
-                projections { property("phone") }
-                "in"("record", recs)
-            },
-            phones = cPhones + tPhones,
-            // phones from contacts that are shared with me
-            sPhones = SharedContact.createCriteria().list {
-                projections { property("sharedWith") }
-                contact {
-                    "in"("record", recs)
-                }
-                if (phones) {
-                    "in"("sharedBy", phones)
-                }
-                else { eq("sharedBy", null) }
-            }
-        new HashSet<Phone>(phones + sPhones)
     }
 
     // Session

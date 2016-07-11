@@ -1,17 +1,19 @@
 package org.textup.validator
 
 import grails.compiler.GrailsCompileStatic
+import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
-import grails.util.Holders
+import org.textup.types.RecordItemType
 
 @GrailsCompileStatic
 @EqualsAndHashCode
 @Validateable
-class OutgoingText {
+class OutgoingMessage {
 
 	String message
+	RecordItemType type = RecordItemType.TEXT
 	List<Contact> contacts = []
 	List<SharedContact> sharedContacts = []
 	List<ContactTag> tags = []
@@ -19,8 +21,8 @@ class OutgoingText {
 	Phone phone //set by validator
 
 	static constraints = {
-		message blank:false, nullable:false, maxSize:320
-		contacts validator: { List<Contact> thisContacts, OutgoingText obj ->
+		message blank:false, nullable:false, maxSize:(2 * Constants.TEXT_LENGTH)
+		contacts validator: { List<Contact> thisContacts, OutgoingMessage obj ->
 			List<Contact> doNotBelong = []
 			thisContacts.each { Contact c1 ->
 				if (c1.phone != obj?.phone) {
@@ -31,7 +33,7 @@ class OutgoingText {
 				return ['foreign', doNotBelong]
 			}
 		}
-		sharedContacts validator: { List<SharedContact> thisShareds, OutgoingText obj ->
+		sharedContacts validator: { List<SharedContact> thisShareds, OutgoingMessage obj ->
 			List<SharedContact> invalidShare = []
 			thisShareds.each { SharedContact sc1 ->
 				if (!sc1.isActive || sc1.sharedWith != obj?.phone) {
@@ -42,7 +44,7 @@ class OutgoingText {
 				return ['notShared', invalidShare]
 			}
 		}
-		tags validator: { List<ContactTag> thisTags, OutgoingText obj ->
+		tags validator: { List<ContactTag> thisTags, OutgoingMessage obj ->
 			List<ContactTag> doNotBelong = []
 			thisTags.each { ContactTag t1 ->
 				if (t1.phone != obj?.phone) {
@@ -56,6 +58,9 @@ class OutgoingText {
 		phone nullable:false
 	}
 
+	// Validation
+	// ----------
+
 	def validateSetPhone(Phone p1) {
 		this.phone = p1
 		// after setting phone, then run validations
@@ -66,15 +71,18 @@ class OutgoingText {
         Integer maxNumRecip = Helpers.toInteger(Holders.flatConfig["textup.maxNumText"])
         if (recipients.size() > maxNumRecip) {
         	isValid = false
-            this.errors.reject('outgoingText.tooManyRecipients')
+            this.errors.reject('outgoingMessage.tooManyRecipients')
         }
         else if (recipients.size() == 0) {
         	isValid = false
-        	this.errors.reject('outgoingText.noRecipients')
+        	this.errors.reject('outgoingMessage.noRecipients')
         }
         // finally, return validation result
 		isValid
 	}
+
+	// Property Access
+	// ---------------
 
 	HashSet<Contactable> toRecipients() {
 		HashSet<Contactable> recipients = new HashSet<>()
@@ -84,5 +92,24 @@ class OutgoingText {
         this.tags.each { ContactTag ct1 -> recipients.addAll(ct1.members ?: []) }
 
         recipients
+	}
+
+	String getName() {
+        (this.contacts?.find { Contact c1 -> c1.getNameOrNumber() }?.getNameOrNumber()) ?:
+        	(this.tags?.find { ContactTag ct1 -> ct1.name }?.name ?: "")
+    }
+	boolean getIsText() {
+		this.type == RecordItemType.TEXT
+	}
+	HashSet<Phone> getPhones() {
+		HashSet<Phone> phones = new HashSet<>()
+		this.contacts.each { Contact c1 -> phones.add(c1.phone) }
+		this.sharedContacts.each { SharedContact sc1 ->
+			phones.add(sc1.sharedBy)
+			phones.add(sc1.sharedWith)
+		}
+		this.tags.each { ContactTag ct1 -> phones.add(ct1.phone) }
+
+		phones
 	}
 }

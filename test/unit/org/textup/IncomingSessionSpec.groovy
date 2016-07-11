@@ -4,13 +4,15 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import org.joda.time.DateTime
 import org.springframework.context.MessageSource
+import org.textup.types.AuthorType
 import org.textup.types.PhoneOwnershipType
 import org.textup.types.StaffStatus
 import org.textup.util.CustomSpec
+import org.textup.validator.Author
 import spock.lang.Ignore
 import spock.lang.Shared
-import org.joda.time.DateTime
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
@@ -64,5 +66,28 @@ class IncomingSessionSpec extends CustomSpec {
 
     	then: "we should send info again"
     	session.shouldSendInstructions == true
+    }
+
+    void "test converting to author"() {
+        given: "a valid session"
+        IncomingSession session = new IncomingSession(phone:p1,
+            numberAsString:"2223334444")
+
+        when: "we convert to author"
+        Author auth = session.toAuthor()
+
+        then:
+        auth.id == null // session is unsaved
+        auth.type == AuthorType.SESSION
+        auth.name == session.numberAsString
+
+        when: "we save session then convert to author"
+        session.save(flush:true, failOnError:true)
+        auth = session.toAuthor()
+
+        then:
+        auth.id == session.id
+        auth.type == AuthorType.SESSION
+        auth.name == session.numberAsString
     }
 }

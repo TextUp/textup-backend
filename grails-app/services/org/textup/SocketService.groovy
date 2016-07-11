@@ -1,12 +1,12 @@
 package org.textup
 
+import com.pusher.rest.data.Result as PResult
+import com.pusher.rest.data.Result.Status as PStatus
+import com.pusher.rest.Pusher
 import grails.converters.JSON
 import grails.transaction.Transactional
 import groovy.json.JsonSlurper
 import org.codehaus.groovy.grails.commons.GrailsApplication
-import com.pusher.rest.Pusher
-import com.pusher.rest.data.Result as PResult
-import com.pusher.rest.data.Result.Status as PStatus
 import org.springframework.http.HttpStatus
 
 @Transactional(readOnly=true)
@@ -14,7 +14,6 @@ class SocketService {
 
     GrailsApplication grailsApplication
     Pusher pusherService
-    AuthService authService
     ResultFactory resultFactory
 
     ResultList<Staff> sendItems(List<RecordItem> items,
@@ -54,7 +53,7 @@ class SocketService {
     // --------------
 
     protected HashSet<Staff> getStaffsForRecords(List<Record> recs) {
-        HashSet<Phone> phones = authService.getPhonesForRecords(recs)
+        HashSet<Phone> phones = Phone.getPhonesForRecords(recs)
         HashSet<Staff> staffs = new HashSet<Staff>()
         phones.each { staffs.addAll(it.owner.all) }
         staffs
@@ -64,7 +63,7 @@ class SocketService {
         PResult pRes = pusherService.get("/channels/$channelName")
         if (pRes.status == PStatus.SUCCESS) {
             try {
-                Map channelInfo = new JsonSlurper().parseText(pRes.message)
+                Map channelInfo = Helpers.toJson(pRes.message)
                 if (channelInfo.occupied) {
                     pRes = pusherService.trigger(channelName, eventName, data)
                     if (pRes.status == PStatus.SUCCESS) {

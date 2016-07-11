@@ -13,6 +13,7 @@ interface Contactable {
     String getNote()
     ContactStatus getStatus()
     List<ContactNumber> getNumbers()
+    Record getRecord()
 
     List<RecordItem> getItems()
     List<RecordItem> getItems(Map params)
@@ -23,6 +24,10 @@ interface Contactable {
     List<RecordItem> getBetween(DateTime start, DateTime end)
     List<RecordItem> getBetween(DateTime start, DateTime end, Map params)
     int countBetween(DateTime start, DateTime end)
+
+    List<FutureMessage> getFutureMessages()
+    List<FutureMessage> getFutureMessages(Map params)
+    int countFutureMessages()
 
     Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt, Staff staff)
     Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff)

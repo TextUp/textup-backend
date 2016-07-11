@@ -483,6 +483,55 @@ class TwimlBuilderSpec extends CustomSpec {
         })
     }
 
+    void "test direct calls with parameters"() {
+        given: "twiml builder"
+        TwimlBuilder builder = new TwimlBuilder()
+        builder.resultFactory = getResultFactory()
+        builder.messageSource = mockMessageSource()
+        builder.linkGenerator = mockLinkGenerator()
+        String message = "hi",
+            identifier = "myname"
+
+        when: "direct message invalid"
+        Result<Closure> res = builder.build(CallResponse.DIRECT_MESSAGE)
+
+        then:
+        res.success == false
+        res.payload.status == BAD_REQUEST
+        res.payload.code == "twimlBuilder.invalidCode"
+
+        when: "direct messsage only message, no identifier"
+        Map linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message]
+        res = builder.build(CallResponse.DIRECT_MESSAGE, [message: message])
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Say("twimlBuilder.call.anonymousMessageIntro")
+                Pause(length:"1")
+                Say(message)
+                Redirect(linkParams.toString())
+            }
+        })
+
+        when: "direct message both message and identifier"
+        linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message, identifier:identifier]
+        res = builder.build(CallResponse.DIRECT_MESSAGE,
+            [message: message, identifier:identifier])
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Say("twimlBuilder.call.messageIntro")
+                Pause(length:"1")
+                Say(message)
+                Redirect(linkParams.toString())
+            }
+        })
+    }
+
     void "test calls announcements with parameters"() {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()

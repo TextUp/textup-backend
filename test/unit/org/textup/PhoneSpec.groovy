@@ -16,7 +16,7 @@ import org.textup.types.StaffStatus
 import org.textup.types.TextResponse
 import org.textup.util.CustomSpec
 import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -85,6 +85,38 @@ class PhoneSpec extends CustomSpec {
     	p1.validate() == true
     }
 
+    void "test getting phones for records"() {
+        when: "we pass in shared contact"
+        HashSet<Phone> phones = Phone.getPhonesForRecords([sc1.contact.record])
+
+        then: "we should get back both shared with and shared by phones"
+        phones.size() == 2
+        [p1, p2].every { it in phones }
+
+        when: "have records belonging to our tags, records, and shared FOR ONE PHONE"
+        List<Record> myContactRecs = Contact.findByPhone(p1)*.record,
+            myTagRecs = p1.tags*.record,
+            sWithMeRecs = p1.sharedWithMe.collect { it.contact.record },
+            allRecs = myContactRecs + myTagRecs + sWithMeRecs
+        assert allRecs.isEmpty() == false
+        phones = Phone.getPhonesForRecords(allRecs)
+
+        then:
+        phones.size() == 2
+        [p1, p2].every { it in phones }
+
+        when: "we pass in records belonging to various phones"
+        List<Record> otherCRecs = Contact.findByPhone(p2)*.record +
+                Contact.findByPhone(tPh1)*.record,
+            otherTRecs = p2.tags*.record + tPh1.tags*.record
+        allRecs += otherCRecs += otherTRecs
+        phones = Phone.getPhonesForRecords(allRecs)
+
+        then:
+        phones.size() == 3
+        [p1, p2, tPh1].every { it in phones }
+    }
+
     void "test owner and availability"() {
         given: "a phone belonging to a team"
         Phone p1 = new Phone(numberAsString:"1233348934")
@@ -112,6 +144,55 @@ class PhoneSpec extends CustomSpec {
         then:
         p1.availableNow.size() == t1.activeMembers.size() - 1
         p1.availableNow.every { it in t1.activeMembers && it != unavailableStaff }
+    }
+    void "test getting phones to available now for contact ids"() {
+        given: "phone with one unshared contact"
+        Phone phone1 = new Phone(numberAsString:"3921920392")
+        phone1.resultFactory = getResultFactory()
+        phone1.updateOwner(t1)
+        phone1.save(flush:true, failOnError:true)
+        Contact contact1 = phone1.createContact([:], ["12223334447"]).payload
+        phone1.save(flush:true, failOnError:true)
+
+        when: "none available"
+        t1.activeMembers.each {
+            it.status = StaffStatus.STAFF
+            it.manualSchedule = true
+            it.isAvailable = false
+        }
+        t1.save(flush:true, failOnError:true)
+        Map<Phone, List<Staff>> phonesToAvailableNow = phone1.
+            getPhonesToAvailableNowForContactIds([contact1.id])
+
+        then: "map should be empty, should not have any entries"
+        phonesToAvailableNow.isEmpty() == true
+
+        when: "has available, no contacts shared"
+        t1.activeMembers.each { it.isAvailable = true }
+        t1.save(flush:true, failOnError:true)
+        phonesToAvailableNow = phone1.
+            getPhonesToAvailableNowForContactIds([contact1.id])
+
+        then: "only this phone to list of available now"
+        phonesToAvailableNow.size() == 1
+        phonesToAvailableNow[phone1] instanceof List
+        t1.activeMembers.every { it in phonesToAvailableNow[phone1] }
+
+        when: "has available, has contacts shared"
+        assert s1 in t1.activeMembers
+        assert s1.phone
+        Result res = phone1.share(contact1, s1.phone, SharePermission.DELEGATE)
+        assert res.success
+        phonesToAvailableNow = phone1.
+            getPhonesToAvailableNowForContactIds([contact1.id])
+
+        then: "this phone and other sharedWith phones too"
+        phonesToAvailableNow.size() == 2
+        phonesToAvailableNow[phone1] instanceof List
+        t1.activeMembers.every { it in phonesToAvailableNow[phone1] }
+        phonesToAvailableNow[s1.phone] instanceof List
+        phonesToAvailableNow[s1.phone].size() == 1
+        phonesToAvailableNow[s1.phone] == [s1]
     }
 
     void "test transferring phone"() {
@@ -432,9 +513,9 @@ class PhoneSpec extends CustomSpec {
         assert !p1.isActive
 
         when: "send text"
-        OutgoingText text = new OutgoingText(message:'hi')
+        OutgoingMessage text = new OutgoingMessage(message:'hi')
         text.contacts << c1
-        ResultList resList = p1.sendText(text, s1)
+        ResultList resList = p1.sendMessage(text, s1)
 
         then:
         resList.isAnySuccess == false
@@ -466,14 +547,14 @@ class PhoneSpec extends CustomSpec {
     }
     void "test sending text"() {
         given: "a phone"
-        p1.phoneService = [sendText:{ Phone phone, OutgoingText text, Staff staff ->
+        p1.phoneService = [sendMessage:{ Phone phone, OutgoingMessage text, Staff staff ->
             new ResultList()
         }] as PhoneService
 
         when: "we have an invalid outgoing text"
-        OutgoingText text = new OutgoingText()
+        OutgoingMessage text = new OutgoingMessage()
         assert text.validateSetPhone(p1) == false
-        ResultList<RecordText> resList = p1.sendText(text, s1)
+        ResultList<RecordText> resList = p1.sendMessage(text, s1)
 
         then:
         resList.isAnySuccess == false
@@ -482,9 +563,9 @@ class PhoneSpec extends CustomSpec {
         resList.results[0].payload instanceof ValidationErrors
 
         when: "we pass in a staff that is not an owner"
-        text = new OutgoingText(message:"hello", contacts:[c1, c1_1])
+        text = new OutgoingMessage(message:"hello", contacts:[c1, c1_1])
         assert text.validateSetPhone(p1) == true
-        resList = p1.sendText(text, otherS2)
+        resList = p1.sendMessage(text, otherS2)
 
         then:
         resList.isAnySuccess == false
@@ -495,7 +576,7 @@ class PhoneSpec extends CustomSpec {
         resList.results[0].payload.message == "phone.notOwner"
 
         when: "we pass in a valid outgoing text and staff that is owner"
-        resList = p1.sendText(text, s1)
+        resList = p1.sendMessage(text, s1)
 
         then:
         resList.results.isEmpty() == true

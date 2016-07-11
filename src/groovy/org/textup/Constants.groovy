@@ -41,6 +41,12 @@ class Constants {
 	static final String SOCKET_EVENT_RECORD_STATUSES = "recordStatuses"
 	static final String SOCKET_EVENT_CONTACTS = "contacts"
 
+	// Quartz jobs
+	// -----------
+
+	static final String JOB_DATA_FUTURE_MESSAGE_KEY = "futureMessageKey"
+	static final String JOB_DATA_STAFF_ID = "futureMessageStaffId"
+
 	// REST actions
 	// ------------
 

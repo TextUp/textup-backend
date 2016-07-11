@@ -2,9 +2,7 @@ package org.textup.rest
 
 import com.pusher.rest.Pusher
 import grails.compiler.GrailsCompileStatic
-import grails.converters.JSON
 import grails.transaction.Transactional
-import groovy.json.JsonSlurper
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.restapidoc.annotation.*
@@ -43,10 +41,10 @@ class SocketController extends BaseController {
             socketId = params.socket_id
         if ((authUsername && channelUsername && socketId) &&
             authUsername == channelUsername) {
-            def authResult = pusherService.authenticate(socketId, channelName)
+            String authResult = pusherService.authenticate(socketId, channelName)
             try {
                 render status:OK
-                respond(new JsonSlurper().parseText(authResult))
+                respond(Helpers.toJson(authResult))
             }
             catch (e) {
                 log.error("SocketController.save: could not parse authResult: \

@@ -9,10 +9,12 @@ import org.joda.time.DateTimeConstants
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalTime
 import org.springframework.context.MessageSource
+import org.textup.types.AuthorType
 import org.textup.types.ScheduleStatus
 import org.textup.util.CustomSpec
-import org.textup.validator.ScheduleChange
+import org.textup.validator.Author
 import org.textup.validator.LocalInterval
+import org.textup.validator.ScheduleChange
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Unroll
@@ -76,6 +78,26 @@ class StaffSpec extends CustomSpec {
     	staff2.validate() == false
     	staff2.errors.errorCount == 1
     	staff2.errors.getFieldErrorCount("username") == 1
+    }
+
+    void "test converting to author"() {
+        given: "a valid unsaved staff"
+        Staff unsavedStaff = new Staff(username:"9StAf92", password:"password",
+            name:"Name", org:org, personalPhoneAsString:"1112223333", email:"ok@ok.com")
+        assert unsavedStaff.validate()
+
+        when: "we convert saved and unsaved staff to author"
+        Author unsavedAuth = unsavedStaff.toAuthor(),
+            savedAuth = s1.toAuthor()
+
+        then:
+        unsavedAuth.id == null // staff is unsaved
+        unsavedAuth.type == AuthorType.STAFF
+        unsavedAuth.name == unsavedStaff.name
+
+        savedAuth.id == s1.id
+        savedAuth.type == AuthorType.STAFF
+        savedAuth.name == s1.name
     }
 
     void "test getting phones"() {

@@ -28,7 +28,7 @@ import org.textup.types.RecordItemType
 import org.textup.types.ResultType
 import org.textup.types.TextResponse
 import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import static org.springframework.http.HttpStatus.*
@@ -267,26 +267,18 @@ class PhoneService {
     // Outgoing
     // --------
 
-    ResultList<RecordText> sendText(Phone phone, OutgoingText text, Staff staff) {
-        ResultList<RecordText> resList = new ResultList<>()
-        HashSet<Contactable> recipients = text.toRecipients()
+    ResultList<RecordItem> sendMessage(Phone phone, OutgoingMessage msg, Staff staff = null) {
+        ResultList<RecordItem> resList = new ResultList<>()
+        HashSet<Contactable> recipients = msg.toRecipients()
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
             .withDefault { [] as List<TempRecordReceipt> }
-        // call sendText on each contactable
+        // send to each contactable
         recipients.each { Contactable c1 ->
-            if (c1.instanceOf(SharedContact)) {
-                resList << sendTextToSharedContact(c1 as SharedContact, text, staff)
-            }
-            else if (c1.instanceOf(Contact)) {
-                resList << sendTextToContact(phone, c1 as Contact, text, staff, contactIdToReceipts)
-            }
-            else {
-                log.error("PhoneService.sendText: contactable '${c1}' not a SharedContact or a Contact")
-            }
+            resList << sendToContactable(phone, c1, msg, staff, contactIdToReceipts)
         }
         // record all receipts on each tag, if applicable
-        text.tags.each { ContactTag ct1 ->
-            resList << storeTextInTag(ct1, text, staff, contactIdToReceipts)
+        msg.tags.each { ContactTag ct1 ->
+            resList << storeMessageInTag(ct1, msg, staff, contactIdToReceipts)
         }
         resList
     }
@@ -324,37 +316,40 @@ class PhoneService {
     // Outgoing helper methods
     // -----------------------
 
-    protected Result<RecordText> sendTextToContact(Phone phone, Contact c1, OutgoingText text,
-        Staff staff, Map<Long, List<TempRecordReceipt>> contactIdToReceipts) {
-        textService.send(phone.number, c1.numbers, text.message)
-            .then({ TempRecordReceipt receipt ->
-                Result<RecordText> res = c1.storeOutgoingText(text.message, receipt, staff)
-                if (res.success) {
-                    (contactIdToReceipts[c1.id] as List<TempRecordReceipt>) << receipt
-                }
-                res
-            }) as Result<RecordText>
+    protected Result<RecordItem> sendToContactable(Phone phone,
+        Contactable c1, OutgoingMessage msg, Staff staff = null,
+        Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
+
+        boolean isContact = c1.instanceOf(Contact)
+        PhoneNumber fromNum = isContact ? phone.number :
+            ((c1 instanceof SharedContact) ? c1.sharedBy.number : null)
+        Result<TempRecordReceipt> res = msg.isText ?
+            textService.send(fromNum, c1.numbers, msg.message) :
+            callService.start(fromNum, c1.numbers, [handle:CallResponse.DIRECT_MESSAGE,
+                message:msg.message, identifier:staff?.name])
+        res.then({ TempRecordReceipt receipt ->
+            Result storeRes = msg.isText ?
+                c1.storeOutgoingText(msg.message, receipt, staff) :
+                c1.storeOutgoingCall(receipt, staff)
+            if (isContact && storeRes.success) {
+                (contactIdToReceipts[c1.contactId] as List<TempRecordReceipt>) << receipt
+            }
+            storeRes
+        }) as Result<RecordItem>
     }
-    protected Result<RecordText> sendTextToSharedContact(SharedContact sc1,
-        OutgoingText text, Staff staff) {
-        textService.send(sc1.sharedBy.number, sc1.numbers, text.message)
-            .then({ TempRecordReceipt receipt ->
-                sc1.storeOutgoingText(text.message, receipt, staff)
-            }) as Result<RecordText>
-    }
-    protected Result<RecordText> storeTextInTag(ContactTag ct1, OutgoingText text, Staff staff,
-        Map<Long, List<TempRecordReceipt>> contactIdToReceipts) {
-        // create a new text on the tag's record
-        ct1.addTextToRecord([contents:text.message], staff).then({ RecordText tagText ->
+    protected Result<RecordItem> storeMessageInTag(ContactTag ct1, OutgoingMessage msg,
+        Staff staff = null, Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
+        // create a new msg on the tag's record
+        ct1.addTextToRecord([contents:msg.message], staff).then({ RecordItem tagText ->
             ct1.members.each { Contact c1 ->
-                // add contact text's receipts to tag's text
+                // add contact msg's receipts to tag's msg
                 contactIdToReceipts[c1.id]?.each { TempRecordReceipt r ->
                     tagText.addReceipt(r)
                     tagText.save()
                 }
             }
             resultFactory.success(tagText)
-        }) as Result<RecordText>
+        }) as Result<RecordItem>
     }
     protected ResultMap<TempRecordReceipt> startAnnouncement(Phone phone,
         List<IncomingSession> sessions, Closure receiptAction,
@@ -379,7 +374,7 @@ class PhoneService {
             TempRecordReceipt receipt = numberAsStringToReceipt[numAsString]
             if (!contacts) { // create new contact if none found for session
                 phone.createContact([:], [numAsString])
-                    .logFail("Phoneservice.sendTextAnnouncement: create contact")
+                    .logFail("PhoneService.startAnnouncement: create contact")
                     .then({ Contact newC ->
                         newContacts << newC
                         contacts << newC
@@ -388,14 +383,14 @@ class PhoneService {
             if (receipt) {
                 contacts.each { Contact c1 ->
                     (addToRecordAction(c1, receipt) as Result<RecordItem>)
-                        .logFail("PhoneService.sendTextAnnouncement: add to record")
+                        .logFail("PhoneService.startAnnouncement: add to record")
                         .then({ RecordItem item ->
                             item.isAnnouncement = true
                         })
                 }
             }
             else {
-                log.error("PhoneService.sendTextAnnouncement: \
+                log.error("PhoneService.startAnnouncement: \
                     no receipt for $numAsString")
             }
         }
@@ -417,12 +412,16 @@ class PhoneService {
         }).then({ List<Contact> contacts ->
             // notify available staff members
             List responses = [] // list of string and text resonses
-            HashSet<Staff> availableNow = getAllAvailableForContacts(contacts, phone)
+            Map<Phone, List<Staff>> phonesToAvailableNow =
+                phone.getPhonesToAvailableNowForContactIds(contacts*.id)
             // if none of the staff for any of the phones are available
-            if (availableNow) {
-                availableNow.each { Staff s1 ->
-                    this.notifyStaff(s1)
-                        .logFail("PhoneService.relayText: notify staff ${s1.id}")
+            if (phonesToAvailableNow) {
+                phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
+                    String name = p1.owner.name
+                    staffs.each { Staff s1 ->
+                        this.notifyStaff(s1, p1, name)
+                            .logFail("PhoneService.relayText: calling notifyStaff")
+                    }
                 }
             }
             else {
@@ -458,13 +457,16 @@ class PhoneService {
             }
         }).then({ List<Contact> contacts ->
             // notify available staff members
-            HashSet<Staff> availableNow = getAllAvailableForContacts(contacts, phone)
             HashSet<String> numsToCall = new HashSet<>()
-            availableNow.each { Staff s1 ->
-                if (s1.personalPhoneAsString) {
-                    numsToCall << s1.personalPhoneNumber.e164PhoneNumber
+            (phone
+                .getPhonesToAvailableNowForContactIds(contacts*.id)
+                .values()
+                .flatten() as Collection<Staff>)
+                .each { Staff s1 ->
+                    if (s1.personalPhoneAsString) {
+                        numsToCall << s1.personalPhoneNumber.e164PhoneNumber
+                    }
                 }
-            }
             if (numsToCall) {
                 String nameOrNumber = getNameOrNumber(contacts, session)
                 twimlBuilder.build(CallResponse.CONNECT_INCOMING,
@@ -633,19 +635,10 @@ class PhoneService {
     // Incoming helper methods
     // -----------------------
 
-    protected HashSet<Staff> getAllAvailableForContacts(List<Contact> contacts, Phone phone) {
-        List<Long> cIds = contacts.collect { it.id }
-        List<Phone> sharedWithPhones = SharedContact
-            .findEveryByContactIdsAndSharedBy(cIds, phone)
-            .collect { SharedContact sc1 -> sc1.sharedWith }
-        HashSet<Staff> availableNow = new HashSet<>(phone.availableNow)
-        sharedWithPhones.each { Phone p1 -> availableNow.addAll(p1.availableNow) }
-        availableNow
-    }
-    protected Result notifyStaff(Staff s1) {
+    protected Result notifyStaff(Staff s1, Phone p1, String name) {
         String msg = messageSource.getMessage("phoneService.notifyStaff.notification",
-            null, LCH.getLocale())
-        textService.send(s1.phone.number, [s1.personalPhoneNumber], msg)
+            [name] as Object[], LCH.getLocale())
+        textService.send(p1.number, [s1.personalPhoneNumber], msg)
     }
     protected String getNameOrNumber(List<Contact> contacts, IncomingSession session) {
         for (contact in contacts) {

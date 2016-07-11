@@ -14,6 +14,8 @@ import org.textup.*
 import org.textup.types.ReceiptStatus
 import org.textup.types.ResultType
 import org.textup.util.CustomSpec
+import org.textup.validator.BasePhoneNumber
+import org.textup.validator.PhoneNumber
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
@@ -89,6 +91,55 @@ class PublicRecordControllerSpec extends CustomSpec {
         then: "return ok when not found and still return no response closure"
         response.status == SC_OK
         response.contentAsString == buildXml(_closure)
+    }
+
+    void "test retry call on status fail"() {
+        given:
+        mockValidate()
+        boolean retryCalled = false
+        controller.callService = [retry: { PhoneNumber fromNum,
+            List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup ->
+            retryCalled = true
+            new Result(type:ResultType.SUCCESS, success:true, payload:null)
+        }] as CallService
+
+        when: "updating status failed"
+        controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
+            Integer duration ->
+            new Result(type:ResultType.MESSAGE_STATUS, success:false,
+                payload:[status:NOT_FOUND, message:"error", code: "error"])
+        }] as RecordService
+
+        params.handle = Constants.CALLBACK_STATUS
+        params.CallSid = "sid"
+        params.CallStatus = Constants.FAILED_STATUSES[0]
+        params.CallDuration = 123
+        controller.save()
+
+        then: "don't retry"
+        retryCalled == false
+    }
+
+    void "test retry call on status succeed"() {
+        given:
+        mockValidate()
+        mockUpdateStatus()
+        boolean retryCalled = false
+        controller.callService = [retry: { PhoneNumber fromNum,
+            List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup ->
+            retryCalled = true
+            new Result(type:ResultType.SUCCESS, success:true, payload:null)
+        }] as CallService
+
+        when: "updating status succeeds but the status is a failed status"
+        params.handle = Constants.CALLBACK_STATUS
+        params.CallSid = "sid"
+        params.CallStatus = Constants.FAILED_STATUSES[0]
+        params.CallDuration = 123
+        controller.save()
+
+        then: "do retry"
+        retryCalled ==  true
     }
 
     void "test update invalid status"() {

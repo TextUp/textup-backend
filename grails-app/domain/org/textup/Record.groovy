@@ -38,16 +38,17 @@ class Record {
     // Add to record
     // -------------
 
-    Result<RecordText> addText(Map params, Author auth) {
+    Result<RecordText> addText(Map params, Author auth = null) {
         addAny(RecordText, params, auth)
     }
-    Result<RecordCall> addCall(Map params, Author auth) {
+    Result<RecordCall> addCall(Map params, Author auth = null) {
         addAny(RecordCall, params, auth)
     }
-    protected Result addAny(Class<? extends RecordItem> clazz, Map params, Author auth) {
+    protected Result addAny(Class<? extends RecordItem> clazz, Map params,
+        Author auth = null) {
         this.add(clazz.newInstance(params), auth)
     }
-    Result<RecordItem> add(RecordItem item, Author auth) {
+    Result<RecordItem> add(RecordItem item, Author auth = null) {
         if (item) {
             item.author = auth
             item.record = this
@@ -71,6 +72,7 @@ class Record {
     int countItems() {
         RecordItem.forRecord(this).count()
     }
+
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<RecordItem> getSince(DateTime since, Map params=[:]) {
         if (!since) { return [] }
@@ -100,5 +102,12 @@ class Record {
             end = exchange
         }
         RecordItem.forRecordDateBetween(this, start, end).count()
+    }
+
+    List<FutureMessage> getFutureMessages(Map params=[:]) {
+        FutureMessage.findAllByRecordAndIsDone(this, false, params)
+    }
+    int countFutureMessages() {
+        FutureMessage.countByRecordAndIsDone(this, false)
     }
 }

@@ -6,7 +6,7 @@ import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
 import org.textup.types.ReceiptStatus
 import org.textup.util.OptimisticLockingRetry
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import static org.springframework.http.HttpStatus.*
 
@@ -91,7 +91,7 @@ class RecordService {
                 "recordService.create.unknownType")
         }
     }
-    protected ResultList<RecordText> createText(Phone p1, Map body) {
+    protected ResultList<RecordItem> createText(Phone p1, Map body) {
         List<Long> cIds = Helpers.toIdsList(body.sendToContacts),
             scIds = Helpers.toIdsList(body.sendToSharedContacts),
             tIds = Helpers.toIdsList(body.sendToTags)
@@ -112,14 +112,14 @@ class RecordService {
                 else { return new ResultList(res) }
             }
         }
-        // build outgoing text and delegate subsequent actions to the phone
-        OutgoingText text = new OutgoingText(message:body.contents as String,
+        // build outgoing msg and delegate subsequent actions to the phone
+        OutgoingMessage msg = new OutgoingMessage(message:body.contents as String,
             contacts:contacts,
             sharedContacts:SharedContact.findEveryByContactIdsAndSharedWith(scIds, p1),
             tags:ContactTag.getAll(tIds as Iterable<Serializable>) as List)
-        p1.sendText(text, authService.loggedInAndActive)
+        p1.sendMessage(msg, authService.loggedInAndActive)
     }
-    protected ResultList<RecordCall> createCall(Phone p1, Map body) {
+    protected ResultList<RecordItem> createCall(Phone p1, Map body) {
         ResultList resList = new ResultList()
         if (!Helpers.exactly(1, ["callContact", "callSharedContact"], body)) {
             return resList << resultFactory.failWithMessageAndStatus(BAD_REQUEST,

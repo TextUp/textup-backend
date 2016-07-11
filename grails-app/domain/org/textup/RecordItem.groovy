@@ -96,6 +96,26 @@ class RecordItem {
         }
     }
 
+    // Static Finders
+    // --------------
+
+    @GrailsTypeChecked
+    static List<RecordItem> findEveryByApiId(String apiId) {
+        List<RecordItem> results = []
+        HashSet<Long> itemIds = new HashSet<>()
+        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
+        receipts.each { RecordItemReceipt receipt ->
+            if (!itemIds.contains(receipt.item.id)) {
+                results << receipt.item
+                itemIds << receipt.item.id
+            }
+        }
+        results
+    }
+
+    // Methods
+    // -------
+
     @GrailsTypeChecked
     RecordItem addReceipt(TempRecordReceipt r1) {
         RecordItemReceipt receipt = new RecordItemReceipt(status:r1.status,
@@ -113,11 +133,11 @@ class RecordItem {
     }
     @GrailsTypeChecked
     void setAuthor(Author author) {
-        if (author) {
+        if (author?.validate()) {
             this.with {
-                authorName = author?.name
-                authorId = author?.id
-                authorType = author?.type
+                authorName = author.name
+                authorId = author.id
+                authorType = author.type
             }
         }
     }

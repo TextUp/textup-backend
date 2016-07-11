@@ -1,5 +1,10 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
+import groovy.json.JsonBuilder
+import groovy.json.JsonException
+import groovy.json.JsonSlurper
+import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -10,8 +15,6 @@ import org.joda.time.Days
 import org.joda.time.LocalTime
 import org.textup.validator.LocalInterval
 import org.textup.validator.PhoneNumber
-import grails.compiler.GrailsCompileStatic
-import groovy.transform.TypeCheckingMode
 
 @GrailsCompileStatic
 @Log4j
@@ -38,8 +41,8 @@ class Helpers {
         else { [] }
     }
 
-    // Formatting
-    // ----------
+    // Lists
+    // -----
 
     static boolean exactly(int num, List<String> keysToLookFor, Map params) {
         int numFound = 0
@@ -48,7 +51,23 @@ class Helpers {
         }
         numFound == num
     }
-	static boolean isLong(def val) {
+
+    static List takeRight(List data, int numToTake) {
+        if (!data) return []
+        int totalNum = data.size()
+        if (numToTake <= 0 || numToTake > totalNum) {
+            []
+        }
+        else if (numToTake == totalNum) {
+            data
+        }
+        else { data[(totalNum - numToTake)..(totalNum - 1)] }
+    }
+
+    // Types
+    // -----
+
+    static boolean isLong(def val) {
         "${val}".isLong()
     }
     static Boolean toBoolean(def val) {
@@ -56,12 +75,12 @@ class Helpers {
         str == "true" ? true : str == "false" ? false : null
     }
     static Long toLong(def val) {
-        String strVal = "${val}"
-        strVal.isLong() ? strVal.toLong() : null
+        BigDecimal res = toBigDecimal(val)
+        (res != null) ? res as Long : null
     }
     static Integer toInteger(def val) {
-        String strVal = "${val}"
-        strVal.isInteger() ? strVal.toInteger() : null
+        BigDecimal res = toBigDecimal(val)
+        (res != null) ? res as Integer : null
     }
     static BigDecimal toBigDecimal(def val) {
         String strVal = "${val}"
@@ -71,7 +90,7 @@ class Helpers {
         l.collect { Helpers.toLong(it) }
     }
     static List toList(def val) {
-    	(val instanceof List)  ? (val as List) : []
+        (val instanceof List)  ? (val as List) : []
     }
     static List<Long> toIdsList(def data) {
         List<Long> ids = []
@@ -94,6 +113,10 @@ class Helpers {
     static String toString(def val) {
         "$val".toString()
     }
+
+    // Formatting
+    // ----------
+
     static String toLowerCaseString(def val) {
         "$val".toString().toLowerCase()
     }
@@ -107,6 +130,10 @@ class Helpers {
     // Date, time, timezones
     // ---------------------
 
+    static DateTime toDateTimeWithZone(def time, def zone = null) {
+        new DateTime(toString(time))
+            .withZoneRetainFields(getZoneFromId(zone as String))
+    }
     static String printLocalInterval(LocalInterval localInt) {
         if (localInt) {
             String start1 = localInt.start.hourOfDay.toString().padLeft(2, "0"),
@@ -146,6 +173,19 @@ class Helpers {
     //0 corresponds to sunday, 6 to saturday
     static int getDayOfWeekIndex(int num) {
         Math.abs(num % 7)
+    }
+
+    // Json
+    // ----
+
+    static String toJsonString(Object data) {
+        data ? new JsonBuilder(data).toString() : null
+    }
+    static Object toJson(Object data) throws JsonException {
+        data ? new JsonSlurper().parseText(toJsonString(data)) : null
+    }
+    static Object toJson(String str) throws JsonException {
+        str ? new JsonSlurper().parseText(str) : null
     }
 
     // TwimlBuilder

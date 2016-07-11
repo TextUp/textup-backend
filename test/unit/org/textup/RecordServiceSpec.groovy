@@ -12,7 +12,7 @@ import org.textup.rest.TwimlBuilder
 import org.textup.types.ReceiptStatus
 import org.textup.types.ResultType
 import org.textup.util.CustomSpec
-import org.textup.validator.OutgoingText
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import spock.lang.Shared
 import spock.lang.Specification
@@ -39,9 +39,9 @@ class RecordServiceSpec extends CustomSpec {
         service.socketService = [sendItems:{ List<RecordItem> items, String eventName ->
             new ResultList()
         }] as SocketService
-        Phone.metaClass.sendText = { OutgoingText text, Staff staff ->
+        Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff ->
             Result res = new Result(type:ResultType.SUCCESS, success:true,
-                payload:"sendText")
+                payload:"sendMessage")
             new ResultList(res)
         }
         Phone.metaClass.startBridgeCall = { Contactable c1, Staff staff ->
@@ -135,7 +135,7 @@ class RecordServiceSpec extends CustomSpec {
         then: "this class does not handle validation for number of recipients"
         resList.isAnySuccess == true
         resList.results.size() == 1
-        resList.results[0].payload == "sendText"
+        resList.results[0].payload == "sendMessage"
         Contact.count() == cBaseline
 
         when: "send to a contact"
@@ -145,7 +145,7 @@ class RecordServiceSpec extends CustomSpec {
         then:
         resList.isAnySuccess == true
         resList.results.size() == 1
-        resList.results[0].payload == "sendText"
+        resList.results[0].payload == "sendMessage"
         Contact.count() == cBaseline
 
         when: "send to a phone number that belongs to a existing contact"
@@ -155,7 +155,7 @@ class RecordServiceSpec extends CustomSpec {
         then: "no new contact created"
         resList.isAnySuccess == true
         resList.results.size() == 1
-        resList.results[0].payload == "sendText"
+        resList.results[0].payload == "sendMessage"
         Contact.count() == cBaseline
 
         when: "send to a phone number that you've never seen before"
@@ -168,7 +168,7 @@ class RecordServiceSpec extends CustomSpec {
         then: "new contact created for novel number"
         resList.isAnySuccess == true
         resList.results.size() == 1
-        resList.results[0].payload == "sendText"
+        resList.results[0].payload == "sendMessage"
         Contact.count() == cBaseline + 1
     }
 
@@ -234,6 +234,6 @@ class RecordServiceSpec extends CustomSpec {
         then:
         resList.isAnySuccess == true
         resList.results.size() == 1
-        resList.results[0].payload == "sendText"
+        resList.results[0].payload == "sendMessage"
     }
 }

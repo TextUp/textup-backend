@@ -258,61 +258,29 @@ class AuthServiceSpec extends CustomSpec {
     	service.hasPermissionsForTag(teTag2.id) == false
     }
 
-    void "test permissions for record item"() {
+    void "test permissions for record"() {
         given: "we are active"
         s1.org.status = OrgStatus.APPROVED
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
 
     	expect: "This item belongs to one of your contacts"
-    	service.hasPermissionsForItem(rText1.id) == true
+    	service.hasPermissionsForRecord(rText1.record) == true
 
     	and: "This item belongs to a contact that is currently shared with you"
-    	service.hasPermissionsForItem(rText2.id) == true
+    	service.hasPermissionsForRecord(rText2.record) == true
 
     	and: "This item belongs to a contact of one of the teams you're on"
-    	service.hasPermissionsForItem(rTeText1.id) == true
+    	service.hasPermissionsForRecord(rTeText1.record) == true
 
     	and: "This item belongs to a different team at same org"
-    	service.hasPermissionsForItem(rTeText2.id) == false
+    	service.hasPermissionsForRecord(rTeText2.record) == false
 
     	and: "This item belongs to a staff member at a different org"
-    	service.hasPermissionsForItem(otherRText2.id) == false
+    	service.hasPermissionsForRecord(otherRText2.record) == false
 
     	and: "This item belongs to a team at a different org"
-    	service.hasPermissionsForItem(otherRTeText2.id) == false
-    }
-
-    void "test getting phones for records"() {
-        when: "we pass in shared contact"
-        HashSet<Phone> phones = service.getPhonesForRecords([sc1.contact.record])
-
-        then: "we should get back both shared with and shared by phones"
-        phones.size() == 2
-        [p1, p2].every { it in phones }
-
-        when: "have records belonging to our tags, records, and shared FOR ONE PHONE"
-        List<Record> myContactRecs = Contact.findByPhone(p1)*.record,
-            myTagRecs = p1.tags*.record,
-            sWithMeRecs = p1.sharedWithMe.collect { it.contact.record },
-            allRecs = myContactRecs + myTagRecs + sWithMeRecs
-        assert allRecs.isEmpty() == false
-        phones = service.getPhonesForRecords(allRecs)
-
-        then:
-        phones.size() == 2
-        [p1, p2].every { it in phones }
-
-        when: "we pass in records belonging to various phones"
-        List<Record> otherCRecs = Contact.findByPhone(p2)*.record +
-                Contact.findByPhone(tPh1)*.record,
-            otherTRecs = p2.tags*.record + tPh1.tags*.record
-        allRecs += otherCRecs += otherTRecs
-        phones = service.getPhonesForRecords(allRecs)
-
-        then:
-        phones.size() == 3
-        [p1, p2, tPh1].every { it in phones }
+    	service.hasPermissionsForRecord(otherRTeText2.record) == false
     }
 
     void "test permissions for session"() {
