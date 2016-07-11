@@ -40,7 +40,7 @@ class FutureMessage {
 	String key = UUID.randomUUID().toString()
 	Record record
 
-	DateTime startDate = DateTime.now(DateTimeZone.UTC).plusDays(1)
+	DateTime startDate = DateTime.now(DateTimeZone.UTC).plusMinutes(1)
     boolean notifySelf = false
     FutureMessageType type
     long repeatIntervalInMillis = TimeUnit.DAYS.toMillis(1)

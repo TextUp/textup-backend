@@ -11,6 +11,7 @@ import org.apache.http.NameValuePair
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.hibernate.FlushMode
 import org.textup.rest.TwimlBuilder
+import org.textup.types.ResultType
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.TempRecordReceipt
 import static org.springframework.http.HttpStatus.*
@@ -40,7 +41,9 @@ class TextService {
                 }
             }
             //also return on server error
-            else if (!res.success && res.payload.errorCode > 499) {
+            else if (!res.success && res.type == ResultType.THROWABLE &&
+                Helpers.toInteger(res.payload.errorCode) > 499 &&
+                Helpers.toInteger(res.payload.errorCode) < 600) {
                 return res
             }
         }

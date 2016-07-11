@@ -16,4 +16,9 @@ environments {
             autoStartup = false
         }
     }
+    production {
+        quartz {
+            jdbcStore = true
+        }
+    }
 }

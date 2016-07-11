@@ -232,4 +232,22 @@ class CallbackServiceSpec extends CustomSpec {
 		res.success == true
 		res.payload == "completeCallAnnouncement"
     }
+
+    void "test process for direct message outbound calls"() {
+        when: "direct message"
+        HttpServletRequest request = [:] as HttpServletRequest
+        String msg = "hi"
+        String identifier = "nameHere"
+        GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
+            handle:CallResponse.DIRECT_MESSAGE.toString(),
+            message:msg, identifier:identifier],
+            request)
+        params.From = "1233834920"
+        params.To = "1112223333"
+        Result<Closure> res = service.process(params)
+
+        then:
+        res.success == true
+        res.payload == CallResponse.DIRECT_MESSAGE
+    }
 }

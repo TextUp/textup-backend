@@ -130,7 +130,7 @@ class CallRetryFunctionalSpec extends RestSpec {
         form.add("CallStatus", Constants.FAILED_STATUSES[0])
         String requestUrl = "${baseUrl}/v1/public/records?"
         requestUrl += "handle=${Constants.CALLBACK_STATUS}"
-        requestUrl += "&remaining[]=${_numbers[1..-1]}"
+        requestUrl += "&remaining=+1${_numbers[1..-1]}"
         response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)

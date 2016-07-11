@@ -41,8 +41,8 @@ class Helpers {
         else { [] }
     }
 
-    // Formatting
-    // ----------
+    // Lists
+    // -----
 
     static boolean exactly(int num, List<String> keysToLookFor, Map params) {
         int numFound = 0
@@ -51,7 +51,23 @@ class Helpers {
         }
         numFound == num
     }
-	static boolean isLong(def val) {
+
+    static List takeRight(List data, int numToTake) {
+        if (!data) return []
+        int totalNum = data.size()
+        if (numToTake <= 0 || numToTake > totalNum) {
+            []
+        }
+        else if (numToTake == totalNum) {
+            data
+        }
+        else { data[(totalNum - numToTake)..(totalNum - 1)] }
+    }
+
+    // Types
+    // -----
+
+    static boolean isLong(def val) {
         "${val}".isLong()
     }
     static Boolean toBoolean(def val) {
@@ -74,7 +90,7 @@ class Helpers {
         l.collect { Helpers.toLong(it) }
     }
     static List toList(def val) {
-    	(val instanceof List)  ? (val as List) : []
+        (val instanceof List)  ? (val as List) : []
     }
     static List<Long> toIdsList(def data) {
         List<Long> ids = []
@@ -97,6 +113,10 @@ class Helpers {
     static String toString(def val) {
         "$val".toString()
     }
+
+    // Formatting
+    // ----------
+
     static String toLowerCaseString(def val) {
         "$val".toString().toLowerCase()
     }

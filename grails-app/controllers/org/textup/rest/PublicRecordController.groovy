@@ -46,7 +46,7 @@ class PublicRecordController extends BaseController {
                 // the parameters passed into the status callback
                 if (params.CallSid && res.success && status == ReceiptStatus.FAILED) {
                     PhoneNumber fromNum = new PhoneNumber(number:params.From as String)
-                    List<PhoneNumber> toNums = params.list("remaining[]")?.collect { Object num ->
+                    List<PhoneNumber> toNums = params.list("remaining")?.collect { Object num ->
                         new PhoneNumber(number:num as String)
                     } ?: new ArrayList<PhoneNumber>()
                     try {

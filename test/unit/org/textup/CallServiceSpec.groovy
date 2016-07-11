@@ -34,9 +34,9 @@ class CallServiceSpec extends Specification {
         	(m.params ?: [:]).toString()
     	}] as LinkGenerator
     	service.metaClass.doCall = { PhoneNumber fromNum, BasePhoneNumber toNum,
-        	String afterLink, String callback ->
+            Map afterPickup, String callback ->
 	        new Result(type:ResultType.SUCCESS, success:true,
-	        	payload:[afterLink:afterLink, callback:callback])
+	        	payload:[afterPickup:afterPickup, callback:callback])
 	    }
     }
 
@@ -53,7 +53,7 @@ class CallServiceSpec extends Specification {
 
     	then:
     	res.success == true
-    	res.payload.afterLink == afterPickup.toString()
+    	res.payload.afterPickup.toString() == afterPickup.toString()
     	res.payload.callback == callback.toString()
 
     	when: "we start a call with multiple 'to' numbers"
@@ -64,7 +64,7 @@ class CallServiceSpec extends Specification {
 
     	then:
     	res.success == true
-    	res.payload.afterLink == afterPickup.toString()
+    	res.payload.afterPickup.toString() == afterPickup.toString()
     	res.payload.callback == callback.toString()
     }
     @FreshRuntime

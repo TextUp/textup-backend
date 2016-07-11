@@ -84,6 +84,11 @@ class CallbackService {
     // ---------------
 
     Result<Closure> process(GrailsParameterMap params) {
+        // if a call direct messaage
+        if (params.handle == CallResponse.DIRECT_MESSAGE.toString()) {
+            return twimlBuilder.build(CallResponse.DIRECT_MESSAGE, params)
+        }
+        // otherwise, continue handling other possibilities
     	String apiId = params.CallSid ?: params.MessageSid,
     		digits = params.Digits
     	PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
