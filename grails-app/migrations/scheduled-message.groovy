@@ -16,7 +16,7 @@ databaseChangeLog = {
 				constraints(nullable: "false")
 			}
 
-			column(name: "key", type: "varchar(255)") {
+			column(name: "future_message_key", type: "varchar(255)") {
 				constraints(nullable: "false")
 			}
 

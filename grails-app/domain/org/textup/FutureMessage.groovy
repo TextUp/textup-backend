@@ -40,7 +40,7 @@ class FutureMessage {
 	String key = UUID.randomUUID().toString()
 	Record record
 
-	DateTime startDate = DateTime.now(DateTimeZone.UTC).plusMinutes(1)
+	DateTime startDate = DateTime.now(DateTimeZone.UTC).plusDays(1)
     boolean notifySelf = false
     FutureMessageType type
     long repeatIntervalInMillis = TimeUnit.DAYS.toMillis(1)
@@ -67,6 +67,7 @@ class FutureMessage {
 		}
     }
     static mapping = {
+        key column: 'future_message_key'
     	whenCreated type:PersistentDateTime
     	startDate type:PersistentDateTime
 		endDate type:PersistentDateTime

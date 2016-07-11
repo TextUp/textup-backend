@@ -47,9 +47,6 @@ class CallService {
                 resource:"publicRecord", action:"save", absolute:true,
                 params:[handle:Constants.CALLBACK_STATUS,
                     remaining:remaining, afterPickup:afterPickupJson])
-
-            callback = callback.replace("http://localhost:8080", "https://5e6aa46b.ngrok.io")
-
             Result res = this.doCall(fromNum, toNum, afterPickup, callback)
             // return on success or on server error
             if (res.success || (!res.success && res.type == ResultType.THROWABLE &&
@@ -82,11 +79,6 @@ class CallService {
         }
         String afterLink = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:afterPickup)
-
-
-        afterLink = afterLink.replace("http://localhost:8080", "https://5e6aa46b.ngrok.io")
-
-
         try {
             CallFactory cFactory = twilioService.account.callFactory
             Call call = cFactory.create(To:toNum.e164PhoneNumber, From:fromNum.e164PhoneNumber,

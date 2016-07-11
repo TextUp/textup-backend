@@ -1,5 +1,8 @@
 databaseChangeLog = {
 	changeSet(author: "eb27", id: "quart-innodb-1") {
-		sqlFile(path: "quartz_tables_mysql_innodb.sql")
+		sqlFile(path: "sql/quartz-create-mysql-innodb.sql")
+		rollback {
+			sqlFile(path: "sql/quartz-rollback-mysql-innodb.sql")
+		}
 	}
 }
