@@ -5,7 +5,6 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import java.util.concurrent.TimeUnit
 import org.joda.time.DateTime
-import org.quartz.SimpleTrigger
 import org.textup.types.FutureMessageType
 import org.textup.types.RecordItemType
 import org.textup.util.CustomSpec
@@ -65,27 +64,8 @@ class FutureMessageSpec extends CustomSpec {
     	fMsg.errors.errorCount == 1
     	fMsg.errors.getFieldErrorCount("message") == 1
 
-    	when: "repeat interval too small"
-    	fMsg.message = "hi"
-    	assert fMsg.validate()
-    	fMsg.repeatIntervalInMillis = 2000
-
-    	then:
-    	fMsg.validate() == false
-    	fMsg.errors.errorCount == 1
-    	fMsg.errors.getFieldErrorCount("repeatIntervalInMillis") == 1
-
-    	when: "try to repeat infinitely"
-    	fMsg.repeatIntervalInDays = 1
-    	assert fMsg.validate()
-    	fMsg.repeatCount = SimpleTrigger.REPEAT_INDEFINITELY
-
-    	then:
-    	fMsg.validate() == false
-    	fMsg.errors.getFieldErrorCount("repeatCount") == 1
-
     	when: "try to end before start"
-    	fMsg.repeatCount = null
+    	fMsg.message = "hi"
     	assert fMsg.validate()
     	fMsg.startDate = DateTime.now()
     	fMsg.endDate = DateTime.now().minusDays(1)
@@ -93,34 +73,6 @@ class FutureMessageSpec extends CustomSpec {
     	then:
     	fMsg.validate() == false
     	fMsg.errors.getFieldErrorCount("endDate") == 1
-    }
-
-    void "test repeating"() {
-    	given: "an empty future message"
-    	FutureMessage fMsg = new FutureMessage()
-
-    	when: "neither repeatCount nor end date specified"
-    	assert fMsg.repeatCount == null
-    	assert fMsg.endDate == null
-
-    	then:
-    	fMsg.isRepeating == false
-    	fMsg.willEndOnDate == false
-
-    	when: "repeat count specified"
-    	fMsg.repeatCount = 2
-
-    	then: "end after repeat count"
-    	fMsg.isRepeating == true
-    	fMsg.willEndOnDate == false
-
-    	when: "repeat count AND end date specified"
-    	assert fMsg.repeatCount != null
-    	fMsg.endDate = DateTime.now().plusDays(1)
-
-    	then: "end after end date (takes precedence over repeatCount)"
-    	fMsg.isRepeating == true
-    	fMsg.willEndOnDate == true
     }
 
     void "test converting to outgoing message for #type's record"() {

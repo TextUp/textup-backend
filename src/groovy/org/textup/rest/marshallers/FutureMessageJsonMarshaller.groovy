@@ -23,14 +23,15 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 			message = fMsg.message
             isDone = fMsg.isReallyDone
 			if (fMsg.isRepeating) {
-				repeatIntervalInDays = fMsg.repeatIntervalInDays
-				if (fMsg.willEndOnDate) {
-					endDate = fMsg.endDate
-				}
-				else { repeatCount = fMsg.repeatCount }
-
-				if (fMsg.timesTriggered) timesTriggered = fMsg.timesTriggered
+				if (fMsg.endDate) endDate = fMsg.endDate
 				if (fMsg.nextFireDate) nextFireDate = fMsg.nextFireDate
+				// repeating specific to simple schedule
+				if (fMsg.instanceOf(SimpleFutureMessage)) {
+					SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage
+					repeatIntervalInDays = sMsg.repeatIntervalInDays
+					if (sMsg.repeatCount) repeatCount = sMsg.repeatCount
+					if (sMsg.timesTriggered) timesTriggered = sMsg.timesTriggered
+				}
 			}
         }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,

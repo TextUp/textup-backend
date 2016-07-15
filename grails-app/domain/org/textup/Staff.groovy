@@ -99,7 +99,9 @@ class Staff {
     static transients = ["personalPhoneNumber", "phone", "resultFactory",
         "springSecurityService"]
 	static constraints = {
-		username blank:false, unique:true
+		username blank:false, unique:true, validator: { String un, Staff s1 ->
+            if (!(un ==~ /^[-_=@.,;A-Za-z0-9]+$/)) { ["format"] } // for Pusher channel
+        }
 		password blank:false
 		email email:true
         personalPhoneAsString blank:true, nullable:true, validator:{ String val, Staff obj ->

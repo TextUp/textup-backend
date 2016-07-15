@@ -45,7 +45,7 @@ class ContactController extends BaseController {
         @RestApiParam(name="teamId", type="Number", required=true,
         	paramType=RestApiParamType.QUERY, description="Id of the team member"),
         @RestApiParam(name="tagId", type="Number", required=true,
-            paramType=RestApiParamType.QUERY, description="Id of the team member"),
+            paramType=RestApiParamType.QUERY, description="Id of the tag"),
         @RestApiParam(name="search", type="String", required=false,
             paramType=RestApiParamType.QUERY, description='''String to search for in contact name,
             limited to active and unread contacts''')

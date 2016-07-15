@@ -46,37 +46,42 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
 
         then:
         validate(json, fMsg)
-        json.repeatIntervalInDays == null
         json.endDate == null
-        json.repeatCount == null
-        json.timesTriggered == null
         json.nextFireDate == null
+    }
+
+    void "test marshalling simple future message"() {
+        given: "a nonrepeating simple future message"
+        SimpleFutureMessage sMsg = new SimpleFutureMessage(type:FutureMessageType.CALL,
+            message:"hi", record:c1.record)
+        sMsg.save(flush:true, failOnError:true)
 
         when: "we make this message repeating via repeatCount then marshal"
-        fMsg.repeatCount = 10
-        fMsg.save(flush:true, failOnError:true)
+        sMsg.repeatCount = 10
+        sMsg.save(flush:true, failOnError:true)
+        Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(fMsg as JSON) as Map
+            json = jsonToObject(sMsg as JSON) as Map
         }
 
         then:
-        validate(json, fMsg)
-        json.repeatIntervalInDays == fMsg.repeatIntervalInDays
+        validate(json, sMsg)
+        json.repeatIntervalInDays == sMsg.repeatIntervalInDays
         json.endDate == null
-        json.repeatCount == fMsg.repeatCount
+        json.repeatCount == sMsg.repeatCount
 
         when: "we make this message repeating via endDate then marshal"
-        fMsg.repeatCount = null
-        fMsg.endDate = DateTime.now().plusDays(1)
-        fMsg.save(flush:true, failOnError:true)
+        sMsg.repeatCount = null
+        sMsg.endDate = DateTime.now().plusDays(1)
+        sMsg.save(flush:true, failOnError:true)
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(fMsg as JSON) as Map
+            json = jsonToObject(sMsg as JSON) as Map
         }
 
         then:
-        validate(json, fMsg)
-        json.repeatIntervalInDays == fMsg.repeatIntervalInDays
-        json.endDate == fMsg.endDate.toString()
+        validate(json, sMsg)
+        json.repeatIntervalInDays == sMsg.repeatIntervalInDays
+        json.endDate == sMsg.endDate.toString()
         json.repeatCount == null
     }
 }

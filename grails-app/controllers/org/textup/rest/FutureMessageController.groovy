@@ -26,6 +26,22 @@ class FutureMessageController extends BaseController {
 	// List
 	// ----
 
+    @RestApiMethod(description="List future messages for a specific contact or tag", listing=true)
+    @RestApiParams(params=[
+        @RestApiParam(name="max", type="Number", required=false,
+            paramType=RestApiParamType.QUERY, description="Max number of results"),
+        @RestApiParam(name="offset", type="Number", required=false,
+            paramType=RestApiParamType.QUERY, description="Offset of results"),
+        @RestApiParam(name="contactId", type="Number", required=true,
+            paramType=RestApiParamType.QUERY, description="Id of the contact to show messages for"),
+        @RestApiParam(name="tagId", type="Number", required=true,
+            paramType=RestApiParamType.QUERY, description="Id of the tag to show messages for")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="404",description="The contact or tag was not found."),
+        @RestApiError(code="403", description="You do not have permission to do this."),
+        @RestApiError(code="400", description="You must specify either contact id or tag id, but not both")
+    ])
 	@Transactional(readOnly=true)
     def index() {
     	if (!Helpers.exactly(1, ["contactId", "tagId"], params)) {
@@ -78,6 +94,15 @@ class FutureMessageController extends BaseController {
     // Show
     // ----
 
+    @RestApiMethod(description="Show specifics about a message")
+    @RestApiParams(params=[
+        @RestApiParam(name="id", type="Number",
+            paramType=RestApiParamType.PATH, description="Id of the message")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="403", description="You do not have permissions to view this message."),
+        @RestApiError(code="404",  description="The requested message was not found.")
+    ])
     @Transactional(readOnly=true)
     def show() {
     	Long id = params.long("id")
@@ -93,6 +118,22 @@ class FutureMessageController extends BaseController {
     // Save
     // ----
 
+    @RestApiMethod(description="Create a new message for a contact or tag")
+    @RestApiParams(params=[
+        @RestApiParam(name="contactId", type="Number", required=true,
+            paramType=RestApiParamType.QUERY, description="Id of the contact to create for"),
+        @RestApiParam(name="tagId", type="Number", required=true,
+            paramType=RestApiParamType.QUERY, description="Id of the tag to create for")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="400", description='''Malformed JSON in request or \
+            must specify either contact id or tag id but not both'''),
+        @RestApiError(code="422", description="The updated fields created an invalid message."),
+        @RestApiError(code="403", description="You do not permissions to create \
+            a new message for this contact or tag."),
+        @RestApiError(code="404",  description="The contact or tag to \
+            add this message to was not found.")
+    ])
     def save() {
     	if (!validateJsonRequest(request, "future-message")) { return; }
     	Map fInfo = (request.properties.JSON as Map)["future-message"] as Map
@@ -133,6 +174,17 @@ class FutureMessageController extends BaseController {
     // Update
     // ------
 
+    @RestApiMethod(description="Update an existing message")
+    @RestApiParams(params=[
+        @RestApiParam(name="id", type="Number",
+            paramType=RestApiParamType.PATH, description="Id of the message")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="400", description="Malformed JSON in request."),
+        @RestApiError(code="404", description="The requested message was not found."),
+        @RestApiError(code="403", description="You do not have permission to modify this message."),
+        @RestApiError(code="422", description="The updated fields created an invalid message.")
+    ])
     def update() {
     	if (!validateJsonRequest(request, "future-message")) { return; }
     	Long id = params.long("id")
@@ -150,6 +202,15 @@ class FutureMessageController extends BaseController {
     // Delete
     // ------
 
+    @RestApiMethod(description="Delete an existing message")
+    @RestApiParams(params=[
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
+            description="Id of the message")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="404", description="The requested message was not found."),
+        @RestApiError(code="403", description="You do not have permission to delete this message.")
+    ])
     def delete() {
     	Long id = params.long("id")
         if (authService.exists(FutureMessage, id)) {

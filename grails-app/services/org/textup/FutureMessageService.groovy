@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.joda.time.DateTime
+import org.quartz.ScheduleBuilder
 import org.quartz.Scheduler
 import org.quartz.SimpleTrigger
 import org.quartz.Trigger
@@ -71,11 +72,12 @@ class FutureMessageService {
             .startAt(fMsg.startDate?.toDate())
             .usingJobData(Constants.JOB_DATA_FUTURE_MESSAGE_KEY, fMsg.key)
             .usingJobData(Constants.JOB_DATA_STAFF_ID, authService.loggedInAndActive?.id)
-        if (fMsg.isRepeating) {
-            builder.withSchedule(fMsg.scheduleBuilder)
-            if (fMsg.endDate) {
-                builder.endAt(fMsg.endDate?.toDate())
-            }
+        if (fMsg.endDate) {
+            builder.endAt(fMsg.endDate.toDate())
+        }
+        ScheduleBuilder sBuilder = fMsg.scheduleBuilder
+        if (sBuilder) {
+            builder.withSchedule(sBuilder)
         }
         builder.build()
     }
@@ -149,7 +151,7 @@ class FutureMessageService {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
                 "futureMessageService.create.noRecord")
         }
-        FutureMessage fMsg = new FutureMessage(record:rec)
+        SimpleFutureMessage fMsg = new SimpleFutureMessage(record:rec)
         this.setFromBody(fMsg, body, timezone)
     }
 
@@ -198,10 +200,15 @@ class FutureMessageService {
             if (body.message) message = body.message
             // optional properties
             if (body.startDate) startDate = Helpers.toDateTimeWithZone(body.startDate, timezone)
-            if (body.repeatCount) repeatCount = Helpers.toInteger(body.repeatCount)
             if (body.endDate) endDate = Helpers.toDateTimeWithZone(body.endDate, timezone)
+        }
+        if (fMsg.instanceOf(SimpleFutureMessage)) {
+            SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage
+            if (body.repeatCount) {
+                sMsg.repeatCount = Helpers.toInteger(body.repeatCount)
+            }
             if (body.repeatIntervalInDays) {
-                repeatIntervalInDays = Helpers.toInteger(body.repeatIntervalInDays)
+                sMsg.repeatIntervalInDays = Helpers.toInteger(body.repeatIntervalInDays)
             }
         }
         // for some reason, calling save here instantly persists the message

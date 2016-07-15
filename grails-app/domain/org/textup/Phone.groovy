@@ -385,7 +385,7 @@ class Phone {
     }
     Map<Phone, List<Staff>> getPhonesToAvailableNowForContactIds(Collection<Long> cIds) {
         List<Phone> sharedWithPhones = SharedContact
-            .findByContactIdsAndSharedBy(cIds, this)
+            .findEveryByContactIdsAndSharedBy(cIds, this)
             .collect { SharedContact sc1 -> sc1.sharedWith }
         Map<Phone, List<Staff>> phonesToAvailableNow = [:]
         ((sharedWithPhones + this) as Collection<Phone>).each { Phone p1 ->

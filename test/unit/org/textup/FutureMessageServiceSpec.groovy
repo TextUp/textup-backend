@@ -23,7 +23,7 @@ import static org.springframework.http.HttpStatus.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, FutureMessage])
+	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage])
 @TestMixin(HibernateTestMixin)
 @TestFor(FutureMessageService)
 class FutureMessageServiceSpec extends CustomSpec {
@@ -139,7 +139,7 @@ class FutureMessageServiceSpec extends CustomSpec {
             new Result(success:true )
         }
     }
-    void "test set from body"() {
+    void "test set from body for future message"() {
     	given: "an unsaved (new) future message with record"
         mockForCRUD()
     	FutureMessage fMsg = new FutureMessage(record:c1.record)
@@ -153,9 +153,7 @@ class FutureMessageServiceSpec extends CustomSpec {
             type: fType.toString().toLowerCase(),
             message: "hi",
             startDate: DateTime.now().minusDays(2),
-            repeatCount: 12,
             endDate: DateTime.now().plusDays(2),
-            repeatIntervalInDays: 8
         ]
         Result<FutureMessage> res = service.setFromBody(fMsg, info)
 
@@ -167,10 +165,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.message == info.message
         res.payload.startDate.withZone(DateTimeZone.UTC).toString() ==
             info.startDate.withZoneRetainFields(DateTimeZone.UTC).toString()
-        res.payload.repeatCount == info.repeatCount
         res.payload.endDate.withZone(DateTimeZone.UTC).toString() ==
             info.endDate.withZoneRetainFields(DateTimeZone.UTC).toString()
-        res.payload.repeatIntervalInDays == info.repeatIntervalInDays
         _didSchedule == true
         res.payload.validate() == true
 
@@ -190,10 +186,73 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     	when: "update and did change reschedule properties"
         _didSchedule = false
-        info = [repeatCount: 8]
+        info = [startDate: DateTime.now()]
         res = service.setFromBody(fMsg, info)
 
     	then: "success and did call schedule"
+        res.success == true
+        res.payload instanceof FutureMessage
+        res.payload.startDate.withZone(DateTimeZone.UTC).toString() ==
+            info.startDate.withZoneRetainFields(DateTimeZone.UTC).toString()
+        _didSchedule == true
+    }
+    void "test set from body for simple future message"() {
+        given: "an unsaved (new) future message with record"
+        mockForCRUD()
+        SimpleFutureMessage sMsg = new SimpleFutureMessage(record:c1.record)
+        assert sMsg.id == null
+
+        when: "setting properties"
+        _didSchedule = false
+        FutureMessageType fType = FutureMessageType.CALL
+        Map info = [
+            notifySelf: true,
+            type: fType.toString().toLowerCase(),
+            message: "hi",
+            startDate: DateTime.now().minusDays(2),
+            repeatCount: 12,
+            endDate: DateTime.now().plusDays(2),
+            repeatIntervalInDays: 8
+        ]
+        Result<FutureMessage> res = service.setFromBody(sMsg, info)
+
+        then: "success and did schedule"
+        res.success == true
+        res.payload instanceof FutureMessage
+        res.payload instanceof SimpleFutureMessage
+        res.payload.notifySelf == info.notifySelf
+        res.payload.type == fType
+        res.payload.message == info.message
+        res.payload.startDate.withZone(DateTimeZone.UTC).toString() ==
+            info.startDate.withZoneRetainFields(DateTimeZone.UTC).toString()
+        res.payload.repeatCount == info.repeatCount
+        res.payload.endDate.withZone(DateTimeZone.UTC).toString() ==
+            info.endDate.withZoneRetainFields(DateTimeZone.UTC).toString()
+        res.payload.repeatIntervalInDays == info.repeatIntervalInDays
+        _didSchedule == true
+        res.payload.validate() == true
+
+        when: "update without changing reschedule properties"
+        sMsg = res.payload
+        sMsg.save(flush:true, failOnError:true)
+
+        _didSchedule = false
+        info = [message: "YAAAS"]
+        res = service.setFromBody(sMsg, info)
+
+        then: "success and did not call schedule"
+        res.success == true
+        res.payload instanceof FutureMessage
+        res.payload instanceof SimpleFutureMessage
+        res.payload.message == info.message
+        _didSchedule == false
+
+        when: "update and did change reschedule properties"
+        _didSchedule = false
+        info = [repeatCount: 8]
+        res = service.setFromBody(sMsg, info)
+
+        then: "success and did call schedule"
         res.success == true
         res.payload instanceof FutureMessage
         res.payload.repeatCount == info.repeatCount

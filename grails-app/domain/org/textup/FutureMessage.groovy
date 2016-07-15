@@ -11,8 +11,6 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.quartz.ScheduleBuilder
 import org.quartz.Scheduler
-import org.quartz.SimpleScheduleBuilder
-import org.quartz.SimpleTrigger
 import org.quartz.Trigger
 import org.quartz.TriggerKey
 import org.restapidoc.annotation.*
@@ -27,6 +25,9 @@ class FutureMessage {
     FutureMessageService futureMessageService
     Scheduler quartzScheduler
 
+    String key = UUID.randomUUID().toString()
+    Record record
+
     // In the job, when this message will not be executed again, we manually mark
     // the job as 'done'. We have to rely on this manual bookkeeping because we want
     // to keep our implementation of done-ness agnostic of the Quartz jobstore we
@@ -34,43 +35,80 @@ class FutureMessage {
     // incorporate the information in the scheduler about the done-ness in our db query
     // However, after retrieving this instance, we can double check to see if we
     // were correct by calling the getIsActuallyDone method
+    @RestApiObjectField(
+        description    = "Whether all scheduled firings of this message have completed",
+        mandatory      = false,
+        useForCreation = false,
+        defaultValue   = "true")
     boolean isDone = false
 
+    @RestApiObjectField(
+        description    = "Date this future message was created",
+        allowedType    = "DateTime",
+        useForCreation = false)
 	DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-	String key = UUID.randomUUID().toString()
-	Record record
 
+    @RestApiObjectField(
+        description    = "Date of the first firing. If in the past, the scheduler \
+            will fire this message off as soon as possible.",
+        allowedType    = "DateTime",
+        mandatory      = false,
+        useForCreation = true)
 	DateTime startDate = DateTime.now(DateTimeZone.UTC).plusDays(1)
+
+    @RestApiObjectField(
+        description    = "Date after which to stop repeating",
+        allowedType    = "DateTime",
+        mandatory      = false,
+        useForCreation = true)
+    DateTime endDate
+
+    @RestApiObjectField(
+        description    = "If the all users that have access to this contact should \
+            receive a copy of the message via text when it is sent out.",
+        allowedType    = "Boolean",
+        defaultValue   = "false",
+        mandatory      = false,
+        useForCreation = true)
     boolean notifySelf = false
+
+    @RestApiObjectField(
+        description    = "How the message should be delivered. One of: CALL or TEXT",
+        allowedType    = "String",
+        defaultValue   = "TEXT",
+        mandatory      = true,
+        useForCreation = true)
     FutureMessageType type
-    long repeatIntervalInMillis = TimeUnit.DAYS.toMillis(1)
+
+    @RestApiObjectField(
+        description    = "Contents of the message. Max 320 characters",
+        allowedType    = "String",
+        mandatory      = true,
+        useForCreation = true)
 	String message
 
-	Integer repeatCount
-	DateTime endDate
-
-	static transients = ["trigger", "futureMessageService", "quartzScheduler",
-        "repeatIntervalInDays"]
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName   = "nextFireDate",
+            description    = "Next date the message is set to be fired if not done yet",
+            allowedType    = "DateTime",
+            useForCreation = false)
+    ])
+	static transients = ["trigger", "futureMessageService", "quartzScheduler"]
     static constraints = {
-        repeatIntervalInMillis min:Helpers.toLong(TimeUnit.DAYS.toMillis(1))
         record nullable: false
     	message blank:false, nullable:false, maxSize:(Constants.TEXT_LENGTH * 2)
-		repeatCount nullable:true, validator:{ Integer rNum, FutureMessage msg ->
-			if (rNum == SimpleTrigger.REPEAT_INDEFINITELY && !msg.endDate) {
-				["unboundedNeedsEndDate"]
-			}
-		}
-		endDate nullable:true, validator:{ DateTime end, FutureMessage msg ->
-			if (end && end.isBefore(msg.startDate)) {
-				["endBeforeStart"]
-			}
-		}
+        endDate nullable:true, validator:{ DateTime end, FutureMessage msg ->
+            if (end && end.isBefore(msg.startDate)) {
+                ["endBeforeStart"]
+            }
+        }
     }
     static mapping = {
         key column: 'future_message_key'
     	whenCreated type:PersistentDateTime
     	startDate type:PersistentDateTime
-		endDate type:PersistentDateTime
+        endDate type:PersistentDateTime
     }
 
     // Events
@@ -92,19 +130,15 @@ class FutureMessage {
     // Helper Methods
     // --------------
 
-    protected SimpleScheduleBuilder getScheduleBuilder() {
-        SimpleScheduleBuilder builder = SimpleScheduleBuilder.simpleSchedule()
-        builder.withIntervalInMilliseconds(this.repeatIntervalInMillis)
-        !this.getIsRepeating() ? builder :
-            (this.getWillEndOnDate() ? builder.repeatForever() :
-                builder.withRepeatCount(this.repeatCount))
-    }
     protected TriggerKey getTriggerKey() {
         String recordId = this.record?.id?.toString()
         recordId ? TriggerKey.triggerKey(this.key, recordId) : null
     }
+    protected ScheduleBuilder getScheduleBuilder() {
+        null
+    }
     protected boolean getShouldReschedule() {
-    	["repeatIntervalInMillis", "repeatCount", "endDate"].any(this.&isDirty)
+    	["startDate"].any(this.&isDirty)
     }
 
     // Property Access
@@ -133,23 +167,10 @@ class FutureMessage {
     DateTime getNextFireDate() {
     	this.trigger ? new DateTime(this.trigger.nextFireTime) : null
     }
-    Integer getTimesTriggered() {
-    	(this.trigger instanceof SimpleTrigger) ? this.trigger.getTimesTriggered() : null
-    }
-    boolean getWillEndOnDate() {
-    	!!this.endDate
-    }
     boolean getIsRepeating() {
-    	this.repeatCount || this.endDate
+        false
     }
     boolean getIsReallyDone() {
     	!this.trigger || !this.trigger.mayFireAgain()
-    }
-
-    long getRepeatIntervalInDays() {
-        TimeUnit.MILLISECONDS.toDays(this.repeatIntervalInMillis)
-    }
-    void setRepeatIntervalInDays(long numDays) {
-    	this.repeatIntervalInMillis = TimeUnit.DAYS.toMillis(numDays)
     }
 }

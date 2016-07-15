@@ -80,6 +80,41 @@ class StaffSpec extends CustomSpec {
     	staff2.errors.getFieldErrorCount("username") == 1
     }
 
+    void "test valid username"() {
+        given: "a valid staff"
+        assert s1.validate()
+
+        when:
+        s1.username = null
+
+        then:
+        !s1.validate()
+
+        when:
+        s1.username = ""
+
+        then:
+        !s1.validate()
+
+        when:
+        s1.username = "kiki bai"
+
+        then:
+        !s1.validate()
+
+        when:
+        s1.username = "kiki!!!123--hi"
+
+        then:
+        !s1.validate()
+
+        when:
+        s1.username = "kikiBAI_-=@,.;"
+
+        then:
+        s1.validate()
+    }
+
     void "test converting to author"() {
         given: "a valid unsaved staff"
         Staff unsavedStaff = new Staff(username:"9StAf92", password:"password",

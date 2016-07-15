@@ -33,6 +33,9 @@ class PublicRecordControllerSpec extends CustomSpec {
     }
     def setup() {
         super.setupData()
+        controller.twimlBuilder = [noResponse: { ->
+            new Result(type:ResultType.SUCCESS, success:true, payload:{ Response {} })
+        }] as TwimlBuilder
     }
     def cleanup() {
         super.cleanupData()
@@ -168,14 +171,14 @@ class PublicRecordControllerSpec extends CustomSpec {
         request.method = "POST"
         params.handle = Constants.CALLBACK_STATUS
         params.CallSid = "sid"
-        params.CallStatus = "undelivered"
+        params.CallStatus = Constants.PENDING_STATUSES[0]
         params.CallDuration = 123
         controller.save()
 
         then:
         response.status == SC_OK
         response.contentAsString == buildXml(_closure)
-        _receiptStatus == ReceiptStatus.FAILED
+        _receiptStatus == ReceiptStatus.PENDING
         _apiId == params.CallSid
         _duration == params.CallDuration
     }
