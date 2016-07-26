@@ -123,7 +123,10 @@ class FutureMessageController extends BaseController {
         @RestApiParam(name="contactId", type="Number", required=true,
             paramType=RestApiParamType.QUERY, description="Id of the contact to create for"),
         @RestApiParam(name="tagId", type="Number", required=true,
-            paramType=RestApiParamType.QUERY, description="Id of the tag to create for")
+            paramType=RestApiParamType.QUERY, description="Id of the tag to create for"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key to convert times to,
+            include schedule intervals, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description='''Malformed JSON in request or \
@@ -177,7 +180,10 @@ class FutureMessageController extends BaseController {
     @RestApiMethod(description="Update an existing message")
     @RestApiParams(params=[
         @RestApiParam(name="id", type="Number",
-            paramType=RestApiParamType.PATH, description="Id of the message")
+            paramType=RestApiParamType.PATH, description="Id of the message"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key to convert times to,
+            include schedule intervals, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),

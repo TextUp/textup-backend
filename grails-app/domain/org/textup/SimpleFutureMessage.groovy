@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import java.util.concurrent.TimeUnit
 import java.util.UUID
@@ -20,7 +20,7 @@ import org.textup.types.FutureMessageType
 import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApiObject(name="Simple Future Message", description='''Message to be sent at \
     some point in the future. Can repeat at a regular interval.''')
 class SimpleFutureMessage extends FutureMessage {
@@ -64,10 +64,10 @@ class SimpleFutureMessage extends FutureMessage {
 
     @Override
     protected ScheduleBuilder getScheduleBuilder() {
-    	if (!this.getIsRepeating()) {
-    		return null
-    	}
         SimpleScheduleBuilder builder = SimpleScheduleBuilder.simpleSchedule()
+    	if (!this.getIsRepeating()) {
+    		return builder
+    	}
         builder.withIntervalInMilliseconds(this.repeatIntervalInMillis)
        	super.endDate ?
        		builder.repeatForever() :

@@ -116,6 +116,11 @@ class TagService {
     	if (t1) {
 			t1.isDeleted = true
             if (t1.save()) {
+                // cancel all future messages
+                t1.record.getFutureMessages().each({ FutureMessage fMsg ->
+                    fMsg.cancel()
+                    fMsg.save()
+                })
                 resultFactory.success()
             }
             else { resultFactory.failWithValidationErrors(t1.errors) }

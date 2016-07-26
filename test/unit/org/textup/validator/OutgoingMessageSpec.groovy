@@ -19,6 +19,7 @@ class OutgoingMessageSpec extends CustomSpec {
 	}
 	def setup() {
 		setupData()
+		OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
 	}
 	def cleanup() {
 		cleanupData()
@@ -143,13 +144,13 @@ class OutgoingMessageSpec extends CustomSpec {
 		msg.contacts << c1
 
 		then:
-		msg.name == c1.nameOrNumber
+		msg.name == "outgoingMessage.getName.contactId"
 
 		when: "some tags and some contacts"
 		msg.tags << tag1
 
 		then:
-		msg.name == c1.nameOrNumber
+		msg.name == "outgoingMessage.getName.contactId"
 
 		when: "some tags but no contacts"
 		msg.contacts.clear()

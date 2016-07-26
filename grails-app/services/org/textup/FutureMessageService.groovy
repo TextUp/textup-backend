@@ -28,6 +28,7 @@ class FutureMessageService {
     Scheduler quartzScheduler
     MessageSource messageSource
     TextService textService
+    SocketService socketService
 
 	// Scheduler
 	// ---------
@@ -70,7 +71,7 @@ class FutureMessageService {
             .forJob(FutureMessageJob.class.canonicalName)
             .withIdentity(trigKey)
             .startAt(fMsg.startDate?.toDate())
-            .usingJobData(Constants.JOB_DATA_FUTURE_MESSAGE_KEY, fMsg.key)
+            .usingJobData(Constants.JOB_DATA_FUTURE_MESSAGE_KEY, fMsg.keyName)
             .usingJobData(Constants.JOB_DATA_STAFF_ID, authService.loggedInAndActive?.id)
         if (fMsg.endDate) {
             builder.endAt(fMsg.endDate.toDate())
@@ -87,19 +88,20 @@ class FutureMessageService {
 
     @OptimisticLockingRetry
     Result<FutureMessage> markDone(String futureKey) {
-        FutureMessage fMsg = FutureMessage.findByKey(futureKey)
+        FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
         if (!fMsg) {
             return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "futureMessageService.markDone.messageNotFound", [futureKey])
         }
         fMsg.isDone = true
         if (fMsg.save()) {
+            socketService.sendFutureMessages([fMsg]) // socketService will refresh trigger
             resultFactory.success(fMsg)
         }
         else { resultFactory.failWithValidationErrors(fMsg.errors) }
     }
     ResultList<RecordItem> execute(String futureKey, Long staffId) {
-        FutureMessage fMsg = FutureMessage.findByKey(futureKey)
+        FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
         if (!fMsg) {
             return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "futureMessageService.execute.messageNotFound"))
@@ -111,7 +113,14 @@ class FutureMessageService {
              "futureMessageService.execute.phoneNotFound"))
         }
         Phone p1 = phones[0]
-        ResultList<RecordItem> resList = p1.sendMessage(msg, Staff.get(staffId))
+        // skip owner check on the phone because we may be sending through a shared contact
+        // OR in the future the contact may not longer be shared with this staff member
+        // but any scheduled messages that this staff member initiated should still fire
+        // regardless of present sharing status
+        ResultList<RecordItem> resList = p1.sendMessage(msg, Staff.get(staffId), true)
+        socketService.sendItems(resList.successes.collect { Result<RecordItem> res ->
+            res.payload as RecordItem
+        }).logFail("FutureMessageService.execute: sending items through socket")
         // notify staffs is any successes
         if (fMsg.notifySelf && resList.isAnySuccess) {
             String ident = msg.name
@@ -200,13 +209,13 @@ class FutureMessageService {
             if (body.message) message = body.message
             // optional properties
             if (body.startDate) startDate = Helpers.toDateTimeWithZone(body.startDate, timezone)
-            if (body.endDate) endDate = Helpers.toDateTimeWithZone(body.endDate, timezone)
+            // endDate is nullable!
+            endDate = Helpers.toDateTimeWithZone(body.endDate, timezone)
         }
         if (fMsg.instanceOf(SimpleFutureMessage)) {
             SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage
-            if (body.repeatCount) {
-                sMsg.repeatCount = Helpers.toInteger(body.repeatCount)
-            }
+            // repeat count is nullable!
+            sMsg.repeatCount = Helpers.toInteger(body.repeatCount)
             if (body.repeatIntervalInDays) {
                 sMsg.repeatIntervalInDays = Helpers.toInteger(body.repeatIntervalInDays)
             }
@@ -225,6 +234,7 @@ class FutureMessageService {
             }
             // call save finally here to persist the message
             if (fMsg.save()) {
+                socketService.sendFutureMessages([fMsg]) // socketService will refresh trigger
                 resultFactory.success(fMsg)
             }
             else { resultFactory.failWithValidationErrors(fMsg.errors) }

@@ -3,6 +3,7 @@ package org.textup.rest
 import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
 import grails.transaction.Transactional
+import groovy.transform.TypeCheckingMode
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
@@ -40,64 +41,84 @@ class RecordController extends BaseController {
             paramType=RestApiParamType.QUERY, description="Get all record items \
                 before. We assume is UTC."),
         @RestApiParam(name="contactId", type="Number", required=true,
-            paramType=RestApiParamType.QUERY, description="Id of associated contact")
+            paramType=RestApiParamType.QUERY, description="Id of associated contact"),
+        @RestApiParam(name="tagId", type="Number", required=true,
+            paramType=RestApiParamType.QUERY, description="Id of associated tag")
     ])
     @RestApiResponseObject(objectIdentifier = "RecordCall or RecordText")
     @RestApiErrors(apierrors=[
-        @RestApiError(code="404",description="The specific contact was not found."),
-        @RestApiError(code="400", description="You must specify a contact id."),
+        @RestApiError(code="404",description="The specific contact or tag was not found."),
+        @RestApiError(code="400", description='''You must specify either a contact id or \
+            a tag id but not both.'''),
         @RestApiError(code="403", description="You do not have permission to do this.")
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (params.long("contactId")) {
+        if (!Helpers.exactly(1, ["contactId", "tagId"], params)) {
+            badRequest()
+        }
+        else if (params.long("contactId")) {
             Long cId = params.long("contactId")
             Contact c1 = Contact.get(cId)
-            if (c1) {
-                Contactable cont
-                if (authService.hasPermissionsForContact(cId)) {
-                    cont = c1
-                }
-                else {
-                    Long scId = authService.getSharedContactIdForContact(c1.id)
-                    if (scId) {
-                        cont = SharedContact.get(scId)
-                    }
-                    else { forbidden(); return; }
-                }
-                Closure count, list
-                if (params.since && !params.before) {
-                    DateTime since = Helpers.toUTCDateTime(params.since)
-                    count = { Map params ->
-                        (cont as Contactable).countSince(since)
-                    }
-                    list = { Map params ->
-                        (cont as Contactable).getSince(since, params)
-                    }
-                }
-                else if (params.since && params.before) {
-                    DateTime start = Helpers.toUTCDateTime(params.since),
-                        end = Helpers.toUTCDateTime(params.before)
-                    count = { Map params ->
-                        (cont as Contactable).countBetween(start, end)
-                    }
-                    list = { Map params ->
-                        (cont as Contactable).getBetween(start, end, params)
-                    }
-                }
-                else {
-                    count = { Map params ->
-                        (cont as Contactable).countItems()
-                    }
-                    list = { Map params ->
-                        (cont as Contactable).getItems(params)
-                    }
-                }
-                genericListActionForClosures("record", count, list, params)
+            if (!c1) {
+                return notFound()
             }
-            else { notFound() }
+            Contactable cont
+            if (authService.hasPermissionsForContact(cId)) {
+                cont = c1
+            }
+            else {
+                Long scId = authService.getSharedContactIdForContact(c1.id)
+                if (scId) {
+                    cont = SharedContact.get(scId)
+                }
+                else { return forbidden() }
+            }
+            listForClass(cont, Contactable, params)
         }
-        else { badRequest() }
+        else { // tag id
+            Long ctId = params.long("tagId")
+            ContactTag ct1 = ContactTag.get(ctId)
+            if (!ct1) {
+                return notFound()
+            }
+            if (!authService.hasPermissionsForTag(ctId)) {
+                return forbidden()
+            }
+            listForClass(ct1.record, Record, params)
+        }
+    }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    protected def listForClass(Object obj, Class clazzToCastTo, GrailsParameterMap params) {
+        Closure count, list
+        if (params.since && !params.before) {
+            DateTime since = Helpers.toUTCDateTime(params.since)
+            count = { Map options ->
+                (obj.asType(clazzToCastTo)).countSince(since)
+            }
+            list = { Map options ->
+                (obj.asType(clazzToCastTo)).getSince(since, options)
+            }
+        }
+        else if (params.since && params.before) {
+            DateTime start = Helpers.toUTCDateTime(params.since),
+                end = Helpers.toUTCDateTime(params.before)
+            count = { Map options ->
+                (obj.asType(clazzToCastTo)).countBetween(start, end)
+            }
+            list = { Map options ->
+                (obj.asType(clazzToCastTo)).getBetween(start, end, options)
+            }
+        }
+        else {
+            count = { Map options ->
+                (obj.asType(clazzToCastTo)).countItems()
+            }
+            list = { Map options ->
+                (obj.asType(clazzToCastTo)).getItems(options)
+            }
+        }
+        genericListActionForClosures("record", count, list, params)
     }
 
     // Show

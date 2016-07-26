@@ -101,7 +101,7 @@ class CallRetryFunctionalSpec extends RestSpec {
         when: "first call made fails in the status callback"
         // retrieve the future message key from the future message id
         String jKey = remote.exec({ Long fMsgId ->
-            return FutureMessage.get(fMsgId).key
+            return FutureMessage.get(fMsgId).keyName
         }.curry(response.json["future-message"].id))
         // quartz not started in test environment so we must manually trigger the job
         remote.exec({ String jobKey, Long staffId ->

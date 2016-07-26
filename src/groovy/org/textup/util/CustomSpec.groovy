@@ -1,6 +1,8 @@
 package org.textup.util
 
 import grails.converters.JSON
+import org.quartz.Scheduler
+import org.quartz.TriggerKey
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.types.OrgStatus
@@ -92,6 +94,9 @@ class CustomSpec extends Specification {
         [getMessage:{ String c, Object[] p, Locale l ->
             c
         }] as MessageSource
+    }
+    protected Scheduler mockScheduler() {
+        [getTrigger: { TriggerKey key -> null }] as Scheduler
     }
 
     // Setup data

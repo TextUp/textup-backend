@@ -115,6 +115,8 @@ class ContactTagSpec extends CustomSpec {
         t1.getMembersByStatus([ContactStatus.UNREAD]).size() == 0
 
         when: "we remove the contact from tag"
+        t1.refresh()
+        c1.refresh()
         t1.removeFromMembers(c1)
         t1.save(flush:true, failOnError:true)
 

@@ -322,21 +322,26 @@ class TwimlBuilder {
                 break
             case CallResponse.DIRECT_MESSAGE:
                 if (params.message instanceof String) {
-                    Map linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:params.message]
+                    int repeatCount = Helpers.toInteger(params.repeatCount) ?: 0
+                    Map linkParams = [handle:CallResponse.DIRECT_MESSAGE,
+                        message:params.message, repeatCount:repeatCount + 1]
                     if (params.identifier) linkParams.identifier = params.identifier
 
-                    String ident = params.identifier ?
-                            Helpers.toString(params.identifier) : null,
-                        messageIntro = ident ?
-                            getMessage("twimlBuilder.call.messageIntro", [ident]) :
-                            getMessage("twimlBuilder.call.anonymousMessageIntro"),
-                        repeatWebhook = getLink(linkParams)
-                    callBody = {
-                        Say(messageIntro)
-                        Pause(length:"1")
-                        Say(params.message)
-                        Redirect(repeatWebhook)
+                    if (repeatCount < Constants.MAX_REPEATS) {
+                        String ident = params.identifier ?
+                                Helpers.toString(params.identifier) : null,
+                            messageIntro = ident ?
+                                getMessage("twimlBuilder.call.messageIntro", [ident]) :
+                                getMessage("twimlBuilder.call.anonymousMessageIntro"),
+                            repeatWebhook = getLink(linkParams)
+                        callBody = {
+                            Say(messageIntro)
+                            Pause(length:"1")
+                            Say(params.message)
+                            Redirect(repeatWebhook)
+                        }
                     }
+                    else { callBody = { Hangup() } }
                 }
                 break
             case CallResponse.UNSUBSCRIBED:

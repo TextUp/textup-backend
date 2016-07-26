@@ -5,6 +5,7 @@ import grails.compiler.GrailsCompileStatic
 @GrailsCompileStatic
 class Constants {
 
+	static final int MAX_REPEATS = 20
 	static final int TEXT_LENGTH = 160
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
 
@@ -37,9 +38,10 @@ class Constants {
 	// Socket events
 	// -------------
 
-	static final String SOCKET_EVENT_RECORDS = "records"
-	static final String SOCKET_EVENT_RECORD_STATUSES = "recordStatuses"
 	static final String SOCKET_EVENT_CONTACTS = "contacts"
+	static final String SOCKET_EVENT_FUTURE_MESSAGES = "futureMessages"
+	static final String SOCKET_EVENT_RECORD_STATUSES = "recordStatuses"
+	static final String SOCKET_EVENT_RECORDS = "records"
 
 	// Quartz jobs
 	// -----------

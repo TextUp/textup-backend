@@ -45,17 +45,58 @@ class RecordControllerSpec extends CustomSpec {
         then:
         response.status == SC_BAD_REQUEST
     }
+    void "test list with both contact and tag id"() {
+        when:
+        request.method = "GET"
+        params.contactId = 2L
+        params.tagId = 8L
+        controller.index()
 
-    void "test list with contact id and no dates"() {
+        then:
+        response.status == SC_BAD_REQUEST
+    }
+    void "test list with nonexistent contact id"() {
+        when:
+        request.method = "GET"
+        params.contactId = -888L
+        controller.index()
+
+        then:
+        response.status == SC_NOT_FOUND
+    }
+    void "test list with forbidden contact id that is shared with me"() {
         given:
         controller.authService = [
-            hasPermissionsForContact:{ Long id -> true },
+            hasPermissionsForContact:{ Long id -> false },
+            getSharedContactIdForContact:{ Long cId -> null }
         ] as AuthService
 
         when:
         request.method = "GET"
-        params.contactId = c1.id
+        params.contactId = 2L
         controller.index()
+
+        then:
+        response.status == SC_FORBIDDEN
+    }
+    void "test list with forbidden tag id"() {
+        controller.authService = [
+            hasPermissionsForTag:{ Long id -> false }
+        ] as AuthService
+
+        when:
+        request.method = "GET"
+        params.tagId = tag1.id
+        controller.index()
+
+        then:
+        response.status == SC_FORBIDDEN
+    }
+
+    void "test list with no dates"() {
+        when:
+        request.method = "GET"
+        controller.listForClass(c1, Contact, params)
         List<Long> ids = Helpers.allToLong(c1.items*.id)
 
         then:
@@ -64,37 +105,12 @@ class RecordControllerSpec extends CustomSpec {
         response.json*.id.every { ids.contains(it as Long) }
     }
 
-    void "test list with for shared contact id and no dates"() {
-        given:
-        controller.authService = [
-            hasPermissionsForContact:{ Long id -> false },
-            getSharedContactIdForContact:{ Long cId -> sc1.id }
-        ] as AuthService
-
-        when:
-        request.method = "GET"
-        params.contactId = c2.id
-        controller.index()
-        List<Long> ids = Helpers.allToLong(sc1.items*.id)
-
-        then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
-    }
-
-    void "test list with contact id for date since"() {
-        given:
-        controller.authService = [
-            hasPermissionsForContact:{ Long id -> true },
-        ] as AuthService
-
+    void "test list with date since"() {
         when:
         DateTime since = DateTime.now().minusDays(1)
         request.method = "GET"
-        params.contactId = c1.id
         params.since = since.toDate()
-        controller.index()
+        controller.listForClass(c1, Contact, params)
         List<Long> ids = Helpers.allToLong(c1.getSince(since)*.id)
 
         then:
@@ -103,20 +119,14 @@ class RecordControllerSpec extends CustomSpec {
         response.json*.id.every { ids.contains(it as Long) }
     }
 
-    void "test list with contact id for date between"() {
-        given:
-        controller.authService = [
-            hasPermissionsForContact:{ Long id -> true },
-        ] as AuthService
-
+    void "test list with date between"() {
         when:
         DateTime since = DateTime.now().minusDays(1)
         DateTime before = DateTime.now().minusHours(1)
         request.method = "GET"
-        params.contactId = c1.id
         params.since = since.toDate()
         params.before = before.toDate()
-        controller.index()
+        controller.listForClass(c1, Contact, params)
         List<Long> ids = Helpers.allToLong(c1.getBetween(since, before)*.id)
 
         then:

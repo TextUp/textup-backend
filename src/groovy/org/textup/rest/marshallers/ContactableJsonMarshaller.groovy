@@ -33,6 +33,7 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
             ?.collect { ContactNumber num ->
                 [number:num.prettyPhoneNumber]
             } ?: []
+        json.futureMessages = c1.getFutureMessages()
         // add fields specific to Contacts or SharedContacts
         if (c1.instanceOf(Contact)) {
             Contact contact = c1 as Contact

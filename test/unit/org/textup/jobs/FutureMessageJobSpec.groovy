@@ -59,19 +59,19 @@ class FutureMessageJobSpec extends Specification {
     }
 
     void "test mark done"() {
-    	when: "execution does not succeed"
-    	boolean triggerWillFireAgain = true
+    	when: "execution does not succeed but will not fire again"
+    	boolean triggerWillFireAgain = false
     	_shouldExecuteSuccessfully = false
-    	_didMarkDone == false
+    	_didMarkDone = false
     	job.execute(buildJobContext(triggerWillFireAgain))
 
-    	then: "don't mark done"
-    	_didMarkDone == false
+    	then: "mark done regardless of execution success"
+    	_didMarkDone == true
 
     	when: "execution succeeds but trigger may still fire again"
     	triggerWillFireAgain = true
     	_shouldExecuteSuccessfully = true
-    	_didMarkDone == false
+    	_didMarkDone = false
     	job.execute(buildJobContext(triggerWillFireAgain))
 
     	then: "don't mark done"
@@ -80,7 +80,7 @@ class FutureMessageJobSpec extends Specification {
     	when: "execution succeeds and trigger will not fire again"
     	triggerWillFireAgain = false
     	_shouldExecuteSuccessfully = true
-    	_didMarkDone == false
+    	_didMarkDone = false
     	job.execute(buildJobContext(triggerWillFireAgain))
 
     	then: "mark done"

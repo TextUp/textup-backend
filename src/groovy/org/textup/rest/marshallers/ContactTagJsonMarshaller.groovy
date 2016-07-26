@@ -20,6 +20,8 @@ class ContactTagJsonMarshaller extends JsonNamedMarshaller {
             hexColor = ct.hexColor
             lastRecordActivity = ct.record.lastRecordActivity
             numMembers = ct.getMembersByStatus([ContactStatus.ACTIVE, ContactStatus.UNREAD]).size()
+            futureMessages = ct.record.getFutureMessages()
+            phone = ct.phone.id
         }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"tag", action:"show", id:ct.id, absolute:false)]

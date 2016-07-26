@@ -15,7 +15,7 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 
 @Log4j
-@EqualsAndHashCode(includes=["phone", "record", "id"])
+@EqualsAndHashCode
 @RestApiObject(name="Contact", description="A contact")
 class Contact implements Contactable {
 

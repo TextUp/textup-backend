@@ -18,7 +18,6 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             id = item.id
             whenCreated = item.whenCreated
             outgoing = item.outgoing
-            contact = Contact.findByRecord(item.record)?.id //contact owner id
             hasAwayMessage = item.hasAwayMessage
             isAnnouncement = item.isAnnouncement
             if (item.authorName) {
@@ -53,6 +52,11 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 receivedBy:r.receivedBy.e164PhoneNumber
             ]
         } ?: []
+        // find owner, may be a contact or a tag
+        json.contact = Contact.findByRecord(item.record)?.id
+        if (!json.contact) {
+            json.tag = ContactTag.findByRecord(item.record)?.id
+        }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"record", action:"show", id:item.id, absolute:false)]
         json

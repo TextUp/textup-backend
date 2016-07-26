@@ -35,6 +35,8 @@ class PhoneSpec extends CustomSpec {
 
     def setup() {
     	setupData()
+
+        OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
     }
 
     def cleanup() {

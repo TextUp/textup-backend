@@ -75,6 +75,8 @@ class PhoneServiceSpec extends CustomSpec {
             new Result(type:ResultType.SUCCESS, success:true, payload:code)
         }] as TwimlBuilder
         service.authService = [getIsActive: { true }] as AuthService
+
+        OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
     }
 
     def cleanup() {

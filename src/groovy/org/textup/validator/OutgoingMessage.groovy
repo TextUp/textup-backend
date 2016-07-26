@@ -1,13 +1,15 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import org.springframework.context.i18n.LocaleContextHolder as LCH
+import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.types.RecordItemType
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
 class OutgoingMessage {
@@ -95,8 +97,12 @@ class OutgoingMessage {
 	}
 
 	String getName() {
-        (this.contacts?.find { Contact c1 -> c1.getNameOrNumber() }?.getNameOrNumber()) ?:
-        	(this.tags?.find { ContactTag ct1 -> ct1.name }?.name ?: "")
+		Long id = this.contacts?.find { Contact c1 -> c1.id }?.id
+		if (id) { // don't return contact name, instead id, for PHI
+			getMessageSource()?.getMessage("outgoingMessage.getName.contactId",
+            	[id] as Object[], LCH.getLocale()) ?: ""
+		}
+		else { this.tags?.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
     }
 	boolean getIsText() {
 		this.type == RecordItemType.TEXT
@@ -111,5 +117,11 @@ class OutgoingMessage {
 		this.tags.each { ContactTag ct1 -> phones.add(ct1.phone) }
 
 		phones
+	}
+
+	protected MessageSource getMessageSource() {
+		Holders
+			.applicationContext
+			.getBean('messageSource') as MessageSource
 	}
 }

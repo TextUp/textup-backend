@@ -501,8 +501,9 @@ class TwimlBuilderSpec extends CustomSpec {
         res.payload.code == "twimlBuilder.invalidCode"
 
         when: "direct messsage only message, no identifier"
-        Map linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message]
-        res = builder.build(CallResponse.DIRECT_MESSAGE, [message: message])
+        Map linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message, repeatCount:2]
+        res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
+        linkParams.repeatCount++
 
         then:
         res.success == true
@@ -516,9 +517,10 @@ class TwimlBuilderSpec extends CustomSpec {
         })
 
         when: "direct message both message and identifier"
-        linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message, identifier:identifier]
-        res = builder.build(CallResponse.DIRECT_MESSAGE,
-            [message: message, identifier:identifier])
+        linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message, repeatCount:2,
+            identifier:identifier]
+        res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
+        linkParams.repeatCount++
 
         then:
         res.success == true
@@ -528,6 +530,19 @@ class TwimlBuilderSpec extends CustomSpec {
                 Pause(length:"1")
                 Say(message)
                 Redirect(linkParams.toString())
+            }
+        })
+
+        when: "exceeded repeat maximum"
+        linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message,
+            repeatCount:Constants.MAX_REPEATS, identifier:identifier]
+        res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Hangup()
             }
         })
     }

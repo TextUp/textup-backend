@@ -1,6 +1,7 @@
 package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
+import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.springframework.security.access.annotation.Secured
@@ -31,6 +32,9 @@ class PublicRecordController extends BaseController {
     def save() {
         callbackService.validate(request, params).then({ ->
             if (params.handle == Constants.CALLBACK_STATUS) {
+                // first wait for 2 seconds to allow for the receipts to be saved
+                TimeUnit.SECONDS.sleep(2)
+                // then continue handling status
                 String apiId = params.CallSid ?: params.MessageSid
                 ReceiptStatus status = params.CallStatus ?
                     ReceiptStatus.translate(params.CallStatus as String) :

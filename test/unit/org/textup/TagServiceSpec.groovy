@@ -7,6 +7,7 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
+import org.textup.types.FutureMessageType
 import org.textup.types.ResultType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
@@ -15,7 +16,8 @@ import static org.springframework.http.HttpStatus.*
 @TestFor(TagService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
+    FutureMessage, SimpleFutureMessage])
 @TestMixin(HibernateTestMixin)
 class TagServiceSpec extends CustomSpec {
 
@@ -23,9 +25,17 @@ class TagServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
+    int _cancelCalled = 0
+
     def setup() {
         super.setupData()
         service.resultFactory = getResultFactory()
+
+        FutureMessage.metaClass.refreshTrigger = { -> null }
+        FutureMessage.metaClass.doUnschedule = { ->
+            _cancelCalled++
+            new Result(success:true)
+        }
     }
 
     def cleanup() {
@@ -235,5 +245,24 @@ class TagServiceSpec extends CustomSpec {
     	then:
         teTag1.phone.tags.contains(teTag1) == false
         teTag1.members.every { !it.tags.contains(teTag1) }
+    }
+
+    void "test delete for tag with future messages"() {
+        given:
+        FutureMessage fMsg1 = new FutureMessage(record:tag1.record,
+            type:FutureMessageType.CALL, message:"hi")
+        fMsg1.save(flush:true, failOnError:true)
+
+        int numFutureMsgs = tag1.record.countFutureMessages()
+
+        when: "deleting"
+        _cancelCalled = 0
+        Result res = service.delete(tag1.id)
+        assert res.success
+        tag1.save(flush:true, failOnError:true)
+
+        then: "tag marked as deleted and all future messages cancelled"
+        tag1.isDeleted == true
+        _cancelCalled == numFutureMsgs
     }
 }

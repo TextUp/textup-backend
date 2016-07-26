@@ -30,31 +30,18 @@ class SocketServiceIntegrationSpec extends CustomSpec {
     	cleanupIntegrationData()
     }
 
-	@DirtiesRuntime
-    void "test sending items"() {
-    	when:
-    	ResultList<Staff> resList = socketService.sendItems([rText1])
-
-    	then:
-    	resList.results.size() == 1
-    	resList.results[0].payload.staff == s1
-    	resList.results[0].payload.eventName == Constants.SOCKET_EVENT_RECORDS
-    	resList.results[0].payload.data instanceof List
-    	resList.results[0].payload.data.size() == 1
-    	resList.results[0].payload.data[0].id == rText1.id
-    }
-
     @DirtiesRuntime
-    void "test sending contacts"() {
-    	when:
-    	ResultList<Staff> resList = socketService.sendContacts([c1])
+    void "test sending generic object with record"() {
+        when:
+        String eventName = "Ting Ting"
+        ResultList<Staff> resList = socketService.send([c1.record], [c1], eventName)
 
-    	then:
-    	resList.results.size() == 1
-    	resList.results[0].payload.staff == s1
-    	resList.results[0].payload.eventName == Constants.SOCKET_EVENT_CONTACTS
-    	resList.results[0].payload.data instanceof List
-    	resList.results[0].payload.data.size() == 1
-    	resList.results[0].payload.data[0].id == c1.id
+        then:
+        resList.results.size() == 1
+        resList.results[0].payload.staff == s1
+        resList.results[0].payload.eventName == eventName
+        resList.results[0].payload.data instanceof List
+        resList.results[0].payload.data.size() == 1
+        resList.results[0].payload.data[0].id == c1.id
     }
 }

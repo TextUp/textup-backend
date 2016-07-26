@@ -27,6 +27,11 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         c1.numbers?.each { ContactNumber num ->
             assert json.numbers.find { it.number == num.prettyPhoneNumber }
         }
+        assert json.futureMessages instanceof List
+        assert json.futureMessages.size() == (c1.futureMessages ? c1.futureMessages.size() : 0)
+        c1.futureMessages?.each { FutureMessage fMsg ->
+            assert json.futureMessages.find { it.id == fMsg.id }
+        }
         true
     }
 

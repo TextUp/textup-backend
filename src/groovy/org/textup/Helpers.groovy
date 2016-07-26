@@ -131,6 +131,7 @@ class Helpers {
     // ---------------------
 
     static DateTime toDateTimeWithZone(def time, def zone = null) {
+        if (!time) return null
         new DateTime(toString(time))
             .withZoneRetainFields(getZoneFromId(zone as String))
     }

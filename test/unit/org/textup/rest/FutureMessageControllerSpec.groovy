@@ -33,6 +33,7 @@ class FutureMessageControllerSpec extends CustomSpec {
         JodaConverters.registerJsonAndXmlMarshallers()
         fMsg1 = new FutureMessage(record: c1.record, type:FutureMessageType.CALL,
         	message:"hi")
+        fMsg1.quartzScheduler = mockScheduler()
         fMsg1.save(flush:true, failOnError:true)
     }
     def cleanup() {

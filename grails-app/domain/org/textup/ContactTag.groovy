@@ -54,6 +54,7 @@ class ContactTag {
             if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
         }
     }
+    static mappedBy = [members: "none"] // members is a unidirectional association
     static mapping = {
         members lazy:false, cascade:"save-update"
     }

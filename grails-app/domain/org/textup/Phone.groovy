@@ -421,7 +421,9 @@ class Phone {
     // Outgoing
     // --------
 
-    ResultList<RecordItem> sendMessage(OutgoingMessage msg, Staff staff = null) {
+    ResultList<RecordItem> sendMessage(OutgoingMessage msg, Staff staff = null,
+        boolean skipOwnerCheck = false) {
+
         if (!this.isActive) {
             return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 'phone.isInactive'))
@@ -431,7 +433,7 @@ class Phone {
             return new ResultList(resultFactory.failWithValidationErrors(msg.errors))
         }
         // validate staff
-        else if (!this.owner.all.contains(staff)) {
+        else if (!skipOwnerCheck && !this.owner.all.contains(staff)) {
             return new ResultList(resultFactory.failWithMessageAndStatus(FORBIDDEN,
                 'phone.notOwner'))
         }

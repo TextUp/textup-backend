@@ -4,6 +4,7 @@ dataSource {
     // logSql = true
 }
 hibernate {
+    // format_sql = true
     charSet = 'utf8mb4'
     characterEncoding='utf8mb4'
     useUnicode=true

@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import java.util.concurrent.TimeUnit
 import java.util.UUID
@@ -11,6 +11,7 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.quartz.ScheduleBuilder
 import org.quartz.Scheduler
+import org.quartz.SimpleScheduleBuilder
 import org.quartz.Trigger
 import org.quartz.TriggerKey
 import org.restapidoc.annotation.*
@@ -18,14 +19,14 @@ import org.textup.types.FutureMessageType
 import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
-@GrailsCompileStatic
+@GrailsTypeChecked
 class FutureMessage {
 
     Trigger trigger
     FutureMessageService futureMessageService
     Scheduler quartzScheduler
 
-    String key = UUID.randomUUID().toString()
+    String keyName = UUID.randomUUID().toString()
     Record record
 
     // In the job, when this message will not be executed again, we manually mark
@@ -96,8 +97,7 @@ class FutureMessage {
     ])
 	static transients = ["trigger", "futureMessageService", "quartzScheduler"]
     static constraints = {
-        record nullable: false
-    	message blank:false, nullable:false, maxSize:(Constants.TEXT_LENGTH * 2)
+        message blank:false, nullable:false, maxSize:(Constants.TEXT_LENGTH * 2)
         endDate nullable:true, validator:{ DateTime end, FutureMessage msg ->
             if (end && end.isBefore(msg.startDate)) {
                 ["endBeforeStart"]
@@ -105,17 +105,23 @@ class FutureMessage {
         }
     }
     static mapping = {
-        key column: 'future_message_key'
-    	whenCreated type:PersistentDateTime
-    	startDate type:PersistentDateTime
+        whenCreated type:PersistentDateTime
+        startDate type:PersistentDateTime
         endDate type:PersistentDateTime
     }
 
     // Events
     // ------
 
+
+    def afterInsert() {
+        refreshTrigger()
+    }
+    def afterUpdate() {
+        refreshTrigger()
+    }
     def afterLoad() {
-    	this.trigger = quartzScheduler.getTrigger(this.triggerKey)
+    	refreshTrigger()
     }
 
     // Methods
@@ -123,19 +129,26 @@ class FutureMessage {
 
     Result cancel() {
         this.isDone = true
-        futureMessageService.unschedule(this)
-            .logFail("FutureMessage.cancel")
+        doUnschedule()
+
     }
 
     // Helper Methods
     // --------------
 
+    protected Result doUnschedule() {
+        futureMessageService.unschedule(this)
+            .logFail("FutureMessage.cancel")
+    }
+    protected void refreshTrigger() {
+        this.trigger = quartzScheduler.getTrigger(this.triggerKey)
+    }
     protected TriggerKey getTriggerKey() {
         String recordId = this.record?.id?.toString()
-        recordId ? TriggerKey.triggerKey(this.key, recordId) : null
+        recordId ? TriggerKey.triggerKey(this.keyName, recordId) : null
     }
     protected ScheduleBuilder getScheduleBuilder() {
-        null
+        SimpleScheduleBuilder.simpleSchedule() // no repeat
     }
     protected boolean getShouldReschedule() {
     	["startDate"].any(this.&isDirty)

@@ -49,6 +49,25 @@ class FutureMessageServiceSpec extends CustomSpec {
                 payload: new TempRecordReceipt(apiId:_apiId,
                     receivedByAsString:toNums[0].number))
         }] as TextService
+        service.socketService = [
+            sendItems:{ List<RecordItem> items,
+                String eventName=Constants.SOCKET_EVENT_RECORDS ->
+                new ResultList(new Result(success:true))
+            },
+            sendFutureMessages: { List<FutureMessage> fMsgs,
+                String eventName=Constants.SOCKET_EVENT_FUTURE_MESSAGES ->
+                new ResultList(new Result(success:true))
+            }
+        ] as SocketService
+
+        FutureMessage.metaClass.refreshTrigger = { -> null }
+        SimpleFutureMessage.metaClass.constructor = { Map m->
+            def instance = new SimpleFutureMessage()
+            instance.properties = m
+            instance.quartzScheduler = mockScheduler()
+            instance
+        }
+        OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
 
     	fMsg1 = new FutureMessage(record:c1.record, type:FutureMessageType.CALL,
     		message:"hi")
@@ -63,7 +82,7 @@ class FutureMessageServiceSpec extends CustomSpec {
     // ------------------
 
     void "test mark done"() {
-    	when: "passed in a nonexistent key"
+    	when: "passed in a nonexistent keyName"
     	Result<FutureMessage> res = service.markDone("nonexistent")
 
     	then: "not found"
@@ -72,24 +91,23 @@ class FutureMessageServiceSpec extends CustomSpec {
     	res.payload.status == NOT_FOUND
     	res.payload.code == "futureMessageService.markDone.messageNotFound"
 
-    	when: "passed in an existing key"
+    	when: "passed in an existing keyName"
     	assert fMsg1.isDone == false
-    	res = service.markDone(fMsg1.key)
+    	res = service.markDone(fMsg1.keyName)
 
     	then:
     	res.success == true
     	res.payload instanceof FutureMessage
-    	res.payload.key == fMsg1.key
+    	res.payload.keyName == fMsg1.keyName
     	res.payload.isDone == true
     }
     void "test notify staff"() {
         when:
         _numTextsSent = 0
         String phoneName = "phoneName"
-        String identifier = "id"
         String message = "hi"
-        Result res = service.notifyStaff(s1, p1, phoneName,
-            identifier, message)
+        String identifier = "id"
+        Result res = service.notifyStaff(s1, p1, phoneName, identifier, message)
 
         then:
         res.success == true
@@ -99,13 +117,14 @@ class FutureMessageServiceSpec extends CustomSpec {
     }
     void "test execute"() {
         given:
-        Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff = null ->
+        Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff = null,
+            boolean skipCheck = false ->
             new ResultList(new Result(success:true))
         }
         Phone.metaClass.getPhonesToAvailableNowForContactIds =
             { Collection<Long> cIds -> [(p1):[s1, s2]] }
 
-    	when: "nonexistent key"
+    	when: "nonexistent keyName"
         _numTextsSent = 0
         ResultList resList = service.execute("nonexistent", s1.id)
 
@@ -117,7 +136,7 @@ class FutureMessageServiceSpec extends CustomSpec {
     	when: "existing message with notify staff"
         fMsg1.notifySelf = true
         fMsg1.save(flush:true, failOnError:true)
-        resList = service.execute(fMsg1.key, s1.id)
+        resList = service.execute(fMsg1.keyName, s1.id)
 
     	then:
         _numTextsSent == 2
@@ -237,15 +256,36 @@ class FutureMessageServiceSpec extends CustomSpec {
         sMsg.save(flush:true, failOnError:true)
 
         _didSchedule = false
-        info = [message: "YAAAS"]
+        info = [
+            message: "YAAAS",
+            repeatCount: info.repeatCount,
+            endDate: info.endDate,
+        ]
         res = service.setFromBody(sMsg, info)
 
-        then: "success and did not call schedule"
+        then: "success and did not call reschedule"
         res.success == true
         res.payload instanceof FutureMessage
         res.payload instanceof SimpleFutureMessage
         res.payload.message == info.message
         _didSchedule == false
+
+        when: "update and null both repeatCount and endDate"
+        sMsg = res.payload
+        sMsg.save(flush:true, failOnError:true)
+
+        _didSchedule = false
+        info = [message: "YAAAS"]
+        res = service.setFromBody(sMsg, info)
+
+        then: "success and DID call reschedule because repeatCount and endDate both nulled"
+        res.success == true
+        res.payload instanceof FutureMessage
+        res.payload instanceof SimpleFutureMessage
+        res.payload.message == info.message
+        res.payload.repeatCount == null
+        res.payload.endDate == null
+        _didSchedule == true
 
         when: "update and did change reschedule properties"
         _didSchedule = false

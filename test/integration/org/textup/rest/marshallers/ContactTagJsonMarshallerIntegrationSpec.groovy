@@ -1,7 +1,8 @@
 package org.textup.rest.marshallers
 
-import org.textup.util.CustomSpec
 import grails.converters.JSON
+import org.textup.*
+import org.textup.util.CustomSpec
 
 class ContactTagJsonMarshallerIntegrationSpec extends CustomSpec {
 
@@ -27,5 +28,11 @@ class ContactTagJsonMarshallerIntegrationSpec extends CustomSpec {
     	json.name == tag1.name
     	json.hexColor == tag1.hexColor
     	json.lastRecordActivity == tag1.record.lastRecordActivity.toString()
+        json.futureMessages instanceof List
+        json.futureMessages.size() == (tag1.record.futureMessages ?
+            tag1.record.futureMessages.size() : 0)
+        tag1.record.futureMessages?.every { FutureMessage fMsg ->
+            json.futureMessages.any { it.id == fMsg.id }
+        }
     }
 }

@@ -28,6 +28,13 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.contact == Contact.findByRecord(item.record).id
         assert json.hasAwayMessage == item.hasAwayMessage
         assert json.isAnnouncement == item.isAnnouncement
+        assert json.contact != null || json.tag != null
+        if (json.contact) {
+            assert Contact.exists(json.contact)
+        }
+        else if (json.tag) {
+            assert ContactTag.exists(json.tag)
+        }
         true
     }
 

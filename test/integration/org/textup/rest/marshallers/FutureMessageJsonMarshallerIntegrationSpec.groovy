@@ -26,9 +26,17 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.type == fMsg.type.toString()
         assert json.message == fMsg.message
         assert json.isDone == fMsg.isReallyDone
+        assert json.isRepeating == fMsg.isRepeating
         // always will be null because we aren't actually scheduling
         assert json.timesTriggered == null
         assert json.nextFireDate == null
+        assert json.contact != null || json.tag != null
+        if (json.contact) {
+            assert Contact.exists(json.contact)
+        }
+        else if (json.tag) {
+            assert ContactTag.exists(json.tag)
+        }
         true
     }
 
@@ -47,6 +55,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         then:
         validate(json, fMsg)
         json.endDate == null
+        json.hasEndDate == null
         json.nextFireDate == null
     }
 
@@ -68,6 +77,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         validate(json, sMsg)
         json.repeatIntervalInDays == sMsg.repeatIntervalInDays
         json.endDate == null
+        json.hasEndDate == false
         json.repeatCount == sMsg.repeatCount
 
         when: "we make this message repeating via endDate then marshal"
@@ -82,6 +92,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         validate(json, sMsg)
         json.repeatIntervalInDays == sMsg.repeatIntervalInDays
         json.endDate == sMsg.endDate.toString()
+        json.hasEndDate == true
         json.repeatCount == null
     }
 }
