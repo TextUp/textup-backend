@@ -3,6 +3,7 @@ package org.textup.rest
 import grails.plugins.rest.client.RestResponse
 import org.textup.types.OrgStatus
 import org.textup.types.StaffStatus
+import org.textup.Constants
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 import org.textup.validator.EmailEntity
@@ -33,6 +34,7 @@ class SignupFunctionalSpec extends RestSpec {
         String n = "Kiki Bai"
         String em = "kiki@kiki.com"
         String un = "specialstaff123${iterationCount}"
+        String code = Constants.DEFAULT_LOCK_CODE
         String pwd = "password"
         String orgN = "Kiki's Organization"
         String add = "1234 Kiki Road"
@@ -45,6 +47,7 @@ class SignupFunctionalSpec extends RestSpec {
                     email = em
                     username = un
                     password = pwd
+                    lockCode = code
                     org {
                         name = orgN
                         location {
@@ -128,6 +131,7 @@ class SignupFunctionalSpec extends RestSpec {
         String em = "kiki@kiki.com"
         String un = "specialstaff123${iterationCount}"
         String pwd = "password"
+        String code = Constants.DEFAULT_LOCK_CODE
         Map existingOrg = response.json.organizations.find { it.id != null }
         response = rest.post("$baseUrl/v1/public/staff") {
             contentType("application/json")
@@ -137,6 +141,7 @@ class SignupFunctionalSpec extends RestSpec {
                     email = em
                     username = un
                     password = pwd
+                    lockCode = code
                     org {
                         id = existingOrg.id
                     }

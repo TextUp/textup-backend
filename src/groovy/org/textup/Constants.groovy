@@ -9,6 +9,12 @@ class Constants {
 	static final int TEXT_LENGTH = 160
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
 
+	// Lock code
+	// ---------
+
+	static final int LOCK_CODE_LENGTH = 4
+	static final String DEFAULT_LOCK_CODE = "8888"
+
 	// Schedule
 	// --------
 

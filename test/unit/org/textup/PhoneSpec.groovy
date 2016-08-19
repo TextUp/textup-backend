@@ -204,7 +204,8 @@ class PhoneSpec extends CustomSpec {
 
         Staff noPhoneStaff = new Staff(username:"888-8sta$iterationCount",
             password:"password", name:"Staff", email:"staff@textup.org",
-            org:org, personalPhoneAsString:"1112223333", status: StaffStatus.STAFF)
+            org:org, personalPhoneAsString:"1112223333", status: StaffStatus.STAFF,
+            lockCode:Constants.DEFAULT_LOCK_CODE)
         noPhoneStaff.save(flush:true, failOnError:true)
 
         when: "transferring to a nonexistent entity"

@@ -76,7 +76,8 @@ class TeamSpec extends CustomSpec {
 			staffMembers = (1..numTotal).collect {
 				new Staff(username:"tstaff$it", password:"password",
 					name:"Staff", email:"staff@textup.org", org:org,
-					personalPhoneAsString:"1112223333")
+					personalPhoneAsString:"1112223333",
+                    lockCode:Constants.DEFAULT_LOCK_CODE)
 			}
 		staffMembers[0..(numPending - 1)].each { Staff s ->
 			s.status = StaffStatus.PENDING

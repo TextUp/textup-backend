@@ -11,6 +11,9 @@ class UrlMappings {
         "/"(controller:"doc", action:"displayDoc")
         "500"(view:'/error')
 
+        // validate both login credentials and lock codes
+        "/validate"(resources:"validate") { format = "json" }
+
         //password reset option. index and delete not allowed
         "/reset"(controller:"passwordReset", action:"index", method:"GET") { format = "json" }
         "/reset"(controller:"passwordReset", action:"delete", method:"DELETE") { format = "json" }

@@ -171,7 +171,7 @@ class StaffControllerSpec extends CustomSpec {
 
     void "test save"() {
         given:
-        controller.staffService = [create:{ Map body ->
+        controller.staffService = [create:{ Map body, String timezone ->
             new Result(payload:s1)
         }, addRoleToStaff: { Long sId ->
             new Result(payload:s1)

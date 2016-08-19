@@ -76,7 +76,7 @@ class StaffServiceSpec extends CustomSpec {
 
     	when: "we create a staff member with invalid fields"
         Map createInfo = [:]
-        Result res = service.create(createInfo)
+        Result res = service.create(createInfo, null)
 
     	then:
         res.success == false
@@ -96,12 +96,13 @@ class StaffServiceSpec extends CustomSpec {
             password:"password",
             name:"Staff1",
             email:"staff@textup.org",
+            lockCode: Constants.DEFAULT_LOCK_CODE,
             personalPhoneNumber:"12223334444",
             org:[
                 id:-88L
             ]
         ]
-        res = service.create(createInfo)
+        res = service.create(createInfo, null)
 
     	then:
         res.success == false
@@ -122,6 +123,7 @@ class StaffServiceSpec extends CustomSpec {
             name:"Staff1",
             email:"staff@textup.org",
             personalPhoneNumber:"12223334444",
+            lockCode: Constants.DEFAULT_LOCK_CODE,
             org:[
                 name:"I am a new org",
                 location:[
@@ -131,7 +133,7 @@ class StaffServiceSpec extends CustomSpec {
                 ]
             ]
         ]
-        res = service.create(createInfo)
+        res = service.create(createInfo, null)
 
     	then:
         res.success == false
@@ -152,11 +154,12 @@ class StaffServiceSpec extends CustomSpec {
             name:"Staff1",
             email:"staff@textup.org",
             personalPhoneNumber:personalPhoneAsString,
+            lockCode: Constants.DEFAULT_LOCK_CODE,
             org:[
                 id:org.id
             ]
         ]
-        res = service.create(createInfo)
+        res = service.create(createInfo, null)
         assert res.success
         s1.save(flush:true, failOnError:true)
 
@@ -181,6 +184,7 @@ class StaffServiceSpec extends CustomSpec {
             password:"password",
             name:"Staff2",
             email:"staff@textup.org",
+            lockCode: Constants.DEFAULT_LOCK_CODE,
             personalPhoneNumber:personalPhoneAsString,
             org:[
                 name:orgName,
@@ -191,7 +195,7 @@ class StaffServiceSpec extends CustomSpec {
                 ]
             ]
         ]
-        res = service.create(createInfo)
+        res = service.create(createInfo, null)
         assert res.success
         s1.save(flush:true, failOnError:true)
 
@@ -245,12 +249,13 @@ class StaffServiceSpec extends CustomSpec {
             password:"password",
             name:"Staff3",
             email:"staff@textup.org",
+            lockCode: Constants.DEFAULT_LOCK_CODE,
             personalPhoneNumber:personalPhoneNumber,
             org:[
                 id:org.id
             ]
         ]
-        Result res = service.create(createInfo)
+        Result res = service.create(createInfo, null)
 
         then:
         res.success == false
@@ -348,7 +353,7 @@ class StaffServiceSpec extends CustomSpec {
             email:invalidEmail,
             personalPhoneNumber:personalPhoneAsString
         ]
-        Result res = service.updateStaffInfo(s1, updateInfo, null)
+        Result res = service.update(s1.id, updateInfo, null)
 
         then:
         Staff.count() == sBaseline
@@ -363,7 +368,7 @@ class StaffServiceSpec extends CustomSpec {
         when: "update staff fields"
         String email = "ok123@ok.com"
         updateInfo.email = email
-        res = service.updateStaffInfo(s1, updateInfo, null)
+        res = service.update(s1.id, updateInfo, null)
 
         then:
         Staff.count() == sBaseline
@@ -386,7 +391,7 @@ class StaffServiceSpec extends CustomSpec {
                 thursday:["0230:0345", "0330:0430"]
             ]
         ]
-        res = service.updateStaffInfo(s1, updateInfo, null)
+        res = service.update(s1.id, updateInfo, null)
         List<LocalInterval> mondayInts = [
             new LocalInterval(new LocalTime(1, 0), new LocalTime(2, 30)),
             new LocalInterval(new LocalTime(3, 30), new LocalTime(4, 30)),
@@ -413,13 +418,58 @@ class StaffServiceSpec extends CustomSpec {
         }
     }
 
+    void "test update lock code"() {
+        given: "a valid staff"
+        assert s1.validate() == true
+        String defaultLock = Constants.DEFAULT_LOCK_CODE
+
+        when: "blank lock code"
+        Map updateInfo = [lockCode:""]
+        String originalLockCode = s1.lockCode
+        Result<Staff> res = service.update(s1.id, updateInfo, null)
+
+        then: "no change"
+        res.success == true
+        res.payload instanceof Staff
+        res.payload.id == s1.id
+        res.payload.lockCode == originalLockCode
+
+        when: "too long lock code"
+        updateInfo.lockCode = "${defaultLock}${defaultLock}"
+        res = service.update(s1.id, updateInfo, null)
+
+        then: "invalid"
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == UNPROCESSABLE_ENTITY
+
+        when: "lock code non-numbers"
+        updateInfo.lockCode = "ab12"
+        res = service.update(s1.id, updateInfo, null)
+
+        then: "invalid"
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == UNPROCESSABLE_ENTITY
+
+        when: "lock code only apropriate length with only numbers"
+        updateInfo.lockCode = Constants.DEFAULT_LOCK_CODE
+        res = service.update(s1.id, updateInfo, null)
+
+        then: "valid"
+        res.success == true
+        res.payload instanceof Staff
+        res.payload.id == s1.id
+        res.payload.lockCode == updateInfo.lockCode
+    }
+
     void "test update status"() {
         when: "as staff"
         service.authService = [isAdminAtSameOrgAs:{ Long sId ->
             false
         }] as AuthService
         Map updateInfo = [status:"adMiN"]
-        Result<Staff> res = service.updateStaffInfo(s1, updateInfo, null)
+        Result<Staff> res = service.update(s1.id, updateInfo, null)
 
         then: "silently ignore"
         res.success == true
@@ -432,7 +482,7 @@ class StaffServiceSpec extends CustomSpec {
             true
         }] as AuthService
         updateInfo = [status:"penDiNG"]
-        res = service.updateStaffInfo(s2, updateInfo, null)
+        res = service.update(s2.id, updateInfo, null)
 
         then:
         res.success == true
@@ -442,7 +492,7 @@ class StaffServiceSpec extends CustomSpec {
 
         when: "as admin with invalid status"
         updateInfo = [status:"invalid"]
-        res = service.updateStaffInfo(s2, updateInfo, null)
+        res = service.update(s2.id, updateInfo, null)
 
         then:
         res.success == false

@@ -1,6 +1,5 @@
 package org.textup.rest
 
-import org.textup.*
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -8,10 +7,12 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
+import org.textup.*
+import org.textup.*
+import org.textup.types.OrgStatus
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
-import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(OrganizationController)
@@ -67,6 +68,29 @@ class OrganizationControllerSpec extends CustomSpec {
         response.status == SC_OK
         response.json.organizations != null //when empty, we manually add in the root
         response.json.organizations?.size() == 0
+    }
+
+    void "test list for invalid status"() {
+        when:
+        request.method = "GET"
+        params["status[]"] = ["invalid"]
+        controller.index()
+
+        then: "returns empty set"
+        response.status == SC_OK
+        response.json.organizations.size() == 0
+    }
+
+    void "test list for valid statuses"() {
+        when:
+        request.method = "GET"
+        params["status[]"] = [OrgStatus.APPROVED.toString()]
+        controller.index()
+
+        then: "returns empty set"
+        response.status == SC_OK
+        response.json.organizations.size() ==
+            Organization.countByStatusInList([OrgStatus.APPROVED])
     }
 
     // Show

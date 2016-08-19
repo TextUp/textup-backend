@@ -1,14 +1,15 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
+import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.restapidoc.annotation.*
+import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.types.OrgStatus
 import static org.springframework.http.HttpStatus.*
-import org.restapidoc.pojo.*
-import grails.transaction.Transactional
-import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 @RestApi(name="Organization", description = "Operations on organizations after logging in.")
@@ -32,7 +33,11 @@ class OrganizationController extends BaseController {
             paramType=RestApiParamType.QUERY, description="Offset of results"),
         @RestApiParam(name="search", type="String", required=false,
             paramType=RestApiParamType.QUERY, description='''String to search for in
-            organization\'s name and address''')
+            organization\'s name and address'''),
+        @RestApiParam(name="status[]", type="List", paramType=RestApiParamType.QUERY,
+            allowedvalues=["rejected", "pending", "approved"],
+            required=false, description='''List of organization statuses to restrict to.
+            Default showing approved. Ignored if search query param specified'''),
     ])
     @Transactional(readOnly=true)
     def index() {
@@ -45,7 +50,16 @@ class OrganizationController extends BaseController {
             }, params)
         }
         else {
-            genericListAction(Organization, params)
+            List<OrgStatus> statusEnums =
+                Helpers.<OrgStatus>toEnumList(OrgStatus, params.list("status[]"))
+            if (statusEnums) {
+                genericListActionForClosures(Organization, {
+                    Organization.countByStatusInList(statusEnums)
+                }, { Map params ->
+                    Organization.findAllByStatusInList(statusEnums, params)
+                }, params)
+            }
+            else { genericListAction(Organization, params) }
         }
     }
 

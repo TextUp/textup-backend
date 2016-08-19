@@ -40,7 +40,7 @@ class StaffSpec extends CustomSpec {
 
     void "test constraints"() {
     	when: "we have an empty staff"
-    	Staff staff1 = new Staff()
+    	Staff staff1 = new Staff(lockCode:Constants.DEFAULT_LOCK_CODE)
 
     	then:
     	staff1.validate() == false
@@ -71,13 +71,39 @@ class StaffSpec extends CustomSpec {
     	staff1.save(flush:true, failOnError:true)
 
     	Staff staff2 = new Staff(username:un, password:"password",
-    		name:"Staff", email:"staff@textup.org", org:org)
+    		name:"Staff", email:"staff@textup.org", org:org,
+            lockCode:Constants.DEFAULT_LOCK_CODE)
     	staff2.personalPhoneAsString = "1112223333"
 
     	then: "usernames are NOT case sensitive"
     	staff2.validate() == false
     	staff2.errors.errorCount == 1
     	staff2.errors.getFieldErrorCount("username") == 1
+    }
+
+    void "test lockCode"() {
+        given: "a valid staff member"
+        assert s1.validate() == true
+
+        when: "lock code is empty"
+        s1.lockCode = ""
+
+        then:
+        s1.validate() == false
+        s1.errors.errorCount == 1
+        s1.errors.getFieldErrorCount("lockCode") == 1
+
+        when: "lock code is of varying length"
+        s1.lockCode = "12"
+
+        then: "still okay, we enforce condition on service"
+        s1.validate() == true
+
+        when: "lock code is default value"
+        s1.lockCode = Constants.DEFAULT_LOCK_CODE
+
+        then: "valid"
+        s1.validate() == true
     }
 
     void "test valid username"() {
@@ -118,7 +144,8 @@ class StaffSpec extends CustomSpec {
     void "test converting to author"() {
         given: "a valid unsaved staff"
         Staff unsavedStaff = new Staff(username:"9StAf92", password:"password",
-            name:"Name", org:org, personalPhoneAsString:"1112223333", email:"ok@ok.com")
+            name:"Name", org:org, personalPhoneAsString:"1112223333",
+            email:"ok@ok.com", lockCode:Constants.DEFAULT_LOCK_CODE)
         assert unsavedStaff.validate()
 
         when: "we convert saved and unsaved staff to author"
@@ -168,7 +195,7 @@ class StaffSpec extends CustomSpec {
     	given: "a valid staff"
     	Staff staff1 = new Staff(username:"12staff", password:"password",
     		name:"Staff", email:"staff@textup.org", org:org,
-    		personalPhoneAsString:"1112223333")
+    		personalPhoneAsString:"1112223333", lockCode:Constants.DEFAULT_LOCK_CODE)
     	staff1.save(flush:true, failOnError:true)
 
     	when: "manual schedule is off"

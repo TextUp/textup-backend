@@ -157,6 +157,11 @@ class StaffController extends BaseController {
         either a new or existing organization''')
     @RestApiResponseObject(objectIdentifier = "Staff")
     @RestApiBodyObject(name = "Staff")
+    @RestApiParams(params=[
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key that the dates, including schedule intervals
+            passed in are in, defaults to UTC if unspecified or invalid''')
+    ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),
         @RestApiError(code="422",
@@ -165,7 +170,11 @@ class StaffController extends BaseController {
     def save() {
         if (!validateJsonRequest(request, "staff")) { return; }
         Map sInfo = (request.properties.JSON as Map).staff as Map
-        handleSaveResult(Staff, staffService.create(sInfo).then { Staff s1 ->
+        String tz = params.timezone as String
+        if (tz) { //for the json marshaller
+            request.setAttribute("timezone", tz)
+        }
+        handleSaveResult(Staff, staffService.create(sInfo, tz).then { Staff s1 ->
             staffService.addRoleToStaff(s1.id)
         } as Result)
     }

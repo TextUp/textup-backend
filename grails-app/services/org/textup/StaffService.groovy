@@ -23,46 +23,6 @@ class StaffService {
     // Create
     // ------
 
-    Result<Staff> create(Map body) {
-    	Staff s1 = new Staff()
-    	s1.with {
-    		username = body.username
-    		password = body.password
-    		name = body.name
-    		email = body.email
-    		if (body.manualSchedule) manualSchedule = body.manualSchedule
-    		if (body.isAvailable) isAvailable = body.isAvailable
-		}
-        if (body.personalPhoneNumber) {
-            s1.personalPhoneNumber = new PhoneNumber(number:
-                body.personalPhoneNumber as String)
-        }
-        addStaffToOrg(s1, body.org).then({ Organization o1 ->
-            // only allowed to change status if is admin and organization
-            // is not pending
-            if (body.status && o1.id && authService.isAdminAt(o1.id) &&
-                o1.status != OrgStatus.PENDING) {
-                s1.status = Helpers.convertEnum(StaffStatus, body.status)
-            }
-            // initially validate first so we know that staff is valid
-            // before trying to send out email notification and adding a phone
-            if (s1.save()) {
-                Result.<Staff>waterfall(
-                    phoneService.&createOrUpdatePhone.curry(s1, body),
-                    this.&notifyAfterCreation.rcurry(o1, body)
-                ).then({ Staff sameS1 ->
-                    if (sameS1.save()) {
-                        resultFactory.success(sameS1)
-                    }
-                    else { resultFactory.failWithValidationErrors(sameS1.errors) }
-                }) as Result
-            }
-            else {
-                resultFactory.failWithValidationErrors(s1.errors)
-            }
-        }) as Result
-    }
-
     Result<Staff> addRoleToStaff(Long sId) {
         Staff s1 = Staff.get(sId)
         if (s1) {
@@ -85,7 +45,70 @@ class StaffService {
         }
     }
 
-    protected Result<Organization> addStaffToOrg(Staff s1, def rawInfo) {
+    Result<Staff> create(Map body, String timezone) {
+        Result.<Staff>waterfall(
+            this.&fillStaffInfo.curry(new Staff(), body, timezone),
+            this.&completeStaffCreation.rcurry(body)
+        )
+    }
+
+    protected Result<Staff> fillStaffInfo(Staff s1, Map body, String timezone) {
+        s1.with {
+            if (body.name) name = body.name
+            if (body.username) username = body.username
+            if (body.password) password = body.password
+            if (body.email) email = body.email
+            if (body.manualSchedule) manualSchedule = body.manualSchedule
+            if (body.isAvailable) isAvailable = body.isAvailable
+        }
+        if (body.lockCode) {
+            if (body.lockCode ==~ /\d{${Constants.LOCK_CODE_LENGTH}}/) {
+                s1.lockCode = body.lockCode
+            }
+            else {
+                return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+                    "staffService.lockCodeFormat")
+            }
+        }
+        if (body.personalPhoneNumber) {
+            s1.personalPhoneNumber = new PhoneNumber(number:
+                body.personalPhoneNumber as String)
+        }
+        if (body.schedule instanceof Map && s1.schedule.instanceOf(WeeklySchedule)) {
+            Result res = WeeklySchedule.get(s1.schedule.id)
+                ?.updateWithIntervalStrings(body.schedule as Map, timezone)
+            if (!res.success) { return res }
+        }
+        // leave validation for later step because might not have org
+        resultFactory.success(s1)
+    }
+    protected Result<Staff> completeStaffCreation(Staff s1, Map body) {
+        tryAddStaffToOrg(s1, body.org).then({ Organization o1 ->
+            // only allowed to change status if is admin and organization
+            // is not pending
+            if (body.status && o1.id && authService.isAdminAt(o1.id) &&
+                o1.status != OrgStatus.PENDING) {
+                s1.status = Helpers.convertEnum(StaffStatus, body.status)
+            }
+            // initially save first so we know that staff is valid
+            // before trying to send out email notification and adding a phone
+            if (s1.save()) {
+                Result.<Staff>waterfall(
+                    phoneService.&createOrUpdatePhone.curry(s1, body),
+                    this.&notifyAfterCreation.rcurry(o1, body)
+                ).then({ Staff sameS1 ->
+                    if (sameS1.save()) {
+                        resultFactory.success(sameS1)
+                    }
+                    else { resultFactory.failWithValidationErrors(sameS1.errors) }
+                }) as Result
+            }
+            else {
+                resultFactory.failWithValidationErrors(s1.errors)
+            }
+        }) as Result<Staff>
+    }
+    protected Result<Organization> tryAddStaffToOrg(Staff s1, def rawInfo) {
         if (!rawInfo || !(rawInfo instanceof Map)) {
             return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
                 "staffService.create.mustSpecifyOrg")
@@ -118,7 +141,6 @@ class StaffService {
 
         resultFactory.success(org)
     }
-
     protected Result<Staff> notifyAfterCreation(Staff s1, Organization o1, Map body) {
         Result res
         if (o1.status == OrgStatus.PENDING) {
@@ -140,45 +162,11 @@ class StaffService {
     Result<Staff> update(Long staffId, Map body, String timezone) {
         Result.<Staff>waterfall(
             this.&findStaffForId.curry(staffId),
-            this.&updateStaffInfo.rcurry(body, timezone),
+            this.&fillStaffInfo.rcurry(body, timezone),
+            this.&tryUpdateStatus.rcurry(body),
             phoneService.&createOrUpdatePhone.rcurry(body)
         ).then({ Staff s1 ->
-            if (s1.save()) {
-                resultFactory.success(s1)
-            }
-            else { resultFactory.failWithValidationErrors(s1.errors) }
-        }) as Result
-    }
-    protected Result<Staff> findStaffForId(Long sId) {
-        Staff s1 = Staff.get(sId)
-        s1 ? resultFactory.success(s1) : resultFactory.failWithMessageAndStatus(NOT_FOUND,
-            "staffService.update.notFound", [sId])
-    }
-    protected Result<Staff> updateStaffInfo(Staff s1, Map body, String timezone) {
-        s1.with {
-            if (body.name) name = body.name
-            if (body.username) username = body.username
-            if (body.password) password = body.password
-            if (body.email) email = body.email
-            if (body.manualSchedule) manualSchedule = body.manualSchedule
-            if (body.isAvailable) isAvailable = body.isAvailable
-        }
-        if (body.personalPhoneNumber) {
-            s1.personalPhoneNumber = new PhoneNumber(number:
-                body.personalPhoneNumber as String)
-        }
-        if (body.schedule instanceof Map && s1.schedule.instanceOf(WeeklySchedule)) {
-            Result res = (s1.schedule as WeeklySchedule)
-                .updateWithIntervalStrings(body.schedule as Map, timezone)
-            if (!res.success) { return res }
-        }
-        //can only update status if you are an admin
-        if (body.status && authService.isAdminAtSameOrgAs(s1.id)) {
-            StaffStatus oldStatus = s1.status
-            s1.status = Helpers.convertEnum(StaffStatus, body.status)
-            if (!s1.validate()) {
-                return resultFactory.failWithValidationErrors(s1.errors)
-            }
+            StaffStatus oldStatus = s1.getPersistentValue("status") as StaffStatus
             // email notifications if changing away from pending
             if (oldStatus.isPending && !s1.status.isPending) {
                 Result res = s1.status.isActive ?
@@ -186,12 +174,22 @@ class StaffService {
                     mailService.notifyPendingOfRejection(s1)
                 if (!res.success) { return res }
             }
+            resultFactory.success(s1)
+        }) as Result
+    }
+    protected Result<Staff> findStaffForId(Long sId) {
+        Staff s1 = Staff.get(sId)
+        s1 ? resultFactory.success(s1) : resultFactory.failWithMessageAndStatus(NOT_FOUND,
+            "staffService.update.notFound", [sId])
+    }
+    protected Result<Staff> tryUpdateStatus(Staff s1, Map body) {
+        //can only update status if you are an admin
+        if (body.status && authService.isAdminAtSameOrgAs(s1.id)) {
+            s1.status = Helpers.convertEnum(StaffStatus, body.status)
         }
-        if (s1.validate()) {
+        if (s1.save()) {
             resultFactory.success(s1)
         }
-        else {
-            resultFactory.failWithValidationErrors(s1.errors)
-        }
+        else { resultFactory.failWithValidationErrors(s1.errors) }
     }
 }

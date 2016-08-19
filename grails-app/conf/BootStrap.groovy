@@ -30,7 +30,7 @@ class BootStrap {
 		    	org1.save(flush:true)
 		    	Staff pendingOrgStaff = new Staff(username:"demo-pending", password:"password",
 		    		name:"Mallory Pending1", email:"connect@textup.org", org:org1,
-		    		status:StaffStatus.ADMIN)
+		    		status:StaffStatus.ADMIN, lockCode:Constants.DEFAULT_LOCK_CODE)
 		    	pendingOrgStaff.save(flush:true, failOnError:true)
 				StaffRole.create(pendingOrgStaff, userRole, true)
 
@@ -43,7 +43,8 @@ class BootStrap {
 
 	    		//create the super user
 	    		Staff superUser = new Staff(username:"super", password:"password",
-		    		name:"Super", email:"connect@textup.org", org:org, status:StaffStatus.ADMIN)
+		    		name:"Super", email:"connect@textup.org", org:org,
+		    		status:StaffStatus.ADMIN, lockCode:Constants.DEFAULT_LOCK_CODE)
 	    		superUser.save(flush:true, failOnError:true)
 	    		StaffRole.create(superUser, adminRole, true)
 
@@ -63,13 +64,13 @@ class BootStrap {
 				//create staff
 				Staff admin = new Staff(username:"demo-eric", password:"password",
 		    		name:"Eric Bai", email:"eric@textup.org", org:org,
-		    		status:StaffStatus.ADMIN)
+		    		status:StaffStatus.ADMIN, lockCode:Constants.DEFAULT_LOCK_CODE)
 		    	Staff s1 = new Staff(username:"demo-michelle", password:"password",
 		    		name:"Michelle Petersen", email:"michelle@textup.org", org:org,
-		    		status:StaffStatus.ADMIN)
+		    		status:StaffStatus.ADMIN, lockCode:Constants.DEFAULT_LOCK_CODE)
 				Staff s2 = new Staff(username:"demo-staff2", password:"password",
 					name:"Johnny Staff3", email:"connect@textup.org", org:org,
-					status:StaffStatus.PENDING)
+					status:StaffStatus.PENDING, lockCode:Constants.DEFAULT_LOCK_CODE)
 		    	admin.personalPhoneAsString = "6262027548"
 		    	s1.personalPhoneAsString = "5865338761"
 		    	s2.personalPhoneAsString = "2678887452"

@@ -83,7 +83,8 @@ class OrganizationSpec extends Specification {
 
         when: "we add a staff"
         Result res = org.addStaff(username:"orgstaff1", password:"password",
-            name:"Staff", email:"staff@textup.org", personalPhoneAsString:"1112223333")
+            name:"Staff", email:"staff@textup.org", personalPhoneAsString:"1112223333",
+            lockCode:Constants.DEFAULT_LOCK_CODE)
 
         then:
         res.success == true
@@ -93,7 +94,7 @@ class OrganizationSpec extends Specification {
         when: "we add an invalid staff"
         res.payload.save(flush:true, failOnError:true)
         res = org.addStaff(username:"orgstaff2", password:"password",
-            name:"Staff")
+            name:"Staff", lockCode:Constants.DEFAULT_LOCK_CODE)
 
         then:
         res.success == false

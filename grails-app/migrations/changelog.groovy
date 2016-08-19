@@ -901,4 +901,6 @@ databaseChangeLog = {
 	include file: 'scheduled-message.groovy'
 
 	include file: 'quartz-innodb.groovy'
+
+	include file: 'lock-code.groovy'
 }

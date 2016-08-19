@@ -190,13 +190,17 @@ class CustomSpec extends Specification {
         //staff for our org
         s1 = new Staff(username:loggedInUsername, password:loggedInPassword,
             name:"Staff$iterNum", email:"staff$iterNum@textup.org",
-            org:org, personalPhoneAsString:"1112223333", status:StaffStatus.ADMIN)
+            org:org, personalPhoneAsString:"1112223333", status:StaffStatus.ADMIN,
+            lockCode:Constants.DEFAULT_LOCK_CODE)
         s2 = new Staff(username:"1sta$iterNum", password:"password",
             name:"Staff$iterNum", email:"staff$iterNum@textup.org",
-            org:org, personalPhoneAsString:"1112223333")
+            org:org, personalPhoneAsString:"1112223333",
+            lockCode:Constants.DEFAULT_LOCK_CODE)
         s3 = new Staff(username:"2sta$iterNum", password:"password",
             name:"Staff$iterNum", email:"staff$iterNum@textup.org",
-            org:org, personalPhoneAsString:"1112223333")
+            org:org, personalPhoneAsString:"1112223333",
+            lockCode:Constants.DEFAULT_LOCK_CODE)
+
         s1.save(flush:true, failOnError:true)
         s2.save(flush:true, failOnError:true)
         s3.save(flush:true, failOnError:true)
@@ -215,13 +219,16 @@ class CustomSpec extends Specification {
         //staff for other org
         otherS1 = new Staff(username:"3sta$iterNum", password:"password",
             name:"Staff$iterNum", email:"staff$iterNum@textup.org",
-            org:org2, personalPhoneAsString:"1112223333")
+            org:org2, personalPhoneAsString:"1112223333",
+            lockCode:Constants.DEFAULT_LOCK_CODE)
         otherS2 = new Staff(username:"4sta$iterNum", password:"password",
             name:"Staff$iterNum", email:"staff$iterNum@textup.org",
-            org:org2, personalPhoneAsString:"1112223333")
+            org:org2, personalPhoneAsString:"1112223333",
+            lockCode:Constants.DEFAULT_LOCK_CODE)
         otherS3 = new Staff(username:"5sta$iterNum", password:"password",
             name:"Staff$iterNum", email:"staff$iterNum@textup.org",
-            org:org2, personalPhoneAsString:"1112223333")
+            org:org2, personalPhoneAsString:"1112223333",
+            lockCode:Constants.DEFAULT_LOCK_CODE)
         otherS1.save(flush:true, failOnError:true)
         otherS2.save(flush:true, failOnError:true)
         otherS3.save(flush:true, failOnError:true)

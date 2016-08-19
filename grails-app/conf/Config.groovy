@@ -146,6 +146,8 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
     '/restApiDoc/**':                 ['permitAll'],
     '/reset':                         ['permitAll'],
     '/reset/**':                      ['permitAll'],
+    '/validate':                      ['permitAll'],
+    '/validate/**':                   ['permitAll'],
 ]
 grails.plugin.springsecurity.filterChain.chainMap = [
     '/v1/public/**': 'anonymousAuthenticationFilter,restTokenValidationFilter,restExceptionTranslationFilter,filterInvocationInterceptor',

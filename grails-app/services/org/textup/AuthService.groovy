@@ -4,13 +4,20 @@ import grails.gorm.DetachedCriteria
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.transaction.Transactional
 import org.joda.time.DateTime
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.textup.types.OrgStatus
 import org.textup.types.StaffStatus
+import grails.plugin.springsecurity.userdetails.NoStackUsernameNotFoundException
+import org.springframework.security.core.userdetails.UserDetails
+import grails.compiler.GrailsTypeChecked
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.authentication.BadCredentialsException
 
 @Transactional(readOnly=true)
 class AuthService {
 
-	SpringSecurityService springSecurityService
+    DaoAuthenticationProvider daoAuthenticationProvider
+    SpringSecurityService springSecurityService
 
     // Logged in
     // ---------
@@ -32,10 +39,33 @@ class AuthService {
         getLoggedInAndActive()?.id == sId
     }
     Staff getLoggedIn() {
-        Staff.findByUsername(springSecurityService.principal?.username)
+        String un = springSecurityService.principal?.username
+        un ? Staff.findByUsername(un) : null
     }
     Staff getLoggedInAndActive() {
         this.isActive ? this.loggedIn : null
+    }
+
+    // Validation
+    // ----------
+
+    // from: http://blog.cwill-dev.com/2011/05/11/
+    // grails-springsecurityservice-authenticate-via-code-manually/
+    @GrailsTypeChecked
+    boolean isValidUsernamePassword(String un, String pwd) {
+        try {
+            UserDetails details =
+                springSecurityService.userDetailsService.loadUserByUsername(un)
+            daoAuthenticationProvider.authenticate(
+                new UsernamePasswordAuthenticationToken(details, pwd)).authenticated
+        }
+        catch (NoStackUsernameNotFoundException | BadCredentialsException e) {
+            return false
+        }
+    }
+    @GrailsTypeChecked
+    boolean isValidLockCode(String un, String code) {
+        Staff.findByUsername(un)?.isLockCodeValid(code) ?: false
     }
 
     // Admin

@@ -176,7 +176,8 @@ class PhoneServiceSpec extends CustomSpec {
         def noPhoneEntity = forStaff ?
             new Staff(username:"6sta$iterationCount", password:"password",
                 name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
-                org:org, personalPhoneAsString:"1112223333") :
+                org:org, personalPhoneAsString:"1112223333",
+                lockCode:Constants.DEFAULT_LOCK_CODE) :
             new Team(name:"kiki's mane", org:org.id,
                 location:new Location(address:"address", lat:8G, lon:10G))
         noPhoneEntity.save(flush:true, failOnError:true)

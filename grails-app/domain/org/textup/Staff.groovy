@@ -7,6 +7,7 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
+import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.types.AuthorType
 import org.textup.types.PhoneOwnershipType
 import org.textup.types.StaffStatus
@@ -21,6 +22,7 @@ class Staff {
 
     ResultFactory resultFactory
 	SpringSecurityService springSecurityService
+    PasswordEncoder passwordEncoder
 
     boolean enabled = true
     boolean accountExpired
@@ -36,6 +38,11 @@ class Staff {
         description       = "Password of the staff member.",
         presentInResponse = false)
 	String password
+
+    @RestApiObjectField(
+        description       = "Lock code of the staff member.",
+        presentInResponse = false)
+    String lockCode
 
     @RestApiObjectField(description="Full name of the staff member.")
 	String name
@@ -97,12 +104,13 @@ class Staff {
             allowedType  = "String")
     ])
     static transients = ["personalPhoneNumber", "phone", "resultFactory",
-        "springSecurityService"]
+        "springSecurityService", "passwordEncoder"]
 	static constraints = {
 		username blank:false, unique:true, validator: { String un, Staff s1 ->
             if (!(un ==~ /^[-_=@.,;A-Za-z0-9]+$/)) { ["format"] } // for Pusher channel
         }
 		password blank:false
+        lockCode blank:false
 		email email:true
         personalPhoneAsString blank:true, nullable:true, validator:{ String val, Staff obj ->
             if (val && !(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
@@ -131,6 +139,43 @@ class Staff {
         if (!this.schedule) {
             this.schedule = new WeeklySchedule([:])
         }
+    }
+    @GrailsTypeChecked
+    def beforeInsert() {
+        encodePassword()
+        encodeLockCode()
+    }
+    @GrailsTypeChecked
+    def beforeUpdate() {
+        if (isDirty("password")) {
+            encodePassword()
+        }
+        if (isDirty("lockCode")) {
+            encodeLockCode()
+        }
+    }
+
+    // Lock code
+    // ---------
+
+    boolean isLockCodeValid(String inputLockCode) {
+        passwordEncoder.isPasswordValid(this.lockCode, inputLockCode, null)
+    }
+    protected void encodeLockCode() {
+        this.lockCode = passwordEncoder ?
+            passwordEncoder.encodePassword(this.lockCode, null) : this.lockCode
+    }
+
+    // SpringSecurityCore methods
+    // --------------------------
+
+    Set<Role> getAuthorities() {
+        StaffRole.findAllByStaff(this).collect { it.role }
+    }
+    @GrailsTypeChecked
+    protected void encodePassword() {
+        password = springSecurityService?.passwordEncoder ?
+            springSecurityService.encodePassword(password) : password
     }
 
     // Schedule
@@ -170,28 +215,6 @@ class Staff {
     Result<Schedule> updateSchedule(Map params) {
         schedule.update(params)
     }
-
-    // SpringSecurityCore methods
-    // --------------------------
-
-	Set<Role> getAuthorities() {
-		StaffRole.findAllByStaff(this).collect { it.role }
-	}
-    @GrailsTypeChecked
-	def beforeInsert() {
-		encodePassword()
-	}
-    @GrailsTypeChecked
-	def beforeUpdate() {
-		if (isDirty('password')) {
-			encodePassword()
-		}
-	}
-    @GrailsTypeChecked
-	protected void encodePassword() {
-		password = springSecurityService?.passwordEncoder ?
-            springSecurityService.encodePassword(password) : password
-	}
 
     // Team
     // ----
