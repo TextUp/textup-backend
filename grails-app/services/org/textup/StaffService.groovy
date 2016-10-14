@@ -150,7 +150,10 @@ class StaffService {
             if (s1.status == StaffStatus.PENDING) {
                 res = mailService.notifyAdminsOfPendingStaff(s1.name, o1.getAdmins())
             } else if (s1.status == StaffStatus.STAFF) {
-                res = mailService.notifyStaffOfSignup(s1, body.password as String)
+                String pwd = body.password as String,
+                    lockCode = body.lockCode ? body.lockCode as String :
+                        Constants.DEFAULT_LOCK_CODE
+                res = mailService.notifyStaffOfSignup(s1, pwd, lockCode)
             }
         }
         (res && !res.success) ? res : resultFactory.success(s1)

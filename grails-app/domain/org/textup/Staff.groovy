@@ -42,7 +42,7 @@ class Staff {
     @RestApiObjectField(
         description       = "Lock code of the staff member.",
         presentInResponse = false)
-    String lockCode
+    String lockCode = Constants.DEFAULT_LOCK_CODE
 
     @RestApiObjectField(description="Full name of the staff member.")
 	String name
