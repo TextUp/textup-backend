@@ -1,11 +1,8 @@
 package org.textup
 
 import com.amazonaws.HttpMethod
-import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
 import org.textup.types.ReceiptStatus
@@ -17,8 +14,7 @@ import org.textup.validator.TempRecordReceipt
 @RestApiObject(name="RecordCall", description="A phone call entry in a contact's record.")
 class RecordCall extends RecordItem {
 
-    GrailsApplication grailsApplication
-    AmazonS3Client s3Service
+    StorageService storageService
 
     @RestApiObjectField(
         description    = "Duration of the call",
@@ -67,7 +63,7 @@ class RecordCall extends RecordItem {
             useForCreation    = false,
             presentInResponse = true)
     ])
-    static transients = ["hasVoicemail", "grailsApplication", "s3Service"]
+    static transients = ["hasVoicemail", "storageService"]
     static constraints = {
         durationInSeconds minSize:0
         voicemailInSeconds minSize:0
@@ -87,24 +83,12 @@ class RecordCall extends RecordItem {
             return ""
         }
         RecordItemReceipt receipt = getReceiptsByStatus(ReceiptStatus.SUCCESS)[0]
-        if (!receipt) {
-            return ""
+        if (receipt) {
+            storageService
+                .generateAuthLink(receipt.apiId, HttpMethod.GET)
+                .logFail('RecordCall.getVoicemailUrl')
+                .then { URL link -> link.toString() }
         }
-        try {
-            Date expires = DateTime.now().plusHours(1).toDate()
-            String bucket = grailsApplication.flatConfig["textup.voicemailBucketName"],
-                objectKey = receipt.apiId
-            GeneratePresignedUrlRequest req =
-                new GeneratePresignedUrlRequest(bucket, objectKey)
-            req.with {
-                method = HttpMethod.GET
-                expiration = expires
-            }
-            s3Service.generatePresignedUrl(req)?.toString()
-        }
-        catch (e) {
-            log.error("RecordCall.getVoicemailUrl: ${e.message}")
-            return ""
-        }
+        else { "" }
     }
 }

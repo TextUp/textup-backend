@@ -15,6 +15,11 @@ class Constants {
 	static final int LOCK_CODE_LENGTH = 4
 	static final String DEFAULT_LOCK_CODE = "8888"
 
+	// RecordNote images
+	// -----------------
+
+	static final String IMAGE_UPLOAD_KEY = "uploadLinks"
+
 	// Schedule
 	// --------
 
@@ -74,4 +79,7 @@ class Constants {
 	static final String PHONE_ACTION_TRANSFER = "transfer"
 	static final String PHONE_ACTION_NEW_NUM_BY_NUM  = "numbynum"
 	static final String PHONE_ACTION_NEW_NUM_BY_ID = "numbyid"
+
+	static final String NOTE_IMAGE_ACTION_ADD = "add"
+	static final String NOTE_IMAGE_ACTION_REMOVE = "remove"
 }

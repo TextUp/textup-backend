@@ -19,7 +19,8 @@ import org.textup.types.ResultType
 @TestFor(RecordController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
+    RecordNote, RecordNoteRevision])
 @TestMixin(HibernateTestMixin)
 class RecordControllerSpec extends CustomSpec {
 
@@ -230,20 +231,54 @@ class RecordControllerSpec extends CustomSpec {
     // Update
     // ------
 
-    void "test update"() {
+    void "test update a nonexistent note"() {
+        given:
+        controller.authService = [
+            exists:{ Class clazz, Long id -> false }
+        ] as AuthService
+
         when:
-        params.id = rText1.id
+        params.id = "nonexistent"
+        request.json = "{'record':{}}"
         request.method = "PUT"
         controller.update()
 
         then:
         response.status == SC_METHOD_NOT_ALLOWED
     }
+    void "test update a note"() {
+        given: "a persisted note"
+        RecordNote note1 = new RecordNote(record:c1.record)
+        note1.save(flush:true, failOnError:true)
+
+        controller.recordService = [update:{ Long id, Map body ->
+            new Result(success:true, payload:note1)
+        }] as RecordService
+        controller.authService = [
+            exists:{ Class clazz, Long id -> true },
+            hasPermissionsForItem:{ Long cId -> true }
+        ] as AuthService
+
+        when:
+        params.id = note1.id
+        request.json = "{'record':{}}"
+        request.method = "PUT"
+        controller.update()
+
+        then:
+        response.status == SC_OK
+        response.json.id == note1.id
+    }
 
     // Delete
     // ------
 
-    void "test delete"() {
+    void "test delete for a non-note"() {
+        given:
+        controller.authService = [
+            exists:{ Class clazz, Long id -> false }
+        ] as AuthService
+
         when:
         params.id = rText1.id
         request.method = "DELETE"
@@ -251,5 +286,26 @@ class RecordControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_METHOD_NOT_ALLOWED
+    }
+    void "test delete for a note"() {
+        given: "a persisted note"
+        RecordNote note1 = new RecordNote(record:c1.record)
+        note1.save(flush:true, failOnError:true)
+
+        controller.recordService = [delete:{ Long id ->
+            new Result(success:true)
+        }] as RecordService
+        controller.authService = [
+            exists:{ Class clazz, Long id -> true },
+            hasPermissionsForItem:{ Long cId -> true }
+        ] as AuthService
+
+        when:
+        params.id = note1.id
+        request.method = "DELETE"
+        controller.delete()
+
+        then:
+        response.status == SC_NO_CONTENT
     }
 }

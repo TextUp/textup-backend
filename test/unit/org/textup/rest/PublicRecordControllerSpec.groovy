@@ -142,7 +142,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.save()
 
         then: "do retry"
-        retryCalled ==  true
+        retryCalled == true
     }
 
     void "test update invalid status"() {

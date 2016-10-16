@@ -90,6 +90,7 @@ environments {
         grails.plugin.databasemigration.updateOnStart = false
         grails.serverURL = System.getenv("SERVER_URL") ?: (System.getProperty("SERVER_URL") ?: "https://5e6aa46b.ngrok.io")
         textup.apiKeys.twilio.appId="AP762342f6263b687fdc60c12dc9fbded8"
+        grails.plugin.console.baseUrl="http://localhost:8080/console"
     }
     production {
         grails.logging.jul.usebridge = false
@@ -189,12 +190,16 @@ grails.doc.license = "MIT"
 
 textup {
     maxNumText = 50 //max number of recipients to text
+    maxNumImages = 10 //max number of images allowed per note
+    maxImageSizeInBytes = 1000000 //max size in bytes for each image
+
     defaultMax = 10 //default max during pagination
     largestMax = 100 //largest max allowed during pagination
+
     resetTokenSize = 25
     verifyTokenSize = 5
 
-    voicemailBucketName = "media-textup-org"
+    storageBucketName = System.getenv("STORAGE_BUCKET_NAME") ?: (System.getProperty("STORAGE_BUCKET_NAME") ?: "staging-media-textup-org")
     mail {
         standard {
             name = "TextUp Notification"
@@ -247,7 +252,9 @@ textup {
             location = [singular:"location", plural:"locations"]
             organization = [singular:"organization", plural:"organizations"]
             phone = [singular:"phone", plural:"phones"]
+            receipt = [singular:"receipt", plural:"receipts"]
             record = [singular:"record", plural:"records"]
+            revision = [singular:"revision", plural:"revisions"]
             schedule = [singular:"schedule", plural:"schedules"]
             session = [singular:"session", plural:"sessions"]
             staff = [singular:"staff", plural:"staff"]

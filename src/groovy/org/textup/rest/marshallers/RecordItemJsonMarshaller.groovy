@@ -2,7 +2,9 @@ package org.textup.rest.marshallers
 
 import grails.compiler.GrailsCompileStatic
 import grails.plugin.springsecurity.SpringSecurityService
+import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
+import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.rest.*
 import org.textup.types.RecordItemType
@@ -13,6 +15,10 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
         SpringSecurityService springSecurityService, AuthService authService,
         LinkGenerator linkGenerator, RecordItem item ->
 
+        HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
+        Collection<String> uploadLinks =
+            Helpers.toList(request.getAttribute(Constants.IMAGE_UPLOAD_KEY))
+
         Map json = [:]
         json.with {
             id = item.id
@@ -20,15 +26,11 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             outgoing = item.outgoing
             hasAwayMessage = item.hasAwayMessage
             isAnnouncement = item.isAnnouncement
-            if (item.authorName) {
-                authorName = item.authorName
-            }
-            if (item.authorId) {
-                authorId = item.authorId
-            }
-            if (item.authorType) {
-                authorType = item.authorType.toString()
-            }
+            receipts = item.receipts
+            if (item.authorName) authorName = item.authorName
+            if (item.authorId) authorId = item.authorId
+            if (item.authorType) authorType = item.authorType.toString()
+
             if (item.instanceOf(RecordCall)) {
                 RecordCall call = item as RecordCall
                 durationInSeconds = call.durationInSeconds
@@ -44,14 +46,18 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 contents = text.contents
                 type = RecordItemType.TEXT.toString()
             }
+            else if (item.instanceOf(RecordNote)) {
+                RecordNote note = item as RecordNote
+                whenChanged = note.whenChanged
+                isDeleted = note.isDeleted
+                revisions = note.revisions
+
+                contents = note.contents
+                location = note.location
+                images = note.images
+                uploadImages = uploadLinks
+            }
         }
-        json.receipts = item.receipts?.collect { RecordItemReceipt r ->
-            [
-                id: r.id,
-                status:r.status.toString(),
-                receivedBy:r.receivedBy.e164PhoneNumber
-            ]
-        } ?: []
         // find owner, may be a contact or a tag
         json.contact = Contact.findByRecord(item.record)?.id
         if (!json.contact) {

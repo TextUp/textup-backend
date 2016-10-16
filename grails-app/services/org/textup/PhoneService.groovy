@@ -573,7 +573,7 @@ class PhoneService {
         }
     }
     Result<String> moveVoicemail(String apiId) {
-        String bucketName = grailsApplication.flatConfig["textup.voicemailBucketName"]
+        String bucketName = grailsApplication.flatConfig["textup.storageBucketName"]
         try {
             Call call = twilioService.account.getCall(apiId)
             if (call) {

@@ -1,6 +1,8 @@
 package org.textup.rest.marshallers
 
 import grails.converters.JSON
+import javax.servlet.http.HttpServletRequest
+import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.types.AuthorType
 import org.textup.types.ReceiptStatus
@@ -70,6 +72,12 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
     }
 
     void "test marshalling text without author or receipts"() {
+        given: "text without author or receipts"
+        assert rText1.receipts == null
+        assert rText1.authorName == null
+        assert rText1.authorId == null
+        assert rText1.authorType == null
+
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
@@ -83,7 +91,45 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         json.authorName == null
         json.authorId == null
         json.authorType == null
-        json.receipts instanceof List
-        json.receipts.size() == (rText1.receipts ? rText1.receipts.size() : 0)
+        json.receipts == null
+    }
+
+    void "test marshalling note with revisions, location, images, upload links"() {
+        given: "note with revisions, location, images, upload links"
+        RecordNote note1 = new RecordNote(record:c1.record)
+        //images
+        Collection<String> imageKeys = ["key1", "key2"]
+        note1.setImageKeys(imageKeys)
+        note1.save(flush:true, failOnError:true)
+        //revision
+        RecordNoteRevision rev1 = note1.createRevision()
+        rev1.save(flush:true, failOnError:true)
+        //location
+        note1.location = new Location(address:'hi', lat:8G, lon:8G)
+        note1.location.save(flush:true, failOnError:true)
+        //upload links
+        HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
+        List<String> uploadLinks = ['iamalink']
+        request.setAttribute(Constants.IMAGE_UPLOAD_KEY, uploadLinks)
+
+        when:
+        Map json
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = jsonToObject(note1 as JSON) as Map
+        }
+
+        then:
+        validate(json, note1)
+        json.whenChanged == note1.whenChanged.toString()
+        json.isDeleted == note1.isDeleted
+        json.revisions instanceof List
+        json.revisions.size() == 1
+        json.contents == note1.contents
+        json.location instanceof Map
+        json.location.id == note1.location.id
+        json.images instanceof List
+        json.images.size() == imageKeys.size()
+        imageKeys.every { String key -> json.images.find { it.key.contains(key) } }
+        json.uploadImages == uploadLinks
     }
 }

@@ -1,11 +1,14 @@
 package org.textup
 
+import com.amazonaws.HttpMethod
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import javax.servlet.http.HttpServletRequest
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
@@ -21,13 +24,19 @@ import static org.springframework.http.HttpStatus.*
 @TestFor(RecordService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
+    RecordNote, RecordNoteRevision])
 @TestMixin(HibernateTestMixin)
 class RecordServiceSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
+    boolean calledSetAttribute = false
+    Object justSetAttribute
+    String _urlRoot = "http://www.example.com/?key="
+    int _maxNumImages = 2
 
     def setup() {
         super.setupData()
@@ -39,6 +48,14 @@ class RecordServiceSpec extends CustomSpec {
         service.socketService = [sendItems:{ List<RecordItem> items, String eventName ->
             new ResultList()
         }] as SocketService
+        service.metaClass.getRequest = { ->
+            [
+                setAttribute: { String n, Object o ->
+                    calledSetAttribute = true
+                    justSetAttribute = o
+                }
+            ] as HttpServletRequest
+        }
         Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff ->
             Result res = new Result(type:ResultType.SUCCESS, success:true,
                 payload:"sendMessage")
@@ -51,6 +68,18 @@ class RecordServiceSpec extends CustomSpec {
                     contactable:c1
                 ])
             new ResultList(res)
+        }
+        RecordNote.metaClass.constructor = { Map props ->
+            RecordNote note1 = new RecordNote()
+            note1.properties = props
+            note1.grailsApplication = [getFlatConfig:{
+                ['textup.maxNumImages':_maxNumImages]
+            }] as GrailsApplication
+            note1.storageService = [generateAuthLink:{
+                String k, HttpMethod v, Map m=[:] ->
+                new Result(success:true, payload:new URL("${_urlRoot}${k}"))
+            }] as StorageService
+            note1
         }
     }
 
@@ -122,6 +151,38 @@ class RecordServiceSpec extends CustomSpec {
         then:
         res.success == true
         res.payload == RecordCall
+    }
+
+    void "test create overall"() {
+        when: "no phone"
+        ResultList resList = service.create(null, [:])
+
+        then:
+        resList.isAnySuccess == false
+        resList.results.size() == 1
+        resList.results[0].type == ResultType.MESSAGE_STATUS
+        resList.results[0].payload.code == "recordService.create.noPhone"
+        resList.results[0].payload.status == UNPROCESSABLE_ENTITY
+
+        when: "invalid entity"
+        resList = service.create(t1.phone, [:])
+
+        then:
+        resList.isAnySuccess == false
+        resList.results.size() == 1
+        resList.results[0].type == ResultType.MESSAGE_STATUS
+        resList.results[0].payload.code == "recordService.create.unknownType"
+        resList.results[0].payload.status == UNPROCESSABLE_ENTITY
+
+        when: "text"
+        Map itemInfo = [contents:"hi", sendToPhoneNumbers:["2223334444"],
+            sendToContacts:[tC1.id]]
+        resList = service.create(t1.phone, itemInfo)
+
+        then:
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload == "sendMessage"
     }
 
     void "test create text"() {
@@ -205,35 +266,191 @@ class RecordServiceSpec extends CustomSpec {
         resList.results[0].payload.contactable == sc2
     }
 
-    void "test create overall"() {
-        when: "no phone"
-        ResultList resList = service.create(null, [:])
+    void "test create note for various targets"() {
+        given:
+        int nBaseline = RecordNote.count()
 
-        then:
-        resList.isAnySuccess == false
-        resList.results.size() == 1
-        resList.results[0].type == ResultType.MESSAGE_STATUS
-        resList.results[0].payload.code == "recordService.create.noPhone"
-        resList.results[0].payload.status == UNPROCESSABLE_ENTITY
-
-        when: "invalid entity"
-        resList = service.create(t1.phone, [:])
-
-        then:
-        resList.isAnySuccess == false
-        resList.results.size() == 1
-        resList.results[0].type == ResultType.MESSAGE_STATUS
-        resList.results[0].payload.code == "recordService.create.unknownType"
-        resList.results[0].payload.status == UNPROCESSABLE_ENTITY
-
-        when: "text"
-        Map itemInfo = [contents:"hi", sendToPhoneNumbers:["2223334444"],
-            sendToContacts:[tC1.id]]
-        resList = service.create(t1.phone, itemInfo)
+        when: "creating for a contact"
+        Map body = [
+            forContact:tC1.id,
+            contents:"hi"
+        ]
+        calledSetAttribute = false
+        ResultList<RecordItem> resList = service.createNote(t1.phone, body)
 
         then:
         resList.isAnySuccess == true
         resList.results.size() == 1
-        resList.results[0].payload == "sendMessage"
+        resList.results[0].payload.record == tC1.record
+        calledSetAttribute == true
+        RecordNote.count() == nBaseline + 1
+
+        when: "creating for a shared contact"
+        body = [
+            forSharedContact:sc1.contact.id,
+            contents:"hi"
+        ]
+        calledSetAttribute = false
+        resList = service.createNote(sc1.sharedWith, body)
+
+        then:
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload.record == sc1.contact.record
+        calledSetAttribute == true
+        RecordNote.count() == nBaseline + 2
+
+        when: "creating for a tag"
+        body = [
+            forTag:tag1.id,
+            contents:"hi"
+        ]
+        calledSetAttribute = false
+        resList = service.createNote(tag1.phone, body)
+
+        then:
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload.record == tag1.record
+        calledSetAttribute == true
+        RecordNote.count() == nBaseline + 3
+    }
+
+    void "test creating note for various info"() {
+        given:
+        int nBaseline = RecordNote.count()
+        int lBaseline = Location.count()
+
+        when: "creating a note after a certain time"
+        Map body = [
+            forContact:tC1.id,
+            contents:"hi",
+            after:DateTime.now().minusDays(2)
+        ]
+        calledSetAttribute = false
+        ResultList<RecordItem> resList = service.createNote(t1.phone, body)
+
+        then:
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload.record == tC1.record
+        resList.results[0].payload.whenCreated.isBeforeNow()
+        calledSetAttribute == true
+        RecordNote.count() == nBaseline + 1
+
+        when: "creating a note with location"
+        body = [
+            forContact:tC1.id,
+            contents:"hi",
+            location:[
+                address:"123 Main Street",
+                lat:22G,
+                lon:22G
+            ]
+        ]
+        calledSetAttribute = false
+        resList = service.createNote(t1.phone, body)
+
+        then:
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload.record == tC1.record
+        resList.results[0].payload.location != null
+        calledSetAttribute == true
+        RecordNote.count() == nBaseline + 2
+        Location.count() == lBaseline + 1
+
+        when: "creating a note with image requests"
+        body = [
+            forContact:tC1.id,
+            contents:"hi",
+            doImageActions:[
+                [
+                    action:Constants.NOTE_IMAGE_ACTION_ADD,
+                    mimeType:"image/png",
+                    sizeInBytes:100
+                ],
+                [
+                    action:Constants.NOTE_IMAGE_ACTION_REMOVE,
+                    key:"i am a valid key"
+                ]
+            ]
+        ]
+        calledSetAttribute = false
+        justSetAttribute = null
+        resList = service.createNote(t1.phone, body)
+
+        then:
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload.record == tC1.record
+        resList.results[0].payload.imageKeys.size() == 1
+        calledSetAttribute == true
+        justSetAttribute instanceof List
+        justSetAttribute.size() == 1
+        RecordNote.count() == nBaseline + 3
+    }
+
+    void "test updating note"() {
+        given: "baselines and an existing note"
+        RecordNote note1 = new RecordNote(record:c1.record)
+        note1.save(flush:true, failOnError:true)
+        int rBaseline = RecordNoteRevision.count()
+        int nBaseline = RecordNote.count()
+
+        when: "updating a nonexistent note"
+        Map body = [
+            contents: "hello!"
+        ]
+        Result<RecordItem> res = service.update(-88L, body)
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == NOT_FOUND
+        res.payload.code == "recordService.update.notFound"
+        RecordNoteRevision.count() == rBaseline
+        RecordNote.count() == nBaseline
+
+        when: "updating an existing note"
+        res = service.update(note1.id, body)
+
+        then: "updated and created a revision"
+        res.success == true
+        res.payload instanceof RecordNote
+        res.payload.id == note1.id
+        res.payload.contents == body.contents
+        !res.payload.revisions.isEmpty()
+        RecordNoteRevision.count() == rBaseline + 1
+        RecordNote.count() == nBaseline
+    }
+
+    void "test deleting note"() {
+        given: "baselines and an existing note"
+        RecordNote note1 = new RecordNote(record:c1.record)
+        note1.save(flush:true, failOnError:true)
+        int rBaseline = RecordNoteRevision.count()
+        int nBaseline = RecordNote.count()
+
+        when: "deleting a nonexistent note"
+        Result res = service.delete(-88L)
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == NOT_FOUND
+        res.payload.code == "recordService.delete.notFound"
+        RecordNoteRevision.count() == rBaseline
+        RecordNote.count() == nBaseline
+
+        when: "deleting an existing note"
+        res = service.delete(note1.id)
+
+        then:
+        res.success == true
+        res.payload == null
+        RecordNoteRevision.count() == rBaseline
+        RecordNote.count() == nBaseline
+        RecordNote.get(note1.id).isDeleted == true
     }
 }

@@ -135,4 +135,32 @@ class CustomResponseDoc {
             useForCreation = true)
     ])
     static def phoneAction
+
+    @RestApiObjectField(description = "Add or remove an image from a note in a record.")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName   = "mimeType",
+            description    = "ADD: content type of the image",
+            allowedType    = "String",
+            mandatory      = false,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "sizeInBytes",
+            description    = "ADD: number of bytes of the image to upload",
+            allowedType    = "String",
+            mandatory      = false,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "key",
+            description    = "REMOVE: key of the image to remove",
+            allowedType    = "String",
+            mandatory      = false,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName = "action",
+            description = "Action to take. Allowed: ADD, REMOVE",
+            allowedType = "String",
+            useForCreation = true)
+    ])
+    static def noteImageAction
 }

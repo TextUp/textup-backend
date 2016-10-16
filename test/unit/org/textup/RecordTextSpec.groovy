@@ -36,13 +36,7 @@ class RecordTextSpec extends Specification {
 			It is a paradisemati
 		'''
 
-    	then:
-    	rText.validate() == false
-
-    	when: "we add a valid contents again"
-    	rText.contents = "hi"
-
-    	then:
+    	then: "valid, removed length constraint to avoid rejecting incoming msgs"
     	rText.validate() == true
     }
 }

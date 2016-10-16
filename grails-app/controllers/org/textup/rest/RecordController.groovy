@@ -180,6 +180,55 @@ class RecordController extends BaseController {
         }
     }
 
-    def update() { notAllowed() }
-    def delete() { notAllowed() }
+    // Update
+    // ------
+
+    @RestApiMethod(description="Update an existing note")
+    @RestApiParams(params=[
+        @RestApiParam(name="id", type="Number",
+            paramType=RestApiParamType.PATH, description="Id of the note")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="400", description="Malformed JSON in request."),
+        @RestApiError(code="405", description="The id provided is not a note \
+            and cannot be updated"),
+        @RestApiError(code="403", description="You do not have permission to modify this note."),
+        @RestApiError(code="422", description="The updated fields created an invalid note.")
+    ])
+    def update() {
+        if (!validateJsonRequest(request, 'record')) { return; }
+        Long id = params.long('id')
+        Map noteInfo = (request.properties.JSON as Map).record as Map
+        if (authService.exists(RecordNote, id)) {
+            if (authService.hasPermissionsForItem(id)) {
+                handleUpdateResult('record', recordService.update(id, noteInfo))
+            }
+            else { forbidden() }
+        }
+        else { notAllowed() }
+    }
+
+    // Delete
+    // ------
+
+    @RestApiMethod(description="Delete an existing note")
+    @RestApiParams(params=[
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
+            description="Id of the note")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="403", description="You do not have permission to delete this note."),
+        @RestApiError(code="405", description="The id provided is not a note \
+            and cannot be deleted")
+    ])
+    def delete() {
+        Long id = params.long('id')
+        if (authService.exists(RecordNote, id)) {
+            if (authService.hasPermissionsForItem(id)) {
+                handleDeleteResult(recordService.delete(id))
+            }
+            else { forbidden() }
+        }
+        else { notAllowed() }
+    }
 }

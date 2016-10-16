@@ -1,11 +1,9 @@
 package org.textup
 
-import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest
+import com.amazonaws.HttpMethod
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.types.ReceiptStatus
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -21,12 +19,9 @@ class RecordCallSpec extends Specification {
         RecordCall.metaClass.constructor = { Map m ->
             RecordCall instance = new RecordCall()
             instance.properties = m
-            instance.grailsApplication = [getFlatConfig:{
-                ["textup.voicemailBucketName":"bucket"]
-            }] as GrailsApplication
-            instance.s3Service = [generatePresignedUrl: { GeneratePresignedUrlRequest req ->
-                new URL("${urlRoot}${req.key}")
-            }] as AmazonS3Client
+            instance.storageService = [generateAuthLink:{ String k, HttpMethod v ->
+                new Result(success:true, payload:new URL("${urlRoot}${k}"))
+            }] as StorageService
             instance
         }
     }

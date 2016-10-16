@@ -114,6 +114,28 @@ beans = {
 		namespace = v1Namespace
 	}
 
+	receiptRenderer(ApiJsonRenderer, RecordItemReceipt) {
+		label = tRestConfig.v1.receipt.singular
+	}
+	receiptCollectionRenderer(ApiJsonCollectionRenderer, RecordItemReceipt) {
+		label = tRestConfig.v1.receipt.plural
+	}
+	receiptJsonMarshaller(RecordItemReceiptJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	revisionRenderer(ApiJsonRenderer, RecordNoteRevision) {
+		label = tRestConfig.v1.revision.singular
+	}
+	revisionCollectionRenderer(ApiJsonCollectionRenderer, RecordNoteRevision) {
+		label = tRestConfig.v1.revision.plural
+	}
+	revisionJsonMarshaller(RecordNoteRevisionJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
 	futureMessageRenderer(ApiJsonRenderer, FutureMessage) {
 		label = tRestConfig.v1.futureMessage.singular
 	}
