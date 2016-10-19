@@ -903,4 +903,6 @@ databaseChangeLog = {
 	include file: 'quartz-innodb.groovy'
 
 	include file: 'lock-code.groovy'
+
+	include file: 'remove-text-length-constraint.groovy'
 }

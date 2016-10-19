@@ -4,6 +4,8 @@ import com.twilio.sdk.resource.instance.IncomingPhoneNumber
 import com.twilio.sdk.TwilioRestClient
 import com.twilio.sdk.TwilioRestException
 import grails.compiler.GrailsTypeChecked
+import grails.plugins.rest.client.RestBuilder
+import grails.plugins.rest.client.RestResponse
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.types.OrgStatus
@@ -19,6 +21,7 @@ class StaffService {
     AuthService authService
     MailService mailService
     PhoneService phoneService
+    GrailsApplication grailsApplication
 
     // Create
     // ------
@@ -46,12 +49,42 @@ class StaffService {
     }
 
     Result<Staff> create(Map body, String timezone) {
-        Result.<Staff>waterfall(
-            this.&fillStaffInfo.curry(new Staff(), body, timezone),
-            this.&completeStaffCreation.rcurry(body)
-        )
+        verifyCreateRequest(body).then({ ->
+            Result.<Staff>waterfall(
+                this.&fillStaffInfo.curry(new Staff(), body, timezone),
+                this.&completeStaffCreation.rcurry(body)
+            )
+        }) as Result<Staff>
     }
-
+    protected Result verifyCreateRequest(Map body) {
+        // don't need captcha to verify that user is not a bot if
+        // we are trying to create a staff member after logging in
+        if (authService.isActive) {
+            return resultFactory.success()
+        }
+        Map response = [:]
+        String captcha = body?.captcha
+        if (captcha) {
+            String verifyLink = grailsApplication
+                .flatConfig["textup.apiKeys.reCaptcha.verifyEndpoint"]
+            String secret = grailsApplication
+                .flatConfig["textup.apiKeys.reCaptcha.secret"]
+            response = doVerifyRequest("${verifyLink}?secret=${secret}&response=${captcha}")
+        }
+        if (response.success) {
+            resultFactory.success()
+        }
+        else {
+            resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
+                "staffService.create.couldNotVerifyCaptcha")
+        }
+    }
+    // for mocking during testing
+    private Map doVerifyRequest(String requestUrl) {
+        (new RestBuilder())
+            .post(requestUrl)
+            .json as Map ?: [:]
+    }
     protected Result<Staff> fillStaffInfo(Staff s1, Map body, String timezone) {
         s1.with {
             if (body.name) name = body.name

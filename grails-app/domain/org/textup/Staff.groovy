@@ -101,7 +101,13 @@ class Staff {
         @RestApiObjectField(
             apiFieldName = "personalPhoneNumber",
             description  = "Personal phone number of the staff member.",
-            allowedType  = "String")
+            allowedType  = "String"),
+        @RestApiObjectField(
+            apiFieldName      = "captcha",
+            description       = "reCaptcha code verifying that request is not a bot \
+                only required if you are not logged in when creating a staff",
+            useForCreation    = true,
+            presentInResponse = false)
     ])
     static transients = ["personalPhoneNumber", "phone", "resultFactory",
         "springSecurityService", "passwordEncoder"]

@@ -88,15 +88,26 @@ environments {
     development {
         grails.logging.jul.usebridge = true
         grails.plugin.databasemigration.updateOnStart = false
-        grails.serverURL = System.getenv("SERVER_URL") ?: (System.getProperty("SERVER_URL") ?: "https://5e6aa46b.ngrok.io")
+        grails.serverURL = System.getenv("SERVER_URL") ?: System.getProperty("SERVER_URL")
         textup.apiKeys.twilio.appId="AP762342f6263b687fdc60c12dc9fbded8"
     }
     production {
         grails.logging.jul.usebridge = false
         grails.serverURL = System.getenv("SERVER_URL") ?: (System.getProperty("SERVER_URL") ?: "https://dev.textup.org")
+        textup.apiKeys.twilio.appId=System.getenv("TWILIO_NUMBER_APP_ID") ?: (System.getProperty("TWILIO_NUMBER_APP_ID") ?: "APe80c7d1e8a78963cde8c95785fdd8c9d")
         grails.plugin.databasemigration.updateOnStart = true
         grails.plugin.databasemigration.updateOnStartFileNames = ['changelog.groovy']
-        textup.apiKeys.twilio.appId=System.getenv("TWILIO_NUMBER_APP_ID") ?: (System.getProperty("TWILIO_NUMBER_APP_ID") ?: "APe80c7d1e8a78963cde8c95785fdd8c9d")
+        // can't use this because we have compound primary keys in the QRTZ
+        // table and the way that liquibase.structure.core.PrimaryKey is
+        // build up in what is passed to MigrationUtils has a null name even
+        // though the default name of the primary key is PRIMARY. Therefore,
+        // since the databasemigration plugin uses the String contains method
+        // to check to see if the name matches the string specified in ignoredObjects
+        // and the name of the compound primary key is null, then this returns
+        // a NullPointerException per the specifications of the contains method.
+        // We must resort to manually modifying the diff generated each time we
+        // make a db change to avoid dropping all of our QRTZ tables.
+        //grails.plugin.databasemigration.ignoredObjects = 'QRTZ'
     }
 }
 
@@ -236,6 +247,10 @@ textup {
             appId = "159936"
             apiKey = System.getenv("PUSHER_API_KEY") ?: System.getProperty("PUSHER_API_KEY")
             apiSecret = System.getenv("PUSHER_API_SECRET") ?: System.getProperty("PUSHER_API_SECRET")
+        }
+        reCaptcha {
+            verifyEndpoint = "https://www.google.com/recaptcha/api/siteverify"
+            secret = System.getenv("RECAPTCHA_SECRET") ?: System.getProperty("RECAPTCHA_SECRET")
         }
     }
     rest {
