@@ -16,6 +16,7 @@ import org.textup.types.ContactStatus
 import org.textup.types.PhoneOwnershipType
 import org.textup.types.RecordItemType
 import org.textup.types.ResultType
+import org.textup.types.SharePermission
 import org.textup.types.StaffStatus
 import org.textup.types.TextResponse
 import org.textup.util.CustomSpec
@@ -712,6 +713,80 @@ class PhoneServiceSpec extends CustomSpec {
         res.success == true
         res.payload == [sBy.awayMessage]
         _numTextsSent == 0
+    }
+
+    void "test notify staff"() {
+        given: "a staff member with a personal phone who is a member of a team \
+            and who has a contact shared by the team to the staff's personal phone"
+        // asserting relationships
+        assert s1 in t1.members
+        assert s1.phone == p1 && c1.phone == p1
+        assert t1.phone == tPh1 && tC1.phone == tPh1
+        // sharing contact
+        tPh1.stopShare(tC1)
+        SharedContact shared1 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
+        shared1.save(flush:true, failOnError:true)
+        // make all othe staff members unavailable!
+        t1.members.each { Staff otherStaff ->
+            otherStaff.manualSchedule = true
+            otherStaff.isAvailable = false
+            otherStaff.save(flush:true, failOnError:true)
+        }
+        // ensuring that staff is available
+        s1.manualSchedule = true
+        s1.isAvailable = true
+        s1.save(flush:true, failOnError:true)
+        assert s1.isAvailableNow() == true
+
+        when: "incoming text to the team's phone number"
+        String msg = "hi!"
+        _numTextsSent = 0
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
+        boolean didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
+
+        then: "staff should only receive notification from the staff's personal \
+            TextUp phone through the shared relationship"
+        didNotify == true
+        _numTextsSent == 1
+        _notifyRecordIds == [tC1.record.id]
+        _notifyPhoneIds == [s1.phone.id]
+
+        when: "staff is no longer shared on contact and incoming text to team number"
+        shared1.stopSharing()
+        shared1.save(flush:true, failOnError:true)
+
+        _numTextsSent = 0
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
+        didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
+
+        then: "notification from the team TextUp phone only"
+        didNotify == true
+        _numTextsSent == 1
+        _notifyRecordIds == [tC1.record.id]
+        _notifyPhoneIds == [tC1.phone.id]
+
+        when: "staff is shared again but is no longer member of team and \
+            incoming text to the team number"
+        SharedContact shared2 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
+        shared2.save(flush:true, failOnError:true)
+
+        t1.removeFromMembers(s1)
+        t1.save(flush:true, failOnError:true)
+        assert (s1 in t1.members) == false
+
+        _numTextsSent = 0
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
+        didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
+
+        then: "notification from the staff's personal TextUp phone only because \
+            of the shared relationship"
+        didNotify == true
+        _numTextsSent == 1
+        _notifyRecordIds == [tC1.record.id]
+        _notifyPhoneIds == [s1.phone.id]
     }
 
     @FreshRuntime

@@ -412,43 +412,9 @@ class PhoneService {
             if (res.success) { rTexts << res.payload }
         }).then({ List<Contact> contacts ->
             // notify available staff members
-            List responses = [] // list of string and text resonses
-            Map<Phone, List<Staff>> phonesToAvailableNow =
-                phone.getPhonesToAvailableNowForContactIds(contacts*.id)
+            List<String> responses = [] // list of string and text resonses
             // if none of the staff for any of the phones are available
-            if (phonesToAvailableNow) {
-                // if multiple contacts from the same phone, then
-                // this will take the last contact's record. In the future,
-                // if we wanted to support showing all the records that received
-                // the text, we can do so by exhaustively listing all record ids
-                Map<Long, Long> phoneIdToRecordId = contacts
-                    .collectEntries { Contact c1 ->
-                        [(c1.phone.id):c1.record.id]
-                    }
-                SharedContact
-                    .findEveryByContactIdsAndSharedBy(contacts*.id, phone)
-                    .each { SharedContact sc1 ->
-                        phoneIdToRecordId[sc1.sharedWith.id] = sc1.contactId
-                    }
-                phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
-                    String instructions = messageSource.getMessage(
-                        "phoneService.notifyStaff.notification", null, LCH.getLocale())
-                    staffs.each { Staff s1 ->
-                        Long recordId = phoneIdToRecordId[p1.id]
-                        if (recordId) {
-                            tokenService.notifyStaff(p1, s1, recordId, false,
-                                    text.message, instructions)
-                                .logFail("PhoneService.relayText: calling notifyStaff")
-                        }
-                        else {
-                            log.error("PhoneService.relayText: getPhonesToAvailableNowForContactIds \
-                                called on phone ${phone.id} yielded a phone ${p1.id} \
-                                that did not have a corresponding contact's record in map")
-                        }
-                    }
-                }
-            }
-            else {
+            if (!tryNotifyStaff(phone, text.message, contacts)) {
                 rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
                 responses << phone.awayMessage
             }
@@ -659,15 +625,86 @@ class PhoneService {
     // Incoming helper methods
     // -----------------------
 
-    protected Result notifyStaff(Staff s1, Phone p1, String name) {
-        String msg = messageSource.getMessage("phoneService.notifyStaff.notification",
-            [name] as Object[], LCH.getLocale())
-        textService.send(p1.number, [s1.personalPhoneNumber], msg)
-    }
     protected String getNameOrNumber(List<Contact> contacts, IncomingSession session) {
         for (contact in contacts) {
             if (contact.name) { return contact.name }
         }
         return Helpers.formatNumberForSay(session.numberAsString)
+    }
+    protected boolean tryNotifyStaff(Phone phone, String message,
+        List<Contact> contacts) {
+        Map<Phone, List<Staff>> phonesToAvailableNow =
+            phone.getPhonesToAvailableNowForContactIds(contacts*.id)
+        // if none of the staff for any of the phones are available
+        if (!phonesToAvailableNow) {
+            return false
+        }
+        // if multiple contacts from the same phone, then
+        // this will take the last contact's record. In the future,
+        // if we wanted to support showing all the records that received
+        // the text, we can do so by exhaustively listing all record ids
+        Map<Long, Long> phoneIdToRecordId = contacts
+            .collectEntries { Contact c1 ->
+                [(c1.phone.id):c1.record.id]
+            }
+        SharedContact
+            .findEveryByContactIdsAndSharedBy(contacts*.id, phone)
+            .each { SharedContact sc1 ->
+                Long recordId = sc1.record?.id
+                if (recordId) {
+                    phoneIdToRecordId[sc1.sharedWith.id] = recordId
+                }
+            }
+        // if a staff member is part of a team that has a TextUp phone
+        // and also has an individual TextUp phone, then we don't want
+        // to send multiple notifications. Therefore, this map associates
+        // each staff member with his/her personal TextUp phone
+        // if the staff member has a personal TextUp phone
+        // FOR THE PHONES THAT HAVE ACCESS TO THIS RECORD. Since we
+        // are looping through the phones that have access to this record
+        // we don't have to worry about the case where the staff member
+        // has a personal TextUp phone and is part of the team but is not
+        // shared on the contact on the personal phone. If this were the case,
+        // then the personal phone wouldn't even by a key in this map.
+        Map<Long, Long> staffIdToPersonalPhoneId = [:]
+        phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
+            if (p1.owner.type == PhoneOwnershipType.INDIVIDUAL) {
+                staffIdToPersonalPhoneId[p1.owner.ownerId] = p1.id
+            }
+        }
+        // if you are concerned about several tokens generated
+        // for one message, remember that we also send unique tokens
+        // to those who are members of a team. So if a contact
+        // from a team is shared with a staff and that staff is
+        // also a member of that team, the staff member will
+        // receive two notification texts each with a unique token
+        // And these tokens will appear to be the same when you
+        // look at the database because the token's data does not
+        // specify the from and to numbers of the notification
+        phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
+            String instructions = messageSource.getMessage(
+                "phoneService.notifyStaff.notification", null, LCH.getLocale())
+            for (Staff s1 in staffs) {
+                // if the staff member has a personal phone AND
+                // this phone p1 is NOT the personal phone,
+                // then skip notifying until we get to the personal phone
+                if (staffIdToPersonalPhoneId.containsKey(s1.id) &&
+                    staffIdToPersonalPhoneId[s1.id] != p1.id) {
+                    continue
+                }
+                Long recordId = phoneIdToRecordId[p1.id]
+                if (recordId) {
+                    tokenService.notifyStaff(p1, s1, recordId, false,
+                            message, instructions)
+                        .logFail("PhoneService.relayText: calling notifyStaff")
+                }
+                else {
+                    log.error("PhoneService.relayText: getPhonesToAvailableNowForContactIds \
+                        called on phone ${phone.id} yielded a phone ${p1.id} \
+                        that did not have a corresponding contact's record in map")
+                }
+            }
+        }
+        return true
     }
 }

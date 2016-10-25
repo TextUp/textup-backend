@@ -62,7 +62,7 @@ class CustomResponseDoc {
         @RestApiObjectField(
             apiFieldName = "otherId",
             description = "identifier of other party, id if contact and name if tag",
-            allowedType = "Number"),
+            allowedType = "String"),
         @RestApiObjectField(
             apiFieldName = "otherName",
             description = "name of the other party",
