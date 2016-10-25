@@ -44,6 +44,8 @@ class PhoneServiceSpec extends CustomSpec {
 
     String _apiId = "iamsospecial!!!"
     int _numTextsSent = 0
+    List<Long> _notifyRecordIds = []
+    List<Long> _notifyPhoneIds = []
 
     def setup() {
         setupData()
@@ -56,6 +58,13 @@ class PhoneServiceSpec extends CustomSpec {
                 payload: new TempRecordReceipt(apiId:_apiId,
                     receivedByAsString:toNums[0].number))
         }] as TextService
+        service.tokenService = [notifyStaff:{ Phone p1, Staff s1, Long recordId,
+            Boolean outgoing, String msg, String instructions ->
+            _numTextsSent++
+            _notifyRecordIds << recordId
+            _notifyPhoneIds << p1.id
+            new Result(type:ResultType.SUCCESS, success:true)
+        }] as TokenService
         service.callService = [start:{ PhoneNumber fromNum, PhoneNumber toNum,
             Map afterPickup ->
             new Result(type:ResultType.SUCCESS, success:true,
@@ -559,16 +568,6 @@ class PhoneServiceSpec extends CustomSpec {
         n1 == c1.name
     }
 
-    void "test notify staff"() {
-        when:
-        String name = "kiki bai"
-        Result<TempRecordReceipt> res = service.notifyStaff(s1, p1, name)
-
-        then:
-        res.success == true
-        res.payload instanceof TempRecordReceipt
-    }
-
     @FreshRuntime
     void "test relay text"() {
         given: "none available and should send instructions"
@@ -687,12 +686,16 @@ class PhoneServiceSpec extends CustomSpec {
         IncomingText text = new IncomingText(apiId:"iamsosecret", message:"hello")
         assert text.validate()
         _numTextsSent = 0
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
         Result res = service.relayText(sBy, text, session)
 
         then: "no away message sent and only available staff notified"
         res.success == true
         res.payload == []
         _numTextsSent == sWith.owner.all.size()
+        _notifyRecordIds.every { it == sc1.contact.record.id }
+        _notifyPhoneIds.every { it == sWith.id }
 
         when: "that shared with phone's staff owner is no longer available"
         // phone that contact is shared with has staff that are available

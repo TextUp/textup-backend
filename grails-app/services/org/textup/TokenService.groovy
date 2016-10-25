@@ -3,9 +3,12 @@ package org.textup
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.types.TokenType
+import org.textup.validator.Notification
 import org.textup.validator.PhoneNumber
 import static org.springframework.http.HttpStatus.*
 
@@ -32,7 +35,7 @@ class TokenService {
             return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "tokenService.requestReset.staffNoEmail")
         }
-        generate(TokenType.PASSWORD_RESET, [toBeResetId:s1.id]).then({ Token t1 ->
+        generate(TokenType.PASSWORD_RESET, 1, [toBeResetId:s1.id]).then({ Token t1 ->
             mailService.notifyPasswordReset(s1, t1.token)
         }) as Result
     }
@@ -53,10 +56,28 @@ class TokenService {
         	return resultFactory.failWithValidationErrors(fromNum.errors)
         }
         // actually generate token
-        generate(TokenType.VERIFY_NUMBER, [toVerifyNumber:toNum.number]).then({ Token t1 ->
+        generate(TokenType.VERIFY_NUMBER, null, [toVerifyNumber:toNum.number]).then({ Token t1 ->
         	String msg = messageSource.getMessage('tokenService.requestVerify.message',
         		[t1.token] as Object[], LCH.getLocale())
             textService.send(fromNum, [toNum], msg)
+        }) as Result
+    }
+    Result notifyStaff(Phone p1, Staff s1, Long recordId,
+        Boolean outgoing, String contents, String instructions) {
+        Map tokenData = [
+            phoneId: p1.id,
+            recordId:recordId,
+            contents:contents,
+            outgoing:outgoing
+        ]
+        Integer maxNumAccess = Helpers.toInteger(grailsApplication
+            .flatConfig["textup.numTimesAccessNotification"])
+        generate(TokenType.NOTIFY_STAFF, maxNumAccess, tokenData).then({ Token t1 ->
+            t1.expires = DateTime.now(DateTimeZone.UTC).plusDays(1)
+            String notifyLink = grailsApplication
+                .flatConfig["textup.links.notifyStaff"]
+            String notification = "${instructions} \n\n ${notifyLink + t1.token}"
+            textService.send(p1.number, [s1.personalPhoneNumber], notification)
         }) as Result
     }
 
@@ -75,7 +96,7 @@ class TokenService {
 	        }
 	        s1.password = password
 	        if (s1.save()) {
-	            resetToken.expireNow()
+                resetToken.timesAccessed++
 	            if (resetToken.save()) {
 	                resultFactory.success(s1)
 	            }
@@ -101,21 +122,29 @@ class TokenService {
                     "tokenService.verifyNumber.numbersNoMatch")
 		}) as Result
     }
+    Result<Notification> showNotification(String token) {
+        findToken(TokenType.NOTIFY_STAFF, token).then({ Token tok ->
+            Map data = tok.data
+            Notification notif = new Notification(contents:data.contents as String,
+                owner:Phone.get(Helpers.toLong(data.phoneId))?.owner,
+                outgoing:Helpers.toBoolean(data.outgoing),
+                tokenId:Helpers.toLong(tok.id))
+            notif.record = Record.get(Helpers.toLong(data.recordId))
+            if (notif.validate()) {
+                tok.timesAccessed++
+                if (tok.save()) {
+                    resultFactory.success(notif)
+                }
+                else { resultFactory.failWithValidationErrors(tok.errors) }
+            }
+        }) as Result<Notification>
+    }
 
     // Helpers
     // -------
 
-    protected Result<Token> generate(TokenType type, Map data) {
-        String sizeKey = (type == TokenType.PASSWORD_RESET) ?
-            "textup.resetTokenSize" :
-            "textup.verifyTokenSize"
-        Integer tokenSize = Helpers.toInteger(grailsApplication.flatConfig[sizeKey])
-        String tokenString = Helpers.randomAlphanumericString(tokenSize)
-        //ensure that our generated token is unique
-        while (Token.countByToken(tokenString) != 0) {
-            tokenString = Helpers.randomAlphanumericString(tokenSize)
-        }
-        Token token = new Token(token:tokenString, type:type)
+    protected Result<Token> generate(TokenType type, Integer maxNumAccess, Map data) {
+        Token token = new Token(type:type, maxNumAccess:maxNumAccess)
         token.data = data
         if (token.save()) {
             resultFactory.success(token)

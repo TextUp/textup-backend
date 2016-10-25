@@ -36,6 +36,10 @@ class UrlMappings {
             "/public/records"(resources:"publicRecord", namespace:"v1") {
                 format = "json"
             }
+            // GET for looking up details about a notification
+            "/public/notifications"(resources:"notify", namespace:"v1") {
+                format = "json"
+            }
 
             ////////////////////////////
             // Restricted Utility API //

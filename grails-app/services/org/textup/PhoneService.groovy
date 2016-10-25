@@ -37,16 +37,17 @@ import static org.springframework.http.HttpStatus.*
 @Transactional
 class PhoneService {
 
-    SocketService socketService
-    TwimlBuilder twimlBuilder
     AmazonS3Client s3Service
     AuthService authService
     CallService callService
     GrailsApplication grailsApplication
     MessageSource messageSource
     ResultFactory resultFactory
+    SocketService socketService
     TextService textService
+    TokenService tokenService
     TwilioRestClient twilioService
+    TwimlBuilder twimlBuilder
 
     // Update
     // ------
@@ -416,11 +417,34 @@ class PhoneService {
                 phone.getPhonesToAvailableNowForContactIds(contacts*.id)
             // if none of the staff for any of the phones are available
             if (phonesToAvailableNow) {
+                // if multiple contacts from the same phone, then
+                // this will take the last contact's record. In the future,
+                // if we wanted to support showing all the records that received
+                // the text, we can do so by exhaustively listing all record ids
+                Map<Long, Long> phoneIdToRecordId = contacts
+                    .collectEntries { Contact c1 ->
+                        [(c1.phone.id):c1.record.id]
+                    }
+                SharedContact
+                    .findEveryByContactIdsAndSharedBy(contacts*.id, phone)
+                    .each { SharedContact sc1 ->
+                        phoneIdToRecordId[sc1.sharedWith.id] = sc1.contactId
+                    }
                 phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
-                    String name = p1.owner.name
+                    String instructions = messageSource.getMessage(
+                        "phoneService.notifyStaff.notification", null, LCH.getLocale())
                     staffs.each { Staff s1 ->
-                        this.notifyStaff(s1, p1, name)
-                            .logFail("PhoneService.relayText: calling notifyStaff")
+                        Long recordId = phoneIdToRecordId[p1.id]
+                        if (recordId) {
+                            tokenService.notifyStaff(p1, s1, recordId, false,
+                                    text.message, instructions)
+                                .logFail("PhoneService.relayText: calling notifyStaff")
+                        }
+                        else {
+                            log.error("PhoneService.relayText: getPhonesToAvailableNowForContactIds \
+                                called on phone ${phone.id} yielded a phone ${p1.id} \
+                                that did not have a corresponding contact's record in map")
+                        }
                     }
                 }
             }

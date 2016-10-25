@@ -29,6 +29,47 @@ class CustomResponseDoc {
     ])
     static def newPasswordRequest
 
+    @RestApiObjectField(description = "A message notification sent to a staff")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName = "ownerType",
+            description = "whether the owner is a 'staff' or 'team'",
+            allowedType = "String"),
+        @RestApiObjectField(
+            apiFieldName = "ownerId",
+            description = "identifier of the owner, username if staff, name if team",
+            allowedType = "String"),
+        @RestApiObjectField(
+            apiFieldName = "ownerName",
+            description = "name of the owner",
+            allowedType = "String"),
+        @RestApiObjectField(
+            apiFieldName = "ownerNumber",
+            description = "TextUp number of the owner",
+            allowedType = "String"),
+        @RestApiObjectField(
+            apiFieldName = "contents",
+            description = "contents of the message",
+            allowedType = "String"),
+        @RestApiObjectField(
+            apiFieldName = "outgoing",
+            description = "whether or not this message is outgoing",
+            allowedType = "Boolean"),
+        @RestApiObjectField(
+            apiFieldName = "otherType",
+            description = "whether the other party is a 'contact' or 'tag'",
+            allowedType = "String"),
+        @RestApiObjectField(
+            apiFieldName = "otherId",
+            description = "identifier of other party, id if contact and name if tag",
+            allowedType = "Number"),
+        @RestApiObjectField(
+            apiFieldName = "otherName",
+            description = "name of the other party",
+            allowedType = "String")
+    ])
+    static def notification
+
     @RestApiObjectField(description = "Modify a contact with relative to a tag")
     @RestApiObjectFields(params=[
         @RestApiObjectField(

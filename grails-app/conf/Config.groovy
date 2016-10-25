@@ -202,8 +202,8 @@ textup {
     maxNumText = 50 //max number of recipients to text
     defaultMax = 10 //default max during pagination
     largestMax = 100 //largest max allowed during pagination
-    resetTokenSize = 25
-    verifyTokenSize = 5
+
+    numTimesAccessNotification = 3 // number of times a notification is allowed to be accessed
 
     voicemailBucketName = "media-textup-org"
     mail {
@@ -220,6 +220,7 @@ textup {
         passwordReset = System.getenv("URL_PASSWORD_RESET") ?: (System.getProperty("URL_PASSWORD_RESET") ?: "https://app.textup.org/#/reset?token=")
         setupNewOrg = System.getenv("URL_SETUP_NEW_ORG") ?: (System.getProperty("URL_SETUP_NEW_ORG") ?: "https://app.textup.org/#/setup")
         setupExistingOrg = System.getenv("URL_SETUP_EXISTING_ORG") ?: (System.getProperty("URL_SETUP_EXISTING_ORG") ?: "https://app.textup.org/#/setup")
+        notifyStaff = System.getenv("URL_NOTIFY_STAFF") ?: (System.getProperty("URL_NOTIFY_STAFF") ?: "https://app.textup.org/#/notify?token=")
     }
 
     //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
@@ -260,6 +261,7 @@ textup {
             contact = [singular:"contact", plural:"contacts"]
             futureMessage = [singular:"future-message", plural:"future-messages"]
             location = [singular:"location", plural:"locations"]
+            notification = [singular:"notification", plural:"notifications"]
             organization = [singular:"organization", plural:"organizations"]
             phone = [singular:"phone", plural:"phones"]
             record = [singular:"record", plural:"records"]

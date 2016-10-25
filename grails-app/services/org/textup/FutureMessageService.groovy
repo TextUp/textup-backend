@@ -24,11 +24,11 @@ import static org.springframework.http.HttpStatus.*
 class FutureMessageService {
 
     AuthService authService
+    MessageSource messageSource
     ResultFactory resultFactory
     Scheduler quartzScheduler
-    MessageSource messageSource
-    TextService textService
     SocketService socketService
+    TokenService tokenService
 
 	// Scheduler
 	// ---------
@@ -123,24 +123,20 @@ class FutureMessageService {
         }).logFail("FutureMessageService.execute: sending items through socket")
         // notify staffs is any successes
         if (fMsg.notifySelf && resList.isAnySuccess) {
-            String ident = msg.name
+            String instructions = messageSource.getMessage(
+                "futureMessageService.notifyStaff.notification", null, LCH.getLocale())
             p1
                 .getPhonesToAvailableNowForContactIds(msg.contacts*.id)
                 .each { Phone p2, List<Staff> staffs ->
                     String phoneName = p2.owner.name
                     staffs.each { Staff s1 ->
-                        this.notifyStaff(s1, p2, phoneName, ident, fMsg.message)
+                        tokenService.notifyStaff(p2, s1, fMsg.record.id, true,
+                                fMsg.message, instructions)
                             .logFail("FutureMessageService.execute: calling notifyStaff")
                     }
                 }
         }
         resList
-    }
-    protected Result notifyStaff(Staff s1, Phone p1, String phoneName,
-        String identifier, String message) {
-        String msg = messageSource.getMessage("futureMessageService.notifyStaff.notification",
-            [phoneName, identifier, message] as Object[], LCH.getLocale())
-        textService.send(p1.number, [s1.personalPhoneNumber], msg)
     }
 
     // Create

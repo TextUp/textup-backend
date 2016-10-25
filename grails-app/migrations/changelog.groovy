@@ -905,4 +905,6 @@ databaseChangeLog = {
 	include file: 'lock-code.groovy'
 
 	include file: 'remove-text-length-constraint.groovy'
+
+	include file: 'notifications.groovy'
 }

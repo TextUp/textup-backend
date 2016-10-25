@@ -8,6 +8,7 @@ class Constants {
 	static final int MAX_REPEATS = 20
 	static final int TEXT_LENGTH = 160
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
+	static final int DEFAULT_TOKEN_LENGTH = 25
 
 	// Lock code
 	// ---------

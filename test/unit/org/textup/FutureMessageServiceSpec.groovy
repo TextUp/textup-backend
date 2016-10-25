@@ -33,22 +33,18 @@ class FutureMessageServiceSpec extends CustomSpec {
 	}
 
 	FutureMessage fMsg1
-    String _apiId
     int _numTextsSent
 
     def setup() {
         _numTextsSent = 0
-        _apiId = UUID.randomUUID().toString()
     	setupData()
     	service.resultFactory = getResultFactory()
         service.messageSource = mockMessageSource()
-        service.textService = [send:{ BasePhoneNumber fromNum,
-            List<? extends BasePhoneNumber> toNums, String message ->
+        service.tokenService = [notifyStaff:{ Phone p1, Staff s1, Long recordId,
+            Boolean outgoing, String msg, String instructions ->
             _numTextsSent++
-            new Result(type:ResultType.SUCCESS, success:true,
-                payload: new TempRecordReceipt(apiId:_apiId,
-                    receivedByAsString:toNums[0].number))
-        }] as TextService
+            new Result(type:ResultType.SUCCESS, success:true)
+        }]  as TokenService
         service.socketService = [
             sendItems:{ List<RecordItem> items,
                 String eventName=Constants.SOCKET_EVENT_RECORDS ->
@@ -101,28 +97,15 @@ class FutureMessageServiceSpec extends CustomSpec {
     	res.payload.keyName == fMsg1.keyName
     	res.payload.isDone == true
     }
-    void "test notify staff"() {
-        when:
-        _numTextsSent = 0
-        String phoneName = "phoneName"
-        String message = "hi"
-        String identifier = "id"
-        Result res = service.notifyStaff(s1, p1, phoneName, identifier, message)
-
-        then:
-        res.success == true
-        _numTextsSent == 1
-        res.payload.apiId == _apiId
-        res.payload.receivedByAsString == s1.personalPhoneAsString
-    }
     void "test execute"() {
-        given:
+        given: "overrides and baselines"
         Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff = null,
             boolean skipCheck = false ->
             new ResultList(new Result(success:true))
         }
         Phone.metaClass.getPhonesToAvailableNowForContactIds =
             { Collection<Long> cIds -> [(p1):[s1, s2]] }
+
 
     	when: "nonexistent keyName"
         _numTextsSent = 0
