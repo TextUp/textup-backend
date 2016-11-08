@@ -35,6 +35,7 @@ class Token {
     }
     static mapping = {
         expires type:PersistentDateTime
+        stringData type:"text"
     }
 
     // Hooks

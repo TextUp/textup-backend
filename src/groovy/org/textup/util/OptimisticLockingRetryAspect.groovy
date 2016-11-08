@@ -31,7 +31,7 @@ class OptimisticLockingRetryAspect implements Ordered {
 	            HibernateOptimisticLockingFailureException e) {
 	            log.debug("OPTIMISTIC LOCKING EXCEPTION after $retriesSoFar retries \
 	                e.message: e.class: ${e.class}, ${e.message}, e: $e")
-	            if (allowedRetries < retriesSoFar) {
+	            if (retriesSoFar < allowedRetries) {
 	            	retriesSoFar++
             	}
             	else { throw e }

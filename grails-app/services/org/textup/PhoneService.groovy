@@ -571,15 +571,17 @@ class PhoneService {
                 ObjectMetadata metadata = new ObjectMetadata()
                 metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION)
                 metadata.setContentType("audio/mpeg")
-                PutObjectResult putRes
+                String eTag = ""
                 for (rec in recs) {
-                    putRes = s3Service.putObject(bucketName, apiId,
-                        rec.getMedia(".mp3"), metadata)
-                    break //only put the first recording if multiple
+                    eTag = s3Service.putObject(bucketName, apiId,
+                        rec.getMedia(".mp3"), metadata)?.getETag()
+                    //only put the first recording if first one succeeds
+                    //and there are multiple recordings
+                    if (eTag) { break }
                 }
                 //delete all recordings on Twilio
                 for (rec in recs) { rec.delete() }
-                resultFactory.success(putRes.getETag())
+                resultFactory.success(eTag)
             }
             else {
                 resultFactory.failWithMessageAndStatus(NOT_FOUND,

@@ -109,8 +109,8 @@ class FutureMessageService {
         OutgoingMessage msg = fMsg.toOutgoingMessage()
         Phone[] phones = msg.phones.toArray() as Phone[]
         if (!phones || !phones[0]) {
-         return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
-             "futureMessageService.execute.phoneNotFound"))
+            return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
+                "futureMessageService.execute.phoneNotFound"))
         }
         Phone p1 = phones[0]
         // skip owner check on the phone because we may be sending through a shared contact

@@ -91,8 +91,8 @@ class StaffService {
             if (body.username) username = body.username
             if (body.password) password = body.password
             if (body.email) email = body.email
-            if (body.manualSchedule) manualSchedule = body.manualSchedule
-            if (body.isAvailable) isAvailable = body.isAvailable
+            if (body.manualSchedule != null) manualSchedule = body.manualSchedule
+            if (body.isAvailable != null) isAvailable = body.isAvailable
         }
         if (body.lockCode) {
             if (body.lockCode ==~ /\d{${Constants.LOCK_CODE_LENGTH}}/) {

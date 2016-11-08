@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.types.ResultType
+import org.textup.types.LogLevel
 
 @GrailsCompileStatic
 @Log4j
@@ -32,9 +33,20 @@ class Result<T> {
     	this.success ? executeAction(successAction) : executeAction(failAction)
     }
 
-    Result logFail(String prefix="") {
+    Result logFail(String prefix="", LogLevel level=LogLevel.ERROR) {
         if (!this.success) {
-            log.error(prefix ? "${prefix}: ${type}: ${payload}" : "${type}: ${payload}")
+            String msg = prefix ? "${prefix}: ${type}: ${payload}" : "${type}: ${payload}"
+            switch (level) {
+                case LogLevel.ERROR:
+                    log.error(msg)
+                    break
+                case LogLevel.DEBUG:
+                    log.debug(msg)
+                    break
+                case LogLevel.INFO:
+                    log.info(msg)
+                    break
+            }
         }
         this
     }
