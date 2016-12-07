@@ -293,17 +293,32 @@ class TokenServiceSpec extends CustomSpec {
         assert Token.count() == 0
         DateTime plusOneDay = DateTime.now().plusDays(1).minusMinutes(1),
             plusOneDayAndOneHour = DateTime.now().plusHours(25)
-
-        when:
         String contents = "contents"
         String instructions = "instructions"
         Boolean isOutgoing = true
-        Result res = service.notifyStaff(p1, s1, c1.record.id, isOutgoing,
+        Result res
+
+        when: "staff without personal phone number"
+        assert s1.personalPhoneNumber.number != null
+        String personalPhoneNumber = s1.personalPhoneAsString
+        s1.personalPhoneAsString = ""
+        s1.save(flush:true, failOnError:true)
+
+        res = service.notifyStaff(p1, s1, c1.record.id, isOutgoing,
+            contents, instructions)
+        then: "short circuited"
+        Token.count() == 0
+
+        when: "staff with a personal phone number"
+        s1.personalPhoneAsString = personalPhoneNumber
+        s1.save(flush:true, failOnError:true)
+
+        res = service.notifyStaff(p1, s1, c1.record.id, isOutgoing,
             contents, instructions)
         assert Token.count() == 1
         Token tok = Token.list()[0]
 
-        then:
+        then: "notification created"
         res.success == true
         tok.data.phoneId == p1.id
         tok.data.recordId == c1.record.id

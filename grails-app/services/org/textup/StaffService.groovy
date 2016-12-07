@@ -103,7 +103,7 @@ class StaffService {
                     "staffService.lockCodeFormat")
             }
         }
-        if (body.personalPhoneNumber) {
+        if (body.personalPhoneNumber != null) {
             s1.personalPhoneNumber = new PhoneNumber(number:
                 body.personalPhoneNumber as String)
         }

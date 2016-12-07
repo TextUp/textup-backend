@@ -421,6 +421,19 @@ class StaffServiceSpec extends CustomSpec {
         res.payload.email == email
         res.payload.personalPhoneAsString == personalPhoneAsString
 
+        when: "remove personal phone number by passing in an empty string"
+        res = service.update(s1.id, [personalPhoneNumber: ""], null)
+
+        then:
+        Staff.count() == sBaseline
+        Organization.count() == oBaseline
+        Location.count() == lBaseline
+        StaffRole.count() == rBaseline
+        WeeklySchedule.count() == schedBaseline
+        res.success == true
+        res.payload instanceof Staff
+        res.payload.personalPhoneAsString == ""
+
         when: "update schedule"
         updateInfo = [
             schedule:[

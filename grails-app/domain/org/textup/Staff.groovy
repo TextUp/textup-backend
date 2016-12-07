@@ -100,7 +100,9 @@ class Staff {
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName = "personalPhoneNumber",
-            description  = "Personal phone number of the staff member.",
+            description  = "Personal phone number of the staff member. To remove \
+                a staff member's personal phone number, pass in an empty string \
+                in the update request",
             allowedType  = "String"),
         @RestApiObjectField(
             apiFieldName      = "captcha",

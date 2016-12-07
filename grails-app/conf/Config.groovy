@@ -199,7 +199,7 @@ grails.doc.authors = "Eric Bai"
 grails.doc.license = "MIT"
 
 textup {
-    maxNumText = 50 //max number of recipients to text
+    maxNumText = 250 //max number of recipients to text
     defaultMax = 10 //default max during pagination
     largestMax = 100 //largest max allowed during pagination
 

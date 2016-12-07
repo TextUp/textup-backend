@@ -64,6 +64,10 @@ class TokenService {
     }
     Result notifyStaff(Phone p1, Staff s1, Long recordId,
         Boolean outgoing, String contents, String instructions) {
+        // short circuit if staff has no personal phone
+        if (!s1.personalPhoneAsString) {
+            return resultFactory.success()
+        }
         Map tokenData = [
             phoneId: p1.id,
             recordId:recordId,
