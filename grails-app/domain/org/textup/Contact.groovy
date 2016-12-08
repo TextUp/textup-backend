@@ -152,11 +152,6 @@ class Contact implements Contactable {
                     numbers { ilike('number', Helpers.toQuery(tempNum.number)) }
                 }
             }
-            // sort appropriately
-            createAlias("record", "r1")
-            order("status", "desc") //unread first then active
-            order("r1.lastRecordActivity", "desc") //more recent first
-            order("id", "desc") //by contact id
         }
     }
 
@@ -164,13 +159,17 @@ class Contact implements Contactable {
     // --------------
 
     static int countForPhoneAndSearch(Phone thisPhone, String query) {
-        forPhoneAndSearch(thisPhone, query).count()
+        forPhoneAndSearch(thisPhone, query) {
+            projections { 
+                countDistinct("id")
+            }
+        }[0]
     }
     // return contacts, some of which are mine and other of which
     // are NOT mine have SharedContacts with me
     static List<Contact> listForPhoneAndSearch(Phone thisPhone,
         String query, Map params=[:]) {
-        forPhoneAndSearch(thisPhone, query).list(params)
+        forPhoneAndSearch(thisPhone, query).listDistinct(params)
     }
 
     static int countForPhoneAndStatuses(Phone thisPhone, Collection<ContactStatus> statuses) {

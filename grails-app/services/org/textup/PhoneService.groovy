@@ -411,6 +411,11 @@ class PhoneService {
                 .logFail("PhoneService.relayText: store text for contact ${c1.id}")
             if (res.success) { rTexts << res.payload }
         }).then({ List<Contact> contacts ->
+            // if contacts is empty, then return a message notifying the texter
+            // that he or she has been blocked by the user 
+            if (contacts.isEmpty()) {
+                return twimlBuilder.build(TextResponse.BLOCKED)
+            }
             // notify available staff members
             List<String> responses = [] // list of string and text resonses
             // if none of the staff for any of the phones are available
@@ -446,6 +451,11 @@ class PhoneService {
                 rCalls << res.payload
             }
         }).then({ List<Contact> contacts ->
+            // if contacts is empty, then return a message notifying the caller
+            // that he or she has been blocked by the user 
+            if (contacts.isEmpty()) {
+                return twimlBuilder.build(CallResponse.BLOCKED)
+            }
             // notify available staff members
             HashSet<String> numsToCall = new HashSet<>()
             (phone
@@ -476,28 +486,34 @@ class PhoneService {
         Closure contactStoreAction) {
         // create a new contact with this session's phone number if contact
         // does not already exist
-        List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum)
+        List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum),
+            notBlockedContacts = contacts.findAll { Contact c1 -> 
+                c1.status != ContactStatus.BLOCKED 
+            } as List<Contact>
+        // only create new contact if no blocked contact either because 
+        // we don't want to create a new contact if there is a blocked contact associated
+        // with the incoming number 
         if (contacts.isEmpty()) {
             Result res = phone.createContact([:], [pNum.number])
             if (res.success) {
-                contacts = [res.payload]
+                notBlockedContacts = [res.payload]
             }
             else { return res }
         }
         //add text to contact records
-        contacts.each { Contact c1 ->
+        //note that blocked contacts will not even have the incoming message be stored 
+        notBlockedContacts.each { Contact c1 ->
             contactStoreAction(c1)
-            //only change status to unread if contact is NOT BLOCKED
-            if (c1.status != ContactStatus.BLOCKED) {
-                c1.status = ContactStatus.UNREAD
-            }
+            //only change status to unread
+            //dont' have to worry about blocked contacts since we already filtered those out
+            c1.status = ContactStatus.UNREAD
             if (!c1.save()) {
                 return resultFactory.failWithValidationErrors(c1.errors)
             }
         }
         // socket notify of new contact and/or unread contacts
-        socketService.sendContacts(contacts)
-        resultFactory.success(contacts)
+        socketService.sendContacts(notBlockedContacts)
+        resultFactory.success(notBlockedContacts)
     }
     Result<Closure> handleAnnouncementCall(Phone phone, String apiId, String digits,
         IncomingSession session) {

@@ -211,6 +211,15 @@ class TwimlBuilderSpec extends CustomSpec {
         buildXml(res.payload) == buildXml({
             Response { Message("twimlBuilder.text.unsubscribed") }
         })
+
+        when: "blocked"
+        res = builder.build(TextResponse.BLOCKED)
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response { Message("twimlBuilder.text.blocked") }
+        })        
     }
 
     void "test building text announcement"() {
@@ -311,6 +320,18 @@ class TwimlBuilderSpec extends CustomSpec {
                 Say("twimlBuilder.call.goodbye")
                 Hangup()
             }
+        })
+
+        when: "blocked"
+        res = builder.build(CallResponse.BLOCKED)
+
+        then: 
+        res.success == true 
+        buildXml(res.payload) == buildXml({
+            Response {
+                Say("twimlBuilder.call.blocked")
+                Hangup()
+            }    
         })
     }
 

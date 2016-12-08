@@ -150,6 +150,9 @@ class TwimlBuilder {
                 responses << getMessage("twimlBuilder.text.unsubscribed",
                     [Constants.TEXT_TOGGLE_SUBSCRIBE])
                 break
+            case TextResponse.BLOCKED:
+                responses << getMessage("twimlBuilder.text.blocked")
+                break
         }
         if (responses) {
             resultFactory.success(responses)
@@ -359,6 +362,13 @@ class TwimlBuilder {
                 callBody = {
                     Say(subscribed)
                     Say(goodbye)
+                    Hangup()
+                }
+                break
+            case CallResponse.BLOCKED:
+                String blocked = getMessage("twimlBuilder.call.blocked")
+                callBody = {
+                    Say(blocked)
                     Hangup()
                 }
                 break

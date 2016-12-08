@@ -620,21 +620,26 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload == [p1.awayMessage, TextResponse.INSTRUCTIONS_UNSUBSCRIBED]
 
         when: "for session with one blocked contact"
+        assert Contact.listForPhoneAndNum(p1, session.number).size() == 1
         Contact c1 = Contact.listForPhoneAndNum(p1, session.number)[0]
         c1.status = ContactStatus.BLOCKED
         c1.save(flush:true, failOnError:true)
         res = service.relayText(p1, text, session)
 
-        then: "new contact not created, instructions not sent"
+        then: "new contact not created, instructions not sent, text also not stored"
         Contact.count() == cBaseline + 1
-        RecordText.count() == tBaseline + 3
-        RecordItemReceipt.count() == rBaseline + 3
+        RecordText.count() == tBaseline + 2 // not text stored
+        RecordItemReceipt.count() == rBaseline + 2
         Contact.listForPhoneAndNum(p1, session.number).size() == 1
         Contact.listForPhoneAndNum(p1, session.number)[0]
             .status == ContactStatus.BLOCKED
         session.shouldSendInstructions == false
         res.success == true
-        res.payload == [p1.awayMessage]
+        // since session has only one associated contact and that contact is blocked
+        // then we also return a blocked message notifying the texter
+        // also this payload isn't an array because instead of calling buildTexts at the 
+        // end of the method, we have short-circuited and directly build the blocked message
+        res.payload == TextResponse.BLOCKED
 
         when: "for session with multiple contacts"
         Contact dupCont = p1.createContact([:], [session.number]).payload
@@ -643,11 +648,13 @@ class PhoneServiceSpec extends CustomSpec {
 
         then: "no contact created, instructions not sent"
         Contact.count() == cBaseline + 2 // one more from our duplicate contact
-        RecordText.count() == tBaseline + 5
-        RecordItemReceipt.count() == rBaseline + 5
+        RecordText.count() == tBaseline + 3 // one text stored for new contact 
+        RecordItemReceipt.count() == rBaseline + 3
         Contact.listForPhoneAndNum(p1, session.number).size() == 2
         session.shouldSendInstructions == false
         res.success == true
+        // no longer return the blocked message since session now has one non-blocked
+        // contact associated with it
         res.payload == [p1.awayMessage]
     }
 
@@ -827,6 +834,32 @@ class PhoneServiceSpec extends CustomSpec {
         Contact.count() == cBaseline + 1
         RecordCall.count() == iBaseline + 2
         RecordItemReceipt.count() == rBaseline + 2
+        res.success == true
+        res.payload == CallResponse.VOICEMAIL
+
+        when: "blocked contact"
+        assert Contact.listForPhoneAndNum(p1, session.number).size() == 1
+        Contact c1 = Contact.listForPhoneAndNum(p1, session.number)[0]
+        c1.status = ContactStatus.BLOCKED
+        c1.save(flush:true, failOnError:true)
+        res = service.relayCall(p1, "apiId", session)
+
+        then: "no contact created, no record items stored, blocked message"
+        Contact.count() == cBaseline + 1
+        RecordCall.count() == iBaseline + 2
+        RecordItemReceipt.count() == rBaseline + 2
+        res.success == true
+        res.payload == CallResponse.BLOCKED
+
+        when: "contact for same number that is not blocked"
+        Contact dupCont = p1.createContact([:], [session.number]).payload
+        dupCont.save(flush:true, failOnError:true)
+        res = service.relayCall(p1, "apiId", session)
+
+        then: "no contact created, record items stored for duplicate contact, voicemail"
+        Contact.count() == cBaseline + 2 // to account for duplicate contact
+        RecordCall.count() == iBaseline + 3
+        RecordItemReceipt.count() == rBaseline + 3
         res.success == true
         res.payload == CallResponse.VOICEMAIL
     }
