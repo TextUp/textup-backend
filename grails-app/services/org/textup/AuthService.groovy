@@ -133,10 +133,14 @@ class AuthService {
     Long getSharedContactIdForContact(Long cId) {
         Staff s1 = getLoggedInAndActive()
         if (s1 && cId) {
+            List<Phone> allPhones = s1.allPhones
             SharedContact.createCriteria().list(max:1) {
                 projections { property("id") }
                 eq("contact.id", cId)
-                eq("sharedWith", s1?.phone)
+                if (allPhones) {
+                    "in"("sharedWith", allPhones)
+                }
+                else { eq("sharedWith", null) }
                 or {
                     isNull("dateExpired") //not expired if null
                     gt("dateExpired", DateTime.now())

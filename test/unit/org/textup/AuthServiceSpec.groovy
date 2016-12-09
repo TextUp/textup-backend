@@ -10,6 +10,7 @@ import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.types.OrgStatus
 import org.textup.types.StaffStatus
+import org.textup.types.SharePermission
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
@@ -152,6 +153,28 @@ class AuthServiceSpec extends CustomSpec {
 
         then:
         scId == null
+
+        when: "shared contact belongs to a team that we are NOT on"
+        assert (otherT1 in s1.teams) == false
+        Phone teamPhone = otherT1.phone
+        Contact contactToBeShared = p2.contacts[0]
+        SharedContact teamSharedContact = p2.share(contactToBeShared,
+            teamPhone, SharePermission.DELEGATE).payload
+        p2.save(flush:true, failOnError:true)
+        scId = service.getSharedContactIdForContact(contactToBeShared.id)
+
+        then:
+        scId == null
+
+        when: "shared contact belongs to a team that we are on"
+        teamPhone = s1.teams[0].phone
+        teamSharedContact = p2.share(contactToBeShared,
+            teamPhone, SharePermission.DELEGATE).payload
+        p2.save(flush:true, failOnError:true)
+        scId = service.getSharedContactIdForContact(contactToBeShared.id)
+
+        then:
+        scId == teamSharedContact.id
     }
 
     void "test permissions for team as admin"() {

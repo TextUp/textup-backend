@@ -57,6 +57,17 @@ class TeamSpec extends CustomSpec {
     	then:
     	team2.validate() == true
     	team2.save(flush:true, failOnError:true)
+
+        when: "if we delete team we can add another team with the same name"
+        team2.isDeleted = true
+        team2.save(flush:true, failOnError:true)
+
+        Team team3 = new Team(name:team2.name, org:org)
+        team3.location = new Location(address:"Testing Address", lat:0G, lon:1G)
+
+        then:
+        team3.validate() == true
+        team3.save(flush:true, failOnError:true)
     }
 
     void "test listing members"() {
