@@ -6,6 +6,7 @@ import org.textup.*
 import org.textup.rest.*
 import org.textup.rest.marshallers.*
 import org.textup.util.*
+import org.textup.validator.Notification
 
 // Place your Spring DSL code here
 beans = {
@@ -198,6 +199,17 @@ beans = {
 		label = tRestConfig.v1.announcement.plural
 	}
 	announcementJsonMarshaller(AnnouncementJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	notificationRenderer(ApiJsonRenderer, Notification) {
+		label = tRestConfig.v1.notification.singular
+	}
+	notificationCollectionRenderer(ApiJsonCollectionRenderer, Notification) {
+		label = tRestConfig.v1.notification.plural
+	}
+	notificationJsonMarshaller(NotificationJsonMarshaller) {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}

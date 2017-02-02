@@ -96,7 +96,8 @@ class Team {
         Team.withNewSession { Session session ->
             session.flushMode = FlushMode.MANUAL
             try {
-                Team t = Team.findByOrgAndName(this.org, teamName)
+                // uniqueness check should ignore deleted teams
+                Team t = Team.findByOrgAndNameAndIsDeleted(this.org, teamName, false)
                 if (t && t.id != this.id) { duplicateTeam = true }
             }
             finally { session.flushMode = FlushMode.AUTO }

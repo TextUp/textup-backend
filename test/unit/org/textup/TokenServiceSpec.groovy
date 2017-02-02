@@ -9,6 +9,7 @@ import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.springframework.context.MessageSource
 import org.textup.types.OrgStatus
 import org.textup.types.ResultType
@@ -16,6 +17,7 @@ import org.textup.types.StaffStatus
 import org.textup.types.TokenType
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
+import org.textup.validator.Notification
 import org.textup.validator.PhoneNumber
 import spock.lang.Shared
 import static org.springframework.http.HttpStatus.*
@@ -31,12 +33,15 @@ class TokenServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
+    int _numTimesAccessNotification = 3
+
     def setup() {
         setupData()
         service.grailsApplication = [getFlatConfig:{
             [
                 "textup.resetTokenSize":10,
-                "textup.verifyTokenSize":5
+                "textup.verifyTokenSize":5,
+                "textup.numTimesAccessNotification":_numTimesAccessNotification
             ]
         }] as GrailsApplication
         service.resultFactory = getResultFactory()
@@ -61,7 +66,7 @@ class TokenServiceSpec extends CustomSpec {
 
     void "test generating new token"() {
         when: "try to generate a password reset token"
-        Result<Token> res = service.generate(TokenType.PASSWORD_RESET, [toBeResetId:88L])
+        Result<Token> res = service.generate(TokenType.PASSWORD_RESET, null, [toBeResetId:88L])
 
         then:
         res.success == true
@@ -70,14 +75,14 @@ class TokenServiceSpec extends CustomSpec {
         when: "try to generate a verify number token"
         PhoneNumber pNum = new PhoneNumber(number:'1112223333')
         assert pNum.validate()
-        res = service.generate(TokenType.VERIFY_NUMBER, [toVerifyNumber:pNum.number])
+        res = service.generate(TokenType.VERIFY_NUMBER, null, [toVerifyNumber:pNum.number])
 
         then:
         res.success == true
         res.payload instanceof Token
 
         when: 'try to generate but invalid'
-        res = service.generate(TokenType.VERIFY_NUMBER, [randomStuff: 123])
+        res = service.generate(TokenType.VERIFY_NUMBER, null, [randomStuff: 123])
 
         then:
         res.success == false
@@ -88,8 +93,8 @@ class TokenServiceSpec extends CustomSpec {
     @FreshRuntime
     void "test finding token"() {
         given: "saved reset and verify tokens"
-        Token reset = new Token(type:TokenType.PASSWORD_RESET, token:'blah'),
-            verify = new Token(type:TokenType.VERIFY_NUMBER, token:'blah2')
+        Token reset = new Token(type:TokenType.PASSWORD_RESET),
+            verify = new Token(type:TokenType.VERIFY_NUMBER)
         reset.data = [toBeResetId:88L]
         verify.data = [toVerifyNumber:'1112223333']
         assert reset.save(failOnError:true)
@@ -118,7 +123,8 @@ class TokenServiceSpec extends CustomSpec {
         res.payload.code == "tokenService.tokenNotFound"
 
         when: 'looking for an expired token'
-        reset.expireNow()
+        reset.maxNumAccess = 1
+        reset.timesAccessed = 2
         reset.save(failOnError:true, flush:true)
         res = service.findToken(TokenType.PASSWORD_RESET, reset.token)
 
@@ -186,7 +192,7 @@ class TokenServiceSpec extends CustomSpec {
             pNum2 = new PhoneNumber(number:'1029990000')
         assert pNum.validate()
         assert pNum2.validate()
-        Token token = new Token(type:TokenType.VERIFY_NUMBER, token:"tokenname")
+        Token token = new Token(type:TokenType.VERIFY_NUMBER)
         token.data = [toVerifyNumber:pNum.number]
         token.save(flush:true, failOnError:true)
 
@@ -231,8 +237,10 @@ class TokenServiceSpec extends CustomSpec {
 
     void "test completing password reset"() {
         given: "tokens"
-        Token tok1 = new Token(token:"superSecretToken", type:TokenType.PASSWORD_RESET),
-            expiredTok = new Token(token:"blah", type: TokenType.PASSWORD_RESET,
+        Integer maxNumAccess = 1
+        Token tok1 = new Token(type:TokenType.PASSWORD_RESET,
+                maxNumAccess:maxNumAccess),
+            expiredTok = new Token(type: TokenType.PASSWORD_RESET,
                 expires:DateTime.now().minusDays(1))
         tok1.data = [toBeResetId:s1.id]
         expiredTok.data = [toBeResetId:s1.id]
@@ -264,14 +272,111 @@ class TokenServiceSpec extends CustomSpec {
         res.type == ResultType.VALIDATION
         Token.findByToken(tok1.token).isExpired == false
 
-        when:
+        when: "try to reuse the same reset token"
         String pwd = "iamsospecial!!!!"
         res = service.resetPassword(tok1.token, pwd)
 
-        then:
+        then: "still valid since invalid password before"
         res.success == true
         res.payload instanceof Staff
         res.payload.password == pwd
+        // but the token is now expired for future attempts
         Token.findByToken(tok1.token).isExpired == true
+    }
+
+    // Notify staff
+    // ------------
+
+    @FreshRuntime
+    void "test create notification"() {
+        given: "no tokens"
+        assert Token.count() == 0
+        DateTime plusOneDay = DateTime.now().plusDays(1).minusMinutes(1),
+            plusOneDayAndOneHour = DateTime.now().plusHours(25)
+        String contents = "contents"
+        String instructions = "instructions"
+        Boolean isOutgoing = true
+        Result res
+
+        when: "staff without personal phone number"
+        assert s1.personalPhoneNumber.number != null
+        String personalPhoneNumber = s1.personalPhoneAsString
+        s1.personalPhoneAsString = ""
+        s1.save(flush:true, failOnError:true)
+
+        res = service.notifyStaff(p1, s1, c1.record.id, isOutgoing,
+            contents, instructions)
+        then: "short circuited"
+        Token.count() == 0
+
+        when: "staff with a personal phone number"
+        s1.personalPhoneAsString = personalPhoneNumber
+        s1.save(flush:true, failOnError:true)
+
+        res = service.notifyStaff(p1, s1, c1.record.id, isOutgoing,
+            contents, instructions)
+        assert Token.count() == 1
+        Token tok = Token.list()[0]
+
+        then: "notification created"
+        res.success == true
+        tok.data.phoneId == p1.id
+        tok.data.recordId == c1.record.id
+        tok.data.contents == contents
+        tok.data.outgoing == isOutgoing
+        tok.expires.isAfter(plusOneDay)
+        tok.expires.isBefore(plusOneDayAndOneHour)
+    }
+
+    void "test claim notification"() {
+        given: "about-to-expire valid token and expired token"
+        Integer maxNumAccess = 1
+        Token tok = new Token(type:TokenType.NOTIFY_STAFF, maxNumAccess:maxNumAccess),
+            expiredTok = new Token(type:TokenType.NOTIFY_STAFF,
+                maxNumAccess:maxNumAccess, timesAccessed:maxNumAccess * 4)
+        Map data = [phoneId:p1.id, recordId:c1.record.id, contents:"hi", outgoing:true]
+        tok.data = data
+        expiredTok.data = data
+        [tok, expiredTok]*.save(flush:true, failOnError:true)
+
+        when: "nonexistent token"
+        Result<Notification> res = service.showNotification("nonexistent")
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == NOT_FOUND
+        res.payload.code == "tokenService.tokenNotFound"
+
+        when: "expired token"
+        res = service.showNotification(expiredTok.token)
+
+        then:
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == BAD_REQUEST
+        res.payload.code == "tokenService.tokenExpired"
+
+        when: "about-to-expire valid token"
+        res = service.showNotification(tok.token)
+        tok.save(flush:true, failOnError:true)
+
+        then: "valid"
+        res.success == true
+        res.payload instanceof Notification
+        res.payload.validate()
+        res.payload.contents == data.contents
+        res.payload.tag == null
+        res.payload.contact == c1
+        res.payload.owner.phone == p1
+
+        when: "about-to-expire valid token again"
+        res = service.showNotification(tok.token)
+
+        then: "expired"
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == BAD_REQUEST
+        res.payload.code == "tokenService.tokenExpired"
     }
 }

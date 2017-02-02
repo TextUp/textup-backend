@@ -903,4 +903,10 @@ databaseChangeLog = {
 	include file: 'quartz-innodb.groovy'
 
 	include file: 'lock-code.groovy'
+
+	include file: 'remove-text-length-constraint.groovy'
+
+	include file: 'notifications.groovy'
+
+	include file: 'remove-token-data-length-constraint.groovy'
 }

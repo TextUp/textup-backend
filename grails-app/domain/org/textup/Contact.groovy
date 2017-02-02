@@ -116,31 +116,72 @@ class Contact implements Contactable {
     }
     static namedQueries = {
         forPhoneAndStatuses { Phone thisPhone, Collection<ContactStatus> statuses ->
+            // get both my contacts and contacts that have SharedContact with me
             or {
                 eq("phone", thisPhone)
                 List<SharedContact> shareds = SharedContact.sharedWithMe(thisPhone).list()
                 if (shareds) { "in"("id", shareds*.contact*.id) }
                 else { eq("id", null) }
             }
+            // filter by statuses
             if (statuses) { "in"("status", statuses) }
             else { "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD]) }
+            // sort appropriately
             createAlias("record", "r1")
             order("status", "desc") //unread first then active
             order("r1.lastRecordActivity", "desc") //more recent first
             order("id", "desc") //by contact id
+        }
+        forPhoneAndSearch { Phone thisPhone, String query ->
+            // get both my contacts and contacts that have SharedContact with me
+            or {
+                eq("phone", thisPhone)
+                List<SharedContact> shareds = SharedContact.sharedWithMe(thisPhone).list()
+                if (shareds) { "in"("id", shareds*.contact*.id) }
+                else { eq("id", null) }
+            }
+            // conduct search in contact name and associated numbers
+            PhoneNumber tempNum = new PhoneNumber(number:query) //to clean query
+            or {
+                ilike('name', query)
+                // don't include the numbers constraint if the cleaned query
+                // is not a number because the cleaning process will return
+                // an empty string and transforming this to a query string will
+                // yield '%' which matches all results
+                if (tempNum.number) {
+                    numbers { ilike('number', Helpers.toQuery(tempNum.number)) }
+                }
+            }
         }
     }
 
     // Static finders
     // --------------
 
+    static int countForPhoneAndSearch(Phone thisPhone, String query) {
+        forPhoneAndSearch(thisPhone, query) {
+            projections { 
+                countDistinct("id")
+            }
+        }[0]
+    }
+    // return contacts, some of which are mine and other of which
+    // are NOT mine have SharedContacts with me
+    static List<Contact> listForPhoneAndSearch(Phone thisPhone,
+        String query, Map params=[:]) {
+        forPhoneAndSearch(thisPhone, query).listDistinct(params)
+    }
+
     static int countForPhoneAndStatuses(Phone thisPhone, Collection<ContactStatus> statuses) {
         forPhoneAndStatuses(thisPhone, statuses).count()
     }
+    // return contacts, some of which are mine and other of which
+    // are NOT mine have SharedContacts with me
     static List<Contact> listForPhoneAndStatuses(Phone thisPhone,
         Collection<ContactStatus> statuses, Map params=[:]) {
         forPhoneAndStatuses(thisPhone, statuses).list(params)
     }
+
     static List<Contact> listForPhoneAndNum(Phone thisPhone, PhoneNumber num) {
         Contact.createCriteria().list {
             eq("phone", thisPhone)

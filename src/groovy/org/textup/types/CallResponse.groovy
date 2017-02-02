@@ -16,5 +16,6 @@ enum CallResponse {
     ANNOUNCEMENT_AND_DIGITS, // so we can loop single announcement
     DIRECT_MESSAGE,
     UNSUBSCRIBED,
-    SUBSCRIBED
+    SUBSCRIBED,
+    BLOCKED
 }

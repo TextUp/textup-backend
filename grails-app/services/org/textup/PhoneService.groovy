@@ -37,16 +37,17 @@ import static org.springframework.http.HttpStatus.*
 @Transactional
 class PhoneService {
 
-    SocketService socketService
-    TwimlBuilder twimlBuilder
     AmazonS3Client s3Service
     AuthService authService
     CallService callService
     GrailsApplication grailsApplication
     MessageSource messageSource
     ResultFactory resultFactory
+    SocketService socketService
     TextService textService
+    TokenService tokenService
     TwilioRestClient twilioService
+    TwimlBuilder twimlBuilder
 
     // Update
     // ------
@@ -410,21 +411,15 @@ class PhoneService {
                 .logFail("PhoneService.relayText: store text for contact ${c1.id}")
             if (res.success) { rTexts << res.payload }
         }).then({ List<Contact> contacts ->
-            // notify available staff members
-            List responses = [] // list of string and text resonses
-            Map<Phone, List<Staff>> phonesToAvailableNow =
-                phone.getPhonesToAvailableNowForContactIds(contacts*.id)
-            // if none of the staff for any of the phones are available
-            if (phonesToAvailableNow) {
-                phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
-                    String name = p1.owner.name
-                    staffs.each { Staff s1 ->
-                        this.notifyStaff(s1, p1, name)
-                            .logFail("PhoneService.relayText: calling notifyStaff")
-                    }
-                }
+            // if contacts is empty, then return a message notifying the texter
+            // that he or she has been blocked by the user 
+            if (contacts.isEmpty()) {
+                return twimlBuilder.build(TextResponse.BLOCKED)
             }
-            else {
+            // notify available staff members
+            List<String> responses = [] // list of string and text resonses
+            // if none of the staff for any of the phones are available
+            if (!tryNotifyStaff(phone, text.message, contacts)) {
                 rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
                 responses << phone.awayMessage
             }
@@ -456,6 +451,11 @@ class PhoneService {
                 rCalls << res.payload
             }
         }).then({ List<Contact> contacts ->
+            // if contacts is empty, then return a message notifying the caller
+            // that he or she has been blocked by the user 
+            if (contacts.isEmpty()) {
+                return twimlBuilder.build(CallResponse.BLOCKED)
+            }
             // notify available staff members
             HashSet<String> numsToCall = new HashSet<>()
             (phone
@@ -486,28 +486,34 @@ class PhoneService {
         Closure contactStoreAction) {
         // create a new contact with this session's phone number if contact
         // does not already exist
-        List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum)
+        List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum),
+            notBlockedContacts = contacts.findAll { Contact c1 -> 
+                c1.status != ContactStatus.BLOCKED 
+            } as List<Contact>
+        // only create new contact if no blocked contact either because 
+        // we don't want to create a new contact if there is a blocked contact associated
+        // with the incoming number 
         if (contacts.isEmpty()) {
             Result res = phone.createContact([:], [pNum.number])
             if (res.success) {
-                contacts = [res.payload]
+                notBlockedContacts = [res.payload]
             }
             else { return res }
         }
         //add text to contact records
-        contacts.each { Contact c1 ->
+        //note that blocked contacts will not even have the incoming message be stored 
+        notBlockedContacts.each { Contact c1 ->
             contactStoreAction(c1)
-            //only change status to unread if contact is NOT BLOCKED
-            if (c1.status != ContactStatus.BLOCKED) {
-                c1.status = ContactStatus.UNREAD
-            }
+            //only change status to unread
+            //dont' have to worry about blocked contacts since we already filtered those out
+            c1.status = ContactStatus.UNREAD
             if (!c1.save()) {
                 return resultFactory.failWithValidationErrors(c1.errors)
             }
         }
         // socket notify of new contact and/or unread contacts
-        socketService.sendContacts(contacts)
-        resultFactory.success(contacts)
+        socketService.sendContacts(notBlockedContacts)
+        resultFactory.success(notBlockedContacts)
     }
     Result<Closure> handleAnnouncementCall(Phone phone, String apiId, String digits,
         IncomingSession session) {
@@ -581,15 +587,17 @@ class PhoneService {
                 ObjectMetadata metadata = new ObjectMetadata()
                 metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION)
                 metadata.setContentType("audio/mpeg")
-                PutObjectResult putRes
+                String eTag = ""
                 for (rec in recs) {
-                    putRes = s3Service.putObject(bucketName, apiId,
-                        rec.getMedia(".mp3"), metadata)
-                    break //only put the first recording if multiple
+                    eTag = s3Service.putObject(bucketName, apiId,
+                        rec.getMedia(".mp3"), metadata)?.getETag()
+                    //only put the first recording if first one succeeds
+                    //and there are multiple recordings
+                    if (eTag) { break }
                 }
                 //delete all recordings on Twilio
                 for (rec in recs) { rec.delete() }
-                resultFactory.success(putRes.getETag())
+                resultFactory.success(eTag)
             }
             else {
                 resultFactory.failWithMessageAndStatus(NOT_FOUND,
@@ -635,15 +643,86 @@ class PhoneService {
     // Incoming helper methods
     // -----------------------
 
-    protected Result notifyStaff(Staff s1, Phone p1, String name) {
-        String msg = messageSource.getMessage("phoneService.notifyStaff.notification",
-            [name] as Object[], LCH.getLocale())
-        textService.send(p1.number, [s1.personalPhoneNumber], msg)
-    }
     protected String getNameOrNumber(List<Contact> contacts, IncomingSession session) {
         for (contact in contacts) {
             if (contact.name) { return contact.name }
         }
         return Helpers.formatNumberForSay(session.numberAsString)
+    }
+    protected boolean tryNotifyStaff(Phone phone, String message,
+        List<Contact> contacts) {
+        Map<Phone, List<Staff>> phonesToAvailableNow =
+            phone.getPhonesToAvailableNowForContactIds(contacts*.id)
+        // if none of the staff for any of the phones are available
+        if (!phonesToAvailableNow) {
+            return false
+        }
+        // if multiple contacts from the same phone, then
+        // this will take the last contact's record. In the future,
+        // if we wanted to support showing all the records that received
+        // the text, we can do so by exhaustively listing all record ids
+        Map<Long, Long> phoneIdToRecordId = contacts
+            .collectEntries { Contact c1 ->
+                [(c1.phone.id):c1.record.id]
+            }
+        SharedContact
+            .findEveryByContactIdsAndSharedBy(contacts*.id, phone)
+            .each { SharedContact sc1 ->
+                Long recordId = sc1.record?.id
+                if (recordId) {
+                    phoneIdToRecordId[sc1.sharedWith.id] = recordId
+                }
+            }
+        // if a staff member is part of a team that has a TextUp phone
+        // and also has an individual TextUp phone, then we don't want
+        // to send multiple notifications. Therefore, this map associates
+        // each staff member with his/her personal TextUp phone
+        // if the staff member has a personal TextUp phone
+        // FOR THE PHONES THAT HAVE ACCESS TO THIS RECORD. Since we
+        // are looping through the phones that have access to this record
+        // we don't have to worry about the case where the staff member
+        // has a personal TextUp phone and is part of the team but is not
+        // shared on the contact on the personal phone. If this were the case,
+        // then the personal phone wouldn't even by a key in this map.
+        Map<Long, Long> staffIdToPersonalPhoneId = [:]
+        phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
+            if (p1.owner.type == PhoneOwnershipType.INDIVIDUAL) {
+                staffIdToPersonalPhoneId[p1.owner.ownerId] = p1.id
+            }
+        }
+        // if you are concerned about several tokens generated
+        // for one message, remember that we also send unique tokens
+        // to those who are members of a team. So if a contact
+        // from a team is shared with a staff and that staff is
+        // also a member of that team, the staff member will
+        // receive two notification texts each with a unique token
+        // And these tokens will appear to be the same when you
+        // look at the database because the token's data does not
+        // specify the from and to numbers of the notification
+        phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
+            String instructions = messageSource.getMessage(
+                "phoneService.notifyStaff.notification", null, LCH.getLocale())
+            for (Staff s1 in staffs) {
+                // if the staff member has a personal phone AND
+                // this phone p1 is NOT the personal phone,
+                // then skip notifying until we get to the personal phone
+                if (staffIdToPersonalPhoneId.containsKey(s1.id) &&
+                    staffIdToPersonalPhoneId[s1.id] != p1.id) {
+                    continue
+                }
+                Long recordId = phoneIdToRecordId[p1.id]
+                if (recordId) {
+                    tokenService.notifyStaff(p1, s1, recordId, false,
+                            message, instructions)
+                        .logFail("PhoneService.relayText: calling notifyStaff")
+                }
+                else {
+                    log.error("PhoneService.relayText: getPhonesToAvailableNowForContactIds \
+                        called on phone ${phone.id} yielded a phone ${p1.id} \
+                        that did not have a corresponding contact's record in map")
+                }
+            }
+        }
+        return true
     }
 }

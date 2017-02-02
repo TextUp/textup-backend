@@ -48,11 +48,14 @@ class RecordText extends RecordItem {
             presentInResponse = false)
     ])
     static transients = []
-    // removed the constraint maxSize:(Constants.TEXT_LENGTH * 2)
-    // because will reject incoming texts longer than this limit,
-    // resulting in failure to deliver incoming messages whose
-    // content we have no control over
+    // removed the length constraint on contents (maxSize:(Constants.TEXT_LENGTH * 2))
+    // presence of this constraint will reject incoming messages that are too long
+    // this should not happen since we have no control over the contents of incoming
+    // messages and we do not want to knowingly fail to deliver incoming messages
     static constraints = {
     	contents blank:false, nullable:false
+    }
+    static mapping = {
+        contents type:"text"
     }
 }

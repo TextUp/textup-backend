@@ -154,11 +154,14 @@ class FutureMessageController extends BaseController {
                 handleSaveResult(FutureMessage,
                     futureMessageService.createForContact(cId, fInfo, tz))
             }
-            else if (authService.getSharedContactIdForContact(cId)) {
-                handleSaveResult(FutureMessage,
-                    futureMessageService.createForSharedContact(cId, fInfo, tz))
+            else {
+                Long sharedId = authService.getSharedContactIdForContact(cId)
+                if (sharedId) {
+                    handleSaveResult(FutureMessage,
+                        futureMessageService.createForSharedContact(sharedId, fInfo, tz))
+                }
+                else { forbidden() }
             }
-            else { forbidden() }
         }
         else { // tag id
             Long ctId = params.long("tagId")

@@ -16,6 +16,7 @@ import org.textup.types.ContactStatus
 import org.textup.types.PhoneOwnershipType
 import org.textup.types.RecordItemType
 import org.textup.types.ResultType
+import org.textup.types.SharePermission
 import org.textup.types.StaffStatus
 import org.textup.types.TextResponse
 import org.textup.util.CustomSpec
@@ -44,6 +45,8 @@ class PhoneServiceSpec extends CustomSpec {
 
     String _apiId = "iamsospecial!!!"
     int _numTextsSent = 0
+    List<Long> _notifyRecordIds = []
+    List<Long> _notifyPhoneIds = []
 
     def setup() {
         setupData()
@@ -56,6 +59,13 @@ class PhoneServiceSpec extends CustomSpec {
                 payload: new TempRecordReceipt(apiId:_apiId,
                     receivedByAsString:toNums[0].number))
         }] as TextService
+        service.tokenService = [notifyStaff:{ Phone p1, Staff s1, Long recordId,
+            Boolean outgoing, String msg, String instructions ->
+            _numTextsSent++
+            _notifyRecordIds << recordId
+            _notifyPhoneIds << p1.id
+            new Result(type:ResultType.SUCCESS, success:true)
+        }] as TokenService
         service.callService = [start:{ PhoneNumber fromNum, PhoneNumber toNum,
             Map afterPickup ->
             new Result(type:ResultType.SUCCESS, success:true,
@@ -559,16 +569,6 @@ class PhoneServiceSpec extends CustomSpec {
         n1 == c1.name
     }
 
-    void "test notify staff"() {
-        when:
-        String name = "kiki bai"
-        Result<TempRecordReceipt> res = service.notifyStaff(s1, p1, name)
-
-        then:
-        res.success == true
-        res.payload instanceof TempRecordReceipt
-    }
-
     @FreshRuntime
     void "test relay text"() {
         given: "none available and should send instructions"
@@ -620,21 +620,26 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload == [p1.awayMessage, TextResponse.INSTRUCTIONS_UNSUBSCRIBED]
 
         when: "for session with one blocked contact"
+        assert Contact.listForPhoneAndNum(p1, session.number).size() == 1
         Contact c1 = Contact.listForPhoneAndNum(p1, session.number)[0]
         c1.status = ContactStatus.BLOCKED
         c1.save(flush:true, failOnError:true)
         res = service.relayText(p1, text, session)
 
-        then: "new contact not created, instructions not sent"
+        then: "new contact not created, instructions not sent, text also not stored"
         Contact.count() == cBaseline + 1
-        RecordText.count() == tBaseline + 3
-        RecordItemReceipt.count() == rBaseline + 3
+        RecordText.count() == tBaseline + 2 // not text stored
+        RecordItemReceipt.count() == rBaseline + 2
         Contact.listForPhoneAndNum(p1, session.number).size() == 1
         Contact.listForPhoneAndNum(p1, session.number)[0]
             .status == ContactStatus.BLOCKED
         session.shouldSendInstructions == false
         res.success == true
-        res.payload == [p1.awayMessage]
+        // since session has only one associated contact and that contact is blocked
+        // then we also return a blocked message notifying the texter
+        // also this payload isn't an array because instead of calling buildTexts at the 
+        // end of the method, we have short-circuited and directly build the blocked message
+        res.payload == TextResponse.BLOCKED
 
         when: "for session with multiple contacts"
         Contact dupCont = p1.createContact([:], [session.number]).payload
@@ -643,11 +648,13 @@ class PhoneServiceSpec extends CustomSpec {
 
         then: "no contact created, instructions not sent"
         Contact.count() == cBaseline + 2 // one more from our duplicate contact
-        RecordText.count() == tBaseline + 5
-        RecordItemReceipt.count() == rBaseline + 5
+        RecordText.count() == tBaseline + 3 // one text stored for new contact 
+        RecordItemReceipt.count() == rBaseline + 3
         Contact.listForPhoneAndNum(p1, session.number).size() == 2
         session.shouldSendInstructions == false
         res.success == true
+        // no longer return the blocked message since session now has one non-blocked
+        // contact associated with it
         res.payload == [p1.awayMessage]
     }
 
@@ -687,12 +694,16 @@ class PhoneServiceSpec extends CustomSpec {
         IncomingText text = new IncomingText(apiId:"iamsosecret", message:"hello")
         assert text.validate()
         _numTextsSent = 0
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
         Result res = service.relayText(sBy, text, session)
 
         then: "no away message sent and only available staff notified"
         res.success == true
         res.payload == []
         _numTextsSent == sWith.owner.all.size()
+        _notifyRecordIds.every { it == sc1.contact.record.id }
+        _notifyPhoneIds.every { it == sWith.id }
 
         when: "that shared with phone's staff owner is no longer available"
         // phone that contact is shared with has staff that are available
@@ -709,6 +720,80 @@ class PhoneServiceSpec extends CustomSpec {
         res.success == true
         res.payload == [sBy.awayMessage]
         _numTextsSent == 0
+    }
+
+    void "test notify staff"() {
+        given: "a staff member with a personal phone who is a member of a team \
+            and who has a contact shared by the team to the staff's personal phone"
+        // asserting relationships
+        assert s1 in t1.members
+        assert s1.phone == p1 && c1.phone == p1
+        assert t1.phone == tPh1 && tC1.phone == tPh1
+        // sharing contact
+        tPh1.stopShare(tC1)
+        SharedContact shared1 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
+        shared1.save(flush:true, failOnError:true)
+        // make all othe staff members unavailable!
+        t1.members.each { Staff otherStaff ->
+            otherStaff.manualSchedule = true
+            otherStaff.isAvailable = false
+            otherStaff.save(flush:true, failOnError:true)
+        }
+        // ensuring that staff is available
+        s1.manualSchedule = true
+        s1.isAvailable = true
+        s1.save(flush:true, failOnError:true)
+        assert s1.isAvailableNow() == true
+
+        when: "incoming text to the team's phone number"
+        String msg = "hi!"
+        _numTextsSent = 0
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
+        boolean didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
+
+        then: "staff should only receive notification from the staff's personal \
+            TextUp phone through the shared relationship"
+        didNotify == true
+        _numTextsSent == 1
+        _notifyRecordIds == [tC1.record.id]
+        _notifyPhoneIds == [s1.phone.id]
+
+        when: "staff is no longer shared on contact and incoming text to team number"
+        shared1.stopSharing()
+        shared1.save(flush:true, failOnError:true)
+
+        _numTextsSent = 0
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
+        didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
+
+        then: "notification from the team TextUp phone only"
+        didNotify == true
+        _numTextsSent == 1
+        _notifyRecordIds == [tC1.record.id]
+        _notifyPhoneIds == [tC1.phone.id]
+
+        when: "staff is shared again but is no longer member of team and \
+            incoming text to the team number"
+        SharedContact shared2 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
+        shared2.save(flush:true, failOnError:true)
+
+        t1.removeFromMembers(s1)
+        t1.save(flush:true, failOnError:true)
+        assert (s1 in t1.members) == false
+
+        _numTextsSent = 0
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
+        didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
+
+        then: "notification from the staff's personal TextUp phone only because \
+            of the shared relationship"
+        didNotify == true
+        _numTextsSent == 1
+        _notifyRecordIds == [tC1.record.id]
+        _notifyPhoneIds == [s1.phone.id]
     }
 
     @FreshRuntime
@@ -749,6 +834,32 @@ class PhoneServiceSpec extends CustomSpec {
         Contact.count() == cBaseline + 1
         RecordCall.count() == iBaseline + 2
         RecordItemReceipt.count() == rBaseline + 2
+        res.success == true
+        res.payload == CallResponse.VOICEMAIL
+
+        when: "blocked contact"
+        assert Contact.listForPhoneAndNum(p1, session.number).size() == 1
+        Contact c1 = Contact.listForPhoneAndNum(p1, session.number)[0]
+        c1.status = ContactStatus.BLOCKED
+        c1.save(flush:true, failOnError:true)
+        res = service.relayCall(p1, "apiId", session)
+
+        then: "no contact created, no record items stored, blocked message"
+        Contact.count() == cBaseline + 1
+        RecordCall.count() == iBaseline + 2
+        RecordItemReceipt.count() == rBaseline + 2
+        res.success == true
+        res.payload == CallResponse.BLOCKED
+
+        when: "contact for same number that is not blocked"
+        Contact dupCont = p1.createContact([:], [session.number]).payload
+        dupCont.save(flush:true, failOnError:true)
+        res = service.relayCall(p1, "apiId", session)
+
+        then: "no contact created, record items stored for duplicate contact, voicemail"
+        Contact.count() == cBaseline + 2 // to account for duplicate contact
+        RecordCall.count() == iBaseline + 3
+        RecordItemReceipt.count() == rBaseline + 3
         res.success == true
         res.payload == CallResponse.VOICEMAIL
     }

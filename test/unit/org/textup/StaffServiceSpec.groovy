@@ -52,6 +52,9 @@ class StaffServiceSpec extends CustomSpec {
                 new Result(type:ResultType.SUCCESS, success:true, payload:null)
             }
         ] as MailService
+        service.authService = {
+            getIsActive: { true }
+        } as AuthService
         service.phoneService = [
             createOrUpdatePhone: { Staff s1, Map body ->
                 new Result(type:ResultType.SUCCESS, success:true, payload:s1)
@@ -269,6 +272,40 @@ class StaffServiceSpec extends CustomSpec {
         WeeklySchedule.count() == schedBaseline
     }
 
+    void "test create valid captcha validation"() {
+        given: "not logged in so requires captcha validation"
+        service.authService = {
+            getIsActive: { false }
+        } as AuthService
+
+        when: "missing captcha response"
+        Result res = service.verifyCreateRequest([captcha:null])
+
+        then: "invalid"
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == UNPROCESSABLE_ENTITY
+        res.payload.code == "staffService.create.couldNotVerifyCaptcha"
+
+        when: "has all fields but some are incorrect"
+        service.metaClass.doVerifyRequest = { String url -> [success:false] }
+        res = service.verifyCreateRequest([captcha:"invalid!"])
+
+        then: "invalid"
+        res.success == false
+        res.type == ResultType.MESSAGE_STATUS
+        res.payload.status == UNPROCESSABLE_ENTITY
+        res.payload.code == "staffService.create.couldNotVerifyCaptcha"
+
+        when: "all fields and all correct"
+        service.metaClass.doVerifyRequest = { String url -> [success:true] }
+        res = service.verifyCreateRequest([captcha:"valid!"])
+
+        then: "valid"
+        res.success == true
+        res.payload == null
+    }
+
     // Update
     // ------
 
@@ -383,6 +420,19 @@ class StaffServiceSpec extends CustomSpec {
         res.payload.password == pwd
         res.payload.email == email
         res.payload.personalPhoneAsString == personalPhoneAsString
+
+        when: "remove personal phone number by passing in an empty string"
+        res = service.update(s1.id, [personalPhoneNumber: ""], null)
+
+        then:
+        Staff.count() == sBaseline
+        Organization.count() == oBaseline
+        Location.count() == lBaseline
+        StaffRole.count() == rBaseline
+        WeeklySchedule.count() == schedBaseline
+        res.success == true
+        res.payload instanceof Staff
+        res.payload.personalPhoneAsString == ""
 
         when: "update schedule"
         updateInfo = [

@@ -264,7 +264,7 @@ class CustomSpec extends Specification {
 
     protected void contactsWithItems(int iterNum) {
         //contacts
-        c1 = p1.createContact([:], ["12223334444"]).payload
+        c1 = p1.createContact([name:"ting ting bai"], ["12223334444"]).payload
         c1_1 = p1.createContact([:], ["12223334445"]).payload
         c1_2 = p1.createContact([:], ["12223334446"]).payload
         c2 = p2.createContact([:], ["12223334444"]).payload

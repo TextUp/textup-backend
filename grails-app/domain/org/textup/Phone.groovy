@@ -283,15 +283,45 @@ class Phone {
     }
     //Optional specify 'status' corresponding to valid contact statuses
     int countContacts(Map params=[:]) {
+        if (params == null) { return 0 }
         Contact.countForPhoneAndStatuses(this,
             Helpers.<ContactStatus>toEnumList(ContactStatus, params.statuses))
     }
     //Optional specify 'status' corresponding to valid contact statuses
     List<Contactable> getContacts(Map params=[:]) {
+        if (params == null) { return [] }
         Collection<ContactStatus> statusEnums =
             Helpers.<ContactStatus>toEnumList(ContactStatus, params.statuses)
         //get contacts, both mine and those shared with me
-        List<Contact> contacts = Contact.listForPhoneAndStatuses(this, statusEnums, params)
+        replaceContactsWithShared(
+            Contact.listForPhoneAndStatuses(this, statusEnums, params))
+    }
+    int countContacts(String query) {
+        if (query == null) { return 0 }
+        Contact.countForPhoneAndSearch(this, Helpers.toQuery(query))
+    }
+    List<Contactable> getContacts(String query, Map params=[:]) {
+        if (query == null) { return [] }
+        //get contacts, both mine and those shared with me
+        replaceContactsWithShared(
+            Contact.listForPhoneAndSearch(this, Helpers.toQuery(query), params))
+    }
+    int countSharedWithMe() {
+        SharedContact.countSharedWithMe(this)
+    }
+    List<SharedContact> getSharedWithMe(Map params=[:]) {
+        SharedContact.listSharedWithMe(this, params)
+    }
+    int countSharedByMe() {
+        SharedContact.countSharedByMe(this)
+    }
+    List<Contact> getSharedByMe(Map params=[:]) {
+        SharedContact.listSharedByMe(this, params)
+    }
+    // some contacts returned may not be mine and may instead have a SharedContact
+    // that is shared with me. For these, we want to do an in-place replacement
+    // of the contact that doesn't belong to me with the SharedContact
+    protected List<Contactable> replaceContactsWithShared(List<Contact> contacts) {
         //identify those contacts that are shared with me and their index
         HashSet<Long> notMyContactIds = new HashSet<>()
         contacts.each { Contact contact ->
@@ -329,24 +359,6 @@ class Phone {
             else { contactables << contact }
         }
         contactables
-    }
-    int countContacts(String query) {
-        Contact.countByPhoneAndNameIlike(this, Helpers.toQuery(query))
-    }
-    List<Contact> getContacts(String query, Map params=[:]) {
-        Contact.findAllByPhoneAndNameIlike(this, Helpers.toQuery(query), params)
-    }
-    int countSharedWithMe() {
-        SharedContact.countSharedWithMe(this)
-    }
-    List<SharedContact> getSharedWithMe(Map params=[:]) {
-        SharedContact.listSharedWithMe(this, params)
-    }
-    int countSharedByMe() {
-        SharedContact.countSharedByMe(this)
-    }
-    List<Contact> getSharedByMe(Map params=[:]) {
-        SharedContact.listSharedByMe(this, params)
     }
 
     int countAnnouncements() {
