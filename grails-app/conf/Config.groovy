@@ -266,6 +266,7 @@ textup {
             announcement = [singular:"announcement", plural:"announcements"]
             contact = [singular:"contact", plural:"contacts"]
             futureMessage = [singular:"future-message", plural:"future-messages"]
+            imageInfo = [singular:"image", plural: "images"]
             location = [singular:"location", plural:"locations"]
             notification = [singular:"notification", plural:"notifications"]
             organization = [singular:"organization", plural:"organizations"]

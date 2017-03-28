@@ -55,6 +55,7 @@ class PhoneSpec extends CustomSpec {
     	when: "we have a phone without a number"
     	Phone p1 = new Phone()
         p1.resultFactory = getResultFactory()
+        p1.resultFactory.messageSource = mockMessageSource()
 
     	then: // no owner
     	p1.validate() == false
@@ -74,6 +75,7 @@ class PhoneSpec extends CustomSpec {
     	p1.save(flush:true, failOnError:true)
     	p1 = new Phone(numberAsString:num)
         p1.resultFactory = getResultFactory()
+        p1.resultFactory.messageSource = mockMessageSource()
         p1.updateOwner(s1)
 
     	then:
@@ -123,6 +125,7 @@ class PhoneSpec extends CustomSpec {
         given: "a phone belonging to a team"
         Phone p1 = new Phone(numberAsString:"1233348934")
         p1.resultFactory = getResultFactory()
+        p1.resultFactory.messageSource = mockMessageSource()
         p1.updateOwner(t1)
         p1.save(flush:true, failOnError:true)
 
@@ -567,6 +570,8 @@ class PhoneSpec extends CustomSpec {
         p1.phoneService = [sendMessage:{ Phone phone, OutgoingMessage text, Staff staff ->
             new ResultList()
         }] as PhoneService
+        p1.resultFactory = getResultFactory()
+        p1.resultFactory.messageSource = mockMessageSource()
 
         when: "we have an invalid outgoing text"
         OutgoingMessage text = new OutgoingMessage()
@@ -605,6 +610,8 @@ class PhoneSpec extends CustomSpec {
             new Result(type:ResultType.SUCCESS, success:true, payload:null)
         }] as PhoneService
         p1.twimlBuilder = getTwimlBuilder()
+        p1.resultFactory = getResultFactory()
+        p1.resultFactory.messageSource = mockMessageSource()
         s1.personalPhoneAsString = "1112223333"
         s1.save(flush:true, failOnError:true)
 
@@ -697,6 +704,8 @@ class PhoneSpec extends CustomSpec {
     void "test announcement success"() {
         given: "phone and incoming sessions, some coinciding with contacts"
         p1.twimlBuilder = getTwimlBuilder()
+        p1.resultFactory = getResultFactory()
+        p1.resultFactory.messageSource = mockMessageSource()
         // subscriber
         String subNum = "1223334445"
         IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
@@ -751,6 +760,8 @@ class PhoneSpec extends CustomSpec {
     void "test announcement error conditions"() {
         given: "phone and incoming sessions, some coinciding with contacts"
         p1.twimlBuilder = getTwimlBuilder()
+        p1.resultFactory = getResultFactory()
+        p1.resultFactory.messageSource = mockMessageSource()
 
         when: "expires in the past"
         Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",

@@ -51,6 +51,7 @@ class PhoneServiceSpec extends CustomSpec {
     def setup() {
         setupData()
         service.resultFactory = getResultFactory()
+        service.resultFactory.messageSource = mockMessageSource()
         service.messageSource = mockMessageSource()
         service.textService = [send:{ BasePhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String message ->
@@ -637,7 +638,7 @@ class PhoneServiceSpec extends CustomSpec {
         res.success == true
         // since session has only one associated contact and that contact is blocked
         // then we also return a blocked message notifying the texter
-        // also this payload isn't an array because instead of calling buildTexts at the 
+        // also this payload isn't an array because instead of calling buildTexts at the
         // end of the method, we have short-circuited and directly build the blocked message
         res.payload == TextResponse.BLOCKED
 
@@ -648,7 +649,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         then: "no contact created, instructions not sent"
         Contact.count() == cBaseline + 2 // one more from our duplicate contact
-        RecordText.count() == tBaseline + 3 // one text stored for new contact 
+        RecordText.count() == tBaseline + 3 // one text stored for new contact
         RecordItemReceipt.count() == rBaseline + 3
         Contact.listForPhoneAndNum(p1, session.number).size() == 2
         session.shouldSendInstructions == false

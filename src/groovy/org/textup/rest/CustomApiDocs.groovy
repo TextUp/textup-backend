@@ -177,30 +177,36 @@ class CustomResponseDoc {
     ])
     static def phoneAction
 
-    @RestApiObjectField(description = "Add or remove an image from a note in a record.")
+    @RestApiObjectField(description = "Remove an image from a note in a record.")
     @RestApiObjectFields(params=[
         @RestApiObjectField(
-            apiFieldName   = "mimeType",
-            description    = "ADD: content type of the image",
+            apiFieldName   = "action",
+            description    = "Action to take. Allowed: ADD, REMOVE",
             allowedType    = "String",
-            mandatory      = false,
             useForCreation = true),
         @RestApiObjectField(
-            apiFieldName   = "sizeInBytes",
-            description    = "ADD: number of bytes of the image to upload",
+            apiFieldName   = "mimeType",
+            description    = "ADD: Content type",
             allowedType    = "String",
-            mandatory      = false,
+            mandatory      = true,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "data",
+            description    = "ADD: String representation of the data to upload",
+            allowedType    = "String",
+            mandatory      = true,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "checksum",
+            description    = "ADD: md5 of the data for an integrity check",
+            allowedType    = "String",
+            mandatory      = true,
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName   = "key",
             description    = "REMOVE: key of the image to remove",
             allowedType    = "String",
             mandatory      = false,
-            useForCreation = true),
-        @RestApiObjectField(
-            apiFieldName = "action",
-            description = "Action to take. Allowed: ADD, REMOVE",
-            allowedType = "String",
             useForCreation = true)
     ])
     static def noteImageAction

@@ -909,4 +909,8 @@ databaseChangeLog = {
 	include file: 'notifications.groovy'
 
 	include file: 'remove-token-data-length-constraint.groovy'
+
+	include file: 'record-note.groovy'
+
+	include file: 'lock-timeout.groovy'
 }

@@ -24,7 +24,7 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends CustomSpec {
     void "test marshalling revision"() {
         given: "revision"
         Collection<String> imageKeys = ["key1", "key2"]
-        RecordNote note1 = new RecordNote(record:c1.record)
+        RecordNote note1 = new RecordNote(record:c1.record, noteContents:"note contents!!")
         note1.setImageKeys(imageKeys)
         note1.save(flush:true, failOnError:true)
         RecordNoteRevision rev1 = note1.createRevision()
@@ -38,10 +38,11 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends CustomSpec {
 
     	then:
     	json.whenChanged == rev1.whenChanged.toString()
-        json.contents == rev1.contents
+        json.noteContents == rev1.noteContents
         json.location == rev1.location
-        json.images == rev1.imageLinks
-        imageKeys.every({ json.images.toString().contains(it) })
+        json.images instanceof List
+        json.images.size() == imageKeys.size()
+        imageKeys.every { String key -> json.images.find { it.key.contains(key) } }
         if (rev1.authorName) json.authorName == rev1.authorName
         if (rev1.authorId) json.authorId == rev1.authorId
         if (rev1.authorType) json.authorType == rev1.authorType.toString()

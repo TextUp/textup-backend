@@ -48,6 +48,9 @@ class Record {
         Author auth = null) {
         this.add(clazz.newInstance(params), auth)
     }
+    // No method to addNote because we handle adding in TempRecordNote
+    // we don't do add notes here because we adding a note should not
+    // trigger a record activity update like adding a text or a call should
     Result<RecordItem> add(RecordItem item, Author auth = null) {
         if (item) {
             item.author = auth

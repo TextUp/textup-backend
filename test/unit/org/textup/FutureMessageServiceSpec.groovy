@@ -77,54 +77,54 @@ class FutureMessageServiceSpec extends CustomSpec {
     // Test job execution
     // ------------------
 
-    void "test mark done"() {
-    	when: "passed in a nonexistent keyName"
-    	Result<FutureMessage> res = service.markDone("nonexistent")
+    // void "test mark done"() {
+    // 	when: "passed in a nonexistent keyName"
+    // 	Result<FutureMessage> res = service.markDone("nonexistent")
 
-    	then: "not found"
-    	res.success == false
-    	res.type == ResultType.MESSAGE_STATUS
-    	res.payload.status == NOT_FOUND
-    	res.payload.code == "futureMessageService.markDone.messageNotFound"
+    // 	then: "not found"
+    // 	res.success == false
+    // 	res.type == ResultType.MESSAGE_STATUS
+    // 	res.payload.status == NOT_FOUND
+    // 	res.payload.code == "futureMessageService.markDone.messageNotFound"
 
-    	when: "passed in an existing keyName"
-    	assert fMsg1.isDone == false
-    	res = service.markDone(fMsg1.keyName)
+    // 	when: "passed in an existing keyName"
+    // 	assert fMsg1.isDone == false
+    // 	res = service.markDone(fMsg1.keyName)
 
-    	then:
-    	res.success == true
-    	res.payload instanceof FutureMessage
-    	res.payload.keyName == fMsg1.keyName
-    	res.payload.isDone == true
-    }
-    void "test execute"() {
-        given: "overrides and baselines"
-        Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff = null,
-            boolean skipCheck = false ->
-            new ResultList(new Result(success:true))
-        }
-        Phone.metaClass.getPhonesToAvailableNowForContactIds =
-            { Collection<Long> cIds -> [(p1):[s1, s2]] }
+    // 	then:
+    // 	res.success == true
+    // 	res.payload instanceof FutureMessage
+    // 	res.payload.keyName == fMsg1.keyName
+    // 	res.payload.isDone == true
+    // }
+    // void "test execute"() {
+    //     given: "overrides and baselines"
+    //     Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff = null,
+    //         boolean skipCheck = false ->
+    //         new ResultList(new Result(success:true))
+    //     }
+    //     Phone.metaClass.getPhonesToAvailableNowForContactIds =
+    //         { Collection<Long> cIds -> [(p1):[s1, s2]] }
 
 
-    	when: "nonexistent keyName"
-        _numTextsSent = 0
-        ResultList resList = service.execute("nonexistent", s1.id)
+    // 	when: "nonexistent keyName"
+    //     _numTextsSent = 0
+    //     ResultList resList = service.execute("nonexistent", s1.id)
 
-    	then: "not found"
-        resList.isAnySuccess == false
-        resList.failures[0].payload.code == "futureMessageService.execute.messageNotFound"
-        _numTextsSent == 0
+    // 	then: "not found"
+    //     resList.isAnySuccess == false
+    //     resList.failures[0].payload.code == "futureMessageService.execute.messageNotFound"
+    //     _numTextsSent == 0
 
-    	when: "existing message with notify staff"
-        fMsg1.notifySelf = true
-        fMsg1.save(flush:true, failOnError:true)
-        resList = service.execute(fMsg1.keyName, s1.id)
+    // 	when: "existing message with notify staff"
+    //     fMsg1.notifySelf = true
+    //     fMsg1.save(flush:true, failOnError:true)
+    //     resList = service.execute(fMsg1.keyName, s1.id)
 
-    	then:
-        _numTextsSent == 2
-        resList.isAnySuccess == true
-    }
+    // 	then:
+    //     _numTextsSent == 2
+    //     resList.isAnySuccess == true
+    // }
 
     // Test CRUD
     // ---------
@@ -166,9 +166,9 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.type == fType
         res.payload.message == info.message
         res.payload.startDate.withZone(DateTimeZone.UTC).toString() ==
-            info.startDate.withZoneRetainFields(DateTimeZone.UTC).toString()
+            info.startDate.withZone(DateTimeZone.UTC).toString()
         res.payload.endDate.withZone(DateTimeZone.UTC).toString() ==
-            info.endDate.withZoneRetainFields(DateTimeZone.UTC).toString()
+            info.endDate.withZone(DateTimeZone.UTC).toString()
         _didSchedule == true
         res.payload.validate() == true
 
@@ -195,7 +195,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.success == true
         res.payload instanceof FutureMessage
         res.payload.startDate.withZone(DateTimeZone.UTC).toString() ==
-            info.startDate.withZoneRetainFields(DateTimeZone.UTC).toString()
+            info.startDate.withZone(DateTimeZone.UTC).toString()
         _didSchedule == true
     }
     void "test set from body for simple future message"() {
@@ -226,10 +226,10 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.type == fType
         res.payload.message == info.message
         res.payload.startDate.withZone(DateTimeZone.UTC).toString() ==
-            info.startDate.withZoneRetainFields(DateTimeZone.UTC).toString()
+            info.startDate.withZone(DateTimeZone.UTC).toString()
         res.payload.repeatCount == info.repeatCount
         res.payload.endDate.withZone(DateTimeZone.UTC).toString() ==
-            info.endDate.withZoneRetainFields(DateTimeZone.UTC).toString()
+            info.endDate.withZone(DateTimeZone.UTC).toString()
         res.payload.repeatIntervalInDays == info.repeatIntervalInDays
         _didSchedule == true
         res.payload.validate() == true
@@ -290,13 +290,13 @@ class FutureMessageServiceSpec extends CustomSpec {
         String tz = "America/Los_Angeles"
         DateTimeZone myZone = DateTimeZone.forID(tz)
         DateTime startCustomDateTime = DateTime.now()
-                .withZoneRetainFields(myZone),
+                .withZone(myZone),
             startUTCDateTime = DateTime.now()
-                .withZoneRetainFields(DateTimeZone.UTC),
+                .withZone(DateTimeZone.UTC),
             endCustomDateTime = DateTime.now()
-                .withZoneRetainFields(myZone).plusDays(2),
+                .withZone(myZone).plusDays(2),
             endUTCDateTime = DateTime.now()
-                .withZoneRetainFields(DateTimeZone.UTC).plusDays(2)
+                .withZone(DateTimeZone.UTC).plusDays(2)
 
         when: "setting date properties without timezone"
         Map info = [
@@ -305,14 +305,14 @@ class FutureMessageServiceSpec extends CustomSpec {
         ]
         Result<FutureMessage> res = service.setFromBody(fMsg, info)
 
-        then:
+        then: "all are converted to UTC and retain their actual values"
         res.success == true
         res.payload instanceof FutureMessage
-        res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay !=
+        res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay !=
+        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
             endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
@@ -320,16 +320,16 @@ class FutureMessageServiceSpec extends CustomSpec {
         when: "setting date properties WITH timezone"
         res = service.setFromBody(fMsg, info, tz)
 
-        then:
+        then: "all date values have their values preserved no matter initial timezone"
         res.success == true
         res.payload instanceof FutureMessage
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay !=
+        res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
             endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay !=
+        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
     }
     void "test create errors"() {

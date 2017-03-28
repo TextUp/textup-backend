@@ -88,7 +88,9 @@ class CustomSpec extends Specification {
         grailsApplication.mainContext.getBean(beanName)
     }
     protected ResultFactory getResultFactory() {
-        getBean("resultFactory")
+        ResultFactory resultFactory = getBean("resultFactory")
+        resultFactory.messageSource = Mock(MessageSource)
+        resultFactory
     }
     protected MessageSource mockMessageSource() {
         [getMessage:{ String c, Object[] p, Locale l ->

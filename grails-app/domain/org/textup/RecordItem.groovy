@@ -82,16 +82,19 @@ class RecordItem {
     static namedQueries = {
         forRecord { Record rec ->
             eq("record", rec)
+            // from newer to older so we return more recent messages first
             order("whenCreated", "desc")
         }
         forRecordDateSince { Record rec, DateTime s ->
             eq("record", rec)
             ge("whenCreated", s)
+            // from newer to older so we return more recent messages first
             order("whenCreated", "desc")
         }
         forRecordDateBetween { Record rec, DateTime s, DateTime e ->
             eq("record", rec)
             between("whenCreated", s, e)
+            // from newer to older so we return more recent messages first
             order("whenCreated", "desc")
         }
     }

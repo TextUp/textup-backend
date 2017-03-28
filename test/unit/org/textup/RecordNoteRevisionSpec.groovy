@@ -1,13 +1,19 @@
 package org.textup
 
 import com.amazonaws.HttpMethod
+import com.amazonaws.services.s3.model.PutObjectResult
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import java.nio.charset.StandardCharsets
+import org.apache.commons.codec.binary.Base64
+import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.types.ReceiptStatus
+import org.textup.validator.ImageInfo
 import org.textup.validator.PhoneNumber
+import org.textup.validator.UploadItem
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
@@ -18,12 +24,22 @@ import spock.lang.Specification
 class RecordNoteRevisionSpec extends Specification {
 
     Record _rec
+    UploadItem _uItem
     String _urlRoot = "http://www.example.com/?key="
     int _maxNumImages = 1
 
     void setup() {
         _rec = new Record()
         assert _rec.save(flush:true, failOnError:true)
+
+        String contentType = "image/png"
+        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
+        String checksum = DigestUtils.md5Hex(data)
+        _uItem = new UploadItem()
+        _uItem.mimeType = contentType
+        _uItem.data = data
+        _uItem.checksum = checksum
+        assert _uItem.validate()
 
         RecordNote.metaClass.constructor = mockConstructor(RecordNote)
         RecordNoteRevision.metaClass.constructor = mockConstructor(RecordNoteRevision)
@@ -35,10 +51,15 @@ class RecordNoteRevisionSpec extends Specification {
             clazz.grailsApplication = [getFlatConfig:{
                 ['textup.maxNumImages':_maxNumImages]
             }] as GrailsApplication
-            clazz.storageService = [generateAuthLink:{
-                String k, HttpMethod v, Map m=[:] ->
-                new Result(success:true, payload:new URL("${_urlRoot}${k}"))
-            }] as StorageService
+            clazz.storageService = [
+                generateAuthLink:{
+                    String k, HttpMethod v, Map m=[:] ->
+                    new Result(success:true, payload:new URL("${_urlRoot}${k}"))
+                },
+                upload: { String objectKey, UploadItem uItem ->
+                    new Result(success:true, payload:[getETag: { -> _eTag }] as PutObjectResult)
+                }
+            ] as StorageService
             clazz.asType(forClass)
         }
     }
@@ -62,27 +83,44 @@ class RecordNoteRevisionSpec extends Specification {
         then:
         rev1.validate() == true
 
-        when: "contents too long"
+        when: "noteContents too long"
         int maxLength = 1000
-        rev1.contents = (0..(maxLength * 2))
+        rev1.noteContents = (0..(maxLength * 2))
             .inject("") { String accum, Integer rangeCount -> accum + "a" }
 
         then:
         rev1.validate() == false
         rev1.errors.errorCount == 1
-        rev1.errors.getFieldErrorCount("contents") == 1
+        rev1.errors.getFieldErrorCount("noteContents") == 1
 
         when: "too many images"
-        rev1.contents = null
-        // add images to note so that it can stringify json for us
-        (_maxNumImages * 2).times { note1.addImage("mimeType", 0L) }
-        // then set this stringified json on the revision
+        note1.imageKeysAsString = null // clear images
+        (_maxNumImages * 2).times {
+            note1.addImage(_uItem)
+        }
+        rev1.noteContents = null
         rev1.imageKeysAsString = note1.imageKeysAsString
 
         then:
         rev1.validate() == false
         rev1.errors.errorCount == 1
         rev1.errors.getFieldErrorCount("imageKeysAsString") == 1
+        rev1.errors
+            .getFieldError("imageKeysAsString")
+            .codes.contains("recordNoteRevision.imageKeysAsString.tooMany")
+
+        when: "duplicate image keys"
+        note1.setImageKeys(['same key', 'same key'])
+        rev1.imageKeysAsString = note1.imageKeysAsString
+
+
+        then:
+        rev1.validate() == false
+        rev1.errors.errorCount == 1
+        rev1.errors.getFieldErrorCount("imageKeysAsString") == 1
+        rev1.errors
+            .getFieldError("imageKeysAsString")
+            .codes.contains("recordNoteRevision.imageKeysAsString.duplicates")
     }
 
     void "getting image keys or links"() {
@@ -94,14 +132,15 @@ class RecordNoteRevisionSpec extends Specification {
         assert rev1.validate()
 
     	when: "adding an image"
-        // add images to note so that it can stringify json for us
-        note1.addImage("mimeType", 0L)
-        // then set this stringified json on the revision
+        note1.imageKeysAsString = null // clear images
+        note1.addImage(_uItem)
         rev1.imageKeysAsString = note1.imageKeysAsString
         assert rev1.validate()
 
     	then: "getting image links and keys"
-        rev1.imageLinks.size() == 1
         rev1.imageKeys.size() == 1
+        rev1.imageKeys[0] instanceof String
+        rev1.images.size() == 1
+        rev1.images[0] instanceof ImageInfo
     }
 }

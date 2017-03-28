@@ -18,6 +18,9 @@ class OrganizationService {
                 "organizationService.update.notFound", [orgId])
     	}
         if (body.name) { org.name = body.name }
+        if (Helpers.toInteger(body.timeout) != null) {
+            org.timeout = Helpers.toInteger(body.timeout)
+        }
     	if (body.location instanceof Map) {
     		Map l = body.location as Map
     		org.location.with {

@@ -6,6 +6,7 @@ import org.textup.*
 import org.textup.rest.*
 import org.textup.rest.marshallers.*
 import org.textup.util.*
+import org.textup.validator.ImageInfo
 import org.textup.validator.Notification
 
 // Place your Spring DSL code here
@@ -133,6 +134,17 @@ beans = {
 		label = tRestConfig.v1.revision.plural
 	}
 	revisionJsonMarshaller(RecordNoteRevisionJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	imageInfoRenderer(ApiJsonRenderer, ImageInfo) {
+		label = tRestConfig.v1.imageInfo.singular
+	}
+	imageInfoCollectionRenderer(ApiJsonCollectionRenderer, ImageInfo) {
+		label = tRestConfig.v1.imageInfo.plural
+	}
+	imageInfoJsonMarshaller(ImageInfoJsonMarshaller) {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}

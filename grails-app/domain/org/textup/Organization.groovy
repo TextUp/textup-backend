@@ -14,13 +14,30 @@ class Organization {
 
     ResultFactory resultFactory
 
-    @RestApiObjectField(description="Name of the organization")
+    @RestApiObjectField(
+        description    = "Name of the organization",
+        useForCreation = true,
+        allowedType    = "String")
 	String name
 
-    @RestApiObjectField(description="Location of the organization")
+    @RestApiObjectField(
+        description    = "Location of the organization",
+        useForCreation = true,
+        allowedType    = "Location")
 	Location location
 
+    @RestApiObjectField(
+        description    = "Status of the overall organization. \
+            One of REJECTED, PENDING, or APPROVED",
+        useForCreation = false)
     OrgStatus status = OrgStatus.PENDING
+
+    @RestApiObjectField(
+        description    = "Time to wait to lock all users' screens in milliseconds \
+            minimum is 15 seconds, maximum is 60 seconds",
+        useForCreation = true,
+        allowedType    = "int")
+    int timeout = Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
 
     @RestApiObjectField(
         apiFieldName   = "numAdmins",
@@ -36,6 +53,7 @@ class Organization {
             }
     	}
         status blank:false, nullable:false
+        timeout min:Constants.DEFAULT_LOCK_TIMEOUT_MILLIS, max:Constants.MAX_LOCK_TIMEOUT_MILLIS
     }
     static namedQueries = {
         ilikeForNameAndAddress { String query ->

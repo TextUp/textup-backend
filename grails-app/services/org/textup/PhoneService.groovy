@@ -1,7 +1,5 @@
 package org.textup
 
-import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.ObjectMetadata
 import com.amazonaws.services.s3.model.PutObjectResult
 import com.twilio.sdk.resource.factory.CallFactory
 import com.twilio.sdk.resource.instance.Account
@@ -37,13 +35,13 @@ import static org.springframework.http.HttpStatus.*
 @Transactional
 class PhoneService {
 
-    AmazonS3Client s3Service
     AuthService authService
     CallService callService
     GrailsApplication grailsApplication
     MessageSource messageSource
     ResultFactory resultFactory
     SocketService socketService
+    StorageService storageService
     TextService textService
     TokenService tokenService
     TwilioRestClient twilioService
@@ -412,7 +410,7 @@ class PhoneService {
             if (res.success) { rTexts << res.payload }
         }).then({ List<Contact> contacts ->
             // if contacts is empty, then return a message notifying the texter
-            // that he or she has been blocked by the user 
+            // that he or she has been blocked by the user
             if (contacts.isEmpty()) {
                 return twimlBuilder.build(TextResponse.BLOCKED)
             }
@@ -452,7 +450,7 @@ class PhoneService {
             }
         }).then({ List<Contact> contacts ->
             // if contacts is empty, then return a message notifying the caller
-            // that he or she has been blocked by the user 
+            // that he or she has been blocked by the user
             if (contacts.isEmpty()) {
                 return twimlBuilder.build(CallResponse.BLOCKED)
             }
@@ -487,12 +485,12 @@ class PhoneService {
         // create a new contact with this session's phone number if contact
         // does not already exist
         List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum),
-            notBlockedContacts = contacts.findAll { Contact c1 -> 
-                c1.status != ContactStatus.BLOCKED 
+            notBlockedContacts = contacts.findAll { Contact c1 ->
+                c1.status != ContactStatus.BLOCKED
             } as List<Contact>
-        // only create new contact if no blocked contact either because 
+        // only create new contact if no blocked contact either because
         // we don't want to create a new contact if there is a blocked contact associated
-        // with the incoming number 
+        // with the incoming number
         if (contacts.isEmpty()) {
             Result res = phone.createContact([:], [pNum.number])
             if (res.success) {
@@ -501,7 +499,7 @@ class PhoneService {
             else { return res }
         }
         //add text to contact records
-        //note that blocked contacts will not even have the incoming message be stored 
+        //note that blocked contacts will not even have the incoming message be stored
         notBlockedContacts.each { Contact c1 ->
             contactStoreAction(c1)
             //only change status to unread
@@ -579,18 +577,18 @@ class PhoneService {
         }
     }
     Result<String> moveVoicemail(String apiId) {
-        String bucketName = grailsApplication.flatConfig["textup.storageBucketName"]
         try {
             Call call = twilioService.account.getCall(apiId)
             if (call) {
                 RecordingList recs = call.recordings
-                ObjectMetadata metadata = new ObjectMetadata()
-                metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION)
-                metadata.setContentType("audio/mpeg")
                 String eTag = ""
                 for (rec in recs) {
-                    eTag = s3Service.putObject(bucketName, apiId,
-                        rec.getMedia(".mp3"), metadata)?.getETag()
+                    Result<PutObjectResult> res = storageService
+                        .upload(apiId, "audio/mpeg", rec.getMedia(".mp3"))
+                    if (res.success) {
+                        eTag = (res.payload as PutObjectResult).getETag()
+                    }
+                    else { return res }
                     //only put the first recording if first one succeeds
                     //and there are multiple recordings
                     if (eTag) { break }

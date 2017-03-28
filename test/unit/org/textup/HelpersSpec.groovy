@@ -1,8 +1,11 @@
 package org.textup
 
-import spock.lang.Specification
+import com.amazonaws.HttpMethod
 import grails.test.mixin.support.GrailsUnitTestMixin
 import org.textup.types.CallResponse
+import org.textup.types.ResultType
+import org.textup.validator.ImageInfo
+import spock.lang.Specification
 
 @TestMixin(GrailsUnitTestMixin)
 class HelpersSpec extends Specification {
@@ -75,5 +78,27 @@ class HelpersSpec extends Specification {
 
         then:
         taken == [2, 3, 4]
+    }
+
+    void "test building images from image keys"() {
+        given:
+        String url = "https://www.example.com"
+        StorageService mockServ = [
+            generateAuthLink: { String objectKey, HttpMethod verb ->
+                new Result(type:ResultType.SUCCESS, payload:new URL(url))
+            }
+        ] as StorageService
+
+        when:
+        Long noteId = 88L
+        Collection<String> imageKeys = [UUID.randomUUID().toString()]
+        Collection<ImageInfo> imageInfoList = Helpers.buildImagesFromImageKeys(mockServ,
+            noteId, imageKeys)
+
+        then:
+        imageInfoList.size() == 1
+        imageInfoList[0] instanceof ImageInfo
+        imageInfoList[0].key == imageKeys[0]
+        imageInfoList[0].link == url
     }
 }

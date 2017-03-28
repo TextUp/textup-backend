@@ -14,10 +14,11 @@ class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
 
         Map json = [:]
         json.with {
+            id = rev.id
             whenChanged = rev.whenChanged
-            contents = rev.contents
+            noteContents = rev.noteContents
             location = rev.location
-            images = rev.imageLinks
+            images = rev.images
 
             if (rev.authorName) authorName = rev.authorName
             if (rev.authorId) authorId = rev.authorId

@@ -10,6 +10,7 @@ import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.types.AuthorType
 import org.textup.validator.Author
+import org.textup.validator.ImageInfo
 
 @EqualsAndHashCode
 @RestApiObject(name="RecordNoteRevision",
@@ -26,11 +27,7 @@ class RecordNoteRevision {
         useForCreation = false)
 	DateTime whenChanged
 
-    @RestApiObjectField(
-        description    = "Text of the revision",
-        allowedType    = "String",
-        useForCreation = true)
-	String contents
+	String noteContents
     @RestApiObjectField(
         description    = "Location this revision is associated with",
         allowedType    = "Location",
@@ -55,6 +52,11 @@ class RecordNoteRevision {
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
+            apiFieldName   = "contents",
+            description    = "Text of the note",
+            allowedType    = "String",
+            useForCreation = true),
+        @RestApiObjectField(
             apiFieldName   = "images",
             description    = "List of image links associated with this revision",
             allowedType    = "List<String>",
@@ -77,15 +79,8 @@ class RecordNoteRevision {
     // ---------------
 
     @GrailsTypeChecked
-    Collection<String> getImageLinks() {
-        (this.imageKeys
-            .collect(this.note.&buildObjectKeyFromImageKey) as Collection<String>)
-            .collect { String objectKey ->
-                Result<URL> res = storageService
-                    .generateAuthLink(objectKey, HttpMethod.GET)
-                    .logFail('RecordNoteRevision.getImageLinks')
-                res.success ? res.payload.toString() : ""
-            } as Collection<String>
+    Collection<ImageInfo> getImages() {
+        Helpers.buildImagesFromImageKeys(storageService, this.note.id, this.imageKeys)
     }
     @GrailsTypeChecked
     Collection<String> getImageKeys() {

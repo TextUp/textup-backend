@@ -1,14 +1,17 @@
 package org.textup
 
+import com.amazonaws.services.s3.model.PutObjectResult
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.textup.rest.TwimlBuilder
 import org.textup.types.ReceiptStatus
 import org.textup.util.OptimisticLockingRetry
 import org.textup.validator.Author
+import org.textup.validator.ImageInfo
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordNote
@@ -164,15 +167,18 @@ class RecordService {
         Author auth = authService.loggedInAndActive.toAuthor()
         RecordNote note1 = tempNote.toNote(auth)
         if (note1.save()) {
-            // generate objectKeys and presigned urls for adding images, if any
-            // must do this after saving so the link generated will have the note
-            // id in the url. Otherwise note id will be null and will be wrong link
-            tempNote
-                .<String>forEachImageToAdd(note1.&addImage)
-                .logFail("RecordService.createOrUpdateNote: adding image after save")
-                .then({ List<String> links ->
-                    getRequest().setAttribute(Constants.IMAGE_UPLOAD_KEY, links)
-                })
+            // need to upload images after save so that we have an ID, otherwise
+            // we won't be generating the correct object key
+            Result<List> uploadRes =
+                tempNote.<Result<PutObjectResult>>forEachImageToAdd(note1.&addImage)
+            ResultList<PutObjectResult> resList =
+                new ResultList<PutObjectResult>(uploadRes.payload as List<Result>)
+            Collection<Result<PutObjectResult>> failures = resList.failures
+            if (failures) { // any upload failures are returned on the object
+                Result res = resultFactory.failWithResultsAndStatus(BAD_REQUEST, failures)
+                getRequest().setAttribute(Constants.UPLOAD_ERRORS, res.errorMessages)
+            }
+            // after uploading, continue on with saving/validation routine
             if (note1.location && !note1.location.save()) {
                 resultFactory.failWithValidationErrors(note1.location.errors)
             }
@@ -196,13 +202,21 @@ class RecordService {
             return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "recordService.update.notFound", [noteId])
         }
-        RecordNoteRevision rev = note1.createRevision()
         TempRecordNote tempNote = new TempRecordNote(note:note1,
             after:body.after ? Helpers.toDateTimeWithZone(body.after) : null,
             info:body)
         createOrUpdateNote(tempNote).then({ RecordItem item1 ->
-            if (!rev.save()) {
-                resultFactory.failWithValidationErrors(rev.errors)
+            List<String> dirtyProps = note1.dirtyPropertyNames
+            if (!dirtyProps.isEmpty() &&
+                    (dirtyProps.size() > 1 || dirtyProps[0] != "isDeleted")) {
+                // update whenChanged timestamp to keep it current for any revisions
+                note1.whenChanged = DateTime.now(DateTimeZone.UTC)
+                // create revision of persistent values
+                RecordNoteRevision rev = note1.createRevision()
+                if (!rev.save()) {
+                    resultFactory.failWithValidationErrors(rev.errors)
+                }
+                else { resultFactory.success(item1) }
             }
             else { resultFactory.success(item1) }
         }) as Result<RecordItem>

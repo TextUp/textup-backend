@@ -1,5 +1,6 @@
 package org.textup
 
+import com.amazonaws.HttpMethod
 import grails.compiler.GrailsCompileStatic
 import groovy.json.JsonBuilder
 import groovy.json.JsonException
@@ -13,6 +14,7 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.Days
 import org.joda.time.LocalTime
+import org.textup.validator.ImageInfo
 import org.textup.validator.LocalInterval
 import org.textup.validator.PhoneNumber
 
@@ -133,7 +135,13 @@ class Helpers {
     static DateTime toDateTimeWithZone(def time, def zone = null) {
         if (!time) return null
         new DateTime(toString(time))
-            .withZoneRetainFields(getZoneFromId(zone as String))
+            // must NOT use withZoneRetainFields because doing so results in this scenario:
+            // The default system time might not be UTC time. Therefore, when we pass a UTC
+            // string to the DateTime constructor, it converts the UTC fields to the fields
+            // in the local time zone (that is the system default). Then, if we call
+            // withZoneRetainFields on this DateTime object, we convert to the UTC time zone
+            // using the LOCAL values, thereby losing the original time
+            .withZone(getZoneFromId(zone as String))
     }
     static String printLocalInterval(LocalInterval localInt) {
         if (localInt) {
@@ -187,6 +195,26 @@ class Helpers {
     }
     static Object toJson(String str) throws JsonException {
         str ? new JsonSlurper().parseText(str) : null
+    }
+
+    // Images
+    // ------
+
+    static String buildObjectKeyFromImageKey(Long id, String imageKey) {
+        "note-${id}/${imageKey}"
+    }
+    static Collection<ImageInfo> buildImagesFromImageKeys(StorageService storageService,
+        Long id, Collection<String> imageKeys) {
+
+        imageKeys.collect { String imageKey ->
+            String objectKey = Helpers.buildObjectKeyFromImageKey(id, imageKey)
+            Result<URL> res = storageService
+                .generateAuthLink(objectKey, HttpMethod.GET)
+                .logFail('RecordNote.getImageLinks')
+            String link = res.success ? res.payload.toString() : ""
+            ImageInfo info = new ImageInfo(key:imageKey, link:link)
+            info.validate() ? info : null
+        } as Collection<ImageInfo>
     }
 
     // TwimlBuilder

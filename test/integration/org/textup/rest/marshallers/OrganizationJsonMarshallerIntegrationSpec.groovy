@@ -27,6 +27,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
     	then:
     	json.id == org.id
     	json.name == org.name
+        json.timeout == org.timeout
         json.status == org.status.toString()
     	json.numAdmins == org.countPeople(statuses:[StaffStatus.ADMIN])
     	json.location instanceof Map

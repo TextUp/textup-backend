@@ -18,6 +18,7 @@ class OrganizationJsonMarshaller extends JsonNamedMarshaller {
             id = org.id
             name = org.name
             status = org.status.toString()
+            timeout = org.timeout
             location = org.location
             teams = org.getTeams()
             numAdmins = org.countPeople(statuses:[StaffStatus.ADMIN])

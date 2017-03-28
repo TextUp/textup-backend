@@ -137,6 +137,9 @@ class SharedContact implements Contactable {
     }
     static List<SharedContact> findEveryByContactIdsAndSharedWith(Collection<Long> cIds,
         Phone sWith) {
+        if (!cIds || cIds.isEmpty() || !sWith) {
+            return []
+        }
         SharedContact.createCriteria().list {
             sharedBy { isNotNull("numberAsString") }
             eq("sharedWith", sWith)
@@ -157,6 +160,9 @@ class SharedContact implements Contactable {
     }
     static List<SharedContact> findEveryByContactIdsAndSharedBy(Collection<Long> cIds,
         Phone sBy) {
+        if (!cIds || cIds.isEmpty() || !sBy) {
+            return []
+        }
         SharedContact.createCriteria().list {
             sharedBy { isNotNull("numberAsString") }
             eq("sharedBy", sBy)

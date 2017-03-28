@@ -37,6 +37,7 @@ class OrganizationSpec extends Specification {
 
         then:
         org.validate() == false
+        org.timeout == Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
 
         when: "we fill in fields"
         String orgName = "OrgSpec"
@@ -46,8 +47,24 @@ class OrganizationSpec extends Specification {
         then:
         org.validate() == true
 
+        when: "we have an out-of-bounds timeout"
+        org.timeout = Constants.MAX_LOCK_TIMEOUT_MILLIS * 2
+
+        then:
+        org.validate() == false
+        org.errors.getFieldErrorCount('timeout') == 1
+
+        when: "we have a missing or zero timeout"
+        org.timeout = 0
+
+        then:
+        org.validate() == false
+        org.errors.getFieldErrorCount('timeout') == 1
+
         when: "we try to create an org with duplicate name-location"
-        org.save(flush:true, failOnError:true)
+        org.timeout = Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
+        assert org.save(flush:true, failOnError:true)
+
         Organization org2 = new Organization(name:orgName)
         org2.resultFactory = getResultFactory()
         org2.location = new Location(address:"testing", lat:0G, lon:0G)

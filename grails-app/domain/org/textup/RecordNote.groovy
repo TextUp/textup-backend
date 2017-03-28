@@ -1,6 +1,7 @@
 package org.textup
 
 import com.amazonaws.HttpMethod
+import com.amazonaws.services.s3.model.PutObjectResult
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import groovy.transform.EqualsAndHashCode
@@ -12,6 +13,8 @@ import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.types.AuthorType
 import org.textup.validator.Author
+import org.textup.validator.ImageInfo
+import org.textup.validator.UploadItem
 
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="RecordNote", description="Notes that are part of the record.")
@@ -37,10 +40,10 @@ class RecordNote extends RecordItem {
 	boolean isDeleted = false
 
     @RestApiObjectField(
-        description    = "Text of the note",
+        description    = "Contents of the note",
         allowedType    = "String",
         useForCreation = true)
-	String contents
+	String noteContents
     @RestApiObjectField(
         description    = "Location this note is associated with",
         allowedType    = "Location",
@@ -59,33 +62,38 @@ class RecordNote extends RecordItem {
             description       = "List of actions to perform on this note related to images",
             allowedType       = "List<[noteImageAction]>",
             useForCreation    = false,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "uploadImages",
-            description       = "List of urls to PUT or upload images to in the same order \
-                that the metadata for each image was originally passed in",
-            allowedType       = "List<String>",
-            useForCreation    = false,
             presentInResponse = false)
     ])
 	static transients = ['imageKeys', 'storageService', 'grailsApplication']
     @RestApiObjectField(
+        apiFieldName   = "revisions",
         description    = "Previous revisions of this note.",
         allowedType    = "List<RecordNoteRevision>",
         useForCreation = true)
 	static hasMany = [revisions:RecordNoteRevision]
     static constraints = {
     	location nullable:true
-    	contents blank:true, nullable:true, size:1..1000
+    	noteContents blank:true, nullable:true, size:1..1000
     	imageKeysAsString blank:true, nullable:true, validator:{ String str, noteOrRevision ->
             if (!str) { // short circuit if no images
                 return
             }
+            // check duplicates of images
+            HashSet<String> existingKeys = new HashSet<>()
+            Collection<String> dupKeys = []
+            noteOrRevision.imageKeys.each { String key ->
+                if (existingKeys.contains(key)) { dupKeys << key }
+                else { existingKeys.add(key) }
+            }
+            if (dupKeys) {
+                return ["duplicates", dupKeys]
+            }
+            // check number of images
             Integer maxNum = Helpers.toInteger(
-                noteOrRevision.grailsApplication.flatConfig['textup.maxNumImages'])
+                noteOrRevision.grailsApplication.flatConfig["textup.maxNumImages"])
             int numImages = noteOrRevision.imageKeys.size()
             if (numImages > maxNum) {
-                ['tooMany', numImages, maxNum]
+                return ["tooMany", numImages, maxNum]
             }
         }
     }
@@ -100,27 +108,26 @@ class RecordNote extends RecordItem {
 
     @GrailsTypeChecked
     RecordNoteRevision createRevision() {
-    	RecordNoteRevision rev1 = new RecordNoteRevision(authorName:this.authorName,
-			authorId:this.authorId,
-			authorType:this.authorType,
-			whenChanged:this.whenChanged,
-			contents:this.contents,
-			location:this.location,
-			imageKeysAsString:this.imageKeysAsString)
+        Closure doGet = { String propName -> this.getPersistentValue(propName) }
+    	RecordNoteRevision rev1 = new RecordNoteRevision(authorName:doGet("authorName"),
+			authorId:doGet("authorId"),
+			authorType:doGet("authorType"),
+			whenChanged:doGet("whenChanged"),
+			noteContents:doGet("noteContents"),
+			location:doGet("location"),
+			imageKeysAsString:doGet("imageKeysAsString"))
     	this.addToRevisions(rev1)
     	rev1
     }
     @GrailsTypeChecked
-    String addImage(String mimeType, Long numBytes) {
+    Result<PutObjectResult> addImage(UploadItem uItem) {
         String imageKey = UUID.randomUUID().toString(),
-            objectKey = buildObjectKeyFromImageKey(imageKey)
-        storageService.generateAuthLink(objectKey, HttpMethod.PUT,
-            ['Content-Type':mimeType, 'Content-Length':numBytes])
-            .logFail('RecordNote.addImage')
-            .then { URL link ->
-                setImageKeys(this.imageKeys << imageKey)
-                link.toString()
-            }
+            objectKey = Helpers.buildObjectKeyFromImageKey(this.id, imageKey)
+        Result<PutObjectResult> res = storageService.upload(objectKey, uItem)
+        if (res.success) {
+            setImageKeys(this.imageKeys << imageKey)
+        }
+        res
     }
     @GrailsTypeChecked
     String removeImage(String imageKey) {
@@ -132,24 +139,10 @@ class RecordNote extends RecordItem {
     	}
     	else { null }
     }
-    @GrailsTypeChecked
-    protected String buildObjectKeyFromImageKey(String imageKey) {
-    	"note-${this.id}/${imageKey}"
-    }
 
     // Property Access
     // ---------------
 
-    @GrailsTypeChecked
-    Collection<Map<String,String>> getImages() {
-        this.imageKeys.collect { String imageKey ->
-            String objectKey = this.buildObjectKeyFromImageKey(imageKey)
-            Result<URL> res = storageService
-                .generateAuthLink(objectKey, HttpMethod.GET)
-                .logFail('RecordNote.getImageLinks')
-            [key:imageKey, link:(res.success ? res.payload.toString() : "")]
-        } as Collection<Map<String,String>>
-    }
     @GrailsTypeChecked
     Collection<String> getImageKeys() {
     	if (!this.imageKeysAsString) {
@@ -168,5 +161,9 @@ class RecordNote extends RecordItem {
     	if (imageKeys != null) {
     		this.imageKeysAsString = Helpers.toJsonString(imageKeys)
     	}
+    }
+    @GrailsTypeChecked
+    Collection<ImageInfo> getImages() {
+        Helpers.buildImagesFromImageKeys(storageService, this.id, this.imageKeys)
     }
 }

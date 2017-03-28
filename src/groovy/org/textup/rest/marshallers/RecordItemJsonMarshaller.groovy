@@ -8,6 +8,7 @@ import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.rest.*
 import org.textup.types.RecordItemType
+import org.textup.validator.ImageInfo
 
 @GrailsCompileStatic
 class RecordItemJsonMarshaller extends JsonNamedMarshaller {
@@ -16,8 +17,8 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
         LinkGenerator linkGenerator, RecordItem item ->
 
         HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
-        Collection<String> uploadLinks =
-            Helpers.toList(request.getAttribute(Constants.IMAGE_UPLOAD_KEY))
+        Collection<ImageInfo> uploadErrors =
+            Helpers.toList(request.getAttribute(Constants.UPLOAD_ERRORS))
 
         Map json = [:]
         json.with {
@@ -52,11 +53,13 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 isDeleted = note.isDeleted
                 revisions = note.revisions
 
-                contents = note.contents
+                noteContents = note.noteContents
                 location = note.location
                 images = note.images
-                uploadImages = uploadLinks
             }
+        }
+        if (uploadErrors) {
+            json.uploadErrors = uploadErrors
         }
         // find owner, may be a contact or a tag
         json.contact = Contact.findByRecord(item.record)?.id

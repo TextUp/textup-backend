@@ -1,5 +1,3 @@
-import org.textup.Constants
-
 databaseChangeLog = {
 	// bcrypt encoded default is 8888
 	String encodedDefault = '$2a$10$TIIecZI1r8Dh8T3Rd4PFnOj21fA94JkOuYi51kH.Wk2KHYNxQL4fu'

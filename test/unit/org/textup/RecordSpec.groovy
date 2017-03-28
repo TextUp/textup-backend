@@ -105,17 +105,17 @@ class RecordSpec extends Specification {
     		DateTime.now().minusHours(22), [max:2, offset:1])
 
     	then:
-    	items.size() == 2
-    	items[0] == twoDItem
-    	items[1] == thrDItem
+    	items.size() == 2 // notice offset 1
+    	items[0] == twoDItem // newer item
+    	items[1] == thrDItem // older item
 
     	when: "we get items since a certain date"
     	items = rec.getSince(DateTime.now().minusWeeks(4), [max:3, offset:1])
 
     	then:
-    	items.size() == 3
-    	items[0] == yestItem
+    	items.size() == 3 // notice offset 1
+    	items[0] == yestItem // newer item
     	items[1] == twoDItem
-    	items[2] == thrDItem
+    	items[2] == thrDItem // older item
     }
 }

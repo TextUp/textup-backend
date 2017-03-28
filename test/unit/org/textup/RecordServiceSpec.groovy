@@ -1,13 +1,17 @@
 package org.textup
 
 import com.amazonaws.HttpMethod
+import com.amazonaws.services.s3.model.PutObjectResult
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
+import org.apache.commons.codec.binary.Base64
+import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
@@ -17,6 +21,7 @@ import org.textup.types.ResultType
 import org.textup.util.CustomSpec
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
+import org.textup.validator.UploadItem
 import spock.lang.Shared
 import spock.lang.Specification
 import static org.springframework.http.HttpStatus.*
@@ -33,10 +38,10 @@ class RecordServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    boolean calledSetAttribute = false
-    Object justSetAttribute
     String _urlRoot = "http://www.example.com/?key="
     int _maxNumImages = 2
+    boolean _uploadShouldSucceed = true
+    boolean _didUpdateRequest = false
 
     def setup() {
         super.setupData()
@@ -51,8 +56,7 @@ class RecordServiceSpec extends CustomSpec {
         service.metaClass.getRequest = { ->
             [
                 setAttribute: { String n, Object o ->
-                    calledSetAttribute = true
-                    justSetAttribute = o
+                    _didUpdateRequest = true
                 }
             ] as HttpServletRequest
         }
@@ -75,10 +79,16 @@ class RecordServiceSpec extends CustomSpec {
             note1.grailsApplication = [getFlatConfig:{
                 ['textup.maxNumImages':_maxNumImages]
             }] as GrailsApplication
-            note1.storageService = [generateAuthLink:{
-                String k, HttpMethod v, Map m=[:] ->
-                new Result(success:true, payload:new URL("${_urlRoot}${k}"))
-            }] as StorageService
+            note1.storageService = [
+                generateAuthLink:{
+                    String k, HttpMethod v, Map m=[:] ->
+                    new Result(success:true, payload:new URL("${_urlRoot}${k}"))
+                },
+                upload: { String objectKey, UploadItem uItem ->
+                    new Result(success:_uploadShouldSucceed,
+                        payload:[getETag: { -> _eTag }] as PutObjectResult)
+                }
+            ] as StorageService
             note1
         }
     }
@@ -139,11 +149,18 @@ class RecordServiceSpec extends CustomSpec {
         res.payload.code == "recordService.create.unknownType"
 
         when: "text"
-        res = service.determineClass([contents:"hello"])
+        res = service.determineClass([sendToContacts:[1]])
 
         then:
         res.success == true
         res.payload == RecordText
+
+        when: "note"
+        res = service.determineClass([forContact:1])
+
+        then:
+        res.success == true
+        res.payload == RecordNote
 
         when: "call"
         res = service.determineClass([callContact:c1.id])
@@ -273,46 +290,40 @@ class RecordServiceSpec extends CustomSpec {
         when: "creating for a contact"
         Map body = [
             forContact:tC1.id,
-            contents:"hi"
+            noteContents:"hi"
         ]
-        calledSetAttribute = false
         ResultList<RecordItem> resList = service.createNote(t1.phone, body)
 
         then:
         resList.isAnySuccess == true
         resList.results.size() == 1
         resList.results[0].payload.record == tC1.record
-        calledSetAttribute == true
         RecordNote.count() == nBaseline + 1
 
         when: "creating for a shared contact"
         body = [
             forSharedContact:sc1.contact.id,
-            contents:"hi"
+            noteContents:"hi"
         ]
-        calledSetAttribute = false
         resList = service.createNote(sc1.sharedWith, body)
 
         then:
         resList.isAnySuccess == true
         resList.results.size() == 1
         resList.results[0].payload.record == sc1.contact.record
-        calledSetAttribute == true
         RecordNote.count() == nBaseline + 2
 
         when: "creating for a tag"
         body = [
             forTag:tag1.id,
-            contents:"hi"
+            noteContents:"hi"
         ]
-        calledSetAttribute = false
         resList = service.createNote(tag1.phone, body)
 
         then:
         resList.isAnySuccess == true
         resList.results.size() == 1
         resList.results[0].payload.record == tag1.record
-        calledSetAttribute == true
         RecordNote.count() == nBaseline + 3
     }
 
@@ -321,13 +332,16 @@ class RecordServiceSpec extends CustomSpec {
         int nBaseline = RecordNote.count()
         int lBaseline = Location.count()
 
+        String contentType = "image/png"
+        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
+        String checksum = DigestUtils.md5Hex(data)
+
         when: "creating a note after a certain time"
         Map body = [
             forContact:tC1.id,
-            contents:"hi",
+            noteContents:"hi",
             after:DateTime.now().minusDays(2)
         ]
-        calledSetAttribute = false
         ResultList<RecordItem> resList = service.createNote(t1.phone, body)
 
         then:
@@ -335,20 +349,18 @@ class RecordServiceSpec extends CustomSpec {
         resList.results.size() == 1
         resList.results[0].payload.record == tC1.record
         resList.results[0].payload.whenCreated.isBeforeNow()
-        calledSetAttribute == true
         RecordNote.count() == nBaseline + 1
 
         when: "creating a note with location"
         body = [
             forContact:tC1.id,
-            contents:"hi",
+            noteContents:"hi",
             location:[
                 address:"123 Main Street",
                 lat:22G,
                 lon:22G
             ]
         ]
-        calledSetAttribute = false
         resList = service.createNote(t1.phone, body)
 
         then:
@@ -356,28 +368,28 @@ class RecordServiceSpec extends CustomSpec {
         resList.results.size() == 1
         resList.results[0].payload.record == tC1.record
         resList.results[0].payload.location != null
-        calledSetAttribute == true
         RecordNote.count() == nBaseline + 2
         Location.count() == lBaseline + 1
 
-        when: "creating a note with image requests"
+        when: "creating a note with image requests, all success"
         body = [
             forContact:tC1.id,
-            contents:"hi",
+            noteContents:"hi",
             doImageActions:[
-                [
-                    action:Constants.NOTE_IMAGE_ACTION_ADD,
-                    mimeType:"image/png",
-                    sizeInBytes:100
-                ],
                 [
                     action:Constants.NOTE_IMAGE_ACTION_REMOVE,
                     key:"i am a valid key"
+                ],
+                [ // valid add image action
+                    action:Constants.NOTE_IMAGE_ACTION_ADD,
+                    mimeType:contentType,
+                    data:data,
+                    checksum:checksum
                 ]
             ]
         ]
-        calledSetAttribute = false
-        justSetAttribute = null
+        _uploadShouldSucceed = true
+        _didUpdateRequest = false
         resList = service.createNote(t1.phone, body)
 
         then:
@@ -385,10 +397,21 @@ class RecordServiceSpec extends CustomSpec {
         resList.results.size() == 1
         resList.results[0].payload.record == tC1.record
         resList.results[0].payload.imageKeys.size() == 1
-        calledSetAttribute == true
-        justSetAttribute instanceof List
-        justSetAttribute.size() == 1
+        _didUpdateRequest == false // do not set error messages on request object
         RecordNote.count() == nBaseline + 3
+
+        when: "some upload requests fail"
+        _uploadShouldSucceed = false
+        _didUpdateRequest = false
+        resList = service.createNote(t1.phone, body)
+
+        then: "image not added and error messages set on request object"
+        resList.isAnySuccess == true
+        resList.results.size() == 1
+        resList.results[0].payload.record == tC1.record
+        resList.results[0].payload.imageKeys.size() == 0
+        _didUpdateRequest == true // set error messages on request object
+        RecordNote.count() == nBaseline + 4
     }
 
     void "test updating note"() {
@@ -400,7 +423,7 @@ class RecordServiceSpec extends CustomSpec {
 
         when: "updating a nonexistent note"
         Map body = [
-            contents: "hello!"
+            noteContents: "hello!"
         ]
         Result<RecordItem> res = service.update(-88L, body)
 
@@ -413,14 +436,52 @@ class RecordServiceSpec extends CustomSpec {
         RecordNote.count() == nBaseline
 
         when: "updating an existing note"
+        DateTime originalWhenChanged = note1.whenChanged
         res = service.update(note1.id, body)
+        note1.save(flush:true, failOnError:true)
 
         then: "updated and created a revision"
         res.success == true
         res.payload instanceof RecordNote
         res.payload.id == note1.id
-        res.payload.contents == body.contents
-        !res.payload.revisions.isEmpty()
+        res.payload.whenChanged.isAfter(originalWhenChanged)
+        res.payload.noteContents == body.noteContents
+        res.payload.revisions.size() == 1
+        RecordNoteRevision.count() == rBaseline + 1
+        RecordNote.count() == nBaseline
+
+        when: "toggling isDeleted flag via update"
+        originalWhenChanged = note1.whenChanged
+        body = [
+            isDeleted: true
+        ]
+        res = service.update(note1.id, body)
+        note1.save(flush:true, failOnError:true)
+
+        then: "whenChanged unchanged and no additional revisions"
+        res.success == true
+        res.payload instanceof RecordNote
+        res.payload.id == note1.id
+        res.payload.whenChanged.isEqual(originalWhenChanged)
+        res.payload.isDeleted == true
+        res.payload.revisions.size() == 1
+        RecordNoteRevision.count() == rBaseline + 1
+        RecordNote.count() == nBaseline
+
+        when: "toggling isDeleted flag via update"
+        body = [
+            isDeleted: false
+        ]
+        res = service.update(note1.id, body)
+        note1.save(flush:true, failOnError:true)
+
+        then: "whenChanged unchanged and no additional revisions"
+        res.success == true
+        res.payload instanceof RecordNote
+        res.payload.id == note1.id
+        res.payload.whenChanged.isEqual(originalWhenChanged)
+        res.payload.isDeleted == false
+        res.payload.revisions.size() == 1
         RecordNoteRevision.count() == rBaseline + 1
         RecordNote.count() == nBaseline
     }

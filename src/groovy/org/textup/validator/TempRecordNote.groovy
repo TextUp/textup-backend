@@ -34,17 +34,17 @@ class TempRecordNote {
 		phone nullable:true
 		contact nullable:true, validator:{ Contact c1, TempRecordNote tempNote ->
 			if (c1 && c1.phone != tempNote?.phone) {
-				['foreign', c1.id]
+				["foreign", c1.id]
 			}
 		}
 		sharedContact nullable:true, validator:{ SharedContact sc1, TempRecordNote tempNote ->
 			if (sc1 && (!sc1.isActive || sc1.sharedWith != tempNote?.phone)) {
-				['notShared', sc1.id]
+				["notShared", sc1.id]
 			}
 		}
 		tag nullable:true, validator:{ ContactTag tag1, TempRecordNote tempNote ->
 			if (tag1 && tag1.phone != tempNote?.phone) {
-				['foreign', tag1.id]
+				["foreign", tag1.id]
 			}
 		}
 		after nullable:true
@@ -52,7 +52,7 @@ class TempRecordNote {
 		// leaves text and location validation to respective domain objects
 		// DOES validate images for size and number
 		info nullable:false, validator:{ Map noteInfo, TempRecordNote tempNote ->
-			if (!tempNote.note && !noteInfo.contents && !noteInfo.location &&
+			if (!tempNote.note && !noteInfo.noteContents && !noteInfo.location &&
 				!noteInfo.doImageActions) {
 				['noInfo']
 			}
@@ -83,9 +83,8 @@ class TempRecordNote {
 
 	public <T> Result<List<T>> forEachImageToAdd(Closure<T> doThis) {
 		String toMatch = Constants.NOTE_IMAGE_ACTION_ADD
-		forEachImage({ Map action ->
-			doThis(Helpers.toString(action.mimeType),
-				Helpers.toLong(action.sizeInBytes))
+		forEachImage({ Map info ->
+			doThis(buildUploadItem(info))
 		}, { Map info -> Helpers.toLowerCaseString(info.action) == toMatch })
 	}
 	public <T> Result<List<T>> forEachImageToRemove(Closure<T> doThis) {
@@ -107,7 +106,15 @@ class TempRecordNote {
 		}
 		getResultFactory().success(results)
 	}
+	// this method will update fields, including removing images, but adding new
+	// images and creating revisions must be handled manually. For adding new images,
+	// you can call the iterator forEachImageToAdd and pass in a closure action
+	// (for example, the addImage method on RecordNote) because we also need to generate
+	// an upload link when adding a new image.
 	RecordNote toNote(Author auth) {
+		// we manually associate note with record and author instead of using
+		// the addAny methods in the record because adding a note should not
+		// trigger a record activity update like adding a text or a call should
 		RecordNote note1 = this.note ?: new RecordNote(record:getRecord())
 		updateFields(note1, auth)
 		// If there is a item we need to before, we will modify the whenCreated
@@ -134,11 +141,12 @@ class TempRecordNote {
 			return note1
 		}
 		note1.author = auth
-		if (this.info.isDeleted == false) {
-			note1.isDeleted = false
+		Boolean isDeleted = Helpers.toBoolean(this.info.isDeleted)
+		if (isDeleted != null) {
+			note1.isDeleted = isDeleted
 		}
-		if (this.info.contents) {
-			note1.contents = Helpers.toString(this.info.contents)
+		if (this.info.noteContents != null) {
+			note1.noteContents = Helpers.toString(this.info.noteContents)
 		}
 		if (this.info.location instanceof Map) {
 			// never use existing note location when updating location
@@ -168,14 +176,18 @@ class TempRecordNote {
 		RecordItem beforeItem = afterTime ?
 			note1.record?.getSince(afterTime, [max:1])[0] : null
 		if (beforeItem) {
-			// set note's whenCreated to the DateTime we need to be after
-			note1.whenCreated = afterTime
-				// ...the greater of 1 millisecond or
-				.plus(Math.max(1,
-					//...the number of milliseconds between time we need to be after
-					Helpers.toInteger(new Duration(afterTime,
-						//...and the time we need to be before divided by two
-						beforeItem.whenCreated).millis / 2)))
+			BigDecimal midpointMillis  = (new Duration(afterTime,
+				beforeItem.whenCreated).millis / 2);
+			long lowerBound = Constants.MIN_NOTE_SPACING_MILLIS,
+				upperBound = Constants.MAX_NOTE_SPACING_MILLIS
+			// # millis to be add should be half the # of millis between time we need to be after
+			// and the time that we need to be before (to avoid passing next item)
+			// BUT this # must be between the specified lower and upper bounds
+			long plusAmount = Math.max(lowerBound,
+				Math.min(Helpers.toLong(midpointMillis), upperBound))
+			// set note's whenCreated to the DateTime we need to be after plus an offset
+			note1.whenCreated = afterTime.plus(plusAmount)
+
 		}
 		note1
 	}
@@ -204,27 +216,34 @@ class TempRecordNote {
 		}
 
 		Map actionMap = action as Map
-		Integer maxBytes = Helpers.toInteger(
-			Holders.flatConfig['textup.maxImageSizeInBytes'])
 		// check each individual image action for structure and completeness
 		switch (Helpers.toLowerCaseString(actionMap.action)) {
-			case Constants.NOTE_IMAGE_ACTION_ADD:
-				if (!Helpers.toString(actionMap.mimeType)?.contains('image')) {
-					this.errors.reject('tempRecordNote.images.addNotImage',
-						[actionMap.mimeType] as Object[], "Not an image")
-				}
-				if (Helpers.toInteger(actionMap.sizeInBytes) > maxBytes) {
-					this.errors.reject('tempRecordNote.images.addTooLarge')
-				}
-				break
 			case Constants.NOTE_IMAGE_ACTION_REMOVE:
 				if (!actionMap.key) {
-					this.errors.reject('tempRecordNote.images.removeMissingKey')
+					this.errors.reject("tempRecordNote.images.removeMissingKey")
 				}
 				break
+			case Constants.NOTE_IMAGE_ACTION_ADD:
+				UploadItem uItem = buildUploadItem(actionMap)
+                if (!uItem.validate()) {
+                	Result res = getResultFactory().failWithValidationErrors(uItem.errors)
+                	this.errors.reject("tempRecordNote.images.invalidUploadItem",
+                		[res.errorMessages] as Object[], null)
+                }
+				break
 			default:
-				this.errors.reject('tempRecordNote.images.invalidAction',
+				this.errors.reject("tempRecordNote.images.invalidAction",
 					[actionMap.action] as Object[], "Invalid image action")
 		}
+	}
+
+	protected UploadItem buildUploadItem(Map info) {
+		UploadItem uItem = new UploadItem()
+		uItem.with {
+			mimeType = info.mimeType
+			data = info.data
+			checksum = info.checksum
+		}
+		uItem
 	}
 }

@@ -15,11 +15,21 @@ class Constants {
 
 	static final int LOCK_CODE_LENGTH = 4
 	static final String DEFAULT_LOCK_CODE = "8888"
+	// if changed, you MUST run a db migration to update db constraints
+	static final int MAX_LOCK_TIMEOUT_MILLIS = 60000
+	// if changed, you MUST run a db migration to update db constraints
+	static final int DEFAULT_LOCK_TIMEOUT_MILLIS = 15000 // also minimum timeout
 
-	// RecordNote images
-	// -----------------
+	// Record note
+	// -----------
 
-	static final String IMAGE_UPLOAD_KEY = "uploadLinks"
+	static final long MIN_NOTE_SPACING_MILLIS = 100
+	static final long MAX_NOTE_SPACING_MILLIS = 60000
+
+	// Uploader
+	// --------
+
+	static final String UPLOAD_ERRORS = "uploadErrors"
 
 	// Schedule
 	// --------
@@ -81,6 +91,6 @@ class Constants {
 	static final String PHONE_ACTION_NEW_NUM_BY_NUM  = "numbynum"
 	static final String PHONE_ACTION_NEW_NUM_BY_ID = "numbyid"
 
-	static final String NOTE_IMAGE_ACTION_ADD = "add"
 	static final String NOTE_IMAGE_ACTION_REMOVE = "remove"
+	static final String NOTE_IMAGE_ACTION_ADD = "add"
 }

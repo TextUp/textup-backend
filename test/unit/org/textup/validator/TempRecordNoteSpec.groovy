@@ -1,14 +1,19 @@
 package org.textup.validator
 
 import com.amazonaws.HttpMethod
+import com.amazonaws.services.s3.model.PutObjectResult
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.util.Holders
+import java.nio.charset.StandardCharsets
+import org.apache.commons.codec.binary.Base64
+import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.util.CustomSpec
+import org.textup.validator.UploadItem
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -22,6 +27,7 @@ class TempRecordNoteSpec extends CustomSpec {
 	RecordNote _note1
 	int _maxNumImages = 2
 	String _urlRoot = "http://www.example.com/?key="
+	String _eTag = UUID.randomUUID().toString()
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
@@ -32,13 +38,18 @@ class TempRecordNoteSpec extends CustomSpec {
 		RecordNote.metaClass.constructor = { Map props ->
             RecordNote note1 = new RecordNote()
             note1.properties = props
-            note1.grailsApplication = [getFlatConfig:{
-                ['textup.maxNumImages':_maxNumImages]
-            }] as GrailsApplication
-            note1.storageService = [generateAuthLink:{
-                String k, HttpMethod v, Map m=[:] ->
-                new Result(success:true, payload:new URL("${_urlRoot}${k}"))
-            }] as StorageService
+            note1.grailsApplication = [
+            	getFlatConfig:{ ['textup.maxNumImages':_maxNumImages] }
+            ] as GrailsApplication
+            note1.storageService = [
+            	generateAuthLink:{
+	                String k, HttpMethod v, Map m=[:] ->
+	                new Result(success:true, payload:new URL("${_urlRoot}${k}"))
+	            },
+	            upload: { String objectKey, UploadItem uItem ->
+	            	new Result(success:true, payload:[getETag: { -> _eTag }] as PutObjectResult)
+	            }
+            ] as StorageService
             note1
         }
 
@@ -55,7 +66,7 @@ class TempRecordNoteSpec extends CustomSpec {
 
 	void "test validation for new note"() {
 		when: "missing for whom we are creating note"
-		Map info = [contents:"hi"]
+		Map info = [noteContents:"hi"]
 		TempRecordNote temp1 = new TempRecordNote(phone:p1, info:info)
 
 		then:
@@ -75,7 +86,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		temp1.errors.getFieldErrorCount("info") == 1
 
 		when: "specify some info"
-		temp1.info = [contents:"hi"]
+		temp1.info = info
 
 		then: "is valid"
 		temp1.doValidate() == true
@@ -85,7 +96,7 @@ class TempRecordNoteSpec extends CustomSpec {
 
 	void "test validation for existing note"() {
 		when: "missing target for the existing note we are trying to update"
-		TempRecordNote temp1 = new TempRecordNote(info:[contents:"hi"])
+		TempRecordNote temp1 = new TempRecordNote(info:[noteContents:"hi"])
 
 		then: "implicit assumption that we are trying to create new note"
 		temp1.doValidate() == false
@@ -103,7 +114,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		temp1.doValidate() == true
 
 		when: "provide some info"
-		temp1.info = [contents:"hi"]
+		temp1.info = [noteContents:"hi"]
 
 		then: "still valid"
 		temp1.doValidate() == true
@@ -111,8 +122,13 @@ class TempRecordNoteSpec extends CustomSpec {
 	}
 
 	void "validating image actions"() {
+		given: "a possible image to upload"
+		String contentType = "image/png"
+        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
+        String checksum = DigestUtils.md5Hex(data)
+
 		when: "a valid temp note with no image actions on map"
-		Map info = [contents:"hi"]
+		Map info = [noteContents:"hi"]
 		TempRecordNote temp1 = new TempRecordNote(info:info, note:_note1)
 
 		then: "short circuits with no errors"
@@ -130,23 +146,27 @@ class TempRecordNoteSpec extends CustomSpec {
 			.contains("tempRecordNote.images.notList")
 
 		when: "an action is not a map, \
-			an action trying to add not an image, \
-			an action trying to upload too-large image, \
+			an action trying to add an image, \
 			an action trying to remove without key, \
-			an action without of an invalid type"
-		Integer maxBytes = Helpers.toInteger(
-			Holders.flatConfig['textup.maxImageSizeInBytes'])
+			an action of an invalid type"
 		temp1.info = [doImageActions:[
 			["i am not a map"], // not a map
-			[ // uploading not an image
+			[ // uploading image without a checksum
 				action:Constants.NOTE_IMAGE_ACTION_ADD,
-				sizeInBytes:100,
-				mimeType:"invalid mimetype"
+				mimeType:contentType,
+				data:data
 			],
-			[ // uploading too-large image
+			[ // uploading an image with an invalid content type
 				action:Constants.NOTE_IMAGE_ACTION_ADD,
-				sizeInBytes:maxBytes * 2,
-				mimeType:"image/png"
+				mimeType:"invalid",
+				data:data,
+				checksum: checksum
+			],
+			[ // uploading an image with invalidly encoded data
+				action:Constants.NOTE_IMAGE_ACTION_ADD,
+				mimeType:contentType,
+				data:"invalid data that is not base64 encoded",
+				checksum: checksum
 			],
 			[ // removing image with specifying an image key
 				action:Constants.NOTE_IMAGE_ACTION_REMOVE,
@@ -156,31 +176,31 @@ class TempRecordNoteSpec extends CustomSpec {
 			]
 		]]
 		temp1.doValidate()
-		Collection<String> errorCodes = temp1.errors.globalErrors*.codes.flatten()
+		Collection<String> globalErrorCodes = temp1.errors.globalErrors*.codes.flatten()
 
 		then:
 		temp1.doValidate() == false
-		temp1.errors.errorCount == 5
-		temp1.errors.globalErrorCount == 5
+		temp1.errors.errorCount == 6
+		temp1.errors.globalErrorCount == 6
 		[
 			"tempRecordNote.images.actionNotMap",
-			"tempRecordNote.images.addNotImage",
-			"tempRecordNote.images.addTooLarge",
 			"tempRecordNote.images.removeMissingKey",
-			"tempRecordNote.images.invalidAction"
-		].every { it in errorCodes }
+			"tempRecordNote.images.invalidAction",
+			"tempRecordNote.images.invalidUploadItem",
+		].every { it in globalErrorCodes }
 
 		when: "valid image actions"
 		temp1.info = [doImageActions:[
-			[ // valid add action
-				action:Constants.NOTE_IMAGE_ACTION_ADD,
-				sizeInBytes:maxBytes / 2,
-				mimeType:"image/png"
-			],
 			[ // valid remove action
 				action:Constants.NOTE_IMAGE_ACTION_REMOVE,
 				key:"valid image key"
 			],
+			[ // valid add image action
+				action:Constants.NOTE_IMAGE_ACTION_ADD,
+				mimeType:contentType,
+				data:data,
+				checksum:checksum
+			]
 		]]
 
 		then:
@@ -189,7 +209,7 @@ class TempRecordNoteSpec extends CustomSpec {
 
 	void "test modify whenCreated for appropriate positioning in record"() {
 		when: "missing after time"
-		TempRecordNote temp1 = new TempRecordNote(note:_note1, info:[contents:"hi"])
+		TempRecordNote temp1 = new TempRecordNote(note:_note1, info:[noteContents:"hi"])
 		assert temp1.doValidate()
 		DateTime originalWhenCreated = _note1.whenCreated
 		RecordNote updatedNote = temp1.toNote()
@@ -204,31 +224,48 @@ class TempRecordNoteSpec extends CustomSpec {
 		then: "keep existing whenCreated"
 		updatedNote.whenCreated == originalWhenCreated
 
-		when: "specify an after time in the past"
-		RecordText text1 = _note1.record.addText(contents:"text1").payload,
-			text2 = _note1.record.addText(contents:"text1").payload
-		DateTime time1 = DateTime.now().minusDays(2),
+		when: "specify an after time in the past with an EMPTY record to test bounds"
+		Record newRec = new Record([:]) // create a fresh record
+		newRec.save(flush:true, failOnError:true)
+
+		temp1.info.forContact = c1.id // so that new note is associated with a fresh record
+		c1.record = newRec
+		c1.save(flush:true, failOnError:true)
+
+		assert newRec.countItems() == 0
+		RecordText text1 = newRec.addText(contents:"text1").payload,
+			text2 = newRec.addText(contents:"text1").payload
+		DateTime time1 = DateTime.now().minusMonths(2),
 			time2 = DateTime.now().minusHours(5)
 		text1.whenCreated = time1
 		text2.whenCreated = time2
 		[text1, text2]*.save(flush:true, failOnError:true)
+		assert newRec.countItems() == 2
 
 		temp1.after = time1
 		updatedNote = temp1.toNote()
+		int whenCreatedDifference = updatedNote.whenCreated.millis - time1.millis
 
 		then: "updated whenCreated to be after that time and before item \
-			immediately after the specified time"
+			immediately after the specified time WITHIN specified bounds"
 		updatedNote.whenCreated != originalWhenCreated
 		updatedNote.whenCreated.isAfter(time1)
 		updatedNote.whenCreated.isBefore(time2)
+		whenCreatedDifference > Constants.MIN_NOTE_SPACING_MILLIS
+		whenCreatedDifference == Constants.MAX_NOTE_SPACING_MILLIS
 	}
 
 	void "updating fields"() {
 		given: "a valid temp note for an existing note with images and no location"
+		String contentType = "image/png"
+        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
+        String checksum = DigestUtils.md5Hex(data)
 		assert _note1.location == null
-		_note1.addImage("mimeType", 0L)
+		UploadItem uItem = new UploadItem(mimeType:contentType, data:data, checksum:checksum)
+		assert uItem.validate() == true
+		assert _note1.addImage(uItem).payload.getETag() == _eTag
 
-		TempRecordNote temp1 = new TempRecordNote(note:_note1, info:[contents:"hi"])
+		TempRecordNote temp1 = new TempRecordNote(note:_note1, info:[noteContents:"hi"])
 		assert temp1.doValidate()
 		int lBaseline = Location.count()
 		int iBaseline = _note1.imageKeys.size()
@@ -239,15 +276,18 @@ class TempRecordNoteSpec extends CustomSpec {
 		temp1.info.doImageActions = [
 			[
 				action:Constants.NOTE_IMAGE_ACTION_ADD,
-				mimeType:"image/png",
-				sizeInBytes:100
+				mimeType:contentType,
+				data:data,
+				checksum:checksum
 			]
 		]
+		int originalNumImages = _note1.imageKeys.size()
 		RecordNote updatedNote1 = temp1.toNote()
 
-		then: "this method won't do that for you, must manually call iterator \
-		over the images to add because you might need to create upload links"
-		_note1.imageKeys.size() == iBaseline
+		then: "valid, but we need to calling toNote will NOT add images. Need to manually iterate \
+			over the images to add with the provided iterator method"
+		temp1.doValidate() == true
+		updatedNote1.imageKeys.size() == originalNumImages
 
 		when: "try to remove images from an existing note with images"
 		temp1.info.doImageActions = [
@@ -273,24 +313,47 @@ class TempRecordNoteSpec extends CustomSpec {
 		then: "created a new location"
 		Location.count() == lBaseline + 1
 		updatedNote1.location != null
+
+		when: "delete and clear contents"
+		temp1.info.isDeleted = true
+		temp1.info.noteContents = ""
+
+		updatedNote1 = temp1.toNote()
+		updatedNote1.save(flush:true, failOnError:true)
+
+		then:
+		updatedNote1.isDeleted == true
+		temp1.info.noteContents == ""
+
+		when: "undelete"
+		temp1.info.isDeleted = false
+
+		updatedNote1 = temp1.toNote()
+		updatedNote1.save(flush:true, failOnError:true)
+
+		then:
+		updatedNote1.isDeleted == false
+		temp1.info.noteContents == ""
 	}
 
 	void "test iterating over validated image actions"() {
-		given: "a valid temp note with image actions"
-		Integer maxBytes = Helpers.toInteger(
-			Holders.flatConfig['textup.maxImageSizeInBytes'])
+		given: "a valid temp note with only REMOVE image actions"
+		String contentType = "image/png"
+        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
+        String checksum = DigestUtils.md5Hex(data)
 		Map info = [
-			contents:"hi",
+			noteContents:"hi",
 			doImageActions:[
-				[ // valid add action
-					action:Constants.NOTE_IMAGE_ACTION_ADD,
-					sizeInBytes:maxBytes / 2,
-					mimeType:"image/png"
-				],
 				[ // valid remove action
 					action:Constants.NOTE_IMAGE_ACTION_REMOVE,
 					key:"valid image key"
 				],
+				[
+				action:Constants.NOTE_IMAGE_ACTION_ADD,
+					mimeType:contentType,
+					data:data,
+					checksum:checksum
+				]
 			]
 		]
 		TempRecordNote temp1 = new TempRecordNote(note:_note1, info:info)
@@ -299,8 +362,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		expect:
 		// for all images
 		temp1.forEachImage({ Map m -> 1 }).payload.sum() == 2
-		// for images to add
-		temp1.forEachImageToAdd({ String type, Long num -> 1 }).payload.sum() == 1
+		temp1.forEachImageToAdd({ UploadItem uItem -> 1 }).payload.sum() == 1
 		// for images to remove
 		temp1.forEachImageToRemove({ String key -> 1 }).payload.sum() == 1
 	}
