@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import org.hibernate.Session
+import org.springframework.transaction.TransactionStatus
 import org.textup.types.ContactStatus
 import org.textup.types.SharePermission
 import static org.springframework.http.HttpStatus.*
@@ -46,7 +47,11 @@ class ContactService {
                 }
             }
 		}
-		p1.createContact(body, nums)
+		Result<Contact> res = p1.createContact(body, nums)
+        if (!res.success) {
+            Contact.withTransaction { TransactionStatus status -> status.setRollbackOnly() }
+        }
+        res
 	}
     protected Result validateNumberActions(def numActions) {
         if (!(numActions instanceof List)) {
@@ -78,11 +83,15 @@ class ContactService {
             return resultFactory.failWithMessageAndStatus(NOT_FOUND,
                 "contactService.update.notFound", [cId])
         }
-        Result.<Contact>waterfall(
+        Result<Contact> res = Result.<Contact>waterfall(
             this.&handleNumberActions.curry(c1, body),
             this.&handleShareActions.rcurry(body),
             this.&updateContactInfo.rcurry(body),
         )
+        if (!res.success) {
+            Contact.withTransaction { TransactionStatus status -> status.setRollbackOnly() }
+        }
+        res
 	}
     protected Result<Contact> updateContactInfo(Contact c1, Map body) {
         //update other fields

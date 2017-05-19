@@ -1,6 +1,5 @@
 package org.textup
 
-import com.amazonaws.HttpMethod
 import com.amazonaws.services.s3.model.PutObjectResult
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders

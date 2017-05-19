@@ -75,50 +75,83 @@ class ContactSpec extends CustomSpec {
  		int maxPref = c1.numbers.max { it.preference }.preference
  		int numNums = c1.numbers.size()
  		int numBaseline = ContactNumber.count()
- 		String number = "123 434 9230"
+ 		String number = "1234349230"
+        List<String> sortedNums = c1.numbers
+            .sort(false) { a, b -> a.preference <=> b.preference}
+            .collect { it.number }
 
     	when: "we try to add a unique number"
     	ContactNumber cn = c1.mergeNumber(number).payload
     	cn.save(flush:true, failOnError:true)
 
+        List<ContactNumber> contactSorted = c1.sortedNumbers
+        sortedNums << number
+
     	then:
     	c1.numbers.size() == numNums + 1
     	cn.preference == maxPref + 1
+        sortedNums.size() == contactSorted.size()
+        sortedNums.eachWithIndex { n, i ->
+            assert contactSorted[i].number == n
+        }
     	ContactNumber.count() == numBaseline + 1
 
     	when: "we try to add a duplicate number"
     	cn = c1.mergeNumber(number).payload
     	cn.save(flush:true, failOnError:true)
 
-    	then:
+    	then: "duplicate is ignored"
     	c1.numbers.size() == numNums + 1
     	cn.preference == maxPref + 1
     	ContactNumber.count() == numBaseline + 1
 
     	when: "we try to add another unique number"
-    	cn = c1.mergeNumber("123 439 0980").payload
+        String number2 = "1234390980"
+    	cn = c1.mergeNumber(number2).payload
     	cn.save(flush:true, failOnError:true)
+
+        contactSorted = c1.sortedNumbers
+        sortedNums << number2
 
     	then:
     	c1.numbers.size() == numNums + 2
     	cn.preference == maxPref + 2
+        sortedNums.size() == contactSorted.size()
+        sortedNums.eachWithIndex { n, i ->
+            assert contactSorted[i].number == n
+        }
     	ContactNumber.count() == numBaseline + 2
 
 		when: "we try to add another unique number"
-		cn = c1.mergeNumber("123 439 0981").payload
+        String number3 = "1234390981"
+		cn = c1.mergeNumber(number3).payload
     	cn.save(flush:true, failOnError:true)
+
+        contactSorted = c1.sortedNumbers
+        sortedNums << number3
 
     	then:
     	c1.numbers.size() == numNums + 3
     	cn.preference == maxPref + 3
+        sortedNums.size() == contactSorted.size()
+        sortedNums.eachWithIndex { n, i ->
+            assert contactSorted[i].number == n
+        }
     	ContactNumber.count() == numBaseline + 3
 
     	when: "we delete a number"
     	c1.deleteNumber(number)
     	c1.save(flush:true, failOnError:true)
 
+        contactSorted = c1.sortedNumbers
+        sortedNums.removeAll { it == number }
+
     	then:
     	c1.numbers.size() == numNums + 2
+        sortedNums.size() == contactSorted.size()
+        sortedNums.eachWithIndex { n, i ->
+            assert contactSorted[i].number == n
+        }
     	ContactNumber.count() == numBaseline + 2
     }
 

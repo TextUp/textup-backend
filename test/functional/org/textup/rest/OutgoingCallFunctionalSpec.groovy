@@ -96,8 +96,8 @@ class OutgoingCallFunctionalSpec extends RestSpec {
         afterData.numItems == beforeData.numItems + 1
         afterData.numReceipts == beforeData.numReceipts + 1
 
-        when: "confirm bridge"
-        // getting confirm bridge url parameters
+        when: "finish bridge"
+        // getting finish bridge url parameters
         Map webhookParams = remote.exec({ app.config.callParams })
         assert webhookParams.contactId != null
         assert webhookParams.handle != null
@@ -111,7 +111,7 @@ class OutgoingCallFunctionalSpec extends RestSpec {
                 to:s1.personalPhoneNumber.e164PhoneNumber
             ]
         }.curry(loggedInUsername))
-        // make confirm bridge request
+        // make finish bridge request
         String sid = "iAmAValidSid"
         MultiValueMap<String,String> form = new LinkedMultiValueMap<>()
         form.add("CallSid", sid)
@@ -119,20 +119,6 @@ class OutgoingCallFunctionalSpec extends RestSpec {
         form.add("To", numData.to)
         form.add("Direction", "outbound-api")
         response = rest.post("${baseUrl}/v1/public/records?contactId=${cId}&handle=${hand}") {
-            contentType("application/x-www-form-urlencoded")
-            body(form)
-        }
-
-        then:
-        response.status == OK.value()
-        response.xml.Gather.@action.toString().contains("${baseUrl}/v1/public/records")
-        response.xml.Gather.@action.toString().contains("contactId=${cId}")
-        response.xml.Gather.@action.toString().contains("handle=${CallResponse.FINISH_BRIDGE}")
-        response.xml.Gather.Say.size() == 1
-
-        when: "finish bridge"
-        form.set("Digits", "whatever!")
-        response = rest.post("${baseUrl}/v1/public/records?contactId=${cId}&handle=${CallResponse.FINISH_BRIDGE}") {
             contentType("application/x-www-form-urlencoded")
             body(form)
         }

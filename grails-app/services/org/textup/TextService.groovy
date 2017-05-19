@@ -1,13 +1,9 @@
 package org.textup
 
-import com.twilio.sdk.resource.factory.MessageFactory
-import com.twilio.sdk.resource.instance.Message
-import com.twilio.sdk.TwilioRestClient
-import com.twilio.sdk.TwilioRestException
+import com.twilio.exception.ApiException
+import com.twilio.rest.api.v2010.account.Message
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.apache.http.message.BasicNameValuePair
-import org.apache.http.NameValuePair
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.hibernate.FlushMode
 import org.textup.rest.TwimlBuilder
@@ -22,7 +18,6 @@ class TextService {
 
     LinkGenerator grailsLinkGenerator
 	ResultFactory resultFactory
-    TwilioRestClient twilioService
 
     Result<TempRecordReceipt> send(BasePhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String message) {
@@ -42,8 +37,9 @@ class TextService {
             }
             //also return on server error
             else if (!res.success && res.type == ResultType.THROWABLE &&
-                Helpers.toInteger(res.payload.errorCode) > 499 &&
-                Helpers.toInteger(res.payload.errorCode) < 600) {
+                res.payload instanceof ApiException &&
+                Helpers.toInteger((res.payload as ApiException).statusCode) > 499 &&
+                Helpers.toInteger((res.payload as ApiException).statusCode) < 600) {
                 return res
             }
         }
@@ -57,16 +53,13 @@ class TextService {
         String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
                 action:"save", absolute:true, params:[handle:Constants.CALLBACK_STATUS])
         try {
-            MessageFactory messageFactory = twilioService.account.messageFactory
-            def l = [Body:message, To:toNum.e164PhoneNumber, From:fromNum.e164PhoneNumber,
-                StatusCallback:callback]
-            List<NameValuePair> params = l.collect { k, v ->
-                new BasicNameValuePair(k, v) as NameValuePair
-            }
-            Message m = messageFactory.create(params)
+            Message m = Message
+                .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), message)
+                .setStatusCallback(callback)
+                .create()
             resultFactory.success(m)
         }
-        catch (TwilioRestException e) {
+        catch (ApiException e) {
             log.error("TextService.tryText: ${e.message}")
             return resultFactory.failWithThrowable(e)
         }

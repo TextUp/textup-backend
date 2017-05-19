@@ -241,6 +241,10 @@ class SharedContact implements Contactable {
         this.canView ? this.contact.numbers : null
     }
     @GrailsCompileStatic
+    List<ContactNumber> getSortedNumbers() {
+        this.canView ? this.contact.sortedNumbers : null
+    }
+    @GrailsCompileStatic
     List<RecordItem> getItems(Map params=[:]) {
         this.canView ? this.contact.getItems(params) : null
     }

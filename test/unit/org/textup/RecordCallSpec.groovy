@@ -1,6 +1,5 @@
 package org.textup
 
-import com.amazonaws.HttpMethod
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -19,7 +18,7 @@ class RecordCallSpec extends Specification {
         RecordCall.metaClass.constructor = { Map m ->
             RecordCall instance = new RecordCall()
             instance.properties = m
-            instance.storageService = [generateAuthLink:{ String k, HttpMethod v ->
+            instance.storageService = [generateAuthLink:{ String k ->
                 new Result(success:true, payload:new URL("${urlRoot}${k}"))
             }] as StorageService
             instance

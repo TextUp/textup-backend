@@ -1,3 +1,4 @@
+import com.twilio.Twilio
 import grails.util.GrailsUtil
 import org.textup.*
 import org.textup.rest.*
@@ -8,11 +9,16 @@ import org.textup.validator.*
 class BootStrap {
 
 	def marshallerInitializerService
+	def grailsApplication
 
     def init = { servletContext ->
     	//marshaller and renderer customization from
     	//http://groovyc.net/non-trivial-restful-apis-in-grails-part-1/
     	marshallerInitializerService.initialize()
+    	// builder pattern in Twilio needs to be initialized
+    	def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
+    	Twilio.init(twilioConfig.sid, twilioConfig.authToken)
+    	// populate with data
     	if (GrailsUtil.environment == "development" ||
     		GrailsUtil.environment == "production") {
     		//Define security roles
@@ -108,9 +114,9 @@ class BootStrap {
 				t2.save(flush:true, failOnError:true)
 
 		    	//create contacts with items
-		    	Contact c1 = p1.createContact([name:'John Smith'], ["2678887452"]).payload
-				Contact c2 = p2.createContact([:], ["2678887452"]).payload
-				Contact tC1 = tPh1.createContact([:], ["1112223333", "6262027548"]).payload
+		    	Contact c1 = p1.createContact([name:"John Smith"], ["4018681240"]).payload
+				Contact c2 = p2.createContact([:], ["4018681240"]).payload
+				Contact tC1 = tPh1.createContact([:], ["1112223333", "4018681240"]).payload
 				[c1, c2, tC1]*.save(flush:true, failOnError:true)
 				RecordText rText1 = c1.record
 					.addText([contents:"Hi! Hope you're doing well today."], null).payload

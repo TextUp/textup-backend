@@ -1,14 +1,19 @@
 package org.textup
 
-import com.amazonaws.HttpMethod
 import grails.compiler.GrailsCompileStatic
 import groovy.json.JsonBuilder
 import groovy.json.JsonException
 import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
+import java.awt.image.BufferedImage
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import javax.imageio.IIOImage
+import javax.imageio.ImageIO
+import javax.imageio.ImageWriteParam
+import javax.imageio.ImageWriter
+import javax.imageio.stream.ImageOutputStream
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -17,6 +22,7 @@ import org.joda.time.LocalTime
 import org.textup.validator.ImageInfo
 import org.textup.validator.LocalInterval
 import org.textup.validator.PhoneNumber
+import org.textup.validator.UploadItem
 
 @GrailsCompileStatic
 @Log4j
@@ -79,6 +85,10 @@ class Helpers {
     static Long toLong(def val) {
         BigDecimal res = toBigDecimal(val)
         (res != null) ? res as Long : null
+    }
+    static Float toFloat(def val) {
+        BigDecimal res = toBigDecimal(val)
+        (res != null) ? res as Float : null
     }
     static Integer toInteger(def val) {
         BigDecimal res = toBigDecimal(val)
@@ -209,12 +219,43 @@ class Helpers {
         imageKeys.collect { String imageKey ->
             String objectKey = Helpers.buildObjectKeyFromImageKey(id, imageKey)
             Result<URL> res = storageService
-                .generateAuthLink(objectKey, HttpMethod.GET)
+                .generateAuthLink(objectKey)
                 .logFail('RecordNote.getImageLinks')
             String link = res.success ? res.payload.toString() : ""
             ImageInfo info = new ImageInfo(key:imageKey, link:link)
             info.validate() ? info : null
         } as Collection<ImageInfo>
+    }
+    static ByteArrayInputStream tryCompressUploadItemStream(UploadItem uItem, float quality) {
+        ByteArrayInputStream original = uItem?.stream
+        if (!uItem?.validate() || uItem.mimeType != "image/jpeg") {
+            return original
+        }
+        try {
+            BufferedImage img = ImageIO.read(original)
+            // obtain image writer
+            Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/jpeg")
+            ImageWriter writer = writers.next()
+            // set compression parameters
+            ImageWriteParam param = writer.defaultWriteParam
+            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            param.setCompressionQuality(quality);
+            // create output
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            ImageOutputStream outputStream = ImageIO.createImageOutputStream(os);
+            writer.setOutput(outputStream);
+            // write with compression
+            writer.write(null, new IIOImage(img, null, null), param);
+            // clean up
+            outputStream.close()
+            writer.dispose()
+            ByteArrayInputStream compressed = new ByteArrayInputStream(os.toByteArray())
+            compressed
+        }
+        catch (Throwable e) {
+            log.debug("Helpers.tryCompressUploadItemStream: ${e.message}")
+            original
+        }
     }
 
     // TwimlBuilder

@@ -168,18 +168,19 @@ class TwimlBuilder {
             case CallResponse.SELF_GREETING:
                 String directions = getMessage("twimlBuilder.call.selfGreeting")
                 callBody = {
-                    Gather(numDigits:11) { Say(directions) }
+                    Gather(numDigits:10) { Say(directions) }
                     Redirect(getLink())
                 }
                 break
             case CallResponse.SELF_CONNECTING:
-                if (params.numAsString instanceof String) {
+                if (params.displayedNumber instanceof String &&
+                    params.numAsString instanceof String) {
                     String connecting = getMessage("twimlBuilder.call.selfConnecting",
                             [Helpers.formatNumberForSay(params.numAsString)]),
                         goodbye = getMessage("twimlBuilder.call.goodbye")
                     callBody = {
                         Say(connecting)
-                        Dial { Number(params.numAsString) }
+                        Dial(callerId:params.displayedNumber) { Number(params.numAsString) }
                         Say(goodbye)
                         Hangup()
                     }
@@ -196,14 +197,15 @@ class TwimlBuilder {
                 }
                 break
             case CallResponse.CONNECT_INCOMING:
-                if (params.nameOrNumber instanceof String &&
-                        params.numsToCall instanceof Collection &&
-                        params.linkParams instanceof Map) {
-                    String connecting = getMessage("twimlBuilder.call.connectIncoming",
-                            [params.nameOrNumber]),
+                if (params.numsToCall instanceof Collection &&
+                    params.linkParams instanceof Map) {
+                    String connecting = getMessage("twimlBuilder.call.connectIncoming"),
                         voicemailWebhook = getLink(params.linkParams)
                     callBody = {
                         Say(connecting)
+                        // have a short timeout here because we want to avoid having one
+                        // of the TextUp user's personal phone voicemails pick up and
+                        // take the voicemail instea of TextUp storing the voicemail
                         Dial(timeout:"15") {
                             for (num in params.numsToCall) { Number(num) }
                         }
@@ -212,31 +214,19 @@ class TwimlBuilder {
                 }
                 break
             case CallResponse.VOICEMAIL:
-                if (params.linkParams instanceof Map) {
-                    String directions = getMessage("twimlBuilder.call.voicemail"),
+                if (params.awayMessage instanceof String &&
+                    params.linkParams instanceof Map &&
+                    params.callbackParams instanceof Map) {
+                    String directions = getMessage("twimlBuilder.call.voicemailDirections"),
                         goodbye = getMessage("twimlBuilder.call.goodbye"),
-                        recordWebhook = getLink(params.linkParams)
+                        actionWebhook = getLink(params.linkParams),
+                        callbackWebhook = getLink(params.callbackParams)
                     callBody = {
+                        Say(params.awayMessage)
                         Say(directions)
-                        Record(action:recordWebhook, maxLength:160)
+                        Record(action:actionWebhook, maxLength:160,
+                            recordingStatusCallback:callbackWebhook)
                         Say(goodbye)
-                        Hangup()
-                    }
-                }
-                break
-            case CallResponse.CONFIRM_BRIDGE:
-                if (params.contact instanceof Contact &&
-                        params.linkParams instanceof Map) {
-                    Contact c1 = params.contact
-                    String confirmation = getMessage("twimlBuilder.call.confirmBridge",
-                            [c1.getNameOrNumber(true)]),
-                        noResponse = getMessage("twimlBuilder.call.noConfirmBridge"),
-                        digitsWebhook = getLink(params.linkParams)
-                    callBody = {
-                        Gather(action:digitsWebhook, numDigits:1) {
-                            Say(confirmation)
-                        }
-                        Say(noResponse)
                         Hangup()
                     }
                 }
@@ -244,17 +234,19 @@ class TwimlBuilder {
             case CallResponse.FINISH_BRIDGE:
                 if (params.contact instanceof Contact) {
                     Contact c1 = params.contact
-                    String confirmation = getMessage("twimlBuilder.call.finishBridge",
-                            [c1.getNameOrNumber(true)]),
-                        done = getMessage("twimlBuilder.call.finishBridgeDone")
+                    String done = getMessage("twimlBuilder.call.finishBridgeDone")
                     callBody = {
-                        Say(confirmation)
-                        c1.numbers?.each { ContactNumber num ->
+                        Pause("1")
+                        c1.sortedNumbers?.each { ContactNumber num ->
                             Say(getMessage("twimlBuilder.call.bridgeNumber",
                                 [Helpers.formatNumberForSay(num.number)]))
-                            Dial(num.e164PhoneNumber)
+                            // increase the timeout a bit to allow a longer window
+                            // for the called party's voicemail to answer
+                            Dial(timeout:"60") {
+                                Number(num.e164PhoneNumber)
+                            }
                         }
-                        Pause(length:"5")
+                        Pause(length:"10")
                         Say(done)
                         Hangup()
                     }

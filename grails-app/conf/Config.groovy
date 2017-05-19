@@ -203,6 +203,7 @@ textup {
     maxNumText = 250 //max number of recipients to text
     maxNumImages = 10 //max number of images allowed per note
     maxImageSizeInBytes = 1000000 //max size in bytes for each image
+    imageCompressionQualty = 0.5
 
     defaultMax = 10 //default max during pagination
     largestMax = 100 //largest max allowed during pagination
@@ -211,7 +212,14 @@ textup {
     verifyTokenSize = 5
     numTimesAccessNotification = 3 // number of times a notification is allowed to be accessed
 
-    storageBucketName = System.getenv("STORAGE_BUCKET_NAME") ?: (System.getProperty("STORAGE_BUCKET_NAME") ?: "staging-media-textup-org")
+    media {
+        bucketName = System.getenv("STORAGE_BUCKET_NAME") ?: (System.getProperty("STORAGE_BUCKET_NAME") ?: "staging-media-textup-org")
+        cdn {
+            root = System.getenv("CDN_ROOT") ?: (System.getProperty("CDN_ROOT") ?: "staging-media.textup.org")
+            keyId = System.getenv("CDN_KEY_ID") ?: (System.getProperty("CDN_KEY_ID") ?: "APKAJQNKTKVCOMQFPVTA")
+            privateKeyPath = System.getenv("CDN_PRIVATE_KEY_PATH") ?: (System.getProperty("CDN_PRIVATE_KEY_PATH") ?: "/cloudfront-2017-private.der")
+        }
+    }
     mail {
         standard {
             name = "TextUp Notification"

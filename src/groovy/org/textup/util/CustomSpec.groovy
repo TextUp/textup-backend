@@ -105,8 +105,6 @@ class CustomSpec extends Specification {
     // ----------
 
     protected void overrideConstructors(int iterNum) {
-        ResultFactory fac = grailsApplication.mainContext.getBean("resultFactory")
-        fac.messageSource = mockMessageSource()
         Staff.metaClass.constructor = { Map m->
             def instance = new Staff()
             instance.properties = m

@@ -1,5 +1,6 @@
 package org.textup.validator
 
+import com.twilio.type.PhoneNumber as TwilioPhoneNumber
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import spock.lang.Shared
@@ -31,10 +32,12 @@ class PhoneNumberSpec extends Specification {
     void "test phone number formatting"() {
     	when: "we have a valid phone number"
     	PhoneNumber pNum = new PhoneNumber(number:"+12223334444")
+        TwilioPhoneNumber tNum = pNum.toApiPhoneNumber()
 
-    	then:
+        then:
     	pNum.number == "2223334444"
     	pNum.e164PhoneNumber == "+12223334444"
     	pNum.prettyPhoneNumber == "222 333 4444"
+        tNum.endpoint == pNum.number
     }
 }

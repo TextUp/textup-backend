@@ -1,13 +1,11 @@
 package org.textup
 
-import com.twilio.sdk.resource.instance.IncomingPhoneNumber
-import com.twilio.sdk.TwilioRestClient
-import com.twilio.sdk.TwilioRestException
 import grails.compiler.GrailsTypeChecked
 import grails.plugins.rest.client.RestBuilder
 import grails.plugins.rest.client.RestResponse
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.springframework.transaction.TransactionStatus
 import org.textup.types.OrgStatus
 import org.textup.types.StaffStatus
 import org.textup.validator.PhoneNumber
@@ -49,12 +47,16 @@ class StaffService {
     }
 
     Result<Staff> create(Map body, String timezone) {
-        verifyCreateRequest(body).then({ ->
+        Result<Staff> res = verifyCreateRequest(body).then({ ->
             Result.<Staff>waterfall(
                 this.&fillStaffInfo.curry(new Staff(), body, timezone),
                 this.&completeStaffCreation.rcurry(body)
             )
         }) as Result<Staff>
+        if (!res.success) {
+            Staff.withTransaction { TransactionStatus status -> status.setRollbackOnly() }
+        }
+        res
     }
     protected Result verifyCreateRequest(Map body) {
         // don't need captcha to verify that user is not a bot if
@@ -197,7 +199,7 @@ class StaffService {
     // ------
 
     Result<Staff> update(Long staffId, Map body, String timezone) {
-        Result.<Staff>waterfall(
+        Result<Staff> res = Result.<Staff>waterfall(
             this.&findStaffForId.curry(staffId),
             this.&fillStaffInfo.rcurry(body, timezone),
             this.&tryUpdateStatus.rcurry(body),
@@ -212,7 +214,11 @@ class StaffService {
                 if (!res.success) { return res }
             }
             resultFactory.success(s1)
-        }) as Result
+        }) as Result<Staff>
+        if (!res.success) {
+            Staff.withTransaction { TransactionStatus status -> status.setRollbackOnly() }
+        }
+        res
     }
     protected Result<Staff> findStaffForId(Long sId) {
         Staff s1 = Staff.get(sId)

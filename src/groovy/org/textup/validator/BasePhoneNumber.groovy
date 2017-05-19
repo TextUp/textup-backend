@@ -1,5 +1,7 @@
 package org.textup.validator
+
 import grails.compiler.GrailsCompileStatic
+import com.twilio.type.PhoneNumber as TwilioPhoneNumber
 
 @GrailsCompileStatic
 abstract class BasePhoneNumber {
@@ -26,6 +28,10 @@ abstract class BasePhoneNumber {
             (cleaned.size() == 11 && cleaned[0] == "1") ? cleaned.substring(1) : cleaned
         }
         else { n }
+    }
+
+    private TwilioPhoneNumber toApiPhoneNumber() {
+        new TwilioPhoneNumber(this.number)
     }
 
     @Override

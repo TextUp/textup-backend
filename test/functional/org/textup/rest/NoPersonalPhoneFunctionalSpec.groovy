@@ -80,7 +80,9 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 		then: "call sent to voicemail"
 		response.status == OK.value()
         response.xml != null
-        response.xml.Record.@action.toString() == "$requestUrl?handle=${CallResponse.VOICEMAIL}"
+        response.xml.Record.@action.toString() == "$requestUrl?handle=${CallResponse.VOICEMAIL_STUB}"
+        response.xml.Record.@recordingStatusCallback.toString()
+            .contains("$requestUrl?handle=${CallResponse.VOICEMAIL_DONE}")
 	}
 
 	void "test incoming self call"() {
@@ -102,7 +104,9 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 		then: "treating as normal incoming call, sent to voicemail"
 		response.status == OK.value()
         response.xml != null
-        response.xml.Record.@action.toString() == "$requestUrl?handle=${CallResponse.VOICEMAIL}"
+        response.xml.Record.@action.toString() == "$requestUrl?handle=${CallResponse.VOICEMAIL_STUB}"
+        response.xml.Record.@recordingStatusCallback.toString()
+            .contains("$requestUrl?handle=${CallResponse.VOICEMAIL_DONE}")
 	}
 
 	void "test attempting to start an outgoing bridge call"() {

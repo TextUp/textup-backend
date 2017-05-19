@@ -16,9 +16,15 @@ class ScheduleJsonMarshaller extends JsonNamedMarshaller {
         SpringSecurityService springSecurityService, AuthService authService,
         LinkGenerator linkGenerator, Schedule sched ->
 
-        HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
-        String timezone = (request.getAttribute("timezone") ?:
-            request.getParameter('timezone'))  as String
+        String timezone = null
+        try {
+            HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
+            timezone = (request.getAttribute("timezone") ?:
+                request.getParameter('timezone'))  as String
+        }
+        catch (IllegalStateException e) {
+            log.debug("ScheduleJsonMarshaller: no available request: $e")
+        }
 
         Map json = [:]
         json.with {

@@ -13,6 +13,7 @@ interface Contactable {
     String getNote()
     ContactStatus getStatus()
     List<ContactNumber> getNumbers()
+    List<ContactNumber> getSortedNumbers()
     Record getRecord()
 
     List<RecordItem> getItems()

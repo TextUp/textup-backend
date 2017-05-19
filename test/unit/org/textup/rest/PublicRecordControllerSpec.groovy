@@ -99,20 +99,21 @@ class PublicRecordControllerSpec extends CustomSpec {
     void "test retry call on status fail"() {
         given:
         mockValidate()
-        boolean retryCalled = false
-        controller.callService = [retry: { PhoneNumber fromNum,
-            List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup ->
-            retryCalled = true
-            new Result(type:ResultType.SUCCESS, success:true, payload:null)
-        }] as CallService
+        request.method = "POST"
 
-        when: "updating status failed"
+        boolean _didRetry = false
         controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
             Integer duration ->
             new Result(type:ResultType.MESSAGE_STATUS, success:false,
                 payload:[status:NOT_FOUND, message:"error", code: "error"])
         }] as RecordService
+        controller.callService = [retry: { PhoneNumber fromNum,
+            List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup ->
+            _didRetry = true
+            new Result(type:ResultType.SUCCESS, success:true, payload:null)
+        }] as CallService
 
+        when: "updating status failed"
         params.handle = Constants.CALLBACK_STATUS
         params.CallSid = "sid"
         params.CallStatus = Constants.FAILED_STATUSES[0]
@@ -120,17 +121,22 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.save()
 
         then: "don't retry"
-        retryCalled == false
+        _didRetry == false
     }
 
     void "test retry call on status succeed"() {
         given:
         mockValidate()
-        mockUpdateStatus()
-        boolean retryCalled = false
+        request.method = "POST"
+
+        boolean _didRetry = false
+        controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
+            Integer duration ->
+            new Result(type:ResultType.SUCCESS, success:true)
+        }] as RecordService
         controller.callService = [retry: { PhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup ->
-            retryCalled = true
+            _didRetry = true
             new Result(type:ResultType.SUCCESS, success:true, payload:null)
         }] as CallService
 
@@ -142,7 +148,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.save()
 
         then: "do retry"
-        retryCalled == true
+        _didRetry == true
     }
 
     void "test update invalid status"() {

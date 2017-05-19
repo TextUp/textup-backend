@@ -36,8 +36,8 @@ class PublicRecordController extends BaseController {
             return handleResultFailure(res)
         }
         if (params.handle == Constants.CALLBACK_STATUS) {
-            // first wait for 2 seconds to allow for the receipts to be saved
-            TimeUnit.SECONDS.sleep(2)
+            // first wait for a few seconds to allow for the receipts to be saved
+            TimeUnit.SECONDS.sleep(5)
             // then continue handling status
             handleUpdateStatus(params)
         }

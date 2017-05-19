@@ -219,7 +219,7 @@ class TwimlBuilderSpec extends CustomSpec {
         res.success == true
         buildXml(res.payload) == buildXml({
             Response { Message("twimlBuilder.text.blocked") }
-        })        
+        })
     }
 
     void "test building text announcement"() {
@@ -289,7 +289,7 @@ class TwimlBuilderSpec extends CustomSpec {
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
-                Gather(numDigits:11) {
+                Gather(numDigits:10) {
                     Say("twimlBuilder.call.selfGreeting")
                 }
                 Redirect("[:]")
@@ -325,13 +325,13 @@ class TwimlBuilderSpec extends CustomSpec {
         when: "blocked"
         res = builder.build(CallResponse.BLOCKED)
 
-        then: 
-        res.success == true 
+        then:
+        res.success == true
         buildXml(res.payload) == buildXml({
             Response {
                 Say("twimlBuilder.call.blocked")
                 Hangup()
-            }    
+            }
         })
     }
 
@@ -352,15 +352,16 @@ class TwimlBuilderSpec extends CustomSpec {
 
         when: "self connecting valid"
         String num = "1112223333"
+        String displayNum = "2223338888"
         res = builder.build(CallResponse.SELF_CONNECTING,
-            [numAsString:num])
+            [displayedNumber:displayNum, numAsString:num])
 
         then:
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
                 Say("twimlBuilder.call.selfConnecting")
-                Dial { Number(num) }
+                Dial(callerId:displayNum) { Number(num) }
                 Say("twimlBuilder.call.goodbye")
                 Hangup()
             }
@@ -405,14 +406,18 @@ class TwimlBuilderSpec extends CustomSpec {
 
         when: "voicemail valid"
         Map linkParams =  [you:"got this!"]
-        res = builder.build(CallResponse.VOICEMAIL, [linkParams:linkParams])
+        String awayMsg = "i am away"
+        res = builder.build(CallResponse.VOICEMAIL, [awayMessage:awayMsg,
+            linkParams:linkParams, callbackParams:linkParams])
 
         then:
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
-                Say("twimlBuilder.call.voicemail")
-                Record(action:linkParams.toString(), maxLength:160)
+                Say(awayMsg)
+                Say("twimlBuilder.call.voicemailDirections")
+                Record(action:linkParams.toString(), maxLength:160,
+                    recordingStatusCallback:linkParams.toString())
                 Say("twimlBuilder.call.goodbye")
                 Hangup()
             }
@@ -429,7 +434,7 @@ class TwimlBuilderSpec extends CustomSpec {
         when: "connect incoming valid"
         String num = "1112223333"
         res = builder.build(CallResponse.CONNECT_INCOMING,
-            [nameOrNumber:"kiki", numsToCall:[num], linkParams:linkParams])
+            [numsToCall:[num], linkParams:linkParams])
 
         then:
         res.success == true
@@ -451,33 +456,8 @@ class TwimlBuilderSpec extends CustomSpec {
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
-        when: "confirm bridge invalid"
-        Result<Closure> res = builder.build(CallResponse.CONFIRM_BRIDGE)
-
-        then:
-        res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
-
-        when: "confirm bridge valid"
-        Map linkParams =  [you:"got this!"]
-        res = builder.build(CallResponse.CONFIRM_BRIDGE,
-            [contact:c1, linkParams:linkParams])
-
-        then:
-        res.success == true
-        buildXml(res.payload) == buildXml({
-            Response {
-                Gather(action:linkParams.toString(), numDigits:1) {
-                    Say("twimlBuilder.call.confirmBridge")
-                }
-                Say("twimlBuilder.call.noConfirmBridge")
-                Hangup()
-            }
-        })
-
         when: "finish bridge invalid"
-        res = builder.build(CallResponse.FINISH_BRIDGE)
+        Result res = builder.build(CallResponse.FINISH_BRIDGE)
 
         then:
         res.success == false
@@ -492,12 +472,14 @@ class TwimlBuilderSpec extends CustomSpec {
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
-                Say("twimlBuilder.call.finishBridge")
+                Pause("1")
                 c1.numbers?.each { ContactNumber num ->
                     Say("twimlBuilder.call.bridgeNumber")
-                    Dial(num.e164PhoneNumber)
+                    Dial(timeout:"60") {
+                        Number(num.e164PhoneNumber)
+                    }
                 }
-                Pause(length:"5")
+                Pause(length:"10")
                 Say("twimlBuilder.call.finishBridgeDone")
                 Hangup()
             }

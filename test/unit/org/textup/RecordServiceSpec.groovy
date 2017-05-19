@@ -1,6 +1,5 @@
 package org.textup
 
-import com.amazonaws.HttpMethod
 import com.amazonaws.services.s3.model.PutObjectResult
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
@@ -80,8 +79,7 @@ class RecordServiceSpec extends CustomSpec {
                 ['textup.maxNumImages':_maxNumImages]
             }] as GrailsApplication
             note1.storageService = [
-                generateAuthLink:{
-                    String k, HttpMethod v, Map m=[:] ->
+                generateAuthLink:{ String k ->
                     new Result(success:true, payload:new URL("${_urlRoot}${k}"))
                 },
                 upload: { String objectKey, UploadItem uItem ->

@@ -1,12 +1,11 @@
 package org.textup
 
-import com.amazonaws.HttpMethod
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
 import org.textup.types.ReceiptStatus
-import groovy.transform.TypeCheckingMode
 import org.textup.validator.TempRecordReceipt
 
 @GrailsTypeChecked
@@ -29,13 +28,6 @@ class RecordCall extends RecordItem {
     int voicemailInSeconds = 0
 
     @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName      = "callPhoneNumber",
-            description       = "A phone number to call",
-            allowedType       = "String",
-            mandatory         = false,
-            useForCreation    = true,
-            presentInResponse = false),
         @RestApiObjectField(
             apiFieldName      = "callContact",
             description       = "Id of a contact to call",
@@ -85,9 +77,9 @@ class RecordCall extends RecordItem {
         RecordItemReceipt receipt = getReceiptsByStatus(ReceiptStatus.SUCCESS)[0]
         if (receipt) {
             storageService
-                .generateAuthLink(receipt.apiId, HttpMethod.GET)
+                .generateAuthLink(receipt.apiId)
                 .logFail('RecordCall.getVoicemailUrl')
-                .then { URL link -> link.toString() }
+                .then { URL link -> link.toString() } as String
         }
         else { "" }
     }

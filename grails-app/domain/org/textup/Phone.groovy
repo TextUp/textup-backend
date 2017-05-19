@@ -597,27 +597,24 @@ class Phone {
             phoneService.relayCall(this, apiId, session)
         }
     }
-    Result<Closure> receiveVoicemail(String apiId, Integer voicemailDuration,
-        IncomingSession session) {
-        if (voicemailDuration) {
-            // move the encrypted voicemail to s3 and delete recording at Twilio
-            phoneService.moveVoicemail(apiId)
-                .logFail("Phone.moveVoicemail")
-                .then({ ->
-                    phoneService.storeVoicemail(apiId, voicemailDuration)
-                        .logFail("Phone.storeVoicemail")
-                    twimlBuilder.noResponse()
-                }) as Result
-        }
-        else {
-            twimlBuilder.build(CallResponse.VOICEMAIL,
-                [linkParams:[handle:CallResponse.VOICEMAIL]])
-        }
+    Result<Closure> startVoicemail(PhoneNumber fromNum, PhoneNumber toNum) {
+        twimlBuilder.build(CallResponse.VOICEMAIL,
+            [awayMessage:this.awayMessage, linkParams:[handle:CallResponse.VOICEMAIL_STUB],
+                // need to population From and To parameters to help in finding
+                // phone and session in the recording status hook
+                callbackParams:[handle:CallResponse.VOICEMAIL_DONE,
+                    From:fromNum.e164PhoneNumber, To:toNum.e164PhoneNumber]])
     }
-    // staff must pick up and press any number to start the bridge
-    Result<Closure> confirmBridgeCall(Contact c1) {
-        twimlBuilder.build(CallResponse.CONFIRM_BRIDGE, [contact:c1,
-            linkParams:[contactId:c1?.contactId, handle:CallResponse.FINISH_BRIDGE]])
+    Result<Closure> completeVoicemail(String callId, String recordingId, String voicemailUrl,
+        Integer voicemailDuration) {
+        // move the encrypted voicemail to s3 and delete recording at Twilio
+        phoneService.moveVoicemail(callId, recordingId, voicemailUrl)
+            .logFail("Phone.moveVoicemail")
+            .then({ ->
+                phoneService.storeVoicemail(callId, voicemailDuration)
+                    .logFail("Phone.storeVoicemail")
+                twimlBuilder.noResponse()
+            }) as Result
     }
     Result<Closure> finishBridgeCall(Contact c1) {
         twimlBuilder.build(CallResponse.FINISH_BRIDGE, [contact:c1])

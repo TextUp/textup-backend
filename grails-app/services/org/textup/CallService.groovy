@@ -1,9 +1,7 @@
 package org.textup
 
-import com.twilio.sdk.resource.factory.CallFactory
-import com.twilio.sdk.resource.instance.Call
-import com.twilio.sdk.TwilioRestClient
-import com.twilio.sdk.TwilioRestException
+import com.twilio.exception.ApiException
+import com.twilio.rest.api.v2010.account.Call
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
@@ -20,7 +18,6 @@ class CallService {
 
     LinkGenerator grailsLinkGenerator
     ResultFactory resultFactory
-    TwilioRestClient twilioService
 
     Result<TempRecordReceipt> start(PhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup) {
         String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
@@ -50,8 +47,9 @@ class CallService {
             Result res = this.doCall(fromNum, toNum, afterPickup, callback)
             // return on success or on server error
             if (res.success || (!res.success && res.type == ResultType.THROWABLE &&
-                Helpers.toInteger((res.payload as TwilioRestException).errorCode) > 499 &&
-                Helpers.toInteger((res.payload as TwilioRestException).errorCode) < 600)) {
+                res.payload instanceof ApiException &&
+                Helpers.toInteger((res.payload as ApiException).statusCode) > 499 &&
+                Helpers.toInteger((res.payload as ApiException).statusCode) < 600)) {
                 return res
             }
         }
@@ -80,9 +78,10 @@ class CallService {
         String afterLink = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:afterPickup)
         try {
-            CallFactory cFactory = twilioService.account.callFactory
-            Call call = cFactory.create(To:toNum.e164PhoneNumber, From:fromNum.e164PhoneNumber,
-                Url:afterLink, StatusCallback:callback)
+            Call call = Call
+                .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), new URI(afterLink))
+                .setStatusCallback(callback)
+                .create()
             TempRecordReceipt receipt = new TempRecordReceipt(apiId:call.sid)
             receipt.receivedBy = toNum
             if (receipt.validate()) {
@@ -90,7 +89,7 @@ class CallService {
             }
             else { resultFactory.failWithValidationErrors(receipt.errors) }
         }
-        catch (TwilioRestException e) {
+        catch (ApiException | URISyntaxException e) {
             log.error("CallService.doCall: ${e.message}")
             resultFactory.failWithThrowable(e)
         }

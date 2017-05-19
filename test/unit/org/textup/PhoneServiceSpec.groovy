@@ -1,7 +1,5 @@
 package org.textup
 
-import com.twilio.sdk.resource.instance.IncomingPhoneNumber
-import com.twilio.sdk.TwilioRestClient
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -88,6 +86,9 @@ class PhoneServiceSpec extends CustomSpec {
         service.authService = [getIsActive: { true }] as AuthService
 
         OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
+        Phone.metaClass.startVoicemail = { PhoneNumber fromNum, PhoneNumber toNum ->
+            new Result(type:ResultType.SUCCESS, success:true, payload:CallResponse.VOICEMAIL)
+        }
     }
 
     def cleanup() {
@@ -546,29 +547,6 @@ class PhoneServiceSpec extends CustomSpec {
 
     // Incoming
     // --------
-
-    void "test name or number"() {
-        given: "a session"
-        IncomingSession session = new IncomingSession(phone:p1,
-            numberAsString:"1238470294")
-        assert IncomingSession.findByPhoneAndNumberAsString(p1,
-            session.numberAsString) == null
-        session.save(flush:true, failOnError:true)
-
-        when: "empty list of contacts"
-        String n1 = service.getNameOrNumber([], session)
-
-        then:
-        n1 == Helpers.formatNumberForSay(session.numberAsString)
-
-        when: "some contacts"
-        c1.name = "kiki's chicken"
-        c1.save(flush:true, failOnError:true)
-        n1 = service.getNameOrNumber([c1], session)
-
-        then:
-        n1 == c1.name
-    }
 
     @FreshRuntime
     void "test relay text"() {

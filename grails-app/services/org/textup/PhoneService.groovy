@@ -1,22 +1,27 @@
 package org.textup
 
 import com.amazonaws.services.s3.model.PutObjectResult
-import com.twilio.sdk.resource.factory.CallFactory
-import com.twilio.sdk.resource.instance.Account
-import com.twilio.sdk.resource.instance.Call
-import com.twilio.sdk.resource.instance.IncomingPhoneNumber
-import com.twilio.sdk.resource.list.RecordingList
-import com.twilio.sdk.TwilioRestClient
-import com.twilio.sdk.TwilioRestException
+import com.twilio.exception.TwilioException
+import com.twilio.http.HttpMethod
+import com.twilio.rest.api.v2010.account.Call
+import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
+import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.apache.http.message.BasicNameValuePair
-import org.apache.http.NameValuePair
+import java.nio.charset.Charset
+import org.apache.commons.codec.binary.Base64
+import org.apache.http.client.methods.HttpGet
+import org.apache.http.HttpHeaders
+import org.apache.http.HttpResponse
+import org.apache.http.HttpStatus as ApacheHttpStatus
+import org.apache.http.impl.client.CloseableHttpClient
+import org.apache.http.impl.client.HttpClients
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.hibernate.FlushMode
 import org.hibernate.Session
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
+import org.springframework.http.HttpStatus
 import org.springframework.transaction.TransactionStatus
 import org.textup.rest.TwimlBuilder
 import org.textup.types.CallResponse
@@ -44,7 +49,6 @@ class PhoneService {
     StorageService storageService
     TextService textService
     TokenService tokenService
-    TwilioRestClient twilioService
     TwimlBuilder twimlBuilder
 
     // Update
@@ -179,25 +183,37 @@ class PhoneService {
 
     protected Result<IncomingPhoneNumber> changeForNumber(PhoneNumber pNum) {
         try {
-            Account ac = twilioService.account
-            List<NameValuePair> params = getBasicParams()
-            params.add(new BasicNameValuePair("PhoneNumber", pNum.e164PhoneNumber)
-                as NameValuePair)
-            resultFactory.success(ac.incomingPhoneNumberFactory.create(params))
+            String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
+                appId = grailsApplication.flatConfig["textup.apiKeys.twilio.appId"]
+            IncomingPhoneNumber iNum = IncomingPhoneNumber
+                .creator(pNum.toApiPhoneNumber())
+                .setFriendlyName(unavailable)
+                .setSmsApplicationSid(appId)
+                .setSmsMethod(HttpMethod.POST)
+                .setVoiceApplicationSid(appId)
+                .setVoiceMethod(HttpMethod.POST)
+                .create()
+            resultFactory.success(iNum)
         }
-        catch (TwilioRestException e) {
+        catch (TwilioException e) {
             return resultFactory.failWithThrowable(e)
         }
     }
     protected Result<IncomingPhoneNumber> changeForApiId(String newApiId) {
         try {
-            Account ac = twilioService.account
-            IncomingPhoneNumber newNum = ac.getIncomingPhoneNumber(newApiId as String)
-            List<NameValuePair> params = getBasicParams()
-            newNum.update(params)
-            resultFactory.success(newNum)
+            String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
+                appId = grailsApplication.flatConfig["textup.apiKeys.twilio.appId"]
+            IncomingPhoneNumber uNum = IncomingPhoneNumber
+                .updater(newApiId)
+                .setFriendlyName(unavailable)
+                .setSmsApplicationSid(appId)
+                .setSmsMethod(HttpMethod.POST)
+                .setVoiceApplicationSid(appId)
+                .setVoiceMethod(HttpMethod.POST)
+                .update()
+            resultFactory.success(uNum)
         }
-        catch (TwilioRestException e) {
+        catch (TwilioException e) {
             return resultFactory.failWithThrowable(e)
         }
     }
@@ -214,16 +230,15 @@ class PhoneService {
         else { resultFactory.success(p1) }
     }
     protected Result<IncomingPhoneNumber> freeExistingNumber(String oldApiId) {
-        String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
         try {
-            Account ac = twilioService.account
-            List<NameValuePair> params = getBasicParams()
-            IncomingPhoneNumber currNum = ac.getIncomingPhoneNumber(oldApiId)
-            currNum.update([new BasicNameValuePair("FriendlyName", available)
-                as NameValuePair])
-            resultFactory.success(currNum)
+            String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
+            IncomingPhoneNumber uNum = IncomingPhoneNumber
+                .updater(oldApiId)
+                .setFriendlyName(available)
+                .update()
+            resultFactory.success(uNum)
         }
-        catch (TwilioRestException e) {
+        catch (TwilioException e) {
             return resultFactory.failWithThrowable(e)
         }
     }
@@ -250,18 +265,6 @@ class PhoneService {
         }
         isDuplicate
     }
-    protected List<NameValuePair> getBasicParams() {
-        String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
-            available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"],
-            appId = grailsApplication.flatConfig["textup.apiKeys.twilio.appId"]
-        List<NameValuePair> params = []
-        params.with {
-            add(new BasicNameValuePair("FriendlyName", unavailable))
-            add(new BasicNameValuePair("SmsApplicationSid", appId))
-            add(new BasicNameValuePair("VoiceApplicationSid", appId))
-        }
-        params
-    }
 
     // Outgoing
     // --------
@@ -284,7 +287,7 @@ class PhoneService {
     Result<RecordCall> startBridgeCall(Phone phone, Contactable c1, Staff staff) {
         PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : phone.number,
             toNum = staff.personalPhoneNumber
-        Map afterPickup = [contactId:c1.contactId, handle:CallResponse.CONFIRM_BRIDGE]
+        Map afterPickup = [contactId:c1.contactId, handle:CallResponse.FINISH_BRIDGE]
         callService.start(fromNum, toNum, afterPickup).then({ TempRecordReceipt receipt ->
             c1.storeOutgoingCall(receipt, staff)
         }) as Result
@@ -322,9 +325,10 @@ class PhoneService {
         boolean isContact = c1.instanceOf(Contact)
         PhoneNumber fromNum = isContact ? phone.number :
             ((c1 instanceof SharedContact) ? c1.sharedBy.number : null)
+        List<ContactNumber> sortedNums = c1.sortedNumbers
         Result<TempRecordReceipt> res = msg.isText ?
-            textService.send(fromNum, c1.numbers, msg.message) :
-            callService.start(fromNum, c1.numbers, [handle:CallResponse.DIRECT_MESSAGE,
+            textService.send(fromNum, sortedNums, msg.message) :
+            callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
                 message:msg.message, identifier:staff?.name])
         res.then({ TempRecordReceipt receipt ->
             Result storeRes = msg.isText ?
@@ -466,17 +470,14 @@ class PhoneService {
                     }
                 }
             if (numsToCall) {
-                String nameOrNumber = getNameOrNumber(contacts, session)
                 twimlBuilder.build(CallResponse.CONNECT_INCOMING,
-                    [nameOrNumber:nameOrNumber, numsToCall:numsToCall,
-                        linkParams:[handle:CallResponse.VOICEMAIL]])
+                    [numsToCall:numsToCall, linkParams:[handle:CallResponse.VOICEMAIL]])
             }
             else {
                 rCalls.each { RecordCall rCall ->
                     rCall.hasAwayMessage = true
                 }
-                twimlBuilder.build(CallResponse.VOICEMAIL,
-                    [linkParams:[handle:CallResponse.VOICEMAIL]])
+                phone.startVoicemail(session.number, phone.number)
             }
         }) as Result
     }
@@ -560,7 +561,7 @@ class PhoneService {
                             .logFail("PhoneService.handleSelfCall")
                     })
                     twimlBuilder.build(CallResponse.SELF_CONNECTING,
-                        [numAsString:pNum.number])
+                        [displayedNumber:phone.number.e164PhoneNumber, numAsString:pNum.number])
                 }
                 else {
                     log.error("PhoneService.handleSelfCall: could not save \
@@ -576,40 +577,45 @@ class PhoneService {
             twimlBuilder.build(CallResponse.SELF_GREETING)
         }
     }
-    Result<String> moveVoicemail(String apiId) {
+    Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
+        // build a HttpClient and execute the get request
+        CloseableHttpClient client = HttpClients.createDefault()
         try {
-            Call call = twilioService.account.getCall(apiId)
-            if (call) {
-                RecordingList recs = call.recordings
-                String eTag = ""
-                for (rec in recs) {
-                    Result<PutObjectResult> res = storageService
-                        .upload(apiId, "audio/mpeg", rec.getMedia(".mp3"))
-                    if (res.success) {
-                        eTag = (res.payload as PutObjectResult).getETag()
-                    }
-                    else { return res }
-                    //only put the first recording if first one succeeds
-                    //and there are multiple recordings
-                    if (eTag) { break }
+            HttpGet req = new HttpGet(voicemailUrl + ".mp3")
+            req.setHeader(HttpHeaders.AUTHORIZATION, buildBasicAuth());
+            HttpResponse resp = client.execute(req)
+            try {
+                int statusCode = resp.statusLine.statusCode
+                if (statusCode != ApacheHttpStatus.SC_OK) {
+                    return resultFactory.failWithMessageAndStatus(HttpStatus.valueOf(statusCode),
+                        "phoneService.moveVoicemail.couldNotRetrieveVoicemail",
+                        [resp.statusLine.reasonPhrase])
                 }
-                //delete all recordings on Twilio
-                for (rec in recs) { rec.delete() }
-                resultFactory.success(eTag)
+                InputStream stream = resp.entity.content
+                try {
+                    storageService
+                        .upload(callId, "audio/mpeg", stream)
+                        .then({ PutObjectResult putRes ->
+                            boolean deleteOutcome = Recording.deleter(recordingId).delete()
+                            if (deleteOutcome == false) {
+                                log.error("PhoneService.moveVoicemail could not delete ${recordingId}")
+                            }
+                            resultFactory.success(putRes.getETag())
+                        }) as Result<String>
+                }
+                finally { stream.close() }
             }
-            else {
-                resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                    "phoneService.moveVoicemail.callNotFound")
-            }
+            finally { resp.close() }
         }
         catch (e) {
-            log.error("PhoneService.moveVoicemailToS3: ${e.message}")
+            log.error("PhoneService.moveVoicemail throwable: ${e.message}")
             resultFactory.failWithThrowable(e)
         }
+        finally { client.close() }
     }
-    ResultList<RecordItemReceipt> storeVoicemail(String apiId, int voicemailDuration) {
+    ResultList<RecordItemReceipt> storeVoicemail(String callId, int voicemailDuration) {
         ResultList<RecordItemReceipt> resList = new ResultList<>()
-        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
+        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(callId)
         for (receipt in receipts) {
             RecordItem item = receipt.item
             if (item.instanceOf(RecordCall)) {
@@ -641,11 +647,16 @@ class PhoneService {
     // Incoming helper methods
     // -----------------------
 
-    protected String getNameOrNumber(List<Contact> contacts, IncomingSession session) {
-        for (contact in contacts) {
-            if (contact.name) { return contact.name }
-        }
-        return Helpers.formatNumberForSay(session.numberAsString)
+    protected String buildBasicAuth() {
+        String un = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
+            pwd = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
+        // build basic authentication header string. If we used a CredentialProvider instead
+        // we would need to configure pre-emptive basic authentication or else we
+        // wcould make two requests each time
+        // http://www.baeldung.com/httpclient-4-basic-authentication
+        String auth = un + ":" + pwd;
+        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("ISO-8859-1")));
+        "Basic " + new String(encodedAuth)
     }
     protected boolean tryNotifyStaff(Phone phone, String message,
         List<Contact> contacts) {

@@ -1,15 +1,16 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import javax.servlet.http.HttpServletRequest
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.textup.rest.TwimlBuilder
+import org.textup.types.CallResponse
+import org.textup.util.OptimisticLockingRetry
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
-import grails.compiler.GrailsTypeChecked
-import org.textup.rest.TwimlBuilder
 import static org.springframework.http.HttpStatus.*
-import org.textup.types.CallResponse
-import org.codehaus.groovy.grails.commons.GrailsApplication
 
 @GrailsTypeChecked
 @Transactional
@@ -83,6 +84,7 @@ class CallbackService {
     // Process request
     // ---------------
 
+    @OptimisticLockingRetry
     Result<Closure> process(GrailsParameterMap params) {
         // if a call direct messaage
         if (params.handle == CallResponse.DIRECT_MESSAGE.toString()) {
@@ -96,14 +98,14 @@ class CallbackService {
             //usually handle incoming from session (client) to phone (staff)
             phoneNum = toNum,
             sessionNum = fromNum
-        // confirm and finish bridge is call from phone to personal phone
+        // finish bridge is call from phone to personal phone
         // announcements are from phone to session (client)
-        if (params.handle == CallResponse.CONFIRM_BRIDGE.toString() ||
-            params.handle == CallResponse.FINISH_BRIDGE.toString() ||
+        if (params.handle == CallResponse.FINISH_BRIDGE.toString() ||
             params.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()) {
             phoneNum = fromNum
             sessionNum = toNum
         }
+
     	Phone phone = Phone.findByNumberAsString(phoneNum.number)
     	if (!phone) {
     		return params.CallSid ? twimlBuilder.notFoundForCall() :
@@ -122,12 +124,17 @@ class CallbackService {
     	if (params.CallSid) {
             switch(params.handle) {
                 case CallResponse.VOICEMAIL.toString():
-                	Integer voicemailDuration = Helpers.toInteger(params.RecordingDuration)
-                    phone.receiveVoicemail(apiId, voicemailDuration, session)
+                    phone.startVoicemail(sessionNum, phoneNum)
                     break
-                case CallResponse.CONFIRM_BRIDGE.toString():
-                	Contact c1 = Contact.get(params.long("contactId"))
-                    phone.confirmBridgeCall(c1)
+                case CallResponse.VOICEMAIL_STUB.toString():
+                    twimlBuilder.noResponse()
+                    break
+                case CallResponse.VOICEMAIL_DONE.toString():
+                    Integer voicemailDuration = Helpers.toInteger(params.RecordingDuration)
+                    String callId = Helpers.toString(params.CallSid),
+                        recordingId = Helpers.toString(params.RecordingSid),
+                        voicemailUrl = Helpers.toString(params.RecordingUrl)
+                    phone.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
                     break
                 case CallResponse.FINISH_BRIDGE.toString():
                 	Contact c1 = Contact.get(params.long("contactId"))

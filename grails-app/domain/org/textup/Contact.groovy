@@ -112,7 +112,7 @@ class Contact implements Contactable {
     }
     static hasMany = [numbers:ContactNumber]
     static mapping = {
-        numbers lazy:false, cascade:"all-delete-orphan", sort:"preference", order:"asc"
+        numbers lazy:false, cascade:"all-delete-orphan"
     }
     static namedQueries = {
         forPhoneAndStatuses { Phone thisPhone, Collection<ContactStatus> statuses ->
@@ -160,7 +160,7 @@ class Contact implements Contactable {
 
     static int countForPhoneAndSearch(Phone thisPhone, String query) {
         forPhoneAndSearch(thisPhone, query) {
-            projections { 
+            projections {
                 countDistinct("id")
             }
         }[0]
@@ -336,6 +336,11 @@ class Contact implements Contactable {
     List<IncomingSession> getSessions(Map params=[:]) {
         this.numbers ? IncomingSession.findAllByPhoneAndNumberAsStringInList(this.phone,
             this.numbers*.number) : []
+    }
+    List<ContactNumber> getSortedNumbers() {
+        this.numbers ? this.numbers.sort(false) { ContactNumber n1, ContactNumber n2 ->
+            n1.preference <=> n2.preference
+        } : []
     }
 
     // Outgoing

@@ -18,6 +18,7 @@ import org.textup.types.StaffStatus
 import org.textup.types.TextResponse
 import org.textup.util.CustomSpec
 import org.textup.validator.IncomingText
+import org.textup.validator.PhoneNumber
 import spock.lang.Ignore
 import spock.lang.Shared
 import static org.springframework.http.HttpStatus.*
@@ -46,13 +47,13 @@ class CallbackServiceSpec extends CustomSpec {
 		Phone.metaClass.receiveText = { IncomingText text, IncomingSession session ->
 			new Result(type:ResultType.SUCCESS, success:true, payload:"receiveText")
 		}
-		Phone.metaClass.receiveVoicemail = { String apiId, Integer voicemailDuration,
-        	IncomingSession session ->
-			new Result(type:ResultType.SUCCESS, success:true, payload:"receiveVoicemail")
+		Phone.metaClass.startVoicemail = { PhoneNumber fromNum, PhoneNumber toNum ->
+			new Result(type:ResultType.SUCCESS, success:true, payload:"startVoicemail")
 		}
-		Phone.metaClass.confirmBridgeCall = { Contact c1 ->
-			new Result(type:ResultType.SUCCESS, success:true, payload:"confirmBridgeCall")
-		}
+        Phone.metaClass.completeVoicemail = { String callId, String recordingId, String voicemailUrl,
+            Integer voicemailDuration ->
+            new Result(type:ResultType.SUCCESS, success:true, payload:"completeVoicemail")
+        }
 		Phone.metaClass.finishBridgeCall = { Contact c1 ->
 			new Result(type:ResultType.SUCCESS, success:true, payload:"finishBridgeCall")
 		}
@@ -176,7 +177,7 @@ class CallbackServiceSpec extends CustomSpec {
     }
 
     void "test process for incoming calls"() {
-        when: "voicemail"
+        when: "starting voicemail"
         HttpServletRequest request = [:] as HttpServletRequest
         String clientNum = "1233834920"
         GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
@@ -189,7 +190,26 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         res.success == true
-        res.payload == "receiveVoicemail"
+        res.payload == "startVoicemail"
+
+        when: "voicemail stub no-op from action webhook in Record verb"
+        params.handle = CallResponse.VOICEMAIL_STUB
+        res = service.process(params)
+
+        then:
+        res.success == true
+        res.payload == "noResponse"
+
+        when: "completing voicemail"
+        params.handle = CallResponse.VOICEMAIL_DONE
+        params.RecordingSid = "recording id"
+        params.RecordingDuration = 88
+        params.RecordingUrl = "https://www.example.com"
+        res = service.process(params)
+
+        then:
+        res.success == true
+        res.payload == "completeVoicemail"
 
         when: "unspecified or invalid"
         params.handle = "blahblahinvalid"
@@ -205,20 +225,12 @@ class CallbackServiceSpec extends CustomSpec {
     	HttpServletRequest request = [:] as HttpServletRequest
     	String clientNum = "1233834920"
     	GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
-            handle:CallResponse.CONFIRM_BRIDGE.toString()],
+            handle:CallResponse.FINISH_BRIDGE.toString()],
     		request)
         // outbound so from TextUp phone to client
         params.From = p1.numberAsString
         params.To = clientNum
     	Result<Closure> res = service.process(params)
-
-    	then:
-    	res.success == true
-		res.payload == "confirmBridgeCall"
-
-    	when: "finish bridge"
-    	params.handle = CallResponse.FINISH_BRIDGE.toString()
-		res = service.process(params)
 
     	then:
     	res.success == true

@@ -1,11 +1,8 @@
 package org.textup.rest
 
-import com.twilio.sdk.resource.instance.Account
-import com.twilio.sdk.resource.list.AvailablePhoneNumberList
-import com.twilio.sdk.resource.list.IncomingPhoneNumberList
-import com.twilio.sdk.TwilioRestClient
-import com.twilio.sdk.TwilioRestClient
-import com.twilio.sdk.TwilioRestException
+import com.twilio.exception.TwilioException
+import com.twilio.rest.api.v2010.account.availablephonenumbercountry.Local
+import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
 import grails.transaction.Transactional
@@ -26,7 +23,6 @@ class LookupNumberController extends BaseController {
 
     //grailsApplication from superclass
     //authService from superclass
-    TwilioRestClient twilioService
     TokenService tokenService
 
     def index() {
@@ -37,33 +33,35 @@ class LookupNumberController extends BaseController {
             return forbidden()
         }
         try {
-            Account ac = twilioService.account
-            IncomingPhoneNumberList existingNumbers =
-                ac.getIncomingPhoneNumbers("FriendlyName":available);
-            Map<String, String> newParams = [
-                "NearLatLong":"${loc.lat}, ${loc.lon}".toString(),
-                "ExcludeAllAddressRequired":"false",
-                "ExcludeLocalAddressRequired":"false",
-                "ExcludeForeignAddressRequired":"false"
-            ]
-            AvailablePhoneNumberList newNumbers =
-                ac.getAvailablePhoneNumbers(newParams, "US", "Local")
             List availableNumbers = []
-            existingNumbers.toList().each {
-                availableNumbers << [
-                    phoneNumber:it.phoneNumber,
-                    sid:it.sid
-                ]
-            }
-            newNumbers.toList().each {
-                availableNumbers << [
-                    phoneNumber:it.phoneNumber,
-                    region: "${it.region}, ${it.isoCountry}"
-                ]
-            }
+            // reuse any available numbers we already own
+            IncomingPhoneNumber
+                .reader()
+                .setFriendlyName(available)
+                .read()
+                .each { IncomingPhoneNumber eNum ->
+                    availableNumbers << [
+                        phoneNumber:eNum.phoneNumber.endpoint,
+                        sid:eNum.sid
+                    ]
+                }
+            // also present some options for numbers we don't already own
+            Local
+                .reader("US")
+                .setSmsEnabled(true)
+                .setMmsEnabled(true)
+                .setVoiceEnabled(true)
+                .setNearLatLong("${loc.lat},${loc.lon}".toString())
+                .read()
+                .each { Local lNum ->
+                    availableNumbers << [
+                        phoneNumber:lNum.phoneNumber.endpoint,
+                        region: "${lNum.region}, ${lNum.isoCountry}"
+                    ]
+                }
             respond availableNumbers, [status:OK]
         }
-        catch (TwilioRestException e) {
+        catch (TwilioException e) {
             log.error("LookupNumberController.index: ${e.message}")
             error()
         }

@@ -25,10 +25,11 @@ class IncomingCallFunctionalSpec extends RestSpec {
                 GrailsParameterMap params ->
                 ctx.resultFactory.success()
             }
-            ctx.phoneService.metaClass.moveVoicemail = { String apiId ->
+            ctx.phoneService.metaClass.moveVoicemail = { String callId, String recordingId,
+                String voicemailUrl ->
                 ctx.resultFactory.success()
             }
-            ctx.phoneService.metaClass.storeVoicemail = { String apiId, int dur ->
+            ctx.phoneService.metaClass.storeVoicemail = { String callId, int voicemailDuration ->
                 ctx.resultFactory.success()
             }
             return
@@ -66,22 +67,29 @@ class IncomingCallFunctionalSpec extends RestSpec {
         response.status == OK.value()
         response.xml != null
         response.xml.Record.@action.toString().contains("handle=")
+        response.xml.Record.@recordingStatusCallback.toString().contains("handle=")
 
-        when: "resend request without voicemail duration"
-        String handle = response.xml.Record.@action.toString().split("handle=")[1]
-        RestResponse response2 = rest.post("${requestUrl}?handle=${handle}") {
+        when: "send no-op request from action hook of Record verb"
+        String actionHandle = response.xml.Record.@action.toString().split("handle=")[1]
+        String statusHandle = response.xml.Record.@recordingStatusCallback
+            .toString()
+            .split("handle=")[1]
+            .split("&")[0] // to get rid of other parameters
+        response = rest.post("${requestUrl}?handle=${actionHandle}") {
             contentType("application/x-www-form-urlencoded")
             body(form)
         }
 
-        then: "repeat voicemail message"
-        response2.status == OK.value()
-        response2.xml != null
-        response.xml == response2.xml
+        then: "no response"
+        response.status == OK.value()
+        response.xml != null
+        response.xml.text() == ""
 
-        when: "store voicemail"
+        when: "storing voicemail when recording has completed processing"
         form.set("RecordingDuration", "1234")
-        response = rest.post("${requestUrl}?handle=${handle}") {
+        form.set("RecordingUrl", "http://www.example.com")
+        form.set("RecordingSid", "I am a recording sid")
+        response = rest.post("${requestUrl}?handle=${statusHandle}") {
             contentType("application/x-www-form-urlencoded")
             body(form)
         }

@@ -1,6 +1,5 @@
 package org.textup
 
-import com.amazonaws.HttpMethod
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.codehaus.groovy.grails.commons.GrailsApplication

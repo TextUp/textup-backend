@@ -1,6 +1,5 @@
 package org.textup
 
-import com.amazonaws.HttpMethod
 import grails.test.mixin.support.GrailsUnitTestMixin
 import org.textup.types.CallResponse
 import org.textup.types.ResultType
@@ -84,7 +83,7 @@ class HelpersSpec extends Specification {
         given:
         String url = "https://www.example.com"
         StorageService mockServ = [
-            generateAuthLink: { String objectKey, HttpMethod verb ->
+            generateAuthLink: { String objectKey ->
                 new Result(type:ResultType.SUCCESS, payload:new URL(url))
             }
         ] as StorageService

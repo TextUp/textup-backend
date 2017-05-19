@@ -51,33 +51,38 @@ grails.project.dependency.resolution = {
 
     dependencies {
         // specify dependencies here under either 'build', 'compile', 'runtime', 'test' or 'provided' scopes e.g.
-        runtime 'mysql:mysql-connector-java:5.1.29'
+        runtime "mysql:mysql-connector-java:5.1.29"
         test "org.grails:grails-datastore-test-support:1.0.2-grails-2.4"
         //for persistance of joda time classes in Hibernate 4
         compile "org.jadira.usertype:usertype.core:3.2.0.GA"
         //for GrailsWebUtil dependency in custom renderer
         runtime "org.springframework:spring-test:4.0.7.RELEASE"
-        //for twilio plugin assisting with api calls
-        compile "com.twilio.sdk:twilio-java-sdk:5.3.0", {
-            exclude "httpclient" //use mandatory 4.3.4 version in sendgrid dependency
-        }
-        //for sending emails
-        compile "com.sendgrid:sendgrid-java:2.2.2"
         //for printing human-reading timestamps
         compile "org.ocpsoft.prettytime:prettytime:3.0.2.Final"
-        //amazon s3. newer version 1.10.32 returns 'NoSuchFieldError: INSTANCE'
-        compile "com.amazonaws:aws-java-sdk-s3:1.10.11", {
-            exclude 'httpclient' //use mandatory 4.3.4 version in sendgrid dependency
-        }
-        //httpclient is 4.3.4 in the sendgrid dependency
-        //Required by the aws-java-sdk dependency
-        build "org.apache.httpcomponents:httpcore:4.3.3"
-        runtime "org.apache.httpcomponents:httpcore:4.3.3"
+
+        //for twilio plugin assisting with api calls
+        compile "com.twilio.sdk:twilio:7.9.1"
+        //for sending emails
+        compile "com.sendgrid:sendgrid-java:2.2.2"
+        //amazon cloudfront, all aws sdk dependencies must same version to avoid conflicts
+        compile "com.amazonaws:aws-java-sdk-cloudfront:1.10.11"
+        //amazon s3. newer version 1.10.32 returns "NoSuchFieldError: INSTANCE"
+        compile "com.amazonaws:aws-java-sdk-s3:1.10.11"
         //pusher for realtime status updates and notifications
         compile "com.pusher:pusher-http-java:0.9.3"
+        // reconcile http components versions manually
+        compile "org.apache.httpcomponents:httpcore:4.4.4"
+        build "org.apache.httpcomponents:httpcore:4.4.4"
+        runtime "org.apache.httpcomponents:httpcore:4.4.4"
+        // using 4.5.3 httpclient reveals a bug in the aws s3 sdk in which
+        // operations somehow end up with
+        // 'java.lang.IllegalStateException: Socket not created by this factory'
+        compile "org.apache.httpcomponents:httpclient:4.5.2"
+        build "org.apache.httpcomponents:httpclient:4.5.2"
+        runtime "org.apache.httpcomponents:httpclient:4.5.2"
 
         // for spring security rest 1.5.3
-        compile 'xml-apis:xml-apis:1.4.01'
+        compile "xml-apis:xml-apis:1.4.01"
         // for encrypted jwts, exclude outdated dependencies to prevent conflict
         // see Token Storage section of spring-security-rest docs for 1.5.3
         // build("com.lowagie:itext:2.0.8") {

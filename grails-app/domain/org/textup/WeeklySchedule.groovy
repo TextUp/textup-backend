@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
@@ -16,7 +16,7 @@ import org.textup.types.ScheduleStatus
 import org.textup.validator.LocalInterval
 import org.textup.validator.ScheduleChange
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="Schedule", description="Schedule that repeats weekly.")
 class WeeklySchedule extends Schedule {
@@ -164,7 +164,7 @@ class WeeklySchedule extends Schedule {
         else { res }
     }
     @Override
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     Result<Schedule> update(Map<String,List<LocalInterval>> params) {
         try {
             Errors errors = null
@@ -219,7 +219,7 @@ class WeeklySchedule extends Schedule {
     // Property Access
     // ---------------
 
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     Map<String,List<LocalInterval>> getAllAsLocalIntervals(String timezone="UTC") {
         DateTimeZone zone = Helpers.getZoneFromId(timezone)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
@@ -278,7 +278,7 @@ class WeeklySchedule extends Schedule {
             }
         mergedLocalIntMap
     }
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected List checkWraparoundHelper(List<String> daysOfWeek) {
         boolean lastDayAtEnd = false,
             firstDayAtBeginning = false
@@ -391,7 +391,6 @@ class WeeklySchedule extends Schedule {
 
     protected Result<List<Interval>> parseIntervalStringsToUTCIntervals(List<String> intStrings,
         int addDays, DateTimeZone zone=null) {
-
         List<Interval> result = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
         DateTime today = DateTime.now(DateTimeZone.UTC)
@@ -423,6 +422,7 @@ class WeeklySchedule extends Schedule {
                 return resultFactory.failWithMessage("weeklySchedule.invalidRestTimeFormat", [str])
             }
         }
+
         resultFactory.success(result)
     }
 

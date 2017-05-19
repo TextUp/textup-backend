@@ -17,6 +17,7 @@ import org.textup.types.TextResponse
 import org.textup.util.CustomSpec
 import org.textup.validator.IncomingText
 import org.textup.validator.OutgoingMessage
+import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -35,7 +36,6 @@ class PhoneSpec extends CustomSpec {
 
     def setup() {
     	setupData()
-
         OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
     }
 
@@ -686,15 +686,8 @@ class PhoneSpec extends CustomSpec {
         resList.isAllSuccess == true
         resList.results.size() == 1
 
-        when: "we confirm call bridge"
-        Result<Closure> res = p1.confirmBridgeCall(c1)
-
-        then:
-        res.success == true
-        res.payload == CallResponse.CONFIRM_BRIDGE
-
         when: "complete call bridge"
-        res = p1.finishBridgeCall(c1)
+        Result res = p1.finishBridgeCall(c1)
 
         then:
         res.success == true
@@ -977,14 +970,27 @@ class PhoneSpec extends CustomSpec {
         session.save(flush:true, failOnError:true)
 
         when: "starting voicemail prompt"
-        Result<Closure> res = p1.receiveVoicemail("apiId", null, session)
+        // Result<Closure> res = p1.receiveVoicemail("apiId", null, session)
+        PhoneNumber fromNum = new PhoneNumber(number:"1112223333")
+        PhoneNumber toNum = new PhoneNumber(number:"2222223333")
+        assert fromNum.validate()
+        assert toNum.validate()
+        Result<Closure> res = p1.startVoicemail(fromNum, toNum)
 
         then:
         res.success == true
         res.payload == CallResponse.VOICEMAIL
 
-        when: "completing voicemail"
-        res = p1.receiveVoicemail("apiId", 88, session)
+        when: "completing voicemail when recording is done processing"
+        p1.phoneService = [
+            moveVoicemail: { String callId, String recordingId, String voicemailUrl ->
+                new Result(success: true, payload:callId)
+            },
+            storeVoicemail: { String callId, int voicemailDuration ->
+                new ResultList()
+            }
+        ] as PhoneService
+        res = p1.completeVoicemail("callId", "recordingId", "http://www.example.com", 88)
 
         then:
         res.success == true

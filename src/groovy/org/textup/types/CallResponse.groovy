@@ -9,7 +9,8 @@ enum CallResponse {
     SELF_INVALID_DIGITS,
     CONNECT_INCOMING,
     VOICEMAIL,
-    CONFIRM_BRIDGE,
+    VOICEMAIL_STUB, // no-op for Record Twiml verb to call because recording might not be ready
+    VOICEMAIL_DONE, // for recording status callback when recording is guaranteed available
     FINISH_BRIDGE,
     ANNOUNCEMENT_GREETING,
     HEAR_ANNOUNCEMENTS,

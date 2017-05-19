@@ -1,6 +1,5 @@
 package org.textup
 
-import com.amazonaws.HttpMethod
 import com.amazonaws.services.s3.model.PutObjectResult
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -50,8 +49,7 @@ class RecordNoteSpec extends Specification {
                 ['textup.maxNumImages':_maxNumImages]
             }] as GrailsApplication
             note1.storageService = [
-                generateAuthLink:{
-                    String k, HttpMethod v, Map m=[:] ->
+                generateAuthLink:{ String k ->
                     new Result(success:true, payload:new URL("${_urlRoot}${k}"))
                 },
                 upload: { String objectKey, UploadItem uItem ->
@@ -112,7 +110,7 @@ class RecordNoteSpec extends Specification {
 
     	when: "add an image"
         assert note1.addImage(_uItem).payload.getETag() == _eTag
-        assert note1.validate()
+        assert note1.save(flush:true, failOnError:true)
 
     	then:
         note1.imageKeys.size() == 1

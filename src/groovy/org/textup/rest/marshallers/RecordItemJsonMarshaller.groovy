@@ -2,6 +2,7 @@ package org.textup.rest.marshallers
 
 import grails.compiler.GrailsCompileStatic
 import grails.plugin.springsecurity.SpringSecurityService
+import groovy.util.logging.Log4j
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.grails.web.util.WebUtils
@@ -11,14 +12,20 @@ import org.textup.types.RecordItemType
 import org.textup.validator.ImageInfo
 
 @GrailsCompileStatic
+@Log4j
 class RecordItemJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace,
         SpringSecurityService springSecurityService, AuthService authService,
         LinkGenerator linkGenerator, RecordItem item ->
 
-        HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
-        Collection<ImageInfo> uploadErrors =
-            Helpers.toList(request.getAttribute(Constants.UPLOAD_ERRORS))
+        Collection<ImageInfo> uploadErrors = []
+        try {
+            HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
+            uploadErrors = Helpers.toList(request.getAttribute(Constants.UPLOAD_ERRORS))
+        }
+        catch (IllegalStateException e) {
+            log.debug("RecordItemJsonMarshaller: no available request: $e")
+        }
 
         Map json = [:]
         json.with {
