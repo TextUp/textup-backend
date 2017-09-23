@@ -9,17 +9,16 @@ import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.types.CallResponse
-import org.textup.types.TextResponse
+import org.textup.type.CallResponse
+import org.textup.type.TextResponse
 import org.textup.util.CustomSpec
 import spock.lang.Ignore
 import spock.lang.Shared
-import static org.springframework.http.HttpStatus.*
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole])
+	AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class TwimlBuilderSpec extends CustomSpec {
 
@@ -35,6 +34,9 @@ class TwimlBuilderSpec extends CustomSpec {
     	cleanupData()
     }
 
+    protected MessageSource mockMessageSource() {
+        [getMessage: { String c, Object[] p, Locale l -> c }] as MessageSource
+    }
     protected LinkGenerator mockLinkGenerator() {
         [link: { Map m ->
             (m.params ?: [:]).toString()
@@ -51,6 +53,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -80,6 +83,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -109,6 +113,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -127,6 +132,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -153,16 +159,16 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "announcements, invalid params"
         res = builder.build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:"kiki"])
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "announcements empty list"
         res = builder.build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:[]])
@@ -226,6 +232,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -234,8 +241,8 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "valid"
         Map info = [identifier:"kiki", message:"hello!"]
@@ -254,6 +261,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -275,10 +283,47 @@ class TwimlBuilderSpec extends CustomSpec {
     // Calls
     // -----
 
+    void "test call utility responses"() {
+        given: "twiml builder"
+        TwimlBuilder builder = new TwimlBuilder()
+        builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
+        builder.messageSource = mockMessageSource()
+        builder.linkGenerator = mockLinkGenerator()
+
+        when:
+        Result<Closure> res = builder.build(CallResponse.END_CALL)
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response { Hangup() }
+        })
+
+        when:
+        res = builder.build(CallResponse.DO_NOTHING)
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response { }
+        })
+
+        when:
+        res = builder.build(CallResponse.BLOCKED)
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response { Reject(reason:"rejected") }
+        })
+    }
+
     void "test calls without parameters"() {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -329,8 +374,7 @@ class TwimlBuilderSpec extends CustomSpec {
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
-                Say("twimlBuilder.call.blocked")
-                Hangup()
+                Reject(reason:"rejected")
             }
         })
     }
@@ -339,6 +383,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -347,8 +392,8 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "self connecting valid"
         String num = "1112223333"
@@ -372,8 +417,8 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "self invalid digits valid"
         res = builder.build(CallResponse.SELF_INVALID_DIGITS,
@@ -393,21 +438,22 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
         when: "voicemail invalid"
-        Result<Closure> res = builder.build(CallResponse.VOICEMAIL)
+        Result<Closure> res = builder.build(CallResponse.CHECK_IF_VOICEMAIL)
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "voicemail valid"
         Map linkParams =  [you:"got this!"]
         String awayMsg = "i am away"
-        res = builder.build(CallResponse.VOICEMAIL, [awayMessage:awayMsg,
+        res = builder.build(CallResponse.CHECK_IF_VOICEMAIL, [awayMessage:awayMsg,
             linkParams:linkParams, callbackParams:linkParams])
 
         then:
@@ -423,28 +469,63 @@ class TwimlBuilderSpec extends CustomSpec {
             }
         })
 
+        when: "voicemail done valid"
+        res = builder.build(CallResponse.VOICEMAIL_DONE)
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({ Response {} })
+
         when: "connect incoming invalid"
         res = builder.build(CallResponse.CONNECT_INCOMING)
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "connect incoming valid"
+        String dispNum = "2223338888"
         String num = "1112223333"
         res = builder.build(CallResponse.CONNECT_INCOMING,
-            [numsToCall:[num], linkParams:linkParams])
+            [displayedNumber:dispNum, numsToCall:[num],
+                linkParams:linkParams, screenParams:linkParams])
 
         then:
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
-                Say("twimlBuilder.call.connectIncoming")
-                Dial(timeout:"15") {
-                    Number(num)
+                Dial(callerId:dispNum, timeout:"15", answerOnBridge:true,
+                    action:linkParams.toString()) {
+                    Number(url:linkParams.toString(), num)
                 }
-                Redirect(linkParams.toString())
+            }
+        })
+
+        when: "screen incoming invalid"
+        res = builder.build(CallResponse.SCREEN_INCOMING)
+
+        then:
+        res.success == false
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
+
+        when: "screen incoming valid"
+        String callerId = "Joey Joe"
+        res = builder.build(CallResponse.SCREEN_INCOMING,
+            [callerId:callerId, linkParams:linkParams])
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Gather(numDigits:"1", action:linkParams.toString()) {
+                    Pause(length:"1")
+                    Say("twimlBuilder.call.screenIncoming")
+                    Say("twimlBuilder.call.screenIncoming")
+                }
+                Say("twimlBuilder.call.goodbye")
+                Hangup()
             }
         })
     }
@@ -453,6 +534,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -461,26 +543,72 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
-        when: "finish bridge valid"
+        when: "finish bridge for a contact without numbers"
+        Result<Contact> contactRes = p1.createContact()
+        assert contactRes.status == ResultStatus.CREATED
+        Contact contact1 = contactRes.payload
+        assert contact1.numbers == null
+
         res = builder.build(CallResponse.FINISH_BRIDGE,
-            [contact:c1])
+            [contact:contact1])
 
         then:
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
-                Pause("1")
-                c1.numbers?.each { ContactNumber num ->
-                    Say("twimlBuilder.call.bridgeNumber")
-                    Dial(timeout:"60") {
-                        Number(num.e164PhoneNumber)
-                    }
+                Pause(length:"1")
+                Say("twimlBuilder.call.bridgeNoNumbers")
+                Hangup()
+            }
+        })
+
+        when: "finish bridge for a contact with one number"
+        ContactNumber cNum1 = contact1.mergeNumber("1112223333").payload
+        contact1.save(flush:true, failOnError:true)
+        res = builder.build(CallResponse.FINISH_BRIDGE,[contact:contact1])
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Pause(length:"1")
+                Say("twimlBuilder.call.bridgeNumberStart")
+                Dial(timeout:"60", hangupOnStar:"true") {
+                    Number(cNum1.e164PhoneNumber)
                 }
-                Pause(length:"10")
-                Say("twimlBuilder.call.finishBridgeDone")
+                Say("twimlBuilder.call.bridgeNumberFinish")
+                Pause(length:"5")
+                Say("twimlBuilder.call.bridgeDone")
+                Hangup()
+            }
+        })
+
+        when: "finish bridge if contact has numbers specified"
+        ContactNumber cNum2 = contact1.mergeNumber("2223338888").payload
+        contact1.save(flush:true, failOnError:true)
+        res = builder.build(CallResponse.FINISH_BRIDGE, [contact:contact1])
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Pause(length:"1")
+                Say("twimlBuilder.call.bridgeNumberStart")
+                Say("twimlBuilder.call.bridgeNumberSkip")
+                Dial(timeout:"60", hangupOnStar:"true") {
+                    Number(cNum1.e164PhoneNumber)
+                }
+                Say("twimlBuilder.call.bridgeNumberFinish")
+                Say("twimlBuilder.call.bridgeNumberStart")
+                Dial(timeout:"60", hangupOnStar:"true") {
+                    Number(cNum2.e164PhoneNumber)
+                }
+                Say("twimlBuilder.call.bridgeNumberFinish")
+                Pause(length:"5")
+                Say("twimlBuilder.call.bridgeDone")
                 Hangup()
             }
         })
@@ -490,6 +618,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
         String message = "hi",
@@ -500,8 +629,8 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "direct messsage only message, no identifier"
         Map linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message, repeatCount:2]
@@ -554,6 +683,7 @@ class TwimlBuilderSpec extends CustomSpec {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
 
@@ -562,8 +692,8 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "announcement greeting valid subscribed"
         res = builder.build(CallResponse.ANNOUNCEMENT_GREETING,
@@ -604,8 +734,8 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "hear announcements valid subscribed"
         List<FeaturedAnnouncement> announces = [[
@@ -653,12 +783,17 @@ class TwimlBuilderSpec extends CustomSpec {
         })
 
         when: "announcement and digits invalid"
+        // the resultfactory's messageSource regresses back to the StaticMessageSource
+        // default by this method call instead of our mocked message source. Can't
+        // figure out why so we use just add this errorCode to the StaticMessageSource
+        // so that the built result will have the appropriate error messages
+        addToMessageSource("twimlBuilder.invalidCode")
         res = builder.build(CallResponse.ANNOUNCEMENT_AND_DIGITS)
 
         then:
         res.success == false
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "twimlBuilder.invalidCode"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "announcement and digits valid"
         Map params = [identifier:"kiki", message:"hello"]

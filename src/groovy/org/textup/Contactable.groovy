@@ -2,7 +2,8 @@ package org.textup
 
 import grails.compiler.GrailsCompileStatic
 import org.joda.time.DateTime
-import org.textup.types.ContactStatus
+import org.textup.rest.NotificationStatus
+import org.textup.type.ContactStatus
 import org.textup.validator.TempRecordReceipt
 
 @GrailsCompileStatic
@@ -30,8 +31,13 @@ interface Contactable {
     List<FutureMessage> getFutureMessages(Map params)
     int countFutureMessages()
 
+    List<NotificationStatus> getNotificationStatuses()
+
+    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt)
     Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt, Staff staff)
+    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt)
     Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff)
+    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff, String message)
 
     boolean instanceOf(Class clazz)
 }

@@ -3,7 +3,7 @@ package org.textup
 import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.types.ScheduleStatus
+import org.textup.type.ScheduleStatus
 import org.textup.validator.ScheduleChange
 import grails.compiler.GrailsCompileStatic
 

@@ -6,11 +6,11 @@ import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.textup.rest.TwimlBuilder
-import org.textup.types.CallResponse
+import org.textup.type.CallResponse
+import org.textup.type.ReceiptStatus
 import org.textup.util.OptimisticLockingRetry
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @Transactional
@@ -23,14 +23,13 @@ class CallbackService {
 	// Validate request
 	// ----------------
 
-    Result validate(HttpServletRequest request, GrailsParameterMap params) {
-        String browserURL = (request.requestURL.toString() - request.requestURI) +
-        		request.properties.forwardURI,
+    Result<Void> validate(HttpServletRequest request, GrailsParameterMap params) {
+        String browserURL = (request.requestURL.toString() - request.requestURI) + request.properties.forwardURI,
             authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
             authHeaderName = "x-twilio-signature",
             authHeader = request.getHeader(authHeaderName)
-        Result invalidResult = resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-    		"callbackService.validate.invalid")
+        Result invalidResult = resultFactory.failWithCodeAndStatus("callbackService.validate.invalid",
+            ResultStatus.BAD_REQUEST)
         if (!authHeader) {
         	return invalidResult
         }
@@ -86,9 +85,16 @@ class CallbackService {
 
     @OptimisticLockingRetry
     Result<Closure> process(GrailsParameterMap params) {
-        // if a call direct messaage
+        // if a call direct messaage or other direct actions that we do
+        // not need to do further processing for, handle right here
         if (params.handle == CallResponse.DIRECT_MESSAGE.toString()) {
             return twimlBuilder.build(CallResponse.DIRECT_MESSAGE, params)
+        }
+        else if (params.handle == CallResponse.DO_NOTHING.toString()) {
+            return twimlBuilder.build(CallResponse.DO_NOTHING)
+        }
+        else if (params.handle == CallResponse.END_CALL.toString()) {
+            return twimlBuilder.build(CallResponse.END_CALL)
         }
         // otherwise, continue handling other possibilities
     	String apiId = params.CallSid ?: params.MessageSid,
@@ -105,7 +111,13 @@ class CallbackService {
             phoneNum = fromNum
             sessionNum = toNum
         }
-
+        // when screening incoming calls, the From number is the TextUp phone,
+        // the original caller is stored in the originalFrom parameter and the
+        // To number is actually the staff member's personal phone number
+        else if (params.handle == CallResponse.SCREEN_INCOMING.toString()) {
+            phoneNum = fromNum
+            sessionNum = new PhoneNumber(number:params.originalFrom as String)
+        }
     	Phone phone = Phone.findByNumberAsString(phoneNum.number)
     	if (!phone) {
     		return params.CallSid ? twimlBuilder.notFoundForCall() :
@@ -123,17 +135,18 @@ class CallbackService {
     	// process request
     	if (params.CallSid) {
             switch(params.handle) {
-                case CallResponse.VOICEMAIL.toString():
-                    phone.startVoicemail(sessionNum, phoneNum)
+                case CallResponse.SCREEN_INCOMING.toString():
+                    phone.screenIncomingCall(session)
                     break
-                case CallResponse.VOICEMAIL_STUB.toString():
-                    twimlBuilder.noResponse()
+                case CallResponse.CHECK_IF_VOICEMAIL.toString():
+                    ReceiptStatus rStatus = ReceiptStatus.translate(params.DialCallStatus as String)
+                    phone.tryStartVoicemail(sessionNum, phoneNum, rStatus)
                     break
                 case CallResponse.VOICEMAIL_DONE.toString():
-                    Integer voicemailDuration = Helpers.toInteger(params.RecordingDuration)
-                    String callId = Helpers.toString(params.CallSid),
-                        recordingId = Helpers.toString(params.RecordingSid),
-                        voicemailUrl = Helpers.toString(params.RecordingUrl)
+                    Integer voicemailDuration = Helpers.to(Integer, params.RecordingDuration)
+                    String callId = Helpers.to(String, params.CallSid),
+                        recordingId = Helpers.to(String, params.RecordingSid),
+                        voicemailUrl = Helpers.to(String, params.RecordingUrl)
                     phone.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
                     break
                 case CallResponse.FINISH_BRIDGE.toString():
@@ -154,7 +167,8 @@ class CallbackService {
             phone.receiveText(text, session)
         }
         else {
-        	resultFactory.failWithMessageAndStatus(BAD_REQUEST, "callbackService.process.invalid")
+        	resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
+                ResultStatus.BAD_REQUEST)
         }
     }
 }

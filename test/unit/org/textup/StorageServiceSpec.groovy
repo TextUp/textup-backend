@@ -15,14 +15,12 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
-import org.textup.types.ResultType
 import org.textup.validator.UploadItem
 import spock.lang.Specification
-import static org.springframework.http.HttpStatus.*
 
 @TestFor(StorageService)
 @Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
-    RecordNote, RecordNoteRevision, Location])
+    RecordNote, RecordNoteRevision, Location, Organization])
 @TestMixin(HibernateTestMixin)
 class StorageServiceSpec extends Specification {
 
@@ -81,6 +79,7 @@ class StorageServiceSpec extends Specification {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload instanceof URL
     	_signedUrl == res.payload.toString()
     	_objectKey == key
@@ -107,8 +106,8 @@ class StorageServiceSpec extends Specification {
 
         then: "validation errors"
         res.success == false
-        res.type == ResultType.VALIDATION
-        res.payload.errorCount == invalidItem.errors.errorCount
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == invalidItem.errors.errorCount
         _triedToCompress == false // returned before call to compress happened
 
         when: "try to upload a valid upload item"
@@ -117,6 +116,7 @@ class StorageServiceSpec extends Specification {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof PutObjectResult
         res.payload.getETag() == _eTag
         _triedToCompress == true
@@ -128,6 +128,7 @@ class StorageServiceSpec extends Specification {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof PutObjectResult
         res.payload.getETag() == _eTag
         _triedToCompress == false // passing each required piece of info bypasses compression

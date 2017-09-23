@@ -9,8 +9,8 @@ import org.joda.time.DateTimeConstants
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalTime
 import org.springframework.context.MessageSource
-import org.textup.types.AuthorType
-import org.textup.types.ScheduleStatus
+import org.textup.type.AuthorType
+import org.textup.type.ScheduleStatus
 import org.textup.util.CustomSpec
 import org.textup.validator.Author
 import org.textup.validator.LocalInterval
@@ -21,7 +21,7 @@ import spock.lang.Unroll
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class StaffSpec extends CustomSpec {
@@ -197,6 +197,7 @@ class StaffSpec extends CustomSpec {
     		name:"Staff", email:"staff@textup.org", org:org,
     		personalPhoneAsString:"1112223333", lockCode:Constants.DEFAULT_LOCK_CODE)
     	staff1.save(flush:true, failOnError:true)
+        addToMessageSource("staff.scheduleInfoUnavailable")
 
     	when: "manual schedule is off"
     	staff1.manualSchedule = false
@@ -229,14 +230,14 @@ class StaffSpec extends CustomSpec {
 
     	then: "we can only ask about availability right now"
     	staff1.isAvailableNow() == staff1.isAvailable
-    	staff1.isAvailableAt(availableTime).success == false
-    	staff1.isAvailableAt(availableTime).payload.code == "staff.scheduleInfoUnavailable"
-    	staff1.nextChange().success == false
-    	staff1.nextChange().payload.code == "staff.scheduleInfoUnavailable"
-    	staff1.nextAvailable().success == false
-    	staff1.nextAvailable().payload.code == "staff.scheduleInfoUnavailable"
-    	staff1.nextUnavailable().success == false
-    	staff1.nextUnavailable().payload.code == "staff.scheduleInfoUnavailable"
+    	staff1.isAvailableAt(availableTime).status == ResultStatus.BAD_REQUEST
+    	staff1.isAvailableAt(availableTime).errorMessages[0] == "staff.scheduleInfoUnavailable"
+    	staff1.nextChange().status == ResultStatus.BAD_REQUEST
+    	staff1.nextChange().errorMessages[0] == "staff.scheduleInfoUnavailable"
+    	staff1.nextAvailable().status == ResultStatus.BAD_REQUEST
+    	staff1.nextAvailable().errorMessages[0] == "staff.scheduleInfoUnavailable"
+    	staff1.nextUnavailable().status == ResultStatus.BAD_REQUEST
+    	staff1.nextUnavailable().errorMessages[0] == "staff.scheduleInfoUnavailable"
     }
 
     protected String getDayOfWeekStringFor(DateTime dt) {

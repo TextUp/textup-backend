@@ -16,7 +16,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(StaffController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class StaffControllerSpec extends CustomSpec {
 
@@ -25,6 +25,8 @@ class StaffControllerSpec extends CustomSpec {
     }
     def setup() {
         super.setupData()
+        // enables resolving of resource names from class
+        controller.grailsApplication.flatConfig = config.flatten()
     }
     def cleanup() {
         super.cleanupData()
@@ -71,7 +73,7 @@ class StaffControllerSpec extends CustomSpec {
         request.method = "GET"
         params.organizationId = org.id
         controller.index()
-        List<Long> ids = Helpers.allToLong(org.people*.id)
+        List<Long> ids = Helpers.allTo(Long, org.people*.id)
 
         then:
         response.status == SC_OK
@@ -85,7 +87,7 @@ class StaffControllerSpec extends CustomSpec {
         request.method = "GET"
         params.teamId = t1.id
         controller.index()
-        List<Long> ids = Helpers.allToLong(t1.members*.id)
+        List<Long> ids = Helpers.allTo(Long, t1.members*.id)
 
         then:
         response.status == SC_OK
@@ -99,7 +101,7 @@ class StaffControllerSpec extends CustomSpec {
         request.method = "GET"
         params.canShareStaffId = s1.id
         controller.index()
-        List<Long> ids = Helpers.allToLong(s1.teams.members*.id.flatten())
+        List<Long> ids = Helpers.allTo(Long, s1.teams.members*.id.flatten())
         ids.remove(s1.id)
 
         then:
@@ -114,7 +116,7 @@ class StaffControllerSpec extends CustomSpec {
         request.method = "GET"
         params.search = "demo"
         controller.index()
-        List<Long> ids = Helpers.allToLong(org.getStaff(params.search)*.id)
+        List<Long> ids = Helpers.allTo(Long, org.getStaff(params.search)*.id)
 
         then:
         response.status == SC_OK
@@ -172,9 +174,9 @@ class StaffControllerSpec extends CustomSpec {
     void "test save"() {
         given:
         controller.staffService = [create:{ Map body, String timezone ->
-            new Result(payload:s1)
+            new Result(payload:s1, status:ResultStatus.CREATED)
         }, addRoleToStaff: { Long sId ->
-            new Result(payload:s1)
+            new Result(payload:s1, status:ResultStatus.CREATED)
         }] as StaffService
 
         when:
@@ -227,7 +229,7 @@ class StaffControllerSpec extends CustomSpec {
     void "test update a staff"() {
         given:
         controller.staffService = [update:{ Long cId, Map body, String tz ->
-            new Result(payload:s1)
+            new Result(payload:s1, status:ResultStatus.OK)
         }] as StaffService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },

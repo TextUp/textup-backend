@@ -3,7 +3,7 @@ package org.textup
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 import org.textup.ReceiptStatus
-import org.textup.types.ReceiptStatus
+import org.textup.type.ReceiptStatus
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import grails.compiler.GrailsCompileStatic

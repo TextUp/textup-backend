@@ -16,7 +16,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(PublicStaffController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class PublicStaffControllerSpec extends CustomSpec {
 
@@ -51,9 +51,9 @@ class PublicStaffControllerSpec extends CustomSpec {
     void "test save"() {
         given:
         controller.staffService = [create:{ Map body, String timezone ->
-            new Result(payload:s1)
+            new Result(payload:s1, status:ResultStatus.CREATED)
         }, addRoleToStaff: { Long sId ->
-            new Result(payload:s1)
+            new Result(payload:s1, status:ResultStatus.CREATED)
         }] as StaffService
 
         when:

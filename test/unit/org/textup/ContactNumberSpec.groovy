@@ -10,7 +10,7 @@ import spock.lang.Unroll
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
   RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-  Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+  Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class ContactNumberSpec extends CustomSpec {
@@ -49,5 +49,13 @@ class ContactNumberSpec extends CustomSpec {
         then: "getting contacts for phone and numbers"
         ContactNumber.getContactsForPhoneAndNumbers(p1,
             ["2390254789", number])[number] == [c1]
+
+        when: "mark contact as deleted"
+        c1.isDeleted = true
+        c1.save(flush:true, failOnError:true)
+
+        then: "no results for the number specified"
+        ContactNumber.getContactsForPhoneAndNumbers(p1,
+            ["2390254789", number])[number].isEmpty() == true
     }
 }

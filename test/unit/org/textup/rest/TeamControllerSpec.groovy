@@ -16,7 +16,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(TeamController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class TeamControllerSpec extends CustomSpec {
 
@@ -46,7 +46,7 @@ class TeamControllerSpec extends CustomSpec {
         request.method = "GET"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allToLong(loggedIn.teams*.id)
+        List<Long> ids = Helpers.allTo(Long, loggedIn.teams*.id)
 
         then:
         response.status == SC_OK
@@ -71,7 +71,7 @@ class TeamControllerSpec extends CustomSpec {
         request.method = "GET"
         params.organizationId = org.id
         controller.index()
-        List<Long> ids = Helpers.allToLong(org.teams*.id)
+        List<Long> ids = Helpers.allTo(Long, org.teams*.id)
 
         then:
         response.status == SC_OK
@@ -129,7 +129,7 @@ class TeamControllerSpec extends CustomSpec {
     void "test save team"() {
         given:
         controller.teamService = [create:{ Map body ->
-            new Result(payload:t1)
+            new Result(payload:t1, status:ResultStatus.CREATED)
         }] as TeamService
 
         when:
@@ -183,7 +183,7 @@ class TeamControllerSpec extends CustomSpec {
     void "test update team"() {
         given:
         controller.teamService = [update:{ Long cId, Map body ->
-            new Result(payload:t1)
+            new Result(payload:t1, status:ResultStatus.OK)
         }] as TeamService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
@@ -238,7 +238,7 @@ class TeamControllerSpec extends CustomSpec {
     void "test delete team"() {
         given:
         controller.teamService = [delete:{ Long tId ->
-            new Result(payload:t1)
+            new Result(payload:null, status:ResultStatus.NO_CONTENT)
         }] as TeamService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },

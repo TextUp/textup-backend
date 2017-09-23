@@ -4,27 +4,25 @@ import grails.compiler.GrailsCompileStatic
 import grails.validation.Validateable
 import groovy.transform.ToString
 import org.textup.*
-import org.textup.types.PhoneOwnershipType
+import org.textup.type.PhoneOwnershipType
 
 // See [notification] in CustomApiDocs.groovy for documentation
 
 @GrailsCompileStatic
 @Validateable
 @ToString
-class Notification {
+class Notification extends BasicNotification {
 
-	PhoneOwnership owner
+	Long tokenId // id of associated token
 	String contents
 	Boolean outgoing
-	Long tokenId // id of associated token
 
-	// must have either contact or tag
+	// must have either contact or tag, can set indirectly via record
 	Contact contact
 	ContactTag tag
 
-	static constraints = {
+ 	static constraints = {
 		tokenId nullable:false
-		owner nullable:false
 		contents nullable:false
 		outgoing nullable:false
 		contact nullable:true, validator:{ Contact c1, Notification notif ->
@@ -38,7 +36,9 @@ class Notification {
 	// Property access
 	// ---------------
 
+	@Override
 	void setRecord(Record rec) {
+		super.setRecord(rec)
 		ContactTag ct1 = ContactTag.findByRecord(rec)
 		if (ct1) { this.tag = ct1 }
 		else {
@@ -46,26 +46,12 @@ class Notification {
 			if (c1) { this.contact = c1 }
 		}
 	}
-
-	String getOwnerId() {
-		if (ownerType == "staff") {
-			Staff.get(owner?.ownerId)?.username ?: ''
-		}
-		else {
-			Team.get(owner?.ownerId)?.name ?: ''
-		}
-	}
 	String getOtherId() {
 		this.contact?.id ?: this.tag?.name
-	}
-
-	String getOwnerType() {
-		(owner?.type == PhoneOwnershipType.INDIVIDUAL) ? "staff" : "team"
 	}
 	String getOtherType() {
 		this.contact ? "contact" : "tag"
 	}
-
 	String getOtherName() {
 		this.contact?.getNameOrNumber() ?: this.tag?.name
 	}

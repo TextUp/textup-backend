@@ -5,32 +5,35 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
 import org.joda.time.DateTimeConstants
+import org.joda.time.DateTimeZone
 import org.joda.time.LocalTime
 import org.springframework.context.MessageSource
+import org.springframework.context.support.StaticMessageSource
+import org.textup.type.ScheduleStatus
+import org.textup.validator.LocalInterval
+import org.textup.validator.ScheduleChange
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
-import org.textup.types.ScheduleStatus
-import org.textup.validator.ScheduleChange
-import org.textup.validator.LocalInterval
 
 // WeeklySchedule assumes all times are in UTC
 
-@Domain([Schedule, WeeklySchedule])
+@Domain([Schedule, WeeklySchedule, Organization, Location])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class WeeklyScheduleSpec extends Specification {
+
+    @Shared
+    MessageSource messageSource = new StaticMessageSource()
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
 	}
 	def setup() {
 		ResultFactory fac = getResultFactory()
-		fac.messageSource = [getMessage:{ String code,
-			Object[] parameters, Locale locale -> code }] as MessageSource
+		fac.messageSource = [getMessage:{ String c, Object[] p, Locale l -> c }] as MessageSource
 	}
 	private ResultFactory getResultFactory() {
 		grailsApplication.mainContext.getBean("resultFactory")
@@ -86,7 +89,8 @@ class WeeklyScheduleSpec extends Specification {
     	then:
     	s.validate() == true
     	res.success == false
-    	res.payload instanceof Throwable
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages.size() == 1
 
     	when: "update with both the same valid time interval"
 	    res = s.update(friday:[new LocalInterval(midnight, t1),
@@ -95,18 +99,22 @@ class WeeklyScheduleSpec extends Specification {
     	then:
     	s.validate() == true
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload.friday == "0000,0100;0559,0759"
 
     	when: "update with some invalid local intervals"
+        MessageSource originalMessageSource = s.resultFactory.messageSource
+        s.resultFactory.messageSource = messageSource
 		res = s.update(tuesday:[new LocalInterval(t2, t1), new LocalInterval(midnight, t2)])
 
     	then:
     	s.validate() == true
     	res.success == false
-    	res.payload instanceof ValidationErrors
-    	res.payload.errorCount == 1
+    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	res.errorMessages.size() == 1
 
     	when: "update string field directly with valid string"
+        s.resultFactory.messageSource = originalMessageSource
     	String wedString = "0100,0500;0759,2359"
 	    s.wednesday = wedString
 
@@ -150,8 +158,8 @@ class WeeklyScheduleSpec extends Specification {
 
         then:
         res.success == false
-        res.payload instanceof Map
-        res.payload.code == "weeklySchedule.strIntsNotList"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "weeklySchedule.strIntsNotList"
 
         when: "the interval strings are invalidly formatted"
         updateInfo = [monday:["invalid", "0130:0230"]]
@@ -159,8 +167,8 @@ class WeeklyScheduleSpec extends Specification {
 
         then:
         res.success == false
-        res.payload instanceof Map
-        res.payload.code == "weeklySchedule.invalidRestTimeFormat"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "weeklySchedule.invalidRestTimeFormat"
 
         when: "we have a map of lists of valid interval strings"
         updateInfo = [monday:["0130:0231", "0230:0330", "0400:0430"]]
@@ -172,6 +180,8 @@ class WeeklyScheduleSpec extends Specification {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Schedule
         s.getAllAsLocalIntervals().monday.size() == 2
         s.getAllAsLocalIntervals().monday.every { it in mondayInts }
 
@@ -184,6 +194,8 @@ class WeeklyScheduleSpec extends Specification {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Schedule
         s.getAllAsLocalIntervals().wednesday.size() == 1
         s.getAllAsLocalIntervals().wednesday.every { it in wednesdayInts }
 
@@ -193,6 +205,8 @@ class WeeklyScheduleSpec extends Specification {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Schedule
         s.getAllAsLocalIntervals().wednesday.size() == 1
         s.getAllAsLocalIntervals().wednesday.every { it in wednesdayInts }
 
@@ -205,6 +219,8 @@ class WeeklyScheduleSpec extends Specification {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Schedule
         s.getAllAsLocalIntervals().tuesday.size() == 1
         s.getAllAsLocalIntervals().tuesday.every { it in tuesdayInts }
 
@@ -214,6 +230,8 @@ class WeeklyScheduleSpec extends Specification {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Schedule
         s.getAllAsLocalIntervals().tuesday.size() == 1
         s.getAllAsLocalIntervals().tuesday.every { it in tuesdayInts }
     }
@@ -268,24 +286,24 @@ class WeeklyScheduleSpec extends Specification {
 
     	then:
     	res.success == false
-    	res.payload instanceof Map
-    	res.payload.code == "weeklySchedule.nextChangeNotFound"
+    	res.status == ResultStatus.NOT_FOUND
+    	res.errorMessages[0] == "weeklySchedule.nextChangeNotFound"
 
     	when:
     	res = s.nextAvailable()
 
     	then:
     	res.success == false
-    	res.payload instanceof Map
-    	res.payload.code == "weeklySchedule.nextChangeNotFound"
+    	res.status == ResultStatus.NOT_FOUND
+    	res.errorMessages[0] == "weeklySchedule.nextChangeNotFound"
 
     	when:
     	res = s.nextUnavailable()
 
     	then:
     	res.success == false
-    	res.payload instanceof Map
-    	res.payload.code == "weeklySchedule.nextChangeNotFound"
+    	res.status == ResultStatus.NOT_FOUND
+    	res.errorMessages[0] == "weeklySchedule.nextChangeNotFound"
 
     	when: "we add some times"
     	String tomString = getDayOfWeekStringFor(DateTime.now(DateTimeZone.UTC).plusDays(1))

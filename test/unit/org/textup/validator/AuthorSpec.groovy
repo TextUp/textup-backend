@@ -5,7 +5,7 @@ import grails.test.mixin.TestMixin
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
-import org.textup.types.AuthorType
+import org.textup.type.AuthorType
 
 @TestMixin(GrailsUnitTestMixin)
 @Unroll

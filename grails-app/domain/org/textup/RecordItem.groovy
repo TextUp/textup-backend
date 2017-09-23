@@ -1,13 +1,14 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
-import org.textup.types.AuthorType
-import org.textup.types.ReceiptStatus
+import org.textup.type.AuthorType
+import org.textup.type.ReceiptStatus
 import org.textup.validator.Author
 import org.textup.validator.TempRecordReceipt
 
@@ -80,20 +81,31 @@ class RecordItem {
         whenCreated type:PersistentDateTime
     }
     static namedQueries = {
-        forRecord { Record rec ->
+        forRecord { Record rec, Collection<Class<? extends RecordItem>> types = [] ->
             eq("record", rec)
+            if (types) {
+                "in"("class", types*.canonicalName)
+            }
             // from newer to older so we return more recent messages first
             order("whenCreated", "desc")
         }
-        forRecordDateSince { Record rec, DateTime s ->
+        forRecordDateSince { Record rec, DateTime s, Collection<Class<? extends RecordItem>> types = [] ->
             eq("record", rec)
             ge("whenCreated", s)
+            if (types) {
+                "in"("class", types*.canonicalName)
+            }
             // from newer to older so we return more recent messages first
             order("whenCreated", "desc")
         }
-        forRecordDateBetween { Record rec, DateTime s, DateTime e ->
+        forRecordDateBetween { Record rec, DateTime s, DateTime e,
+            Collection<Class<? extends RecordItem>> types = [] ->
+
             eq("record", rec)
             between("whenCreated", s, e)
+            if (types) {
+                "in"("class", types*.canonicalName)
+            }
             // from newer to older so we return more recent messages first
             order("whenCreated", "desc")
         }
@@ -114,6 +126,13 @@ class RecordItem {
             }
         }
         results
+    }
+    static DetachedCriteria<RecordItem> buildForRecords(Collection<Record> records) {
+        new DetachedCriteria(RecordItem)
+            .build {
+                if (records) { "in"("record", records) }
+                else { eq("record", null) }
+            }
     }
 
     // Methods

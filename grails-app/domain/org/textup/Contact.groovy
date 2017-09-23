@@ -1,14 +1,14 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
-import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
-import org.textup.types.AuthorType
-import org.textup.types.ContactStatus
+import org.textup.rest.NotificationStatus
+import org.textup.type.AuthorType
+import org.textup.type.ContactStatus
 import org.textup.validator.Author
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
@@ -23,6 +23,7 @@ class Contact implements Contactable {
 
     Phone phone //phone that owns this contact
     Record record
+    boolean isDeleted = false
 
     @RestApiObjectField(
         description    = "Name of this contact",
@@ -61,16 +62,27 @@ class Contact implements Contactable {
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName      = "doShareActions",
-            description       = "List of some share or unshare actions",
+            description       = "List of actions that modify sharing permissions",
             allowedType       = "List<[shareAction]>",
             useForCreation    = false,
             presentInResponse = false),
         @RestApiObjectField(
             apiFieldName      = "doNumberActions",
-            description       = "List of some share or unshare actions",
+            description       = "List of actions to add, remove or update contact's numbers",
             allowedType       = "List<[numberAction]>",
             useForCreation    = true,
             presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName      = "doNotificationActions",
+            description       = "List of actions that customize notification settings for specific staff members",
+            allowedType       = "List<[notificationAction]>",
+            useForCreation    = false,
+            presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName   = "notificationStatuses",
+            description    = "Whether or not a specified staff member will be notified of updates for this specific contact",
+            allowedType    = "List<notificationStatus>",
+            useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "sharedWith",
             description    = "A list of other staff you'ved shared this contact with.",
@@ -121,11 +133,12 @@ class Contact implements Contactable {
                 eq("phone", thisPhone)
                 List<SharedContact> shareds = SharedContact.sharedWithMe(thisPhone).list()
                 if (shareds) { "in"("id", shareds*.contact*.id) }
-                else { eq("id", null) }
             }
             // filter by statuses
             if (statuses) { "in"("status", statuses) }
             else { "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD]) }
+            // must not be deleted
+            eq("isDeleted", false)
             // sort appropriately
             createAlias("record", "r1")
             order("status", "desc") //unread first then active
@@ -138,8 +151,11 @@ class Contact implements Contactable {
                 eq("phone", thisPhone)
                 List<SharedContact> shareds = SharedContact.sharedWithMe(thisPhone).list()
                 if (shareds) { "in"("id", shareds*.contact*.id) }
-                else { eq("id", null) }
             }
+            // search results should include all contacts EXCEPT blocked contacts
+            "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
+            // must not be deleted
+            eq("isDeleted", false)
             // conduct search in contact name and associated numbers
             PhoneNumber tempNum = new PhoneNumber(number:query) //to clean query
             or {
@@ -159,6 +175,9 @@ class Contact implements Contactable {
     // --------------
 
     static int countForPhoneAndSearch(Phone thisPhone, String query) {
+        if (!query) {
+            return 0
+        }
         forPhoneAndSearch(thisPhone, query) {
             projections {
                 countDistinct("id")
@@ -169,23 +188,28 @@ class Contact implements Contactable {
     // are NOT mine have SharedContacts with me
     static List<Contact> listForPhoneAndSearch(Phone thisPhone,
         String query, Map params=[:]) {
+        if (!query) {
+            return []
+        }
         forPhoneAndSearch(thisPhone, query).listDistinct(params)
     }
 
-    static int countForPhoneAndStatuses(Phone thisPhone, Collection<ContactStatus> statuses) {
+    static int countForPhoneAndStatuses(Phone thisPhone, Collection<ContactStatus> statuses = []) {
         forPhoneAndStatuses(thisPhone, statuses).count()
     }
     // return contacts, some of which are mine and other of which
     // are NOT mine have SharedContacts with me
     static List<Contact> listForPhoneAndStatuses(Phone thisPhone,
-        Collection<ContactStatus> statuses, Map params=[:]) {
+        Collection<ContactStatus> statuses = [], Map params=[:]) {
         forPhoneAndStatuses(thisPhone, statuses).list(params)
     }
-
+    // purposefully also allow blocked contacts to show up here. We want ALL contacts EXCEPT deleted ones
     static List<Contact> listForPhoneAndNum(Phone thisPhone, PhoneNumber num) {
         Contact.createCriteria().list {
             eq("phone", thisPhone)
             numbers { eq("number", num?.number) }
+            // must not be deleted
+            eq("isDeleted", false)
         }
     }
 
@@ -246,15 +270,18 @@ class Contact implements Contactable {
         }
     }
     @GrailsTypeChecked
-    Result deleteNumber(String num) {
+    Result<Void> deleteNumber(String num) {
         PhoneNumber temp = new PhoneNumber(number:num)
-        ContactNumber number = this.numbers.find { it.number == temp.number }
+        ContactNumber number = this.numbers?.find { it.number == temp.number }
         if (number) {
             this.removeFromNumbers(number)
             number.delete()
             resultFactory.success()
         }
-        else { resultFactory.failWithMessage("contact.numberNotFound", [number]) }
+        else {
+            resultFactory.failWithCodeAndStatus("contact.numberNotFound",
+                ResultStatus.NOT_FOUND, [number])
+        }
     }
 
     // Additional Contactable methods
@@ -300,6 +327,10 @@ class Contact implements Contactable {
     int countFutureMessages() {
         this.record.countFutureMessages()
     }
+    @GrailsTypeChecked
+    List<NotificationStatus> getNotificationStatuses() {
+        this.phone.owner.getNotificationStatusesForRecords([this.record.id])
+    }
 
     // Property Access
     // ---------------
@@ -311,7 +342,7 @@ class Contact implements Contactable {
     }
     @GrailsTypeChecked
     String getNameOrNumber(boolean formatNumber=false) {
-        String num = (this.numbers[0] as ContactNumber)?.number
+        String num = this.numbers ? (this.numbers[0] as ContactNumber)?.number : null
         this.name ?: (formatNumber ? Helpers.formatNumberForSay(num) : num)
     }
     List<ContactTag> getTags(Map params=[:]) {
@@ -322,14 +353,16 @@ class Contact implements Contactable {
     }
     List<SharedContact> getSharedContacts() {
         SharedContact.createCriteria().list {
-            eq('contact', this)
-            eq('sharedBy', this.phone)
+            eq("contact", this)
+            eq("sharedBy", this.phone)
             or {
                 isNull("dateExpired") //not expired if null
                 gt("dateExpired", DateTime.now())
             }
             contact {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                // must not be deleted
+                eq("isDeleted", false)
             }
         }
     }
@@ -356,18 +389,22 @@ class Contact implements Contactable {
                     resultFactory.success(rText)
                 }
                 else { resultFactory.failWithValidationErrors(rText.errors) }
-            }) as Result<RecordText>
+            })
     }
     @GrailsTypeChecked
-    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt,
-        Staff staff = null) {
+    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff = null,
+        String message = null) {
         record.addCall([outgoing:true], staff?.toAuthor()).then({ RecordCall rCall ->
+            if (message) {
+                rCall.callContents = message
+            }
             rCall.addReceipt(receipt)
+
             if (rCall.save()) {
                 resultFactory.success(rCall)
             }
             else { resultFactory.failWithValidationErrors(rCall.errors) }
-        }) as Result<RecordCall>
+        })
     }
 
     // Incoming
@@ -384,7 +421,7 @@ class Contact implements Contactable {
                     resultFactory.success(rText)
                 }
                 else { resultFactory.failWithValidationErrors(rText.errors) }
-            }) as Result<RecordText>
+            })
     }
     @GrailsTypeChecked
     Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session = null) {
@@ -396,6 +433,6 @@ class Contact implements Contactable {
                 resultFactory.success(rCall)
             }
             else { resultFactory.failWithValidationErrors(rCall.errors) }
-        }) as Result<RecordCall>
+        })
     }
 }

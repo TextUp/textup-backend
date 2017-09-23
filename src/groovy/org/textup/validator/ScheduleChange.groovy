@@ -6,7 +6,7 @@ import groovy.transform.ToString
 import groovy.util.logging.Log4j
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.types.ScheduleStatus
+import org.textup.type.ScheduleStatus
 
 @GrailsCompileStatic
 @ToString

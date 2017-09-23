@@ -4,14 +4,14 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
-import org.textup.types.PhoneOwnershipType
+import org.textup.type.PhoneOwnershipType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class NotificationSpec extends CustomSpec {
 
@@ -31,7 +31,7 @@ class NotificationSpec extends CustomSpec {
 
 		then: "invalid"
 		notif.validate() == false
-		notif.errors.errorCount == 6
+		notif.errors.errorCount == 7
 
 		when: "fill out info"
 		notif.tokenId = 1L

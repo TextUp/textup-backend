@@ -2,7 +2,6 @@ package org.textup
 
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
-import static org.springframework.http.HttpStatus.*
 import org.textup.validator.PhoneNumber
 
 @GrailsCompileStatic
@@ -23,8 +22,8 @@ class SessionService {
 	}
 	protected Result<IncomingSession> create(Phone p1, Map body) {
 		if (!p1) {
-			return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-				"sessionService.create.noPhone")
+			return resultFactory.failWithCodeAndStatus("sessionService.create.noPhone",
+				ResultStatus.UNPROCESSABLE_ENTITY)
 		}
 		PhoneNumber pNum = new PhoneNumber(number:body.number as String)
 		if (!pNum.validate()) {
@@ -36,6 +35,7 @@ class SessionService {
 		sess1.number = pNum
 		// populate fields
 		updateFields(sess1, body)
+			.then({ IncomingSession is1 -> resultFactory.success(is1, ResultStatus.CREATED) })
 	}
 
 	// Update
@@ -47,8 +47,8 @@ class SessionService {
 			updateFields(sess1, body)
 		}
 		else {
-			resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "sessionService.update.notFound", [sId])
+			resultFactory.failWithCodeAndStatus("sessionService.update.notFound",
+				ResultStatus.NOT_FOUND, [sId])
 		}
 	}
 
@@ -57,10 +57,10 @@ class SessionService {
 
 	protected Result<IncomingSession> updateFields(IncomingSession s1, Map body) {
 		if (body.isSubscribedToText != null) {
-			s1.isSubscribedToText = Helpers.toBoolean(body.isSubscribedToText)
+			s1.isSubscribedToText = Helpers.to(Boolean, body.isSubscribedToText)
 		}
 		if (body.isSubscribedToCall != null) {
-			s1.isSubscribedToCall = Helpers.toBoolean(body.isSubscribedToCall)
+			s1.isSubscribedToCall = Helpers.to(Boolean, body.isSubscribedToCall)
 		}
 
 		if (s1.save()) {

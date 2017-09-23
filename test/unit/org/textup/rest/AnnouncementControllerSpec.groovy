@@ -7,7 +7,6 @@ import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.types.ResultType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
@@ -16,7 +15,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt])
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class AnnouncementControllerSpec extends CustomSpec {
 
@@ -51,7 +50,7 @@ class AnnouncementControllerSpec extends CustomSpec {
     	request.method = "GET"
     	controller.index()
     	Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allToLong(loggedIn.phone.announcements*.id)
+        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.announcements*.id)
 
     	then: "implicit staff"
         response.status == SC_OK
@@ -70,7 +69,7 @@ class AnnouncementControllerSpec extends CustomSpec {
     	params.teamId = t1.id
     	request.method = "GET"
     	controller.index()
-        List<Long> ids = Helpers.allToLong(t1.phone.announcements*.id)
+        List<Long> ids = Helpers.allTo(Long, t1.phone.announcements*.id)
 
     	then:
         response.status == SC_OK
@@ -135,7 +134,7 @@ class AnnouncementControllerSpec extends CustomSpec {
     	given:
     	controller.authService = [getIsActive:{ -> true }] as AuthService
     	controller.announcementService = [createForStaff: { Map body ->
-    		new Result(type:ResultType.SUCCESS, success:true, payload:body)
+    		new Result(success:true, payload:body, status:ResultStatus.CREATED)
 		}] as AnnouncementService
 
 		when:
@@ -155,7 +154,7 @@ class AnnouncementControllerSpec extends CustomSpec {
     		hasPermissionsForTeam:{ Long id -> true }
 		] as AuthService
     	controller.announcementService = [createForTeam: { Long id, Map body ->
-    		new Result(type:ResultType.SUCCESS, success:true, payload:body)
+    		new Result(success:true, payload:body, status:ResultStatus.CREATED)
 		}] as AnnouncementService
 
 		when:
@@ -179,7 +178,7 @@ class AnnouncementControllerSpec extends CustomSpec {
     		hasPermissionsForAnnouncement:{ Long id -> true }
 		] as AuthService
     	controller.announcementService = [update: { Long id, Map body ->
-    		new Result(type:ResultType.SUCCESS, success:true, payload:body)
+    		new Result(success:true, payload:body)
 		}] as AnnouncementService
 
 		when:

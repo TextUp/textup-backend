@@ -7,7 +7,7 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
-import org.textup.types.AuthorType
+import org.textup.type.AuthorType
 import org.textup.validator.Author
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber

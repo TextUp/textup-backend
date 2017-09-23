@@ -13,8 +13,7 @@ import org.springframework.context.MessageSource
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.userdetails.UserDetails
 import org.textup.*
-import org.textup.types.OrgStatus
-import org.textup.types.ResultType
+import org.textup.type.OrgStatus
 import org.textup.util.CustomSpec
 import org.textup.util.PusherTester
 import spock.lang.Shared
@@ -23,7 +22,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(SocketController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class SocketControllerSpec extends CustomSpec {
 

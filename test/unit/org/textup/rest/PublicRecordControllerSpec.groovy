@@ -11,8 +11,7 @@ import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.types.ReceiptStatus
-import org.textup.types.ResultType
+import org.textup.type.ReceiptStatus
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
@@ -24,7 +23,7 @@ import static org.springframework.http.HttpStatus.*
 @TestFor(PublicRecordController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class PublicRecordControllerSpec extends CustomSpec {
 
@@ -34,7 +33,7 @@ class PublicRecordControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
         controller.twimlBuilder = [noResponse: { ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:{ Response {} })
+            new Result(status:ResultStatus.OK, payload:{ Response {} })
         }] as TwimlBuilder
     }
     def cleanup() {
@@ -52,9 +51,9 @@ class PublicRecordControllerSpec extends CustomSpec {
     protected mockValidate() {
         controller.callbackService = [validate:{ HttpServletRequest request,
             GrailsParameterMap params ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:null)
+            new Result(payload:null, status:ResultStatus.OK)
         }, process:{ GrailsParameterMap params ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:_closure)
+            new Result(payload:_closure, status:ResultStatus.OK)
         }] as CallbackService
     }
     protected mockUpdateStatus() {
@@ -63,7 +62,7 @@ class PublicRecordControllerSpec extends CustomSpec {
             _receiptStatus = status
             _apiId = apiId
             _duration = duration
-            new Result(type:ResultType.SUCCESS, success:true, payload:_closure)
+            new Result(payload:_closure, status:ResultStatus.OK)
         }] as RecordService
     }
     protected String buildXml(Closure data) {
@@ -79,11 +78,11 @@ class PublicRecordControllerSpec extends CustomSpec {
         request.method = "POST"
         controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
             Integer duration ->
-            getResultFactory().failWithMessageAndStatus(NOT_FOUND,
-                "recordService.updateStatus.receiptsNotFound", [apiId])
+            getResultFactory().failWithCodeAndStatus("recordService.updateStatus.receiptsNotFound",
+                ResultStatus.NOT_FOUND, [apiId])
         }] as RecordService
         controller.twimlBuilder = [noResponse: { ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:_closure)
+            new Result(status:ResultStatus.OK, payload:_closure)
         }] as TwimlBuilder
         params.handle = Constants.CALLBACK_STATUS
         params.CallSid = "sid"
@@ -104,13 +103,13 @@ class PublicRecordControllerSpec extends CustomSpec {
         boolean _didRetry = false
         controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
             Integer duration ->
-            new Result(type:ResultType.MESSAGE_STATUS, success:false,
-                payload:[status:NOT_FOUND, message:"error", code: "error"])
+            new Result(status:ResultStatus.NOT_FOUND,
+                payload:[statusCode:ResultStatus.NOT_FOUND.intStatus, message:"error"])
         }] as RecordService
         controller.callService = [retry: { PhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup ->
             _didRetry = true
-            new Result(type:ResultType.SUCCESS, success:true, payload:null)
+            new Result(status:ResultStatus.OK, payload:null)
         }] as CallService
 
         when: "updating status failed"
@@ -132,12 +131,12 @@ class PublicRecordControllerSpec extends CustomSpec {
         boolean _didRetry = false
         controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
             Integer duration ->
-            new Result(type:ResultType.SUCCESS, success:true)
+            new Result(status:ResultStatus.OK)
         }] as RecordService
         controller.callService = [retry: { PhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup ->
             _didRetry = true
-            new Result(type:ResultType.SUCCESS, success:true, payload:null)
+            new Result(status:ResultStatus.OK, payload:null)
         }] as CallService
 
         when: "updating status succeeds but the status is a failed status"

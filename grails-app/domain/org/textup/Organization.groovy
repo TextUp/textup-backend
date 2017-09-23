@@ -1,12 +1,10 @@
 package org.textup
 
 import groovy.transform.EqualsAndHashCode
-import org.hibernate.FlushMode
 import org.restapidoc.annotation.*
-import org.textup.types.StaffStatus
-import org.textup.types.OrgStatus
+import org.textup.type.StaffStatus
+import org.textup.type.OrgStatus
 import grails.compiler.GrailsCompileStatic
-import org.hibernate.Session
 
 @EqualsAndHashCode
 @RestApiObject(name="Organization", description="An organization of staff members and teams.")
@@ -48,7 +46,21 @@ class Organization {
     static constraints = {
     	name blank:false, validator:{ String val, Organization obj ->
     		//must have unique (name, location) combination
-    		if (obj.hasNameAndLocation(val, obj.location)) {
+            Closure<Boolean> hasNameAndLocation = {
+                List<Organization> orgs = Organization.createCriteria().list {
+                    eq("name", val)
+                    location {
+                        eq("lat", obj.location?.lat)
+                        eq("lon", obj.location?.lon)
+                    }
+                }
+                // if there are organizations found, then check to see if these organizations
+                // are DIFFERENT than the one we are trying to save. If there are organizations
+                // that have the same name and location that aren't this same organization
+                // then we have a duplicate
+                !orgs.isEmpty() && orgs.any { Organization org -> org.id != obj.id }
+            }
+    		if (val && obj.location && Helpers.<Boolean>doWithoutFlush(hasNameAndLocation)) {
                 ["duplicate", obj.location?.address]
             }
     	}
@@ -79,31 +91,6 @@ class Organization {
     }
     static List<Organization> search(String query, Map params=[:]) {
         ilikeForNameAndAddress(query).list(params)
-    }
-
-    // Validator
-    // ---------
-
-    @GrailsCompileStatic
-    protected boolean hasNameAndLocation(String n, Location loc) {
-        if ([n, loc].any { it == null }) return false
-        boolean hasDuplicate = false
-        Organization.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                Organization org = Organization.where {
-                    eq("name", n)
-                    location {
-                        eq("lat", loc.lat)
-                        eq("lon", loc.lon)
-                    }
-                }.get()
-                if (org && org.id != this.id) { hasDuplicate = true }
-            }
-            catch (e) { session.flushMode = FlushMode.AUTO }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        hasDuplicate
     }
 
     // Staff

@@ -1,12 +1,16 @@
 package org.textup.rest
 
 import grails.plugins.rest.client.RestResponse
-import org.textup.types.OrgStatus
-import org.textup.types.StaffStatus
+import org.textup.type.OrgStatus
+import org.textup.type.StaffStatus
 import org.textup.Constants
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 import org.textup.validator.EmailEntity
+
+// Note: The org relation on Staff must be lazy:false because the Staff object
+// somehow is detached from the session by the time it reaches the JSON marshaller
+// on some instances of the log-in operation
 
 class SignupFunctionalSpec extends RestSpec {
 

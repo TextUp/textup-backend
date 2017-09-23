@@ -12,11 +12,11 @@ import org.springframework.context.MessageSource
 import spock.lang.Ignore
 import spock.lang.Shared
 import org.textup.util.CustomSpec
-import org.textup.types.StaffStatus
+import org.textup.type.StaffStatus
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class TeamSpec extends CustomSpec {
 

@@ -10,7 +10,7 @@ import spock.lang.Specification
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class OutgoingMessageSpec extends CustomSpec {
 
@@ -19,7 +19,8 @@ class OutgoingMessageSpec extends CustomSpec {
 	}
 	def setup() {
 		setupData()
-		OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
+		OutgoingMessage.metaClass.getMessageSource = { -> messageSource }
+		addToMessageSource("outgoingMessage.getName.contactId")
 	}
 	def cleanup() {
 		cleanupData()

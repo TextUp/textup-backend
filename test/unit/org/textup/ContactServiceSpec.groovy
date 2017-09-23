@@ -6,19 +6,18 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
-import org.textup.types.ResultType
-import org.textup.types.ContactStatus
-import org.textup.types.StaffStatus
-import org.textup.types.SharePermission
+import org.textup.type.ContactStatus
+import org.textup.type.StaffStatus
+import org.textup.type.SharePermission
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
-import static org.springframework.http.HttpStatus.*
 
 @TestFor(ContactService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
   RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-  Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+  Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+  RecordNote, RecordNoteRevision, FutureMessage, SimpleFutureMessage])
 @TestMixin(HibernateTestMixin)
 class ContactServiceSpec extends CustomSpec {
 
@@ -28,6 +27,15 @@ class ContactServiceSpec extends CustomSpec {
     def setup() {
         super.setupData()
         service.resultFactory = getResultFactory()
+        service.messageSource = messageSource
+        service.authService = [
+            getLoggedInAndActive: { -> s1 }
+        ] as AuthService
+        service.socketService = [
+            sendItems: { List<? extends RecordItem> items ->
+                new Result(status:ResultStatus.OK, payload:items).toGroup()
+            }
+        ] as SocketService
     }
     def cleanup() {
         super.cleanupData()
@@ -38,40 +46,42 @@ class ContactServiceSpec extends CustomSpec {
 
     void "test validate number actions"() {
         when: "we create with number actions that isn't a list"
-        Result res = service.validateNumberActions("I am not a list")
+        Result res = service.create(p1, [doNumberActions:"I am not a list"])
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "contactService.numberActionNotList"
-        res.payload.status == BAD_REQUEST
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0].contains("custom validation")
 
         when: "we create with number actions that defines an unspecified action"
+        addToMessageSource("actionContainer.invalidActions")
         List doNumberActions = [[number:"12223334444", preference:0, action:"invalid"]]
-        res = service.validateNumberActions(doNumberActions)
+        res = service.create(p1, [doNumberActions:doNumberActions])
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "contactService.numberActionInvalid"
-        res.payload.status == BAD_REQUEST
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == "actionContainer.invalidActions"
     }
 
     void "test create"() {
         given: "baselines"
-        int cBaseline = Contact.count()
-        int nBaseline = ContactNumber.count()
+        boolean wasCalled = false
+        service.metaClass.createHelper = { Phone p1, Map body, List<String> nums ->
+            wasCalled = true
+            new Result(status:ResultStatus.CREATED, payload:[numbers:nums])
+        }
 
     	when: "we create with a null phone"
+        addToMessageSource("contactService.create.noPhone")
     	Result<Contact> res = service.create(null, [:])
 
     	then:
     	res.success == false
-    	res.type == ResultType.MESSAGE_STATUS
-    	res.payload.code == "contactService.create.noPhone"
-    	res.payload.status == UNPROCESSABLE_ENTITY
-        Contact.count() == cBaseline
-        ContactNumber.count() == nBaseline
+    	res.errorMessages[0] == "contactService.create.noPhone"
+    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        wasCalled == false
 
     	when: "we create with valid input that is a mix of add and delete number actions"
     	String num1 = "2223334444", num2 = "2223334445"
@@ -81,16 +91,15 @@ class ContactServiceSpec extends CustomSpec {
     		[number:"12223334443", action:Constants.NUMBER_ACTION_DELETE]
 		]]
     	res = service.create(s1.phone, contactInfo)
-    	assert res.success
+    	assert res.success == true
         s1.phone.save(flush:true, failOnError:true)
 
     	then: "delete number actions are ignored"
-    	res.payload instanceof Contact
+        wasCalled == true
+        res.status == ResultStatus.CREATED
     	res.payload.numbers.size() == 2
-    	res.payload.numbers[0].number == num1
-    	res.payload.numbers[1].number == num2
-        Contact.count() == cBaseline + 1
-        ContactNumber.count() == nBaseline + 2
+    	res.payload.numbers[0] == num1
+    	res.payload.numbers[1] == num2
     }
 
     // Update
@@ -102,13 +111,13 @@ class ContactServiceSpec extends CustomSpec {
         int nBaseline = ContactNumber.count()
 
         when: "we try to update a nonexistent contact"
+        addToMessageSource("contactService.update.notFound")
         Result res = service.update(-88L, [:])
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "contactService.update.notFound"
-        res.payload.status == NOT_FOUND
+        res.errorMessages[0] == "contactService.update.notFound"
+        res.status == ResultStatus.NOT_FOUND
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
 
@@ -118,6 +127,7 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Contact
         res.payload.name == name
         Contact.count() == cBaseline
@@ -139,8 +149,8 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.VALIDATION
-        res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
 
@@ -150,6 +160,7 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Contact
         res.payload.name == updateInfo.name
         res.payload.note == updateInfo.note
@@ -158,12 +169,36 @@ class ContactServiceSpec extends CustomSpec {
         ContactNumber.count() == nBaseline
     }
 
+    void "test updating with notification actions"() {
+        given: "baselines"
+        int cBaseline = Contact.count()
+        boolean wasServiceCalled = false
+        service.notificationService = [
+            handleNotificationActions: { Phone p1, Long recordId, Object rawActions ->
+                wasServiceCalled = true
+                new Result(status:ResultStatus.NO_CONTENT)
+            }
+        ] as NotificationService
+
+        when: "we have notification actions"
+        Map notifActions = [doNotificationActions:[[hello:"yes"]]]
+        Result res = service.handleNotificationActions(c1, notifActions)
+
+        then: "they are handled"
+        wasServiceCalled == true
+        res.success == true
+        res.payload instanceof Contact
+        res.payload.id == c1.id
+        Contact.count() == cBaseline
+    }
+
     void "test updating with number actions"() {
         given: "baselines"
         int cBaseline = Contact.count()
         int nBaseline = ContactNumber.count()
 
         when: "we try to delete nonexistent number"
+        addToMessageSource("contact.numberNotFound")
         Map numActions = [doNumberActions:[
             [number:"2223334443", action:Constants.NUMBER_ACTION_DELETE]
         ]]
@@ -171,8 +206,8 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE
-        res.payload.code == "contact.numberNotFound"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "contact.numberNotFound"
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
 
@@ -194,6 +229,7 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Contact
         res.payload.numbers.size() == 2
         res.payload.numbers[0].number == num1
@@ -210,6 +246,7 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Contact
         res.payload.numbers.size() == 1
         res.payload.numbers[0].number == num2
@@ -229,14 +266,15 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "contactService.update.shareActionNotList"
-        res.payload.status == BAD_REQUEST
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0].contains("custom validation") // "emptyOrNotACollection"
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline
 
         when: "we try to update with unspecified share actions"
+        addToMessageSource("actionContainer.invalidActions")
         updateInfo = [doShareActions:[
             [id:s2.phone.id, action:"invalid", permission:SharePermission.DELEGATE]
         ]]
@@ -244,9 +282,9 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "contactService.update.shareActionInvalid"
-        res.payload.status == BAD_REQUEST
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == "actionContainer.invalidActions"
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline
@@ -259,14 +297,15 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "contactService.update.phoneNotFound"
-        res.payload.status == NOT_FOUND
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == "actionContainer.invalidActions"
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline
 
         when: "we try to share with staff member we can't share with (on a different team)"
+        addToMessageSource("phone.share.cannotShare")
         updateInfo = [doShareActions:[
             [id:s3.phone.id, action:Constants.SHARE_ACTION_MERGE,
                 permission:SharePermission.DELEGATE]
@@ -275,12 +314,72 @@ class ContactServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "phone.share.cannotShare"
-        res.payload.status == FORBIDDEN
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == "phone.share.cannotShare"
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline
+    }
+
+    void "test building sharing messages"() {
+        given:
+        String code = "note.sharing.stop"
+        addToMessageSource(code)
+        int nBaseline = RecordNote.count()
+
+        when: "missing some information"
+        HashSet<String> names = new HashSet<>(["name1", "name2", "name3"])
+        Result<RecordNote> res = service.recordSharingChangesHelper(null, names,
+            code, s1.toAuthor())
+
+        then: "validation errors"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0].contains("null")
+        RecordNote.count() == nBaseline
+
+        when: "passing in an invalid code"
+        res = service.recordSharingChangesHelper(c1.record, names, "invalid code", s1.toAuthor())
+
+        then: "error"
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages.size() == 1
+        RecordNote.count() == nBaseline
+
+        when: "all valid info passed in"
+        res = service.recordSharingChangesHelper(c1.record, names, code, s1.toAuthor())
+
+        then: "a new record note is created"
+        res.status == ResultStatus.OK
+        res.payload instanceof RecordNote
+        RecordNote.count() == nBaseline + 1
+    }
+
+    void "test recording sharing changes"() {
+        given:
+        int nBaseline = RecordNote.count()
+        addToMessageSource(["note.sharing.stop", "note.sharing.view", "note.sharing.delegate"])
+
+        when: "no changes to record"
+        ResultGroup<RecordNote> resGroup = service.recordSharingChanges(c1.record, [:], [])
+
+        then: "empty result group"
+        resGroup.isEmpty == true
+        RecordNote.count() == nBaseline
+
+        when: "changes in permission and stop sharing"
+        Map<Phone,SharePermission> sharedWithToPermission = [(p1):SharePermission.DELEGATE,
+            (p2):SharePermission.VIEW]
+        Collection<Phone> stopSharingPhones = [tPh1]
+        resGroup = service.recordSharingChanges(c1.record, sharedWithToPermission, stopSharingPhones)
+
+        then: "three notes created"
+        resGroup.isEmpty == false
+        resGroup.successStatus == ResultStatus.OK
+        resGroup.payload.size() == 3
+        resGroup.successes.size() == 3
+        RecordNote.count() == nBaseline + 3
     }
 
     void "test share actions"() {
@@ -288,6 +387,8 @@ class ContactServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int nBaseline = ContactNumber.count()
         int sBaseline = SharedContact.count()
+        int noteBaseline = RecordNote.count()
+        addToMessageSource(["note.sharing.stop", "note.sharing.view", "note.sharing.delegate"])
 
         when: "we try to share a team's contacts"
         Map updateInfo = [doShareActions:[
@@ -297,7 +398,7 @@ class ContactServiceSpec extends CustomSpec {
         Result res = service.handleShareActions(c1, updateInfo)
         c1.save(flush:true, failOnError:true)
 
-        then:
+        then: "successfully shared + sharing changes noted in record"
         res.success == true
         res.payload instanceof Contact
         SharedContact.findBySharedWithAndSharedByAndContactAndPermission(t1.phone,
@@ -307,6 +408,7 @@ class ContactServiceSpec extends CustomSpec {
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline + 1
+        RecordNote.count() == noteBaseline + 1
 
         when: "we try to share with a staff member on the same team as us"
         s2.status = StaffStatus.STAFF // can only share with active staff
@@ -318,7 +420,7 @@ class ContactServiceSpec extends CustomSpec {
         res = service.handleShareActions(tC2, updateInfo)
         tC2.save(flush:true, failOnError:true)
 
-        then:
+        then: "shared + sharing changes noted in record"
         res.success == true
         res.payload instanceof Contact
         SharedContact.findBySharedWithAndSharedByAndContactAndPermission(s2.phone,
@@ -328,6 +430,7 @@ class ContactServiceSpec extends CustomSpec {
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline + 2
+        RecordNote.count() == noteBaseline + 2
 
         when: "we update permissions for the contact we just shared"
         updateInfo = [doShareActions:[
@@ -337,7 +440,7 @@ class ContactServiceSpec extends CustomSpec {
         res = service.handleShareActions(tC2, updateInfo)
         tC2.save(flush:true, failOnError:true)
 
-        then:
+        then: "updated + sharing changes noted in record"
         res.success == true
         res.payload instanceof Contact
         SharedContact.findBySharedWithAndSharedByAndContactAndPermission(s2.phone,
@@ -349,6 +452,7 @@ class ContactServiceSpec extends CustomSpec {
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline + 2
+        RecordNote.count() == noteBaseline + 3
 
         when: "we stop sharing"
         updateInfo = [doShareActions:[
@@ -357,7 +461,7 @@ class ContactServiceSpec extends CustomSpec {
         res = service.handleShareActions(tC2, updateInfo)
         tC2.save(flush:true, failOnError:true)
 
-        then:
+        then: "stopped sharing + sharing changes noted in record"
         res.success == true
         res.payload instanceof Contact
         SharedContact.findBySharedWithAndSharedByAndContactAndPermission(s2.phone,
@@ -367,5 +471,82 @@ class ContactServiceSpec extends CustomSpec {
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline + 2
+        RecordNote.count() == noteBaseline + 4
+    }
+
+    void "test merge actions"() {
+        given:
+        service.duplicateService = [
+            merge: { Contact targetContact, Collection<Contact> toMergeIn ->
+                new Result(status:ResultStatus.OK, payload:targetContact)
+            }
+        ] as DuplicateService
+
+        when: "invalid merge actions"
+        Result<Contact> res = service.handleMergeActions(c1, [doMergeActions:"i am invalid"])
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when: "merging with default settings"
+        String name = c1.name,
+            note = c1.note
+        res = service.handleMergeActions(c1, [doMergeActions: [
+            [action:Constants.MERGE_ACTION_DEFAULT, mergeIds:[c1_1.id]]
+        ]])
+        Contact.withSession { it.flush() }
+
+        then: "success and merged-in contacts marked as deleted"
+        res.status == ResultStatus.OK
+        res.payload instanceof Contact
+        res.payload.id == c1.id
+        res.payload.name == name
+        res.payload.note == note
+        Contact.get(c1_1.id).isDeleted == true
+
+        when: "merging and reconciling differences"
+        name = c1_2.name
+        note = c1_2.note
+        res = service.handleMergeActions(c1, [doMergeActions: [
+            [
+                action:Constants.MERGE_ACTION_RECONCILE,
+                mergeIds:[c1_2.id],
+                nameId:c1_2.id,
+                noteId:c1_2.id
+            ]
+        ]])
+        Contact.withSession { it.flush() }
+
+        then: "success and merged-in contacts marked as deleted"
+        res.status == ResultStatus.OK
+        res.payload instanceof Contact
+        res.payload.id == c1.id
+        res.payload.name == name
+        res.payload.note == note
+        Contact.get(c1_2.id).isDeleted == true
+    }
+
+    // Delete
+    // ------
+
+    void "test delete"() {
+        when: "deleting nonexistent contact"
+        addToMessageSource("contactService.delete.notFound")
+        Result<Void> res = service.delete(-88L)
+
+        then:
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == "contactService.delete.notFound"
+
+        when: "deleting existing contact"
+        assert c1.isDeleted == false
+        res = service.delete(c1.id)
+        Contact.withSession { it.flush() }
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        res.payload == null
+        Contact.get(c1.id).isDeleted == true
     }
 }

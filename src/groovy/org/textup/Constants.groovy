@@ -8,6 +8,9 @@ class Constants {
 	static final int MAX_REPEATS = 20
 	static final int TEXT_LENGTH = 160
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
+	// keep the space before the away message to aid in appropriate spacing when appending to ensure
+	// accurate count of how much to truncate for API consumers
+	static final String AWAY_EMERGENCY_MESSAGE = " If this is an emergency, contact 9 1 1."
 	static final int DEFAULT_TOKEN_LENGTH = 25
 
 	// Lock code
@@ -71,6 +74,12 @@ class Constants {
 	static final String JOB_DATA_FUTURE_MESSAGE_KEY = "futureMessageKey"
 	static final String JOB_DATA_STAFF_ID = "futureMessageStaffId"
 
+	// REST
+	// ----
+
+	static final String FALLBACK_SINGULAR = "result"
+	static final String FALLBACK_PLURAL = "results"
+
 	// REST actions
 	// ------------
 
@@ -85,6 +94,13 @@ class Constants {
 
 	static final String NUMBER_ACTION_MERGE = "merge"
 	static final String NUMBER_ACTION_DELETE = "delete"
+
+	static final String MERGE_ACTION_DEFAULT = "default"
+	static final String MERGE_ACTION_RECONCILE = "reconcile"
+
+	static final String NOTIFICATION_ACTION_DEFAULT = "changedefault"
+	static final String NOTIFICATION_ACTION_ENABLE = "enable"
+	static final String NOTIFICATION_ACTION_DISABLE = "disable"
 
 	static final String PHONE_ACTION_DEACTIVATE = "deactivate"
 	static final String PHONE_ACTION_TRANSFER = "transfer"

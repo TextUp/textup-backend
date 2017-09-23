@@ -1,13 +1,13 @@
 package org.textup
 
-import groovy.transform.EqualsAndHashCode
-import org.hibernate.FlushMode
-import org.restapidoc.annotation.*
-import org.textup.types.AuthorType
-import org.textup.types.ContactStatus
-import org.textup.validator.Author
 import grails.compiler.GrailsTypeChecked
-import org.hibernate.Session
+import groovy.transform.EqualsAndHashCode
+import groovy.transform.TypeCheckingMode
+import org.restapidoc.annotation.*
+import org.textup.rest.NotificationStatus
+import org.textup.type.AuthorType
+import org.textup.type.ContactStatus
+import org.textup.validator.Author
 
 @GrailsTypeChecked
 @EqualsAndHashCode
@@ -40,14 +40,29 @@ class ContactTag {
                 with relation to this tag",
             allowedType       = "List<[tagAction]>",
             useForCreation    = false,
-            presentInResponse = false)
+            presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName      = "doNotificationActions",
+            description       = "List of actions that customize notification settings for specific staff members",
+            allowedType       = "List<[notificationAction]>",
+            useForCreation    = true,
+            presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName   = "notificationStatuses",
+            description    = "Whether or not a specified staff member will be notified of updates for this specific contact",
+            allowedType    = "List<notificationStatus>",
+            useForCreation = false)
     ])
     static transients = []
     static hasMany = [members:Contact]
     static constraints = {
         name blank:false, nullable:false, validator:{ String val, ContactTag obj ->
             //for each phone, tags must have unique name
-            if (val && obj.sameTagExists(val)) { ["duplicate"] }
+            Closure<Boolean> sameTagExists = {
+                ContactTag tag = ContactTag.findByPhoneAndNameAndIsDeleted(obj.phone, val, false)
+                tag && tag.id != obj.id
+            }
+            if (val && Helpers.<Boolean>doWithoutFlush(sameTagExists)) { ["duplicate"] }
         }
     	hexColor blank:false, nullable:false, validator:{ String val, ContactTag obj ->
             //String must be a valid hex color
@@ -68,29 +83,34 @@ class ContactTag {
         }
     }
 
-    // Validator
-    // ---------
+    // Static finders
+    // --------------
 
-    protected boolean sameTagExists(String name) {
-        boolean duplicateTag = false
-        ContactTag.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                ContactTag tag = ContactTag.findByPhoneAndNameAndIsDeleted(phone,
-                    name, false)
-                if (tag && tag.id != this.id) { duplicateTag = true }
-            }
-            finally { session.flushMode = FlushMode.AUTO }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static List<ContactTag> findEveryByContactIds(Collection<Long> cIds) {
+        if (!cIds) {
+            return []
         }
-        duplicateTag
+        ContactTag
+            .createCriteria()
+            .listDistinct {
+                members {
+                    "in"("id", cIds)
+                    eq("isDeleted", false)
+                }
+                eq("isDeleted", false)
+            }
     }
 
-    // Property Access
+    // Property access
     // ---------------
 
     void setRecord(Record r) {
         this.record = r
         this.record?.save()
+    }
+    List<NotificationStatus> getNotificationStatuses() {
+        this.phone.owner.getNotificationStatusesForRecords([this.record.id])
     }
 
     // Record keeping

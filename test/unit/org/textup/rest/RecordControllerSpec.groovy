@@ -14,13 +14,12 @@ import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
 import grails.plugin.jodatime.converters.JodaConverters
-import org.textup.types.ResultType
 
 @TestFor(RecordController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision])
+    RecordNote, RecordNoteRevision, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class RecordControllerSpec extends CustomSpec {
 
@@ -30,6 +29,7 @@ class RecordControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
+        controller.recordService = [parseTypes:{ Collection<?> rawTypes -> [] }] as RecordService
     }
     def cleanup() {
         super.cleanupData()
@@ -97,8 +97,8 @@ class RecordControllerSpec extends CustomSpec {
     void "test list with no dates"() {
         when:
         request.method = "GET"
-        controller.listForClass(c1, Contact, params)
-        List<Long> ids = Helpers.allToLong(c1.items*.id)
+        controller.listForRecord(c1.record, params)
+        List<Long> ids = Helpers.allTo(Long, c1.items*.id)
 
         then:
         response.status == SC_OK
@@ -111,8 +111,8 @@ class RecordControllerSpec extends CustomSpec {
         DateTime since = DateTime.now().minusDays(1)
         request.method = "GET"
         params.since = since.toDate()
-        controller.listForClass(c1, Contact, params)
-        List<Long> ids = Helpers.allToLong(c1.getSince(since)*.id)
+        controller.listForRecord(c1.record, params)
+        List<Long> ids = Helpers.allTo(Long, c1.getSince(since)*.id)
 
         then:
         response.status == SC_OK
@@ -127,8 +127,8 @@ class RecordControllerSpec extends CustomSpec {
         request.method = "GET"
         params.since = since.toDate()
         params.before = before.toDate()
-        controller.listForClass(c1, Contact, params)
-        List<Long> ids = Helpers.allToLong(c1.getBetween(since, before)*.id)
+        controller.listForRecord(c1.record, params)
+        List<Long> ids = Helpers.allTo(Long, c1.getBetween(since, before)*.id)
 
         then:
         response.status == SC_OK
@@ -189,15 +189,15 @@ class RecordControllerSpec extends CustomSpec {
 
     protected void mockForSave() {
         controller.recordService = [createForStaff:{ Map body ->
-            ResultList resList = new ResultList()
-            resList << new Result(type:ResultType.SUCCESS, success:true, payload:rText1)
-            resList << new Result(type:ResultType.SUCCESS, success:true, payload:rText2)
-            resList
+            ResultGroup resGroup = new ResultGroup()
+            resGroup << new Result(status:ResultStatus.CREATED, payload:rText1)
+            resGroup << new Result(status:ResultStatus.CREATED, payload:rText2)
+            resGroup
         }, createForTeam:{ Long tId, Map body ->
-            ResultList resList = new ResultList()
-            resList << new Result(type:ResultType.SUCCESS, success:true, payload:teTag1)
-            resList << new Result(type:ResultType.SUCCESS, success:true, payload:teTag2)
-            resList
+            ResultGroup resGroup = new ResultGroup()
+            resGroup << new Result(status:ResultStatus.CREATED, payload:teTag1)
+            resGroup << new Result(status:ResultStatus.CREATED, payload:teTag2)
+            resGroup
         }] as RecordService
     }
 
@@ -293,7 +293,7 @@ class RecordControllerSpec extends CustomSpec {
         note1.save(flush:true, failOnError:true)
 
         controller.recordService = [delete:{ Long id ->
-            new Result(success:true)
+            new Result(status:ResultStatus.NO_CONTENT)
         }] as RecordService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },

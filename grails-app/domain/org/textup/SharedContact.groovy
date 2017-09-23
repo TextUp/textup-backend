@@ -1,15 +1,16 @@
 package org.textup
 
 import grails.compiler.GrailsCompileStatic
+import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
-import org.textup.types.ContactStatus
-import org.textup.types.SharePermission
+import org.textup.rest.NotificationStatus
+import org.textup.type.ContactStatus
+import org.textup.type.SharePermission
 import org.textup.validator.TempRecordReceipt
-import static org.springframework.http.HttpStatus.*
 
 @EqualsAndHashCode
 @RestApiObject(
@@ -69,16 +70,28 @@ class SharedContact implements Contactable {
             sharedBy { isNotNull("numberAsString") }
             eq('contact', c1)
             eq('sharedBy', c1.phone)
+            contact {
+                // must not be deleted
+                eq("isDeleted", false)
+            }
         }
         forContactAndSharedWith { Contact c1, Phone sWith ->
             sharedBy { isNotNull("numberAsString") }
             eq('contact', c1)
             eq('sharedWith', sWith)
+            contact {
+                // must not be deleted
+                eq("isDeleted", false)
+            }
         }
         forSharedByAndSharedWith { Phone sBy, Phone sWith ->
             sharedBy { isNotNull("numberAsString") }
             eq('sharedBy', sBy)
             eq('sharedWith', sWith)
+            contact {
+                // must not be deleted
+                eq("isDeleted", false)
+            }
         }
         sharedWithMe { Phone sWith ->
             sharedBy { isNotNull("numberAsString") }
@@ -89,6 +102,8 @@ class SharedContact implements Contactable {
             }
             contact {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                // must not be deleted
+                eq("isDeleted", false)
             }
             order("whenCreated", "desc")
         }
@@ -102,6 +117,8 @@ class SharedContact implements Contactable {
             }
             contact {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                // must not be deleted
+                eq("isDeleted", false)
             }
         }
     }
@@ -151,6 +168,8 @@ class SharedContact implements Contactable {
                 "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
                 if (cIds) { "in"("id", cIds) }
                 else { eq("id", null) }
+                // must not be deleted
+                eq("isDeleted", false)
             }
             order("whenCreated", "desc")
         }
@@ -173,9 +192,21 @@ class SharedContact implements Contactable {
             contact {
                 if (cIds) { "in"("id", cIds) }
                 else { eq("id", null) }
+                // must not be deleted
+                eq("isDeleted", false)
             }
             order("whenCreated", "desc")
         }
+    }
+    static DetachedCriteria<SharedContact> buildForContacts(Collection<Contact> contacts) {
+        // do not exclude deleted contacts here becuase this detached criteria is used for
+        // bulk operations. For bulk operations, joins are not allowed, so we cannot join the
+        // SharedContact table with the Contact table to screen out deleted contacts
+        new DetachedCriteria(SharedContact)
+            .build {
+                if (contacts) { "in"("contact", contacts) }
+                else { eq("contact", null) }
+            }
     }
 
     // Sharing
@@ -279,19 +310,43 @@ class SharedContact implements Contactable {
     }
 
     @GrailsCompileStatic
+    List<NotificationStatus> getNotificationStatuses() {
+        // If we are modifying through a shared contact in contactService, we use the contact id
+        // so it's indistinguishable whether we own the contact being updated or we are a collaborator
+        // Therefore, any notification policies for collaborators will be stored in the sharedBy phone
+        // and when we are getting notification statuses for the sharedWith collabors, we must
+        // go to the sharedBy phone to retrieve the notification policies
+        if (this.canView) {
+            sharedBy.owner.getNotificationStatusesForStaffsAndRecords(this.sharedWith.owner.all,
+                [this.contact.record.id])
+        }
+        else { [] }
+    }
+
+    @GrailsCompileStatic
     Record getRecord() {
         this.canModify ? this.contact.record : null
     }
     @GrailsCompileStatic
-    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt, Staff staff) {
-        this.canModify ? this.contact.storeOutgoingText(message, receipt, staff) :
-            resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                "sharedContact.insufficientPermission")
+    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt,
+        Staff staff = null) {
+        if (this.canModify) {
+            this.contact.storeOutgoingText(message, receipt, staff)
+        }
+        else {
+            resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
+                ResultStatus.FORBIDDEN)
+        }
     }
     @GrailsCompileStatic
-    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff) {
-        this.canModify ? this.contact.storeOutgoingCall(receipt, staff) :
-            resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                "sharedContact.insufficientPermission")
+    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff = null,
+        String message = null) {
+        if (this.canModify) {
+            this.contact.storeOutgoingCall(receipt, staff, message)
+        }
+        else {
+            resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
+                ResultStatus.FORBIDDEN)
+        }
     }
 }

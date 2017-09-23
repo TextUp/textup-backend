@@ -10,12 +10,12 @@ import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
-import org.textup.types.CallResponse
-import org.textup.types.PhoneOwnershipType
-import org.textup.types.RecordItemType
-import org.textup.types.ResultType
-import org.textup.types.StaffStatus
-import org.textup.types.TextResponse
+import org.textup.type.CallResponse
+import org.textup.type.PhoneOwnershipType
+import org.textup.type.ReceiptStatus
+import org.textup.type.RecordItemType
+import org.textup.type.StaffStatus
+import org.textup.type.TextResponse
 import org.textup.util.CustomSpec
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
@@ -27,7 +27,7 @@ import static org.springframework.http.HttpStatus.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole])
+	AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class CallbackServiceSpec extends CustomSpec {
 
@@ -45,24 +45,27 @@ class CallbackServiceSpec extends CustomSpec {
     		["textup.apiKeys.twilio.authToken":_authToken]
 		}] as GrailsApplication
 		Phone.metaClass.receiveText = { IncomingText text, IncomingSession session ->
-			new Result(type:ResultType.SUCCESS, success:true, payload:"receiveText")
+			new Result(status:ResultStatus.OK, payload:"receiveText")
 		}
-		Phone.metaClass.startVoicemail = { PhoneNumber fromNum, PhoneNumber toNum ->
-			new Result(type:ResultType.SUCCESS, success:true, payload:"startVoicemail")
+        Phone.metaClass.receiveCall = { String apiId, String digits, IncomingSession session ->
+            new Result(status:ResultStatus.OK, payload:"receiveCall")
+        }
+        Phone.metaClass.screenIncomingCall = { IncomingSession session ->
+            new Result(status:ResultStatus.OK, payload:"screenIncomingCall")
+        }
+		Phone.metaClass.tryStartVoicemail = { PhoneNumber fromNum, PhoneNumber toNum, ReceiptStatus status ->
+			new Result(status:ResultStatus.OK, payload:"tryStartVoicemail")
 		}
         Phone.metaClass.completeVoicemail = { String callId, String recordingId, String voicemailUrl,
             Integer voicemailDuration ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:"completeVoicemail")
+            new Result(status:ResultStatus.OK, payload:"completeVoicemail")
         }
 		Phone.metaClass.finishBridgeCall = { Contact c1 ->
-			new Result(type:ResultType.SUCCESS, success:true, payload:"finishBridgeCall")
+			new Result(status:ResultStatus.OK, payload:"finishBridgeCall")
 		}
 		Phone.metaClass.completeCallAnnouncement = { String digits, String message,
         	String identifier, IncomingSession session ->
-			new Result(type:ResultType.SUCCESS, success:true, payload:"completeCallAnnouncement")
-		}
-		Phone.metaClass.receiveCall = { String apiId, String digits, IncomingSession session ->
-			new Result(type:ResultType.SUCCESS, success:true, payload:"receiveCall")
+			new Result(status:ResultStatus.OK, payload:"completeCallAnnouncement")
 		}
     }
 
@@ -72,13 +75,13 @@ class CallbackServiceSpec extends CustomSpec {
 
     protected TwimlBuilder getTwimlBuilder() {
         [build:{ code, params=[:] ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:code)
+            new Result(status:ResultStatus.OK, payload:code)
         }, noResponse: { ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:"noResponse")
+            new Result(status:ResultStatus.OK, payload:"noResponse")
         }, notFoundForText: { ->
-        	new Result(type:ResultType.SUCCESS, success:true, payload:"notFoundForText")
+        	new Result(status:ResultStatus.OK, payload:"notFoundForText")
     	}, notFoundForCall: { ->
-    		new Result(type:ResultType.SUCCESS, success:true, payload:"notFoundForCall")
+    		new Result(status:ResultStatus.OK, payload:"notFoundForCall")
     	}] as TwimlBuilder
     }
 
@@ -87,6 +90,7 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test extracting twilio params"() {
     	when:
+        addToMessageSource("callbackService.validate.invalid")
     	HttpServletRequest request = [
     		getParameterMap: { [test1:"hello", test2:"bye"] },
     		getQueryString: { "test3=bye&" }
@@ -140,14 +144,42 @@ class CallbackServiceSpec extends CustomSpec {
     	res.payload == "notFoundForText"
 
     	when: "neither messageSid nor callSid specified"
+        addToMessageSource("callbackService.process.invalid")
     	params = new GrailsParameterMap([To:p1.numberAsString, From:"1112223333"], request)
 		res = service.process(params)
 
     	then:
     	res.success == false
-    	res.type == ResultType.MESSAGE_STATUS
-    	res.payload.status == BAD_REQUEST
-    	res.payload.code == "callbackService.process.invalid"
+    	res.status == ResultStatus.BAD_REQUEST
+    	res.errorMessages[0] == "callbackService.process.invalid"
+    }
+
+    void "test process for utility call responses"() {
+        when: "retrieving a outgoing direct message delivered through call"
+        HttpServletRequest request = [:] as HttpServletRequest
+        GrailsParameterMap params = new GrailsParameterMap(
+            [handle:CallResponse.DIRECT_MESSAGE.toString()], request)
+        Result<Closure> res = service.process(params)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == CallResponse.DIRECT_MESSAGE
+
+        when: "no-op"
+        params = new GrailsParameterMap([handle:CallResponse.DO_NOTHING.toString()], request)
+        res = service.process(params)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == CallResponse.DO_NOTHING
+
+        when: "hanging up"
+        params = new GrailsParameterMap([handle:CallResponse.END_CALL.toString()], request)
+        res = service.process(params)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == CallResponse.END_CALL
     }
 
     void "test process for texts"() {
@@ -173,35 +205,44 @@ class CallbackServiceSpec extends CustomSpec {
    		then: "no duplicate session is created"
    		IncomingSession.count() == iBaseline + 1
 		res.success == true
+        res.status == ResultStatus.OK
 		res.payload == "receiveText"
     }
 
-    void "test process for incoming calls"() {
+    void "test process for incoming calls and voicemail"() {
         when: "starting voicemail"
         HttpServletRequest request = [:] as HttpServletRequest
         String clientNum = "1233834920"
         GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
-            handle:CallResponse.VOICEMAIL.toString()],
+            handle:CallResponse.SCREEN_INCOMING.toString()],
             request)
         // voicemail is inbound so from client to TextUp phone
-        params.From = clientNum
-        params.To = p1.numberAsString
+        // but we use a relayed call to allow for screening so we store the
+        // originalFrom and use the From of the second bridged call to keep track
+        //  of the "from" client and the "to" TextUp phone number
+        params.originalFrom = clientNum
+        params.From = p1.numberAsString
         Result<Closure> res = service.process(params)
 
         then:
         res.success == true
-        res.payload == "startVoicemail"
+        res.status == ResultStatus.OK
+        res.payload == "screenIncomingCall"
 
-        when: "voicemail stub no-op from action webhook in Record verb"
-        params.handle = CallResponse.VOICEMAIL_STUB
+        when: "in the status callback, check to see if the call was answered and if voicemail should start"
+        params.From = clientNum
+        params.To = p1.numberAsString
+        params.DialCallStatus = "in-progress"
+        params.handle = CallResponse.CHECK_IF_VOICEMAIL.toString()
         res = service.process(params)
 
         then:
         res.success == true
-        res.payload == "noResponse"
+        res.status == ResultStatus.OK
+        res.payload == "tryStartVoicemail"
 
         when: "completing voicemail"
-        params.handle = CallResponse.VOICEMAIL_DONE
+        params.handle = CallResponse.VOICEMAIL_DONE.toString()
         params.RecordingSid = "recording id"
         params.RecordingDuration = 88
         params.RecordingUrl = "https://www.example.com"
@@ -209,6 +250,7 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == "completeVoicemail"
 
         when: "unspecified or invalid"
@@ -217,6 +259,7 @@ class CallbackServiceSpec extends CustomSpec {
 
         then: "receive call"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == "receiveCall"
     }
 
@@ -234,6 +277,7 @@ class CallbackServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
 		res.payload == "finishBridgeCall"
 
 		when: "announcement and digits"
@@ -242,24 +286,7 @@ class CallbackServiceSpec extends CustomSpec {
 
 		then:
 		res.success == true
+        res.status == ResultStatus.OK
 		res.payload == "completeCallAnnouncement"
-    }
-
-    void "test process for direct message outbound calls"() {
-        when: "direct message"
-        HttpServletRequest request = [:] as HttpServletRequest
-        String msg = "hi"
-        String identifier = "nameHere"
-        GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
-            handle:CallResponse.DIRECT_MESSAGE.toString(),
-            message:msg, identifier:identifier],
-            request)
-        params.From = "1233834920"
-        params.To = "1112223333"
-        Result<Closure> res = service.process(params)
-
-        then:
-        res.success == true
-        res.payload == CallResponse.DIRECT_MESSAGE
     }
 }

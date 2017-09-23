@@ -2,13 +2,11 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import org.hibernate.FlushMode
-import org.hibernate.Session
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
-import org.textup.types.RecordItemType
+import org.textup.type.RecordItemType
 
 @GrailsTypeChecked
 @EqualsAndHashCode
@@ -130,47 +128,39 @@ class FeaturedAnnouncement {
     int getNumTextReceipts() {
         AnnouncementReceipt.countByAnnouncementAndType(this, RecordItemType.TEXT)
     }
-    ResultList<AnnouncementReceipt> addToReceipts(RecordItemType type, IncomingSession session) {
+    ResultGroup<AnnouncementReceipt> addToReceipts(RecordItemType type, IncomingSession session) {
         addToReceipts(type, [session])
     }
-    ResultList<AnnouncementReceipt> addToReceipts(RecordItemType type,
+    ResultGroup<AnnouncementReceipt> addToReceipts(RecordItemType type,
         Collection<IncomingSession> sessions) {
-        ResultList<AnnouncementReceipt> resList = new ResultList<>()
-        HashSet<IncomingSession> sessionsWithReceipt = repeatsForTypeAndSessions(type, sessions)
+        ResultGroup<AnnouncementReceipt> resGroup = new ResultGroup<>()
+        HashSet<Long> sessionIdsWithReceipt = repeatsForTypeAndSessions(type, sessions)
         sessions.each { IncomingSession session ->
-            if (!sessionsWithReceipt.contains(session)) {
+            if (!sessionIdsWithReceipt.contains(session.id)) {
                 AnnouncementReceipt receipt = new AnnouncementReceipt(type:type,
                     session:session, announcement:this)
                 if (receipt.save()) {
                     _receiptsToBeSaved = _receiptsToBeSaved ?:
                         new ArrayList<AnnouncementReceipt>()
                     _receiptsToBeSaved << receipt
-                    resList << resultFactory.success(receipt)
+                    resGroup << resultFactory.success(receipt)
                 }
                 else {
-                    resList << resultFactory.failWithValidationErrors(receipt.errors)
+                    resGroup << resultFactory.failWithValidationErrors(receipt.errors)
                 }
             }
         }
-        resList
+        resGroup
     }
-    protected HashSet<IncomingSession> repeatsForTypeAndSessions(RecordItemType type,
+    protected HashSet<Long> repeatsForTypeAndSessions(RecordItemType type,
         Collection<IncomingSession> sessions) {
-        Collection<AnnouncementReceipt> repeats = _receiptsToBeSaved?.findAll {
-            it.type == type && it.session in sessions
-        } ?: new ArrayList<AnnouncementReceipt>()
-        HashSet<IncomingSession> sessionsWithReceipt = new HashSet<>(repeats*.session)
-        AnnouncementReceipt.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                repeats = AnnouncementReceipt
-                    .findAllByAnnouncementAndTypeAndSessionInList(this, type, sessions)
-                sessionsWithReceipt.addAll(repeats*.session)
-            }
-            finally {
-                session.flushMode = FlushMode.AUTO
-            }
-        }
-        sessionsWithReceipt
+        Helpers.<HashSet<Long>>doWithoutFlush({
+            Collection<AnnouncementReceipt> repeats = _receiptsToBeSaved?.findAll {
+                it.type == type && it.session in sessions
+            } ?: new ArrayList<AnnouncementReceipt>()
+            repeats += AnnouncementReceipt.findAllByAnnouncementAndTypeAndSessionInList(this,
+                type, sessions)
+            new HashSet<Long>(repeats*.session*.id)
+        })
     }
 }

@@ -1,19 +1,22 @@
 package org.textup
 
+import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.textup.types.SharePermission
+import org.textup.rest.NotificationStatus
+import org.textup.type.NotificationLevel
+import org.textup.type.SharePermission
 import org.textup.util.CustomSpec
 import spock.lang.Ignore
 import spock.lang.Shared
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class SharedContactSpec extends CustomSpec {
 
@@ -79,8 +82,10 @@ class SharedContactSpec extends CustomSpec {
     	List<SharedContact> sByMe = SharedContact.listSharedByMe(p1)
 
     	then:
-    	sWithMe == [sc2]
-    	sByMe == [sc1.contact]
+        sWithMe.size() == 1
+    	sWithMe[0].id == sc2.id
+        sByMe.size() == 1
+    	sByMe[0].id == sc1.contact.id
     	sc1.isActive == true
 		sc2.isActive == true
 		sc1.canModify == true
@@ -104,8 +109,9 @@ class SharedContactSpec extends CustomSpec {
 		sByMe = SharedContact.listSharedByMe(p1)
 
 		then:
-		sWithMe == []
-    	sByMe == [sc1.contact]
+		sWithMe.isEmpty()
+        sByMe.size() == 1
+        sByMe[0].id == sc1.contact.id
     	sc1.isActive == true
 		sc2.isActive == false
 		sc1.canModify == true
@@ -133,8 +139,8 @@ class SharedContactSpec extends CustomSpec {
         sByMe = SharedContact.listSharedByMe(p1)
 
         then:
-        sWithMe == []
-        sByMe == []
+        sWithMe.isEmpty()
+        sByMe.isEmpty()
         sc1.isActive == true
         sc2.isActive == false
         sc1.canModify == true
@@ -263,5 +269,119 @@ class SharedContactSpec extends CustomSpec {
         then: "does not show up anymore"
         sCont == null
         scList.isEmpty() == true
+    }
+
+    void "test static finders for contact deletion"() {
+        given: "two valid phones"
+        Phone phone1 = new Phone(numberAsString:randPhoneNumber())
+        phone1.resultFactory = getResultFactory()
+        phone1.resultFactory.messageSource = messageSource
+        phone1.updateOwner(s1)
+        phone1.save(flush:true, failOnError:true)
+        Phone phone2 = new Phone(numberAsString:randPhoneNumber())
+        phone2.resultFactory = getResultFactory()
+        phone2.resultFactory.messageSource = messageSource
+        phone2.updateOwner(s2)
+        phone2.save(flush:true, failOnError:true)
+        assert phone1.canShare(phone2) == true
+
+        when: "valid contacts and shared contacts"
+        Contact contact1 = phone1.createContact([:], [randPhoneNumber()]).payload
+        SharedContact sc1 = phone1.share(contact1, phone2, SharePermission.DELEGATE).payload
+        SharedContact.withSession { it.flush() }
+
+        then:
+        SharedContact.listForContact(contact1)[0]?.id == sc1.id
+        SharedContact.listForContactAndSharedWith(contact1, phone2)[0]?.id == sc1.id
+        SharedContact.listForSharedByAndSharedWith(phone1, phone2)[0]?.id == sc1.id
+        SharedContact.countSharedWithMe(phone2) == 1
+        SharedContact.listSharedWithMe(phone2)[0]?.id == sc1.id
+        SharedContact.countSharedByMe(phone1) == 1
+        SharedContact.listSharedByMe(phone1)[0]?.id == sc1.contactId
+        SharedContact.findByContactIdAndSharedWith(contact1.id, phone2)?.id == sc1.id
+        SharedContact.findEveryByContactIdsAndSharedWith([contact1.id], phone2)[0]?.id == sc1.id
+        SharedContact.findByContactIdAndSharedBy(contact1.id, phone1)?.id == sc1.id
+        SharedContact.findEveryByContactIdsAndSharedBy([contact1.id], phone1)[0]?.id == sc1.id
+
+        when: "contact marked as deleted"
+        contact1.isDeleted = true
+        contact1.save(flush:true, failOnError:true)
+
+        then:
+        SharedContact.listForContact(contact1).isEmpty() == true
+        SharedContact.listForContactAndSharedWith(contact1, phone2).isEmpty() == true
+        SharedContact.listForSharedByAndSharedWith(phone1, phone2).isEmpty() == true
+        SharedContact.countSharedWithMe(phone2) == 0
+        SharedContact.listSharedWithMe(phone2).isEmpty() == true
+        SharedContact.countSharedByMe(phone1) == 0
+        SharedContact.listSharedByMe(phone1).isEmpty() == true
+        SharedContact.findByContactIdAndSharedWith(contact1.id, phone2) == null
+        SharedContact.findEveryByContactIdsAndSharedWith([contact1.id], phone2).isEmpty() == true
+        SharedContact.findByContactIdAndSharedBy(contact1.id, phone1) == null
+        SharedContact.findEveryByContactIdsAndSharedBy([contact1.id], phone1).isEmpty() == true
+    }
+
+    void "test getting notification statuses for a shared contact"() {
+        given: "sharedBy owner with some policies"
+        PhoneOwnership sByOwner = sc1.sharedBy.owner
+        PhoneOwnership sWithOwner = sc1.sharedWith.owner
+        assert sByOwner.policies == null
+        assert sWithOwner.policies == null
+
+        Long noNotifyStaffId = sWithOwner.all[0].id
+        NotificationPolicy np1 = new NotificationPolicy(staffId:noNotifyStaffId,
+            level:NotificationLevel.NONE)
+        sByOwner.addToPolicies(np1)
+        [sByOwner, np1]*.save(flush:true, failOnError:true)
+        assert sByOwner.policies != null
+
+        when: "we ask about notification statuses"
+        List<NotificationStatus> statuses = sc1.getNotificationStatuses()
+        List<Staff> sWithStaffIds = sWithOwner.all*.id
+
+        then: "we look in the sharedBy owner's policies NOT the sharedWith owner's policies \
+            and the staff members we return are the staff members are from the sharedWith owner"
+        statuses.isEmpty() == false
+        statuses.size() == sWithStaffIds.size()
+        statuses.each { NotificationStatus stat1 ->
+            if (stat1.staff.id == noNotifyStaffId) {
+                assert stat1.canNotify == false
+            }
+            else {
+                assert sWithStaffIds.contains(stat1.staff.id) && stat1.canNotify == true
+            }
+        }
+    }
+
+    void "test building detached criteria for records"() {
+        given: "valid contacts and shared contacts"
+        Contact contact1 = p1.createContact([:], [randPhoneNumber()]).payload
+        Contact contact2 = p1.createContact([:], [randPhoneNumber()]).payload
+
+        SharedContact sc1 = p1.share(contact1, p2, SharePermission.DELEGATE).payload
+        SharedContact sc2 = p1.share(contact2, p2, SharePermission.DELEGATE).payload
+
+        SharedContact.withSession { it.flush() }
+
+        when: "build detached criteria for these items"
+        DetachedCriteria<SharedContact> detachedCrit = SharedContact.buildForContacts([contact1, contact2])
+        List<SharedContact> sharedList = detachedCrit.list()
+        Collection<Long> targetIds = [sc1, sc2]*.id
+
+        then: "we are able to fetch these items back from the db"
+        sharedList.size() == 2
+        sharedList.every { it.id in targetIds }
+
+        when: "contacts are marked as deleted"
+        [contact1, contact2].each { Contact contact ->
+            contact.isDeleted = true
+            contact.save(flush:true, failOnError:true)
+        }
+        detachedCrit = SharedContact.buildForContacts([contact1, contact2])
+        sharedList = detachedCrit.list()
+
+        then: "still shows up because this detached criteria (used for bulk operations) cannot have joins"
+        sharedList.size() == 2
+        sharedList.every { it.id in targetIds }
     }
 }

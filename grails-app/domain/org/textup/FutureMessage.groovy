@@ -1,11 +1,11 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TypeCheckingMode
 import java.util.concurrent.TimeUnit
 import java.util.UUID
-import org.hibernate.FlushMode
-import org.hibernate.Session
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -15,7 +15,7 @@ import org.quartz.SimpleScheduleBuilder
 import org.quartz.Trigger
 import org.quartz.TriggerKey
 import org.restapidoc.annotation.*
-import org.textup.types.FutureMessageType
+import org.textup.type.FutureMessageType
 import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
@@ -113,7 +113,6 @@ class FutureMessage {
     // Events
     // ------
 
-
     def afterInsert() {
         refreshTrigger()
     }
@@ -124,19 +123,30 @@ class FutureMessage {
     	refreshTrigger()
     }
 
+    // Static finders
+    // --------------
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static DetachedCriteria<FutureMessage> buildForRecords(Collection<Record> records) {
+        new DetachedCriteria(FutureMessage)
+            .build {
+                if (records) { "in"("record", records) }
+                else { eq("record", null) }
+            }
+    }
+
     // Methods
     // -------
 
-    Result cancel() {
+    Result<Void> cancel() {
         this.isDone = true
         doUnschedule()
-
     }
 
     // Helper Methods
     // --------------
 
-    protected Result doUnschedule() {
+    protected Result<Void> doUnschedule() {
         futureMessageService.unschedule(this)
             .logFail("FutureMessage.cancel")
     }
@@ -158,23 +168,19 @@ class FutureMessage {
     // ---------------
 
     OutgoingMessage toOutgoingMessage() {
-        OutgoingMessage msg = new OutgoingMessage(message:this.message)
-        // set type
-        msg.type = this.type?.toRecordItemType()
-        // set recipients (manual flush)
-        FutureMessage.withSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                ContactTag tag = ContactTag.findByRecord(this.record)
-                if (tag) { msg.tags << tag  }
-                else {
-                    Contact contact = Contact.findByRecord(this.record)
-                    if (contact) { msg.contacts << contact }
-                }
+        Helpers.<OutgoingMessage>doWithoutFlush({
+            OutgoingMessage msg = new OutgoingMessage(message:this.message)
+            // set type
+            msg.type = this.type?.toRecordItemType()
+            // set recipients (manual flush)
+            ContactTag tag = ContactTag.findByRecord(this.record)
+            if (tag) { msg.tags << tag  }
+            else {
+                Contact contact = Contact.findByRecord(this.record)
+                if (contact) { msg.contacts << contact }
             }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        msg
+            msg
+        })
     }
 
     DateTime getNextFireDate() {

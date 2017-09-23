@@ -10,9 +10,9 @@ import org.quartz.Trigger
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
-import org.textup.jobs.FutureMessageJob
-import org.textup.types.FutureMessageType
-import org.textup.types.ReceiptStatus
+import org.textup.job.FutureMessageJob
+import org.textup.type.FutureMessageType
+import org.textup.type.ReceiptStatus
 import org.textup.util.*
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber

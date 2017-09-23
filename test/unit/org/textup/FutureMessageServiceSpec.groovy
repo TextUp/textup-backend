@@ -9,11 +9,11 @@ import java.util.UUID
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.quartz.SimpleTrigger
-import org.textup.types.FutureMessageType
-import org.textup.types.RecordItemType
-import org.textup.types.ResultType
+import org.textup.type.FutureMessageType
+import org.textup.type.RecordItemType
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
+import org.textup.validator.BasicNotification
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
@@ -23,7 +23,7 @@ import static org.springframework.http.HttpStatus.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage])
+	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 @TestFor(FutureMessageService)
 class FutureMessageServiceSpec extends CustomSpec {
@@ -39,20 +39,27 @@ class FutureMessageServiceSpec extends CustomSpec {
         _numTextsSent = 0
     	setupData()
     	service.resultFactory = getResultFactory()
-        service.messageSource = mockMessageSource()
-        service.tokenService = [notifyStaff:{ Phone p1, Staff s1, Long recordId,
-            Boolean outgoing, String msg, String instructions ->
-            _numTextsSent++
-            new Result(type:ResultType.SUCCESS, success:true)
-        }]  as TokenService
+        service.messageSource = messageSource
+        service.notificationService = [
+            build: { Phone targetPhone, List<Contact> contacts ->
+                [new BasicNotification()]
+            }
+        ] as NotificationService
+        service.tokenService = [
+            notifyStaff:{ BasicNotification bn1, Boolean outgoing, String msg,
+                String instructions ->
+                _numTextsSent++
+                new Result(status:ResultStatus.NO_CONTENT, payload:null)
+            }
+        ]  as TokenService
         service.socketService = [
             sendItems:{ List<RecordItem> items,
                 String eventName=Constants.SOCKET_EVENT_RECORDS ->
-                new ResultList(new Result(success:true))
+                new Result(status:ResultStatus.OK).toGroup()
             },
             sendFutureMessages: { List<FutureMessage> fMsgs,
                 String eventName=Constants.SOCKET_EVENT_FUTURE_MESSAGES ->
-                new ResultList(new Result(success:true))
+                new Result(status:ResultStatus.OK).toGroup()
             }
         ] as SocketService
 
@@ -77,54 +84,53 @@ class FutureMessageServiceSpec extends CustomSpec {
     // Test job execution
     // ------------------
 
-    // void "test mark done"() {
-    // 	when: "passed in a nonexistent keyName"
-    // 	Result<FutureMessage> res = service.markDone("nonexistent")
+    void "test mark done"() {
+    	when: "passed in a nonexistent keyName"
+        addToMessageSource("futureMessageService.markDone.messageNotFound")
+    	Result<FutureMessage> res = service.markDone("nonexistent")
 
-    // 	then: "not found"
-    // 	res.success == false
-    // 	res.type == ResultType.MESSAGE_STATUS
-    // 	res.payload.status == NOT_FOUND
-    // 	res.payload.code == "futureMessageService.markDone.messageNotFound"
+    	then: "not found"
+    	res.success == false
+    	res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "futureMessageService.markDone.messageNotFound"
 
-    // 	when: "passed in an existing keyName"
-    // 	assert fMsg1.isDone == false
-    // 	res = service.markDone(fMsg1.keyName)
+    	when: "passed in an existing keyName"
+    	assert fMsg1.isDone == false
+    	res = service.markDone(fMsg1.keyName)
 
-    // 	then:
-    // 	res.success == true
-    // 	res.payload instanceof FutureMessage
-    // 	res.payload.keyName == fMsg1.keyName
-    // 	res.payload.isDone == true
-    // }
-    // void "test execute"() {
-    //     given: "overrides and baselines"
-    //     Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff = null,
-    //         boolean skipCheck = false ->
-    //         new ResultList(new Result(success:true))
-    //     }
-    //     Phone.metaClass.getPhonesToAvailableNowForContactIds =
-    //         { Collection<Long> cIds -> [(p1):[s1, s2]] }
+    	then:
+    	res.success == true
+    	res.payload instanceof FutureMessage
+    	res.payload.keyName == fMsg1.keyName
+    	res.payload.isDone == true
+    }
+    void "test execute"() {
+        given: "overrides and baselines"
+        Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff = null,
+            boolean skipCheck = false ->
+            new Result(status:ResultStatus.OK).toGroup()
+        }
+        addToMessageSource(["futureMessageService.execute.messageNotFound",
+            "futureMessageService.notifyStaff.notification"])
 
+    	when: "nonexistent keyName"
+        _numTextsSent = 0
+        ResultGroup resGroup = service.execute("nonexistent", s1.id)
 
-    // 	when: "nonexistent keyName"
-    //     _numTextsSent = 0
-    //     ResultList resList = service.execute("nonexistent", s1.id)
+    	then: "not found"
+        resGroup.anySuccesses == false
+        resGroup.failures[0].errorMessages[0] == "futureMessageService.execute.messageNotFound"
+        _numTextsSent == 0
 
-    // 	then: "not found"
-    //     resList.isAnySuccess == false
-    //     resList.failures[0].payload.code == "futureMessageService.execute.messageNotFound"
-    //     _numTextsSent == 0
+    	when: "existing message with notify staff"
+        fMsg1.notifySelf = true
+        fMsg1.save(flush:true, failOnError:true)
+        resGroup = service.execute(fMsg1.keyName, s1.id)
 
-    // 	when: "existing message with notify staff"
-    //     fMsg1.notifySelf = true
-    //     fMsg1.save(flush:true, failOnError:true)
-    //     resList = service.execute(fMsg1.keyName, s1.id)
-
-    // 	then:
-    //     _numTextsSent == 2
-    //     resList.isAnySuccess == true
-    // }
+    	then:
+        _numTextsSent == 1
+        resGroup.anySuccesses == true
+    }
 
     // Test CRUD
     // ---------
@@ -134,11 +140,11 @@ class FutureMessageServiceSpec extends CustomSpec {
     protected void mockForCRUD() {
         service.metaClass.schedule = { FutureMessage fMsg ->
             _didSchedule = true
-            new Result(success:true )
+            new Result(status:ResultStatus.NO_CONTENT, payload:null)
         }
         service.metaClass.unschedule = { FutureMessage fMsg ->
             _didUnschedule = true
-            new Result(success:true )
+            new Result(status:ResultStatus.NO_CONTENT, payload:null)
         }
     }
     void "test set from body for future message"() {
@@ -220,6 +226,7 @@ class FutureMessageServiceSpec extends CustomSpec {
 
         then: "success and did schedule"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload instanceof SimpleFutureMessage
         res.payload.notifySelf == info.notifySelf
@@ -248,6 +255,7 @@ class FutureMessageServiceSpec extends CustomSpec {
 
         then: "success and did not call reschedule"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload instanceof SimpleFutureMessage
         res.payload.message == info.message
@@ -263,6 +271,7 @@ class FutureMessageServiceSpec extends CustomSpec {
 
         then: "success and DID call reschedule because repeatCount and endDate both nulled"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload instanceof SimpleFutureMessage
         res.payload.message == info.message
@@ -277,6 +286,7 @@ class FutureMessageServiceSpec extends CustomSpec {
 
         then: "success and did call schedule"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload.repeatCount == info.repeatCount
         _didSchedule == true
@@ -307,6 +317,7 @@ class FutureMessageServiceSpec extends CustomSpec {
 
         then: "all are converted to UTC and retain their actual values"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
@@ -322,6 +333,7 @@ class FutureMessageServiceSpec extends CustomSpec {
 
         then: "all date values have their values preserved no matter initial timezone"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
@@ -332,34 +344,74 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
     }
+    void "test appropriate status codes when creating, updating, and deleting"() {
+        given:
+        mockForCRUD()
+        int fBaseline = FutureMessage.count()
+
+        when: "creating"
+        Result<FutureMessage> res = service.createForContact(c1.id,
+            [type:FutureMessageType.TEXT, message:"hello"])
+        FutureMessage.withSession { it.flush() }
+
+        then:
+        res.success == true
+        res.status == ResultStatus.CREATED
+        res.payload instanceof FutureMessage
+        FutureMessage.count() == fBaseline + 1
+
+        when: "updating"
+        Long id = res.payload.id
+        String msg = "so soft"
+        res = service.update(id, [message:msg])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof FutureMessage
+        res.payload.message == msg
+        FutureMessage.count() == fBaseline + 1
+
+        when: "deleting"
+        service.metaClass.deleteHelper = { FutureMessage fMsg ->
+            new Result(status:ResultStatus.NO_CONTENT)
+        }
+        res = service.delete(id)
+
+        then:
+        res.success == true
+        res.status == ResultStatus.NO_CONTENT
+        FutureMessage.get(id).isDone == false // didn't actually do delete, just mocked it
+        FutureMessage.count() == fBaseline + 1
+    }
     void "test create errors"() {
     	when: "no record"
+        addToMessageSource("futureMessageService.create.noRecord")
         Result res = service.create(null, [:])
 
     	then: "unprocessable entity"
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.status == UNPROCESSABLE_ENTITY
-        res.payload.code == "futureMessageService.create.noRecord"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "futureMessageService.create.noRecord"
     }
     void "test update errors"() {
         when: "nonexistent future message id"
+        addToMessageSource("futureMessageService.update.notFound")
         Result res = service.update(-88L, [:])
 
         then: "not found"
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.status == NOT_FOUND
-        res.payload.code == "futureMessageService.update.notFound"
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "futureMessageService.update.notFound"
     }
     void "test delete errors"() {
         when: "nonexistent future message id"
+        addToMessageSource("futureMessageService.delete.notFound")
         Result res = service.delete(-88L)
 
         then: "not found"
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.status == NOT_FOUND
-        res.payload.code == "futureMessageService.delete.notFound"
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "futureMessageService.delete.notFound"
     }
 }

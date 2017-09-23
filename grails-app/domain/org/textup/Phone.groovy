@@ -1,26 +1,23 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
-import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
-import org.hibernate.FlushMode
-import org.hibernate.Session
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
 import org.textup.rest.TwimlBuilder
-import org.textup.types.CallResponse
-import org.textup.types.ContactStatus
-import org.textup.types.PhoneOwnershipType
-import org.textup.types.RecordItemType
-import org.textup.types.SharePermission
-import org.textup.types.TextResponse
+import org.textup.type.CallResponse
+import org.textup.type.ContactStatus
+import org.textup.type.PhoneOwnershipType
+import org.textup.type.ReceiptStatus
+import org.textup.type.RecordItemType
+import org.textup.type.SharePermission
+import org.textup.type.TextResponse
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes="owner")
@@ -48,6 +45,12 @@ class Phone {
             apiFieldName = "number",
             description  = "Phone number of this TextUp phone.",
             allowedType  = "String"),
+         @RestApiObjectField(
+            apiFieldName      = "mandatoryEmergencyMessage",
+            description       = "Mandatory emergency message that will be appended to the custom \
+                away message to bring the total character length to no more than 160 characters.",
+            allowedType       = "String",
+            useForCreation    = false),
         @RestApiObjectField(
             apiFieldName      = "doPhoneActions",
             description       = "List of some actions to perform on this phone",
@@ -68,11 +71,15 @@ class Phone {
                 return;
             }
             //phone number must be unique for phones
-            if (obj.existsWithSameNumber(num)) {
-                ["duplicate"]
+            Closure<Boolean> existsWithSameNumber = {
+                Phone ph = Phone.findByNumberAsString(new PhoneNumber(number:num).number)
+                ph && ph.id != obj.id
             }
-            else if (!(num.toString() ==~ /^(\d){10}$/)) {
-                ["format"]
+            if (Helpers.<Boolean>doWithoutFlush(existsWithSameNumber)) {
+                return ["duplicate"]
+            }
+            if (!(num.toString() ==~ /^(\d){10}$/)) {
+                return ["format"]
             }
         }
         awayMessage blank:false, size:1..(Constants.TEXT_LENGTH)
@@ -84,21 +91,16 @@ class Phone {
 		ContactTag
 	*/
 
-    // Validator
-    // ---------
+    // Hooks
+    // -----
 
-    protected boolean existsWithSameNumber(String num) {
-        boolean hasDuplicate = false
-        Phone.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                PhoneNumber pNum = new PhoneNumber(number:num)
-                Phone ph = Phone.findByNumberAsString(pNum.number)
-                if (ph && ph.id != this.id) { hasDuplicate = true }
-            }
-            finally { session.flushMode = FlushMode.AUTO }
+    def beforeValidate() {
+        String mandatoryMsg = Constants.AWAY_EMERGENCY_MESSAGE,
+            awayMsg = this.awayMessage ?: ""
+        int maxLen = Constants.TEXT_LENGTH
+        if (!awayMsg.contains(mandatoryMsg)) {
+            this.awayMessage = Helpers.appendGuaranteeLength(awayMsg, mandatoryMsg, maxLen).trim()
         }
-        hasDuplicate
     }
 
     // Static finders
@@ -108,11 +110,13 @@ class Phone {
     static HashSet<Phone> getPhonesForRecords(List<Record> recs) {
         if (!recs) { return new HashSet<Phone>() }
         List<Phone> cPhones = Contact.createCriteria().list {
-            projections { property("phone") }
+                projections { property("phone") }
                 "in"("record", recs)
+                eq("isDeleted", false)
             }, tPhones = ContactTag.createCriteria().list {
                 projections { property("phone") }
                 "in"("record", recs)
+                eq("isDeleted", false)
             },
             phones = cPhones + tPhones,
             // phones from contacts that are shared with me
@@ -120,6 +124,7 @@ class Phone {
                 projections { property("sharedWith") }
                 contact {
                     "in"("record", recs)
+                    eq("isDeleted", false)
                 }
                 if (phones) {
                     "in"("sharedBy", phones)
@@ -168,13 +173,14 @@ class Phone {
 
     Result<ContactTag> createTag(Map params) {
         ContactTag tag = new ContactTag()
+        tag.properties = params
         tag.with {
             phone = this
             name = params.name
             if (params.hexColor) hexColor = params.hexColor
         }
         if (tag.save()) {
-            resultFactory.success(tag)
+            resultFactory.success(tag, ResultStatus.CREATED)
         }
         else { resultFactory.failWithValidationErrors(tag.errors) }
     }
@@ -196,7 +202,7 @@ class Phone {
                     return res
                 }
             }
-            resultFactory.success(contact)
+            resultFactory.success(contact, ResultStatus.CREATED)
         }
         else { resultFactory.failWithValidationErrors(contact.errors) }
     }
@@ -213,45 +219,45 @@ class Phone {
     }
     Result<SharedContact> share(Contact c1, Phone sWith, SharePermission perm) {
         if (c1?.phone != this) {
-            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                "phone.contactNotMine", [c1?.name])
+            return resultFactory.failWithCodeAndStatus("phone.contactNotMine",
+                ResultStatus.BAD_REQUEST, [c1?.name])
         }
         if (!canShare(sWith)) {
-            return resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                "phone.share.cannotShare", [sWith?.name])
+            return resultFactory.failWithCodeAndStatus("phone.share.cannotShare",
+                ResultStatus.FORBIDDEN, [sWith?.name])
         }
         //check to see that there isn't already an active shared contact
-        SharedContact sc = SharedContact
-            .listForContactAndSharedWith(c1, sWith, [max:1])[0]
+        SharedContact sc = SharedContact.listForContactAndSharedWith(c1, sWith, [max:1])[0]
         if (sc) {
             sc.startSharing(perm)
         }
         else {
-            sc = new SharedContact(contact:c1, sharedBy:this, sharedWith:sWith,
-                permission:perm)
+            sc = new SharedContact(contact:c1, sharedBy:this, sharedWith:sWith, permission:perm)
         }
         if (sc.save()) {
             resultFactory.success(sc)
         }
         else { resultFactory.failWithValidationErrors(sc.errors) }
     }
-    Result stopShare(Phone sWith) {
-        List<SharedContact> shareds = SharedContact
-            .listForSharedByAndSharedWith(this, sWith)
+    Result<Void> stopShare(Phone sWith) {
+        List<SharedContact> shareds = SharedContact.listForSharedByAndSharedWith(this, sWith)
         shareds.each { SharedContact sc -> sc.stopSharing() }
         resultFactory.success()
     }
-    Result stopShare(Contact c1, Phone sWith) {
-        SharedContact sc1 = SharedContact
-            .listForContactAndSharedWith(c1, sWith, [max:1])[0]
+    Result<Void> stopShare(Contact c1, Phone sWith) {
+        SharedContact sc1 = SharedContact.listForContactAndSharedWith(c1, sWith, [max:1])[0]
         if (sc1) {
             sc1.stopSharing()
         }
         resultFactory.success()
     }
-    Result stopShare(Contact contact) {
-        if (contact?.phone != this) {
-            return resultFactory.failWithMessage("phone.contactNotMine", [contact?.name])
+    Result<Void> stopShare(Contact contact) {
+        // Hibernate proxying magic sometimes results in either contact,phone or this phone being
+        // a proxy and therefore not equal to each other when they should be. We get around this
+        // problem by comparing the ids of the two objects to ascertain identity
+        if (contact?.phone?.id != this.id) {
+            return resultFactory.failWithCodeAndStatus("phone.contactNotMine",
+                ResultStatus.BAD_REQUEST, [contact?.getNameOrNumber()])
         }
         List<SharedContact> shareds = SharedContact.listForContact(contact)
         shareds?.each { SharedContact sc -> sc.stopSharing() }
@@ -278,33 +284,36 @@ class Phone {
         ContactTag.countByPhoneAndIsDeleted(this, false)
     }
     List<ContactTag> getTags(Map params=[:]) {
-        ContactTag.findAllByPhoneAndIsDeleted(this, false,
-            params + [sort: "name", order: "desc"])
+        ContactTag.findAllByPhoneAndIsDeleted(this, false, params + [sort: "name", order: "desc"])
     }
     //Optional specify 'status' corresponding to valid contact statuses
     int countContacts(Map params=[:]) {
-        if (params == null) { return 0 }
-        Contact.countForPhoneAndStatuses(this,
-            Helpers.<ContactStatus>toEnumList(ContactStatus, params.statuses))
+        if (params == null) {
+            return 0
+        }
+        Contact.countForPhoneAndStatuses(this, Helpers.toEnumList(ContactStatus, params.statuses))
     }
     //Optional specify 'status' corresponding to valid contact statuses
     List<Contactable> getContacts(Map params=[:]) {
-        if (params == null) { return [] }
-        Collection<ContactStatus> statusEnums =
-            Helpers.<ContactStatus>toEnumList(ContactStatus, params.statuses)
+        if (params == null) {
+            return []
+        }
+        Collection<ContactStatus> statusEnums = Helpers.toEnumList(ContactStatus, params.statuses)
         //get contacts, both mine and those shared with me
-        replaceContactsWithShared(
-            Contact.listForPhoneAndStatuses(this, statusEnums, params))
+        replaceContactsWithShared(Contact.listForPhoneAndStatuses(this, statusEnums, params))
     }
     int countContacts(String query) {
-        if (query == null) { return 0 }
+        if (query == null) {
+            return 0
+        }
         Contact.countForPhoneAndSearch(this, Helpers.toQuery(query))
     }
     List<Contactable> getContacts(String query, Map params=[:]) {
-        if (query == null) { return [] }
+        if (query == null) {
+            return []
+        }
         //get contacts, both mine and those shared with me
-        replaceContactsWithShared(
-            Contact.listForPhoneAndSearch(this, Helpers.toQuery(query), params))
+        replaceContactsWithShared(Contact.listForPhoneAndSearch(this, Helpers.toQuery(query), params))
     }
     int countSharedWithMe() {
         SharedContact.countSharedWithMe(this)
@@ -386,29 +395,6 @@ class Phone {
         IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true, params)
     }
 
-    List<Staff> getAvailableNow() {
-        List<Staff> availableNow = []
-        this.owner.all.each { Staff s1 ->
-            if (s1.isAvailableNow()) {
-                availableNow << s1
-            }
-        }
-        availableNow
-    }
-    Map<Phone, List<Staff>> getPhonesToAvailableNowForContactIds(Collection<Long> cIds) {
-        List<Phone> sharedWithPhones = SharedContact
-            .findEveryByContactIdsAndSharedBy(cIds, this)
-            .collect { SharedContact sc1 -> sc1.sharedWith }
-        Map<Phone, List<Staff>> phonesToAvailableNow = [:]
-        ((sharedWithPhones + this) as Collection<Phone>).each { Phone p1 ->
-            List<Staff> availableNow = p1.availableNow
-            if (availableNow) {
-                phonesToAvailableNow[p1] = availableNow
-            }
-        }
-        phonesToAvailableNow
-    }
-
     Result<PhoneOwnership> updateOwner(Team t1) {
         PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(t1.id,
                 PhoneOwnershipType.GROUP) ?:
@@ -433,78 +419,67 @@ class Phone {
     // Outgoing
     // --------
 
-    ResultList<RecordItem> sendMessage(OutgoingMessage msg, Staff staff = null,
+    ResultGroup<RecordItem> sendMessage(OutgoingMessage msg, Staff staff = null,
         boolean skipOwnerCheck = false) {
-
         if (!this.isActive) {
-            return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                'phone.isInactive'))
+            resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND).toGroup()
         }
-        // validate msg
-        if (!msg.validateSetPhone(this)) {
-            return new ResultList(resultFactory.failWithValidationErrors(msg.errors))
+        else if (!msg.validateSetPhone(this)) { // validate msg
+            resultFactory.failWithValidationErrors(msg.errors).toGroup()
         }
-        // validate staff
-        else if (!skipOwnerCheck && !this.owner.all.contains(staff)) {
-            return new ResultList(resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                'phone.notOwner'))
+        else if (!skipOwnerCheck && !this.owner.all.any { Staff s1 -> s1.id == staff.id }) { // validate staff
+            resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
         }
         else { phoneService.sendMessage(this, msg, staff) }
     }
     // start bridge call, confirmed (if staff picks up) by contact
-    ResultList<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
+    Result<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
         if (!this.isActive) {
-            return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                'phone.isInactive'))
+            resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
         }
-        ResultList<RecordCall> resList = new ResultList()
-        if ((c1 instanceof Contact || c1 instanceof SharedContact) && !c1.validate()) {
-            return resList << resultFactory.failWithValidationErrors(c1.errors)
+        else if ((c1 instanceof Contact || c1 instanceof SharedContact) && !c1.validate()) {
+            resultFactory.failWithValidationErrors(c1.errors)
         }
-        else if (c1 instanceof Contact && c1.phone != this) {
-            return resList << resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                'phone.startBridgeCall.forbidden')
+        else if (c1 instanceof Contact && c1.phone?.id != this.id) {
+            resultFactory.failWithCodeAndStatus("phone.startBridgeCall.forbidden", ResultStatus.FORBIDDEN)
         }
-        else if (c1 instanceof SharedContact && !(c1.canModify && c1.sharedWith == this)) {
-            return resList << resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                'phone.startBridgeCall.forbidden')
+        else if (c1 instanceof SharedContact && !(c1.canModify && c1.sharedWith?.id == this.id)) {
+            resultFactory.failWithCodeAndStatus("phone.startBridgeCall.forbidden", ResultStatus.FORBIDDEN)
         }
-        else if (!this.owner.all.contains(staff)) { // validate staff
-            return resList << resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                'phone.notOwner')
+        else if (!this.owner.all.any { Staff s1 -> s1.id == staff.id }) { // validate staff
+            resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
         }
         else if (!staff.personalPhoneAsString) {
-            return resList << resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-                'phone.startBridgeCall.noPersonalNumber')
+            resultFactory.failWithCodeAndStatus("phone.startBridgeCall.noPersonalNumber",
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        resList << phoneService.startBridgeCall(this, c1, staff)
+        else {
+            phoneService.startBridgeCall(this, c1, staff)
+        }
     }
     Result<FeaturedAnnouncement> sendAnnouncement(String message,
         DateTime expiresAt, Staff staff) {
         if (!this.isActive) {
-            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                'phone.isInactive')
+            return resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
         }
         // validate expiration
         if (!expiresAt || expiresAt.isBeforeNow()) {
-            return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-                "phone.sendAnnouncement.expiresInPast")
+            return resultFactory.failWithCodeAndStatus("phone.sendAnnouncement.expiresInPast",
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
         // validate staff
         if (!this.owner.all.contains(staff)) {
-            return resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                "phone.notOwner")
+            return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
         }
         // collect relevant classes
-        List<IncomingSession> textSubs =
-                IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true),
+        List<IncomingSession> textSubs = IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true),
             callSubs = IncomingSession.findAllByPhoneAndIsSubscribedToCall(this, true)
         String identifier = this.name
         // send announcements
-        ResultMap<TempRecordReceipt> textRes = phoneService.sendTextAnnouncement(this,
-            message, identifier, textSubs, staff).logFail("Phone.sendAnnouncement: text")
-        ResultMap<TempRecordReceipt> callRes = phoneService.startCallAnnouncement(this,
-            message, identifier, callSubs, staff).logFail("Phone.sendAnnouncement: call")
+        Map<String, Result<TempRecordReceipt>> textRes = phoneService
+            .sendTextAnnouncement(this, message, identifier, textSubs, staff)
+        Map<String, Result<TempRecordReceipt>> callRes = phoneService
+            .startCallAnnouncement(this, message, identifier, callSubs, staff)
         // build announcements class
         FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:this,
             expiresAt:expiresAt, message:message)
@@ -514,21 +489,19 @@ class Phone {
         }
         // collect sessions that we successfully reached
         Collection<IncomingSession> successTexts = textSubs.findAll {
-            textRes.isSuccess(it.numberAsString)
+            textRes[it.numberAsString]?.success
         }, successCalls = callSubs.findAll {
-            callRes.isSuccess(it.numberAsString)
+            callRes[it.numberAsString]?.success
         }
         // add sessions to announcement as receipts
-        ResultList<AnnouncementReceipt> textResList = announce.addToReceipts(
-                RecordItemType.TEXT, successTexts),
-            callResList = announce.addToReceipts(RecordItemType.CALL, successCalls)
-        textResList.logFail("Phone.sendAnnouncement: add text announce receipts")
-        callResList.logFail("Phone.sendAnnouncement: add call announce receipts")
+        ResultGroup<AnnouncementReceipt> textResGroup = announce.addToReceipts(RecordItemType.TEXT, successTexts),
+            callResGroup = announce.addToReceipts(RecordItemType.CALL, successCalls)
+        textResGroup.logFail("Phone.sendAnnouncement: add text announce receipts")
+        callResGroup.logFail("Phone.sendAnnouncement: add call announce receipts")
         // don't use announce.numReceipts here because the dynamic finder
         // will flush the session
         boolean noSubscribers = (!textSubs && !callSubs),
-            anySuccessWithSubscribers = (textResList.isAnySuccess ||
-                callResList.isAnySuccess) && (textSubs || callSubs)
+            anySuccessWithSubscribers = (textResGroup.anySuccesses || callResGroup.anySuccesses) && (textSubs || callSubs)
         if (noSubscribers || anySuccessWithSubscribers) {
             if (announce.save()) {
                 resultFactory.success(announce)
@@ -537,8 +510,8 @@ class Phone {
         }
         // return error if all subscribers failed to receive announcement
         else {
-            resultFactory.failWithResultsAndStatus(INTERNAL_SERVER_ERROR,
-               textRes.getResults() + callRes.getResults())
+            resultFactory.failWithResultsAndStatus(textRes.values() + callRes.values(),
+                ResultStatus.INTERNAL_SERVER_ERROR)
         }
     }
 
@@ -549,15 +522,16 @@ class Phone {
         if (!text.validate()) { //validate text
             resultFactory.failWithValidationErrors(text.errors)
         }
-        else if (session.phone != this) { //validate session
-            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.receive.notMine')
+        else if (session.phone?.id != this.id) { //validate session
+            resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
         }
         else if (this.getAnnouncements()) {
             switch (text.message) {
                 case Constants.TEXT_SEE_ANNOUNCEMENTS:
                     Collection<FeaturedAnnouncement> announces = this.getAnnouncements()
                     announces.each { FeaturedAnnouncement announce ->
-                        announce.addToReceipts(RecordItemType.TEXT, session)
+                        announce
+                            .addToReceipts(RecordItemType.TEXT, session)
                             .logFail("Phone.receiveText: add announce receipt")
                     }
                     twimlBuilder.build(TextResponse.SEE_ANNOUNCEMENTS,
@@ -581,7 +555,7 @@ class Phone {
     }
     Result<Closure> receiveCall(String apiId, String digits, IncomingSession session) {
         if (session.phone != this) { //validate session
-            resultFactory.failWithMessageAndStatus(FORBIDDEN, 'phone.receive.notMine')
+            resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
         }
         //if staff member is calling from personal phone to TextUp phone
         else if (this.owner.all.any { it.personalPhoneAsString == session.numberAsString }) {
@@ -597,24 +571,42 @@ class Phone {
             phoneService.relayCall(this, apiId, session)
         }
     }
-    Result<Closure> startVoicemail(PhoneNumber fromNum, PhoneNumber toNum) {
-        twimlBuilder.build(CallResponse.VOICEMAIL,
-            [awayMessage:this.awayMessage, linkParams:[handle:CallResponse.VOICEMAIL_STUB],
-                // need to population From and To parameters to help in finding
-                // phone and session in the recording status hook
-                callbackParams:[handle:CallResponse.VOICEMAIL_DONE,
-                    From:fromNum.e164PhoneNumber, To:toNum.e164PhoneNumber]])
+    Result<Closure> screenIncomingCall(IncomingSession session) {
+        if (session.phone?.id != this?.id) { //validate session
+            resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
+        }
+        else {
+            phoneService.screenIncomingCall(this, session)
+        }
+    }
+    Result<Closure> tryStartVoicemail(PhoneNumber fromNum, PhoneNumber toNum, ReceiptStatus status) {
+        if (status == ReceiptStatus.SUCCESS) { // call already connected so no voicemail
+            twimlBuilder.noResponse()
+        }
+        else {
+            twimlBuilder.build(CallResponse.CHECK_IF_VOICEMAIL,
+                [
+                    awayMessage:this.awayMessage,
+                    // no-op for Record Twiml verb to call because recording might not be ready
+                    linkParams:[handle:CallResponse.END_CALL],
+                    // need to population From and To parameters to help in finding
+                    // phone and session in the recording status hook
+                    callbackParams:[handle:CallResponse.VOICEMAIL_DONE,
+                        From:fromNum.e164PhoneNumber, To:toNum.e164PhoneNumber]
+                ])
+        }
     }
     Result<Closure> completeVoicemail(String callId, String recordingId, String voicemailUrl,
         Integer voicemailDuration) {
         // move the encrypted voicemail to s3 and delete recording at Twilio
         phoneService.moveVoicemail(callId, recordingId, voicemailUrl)
-            .logFail("Phone.moveVoicemail")
-            .then({ ->
-                phoneService.storeVoicemail(callId, voicemailDuration)
-                    .logFail("Phone.storeVoicemail")
-                twimlBuilder.noResponse()
-            }) as Result
+            .logFail("Phone.moveVoicemail: call: ${callId}, recording: ${recordingId}")
+            .then({
+                phoneService
+                    .storeVoicemail(callId, voicemailDuration)
+                    .logFail("Phone.storeVoicemail: call: ${callId}, recording: ${recordingId}")
+                twimlBuilder.build(CallResponse.VOICEMAIL_DONE)
+            })
     }
     Result<Closure> finishBridgeCall(Contact c1) {
         twimlBuilder.build(CallResponse.FINISH_BRIDGE, [contact:c1])

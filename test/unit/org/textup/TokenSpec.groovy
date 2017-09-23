@@ -6,13 +6,13 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import java.util.UUID
 import org.springframework.context.MessageSource
-import org.textup.types.TokenType
+import org.textup.type.TokenType
 import org.textup.validator.PhoneNumber
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 
-@Domain(Token)
+@Domain([Token, Organization, Location])
 @TestMixin(HibernateTestMixin)
 class TokenSpec extends Specification {
 

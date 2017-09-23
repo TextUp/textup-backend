@@ -10,6 +10,7 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.nio.charset.Charset
 import org.apache.commons.codec.binary.Base64
+import org.apache.commons.lang3.tuple.Pair
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.HttpHeaders
 import org.apache.http.HttpResponse
@@ -17,24 +18,22 @@ import org.apache.http.HttpStatus as ApacheHttpStatus
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
 import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.hibernate.FlushMode
-import org.hibernate.Session
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
-import org.springframework.http.HttpStatus
-import org.springframework.transaction.TransactionStatus
 import org.textup.rest.TwimlBuilder
-import org.textup.types.CallResponse
-import org.textup.types.ContactStatus
-import org.textup.types.PhoneOwnershipType
-import org.textup.types.RecordItemType
-import org.textup.types.ResultType
-import org.textup.types.TextResponse
+import org.textup.type.CallResponse
+import org.textup.type.ContactStatus
+import org.textup.type.PhoneOwnershipType
+import org.textup.type.ReceiptStatus
+import org.textup.type.RecordItemType
+import org.textup.type.TextResponse
+import org.textup.validator.action.ActionContainer
+import org.textup.validator.action.PhoneAction
+import org.textup.validator.BasicNotification
 import org.textup.validator.IncomingText
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @Transactional
@@ -44,6 +43,7 @@ class PhoneService {
     CallService callService
     GrailsApplication grailsApplication
     MessageSource messageSource
+    NotificationService notificationService
     ResultFactory resultFactory
     SocketService socketService
     StorageService storageService
@@ -54,23 +54,19 @@ class PhoneService {
     // Update
     // ------
 
-    Result<Staff> createOrUpdatePhone(Staff s1, Map body) {
-        if (body.phone instanceof Map && checkIsActive()) {
+    Result<Staff> mergePhone(Staff s1, Map body) {
+        if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = s1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(s1)
-            this.update(p1, body.phone as Map).then({
-                resultFactory.success(s1)
-            }) as Result<Staff>
+            this.update(p1, body.phone as Map).then({ resultFactory.success(s1) })
         }
         else { resultFactory.success(s1) }
     }
-    Result<Team> createOrUpdatePhone(Team t1, Map body) {
-        if (body.phone instanceof Map && checkIsActive()) {
+    Result<Team> mergePhone(Team t1, Map body) {
+        if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = t1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(t1)
-            this.update(p1, body.phone as Map).then({
-                resultFactory.success(t1)
-            }) as Result<Team>
+            this.update(p1, body.phone as Map).then({ resultFactory.success(t1) })
         }
         else { resultFactory.success(t1) }
     }
@@ -78,51 +74,32 @@ class PhoneService {
         if (body.awayMessage) {
             p1.awayMessage = body.awayMessage
         }
-        handlePhoneActions(p1, body).then({ Phone phone1 ->
-            if (phone1.save()) {
-                resultFactory.success(phone1)
+        if (body.doPhoneActions) {
+            ActionContainer ac1 = new ActionContainer(body.doPhoneActions)
+            List<PhoneAction> actions = ac1.validateAndBuildActions(PhoneAction)
+            if (ac1.hasErrors()) {
+                return resultFactory.failWithValidationErrors(ac1.errors)
             }
-            else { resultFactory.failWithValidationErrors(phone1.errors) }
-        }) as Result<Phone>
-    }
-    protected Result<Phone> handlePhoneActions(Phone p1, Map body) {
-        if (!body.doPhoneActions) {
-            return resultFactory.success(p1)
-        }
-        else if (!(body.doPhoneActions instanceof Collection)) {
-            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                "phoneService.update.phoneActionNotList")
-        }
-        for (item in body.doPhoneActions) {
-            if (!(item instanceof Map)) { continue }
-            Map pAction = item as Map
-            Result<Phone> res
-            switch(Helpers.toLowerCaseString(pAction.action)) {
-                case Constants.PHONE_ACTION_DEACTIVATE:
-                    res = deactivatePhone(p1)
-                    break
-                case Constants.PHONE_ACTION_TRANSFER:
-                    res = transferPhone(p1, Helpers.toLong(pAction.id),
-                        Helpers.<PhoneOwnershipType>convertEnum(PhoneOwnershipType,
-                            pAction.type))
-                    break
-                case Constants.PHONE_ACTION_NEW_NUM_BY_NUM:
-                    PhoneNumber pNum = new PhoneNumber(number:pAction.number as String)
-                    res = this.updatePhoneForNumber(p1, pNum)
-                    break
-                case Constants.PHONE_ACTION_NEW_NUM_BY_ID:
-                    res = this.updatePhoneForApiId(p1, pAction.numberId as String)
-                    break
-                default:
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "phoneService.update.phoneActionInvalid",
-                        [pAction.action])
-            }
-            if (!res.success) {
-                Phone.withTransaction { TransactionStatus status ->
-                    status.setRollbackOnly()
+            Collection<Result<?>> failResults = []
+            for (PhoneAction a1 in actions) {
+                Result<Phone> res
+                switch (a1) {
+                    case Constants.PHONE_ACTION_DEACTIVATE:
+                        res = deactivatePhone(p1)
+                        break
+                    case Constants.PHONE_ACTION_TRANSFER:
+                        res = transferPhone(p1, a1.id, a1.typeAsEnum)
+                        break
+                    case Constants.PHONE_ACTION_NEW_NUM_BY_NUM:
+                        res = updatePhoneForNumber(p1, a1.phoneNumber)
+                        break
+                    default: // Constants.PHONE_ACTION_NEW_NUM_BY_ID
+                        res = updatePhoneForApiId(p1, a1.numberId)
                 }
-                return res
+                if (!res.success) { failResults << res }
+            }
+            if (failResults) {
+                return resultFactory.failWithResultsAndStatus(failResults, ResultStatus.BAD_REQUEST)
             }
         }
         if (p1.save()) {
@@ -130,7 +107,6 @@ class PhoneService {
         }
         else { resultFactory.failWithValidationErrors(p1.errors) }
     }
-
     protected Result<Phone> deactivatePhone(Phone p1) {
         String oldApiId = p1.apiId
         p1.deactivate()
@@ -138,15 +114,12 @@ class PhoneService {
             return resultFactory.failWithValidationErrors(p1.errors)
         }
         if (oldApiId) {
-            freeExistingNumber(oldApiId).then({ ->
-                resultFactory.success(p1)
-            }) as Result<Phone>
+            freeExistingNumber(oldApiId).then({ resultFactory.success(p1) })
         }
         else { resultFactory.success(p1) }
     }
     protected Result<Phone> transferPhone(Phone p1, Long id, PhoneOwnershipType type) {
-        Result<PhoneOwnership> res = p1.transferTo(id, type)
-        res.success ? resultFactory.success(p1) : res
+        p1.transferTo(id, type).then({ resultFactory.success(p1) })
     }
     protected Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {
         if (!pNum.validate()) {
@@ -155,27 +128,25 @@ class PhoneService {
         if (pNum.number == p1.numberAsString) {
             return resultFactory.success(p1)
         }
-        if (checkIsDuplicate({ -> Phone.countByNumberAsString(pNum.number) })) {
-            return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-                "phoneService.changeNumber.duplicate")
+        if (Helpers.<Boolean>doWithoutFlush({ Phone.countByNumberAsString(pNum.number) > 0 })) {
+            return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        Result.<Phone>waterfall(
-            this.&changeForNumber.curry(pNum),
-            this.&updatePhoneWithNewNumber.rcurry(p1)
-        )
+        this.changeForNumber(pNum).then({ IncomingPhoneNumber iNum ->
+            this.updatePhoneWithNewNumber(iNum, p1)
+        })
     }
     protected Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
         if (apiId == p1.apiId) {
             return resultFactory.success(p1)
         }
-        if (checkIsDuplicate({ -> Phone.countByApiId(apiId) })) {
-            return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-                'phoneService.changeNumber.duplicate')
+        if (Helpers.<Boolean>doWithoutFlush({ Phone.countByApiId(apiId) > 0 })) {
+            return resultFactory.<Phone>failWithCodeAndStatus("phoneService.changeNumber.duplicate",
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        Result.<Phone>waterfall(
-            this.&changeForApiId.curry(apiId),
-            this.&updatePhoneWithNewNumber.rcurry(p1)
-        )
+        this.changeForApiId(apiId).then({ IncomingPhoneNumber iNum ->
+            this.updatePhoneWithNewNumber(iNum, p1)
+        })
     }
 
     // Update helpers
@@ -196,7 +167,7 @@ class PhoneService {
             resultFactory.success(iNum)
         }
         catch (TwilioException e) {
-            return resultFactory.failWithThrowable(e)
+            resultFactory.failWithThrowable(e)
         }
     }
     protected Result<IncomingPhoneNumber> changeForApiId(String newApiId) {
@@ -214,18 +185,15 @@ class PhoneService {
             resultFactory.success(uNum)
         }
         catch (TwilioException e) {
-            return resultFactory.failWithThrowable(e)
+            resultFactory.failWithThrowable(e)
         }
     }
-    protected Result<Phone> updatePhoneWithNewNumber(IncomingPhoneNumber newNum,
-        Phone p1) {
+    protected Result<Phone> updatePhoneWithNewNumber(IncomingPhoneNumber newNum, Phone p1) {
         String oldApiId = p1.apiId
         p1.apiId = newNum.sid
         p1.number = new PhoneNumber(number:newNum.phoneNumber as String)
         if (oldApiId) {
-            freeExistingNumber(oldApiId).then({
-                resultFactory.success(p1)
-            }) as Result<Phone>
+            freeExistingNumber(oldApiId).then({ resultFactory.success(p1) })
         }
         else { resultFactory.success(p1) }
     }
@@ -239,63 +207,43 @@ class PhoneService {
             resultFactory.success(uNum)
         }
         catch (TwilioException e) {
-            return resultFactory.failWithThrowable(e)
+            resultFactory.failWithThrowable(e)
         }
-    }
-
-    protected boolean checkIsActive() {
-        boolean isActive = false
-        Phone.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                isActive = authService.isActive
-            }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        isActive
-    }
-    protected boolean checkIsDuplicate(Closure doCheck) {
-        boolean isDuplicate = false
-        Phone.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                isDuplicate = (Helpers.toInteger(doCheck()) > 0)
-            }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        isDuplicate
     }
 
     // Outgoing
     // --------
 
-    ResultList<RecordItem> sendMessage(Phone phone, OutgoingMessage msg, Staff staff = null) {
-        ResultList<RecordItem> resList = new ResultList<>()
+    ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg, Staff staff = null) {
+        ResultGroup<RecordItem> resGroup = new ResultGroup<>()
         HashSet<Contactable> recipients = msg.toRecipients()
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
             .withDefault { [] as List<TempRecordReceipt> }
         // send to each contactable
         recipients.each { Contactable c1 ->
-            resList << sendToContactable(phone, c1, msg, staff, contactIdToReceipts)
+            resGroup << sendToContactable(phone, c1, msg, staff, contactIdToReceipts)
         }
         // record all receipts on each tag, if applicable
         msg.tags.each { ContactTag ct1 ->
-            resList << storeMessageInTag(ct1, msg, staff, contactIdToReceipts)
+            resGroup << storeMessageInTag(ct1, msg, staff, contactIdToReceipts)
         }
-        resList
+        resGroup
     }
     Result<RecordCall> startBridgeCall(Phone phone, Contactable c1, Staff staff) {
         PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : phone.number,
             toNum = staff.personalPhoneNumber
         Map afterPickup = [contactId:c1.contactId, handle:CallResponse.FINISH_BRIDGE]
-        callService.start(fromNum, toNum, afterPickup).then({ TempRecordReceipt receipt ->
-            c1.storeOutgoingCall(receipt, staff)
-        }) as Result
+        callService.start(fromNum, toNum, afterPickup)
+            .then({ TempRecordReceipt receipt -> c1.storeOutgoingCall(receipt, staff) })
+            .then({ RecordCall call1 -> resultFactory.success(call1, ResultStatus.CREATED) })
     }
-    ResultMap<TempRecordReceipt> sendTextAnnouncement(Phone phone, String message,
+    Map<String, Result<TempRecordReceipt>> sendTextAnnouncement(Phone phone, String message,
         String identifier, List<IncomingSession> sessions, Staff staff) {
-        Result<List<String>> res = twimlBuilder.translate(TextResponse.ANNOUNCEMENT,
-            [identifier:identifier, message:message])
+        Result<List<String>> res = twimlBuilder
+            .translate(TextResponse.ANNOUNCEMENT, [
+                identifier:identifier,
+                message:message
+            ])
             .logFail("PhoneService.sendTextAnnouncement")
         String announcement = res.success ? res.payload[0] : "$identifier: $message"
         startAnnouncement(phone, sessions, { IncomingSession s1 ->
@@ -304,12 +252,14 @@ class PhoneService {
             c1.storeOutgoingText(announcement, receipt, staff)
         })
     }
-    ResultMap<TempRecordReceipt> startCallAnnouncement(Phone phone, String message,
+    Map<String, Result<TempRecordReceipt>> startCallAnnouncement(Phone phone, String message,
         String identifier, List<IncomingSession> sessions, Staff staff) {
         startAnnouncement(phone, sessions, { IncomingSession s1 ->
-            callService.start(phone.number, s1.number,
-                [handle:CallResponse.ANNOUNCEMENT_AND_DIGITS,
-                    message:message, identifier:identifier])
+            callService.start(phone.number, s1.number, [
+                handle:CallResponse.ANNOUNCEMENT_AND_DIGITS,
+                message:message,
+                identifier:identifier
+            ])
         }, { Contact c1, TempRecordReceipt receipt ->
             c1.storeOutgoingCall(receipt, staff)
         })
@@ -331,14 +281,14 @@ class PhoneService {
             callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
                 message:msg.message, identifier:staff?.name])
         res.then({ TempRecordReceipt receipt ->
-            Result storeRes = msg.isText ?
+            Result<? extends RecordItem> storeRes = msg.isText ?
                 c1.storeOutgoingText(msg.message, receipt, staff) :
-                c1.storeOutgoingCall(receipt, staff)
+                c1.storeOutgoingCall(receipt, staff, msg.message)
             if (isContact && storeRes.success) {
-                (contactIdToReceipts[c1.contactId] as List<TempRecordReceipt>) << receipt
+                contactIdToReceipts[c1.contactId]?.add(receipt)
             }
-            storeRes
-        }) as Result<RecordItem>
+            resultFactory.success(storeRes.payload, ResultStatus.CREATED)
+        })
     }
     protected Result<RecordItem> storeMessageInTag(ContactTag ct1, OutgoingMessage msg,
         Staff staff = null, Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
@@ -351,16 +301,17 @@ class PhoneService {
                     tagText.save()
                 }
             }
-            resultFactory.success(tagText)
-        }) as Result<RecordItem>
+            resultFactory.success(tagText, ResultStatus.CREATED)
+        })
     }
-    protected ResultMap<TempRecordReceipt> startAnnouncement(Phone phone,
-        List<IncomingSession> sessions, Closure receiptAction,
-        Closure addToRecordAction) {
-        ResultMap<TempRecordReceipt> resMap = new ResultMap<>()
+    protected Map<String, Result<TempRecordReceipt>> startAnnouncement(Phone phone,
+        List<IncomingSession> sessions, Closure<Result<TempRecordReceipt>> receiptAction,
+        Closure<Result<RecordItem>> addToRecordAction) {
+        Map<String, Result<TempRecordReceipt>> resMap = new HashMap<>()
         Map<String,TempRecordReceipt> numberAsStringToReceipt = [:]
         sessions.each { IncomingSession s1 ->
-            Result<TempRecordReceipt> res = receiptAction(s1) as Result<TempRecordReceipt>
+            Result<TempRecordReceipt> res = receiptAction(s1)
+                .logFail("PhoneService.startAnnouncement: sending and returning receipt")
             if (res.success) {
                 TempRecordReceipt receipt = res.payload
                 numberAsStringToReceipt[s1.numberAsString] = receipt
@@ -369,34 +320,31 @@ class PhoneService {
         }
         // find contacts that have the same number as this session, if any
         // if no contacts share this number, we will create a new contact
-        Map<String,List<Contact>> numAsStringToContacts =
-            ContactNumber.getContactsForPhoneAndNumbers(phone,
-                numberAsStringToReceipt.keySet())
         List<Contact> newContacts = []
-        numAsStringToContacts.each { String numAsString, List<Contact> contacts ->
-            TempRecordReceipt receipt = numberAsStringToReceipt[numAsString]
-            if (!contacts) { // create new contact if none found for session
-                phone.createContact([:], [numAsString])
-                    .logFail("PhoneService.startAnnouncement: create contact")
-                    .then({ Contact newC ->
-                        newContacts << newC
-                        contacts << newC
-                    })
-            }
-            if (receipt) {
-                contacts.each { Contact c1 ->
-                    (addToRecordAction(c1, receipt) as Result<RecordItem>)
-                        .logFail("PhoneService.startAnnouncement: add to record")
-                        .then({ RecordItem item ->
-                            item.isAnnouncement = true
+        ContactNumber
+            .getContactsForPhoneAndNumbers(phone, numberAsStringToReceipt.keySet())
+            .each { String numAsString, List<Contact> contacts ->
+                TempRecordReceipt receipt = numberAsStringToReceipt[numAsString]
+                if (!contacts) { // create new contact if none found for session
+                    phone.createContact([:], [numAsString])
+                        .logFail("PhoneService.startAnnouncement: create contact")
+                        .thenEnd({ Contact newC ->
+                            newContacts << newC
+                            contacts << newC
                         })
                 }
+                if (receipt) {
+                    contacts.each { Contact c1 ->
+                        addToRecordAction(c1, receipt)
+                            .logFail("PhoneService.startAnnouncement: add to record")
+                            .thenEnd({ RecordItem item -> item.isAnnouncement = true })
+                    }
+                }
+                else {
+                    log.error("PhoneService.startAnnouncement: \
+                        no receipt for $numAsString")
+                }
             }
-            else {
-                log.error("PhoneService.startAnnouncement: \
-                    no receipt for $numAsString")
-            }
-        }
         // notify of new contacts
         socketService.sendContacts(newContacts)
         //return result map
@@ -409,9 +357,12 @@ class PhoneService {
     Result<Closure> relayText(Phone phone, IncomingText text, IncomingSession session) {
         List<RecordText> rTexts = []
         storeForNumber(phone, session.number, { Contact c1 ->
-            Result<RecordText> res = c1.storeIncomingText(text, session)
+            Result<RecordText> res = c1
+                .storeIncomingText(text, session)
                 .logFail("PhoneService.relayText: store text for contact ${c1.id}")
-            if (res.success) { rTexts << res.payload }
+            if (res.success) {
+                rTexts << res.payload
+            }
         }).then({ List<Contact> contacts ->
             // if contacts is empty, then return a message notifying the texter
             // that he or she has been blocked by the user
@@ -420,8 +371,17 @@ class PhoneService {
             }
             // notify available staff members
             List<String> responses = [] // list of string and text resonses
-            // if none of the staff for any of the phones are available
-            if (!tryNotifyStaff(phone, text.message, contacts)) {
+            List<BasicNotification> notifs = notificationService.build(phone, contacts)
+            if (notifs) {
+                String instructions = messageSource.getMessage("phoneService.notifyStaff.notification",
+                    null, LCH.getLocale())
+                notifs.each { BasicNotification bn1 ->
+                    tokenService
+                        .notifyStaff(bn1, false, text.message, instructions)
+                        .logFail("PhoneService.relayText: calling notifyStaff")
+                }
+            }
+            else {
                 rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
                 responses << phone.awayMessage
             }
@@ -440,79 +400,59 @@ class PhoneService {
             // For outgoing messages and all calls, we rely on status callbacks
             // to push record items to the frontend. However, for incoming texts
             // no status callback happens so we need to push the item here
-            socketService.sendItems(rTexts as List<RecordItem>)
+            socketService.sendItems(rTexts)
             twimlBuilder.buildTexts(responses)
-        }) as Result
+        })
     }
     Result<Closure> relayCall(Phone phone, String apiId, IncomingSession session) {
         List<RecordCall> rCalls = []
         storeForNumber(phone, session.number, { Contact c1 ->
-            Result<RecordCall> res = c1.storeIncomingCall(apiId, session)
+            Result<RecordCall> res = c1
+                .storeIncomingCall(apiId, session)
                 .logFail("PhoneService.relayCall")
             if (res.success) {
                 rCalls << res.payload
             }
         }).then({ List<Contact> contacts ->
-            // if contacts is empty, then return a message notifying the caller
-            // that he or she has been blocked by the user
+            // if contacts is empty, then he or she has been blocked by the user
             if (contacts.isEmpty()) {
                 return twimlBuilder.build(CallResponse.BLOCKED)
             }
-            // notify available staff members
             HashSet<String> numsToCall = new HashSet<>()
-            (phone
-                .getPhonesToAvailableNowForContactIds(contacts*.id)
-                .values()
-                .flatten() as Collection<Staff>)
-                .each { Staff s1 ->
-                    if (s1.personalPhoneAsString) {
-                        numsToCall << s1.personalPhoneNumber.e164PhoneNumber
-                    }
+            notificationService.build(phone, contacts).each { BasicNotification bn1 ->
+                Staff s1 = bn1.staff
+                if (s1?.personalPhoneAsString) {
+                    numsToCall << s1.personalPhoneNumber.e164PhoneNumber
                 }
+            }
             if (numsToCall) {
-                twimlBuilder.build(CallResponse.CONNECT_INCOMING,
-                    [numsToCall:numsToCall, linkParams:[handle:CallResponse.VOICEMAIL]])
+                twimlBuilder.build(CallResponse.CONNECT_INCOMING, [
+                    displayedNumber:phone.number.e164PhoneNumber,
+                    numsToCall:numsToCall,
+                    linkParams:[handle:CallResponse.CHECK_IF_VOICEMAIL],
+                    screenParams:[
+                        handle:CallResponse.SCREEN_INCOMING,
+                        originalFrom: session.number.e164PhoneNumber
+                    ]
+                ])
             }
             else {
-                rCalls.each { RecordCall rCall ->
-                    rCall.hasAwayMessage = true
-                }
-                phone.startVoicemail(session.number, phone.number)
+                rCalls.each { RecordCall rCall -> rCall.hasAwayMessage = true }
+                // must pass in a non-success status because we will not start voicemail
+                // if the call has already completed successfully
+                phone.tryStartVoicemail(session.number, phone.number, ReceiptStatus.PENDING)
             }
-        }) as Result
+        })
     }
-    Result<List<Contact>> storeForNumber(Phone phone, PhoneNumber pNum,
-        Closure contactStoreAction) {
-        // create a new contact with this session's phone number if contact
-        // does not already exist
-        List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum),
-            notBlockedContacts = contacts.findAll { Contact c1 ->
-                c1.status != ContactStatus.BLOCKED
-            } as List<Contact>
-        // only create new contact if no blocked contact either because
-        // we don't want to create a new contact if there is a blocked contact associated
-        // with the incoming number
-        if (contacts.isEmpty()) {
-            Result res = phone.createContact([:], [pNum.number])
-            if (res.success) {
-                notBlockedContacts = [res.payload]
-            }
-            else { return res }
-        }
-        //add text to contact records
-        //note that blocked contacts will not even have the incoming message be stored
-        notBlockedContacts.each { Contact c1 ->
-            contactStoreAction(c1)
-            //only change status to unread
-            //dont' have to worry about blocked contacts since we already filtered those out
-            c1.status = ContactStatus.UNREAD
-            if (!c1.save()) {
-                return resultFactory.failWithValidationErrors(c1.errors)
-            }
-        }
-        // socket notify of new contact and/or unread contacts
-        socketService.sendContacts(notBlockedContacts)
-        resultFactory.success(notBlockedContacts)
+    Result<Closure> screenIncomingCall(Phone phone, IncomingSession session) {
+        List<Contact> notBlockedContacts = getDeliverableContacts(phone, session.number).right
+        List<String> uniques = []
+        notBlockedContacts.each { Contact c1 -> uniques << c1.getNameOrNumber() }
+        uniques.unique() // in-place modification
+        twimlBuilder.build(CallResponse.SCREEN_INCOMING, [
+            callerId: Helpers.joinWithDifferentLast(uniques, ", ", " or "),
+            linkParams:[handle:CallResponse.DO_NOTHING]
+        ])
     }
     Result<Closure> handleAnnouncementCall(Phone phone, String apiId, String digits,
         IncomingSession session) {
@@ -587,8 +527,9 @@ class PhoneService {
             try {
                 int statusCode = resp.statusLine.statusCode
                 if (statusCode != ApacheHttpStatus.SC_OK) {
-                    return resultFactory.failWithMessageAndStatus(HttpStatus.valueOf(statusCode),
+                    return resultFactory.failWithCodeAndStatus(
                         "phoneService.moveVoicemail.couldNotRetrieveVoicemail",
+                        ResultStatus.convert(statusCode),
                         [resp.statusLine.reasonPhrase])
                 }
                 InputStream stream = resp.entity.content
@@ -601,7 +542,7 @@ class PhoneService {
                                 log.error("PhoneService.moveVoicemail could not delete ${recordingId}")
                             }
                             resultFactory.success(putRes.getETag())
-                        }) as Result<String>
+                        })
                 }
                 finally { stream.close() }
             }
@@ -613,8 +554,8 @@ class PhoneService {
         }
         finally { client.close() }
     }
-    ResultList<RecordItemReceipt> storeVoicemail(String callId, int voicemailDuration) {
-        ResultList<RecordItemReceipt> resList = new ResultList<>()
+    ResultGroup<RecordItemReceipt> storeVoicemail(String callId, int voicemailDuration) {
+        ResultGroup<RecordItemReceipt> resGroup = new ResultGroup<>()
         List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(callId)
         for (receipt in receipts) {
             RecordItem item = receipt.item
@@ -624,24 +565,19 @@ class PhoneService {
                 call.voicemailInSeconds = voicemailDuration
                 call.record.updateLastRecordActivity()
                 if (call.save() && call.record.save()) {
-                    resList << resultFactory.success(receipt)
+                    resGroup << resultFactory.success(receipt)
                 }
                 else if (!call.save()) {
-                    resList << resultFactory.failWithValidationErrors(call.errors)
+                    resGroup << resultFactory.failWithValidationErrors(call.errors)
                 }
                 else {
-                    resList << resultFactory.failWithValidationErrors(call.record.errors)
+                    resGroup << resultFactory.failWithValidationErrors(call.record.errors)
                 }
             }
         }
         // send updated items with receipts through socket
-        List<RecordItem> voicemailItems = resList.successes
-            .collect { Result<RecordItemReceipt> res ->
-                res.payload.item
-            }
-        socketService.sendItems(voicemailItems)
-
-        resList
+        socketService.sendItems(resGroup.payload*.item)
+        resGroup
     }
 
     // Incoming helper methods
@@ -658,80 +594,41 @@ class PhoneService {
         byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("ISO-8859-1")));
         "Basic " + new String(encodedAuth)
     }
-    protected boolean tryNotifyStaff(Phone phone, String message,
-        List<Contact> contacts) {
-        Map<Phone, List<Staff>> phonesToAvailableNow =
-            phone.getPhonesToAvailableNowForContactIds(contacts*.id)
-        // if none of the staff for any of the phones are available
-        if (!phonesToAvailableNow) {
-            return false
+    protected Pair<List<Contact>, List<Contact>> getDeliverableContacts(Phone phone, PhoneNumber pNum) {
+        List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum),
+            notBlockedContacts = contacts.findAll { Contact c1 ->
+                c1.status != ContactStatus.BLOCKED
+            } as List<Contact>
+        Pair.of(contacts, notBlockedContacts)
+    }
+    protected Result<List<Contact>> storeForNumber(Phone phone, PhoneNumber pNum,
+        Closure contactStoreAction) {
+        Pair<List<Contact>, List<Contact>> deliverables = getDeliverableContacts(phone, pNum)
+        List<Contact> contacts = deliverables.left,
+            notBlockedContacts = deliverables.right
+        // only create new contact if no blocked contact either because
+        // we don't want to create a new contact if there is a blocked contact associated
+        // with the incoming number
+        if (contacts.isEmpty()) {
+            Result res = phone.createContact([:], [pNum.number])
+            if (res.success) {
+                notBlockedContacts = [res.payload]
+            }
+            else { return res }
         }
-        // if multiple contacts from the same phone, then
-        // this will take the last contact's record. In the future,
-        // if we wanted to support showing all the records that received
-        // the text, we can do so by exhaustively listing all record ids
-        Map<Long, Long> phoneIdToRecordId = contacts
-            .collectEntries { Contact c1 ->
-                [(c1.phone.id):c1.record.id]
-            }
-        SharedContact
-            .findEveryByContactIdsAndSharedBy(contacts*.id, phone)
-            .each { SharedContact sc1 ->
-                Long recordId = sc1.record?.id
-                if (recordId) {
-                    phoneIdToRecordId[sc1.sharedWith.id] = recordId
-                }
-            }
-        // if a staff member is part of a team that has a TextUp phone
-        // and also has an individual TextUp phone, then we don't want
-        // to send multiple notifications. Therefore, this map associates
-        // each staff member with his/her personal TextUp phone
-        // if the staff member has a personal TextUp phone
-        // FOR THE PHONES THAT HAVE ACCESS TO THIS RECORD. Since we
-        // are looping through the phones that have access to this record
-        // we don't have to worry about the case where the staff member
-        // has a personal TextUp phone and is part of the team but is not
-        // shared on the contact on the personal phone. If this were the case,
-        // then the personal phone wouldn't even by a key in this map.
-        Map<Long, Long> staffIdToPersonalPhoneId = [:]
-        phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
-            if (p1.owner.type == PhoneOwnershipType.INDIVIDUAL) {
-                staffIdToPersonalPhoneId[p1.owner.ownerId] = p1.id
+        //add text to contact records
+        //note that blocked contacts will not even have the incoming message be stored
+        notBlockedContacts.each { Contact c1 ->
+            contactStoreAction(c1)
+            //only change status to unread
+            //dont' have to worry about blocked contacts since we already filtered those out
+            c1.status = ContactStatus.UNREAD
+            if (!c1.save()) {
+                return resultFactory.failWithValidationErrors(c1.errors)
             }
         }
-        // if you are concerned about several tokens generated
-        // for one message, remember that we also send unique tokens
-        // to those who are members of a team. So if a contact
-        // from a team is shared with a staff and that staff is
-        // also a member of that team, the staff member will
-        // receive two notification texts each with a unique token
-        // And these tokens will appear to be the same when you
-        // look at the database because the token's data does not
-        // specify the from and to numbers of the notification
-        phonesToAvailableNow.each { Phone p1, List<Staff> staffs ->
-            String instructions = messageSource.getMessage(
-                "phoneService.notifyStaff.notification", null, LCH.getLocale())
-            for (Staff s1 in staffs) {
-                // if the staff member has a personal phone AND
-                // this phone p1 is NOT the personal phone,
-                // then skip notifying until we get to the personal phone
-                if (staffIdToPersonalPhoneId.containsKey(s1.id) &&
-                    staffIdToPersonalPhoneId[s1.id] != p1.id) {
-                    continue
-                }
-                Long recordId = phoneIdToRecordId[p1.id]
-                if (recordId) {
-                    tokenService.notifyStaff(p1, s1, recordId, false,
-                            message, instructions)
-                        .logFail("PhoneService.relayText: calling notifyStaff")
-                }
-                else {
-                    log.error("PhoneService.relayText: getPhonesToAvailableNowForContactIds \
-                        called on phone ${phone.id} yielded a phone ${p1.id} \
-                        that did not have a corresponding contact's record in map")
-                }
-            }
-        }
-        return true
+        // socket notify of new contact and/or unread contacts
+        socketService.sendContacts(notBlockedContacts)
+        resultFactory.success(notBlockedContacts)
     }
 }

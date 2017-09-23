@@ -7,18 +7,18 @@ import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
-import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
-import org.textup.types.CallResponse
-import org.textup.types.ContactStatus
-import org.textup.types.PhoneOwnershipType
-import org.textup.types.RecordItemType
-import org.textup.types.ResultType
-import org.textup.types.SharePermission
-import org.textup.types.StaffStatus
-import org.textup.types.TextResponse
+import org.textup.type.CallResponse
+import org.textup.type.ContactStatus
+import org.textup.type.PhoneOwnershipType
+import org.textup.type.ReceiptStatus
+import org.textup.type.RecordItemType
+import org.textup.type.SharePermission
+import org.textup.type.StaffStatus
+import org.textup.type.TextResponse
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
+import org.textup.validator.BasicNotification
 import org.textup.validator.IncomingText
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
@@ -32,7 +32,7 @@ import static org.springframework.http.HttpStatus.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole])
+    AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class PhoneServiceSpec extends CustomSpec {
@@ -45,49 +45,58 @@ class PhoneServiceSpec extends CustomSpec {
     int _numTextsSent = 0
     List<Long> _notifyRecordIds = []
     List<Long> _notifyPhoneIds = []
+    List<Staff> _whoIsAvailable = []
 
     def setup() {
         setupData()
         service.resultFactory = getResultFactory()
-        service.resultFactory.messageSource = mockMessageSource()
-        service.messageSource = mockMessageSource()
+        service.resultFactory.messageSource = messageSource
+        service.messageSource = messageSource
+        service.notificationService = [
+            build: { Phone targetPhone, List<Contact> contacts ->
+                _whoIsAvailable ? _whoIsAvailable.collect {
+                    new BasicNotification(staff:it, owner:targetPhone.owner,
+                        record:contacts[0].record)
+                } : []
+            }
+        ] as NotificationService
+        service.tokenService = [
+            notifyStaff:{ BasicNotification bn1, Boolean outgoing, String msg,
+                String instructions ->
+                _numTextsSent++
+                _notifyRecordIds << bn1.record.id
+                _notifyPhoneIds << bn1.owner.phone.id
+                new Result(status:ResultStatus.OK)
+            }
+        ]  as TokenService
         service.textService = [send:{ BasePhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String message ->
             _numTextsSent++
-            new Result(type:ResultType.SUCCESS, success:true,
-                payload: new TempRecordReceipt(apiId:_apiId,
-                    receivedByAsString:toNums[0].number))
+            new Result(status:ResultStatus.OK,
+                payload: new TempRecordReceipt(apiId:_apiId, receivedByAsString:toNums[0].number))
         }] as TextService
-        service.tokenService = [notifyStaff:{ Phone p1, Staff s1, Long recordId,
-            Boolean outgoing, String msg, String instructions ->
-            _numTextsSent++
-            _notifyRecordIds << recordId
-            _notifyPhoneIds << p1.id
-            new Result(type:ResultType.SUCCESS, success:true)
-        }] as TokenService
         service.callService = [start:{ PhoneNumber fromNum, PhoneNumber toNum,
             Map afterPickup ->
-            new Result(type:ResultType.SUCCESS, success:true,
-                payload: new TempRecordReceipt(apiId:_apiId,
-                    receivedByAsString:toNum.number))
+            new Result(status:ResultStatus.OK,
+                payload: new TempRecordReceipt(apiId:_apiId, receivedByAsString:toNum.number))
         }] as CallService
         service.socketService = [sendContacts:{ List<Contact> contacts ->
-            new ResultList()
+            new ResultGroup()
         }, sendItems:{ List<RecordItem> items ->
-            new ResultList()
+            new ResultGroup()
         }] as SocketService
         service.twimlBuilder = [build:{ code, params=[:] ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:code)
+            new Result(status:ResultStatus.OK, payload:code)
         }, buildTexts:{ List<String> responses ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:responses)
+            new Result(status:ResultStatus.OK, payload:responses)
         }, translate:{ code, params=[:] ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:code)
+            new Result(status:ResultStatus.OK, payload:code)
         }] as TwimlBuilder
         service.authService = [getIsActive: { true }] as AuthService
 
-        OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
-        Phone.metaClass.startVoicemail = { PhoneNumber fromNum, PhoneNumber toNum ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:CallResponse.VOICEMAIL)
+        OutgoingMessage.metaClass.getMessageSource = { -> messageSource }
+        Phone.metaClass.tryStartVoicemail = { PhoneNumber fromNum, PhoneNumber toNum, ReceiptStatus stat ->
+            new Result(status:ResultStatus.OK, payload:CallResponse.CHECK_IF_VOICEMAIL)
         }
     }
 
@@ -108,8 +117,10 @@ class PhoneServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Phone
-        res.payload.awayMessage == msg
+        res.payload.awayMessage.contains(msg)
+        res.payload.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
     }
     void "test updating phone number when not active"() {
         given:
@@ -123,6 +134,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         then: "new number is ignored"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Phone
         res.payload.numberAsString == originalNum
     }
@@ -146,13 +158,13 @@ class PhoneServiceSpec extends CustomSpec {
         Phone.count() == baseline
 
         when: "with apiId belonging to another phone"
+        addToMessageSource("phoneService.changeNumber.duplicate")
         res = service.updatePhoneForApiId(s1.phone, anotherApiId)
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.status == UNPROCESSABLE_ENTITY
-        res.payload.message == "phoneService.changeNumber.duplicate"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "phoneService.changeNumber.duplicate"
     }
     @FreshRuntime
     void "test updating phone number with new number"() {
@@ -167,6 +179,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Phone
         res.payload.numberAsString == s1.phone.numberAsString
         Phone.count() == baseline
@@ -177,8 +190,8 @@ class PhoneServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload instanceof ValidationErrors
-        res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
         Phone.count() == baseline
     }
 
@@ -186,8 +199,8 @@ class PhoneServiceSpec extends CustomSpec {
     void "test create or update phone for staff OR team"() {
         given:
         def noPhoneEntity = forStaff ?
-            new Staff(username:"6sta$iterationCount", password:"password",
-                name:"Staff$iterationCount", email:"staff$iterationCount@textup.org",
+            new Staff(username:"6sta${iterNum}", password:"password",
+                name:"Staff${iterNum}", email:"staff${iterNum}@textup.org",
                 org:org, personalPhoneAsString:"1112223333",
                 lockCode:Constants.DEFAULT_LOCK_CODE) :
             new Team(name:"kiki's mane", org:org.id,
@@ -202,7 +215,7 @@ class PhoneServiceSpec extends CustomSpec {
             msg3 = "still another message!"
 
         when: "for staff without a phone with invalidly formatted body"
-        Result<Staff> res = service.createOrUpdatePhone(
+        Result<Staff> res = service.mergePhone(
             forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team, [
             phone:msg
         ])
@@ -210,6 +223,7 @@ class PhoneServiceSpec extends CustomSpec {
         noPhoneEntity.save(flush:true, failOnError:true)
 
         then:
+        res.status == ResultStatus.OK
         if (forStaff) {
             assert res.payload instanceof Staff
         }
@@ -222,45 +236,50 @@ class PhoneServiceSpec extends CustomSpec {
         service.authService = [getIsActive: { false }] as AuthService
         withPhoneEntity.phone.awayMessage = msg2
         withPhoneEntity.phone.save(flush:true, failOnError:true)
-        res = service.createOrUpdatePhone(
+        res = service.mergePhone(
             forStaff ? withPhoneEntity as Staff : withPhoneEntity as Team,
             [ phone:[awayMessage:msg] ])
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         if (forStaff) {
             assert res.payload instanceof Staff
         }
         else { assert res.payload instanceof Team }
-        res.payload.phone.awayMessage != msg
-        res.payload.phone.awayMessage == msg2
+        res.payload.phone.awayMessage.contains(msg) == false
+        res.payload.phone.awayMessage.contains(msg2)
+        res.payload.phone.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         Phone.count() == pBaseline
         PhoneOwnership.count() == oBaseline
 
         when: "for ACTIVE staff with existing phone"
         service.authService = [getIsActive: { true }] as AuthService
-        res = service.createOrUpdatePhone(
+        res = service.mergePhone(
             forStaff ? withPhoneEntity as Staff : withPhoneEntity as Team,
             [ phone:[awayMessage:msg] ])
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         if (forStaff) {
             assert res.payload instanceof Staff
         }
         else { assert res.payload instanceof Team }
-        res.payload.phone.awayMessage == msg
+        res.payload.phone.awayMessage.contains(msg)
+        res.payload.phone.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         Phone.count() == pBaseline
         PhoneOwnership.count() == oBaseline
 
         when: "for staff without a phone with validly formatted body"
-        res = service.createOrUpdatePhone(
+        res = service.mergePhone(
             forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team,
             [ phone:[awayMessage:msg] ])
         assert res.success
         noPhoneEntity.save(flush:true, failOnError:true)
 
         then: "phone is created, but inactive because no number"
+        res.status == ResultStatus.OK
         Phone.count() == pBaseline + 1
         PhoneOwnership.count() == oBaseline + 1
         if (forStaff) {
@@ -270,17 +289,19 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.id == noPhoneEntity.id
         res.payload.hasInactivePhone == true
         res.payload.phone == null
-        res.payload.phoneWithAnyStatus.awayMessage == msg
+        res.payload.phoneWithAnyStatus.awayMessage.contains(msg)
+        res.payload.phoneWithAnyStatus.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         res.payload.phoneWithAnyStatus.isActive == false
 
         when: "for active staff with inactive phone with validly formatted body"
-        res = service.createOrUpdatePhone(
+        res = service.mergePhone(
             forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team,
             [ phone:[awayMessage:msg3] ])
         assert res.success
         noPhoneEntity.save(flush:true, failOnError:true)
 
         then: "no new phone created"
+        res.status == ResultStatus.OK
         Phone.count() == pBaseline + 1
         PhoneOwnership.count() == oBaseline + 1
         if (forStaff) {
@@ -290,7 +311,8 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.id == noPhoneEntity.id
         res.payload.hasInactivePhone == true
         res.payload.phone == null
-        res.payload.phoneWithAnyStatus.awayMessage == msg3
+        res.payload.phoneWithAnyStatus.awayMessage.contains(msg3)
+        res.payload.phoneWithAnyStatus.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         res.payload.phoneWithAnyStatus.isActive == false
 
         where:
@@ -300,61 +322,76 @@ class PhoneServiceSpec extends CustomSpec {
     }
 
     void "test phone action error handling"() {
+        given: "an alternate mock for resultFactory's messageSource for extracting messages \
+            from ValidationErrors"
+        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+
         when: "no phone actions"
-        Result<Phone> res = service.handlePhoneActions(p1, [:])
+        Result<Phone> res = service.update(p1, [:])
 
         then: "return passed-in phone with no modifications"
         res.success == true
         res.payload == p1
 
         when: "phone actions not a list"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
+        res = service.update(p1, [doPhoneActions: [
             hello:"i am not a list"
         ]])
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "phoneService.update.phoneActionNotList"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == "emptyOrNotACollection"
 
         when: "item in phone actions is not a map"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
+        res = service.update(p1, [doPhoneActions: [
             ["i", "am", "not", "a", "map"]
         ]])
 
         then: "ignored"
-        res.success == true
-        res.payload == p1
+        res.success == false
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == "emptyOrNotAMap"
 
         when: "item in phone actions has an invalid action"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
-            [action: "i am an invalid action"]
+        addToMessageSource("actionContainer.invalidActions")
+        res = service.update(p1, [doPhoneActions: [
+            [
+                action: "i am an invalid action",
+                test:"I'm a property that doesn't exist"
+            ]
         ]])
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.status == BAD_REQUEST
-        res.payload.code == "phoneService.update.phoneActionInvalid"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == "actionContainer.invalidActions"
     }
 
     void "test phone actions calling each branch"() {
+        given: "an alternate mock for resultFactory's messageSource for extracting messages \
+            from ValidationErrors"
+        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+
         when: "deactivating phone"
-        Result<Phone> res = service.handlePhoneActions(p1, [doPhoneActions: [
+        Result<Phone> res = service.update(p1, [doPhoneActions: [
             [action: Constants.PHONE_ACTION_DEACTIVATE]
         ]])
         p1.save(flush:true, failOnError:true)
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == p1
         res.payload.isActive == false
 
         when: "transferring phone"
         p1.apiId = null // to avoid calling freeExisting number
         p1.save(flush:true, failOnError:true)
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
+        res = service.update(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_TRANSFER,
                 id: t1.id,
@@ -365,12 +402,13 @@ class PhoneServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == p1
         res.payload.owner.ownerId == t1.id
         res.payload.owner.type == PhoneOwnershipType.GROUP
 
         when: "picking new number by passing in a number"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
+        res = service.update(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_NUM,
                 number: "invalidNum123" // so that short circuits
@@ -379,13 +417,13 @@ class PhoneServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.VALIDATION
-        res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
 
         when: "picking new number by passing in an apiId"
         p1.apiId = "iamsospecial"
         p1.save(flush:true, failOnError:true)
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
+        res = service.update(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_ID,
                 numberId: p1.apiId // so that short circuits
@@ -394,6 +432,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == p1
         res.payload.isActive == false
     }
@@ -405,12 +444,12 @@ class PhoneServiceSpec extends CustomSpec {
         given: "baselines"
         int iBaseline = RecordItem.count()
         int rBaseline = RecordItemReceipt.count()
+        addToMessageSource("outgoingMessage.getName.contactId")
 
         service.callService = [start:{ PhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, Map afterPickup ->
-            new Result(type:ResultType.SUCCESS, success:true,
-                payload: new TempRecordReceipt(apiId:_apiId,
-                    receivedByAsString:toNums[0].number))
+            new Result(status:ResultStatus.OK, payload: new TempRecordReceipt(apiId:_apiId,
+                receivedByAsString:toNums[0].number))
         }] as CallService
 
         when: "we send to contacts, shared contacts and tags"
@@ -418,7 +457,7 @@ class PhoneServiceSpec extends CustomSpec {
             contacts:[c1, c1_1, c1_2], sharedContacts:[sc2],
             tags:[tag1, tag1_1])
         assert msg.validateSetPhone(p1)
-        ResultList resList = service.sendMessage(p1, msg, s1)
+        ResultGroup resGroup = service.sendMessage(p1, msg, s1)
         p1.save(flush:true, failOnError:true)
 
         HashSet<Contact> uniqueContacts = new HashSet<>(msg.contacts)
@@ -429,13 +468,13 @@ class PhoneServiceSpec extends CustomSpec {
         int totalTagMembers = tagNumMembers.sum()
 
         then: "no duplication, also stored in tags"
-        resList.isAllSuccess == true
+        !resGroup.isEmpty && resGroup.failures.isEmpty() == true // all successes
         // one result for each contact
         // one result for each shared contact
         // one result for each tag
-        resList.results.size() == uniqueContacts.size() +
+        resGroup.successes.size() == uniqueContacts.size() +
             msg.sharedContacts.size() + msg.tags.size()
-        resList.results.each { it.payload instanceof RecordItem }
+        resGroup.successes.each { it.payload instanceof RecordItem }
         // one msg for each contact
         // one msg for each shared contact
         // one msg for each tag
@@ -465,6 +504,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.CREATED
         res.payload instanceof RecordCall
         RecordCall.count() == cBaseline + 1
         RecordItemReceipt.count() == rBaseline + 1
@@ -483,13 +523,13 @@ class PhoneServiceSpec extends CustomSpec {
         session.save(flush:true, failOnError:true)
         // mock twimlbuilder to return a list of strings, as expected
         service.twimlBuilder = [translate:{ code, params=[:] ->
-            new Result(type:ResultType.SUCCESS, success:true, payload:[params.message])
+            new Result(status:ResultStatus.OK, payload:[params.message])
         }] as TwimlBuilder
 
         when: "for session with no contacts"
         String message = "hello"
         String ident = "kiki bai"
-        ResultMap resMap = service.sendTextAnnouncement(p1, message, ident,
+        Map<String, Result<TempRecordReceipt>> resMap = service.sendTextAnnouncement(p1, message, ident,
             [session], s1)
 
         then:
@@ -499,8 +539,7 @@ class PhoneServiceSpec extends CustomSpec {
         ContactNumber.count() == nBaseline + 1
         resMap[session.numberAsString].success == true
         resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload
-            .receivedByAsString == session.numberAsString
+        resMap[session.numberAsString].payload.receivedByAsString == session.numberAsString
 
         when: "for session with multiple contacts"
         resMap = service.sendTextAnnouncement(p1, message, ident, [session], s1)
@@ -512,8 +551,7 @@ class PhoneServiceSpec extends CustomSpec {
         ContactNumber.count() == nBaseline + 1
         resMap[session.numberAsString].success == true
         resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload
-            .receivedByAsString == session.numberAsString
+        resMap[session.numberAsString].payload.receivedByAsString == session.numberAsString
     }
 
     void "test starting call announcement"() {
@@ -531,7 +569,7 @@ class PhoneServiceSpec extends CustomSpec {
         when:
         String message = "hello"
         String ident = "kiki bai"
-        ResultMap resMap = service.startCallAnnouncement(p1, message, ident,
+        Map<String, Result<TempRecordReceipt>> resMap = service.startCallAnnouncement(p1, message, ident,
             [session], s1)
 
         then:
@@ -541,8 +579,7 @@ class PhoneServiceSpec extends CustomSpec {
         ContactNumber.count() == nBaseline + 1
         resMap[session.numberAsString].success == true
         resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload
-            .receivedByAsString == session.numberAsString
+        resMap[session.numberAsString].payload.receivedByAsString == session.numberAsString
     }
 
     // Incoming
@@ -554,11 +591,6 @@ class PhoneServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int tBaseline = RecordText.count()
         int rBaseline = RecordItemReceipt.count()
-        p1.availableNow.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = false
-            s1.save(flush:true, failOnError:true)
-        }
         IncomingSession session = new IncomingSession(phone:p1,
             numberAsString:"1112223456",
             lastSentInstructions:DateTime.now().minusDays(1))
@@ -568,6 +600,7 @@ class PhoneServiceSpec extends CustomSpec {
         when: "for session without contact"
         IncomingText text = new IncomingText(apiId:"iamsosecret", message:"hello")
         assert text.validate()
+        _whoIsAvailable = []
         Result res = service.relayText(p1, text, session)
 
         then: "create new contact, instructions not sent because no announcements"
@@ -579,6 +612,7 @@ class PhoneServiceSpec extends CustomSpec {
             .status == ContactStatus.UNREAD
         session.shouldSendInstructions == true
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == [p1.awayMessage]
 
         when: "for session without contact with announcements"
@@ -596,6 +630,7 @@ class PhoneServiceSpec extends CustomSpec {
             .status == ContactStatus.UNREAD
         session.shouldSendInstructions == false
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == [p1.awayMessage, TextResponse.INSTRUCTIONS_UNSUBSCRIBED]
 
         when: "for session with one blocked contact"
@@ -614,6 +649,7 @@ class PhoneServiceSpec extends CustomSpec {
             .status == ContactStatus.BLOCKED
         session.shouldSendInstructions == false
         res.success == true
+        res.status == ResultStatus.OK
         // since session has only one associated contact and that contact is blocked
         // then we also return a blocked message notifying the texter
         // also this payload isn't an array because instead of calling buildTexts at the
@@ -632,6 +668,7 @@ class PhoneServiceSpec extends CustomSpec {
         Contact.listForPhoneAndNum(p1, session.number).size() == 2
         session.shouldSendInstructions == false
         res.success == true
+        res.status == ResultStatus.OK
         // no longer return the blocked message since session now has one non-blocked
         // contact associated with it
         res.payload == [p1.awayMessage]
@@ -643,6 +680,8 @@ class PhoneServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int tBaseline = RecordText.count()
         int rBaseline = RecordItemReceipt.count()
+        addToMessageSource("phoneService.notifyStaff.notification")
+
         IncomingSession session = new IncomingSession(phone:p1,
             numberAsString:sc1.numbers[0].number,
             lastSentInstructions:DateTime.now().minusDays(1))
@@ -657,17 +696,8 @@ class PhoneServiceSpec extends CustomSpec {
             whose owner(s) are available
         """
         // phone that owns contact isn't available
-        sBy.owner.all.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = false
-            s1.save(flush:true, failOnError:true)
-        }
         // phone that contact is shared with has staff that are available
-        sWith.owner.all.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = true
-            s1.save(flush:true, failOnError:true)
-        }
+        _whoIsAvailable = sWith.owner.all
         [sBy, sWith]*.save(flush:true, failOnError:true)
 
         IncomingText text = new IncomingText(apiId:"iamsosecret", message:"hello")
@@ -679,100 +709,26 @@ class PhoneServiceSpec extends CustomSpec {
 
         then: "no away message sent and only available staff notified"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == []
         _numTextsSent == sWith.owner.all.size()
         _notifyRecordIds.every { it == sc1.contact.record.id }
-        _notifyPhoneIds.every { it == sWith.id }
+        // We no longer test the line below because this functionality of resolving
+        // shared relationships is now encapsulated in notificationService and is
+        // not present in our simple mock of the notificationService
+        // _notifyPhoneIds.every { it == sWith.id }
 
         when: "that shared with phone's staff owner is no longer available"
         // phone that contact is shared with has staff that are available
-        sWith.owner.all.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = false
-            s1.save(flush:true, failOnError:true)
-        }
-        sWith.save(flush:true, failOnError:true)
+        _whoIsAvailable = []
         _numTextsSent = 0
         res = service.relayText(sBy, text, session)
 
         then: "away message is sent since no staff are available"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == [sBy.awayMessage]
         _numTextsSent == 0
-    }
-
-    void "test notify staff"() {
-        given: "a staff member with a personal phone who is a member of a team \
-            and who has a contact shared by the team to the staff's personal phone"
-        // asserting relationships
-        assert s1 in t1.members
-        assert s1.phone == p1 && c1.phone == p1
-        assert t1.phone == tPh1 && tC1.phone == tPh1
-        // sharing contact
-        tPh1.stopShare(tC1)
-        SharedContact shared1 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
-        shared1.save(flush:true, failOnError:true)
-        // make all othe staff members unavailable!
-        t1.members.each { Staff otherStaff ->
-            otherStaff.manualSchedule = true
-            otherStaff.isAvailable = false
-            otherStaff.save(flush:true, failOnError:true)
-        }
-        // ensuring that staff is available
-        s1.manualSchedule = true
-        s1.isAvailable = true
-        s1.save(flush:true, failOnError:true)
-        assert s1.isAvailableNow() == true
-
-        when: "incoming text to the team's phone number"
-        String msg = "hi!"
-        _numTextsSent = 0
-        _notifyRecordIds = []
-        _notifyPhoneIds = []
-        boolean didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
-
-        then: "staff should only receive notification from the staff's personal \
-            TextUp phone through the shared relationship"
-        didNotify == true
-        _numTextsSent == 1
-        _notifyRecordIds == [tC1.record.id]
-        _notifyPhoneIds == [s1.phone.id]
-
-        when: "staff is no longer shared on contact and incoming text to team number"
-        shared1.stopSharing()
-        shared1.save(flush:true, failOnError:true)
-
-        _numTextsSent = 0
-        _notifyRecordIds = []
-        _notifyPhoneIds = []
-        didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
-
-        then: "notification from the team TextUp phone only"
-        didNotify == true
-        _numTextsSent == 1
-        _notifyRecordIds == [tC1.record.id]
-        _notifyPhoneIds == [tC1.phone.id]
-
-        when: "staff is shared again but is no longer member of team and \
-            incoming text to the team number"
-        SharedContact shared2 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
-        shared2.save(flush:true, failOnError:true)
-
-        t1.removeFromMembers(s1)
-        t1.save(flush:true, failOnError:true)
-        assert (s1 in t1.members) == false
-
-        _numTextsSent = 0
-        _notifyRecordIds = []
-        _notifyPhoneIds = []
-        didNotify = service.tryNotifyStaff(tPh1, msg, [tC1])
-
-        then: "notification from the staff's personal TextUp phone only because \
-            of the shared relationship"
-        didNotify == true
-        _numTextsSent == 1
-        _notifyRecordIds == [tC1.record.id]
-        _notifyPhoneIds == [s1.phone.id]
     }
 
     @FreshRuntime
@@ -781,17 +737,13 @@ class PhoneServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int iBaseline = RecordCall.count()
         int rBaseline = RecordItemReceipt.count()
-        p1.owner.all.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = true
-            s1.save(flush:true, failOnError:true)
-        }
         IncomingSession session = new IncomingSession(phone:p1,
             numberAsString:"1112223456",
             lastSentInstructions:DateTime.now().minusDays(1))
         session.save(flush:true, failOnError:true)
 
         when: "call for available"
+        _whoIsAvailable = p1.owner.all
         Result res = service.relayCall(p1, "apiId", session)
 
         then: "contact created, call connecting"
@@ -799,14 +751,11 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 1
         RecordItemReceipt.count() == rBaseline + 1
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.CONNECT_INCOMING
 
         when: "none avabilable"
-        p1.availableNow.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = false
-            s1.save(flush:true, failOnError:true)
-        }
+        _whoIsAvailable = []
         res = service.relayCall(p1, "apiId", session)
 
         then: "no additional contact created, voicemail"
@@ -814,7 +763,8 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 2
         RecordItemReceipt.count() == rBaseline + 2
         res.success == true
-        res.payload == CallResponse.VOICEMAIL
+        res.status == ResultStatus.OK
+        res.payload == CallResponse.CHECK_IF_VOICEMAIL
 
         when: "blocked contact"
         assert Contact.listForPhoneAndNum(p1, session.number).size() == 1
@@ -828,6 +778,7 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 2
         RecordItemReceipt.count() == rBaseline + 2
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.BLOCKED
 
         when: "contact for same number that is not blocked"
@@ -840,7 +791,8 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 3
         RecordItemReceipt.count() == rBaseline + 3
         res.success == true
-        res.payload == CallResponse.VOICEMAIL
+        res.status == ResultStatus.OK
+        res.payload == CallResponse.CHECK_IF_VOICEMAIL
     }
 
     @FreshRuntime
@@ -857,16 +809,7 @@ class PhoneServiceSpec extends CustomSpec {
         session.save(flush:true, failOnError:true)
 
         when: "call sharedBy is unavailable but sharedWith is available"
-        sBy.owner.all.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = false
-            s1.save(flush:true, failOnError:true)
-        }
-        sWith.owner.all.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = true
-            s1.save(flush:true, failOnError:true)
-        }
+        _whoIsAvailable = sWith.owner.all
         Result res = service.relayCall(sBy, "apiId", session)
 
         then: "call connecting"
@@ -874,14 +817,11 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 1
         RecordItemReceipt.count() == rBaseline + 1
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.CONNECT_INCOMING
 
         when: "none avabilable"
-        sWith.owner.all.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = false
-            s1.save(flush:true, failOnError:true)
-        }
+        _whoIsAvailable = []
         res = service.relayCall(sBy, "apiId", session)
 
         then: "voicemail"
@@ -889,7 +829,8 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 2
         RecordItemReceipt.count() == rBaseline + 2
         res.success == true
-        res.payload == CallResponse.VOICEMAIL
+        res.status == ResultStatus.OK
+        res.payload == CallResponse.CHECK_IF_VOICEMAIL
     }
 
     @FreshRuntime
@@ -900,14 +841,11 @@ class PhoneServiceSpec extends CustomSpec {
         int rBaseline = RecordItemReceipt.count()
         int fBaseline = FeaturedAnnouncement.count()
         int aBaseline = AnnouncementReceipt.count()
-        p1.owner.all.each { Staff s1 ->
-            s1.manualSchedule = true
-            s1.isAvailable = true
-            s1.save(flush:true, failOnError:true)
-        }
         IncomingSession session = new IncomingSession(phone:p1, numberAsString:"1112223333")
         session.save(flush:true, failOnError:true)
         assert p1.announcements.isEmpty()
+
+        _whoIsAvailable = p1.owner.all
 
         when: "no digits or announcements"
         Result res = service.handleAnnouncementCall(p1, "apiId", null, session)
@@ -917,6 +855,7 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 1
         RecordItemReceipt.count() == rBaseline + 1
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.CONNECT_INCOMING
 
         when: "no digits, has announcements"
@@ -932,6 +871,7 @@ class PhoneServiceSpec extends CustomSpec {
         FeaturedAnnouncement.count() == fBaseline + 1
         AnnouncementReceipt.count() == aBaseline
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.ANNOUNCEMENT_GREETING
 
         when: "digits, hear announcements"
@@ -945,6 +885,7 @@ class PhoneServiceSpec extends CustomSpec {
         FeaturedAnnouncement.count() == fBaseline + 1
         AnnouncementReceipt.count() == aBaseline + 1
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.HEAR_ANNOUNCEMENTS
 
         when: "digits, is NOT subscriber, toggle subscribe"
@@ -959,6 +900,7 @@ class PhoneServiceSpec extends CustomSpec {
         RecordItemReceipt.count() == rBaseline + 1
         session.isSubscribedToCall == true
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.SUBSCRIBED
 
         when: "digits, is subscriber, toggle subscribe"
@@ -973,6 +915,7 @@ class PhoneServiceSpec extends CustomSpec {
         RecordItemReceipt.count() == rBaseline + 1
         session.isSubscribedToCall == false
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.UNSUBSCRIBED
 
         when: "digits, no matching valid"
@@ -983,7 +926,22 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 2
         RecordItemReceipt.count() == rBaseline + 2
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.CONNECT_INCOMING
+    }
+
+    void "test screening incoming calls"() {
+        given:
+        IncomingSession session = new IncomingSession(phone:p1, numberAsString:randPhoneNumber())
+        assert IncomingSession.findByPhoneAndNumberAsString(p1, session.numberAsString) == null
+        session.save(flush:true, failOnError:true)
+
+        when:
+        Result<Closure> res = service.screenIncomingCall(p1, session)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == CallResponse.SCREEN_INCOMING
     }
 
     void "test handle self call"() {
@@ -997,6 +955,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         then: "self greeting"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.SELF_GREETING
         Contact.count() == cBaseline
         RecordCall.count() == iBaseline
@@ -1007,6 +966,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.SELF_INVALID_DIGITS
         Contact.count() == cBaseline
         RecordCall.count() == iBaseline
@@ -1017,6 +977,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         then: "self connecting"
         res.success == true
+        res.status == ResultStatus.OK
         res.payload == CallResponse.SELF_CONNECTING
         Contact.count() == cBaseline + 1
         RecordCall.count() == iBaseline + 1
@@ -1030,10 +991,10 @@ class PhoneServiceSpec extends CustomSpec {
         int rBaseline = RecordItemReceipt.count()
 
         when: "none voicemails found for apiId"
-        ResultList resList = service.storeVoicemail("nonexistent", 12)
+        ResultGroup<RecordItemReceipt> resGroup = service.storeVoicemail("nonexistent", 12)
 
         then: "empty result list"
-        resList.results.isEmpty()
+        resGroup.isEmpty == true
         Contact.count() == cBaseline
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline
@@ -1044,10 +1005,10 @@ class PhoneServiceSpec extends CustomSpec {
         rText1.save(flush:true, failOnError:true)
         iBaseline = RecordCall.count()
         rBaseline = RecordItemReceipt.count()
-        resList = service.storeVoicemail(apiId, 12)
+        resGroup = service.storeVoicemail(apiId, 12)
 
         then: "empty result list"
-        resList.results.isEmpty()
+        resGroup.isEmpty == true
         Contact.count() == cBaseline
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline
@@ -1064,17 +1025,18 @@ class PhoneServiceSpec extends CustomSpec {
         DateTime recAct = rCall1.record.lastRecordActivity
         iBaseline = RecordCall.count()
         rBaseline = RecordItemReceipt.count()
-        resList = service.storeVoicemail(apiId, dur)
+        resGroup = service.storeVoicemail(apiId, dur)
 
         then:
-        resList.isAllSuccess == true
-        resList.results.size() == 2
-        resList.results[0].payload.item.hasVoicemail == true
-        resList.results[0].payload.item.voicemailInSeconds == dur
-        resList.results[0].payload.item.record.lastRecordActivity.isAfter(recAct)
-        resList.results[1].payload.item.hasVoicemail == true
-        resList.results[1].payload.item.voicemailInSeconds == dur
-        resList.results[1].payload.item.record.lastRecordActivity.isAfter(recAct)
+        resGroup.anySuccesses == true
+        resGroup.payload.size() == 2
+        resGroup.successes.size() == 2
+        resGroup.payload[0].item.hasVoicemail == true
+        resGroup.payload[0].item.voicemailInSeconds == dur
+        resGroup.payload[0].item.record.lastRecordActivity.isAfter(recAct)
+        resGroup.payload[1].item.hasVoicemail == true
+        resGroup.payload[1].item.voicemailInSeconds == dur
+        resGroup.payload[1].item.record.lastRecordActivity.isAfter(recAct)
         Contact.count() == cBaseline
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline

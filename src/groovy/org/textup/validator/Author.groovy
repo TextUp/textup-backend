@@ -3,7 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsCompileStatic
 import grails.validation.Validateable
 import groovy.transform.ToString
-import org.textup.types.AuthorType
+import org.textup.type.AuthorType
 
 @GrailsCompileStatic
 @ToString

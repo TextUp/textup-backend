@@ -8,17 +8,19 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @RestApi(name="Announcement", description="Operations on announcements, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class AnnouncementController extends BaseController {
 
-	static namespace = "v1"
+	static String namespace = "v1"
 
-    // authService from superclass
+    AuthService authService
     AnnouncementService announcementService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // List
     // ----
@@ -57,11 +59,9 @@ class AnnouncementController extends BaseController {
             }
             p1 = s1.phone
         }
-        genericListActionForClosures("announcement", { Map params ->
-        	p1.countAnnouncements()
-    	}, { Map params ->
-    		p1.getAnnouncements(params)
-		}, params)
+        Closure<Integer> count = { p1.countAnnouncements() }
+        Closure<List<FeaturedAnnouncement>> list = { Map params -> p1.getAnnouncements(params) }
+        respondWithMany(FeaturedAnnouncement, count, list, params)
     }
 
     // Show
@@ -79,10 +79,10 @@ class AnnouncementController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-    	Long id = params.long("id")
-        if (FeaturedAnnouncement.exists(id)) {
-            if (authService.hasPermissionsForAnnouncement(id)) {
-                genericShowAction(FeaturedAnnouncement, id)
+        FeaturedAnnouncement announce1 = FeaturedAnnouncement.get(params.long("id"))
+        if (announce1) {
+            if (authService.hasPermissionsForAnnouncement(announce1.id)) {
+                respond(announce1, [status:ResultStatus.OK.apiStatus])
             }
             else { forbidden() }
         }
@@ -107,14 +107,14 @@ class AnnouncementController extends BaseController {
             add this announcement to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(request, "announcement")) { return }
+    	if (!validateJsonRequest(FeaturedAnnouncement, request)) { return }
     	Map aInfo = (request.properties.JSON as Map).announcement as Map
         if (params.long("teamId")) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
                 if (authService.hasPermissionsForTeam(tId)) {
-                    handleSaveResult("announcement",
-                    	announcementService.createForTeam(tId, aInfo))
+                    respondWithResult(FeaturedAnnouncement,
+                        announcementService.createForTeam(tId, aInfo))
                 }
                 else { forbidden() }
             }
@@ -122,8 +122,7 @@ class AnnouncementController extends BaseController {
         }
         else {
             if (authService.isActive) {
-                handleSaveResult("announcement",
-                	announcementService.createForStaff(aInfo))
+                respondWithResult(FeaturedAnnouncement, announcementService.createForStaff(aInfo))
             }
             else { forbidden() }
         }
@@ -146,13 +145,12 @@ class AnnouncementController extends BaseController {
             invalid announcement.")
     ])
     def update() {
-    	if (!validateJsonRequest(request, "announcement")) { return }
+    	if (!validateJsonRequest(FeaturedAnnouncement, request)) { return }
     	Long id = params.long("id")
         Map aInfo = (request.properties.JSON as Map).announcement as Map
     	if (authService.exists(FeaturedAnnouncement, id)) {
     		if (authService.hasPermissionsForAnnouncement(id)) {
-    			handleUpdateResult("announcement",
-    				announcementService.update(id, aInfo))
+    			respondWithResult(FeaturedAnnouncement, announcementService.update(id, aInfo))
 			}
 			else { forbidden() }
     	}

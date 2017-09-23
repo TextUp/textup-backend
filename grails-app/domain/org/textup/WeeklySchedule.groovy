@@ -12,7 +12,7 @@ import org.joda.time.Interval
 import org.joda.time.LocalTime
 import org.restapidoc.annotation.*
 import org.springframework.validation.Errors
-import org.textup.types.ScheduleStatus
+import org.textup.type.ScheduleStatus
 import org.textup.validator.LocalInterval
 import org.textup.validator.ScheduleChange
 
@@ -153,7 +153,7 @@ class WeeklySchedule extends Schedule {
         if (res.success) {
             resultFactory.success(res.payload.when)
         }
-        else { res }
+        else { resultFactory.failWithResultsAndStatus([res], res.status) }
     }
     @Override
     Result<DateTime> nextUnavailable(String timezone=null) {
@@ -161,7 +161,7 @@ class WeeklySchedule extends Schedule {
         if (res.success) {
             resultFactory.success(res.payload.when)
         }
-        else { res }
+        else { resultFactory.failWithResultsAndStatus([res], res.status) }
     }
     @Override
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -208,7 +208,8 @@ class WeeklySchedule extends Schedule {
                     else { return res }
                 }
                 else {
-                    return resultFactory.failWithMessage("weeklySchedule.strIntsNotList", [intStrings])
+                    return resultFactory.failWithCodeAndStatus("weeklySchedule.strIntsNotList",
+                        ResultStatus.UNPROCESSABLE_ENTITY, [intStrings])
                 }
             }
         }
@@ -353,7 +354,8 @@ class WeeklySchedule extends Schedule {
                 nextChangeForDateTime(dt.plusDays(1), initialDt, timezone)
             }
             else {
-                resultFactory.failWithMessage("weeklySchedule.nextChangeNotFound")
+                resultFactory.failWithCodeAndStatus("weeklySchedule.nextChangeNotFound",
+                    ResultStatus.NOT_FOUND)
             }
         }
     }
@@ -413,16 +415,16 @@ class WeeklySchedule extends Schedule {
                     result << new Interval(start, end)
                 }
                 else {
-                    return resultFactory.failWithMessage(
-                        "weeklySchedule.invalidRestTimeFormat", [str])
+                    return resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
+                        ResultStatus.UNPROCESSABLE_ENTITY, [str])
                 }
             }
             catch (e) {
                 log.debug("WeeklyScheduleSpec.parseIntervalStrings: ${e.message}")
-                return resultFactory.failWithMessage("weeklySchedule.invalidRestTimeFormat", [str])
+                return resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
+                    ResultStatus.UNPROCESSABLE_ENTITY, [str])
             }
         }
-
         resultFactory.success(result)
     }
 
@@ -533,6 +535,8 @@ class WeeklySchedule extends Schedule {
             }
             return true
         }
-        catch (e) { return false }
+        catch (e) {
+            return false
+        }
     }
 }

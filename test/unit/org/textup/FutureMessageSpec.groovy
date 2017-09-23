@@ -1,12 +1,13 @@
 package org.textup
 
+import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import java.util.concurrent.TimeUnit
 import org.joda.time.DateTime
-import org.textup.types.FutureMessageType
-import org.textup.types.RecordItemType
+import org.textup.type.FutureMessageType
+import org.textup.type.RecordItemType
 import org.textup.util.CustomSpec
 import org.textup.validator.OutgoingMessage
 import spock.lang.Ignore
@@ -15,7 +16,7 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, FutureMessage])
+	AnnouncementReceipt, Role, StaffRole, FutureMessage, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class FutureMessageSpec extends CustomSpec {
 
@@ -100,7 +101,7 @@ class FutureMessageSpec extends CustomSpec {
     	msg.message == fMsg.message
 		noMembers.isEmpty()
     	hasMembers.size() == 1
-    	hasMembers[0] == owner
+    	hasMembers[0].id == owner.id
 
     	when: "message is a call"
     	fMsg.type = FutureMessageType.CALL
@@ -119,7 +120,7 @@ class FutureMessageSpec extends CustomSpec {
     	msg.message == fMsg.message
     	noMembers.isEmpty()
     	hasMembers.size() == 1
-    	hasMembers[0] == owner
+    	hasMembers[0].id == owner.id
 
     	where:
 		type      | _
@@ -134,7 +135,7 @@ class FutureMessageSpec extends CustomSpec {
     		message:"hi", record:c1.record)
     	fMsg.futureMessageService = [unschedule:{ FutureMessage fMessage ->
     		calledUnschedule = true
-    		new Result(success:true)
+    		new Result(status:ResultStatus.OK)
 		}] as FutureMessageService
 		assert fMsg.validate()
 
@@ -148,5 +149,26 @@ class FutureMessageSpec extends CustomSpec {
     	fMsg.validate()
     	calledUnschedule == true
     	fMsg.isDone == true
+    }
+
+    void "test building detached criteria for records"() {
+        given: "valid record items"
+        Record rec = new Record()
+        rec.save(flush:true, failOnError:true)
+        FutureMessage fm1 = new FutureMessage(type:FutureMessageType.TEXT, message:"hi", record:rec),
+            fm2 = new FutureMessage(type:FutureMessageType.TEXT, message:"hi", record:rec)
+        [fm1, fm2].each { FutureMessage fMsg ->
+            fMsg.metaClass.refreshTrigger = { -> }
+            fMsg.save(flush:true, failOnError:true)
+        }
+
+        when: "build detached criteria for these items"
+        DetachedCriteria<FutureMessage> detachedCrit = FutureMessage.buildForRecords([rec])
+        List<FutureMessage> fMsgList = detachedCrit.list()
+        Collection<Long> targetIds = [fm1, fm2]*.id
+
+        then: "we are able to fetch these items back from the db"
+        fMsgList.size() == 2
+        fMsgList.every { it.id in targetIds }
     }
 }

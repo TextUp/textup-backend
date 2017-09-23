@@ -39,7 +39,8 @@ class MailService {
             failures[0]
         }
         else {
-            resultFactory.failWithMessage("mailService.notifyAdminsOfPendingStaff.noAdmins")
+            resultFactory.failWithCodeAndStatus("mailService.notifyAdminsOfPendingStaff.noAdmins",
+                ResultStatus.BAD_REQUEST)
         }
     }
     Result<SendGrid.Response> notifyPendingOfApproval(Staff approvedStaff) {
@@ -144,8 +145,10 @@ class MailService {
             String username = config("textup.apiKeys.sendGrid.username"),
                 password = config("textup.apiKeys.sendGrid.password")
             SendGrid.Response response = new SendGrid(username, password).send(email)
-            if (response.status) { resultFactory.success(response) }
-            else { resultFactory.failWithMessage("resultFactory.echoMessage", [response.message]) }
+            if (response.success) {
+                resultFactory.success(response)
+            }
+            else { resultFactory.failForSendGrid(response) }
         }
         catch (SendGridException e) {
             log.error("MailService.sendMail: ${e.message}")

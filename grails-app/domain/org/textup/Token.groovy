@@ -4,12 +4,10 @@ import grails.compiler.GrailsCompileStatic
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.transform.EqualsAndHashCode
-import org.hibernate.FlushMode
-import org.hibernate.Session
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.types.TokenType
+import org.textup.type.TokenType
 
 @GrailsCompileStatic
 @EqualsAndHashCode
@@ -45,22 +43,17 @@ class Token {
         if (!this.token) { generateToken() }
     }
     protected void generateToken() {
-        Integer tokenSize = this.type?.tokenSize ?: Constants.DEFAULT_TOKEN_LENGTH
-        String tokenString
         // can't flush in GORM event hooks and calling dynamic finders
         // auto-flushes by default
-        Token.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            tokenString = Helpers.randomAlphanumericString(tokenSize)
-            try {
-                //ensure that our generated token is unique
-                while (Token.countByToken(tokenString) != 0) {
-                    tokenString = Helpers.randomAlphanumericString(tokenSize)
-                }
+        Helpers.doWithoutFlush({
+            Integer tokenSize = this.type?.tokenSize ?: Constants.DEFAULT_TOKEN_LENGTH
+            String tokenString = Helpers.randomAlphanumericString(tokenSize)
+            //ensure that our generated token is unique
+            while (Token.countByToken(tokenString) != 0) {
+                tokenString = Helpers.randomAlphanumericString(tokenSize)
             }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        this.token = tokenString
+            this.token = tokenString
+        })
     }
 
     // Expiration

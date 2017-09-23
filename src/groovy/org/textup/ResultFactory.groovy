@@ -1,13 +1,17 @@
 package org.textup
 
-import org.springframework.validation.Errors
+import com.pusher.rest.data.Result as PusherResult
+import com.sendgrid.SendGrid
+import grails.compiler.GrailsCompileStatic
 import groovy.util.logging.Log4j
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
-import org.springframework.http.HttpStatus
-import grails.compiler.GrailsCompileStatic
-import org.textup.types.ResultType
+import org.springframework.context.MessageSourceResolvable
+import org.springframework.context.NoSuchMessageException
+import org.springframework.transaction.TransactionStatus
+import org.springframework.validation.Errors
+import org.springframework.validation.ObjectError
 
 @GrailsCompileStatic
 @Log4j
@@ -16,52 +20,93 @@ class ResultFactory {
 	@Autowired
 	MessageSource messageSource
 
-	/////////////
-	// Success //
-	/////////////
+	// Success
+	// -------
 
-	Result success(payload) {
-		new Result(success:true, payload:payload,
-			type:ResultType.SUCCESS, messageSource:messageSource)
+	public <T> Result<T> success(T payload, ResultStatus status = ResultStatus.OK) {
+		Result.createSuccess(payload, status)
 	}
-	Result<?> success() {
-		new Result<?>(success:true, payload:null,
-			type:ResultType.SUCCESS, messageSource:messageSource)
+	Result<Void> success() {
+		Result.<Void>createSuccess(null, ResultStatus.NO_CONTENT)
 	}
 
-	/////////////
-	// Failure //
-	/////////////
+	// Failure
+	// -------
 
-
-	Result failWithMessage(String messageCode, List params=[]) {
-		String message = messageSource.getMessage(messageCode, params as Object[], LCH.getLocale())
-		new Result(success:false, payload:[code:messageCode, message:message],
-            type:ResultType.MESSAGE, messageSource:messageSource)
-	}
-	Result failWithMessageAndStatus(HttpStatus status, String messageCode, List params=[]) {
-		String message = messageSource.getMessage(messageCode, params as Object[], LCH.getLocale())
-		new Result(success:false, payload:[code:messageCode, message:message, status:status],
-            type:ResultType.MESSAGE_STATUS, messageSource:messageSource)
-	}
-    Result failWithMessagesAndStatus(HttpStatus status, Collection<String> messages) {
-        new Result(success:false, payload:[status:status, messages:messages],
-            type:ResultType.MESSAGE_LIST_STATUS, messageSource:messageSource)
+    public <T> Result<T> failWithResultsAndStatus(Collection<Result<T>> results, ResultStatus status) {
+    	ensureRollbackOnFailure()
+    	List<String> messages = []
+    	results.each { Result<?> res -> messages += res.errorMessages }
+    	Result.<T>createError(messages, status)
     }
-    Result failWithResultsAndStatus(HttpStatus status, Collection<Result> results) {
-        Collection<String> messages = []
-        results.each { Result res ->
-            if (!res.success) { messages += res.errorMessages }
-        }
-        new Result(success:false, payload:[status:status, messages:messages],
-            type:ResultType.MESSAGE_LIST_STATUS, messageSource:messageSource)
+    public <T> Result<T> failWithCodeAndStatus(String code, ResultStatus status, List params = []) {
+    	ensureRollbackOnFailure()
+		Result.<T>createError([getMessage(code, params)], status)
     }
-	Result failWithThrowable(Throwable t) {
-		new Result(success:false, payload:t, type:ResultType.THROWABLE,
-			messageSource:messageSource)
+	public <T> Result<T> failWithThrowable(Throwable t) {
+		ensureRollbackOnFailure()
+		Result.<T>createError([t.message], ResultStatus.INTERNAL_SERVER_ERROR)
 	}
-    Result failWithValidationErrors(Errors verrors) {
-    	new Result(success:false, payload:verrors,
-            type:ResultType.VALIDATION, messageSource:messageSource)
+    public <T> Result<T> failWithValidationErrors(Errors errors) {
+    	this.<T>failWithManyValidationErrors([errors])
+    }
+    public <T> Result<T> failWithManyValidationErrors(Collection<Errors> manyErrors) {
+    	ensureRollbackOnFailure()
+    	List<String> messages = []
+    	manyErrors.each { Errors errors ->
+    		messages += errors.allErrors.collect { ObjectError e1 -> this.getMessage(e1) }
+		}
+    	Result.<T>createError(messages, ResultStatus.UNPROCESSABLE_ENTITY)
+    }
+
+    // Service-specific failure
+    // ------------------------
+
+    public <T> Result<T> failForPusher(PusherResult pRes) {
+    	ensureRollbackOnFailure()
+    	Result.<T>createError([pRes.message], ResultStatus.convert(pRes.httpStatus))
+    }
+    public <T> Result<T> failForSendGrid(SendGrid.Response response) {
+    	ensureRollbackOnFailure()
+    	Result.<T>createError([response.message], ResultStatus.convert(response.code))
+    }
+
+    // Helpers
+    // -------
+
+    // Can use any class to expose the TransactionStatus object. Business logic should always
+    // be encapsulated in a Transasction. In the off chance that it is not, this will create
+    // a new transaction and set the only possible outcome of the transaction to rollback any
+    // changes that were made. This method is necessary because sometimes we reach an error
+    // state and would like to rollback, but unless there is a ValidationError on a domain class,
+    // this is not always the case and sometimes we inadvertently persist classes created
+    // halfway if the operation fails on a later step
+    // We use the Organization class because this domain has relatively few dependencies and the
+    // doWithoutFlush method also uses the Organization class so we have to mock only one web
+    // of dependencies when testing
+    protected void ensureRollbackOnFailure() {
+    	Organization.withTransaction { TransactionStatus status -> status.setRollbackOnly() }
+    }
+    // Wrap getting message in these try catch blocks to avoid losing transaction data
+    // due to the uncaught exception being thrown. Instead, we log this error so we can go back
+    // in the future to review the logs and correct these problems without disrupting the
+    // flow of operations of the overall application
+    protected String getMessage(String code, List params) {
+    	try {
+    		messageSource.getMessage(code, params as Object[], LCH.getLocale())
+    	}
+    	catch (NoSuchMessageException e) {
+    		log.error("ResultFactory.getMessage for code $code with error ${e.message}")
+    		""
+    	}
+    }
+    protected String getMessage(MessageSourceResolvable resolvable) {
+    	try {
+    		messageSource.getMessage(resolvable, LCH.getLocale())
+    	}
+    	catch (NoSuchMessageException e) {
+    		log.error("ResultFactory.getMessage for resolvable $resolvable with error ${e.message}")
+    		""
+    	}
     }
 }

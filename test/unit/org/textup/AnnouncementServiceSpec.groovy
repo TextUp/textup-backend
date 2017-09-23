@@ -6,16 +6,14 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.textup.types.ResultType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
-import static org.springframework.http.HttpStatus.*
 
 @TestFor(AnnouncementService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt])
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class AnnouncementServiceSpec extends CustomSpec {
 
@@ -26,12 +24,10 @@ class AnnouncementServiceSpec extends CustomSpec {
     def setup() {
         super.setupData()
         service.resultFactory = getResultFactory()
-        service.authService = [getLoggedInAndActive:{
-        	s1
-    	}] as AuthService
+        service.authService = [getLoggedInAndActive:{ s1 }] as AuthService
     	Phone.metaClass.sendAnnouncement = { String message,
         	DateTime expiresAt, Staff staff ->
-        	new Result(type:ResultType.SUCCESS, success:true, payload:null)
+        	new Result(status:ResultStatus.OK, payload:null)
     	}
     }
 
@@ -40,20 +36,23 @@ class AnnouncementServiceSpec extends CustomSpec {
     }
 
     void "test create"() {
+        given:
+        addToMessageSource("announcementService.create.noPhone")
+
     	when: "no phone"
-    	Result res = service.create(null, [:])
+    	Result<FeaturedAnnouncement> res = service.create(null, [:])
 
     	then:
     	res.success == false
-    	res.type == ResultType.MESSAGE_STATUS
-    	res.payload.status == UNPROCESSABLE_ENTITY
-    	res.payload.code == "announcementService.create.noPhone"
+    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	res.errorMessages[0] == "announcementService.create.noPhone"
 
     	when: "success, having mocked method on phone"
     	res = service.create(p1, [message: "hi!", expiresAt:DateTime.now().toDate()])
 
     	then:
     	res.success == true
+        res.status == ResultStatus.CREATED
     }
 
     void "test update"() {
@@ -62,23 +61,24 @@ class AnnouncementServiceSpec extends CustomSpec {
     		message:"hello there bud!", expiresAt:DateTime.now().plusDays(2))
     	announce.save(flush:true, failOnError:true)
     	int aBaseline = FeaturedAnnouncement.count()
+        addToMessageSource("announcementService.update.notFound")
 
     	when: "nonexistent id"
-    	Result res = service.update(-88L, [:])
+    	Result<FeaturedAnnouncement> res = service.update(-88L, [:])
 
     	then:
     	res.success == false
-    	res.type == ResultType.MESSAGE_STATUS
-    	res.payload.status == NOT_FOUND
-    	res.payload.code == "announcementService.update.notFound"
+    	res.status == ResultStatus.NOT_FOUND
+    	res.errorMessages[0] == "announcementService.update.notFound"
 
     	when: "invalid expires at"
+        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
     	res = service.update(announce.id, [expiresAt:"invalid"])
 
     	then:
     	res.success == false
-    	res.type == ResultType.VALIDATION
-    	res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	res.errorMessages[0].contains("nullable")
 
     	when: "valid"
     	DateTime newExpires = DateTime.now().plusMinutes(30)
@@ -86,6 +86,7 @@ class AnnouncementServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload instanceof FeaturedAnnouncement
     	res.payload.expiresAt == newExpires
     }

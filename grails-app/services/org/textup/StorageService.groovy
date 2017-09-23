@@ -10,7 +10,6 @@ import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.validator.UploadItem
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @Transactional
@@ -74,7 +73,7 @@ class StorageService {
         }
     }
     protected ByteArrayInputStream compressIfImage(UploadItem uItem) {
-        Float quality = Helpers.toFloat(grailsApplication
+        Float quality = Helpers.to(Float, grailsApplication
             .flatConfig["textup.imageCompressionQualty"]) ?: 0.5f
         Helpers.tryCompressUploadItemStream(uItem, quality)
     }

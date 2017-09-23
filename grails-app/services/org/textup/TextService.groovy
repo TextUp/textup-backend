@@ -5,12 +5,9 @@ import com.twilio.rest.api.v2010.account.Message
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.hibernate.FlushMode
 import org.textup.rest.TwimlBuilder
-import org.textup.types.ResultType
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.TempRecordReceipt
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @Transactional
@@ -35,17 +32,10 @@ class TextService {
                     return resultFactory.failWithValidationErrors(receipt.errors)
                 }
             }
-            //also return on server error
-            else if (!res.success && res.type == ResultType.THROWABLE &&
-                res.payload instanceof ApiException &&
-                Helpers.toInteger((res.payload as ApiException).statusCode) > 499 &&
-                Helpers.toInteger((res.payload as ApiException).statusCode) < 600) {
-                return res
-            }
         }
         // if still not returned, that means that none of the numbers worked
-        return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-            "textService.text.allFailed")
+        resultFactory.failWithCodeAndStatus("textService.text.allFailed",
+            ResultStatus.UNPROCESSABLE_ENTITY)
 	}
 
     protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
@@ -61,7 +51,7 @@ class TextService {
         }
         catch (ApiException e) {
             log.error("TextService.tryText: ${e.message}")
-            return resultFactory.failWithThrowable(e)
+            resultFactory.failWithThrowable(e)
         }
     }
 }

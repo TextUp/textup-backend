@@ -5,7 +5,7 @@ import org.springframework.security.access.annotation.Secured
 import grails.transaction.Transactional
 import grails.compiler.GrailsCompileStatic
 import grails.plugin.springsecurity.SpringSecurityService
-import org.textup.types.OrgStatus
+import org.textup.type.OrgStatus
 
 @GrailsCompileStatic
 @Secured("ROLE_ADMIN")

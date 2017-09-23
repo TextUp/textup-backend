@@ -10,17 +10,19 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import static org.springframework.http.HttpStatus.*
 
 @GrailsCompileStatic
 @RestApi(name="Staff", description = "Operations on staff members after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class StaffController extends BaseController {
 
-    static namespace = "v1"
+    static String namespace = "v1"
 
-    // authService from superclass
+    AuthService authService
     StaffService staffService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // List
     // ----
@@ -79,9 +81,9 @@ class StaffController extends BaseController {
         }
         Staff loggedInStaff = authService.loggedInAndActive
         Organization org = loggedInStaff.org
-        Closure count = { Map ps -> org.countStaff(ps.search as String) },
-            list = { Map ps -> org.getStaff(ps.search as String, ps) }
-        genericListActionForClosures(Staff, count, list, params)
+        Closure<Integer> count = { Map ps -> org.countStaff(ps.search as String) }
+        Closure<List<Staff>> list = { Map ps -> org.getStaff(ps.search as String, ps) }
+        respondWithMany(Staff, count, list, params)
     }
     protected def listForOrg(GrailsParameterMap params) {
         Organization org = Organization.get(params.long("organizationId"))
@@ -92,11 +94,9 @@ class StaffController extends BaseController {
             return forbidden()
         }
         params.statuses = params.list("status[]")
-        genericListActionForClosures(Staff, { Map ps ->
-            org.countPeople(ps)
-        }, { Map ps ->
-            org.getPeople(ps)
-        }, params)
+        Closure<Integer> count = { Map ps -> org.countPeople(ps) }
+        Closure<List<Staff>> list = { Map ps -> org.getPeople(ps) }
+        respondWithMany(Staff, count, list, params)
     }
     protected def listForTeam(GrailsParameterMap params) {
         Team t1 = Team.get(params.long("teamId"))
@@ -106,8 +106,10 @@ class StaffController extends BaseController {
         else if (!authService.hasPermissionsForTeam(t1.id)) {
             return forbidden()
         }
-        genericListActionAllResults(Staff,
-            t1.getMembersByStatus(params.list("status[]")))
+        Collection<Staff> staffList = t1.getMembersByStatus(params.list("status[]"))
+        Closure<Integer> count = { staffList.size() }
+        Closure<Collection<Staff>> list = { staffList }
+        respondWithMany(Staff, count, list, params)
     }
     protected def listForShareStaff(GrailsParameterMap params) {
         Long sId = params.long("canShareStaffId")
@@ -116,8 +118,10 @@ class StaffController extends BaseController {
             return forbidden()
         }
         Staff s1 = Staff.get(sId)
-        genericListActionAllResults(Staff,
-            s1.getCanShareWith(params.list("status[]")))
+        Collection<Staff> staffList = s1.getCanShareWith(params.list("status[]"))
+        Closure<Integer> count = { staffList.size() }
+        Closure<Collection<Staff>> list = { staffList }
+        respondWithMany(Staff, count, list, params)
     }
 
     // Show
@@ -140,10 +144,10 @@ class StaffController extends BaseController {
         if (params.timezone) { //for the json marshaller
             request.setAttribute("timezone", params.timezone as String)
         }
-        Long id = params.long("id")
-        if (Staff.exists(id)) {
-            if (authService.hasPermissionsForStaff(id)) {
-                genericShowAction(Staff, id)
+        Staff s1 = Staff.get(params.long("id"))
+        if (s1) {
+            if (authService.hasPermissionsForStaff(s1.id)) {
+                respond(s1, [status:ResultStatus.OK.apiStatus])
             }
             else { forbidden() }
         }
@@ -168,15 +172,17 @@ class StaffController extends BaseController {
             description="The updated fields created an invalid staff member.")
     ])
     def save() {
-        if (!validateJsonRequest(request, "staff")) { return; }
+        if (!validateJsonRequest(Staff, request)) { return }
         Map sInfo = (request.properties.JSON as Map).staff as Map
         String tz = params.timezone as String
         if (tz) { //for the json marshaller
             request.setAttribute("timezone", tz)
         }
-        handleSaveResult(Staff, staffService.create(sInfo, tz).then { Staff s1 ->
-            staffService.addRoleToStaff(s1.id)
-        } as Result)
+        Result<Staff> res = staffService.create(sInfo, tz)
+        // need to add role after staff has been persisted
+        res.then { Staff s1 -> staffService.addRoleToStaff(s1.id) }
+        // use the original result because it has the correct CREATED status
+        respondWithResult(Staff, res)
     }
 
     // Update
@@ -198,17 +204,16 @@ class StaffController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid staff member.")
     ])
     def update() {
-        if (!validateJsonRequest(request, "staff")) { return; }
+        if (!validateJsonRequest(Staff, request)) { return }
+        String tz = params.timezone as String
         if (params.timezone) { //for the json marshaller
-            request.setAttribute("timezone", params.timezone as String)
+            request.setAttribute("timezone", tz)
         }
         Map sInfo = (request.properties.JSON as Map).staff as Map
         Long id = params.long("id")
         if (authService.exists(Staff, id)) {
-            if (authService.isLoggedIn(id) ||
-                authService.isAdminAtSameOrgAs(id)) {
-                handleUpdateResult(Staff, staffService.update(id, sInfo,
-                    params.timezone as String))
+            if (authService.isLoggedIn(id) || authService.isAdminAtSameOrgAs(id)) {
+                respondWithResult(Staff, staffService.update(id, sInfo, tz))
             }
             else { forbidden() }
         }

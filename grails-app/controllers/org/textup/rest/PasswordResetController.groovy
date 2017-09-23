@@ -1,21 +1,23 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import static org.springframework.http.HttpStatus.*
-import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 @RestApi(name="PasswordReset", description = "Password reset")
 @Secured("permitAll")
 class PasswordResetController extends BaseController {
 
-	static allowedMethods = [index:"GET", requestReset:"POST",
-        resetPassword:"PUT", delete:"DELETE"]
+    static String namespace = "v1"
+	static allowedMethods = [index:"GET", requestReset:"POST", resetPassword:"PUT", delete:"DELETE"]
 
 	TokenService tokenService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     def index() { notAllowed() }
     def delete() { notAllowed() }
@@ -32,13 +34,9 @@ class PasswordResetController extends BaseController {
         if (!validateJsonRequest(request)) { return }
         Map info = request.properties.JSON as Map
         if (!info.username) {
-            return badRequest()
+            badRequest()
         }
-        Result res = tokenService.requestReset(info.username as String)
-        if (res.success) {
-            noContent()
-        }
-        else { handleResultFailure(res) }
+        else { respondWithResult(Void, tokenService.requestReset(info.username as String)) }
     }
 
     @RestApiMethod(description="Reset password with a valid reset tokentoken")
@@ -54,11 +52,10 @@ class PasswordResetController extends BaseController {
         if (!info.token || !info.password) {
             return badRequest()
         }
-        Result res = tokenService.resetPassword(info.token as String,
-            info.password as String)
+        Result<Staff> res = tokenService.resetPassword(info.token as String, info.password as String)
         if (res.success) {
             noContent()
         }
-        else { handleResultFailure(res) }
+        else { respondWithResult(Staff, res) }
     }
 }

@@ -49,9 +49,10 @@ class UrlMappings {
             "/sockets"(resources:"socket", namespace:"v1") {
                 format = "json"
             }
-            //GET for looking up available TextUp numbers from twilio
+            //GET (index) for looking up available TextUp numbers from twilio
+            //GET (show) for determining validity of provided phone number
             //POST for validating ownership of phone numbers
-            "/numbers"(resources:"lookupNumber", namespace:"v1") {
+            "/numbers"(resources:"number", namespace:"v1") {
                 format = "json"
             }
 

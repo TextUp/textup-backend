@@ -15,6 +15,8 @@ import javax.imageio.ImageWriteParam
 import javax.imageio.ImageWriter
 import javax.imageio.stream.ImageOutputStream
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.hibernate.FlushMode
+import org.hibernate.Session
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.Days
@@ -49,6 +51,22 @@ class Helpers {
         else { [] }
     }
 
+    // Validator
+    // ---------
+
+    static <T> T doWithoutFlush(Closure<T> doThis) {
+        T result
+        // doesn't matter which domain class we call this on
+        Organization.withSession { Session session ->
+            session.flushMode = FlushMode.MANUAL
+            try {
+                result = doThis()
+            }
+            finally { session.flushMode = FlushMode.AUTO }
+        }
+        result
+    }
+
     // Lists
     // -----
 
@@ -59,7 +77,6 @@ class Helpers {
         }
         numFound == num
     }
-
     static List takeRight(List data, int numToTake) {
         if (!data) return []
         int totalNum = data.size()
@@ -71,59 +88,69 @@ class Helpers {
         }
         else { data[(totalNum - numToTake)..(totalNum - 1)] }
     }
+    static boolean inListIgnoreCase(String toFind, Collection<String> options) {
+        String lowerCaseToFind = Helpers.toLowerCaseString(toFind)
+        (options
+            ?.collect(Helpers.&toLowerCaseString) as Collection<String>)
+            ?.any { String allowed -> allowed == lowerCaseToFind }
+    }
+
+    // Maps
+    // ----
+
+    static <K> Map.Entry<K,? extends Comparable> findHighestValue(Map<K,? extends Comparable> map) {
+        Map.Entry<K,? extends Comparable> highestEntry
+        map?.entrySet().each { Map.Entry<K,? extends Comparable> entry ->
+            if (!highestEntry || entry.value > highestEntry.value) {
+                highestEntry = entry
+            }
+        }
+        highestEntry
+    }
 
     // Types
     // -----
 
-    static boolean isLong(def val) {
-        "${val}".isLong()
+    // For some reason, cannot combine these two method signatures into one using a default
+    // value for the fallbackValue. Doing so causes the static compilation to fail to convert
+    // the Object val to the generic type T, instead complaining that the return value is of
+    // type T and does not match te declared type
+    static <T> T to(Class<T> clazz, Object val) {
+        Helpers.to(clazz, val, null)
     }
-    static Boolean toBoolean(def val) {
-        String str = "${val}"
-        str == "true" ? true : str == "false" ? false : null
-    }
-    static Long toLong(def val) {
-        BigDecimal res = toBigDecimal(val)
-        (res != null) ? res as Long : null
-    }
-    static Float toFloat(def val) {
-        BigDecimal res = toBigDecimal(val)
-        (res != null) ? res as Float : null
-    }
-    static Integer toInteger(def val) {
-        BigDecimal res = toBigDecimal(val)
-        (res != null) ? res as Integer : null
-    }
-    static BigDecimal toBigDecimal(def val) {
-        String strVal = "${val}"
-        strVal.isBigDecimal() ? strVal.toBigDecimal() : null
-    }
-    static List<Long> allToLong(List l) {
-        l.collect { Helpers.toLong(it) }
-    }
-    static List toList(def val) {
-        (val instanceof List)  ? (val as List) : []
-    }
-    static List<Long> toIdsList(def data) {
-        List<Long> ids = []
-        for (rawId in Helpers.toList(data)) {
-            Long id = Helpers.toLong(rawId)
-            if (id) { ids << id }
-            else { return [] }
+    static <T> T to(Class<T> clazz, Object val, T fallbackVal) {
+        if (val == null) {
+            return fallbackVal
         }
-        ids
-    }
-    static DateTime toUTCDateTime(def val) {
         try {
-            new DateTime(val, DateTimeZone.UTC)
+            String str = "${val}".toLowerCase()
+            switch (clazz) {
+                // note for String conversion we use default toString method on `val` not `str`
+                case String: return val?.toString() ?: fallbackVal
+                case Boolean: return (str == "true" || str == "false") ? str.toBoolean() : fallbackVal
+                case Number: return str.isBigDecimal() ? str.toBigDecimal().asType(clazz) : fallbackVal
+                case PhoneNumber: return new PhoneNumber(number:str)
+                default: return clazz.isAssignableFrom(val.class) ? val.asType(clazz) : fallbackVal
+            }
         }
-        catch (e) {
-            log.debug("Helpers.toUTCDateTime: $e")
-            null
+        catch (ClassCastException e) {
+            log.debug("Helpers.to: clazz: $clazz, val: $val: ${e.message}")
+            fallbackVal
         }
     }
-    static String toString(def val) {
-        "$val".toString()
+    static <T> List<T> allTo(Class<T> clazz, Collection<? extends Object> val) {
+        allTo(clazz, val, null)
+    }
+    static <T> List<T> allTo(Class<T> clazz, Collection<? extends Object> val,
+        T replaceFailWith) {
+        List<T> results = []
+        if (!val) {
+            return results
+        }
+        for (obj in val) {
+            results << to(clazz, obj, replaceFailWith)
+        }
+        results
     }
 
     // Formatting
@@ -138,21 +165,44 @@ class Helpers {
         if (!query?.endsWith("%")) query = "$query%"
         query
     }
+    static String joinWithDifferentLast(List list, String delim, String lastDelim) {
+        if (!list) {
+            return ""
+        }
+        (list.size() > 2) ? (list[0..-2].join(delim) + lastDelim + list[-1]) : list.join(lastDelim)
+    }
+    static String appendGuaranteeLength(String contents, String toAppend, int targetLen) {
+        Integer contentsLen = contents?.size(),
+            appendLen = toAppend?.size()
+        String myContents = contents
+        if (!contentsLen || targetLen < 1) {
+            return myContents
+        }
+        if (contentsLen > targetLen) {
+            // subtract one because we are dealing with indices not lengths
+            int howMuchToKeep = targetLen - 1
+            myContents = contents[0..howMuchToKeep]
+            contentsLen = myContents.size()
+        }
+        if (!appendLen || appendLen > targetLen) {
+            return myContents
+        }
+        if (contentsLen + appendLen > targetLen) {
+            // contentsLen - (contentsLen + appendLen - targetLen)
+            // = contentsLen - contentsLen - appendLen + targetLen
+            // = targetLen - appendLen
+            // then subtract one because we are dealing with indices not lengths
+            int howMuchToKeep = targetLen - appendLen - 1
+            // if we want to keep a negative amount, then we are in the edge case where
+            // we want to keep none of the contents and effectively return only toAppend
+            myContents = (howMuchToKeep < 0) ? "" : contents[0..howMuchToKeep]
+        }
+        myContents + toAppend
+    }
 
     // Date, time, timezones
     // ---------------------
 
-    static DateTime toDateTimeWithZone(def time, def zone = null) {
-        if (!time) return null
-        new DateTime(toString(time))
-            // must NOT use withZoneRetainFields because doing so results in this scenario:
-            // The default system time might not be UTC time. Therefore, when we pass a UTC
-            // string to the DateTime constructor, it converts the UTC fields to the fields
-            // in the local time zone (that is the system default). Then, if we call
-            // withZoneRetainFields on this DateTime object, we convert to the UTC time zone
-            // using the LOCAL values, thereby losing the original time
-            .withZone(getZoneFromId(zone as String))
-    }
     static String printLocalInterval(LocalInterval localInt) {
         if (localInt) {
             String start1 = localInt.start.hourOfDay.toString().padLeft(2, "0"),
@@ -173,6 +223,26 @@ class Helpers {
             log.debug("Helpers.getZoneFromId: ${e.message}")
             return DateTimeZone.UTC
         }
+    }
+    static DateTime toUTCDateTime(def val) {
+        try {
+            new DateTime(val, DateTimeZone.UTC)
+        }
+        catch (e) {
+            log.debug("Helpers.toUTCDateTime: $e")
+            null
+        }
+    }
+    static DateTime toDateTimeWithZone(def time, def zone = null) {
+        if (!time) return null
+        new DateTime(to(String, time))
+            // must NOT use withZoneRetainFields because doing so results in this scenario:
+            // The default system time might not be UTC time. Therefore, when we pass a UTC
+            // string to the DateTime constructor, it converts the UTC fields to the fields
+            // in the local time zone (that is the system default). Then, if we call
+            // withZoneRetainFields on this DateTime object, we convert to the UTC time zone
+            // using the LOCAL values, thereby losing the original time
+            .withZone(getZoneFromId(zone as String))
     }
     static DateTime toDateTimeTodayWithZone(LocalTime lt, DateTimeZone zone) {
         if (zone) {
@@ -215,16 +285,19 @@ class Helpers {
     }
     static Collection<ImageInfo> buildImagesFromImageKeys(StorageService storageService,
         Long id, Collection<String> imageKeys) {
-
-        imageKeys.collect { String imageKey ->
+        Collection<ImageInfo> imageInfoList = []
+        imageKeys.each { String imageKey ->
             String objectKey = Helpers.buildObjectKeyFromImageKey(id, imageKey)
             Result<URL> res = storageService
                 .generateAuthLink(objectKey)
                 .logFail('RecordNote.getImageLinks')
             String link = res.success ? res.payload.toString() : ""
             ImageInfo info = new ImageInfo(key:imageKey, link:link)
-            info.validate() ? info : null
-        } as Collection<ImageInfo>
+            if (info.validate()) {
+                imageInfoList << info
+            }
+        }
+        imageInfoList
     }
     static ByteArrayInputStream tryCompressUploadItemStream(UploadItem uItem, float quality) {
         ByteArrayInputStream original = uItem?.stream

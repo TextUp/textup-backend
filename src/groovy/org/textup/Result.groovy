@@ -1,111 +1,117 @@
 package org.textup
 
 import grails.compiler.GrailsCompileStatic
+import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
-import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.i18n.LocaleContextHolder as LCH
-import org.springframework.context.MessageSource
-import org.textup.types.ResultType
-import org.textup.types.LogLevel
+import org.textup.type.LogLevel
 
 @GrailsCompileStatic
 @Log4j
 @ToString
+@EqualsAndHashCode
 class Result<T> {
 
-    // set by resultFactory upon creation
-    MessageSource messageSource
-
-    boolean success = true
     T payload
-    ResultType type
+    ResultStatus status = ResultStatus.OK
+    List<String> errorMessages = []
 
-    // Individual
-    // ----------
+    // Static methods
+    // --------------
 
-    def then(Closure successAction) {
-    	this.success ? executeAction(successAction) : this
+    static <V> Result<V> createSuccess(T payload, ResultStatus status) {
+        Result<V> res = new Result<>()
+        res.setSuccess(payload, status)
+    }
+    static <V> Result<V> createError(List<String> messages, ResultStatus status) {
+        Result<V> res = new Result<>()
+        res.setError(messages, status)
     }
 
-    def then(Closure successAction, Closure failAction) {
-    	this.success ? executeAction(successAction) : executeAction(failAction)
+    // Methods
+    // -------
+
+    public void thenEnd(Closure<?> successAction) {
+        if (this.success) {
+            executeSuccess(successAction)
+        }
+    }
+    public void thenEnd(Closure<?> successAction, Closure<?> failAction) {
+        this.success ? executeSuccess(successAction) : executeFailure(failAction)
     }
 
-    Result logFail(String prefix="", LogLevel level=LogLevel.ERROR) {
+    public <V> Result<V> then(Closure<Result<V>> successAction) {
+        if (this.success) {
+            executeSuccess(successAction)
+        }
+        else { Result.<V>createError(this.errorMessages, this.status) }
+    }
+    public <V> Result<V> then(Closure<Result<V>> successAction, Closure<Result<V>> failAction) {
+        this.success ? executeSuccess(successAction) : executeFailure(failAction)
+    }
+
+    Result<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {
         if (!this.success) {
-            String msg = prefix ? "${prefix}: ${type}: ${payload}" : "${type}: ${payload}"
+            String statusString = this.status.intStatus.toString()
+            String msg = prefix ? "${prefix}: ${statusString}: ${errorMessages}" : "${statusString}: ${errorMessages}"
             switch (level) {
-                case LogLevel.ERROR:
-                    log.error(msg)
-                    break
                 case LogLevel.DEBUG:
                     log.debug(msg)
                     break
                 case LogLevel.INFO:
                     log.info(msg)
                     break
+                default: // LogLevel.ERROR
+                    log.error(msg)
             }
         }
         this
     }
 
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
-    Collection<String> getErrorMessages() {
-        Collection<String> messages = []
-        try {
-            switch (this.type) {
-                case ResultType.VALIDATION:
-                    this.payload.allErrors.each {
-                        messages << messageSource.getMessage(it, LCH.getLocale())
-                    }
-                    break
-                case ResultType.MESSAGE_STATUS:
-                    messages << this.payload.message
-                    break
-                case ResultType.MESSAGE_LIST_STATUS:
-                    messages += this.payload.messages
-                    break
-                case ResultType.THROWABLE:
-                    messages << this.payload.message
-                    break
-                case ResultType.MESSAGE:
-                    messages << this.payload.message
-                    break
-            }
-        }
-        catch (e) {
-            log.error("Result.getErrorMessages: Could not get errors for type \
-                ${this.type} with errors ${e.message}")
-        }
-        messages
+    ResultGroup<T> toGroup() {
+        (new ResultGroup<>()).add(this)
     }
 
-    protected def executeAction(Closure action) {
-    	if (action.maximumNumberOfParameters == 0) { action() }
-        else if (action.maximumNumberOfParameters == 1) { action(payload) }
-        else { action(type, payload) }
+    // Property Access
+    // ---------------
+
+    boolean getSuccess() {
+        this.status.isSuccess
+    }
+    Result<T> setSuccess(T success, ResultStatus status = ResultStatus.OK) {
+        this.status = status
+        this.payload = success
+        this
+    }
+    Result<T> setError(List<String> errors, ResultStatus status) {
+        this.status = status
+        this.errorMessages = errors
+        this
     }
 
-    // Multiple
-    // --------
+    // Helpers
+    // -------
 
-    static <E> Result<E> waterfall(Closure<Result>... actions) {
-        if (!actions) { return null }
-        Result prevRes, thisRes
-        for (action in actions) {
-            if (!prevRes) {
-                thisRes = action() as Result
-            }
-            else if (prevRes.success) {
-                thisRes = action(prevRes.payload) as Result
-            }
-            else { // prev result is failure
-                return prevRes
-            }
-            prevRes = thisRes
+    protected <W> W executeSuccess(Closure<W> action) {
+    	if (action.maximumNumberOfParameters == 0) {
+            action()
         }
-        thisRes
+        else if (action.maximumNumberOfParameters == 1) {
+            action(payload)
+        }
+        else { // action.maximumNumberOfParameters == 2
+            action(payload, status)
+        }
+    }
+    protected <W> W executeFailure(Closure<W> action) {
+        if (action.maximumNumberOfParameters == 0) {
+            action()
+        }
+        else if (action.maximumNumberOfParameters == 1) {
+            action(errorMessages)
+        }
+        else { // action.maximumNumberOfParameters == 2
+            action(errorMessages, status)
+        }
     }
 }

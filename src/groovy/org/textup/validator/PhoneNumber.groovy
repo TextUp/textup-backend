@@ -1,8 +1,8 @@
 package org.textup.validator
 
+import grails.compiler.GrailsCompileStatic
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 @EqualsAndHashCode(callSuper=true)
@@ -10,7 +10,7 @@ import grails.compiler.GrailsCompileStatic
 class PhoneNumber extends BasePhoneNumber {
 
     static constraints = {
-        number nullable:false, validator:{ String val, PhoneNumber obj ->
+        number nullable:false, validator:{ String val ->
 	        if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
 	    }
     }

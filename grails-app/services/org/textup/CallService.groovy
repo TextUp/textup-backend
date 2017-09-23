@@ -5,12 +5,9 @@ import com.twilio.rest.api.v2010.account.Call
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.hibernate.FlushMode
-import org.textup.types.ResultType
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @Transactional
@@ -38,23 +35,19 @@ class CallService {
             List<String> remaining = Helpers.takeRight(toPhoneNums, i)
             BasePhoneNumber toNum = toNums[numRemaining - i]
             if (!remaining) { // when only no extra numbers remaining
-                return this.start(fromNum, toNum, afterPickup)
+                return start(fromNum, toNum, afterPickup)
             }
             String callback = grailsLinkGenerator.link(namespace:"v1",
                 resource:"publicRecord", action:"save", absolute:true,
                 params:[handle:Constants.CALLBACK_STATUS,
                     remaining:remaining, afterPickup:afterPickupJson])
-            Result res = this.doCall(fromNum, toNum, afterPickup, callback)
-            // return on success or on server error
-            if (res.success || (!res.success && res.type == ResultType.THROWABLE &&
-                res.payload instanceof ApiException &&
-                Helpers.toInteger((res.payload as ApiException).statusCode) > 499 &&
-                Helpers.toInteger((res.payload as ApiException).statusCode) < 600)) {
+            Result<TempRecordReceipt> res = doCall(fromNum, toNum, afterPickup, callback)
+            if (res.success) {
                 return res
             }
         }
-        resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-            "callService.doCall.missingInfo")
+        resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
+            ResultStatus.UNPROCESSABLE_ENTITY)
     }
     Result<TempRecordReceipt> retry(PhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup) {
@@ -66,14 +59,14 @@ class CallService {
                 item1.save()
             }
             resultFactory.success(r1)
-        }) as Result<TempRecordReceipt>
+        })
     }
 
     protected Result<TempRecordReceipt> doCall(PhoneNumber fromNum, BasePhoneNumber toNum,
         Map afterPickup, String callback) {
         if (!fromNum || !toNum) {
-            resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-                "callService.doCall.missingInfo")
+            resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
         String afterLink = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:afterPickup)

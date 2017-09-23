@@ -16,7 +16,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(TagController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class TagControllerSpec extends CustomSpec {
 
@@ -46,7 +46,7 @@ class TagControllerSpec extends CustomSpec {
         request.method = "GET"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allToLong(loggedIn.phone.tags*.id)
+        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.tags*.id)
 
         then:
         response.status == SC_OK
@@ -60,7 +60,7 @@ class TagControllerSpec extends CustomSpec {
         params.teamId = t1.id
         request.method = "GET"
         controller.index()
-        List<Long> ids = Helpers.allToLong(t1.phone.tags*.id)
+        List<Long> ids = Helpers.allTo(Long, t1.phone.tags*.id)
 
         then:
         response.status == SC_OK
@@ -117,9 +117,9 @@ class TagControllerSpec extends CustomSpec {
 
     protected void mockForSave() {
         controller.tagService = [createForStaff:{ Map body ->
-            new Result(payload:tag1)
+            new Result(payload:tag1, status:ResultStatus.CREATED)
         }, createForTeam:{ Long tId, Map body ->
-            new Result(payload:teTag1)
+            new Result(payload:teTag1, status:ResultStatus.CREATED)
         }] as TagService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
@@ -192,7 +192,7 @@ class TagControllerSpec extends CustomSpec {
     void "test update tag"() {
         given:
         controller.tagService = [update:{ Long cId, Map body ->
-            new Result(payload:tag1)
+            new Result(payload:tag1, status:ResultStatus.OK)
         }] as TagService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
@@ -247,7 +247,7 @@ class TagControllerSpec extends CustomSpec {
     void "test delete tag"() {
         given:
         controller.tagService = [delete:{ Long cId ->
-            new Result(payload:tag1)
+            new Result(payload:null, status:ResultStatus.NO_CONTENT)
         }] as TagService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },

@@ -4,17 +4,25 @@ import grails.converters.JSON
 import org.quartz.Scheduler
 import org.quartz.TriggerKey
 import org.springframework.context.MessageSource
+import org.springframework.context.MessageSourceResolvable
+import org.springframework.context.support.StaticMessageSource
 import org.textup.*
-import org.textup.types.OrgStatus
-import org.textup.types.SharePermission
-import org.textup.types.StaffStatus
+import org.textup.type.OrgStatus
+import org.textup.type.SharePermission
+import org.textup.type.StaffStatus
 import spock.lang.Shared
 import spock.lang.Specification
 
 class CustomSpec extends Specification {
 
 	@Shared
-	int iterationCount = 1
+	int iterNum = 0
+
+    @Shared
+    Random randomGenerator = new Random()
+
+    @Shared
+    MessageSource messageSource = new StaticMessageSource()
 
     @Shared
     ConfigObject config = new ConfigSlurper()
@@ -36,14 +44,13 @@ class CustomSpec extends Specification {
     // Unit
     // ----
 
-
     void setupData() {
-        setupData(iterationCount)
+        iterNum = randIntegerUpTo(100000000)
+        setupData(iterNum)
     }
     void setupData(int iterNum) {
         loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"
-
         overrideConstructors(iterNum)
         organizations(iterNum)
         teamsWithPhones(iterNum)
@@ -54,26 +61,30 @@ class CustomSpec extends Specification {
         tags(iterNum)
         tagMemberships(iterNum)
     }
-    void cleanupData() { iterationCount++ }
+    void cleanupData() {}
 
     // Integration
     // -----------
 
     void setupIntegrationData() {
-        setupIntegrationData(iterationCount)
+        iterNum = randIntegerUpTo(100000000)
+        setupIntegrationData(iterNum)
     }
-    void setupIntegrationData(int iterNum) {
+    // Allow passing in these to integration data because when we are using
+    // the RemoteControl plugin to populate the remote server with test data,
+    // we cannot access any of the Shared fields and must supply our own values
+    void setupIntegrationData(int iterNum, Random randGen = null) {
         loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"
         if (Organization.countByName("1organiz$iterNum") == 0) {
-            organizations(iterNum)
-            teamsWithPhones(iterNum)
-            staffWithPhones(iterNum)
-            teamMemberships(iterNum)
-            contactsWithItems(iterNum)
-            shareContacts(iterNum)
-            tags(iterNum)
-            tagMemberships(iterNum)
+            organizations(iterNum, randGen)
+            teamsWithPhones(iterNum, randGen)
+            staffWithPhones(iterNum, randGen)
+            teamMemberships(iterNum, randGen)
+            contactsWithItems(iterNum, randGen)
+            shareContacts(iterNum, randGen)
+            tags(iterNum, randGen)
+            tagMemberships(iterNum, randGen)
         }
     }
     void cleanupIntegrationData() { cleanupData() }
@@ -84,21 +95,39 @@ class CustomSpec extends Specification {
     protected Object jsonToObject(JSON data) {
         Helpers.toJson(data.toString())
     }
+    protected String randPhoneNumber(Random randGen = null) {
+        Random thisRand = randGen ?: randomGenerator
+        thisRand.nextInt(Math.pow(10, 10) as Integer).toString().padRight(10, "0")
+    }
+    protected int randIntegerUpTo(Integer max, Random randGen = null) {
+        Random thisRand = randGen ?: randomGenerator
+        thisRand.nextInt(max)
+    }
+    protected void addToMessageSource(String code) {
+        addToMessageSource([code])
+    }
+    protected void addToMessageSource(Collection<String> codes) {
+        codes.each { String code -> messageSource.addMessage(code, Locale.default, code) }
+    }
+
+    // Mocks + beans
+    // -------------
+
     protected def getBean(String beanName) {
         grailsApplication.mainContext.getBean(beanName)
     }
     protected ResultFactory getResultFactory() {
         ResultFactory resultFactory = getBean("resultFactory")
-        resultFactory.messageSource = Mock(MessageSource)
+        resultFactory.messageSource = messageSource
         resultFactory
-    }
-    protected MessageSource mockMessageSource() {
-        [getMessage:{ String c, Object[] p, Locale l ->
-            c
-        }] as MessageSource
     }
     protected Scheduler mockScheduler() {
         [getTrigger: { TriggerKey key -> null }] as Scheduler
+    }
+    protected MessageSource mockMessageSourceWithResolvable() {
+        [getMessage: { MessageSourceResolvable resolvable, Locale l ->
+            resolvable.codes.last()
+        }] as MessageSource
     }
 
     // Setup data
@@ -143,18 +172,22 @@ class CustomSpec extends Specification {
         }
     }
 
-    protected void organizations(int iterNum) {
+    protected void organizations(int iterNum, Random randGen = null) {
+        BigDecimal randLat1 = randIntegerUpTo(90, randGen),
+            randLat2 = randIntegerUpTo(90, randGen),
+            randLon1 = randIntegerUpTo(180, randGen),
+            randLon2 = randIntegerUpTo(180, randGen)
         //our org
         org = new Organization(name:"1organiz$iterNum", status:OrgStatus.APPROVED)
-        org.location = new Location(address:"Testing Address", lat:0G, lon:0G)
-        org.save(flush:true)
+        org.location = new Location(address:"Testing Address", lat:randLat1, lon:randLon1)
+        org.save(flush:true, failOnError:true)
         //other org
         org2 = new Organization(name:"2organiz$iterNum")
-        org2.location = new Location(address:"Testing Address", lat:0G, lon:0G)
-        org2.save(flush:true)
+        org2.location = new Location(address:"Testing Address", lat:randLat2, lon:randLon2)
+        org2.save(flush:true, failOnError:true)
     }
 
-    protected void teamsWithPhones(int iterNum) {
+    protected void teamsWithPhones(int iterNum, Random randGen = null) {
         //teams for our org
         t1 = new Team(name:"Team1", org:org)
         t2 = new Team(name:"Team2", org:org)
@@ -162,11 +195,12 @@ class CustomSpec extends Specification {
         t2.location = new Location(address:"Testing Address", lat:1G, lon:1G)
         t1.save(flush:true, failOnError:true)
         t2.save(flush:true, failOnError:true)
+
         //add team phones
-        tPh1 = new Phone(numberAsString:"${iterNum}160333444".take(10))
+        tPh1 = new Phone(numberAsString:randPhoneNumber(randGen))
         tPh1.updateOwner(t1)
         tPh1.save(flush:true, failOnError:true)
-        tPh2 = new Phone(numberAsString:"${iterNum}170333444".take(10))
+        tPh2 = new Phone(numberAsString:randPhoneNumber(randGen))
         tPh2.updateOwner(t2)
         tPh2.save(flush:true, failOnError:true)
 
@@ -178,15 +212,15 @@ class CustomSpec extends Specification {
         otherT1.save(flush:true, failOnError:true)
         otherT2.save(flush:true, failOnError:true)
         //add a team phone
-        otherTPh1 = new Phone(numberAsString:"${iterNum}180333444".take(10))
+        otherTPh1 = new Phone(numberAsString:randPhoneNumber(randGen))
         otherTPh1.updateOwner(otherT1)
         otherTPh1.save(flush:true, failOnError:true)
-        otherTPh2 = new Phone(numberAsString:"${iterNum}190333444".take(10))
+        otherTPh2 = new Phone(numberAsString:randPhoneNumber(randGen))
         otherTPh2.updateOwner(otherT2)
         otherTPh2.save(flush:true, failOnError:true)
     }
 
-    protected void staffWithPhones(int iterNum) {
+    protected void staffWithPhones(int iterNum, Random randGen = null) {
         //staff for our org
         s1 = new Staff(username:loggedInUsername, password:loggedInPassword,
             name:"Staff$iterNum", email:"staff$iterNum@textup.org",
@@ -206,13 +240,13 @@ class CustomSpec extends Specification {
         s3.save(flush:true, failOnError:true)
 
         //phone numbers for staff at our org
-        p1 = new Phone(numberAsString:"${iterNum}100333444".take(10))
+        p1 = new Phone(numberAsString:randPhoneNumber(randGen))
         p1.updateOwner(s1)
         p1.save(flush:true, failOnError:true)
-        p2 = new Phone(numberAsString:"${iterNum}111333444".take(10))
+        p2 = new Phone(numberAsString:randPhoneNumber(randGen))
         p2.updateOwner(s2)
         p2.save(flush:true, failOnError:true)
-        p3 = new Phone(numberAsString:"${iterNum}123333441".take(10))
+        p3 = new Phone(numberAsString:randPhoneNumber(randGen))
         p3.updateOwner(s3)
         p3.save(flush:true, failOnError:true)
 
@@ -233,13 +267,13 @@ class CustomSpec extends Specification {
         otherS2.save(flush:true, failOnError:true)
         otherS3.save(flush:true, failOnError:true)
         //phone numbers for staff at our org
-        otherP1 = new Phone(numberAsString:"${iterNum}130333444".take(10))
+        otherP1 = new Phone(numberAsString:randPhoneNumber(randGen))
         otherP1.updateOwner(otherS1)
         otherP1.save(flush:true, failOnError:true)
-        otherP2 = new Phone(numberAsString:"${iterNum}141333444".take(10))
+        otherP2 = new Phone(numberAsString:randPhoneNumber(randGen))
         otherP2.updateOwner(otherS2)
         otherP2.save(flush:true, failOnError:true)
-        otherP3 = new Phone(numberAsString:"${iterNum}153333441".take(10))
+        otherP3 = new Phone(numberAsString:randPhoneNumber(randGen))
         otherP3.updateOwner(otherS3)
         otherP3.save(flush:true, failOnError:true)
         // staff roles
@@ -250,7 +284,7 @@ class CustomSpec extends Specification {
         }
     }
 
-    protected void teamMemberships(int iterNum) {
+    protected void teamMemberships(int iterNum, Random randGen = null) {
         t1.addToMembers(s1)
         t1.addToMembers(s2)
         t2.addToMembers(s2)
@@ -262,7 +296,7 @@ class CustomSpec extends Specification {
         [t1, t2, otherT1, otherT2]*.save(flush:true, failOnError:true)
     }
 
-    protected void contactsWithItems(int iterNum) {
+    protected void contactsWithItems(int iterNum, Random randGen = null) {
         //contacts
         c1 = p1.createContact([name:"ting ting bai"], ["12223334444"]).payload
         c1_1 = p1.createContact([:], ["12223334445"]).payload
@@ -291,13 +325,13 @@ class CustomSpec extends Specification {
         	*.save(flush:true, failOnError:true)
     }
 
-    protected void shareContacts(int iterNum) {
+    protected void shareContacts(int iterNum, Random randGen = null) {
         sc1 = p1.share(c1, p2, SharePermission.DELEGATE).payload
         sc2 = p2.share(c2, p1, SharePermission.DELEGATE).payload
         [sc1, sc2]*.save(flush:true, failOnError:true)
     }
 
-    protected void tags(int iterNum) {
+    protected void tags(int iterNum, Random randGen = null) {
         tag1 = p1.createTag(name:"Tag1").payload
         tag1_1 = p1.createTag(name:"Tag2").payload
         tag2 = p2.createTag(name:"Tag1").payload
@@ -315,7 +349,7 @@ class CustomSpec extends Specification {
         	.payload.save(flush:true, failOnError:true)
     }
 
-    protected void tagMemberships(int iterNum) {
+    protected void tagMemberships(int iterNum, Random randGen = null) {
     	tag1.addToMembers(c1)
 		tag1.addToMembers(c1_1)
 		tag1_1.addToMembers(c1_2)

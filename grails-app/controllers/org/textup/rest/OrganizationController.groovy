@@ -8,18 +8,20 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import org.textup.types.OrgStatus
-import static org.springframework.http.HttpStatus.*
+import org.textup.type.OrgStatus
 
 @GrailsCompileStatic
 @RestApi(name="Organization", description = "Operations on organizations after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class OrganizationController extends BaseController {
 
-	static namespace = "v1"
+	static String namespace = "v1"
 
-    //authService from superclass
+    AuthService authService
     OrganizationService organizationService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // List
     // ----
@@ -41,26 +43,21 @@ class OrganizationController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
+        Closure<Integer> count = { Organization.count() }
+        Closure<List<Organization>> list = { Map params -> Organization.list(params) }
         if (params.search) {
             String query = Helpers.toQuery(params.search)
-            genericListActionForClosures(Organization, {
-                Organization.countSearch(query)
-            }, { Map params ->
-                Organization.search(query, params)
-            }, params)
+            count = { Organization.countSearch(query) }
+            list = { Map params -> Organization.search(query, params) }
         }
         else {
-            List<OrgStatus> statusEnums =
-                Helpers.<OrgStatus>toEnumList(OrgStatus, params.list("status[]"))
+            List<OrgStatus> statusEnums = Helpers.toEnumList(OrgStatus, params.list("status[]"))
             if (statusEnums) {
-                genericListActionForClosures(Organization, {
-                    Organization.countByStatusInList(statusEnums)
-                }, { Map params ->
-                    Organization.findAllByStatusInList(statusEnums, params)
-                }, params)
+                count = { Organization.countByStatusInList(statusEnums) }
+                list = { Map params -> Organization.findAllByStatusInList(statusEnums, params) }
             }
-            else { genericListAction(Organization, params) }
         }
+        respondWithMany(Organization, count, list, params)
     }
 
     // Show
@@ -77,7 +74,11 @@ class OrganizationController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-        genericShowAction(Organization, params.long("id"))
+        Organization org1 = Organization.get(params.long("id"))
+        if (org1) {
+            respond(org1, [status:ResultStatus.OK.apiStatus])
+        }
+        else { notFound() }
     }
 
     // Save
@@ -103,15 +104,14 @@ class OrganizationController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid organization.")
     ])
     def update() {
-        if (!validateJsonRequest(request, "organization")) { return }
+        if (!validateJsonRequest(Organization, request)) { return }
         Long id = params.long("id")
         if (authService.exists(Organization, id)) {
             if (!authService.isAdminAt(id)) {
                 return forbidden()
             }
             Map oInfo = (request.properties.JSON as Map).organization as Map
-            handleUpdateResult(Organization,
-                organizationService.update(params.long("id"), oInfo))
+            respondWithResult(Organization, organizationService.update(id, oInfo))
         }
         else { notFound() }
     }

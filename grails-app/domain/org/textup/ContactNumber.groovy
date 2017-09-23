@@ -1,7 +1,6 @@
 package org.textup
 
 import groovy.transform.EqualsAndHashCode
-import org.hibernate.FlushMode
 import org.textup.validator.BasePhoneNumber
 import grails.compiler.GrailsCompileStatic
 import org.hibernate.Session
@@ -15,7 +14,7 @@ class ContactNumber extends BasePhoneNumber {
 
     static belongsTo = [owner:Contact]
     static constraints = {
-        number validator:{ String val, ContactNumber obj ->
+        number validator:{ String val ->
             if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
     }
@@ -26,6 +25,7 @@ class ContactNumber extends BasePhoneNumber {
         List<ContactNumber> cNums = ContactNumber.createCriteria().list {
             createAlias("owner", "c1")
             eq("c1.phone", p1)
+            eq("c1.isDeleted", false)
             if (nums) { "in"("number", nums) }
             else { eq("number", null) }
             order("number")

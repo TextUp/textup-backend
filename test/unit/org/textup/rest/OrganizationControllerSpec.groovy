@@ -9,7 +9,7 @@ import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.*
-import org.textup.types.OrgStatus
+import org.textup.type.OrgStatus
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
@@ -19,7 +19,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole])
+    AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class OrganizationControllerSpec extends CustomSpec {
 
@@ -169,7 +169,7 @@ class OrganizationControllerSpec extends CustomSpec {
     void "test update"() {
         given:
         controller.organizationService = [update:{ Long cId, Map body ->
-            new Result(payload:org)
+            new Result(payload:org, status:ResultStatus.OK)
         }] as OrganizationService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },

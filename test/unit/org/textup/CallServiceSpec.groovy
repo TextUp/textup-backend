@@ -8,7 +8,6 @@ import grails.test.runtime.FreshRuntime
 import java.util.UUID
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.context.MessageSource
-import org.textup.types.ResultType
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
@@ -35,8 +34,7 @@ class CallServiceSpec extends Specification {
     	}] as LinkGenerator
     	service.metaClass.doCall = { PhoneNumber fromNum, BasePhoneNumber toNum,
             Map afterPickup, String callback ->
-	        new Result(type:ResultType.SUCCESS, success:true,
-	        	payload:[afterPickup:afterPickup, callback:callback])
+	        new Result(status:ResultStatus.OK, payload:[afterPickup:afterPickup, callback:callback])
 	    }
     }
 
@@ -91,7 +89,7 @@ class CallServiceSpec extends Specification {
     	// override start method to limit scope of the test
     	service.metaClass.start = { PhoneNumber fNum,
         	List<? extends BasePhoneNumber> tNums, Map afterPickup ->
-	        new Result(type:ResultType.SUCCESS, success:true,
+	        new Result(status:ResultStatus.OK,
 	        	payload:new TempRecordReceipt(apiId:newApiId, receivedByAsString:receivedByString))
 	    }
 

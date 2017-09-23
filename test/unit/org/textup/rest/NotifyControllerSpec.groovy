@@ -14,8 +14,7 @@ import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.springframework.http.HttpStatus
 import org.textup.*
-import org.textup.types.ReceiptStatus
-import org.textup.types.ResultType
+import org.textup.type.ReceiptStatus
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
@@ -23,7 +22,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(NotifyController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class NotifyControllerSpec extends CustomSpec {
 
@@ -35,7 +34,7 @@ class NotifyControllerSpec extends CustomSpec {
     	given: "show notification success"
     	Map data = [key:UUID.randomUUID().toString()]
     	controller.tokenService = [showNotification:{ String token ->
-    		new Result(success:true, payload:data)
+    		new Result(status:ResultStatus.OK, payload:data)
 		}] as TokenService
 
     	when:
@@ -51,11 +50,12 @@ class NotifyControllerSpec extends CustomSpec {
 
     void "test claim notification error"() {
     	given: "show notification failure"
-    	Map payload = [status:HttpStatus.BAD_REQUEST, message:"testing123"]
+        String code = "testing123"
+        ResultStatus stat = ResultStatus.BAD_REQUEST
     	controller.tokenService = [showNotification:{ String token ->
-    		new Result(success:false, type:ResultType.MESSAGE_STATUS,
-    			payload:payload)
+            getResultFactory().failWithCodeAndStatus(code, stat)
 		}] as TokenService
+        addToMessageSource(code)
 
     	when:
     	request.method = "GET"
@@ -63,10 +63,10 @@ class NotifyControllerSpec extends CustomSpec {
         controller.show()
 
     	then:
-    	response.status == payload.status.value()
+    	response.status == stat.intStatus
     	response.json != null
     	response.json.errors instanceof List
     	response.json.errors.size() == 1
-    	response.json.errors[0].message == payload.message
+    	response.json.errors[0].message == code
     }
 }

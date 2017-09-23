@@ -10,7 +10,6 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import static org.springframework.http.HttpStatus.*
 
 @GrailsCompileStatic
 @RestApi(name="FutureMessage",description = "Operations on messages (call or text) to be \
@@ -18,10 +17,13 @@ import static org.springframework.http.HttpStatus.*
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class FutureMessageController extends BaseController {
 
-	static namespace = "v1"
+	static String namespace = "v1"
 
-	// authService from superclass
+    AuthService authService
 	FutureMessageService futureMessageService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
 	// List
 	// ----
@@ -56,7 +58,7 @@ class FutureMessageController extends BaseController {
     	Long cId = params.long("contactId")
         Contact c1 = Contact.get(cId)
         if (!c1) {
-        	notFound()
+        	return notFound()
         }
         Contactable cont
         if (authService.hasPermissionsForContact(cId)) {
@@ -67,28 +69,26 @@ class FutureMessageController extends BaseController {
             if (scId) {
                 cont = SharedContact.get(scId) as Contactable
             }
-            else { forbidden(); return; }
+            else {
+                return forbidden()
+            }
         }
-        genericListActionForClosures(FutureMessage, { Map options ->
-        	cont.countFutureMessages()
-    	}, { Map options ->
-    		cont.getFutureMessages(options)
-		}, params)
+        Closure<Integer> count = { cont.countFutureMessages() }
+        Closure<List<FutureMessage>> list = { Map opts -> cont.getFutureMessages(opts) }
+        respondWithMany(FutureMessage, count, list, params)
     }
     protected def listForTag(GrailsParameterMap params) {
     	Long ctId = params.long("tagId")
     	ContactTag ct1 = ContactTag.get(ctId)
     	if (!ct1) {
-    		notFound()
+    		return notFound()
     	}
     	if (!authService.hasPermissionsForTag(ctId)) {
-    		forbidden()
+    		return forbidden()
     	}
-    	genericListActionForClosures(FutureMessage, { Map options ->
-        	ct1.record.countFutureMessages()
-    	}, { Map options ->
-    		ct1.record.getFutureMessages(options)
-		}, params)
+        Closure<Integer> count = { ct1.record.countFutureMessages() }
+        Closure<List<FutureMessage>> list = { Map opts -> ct1.record.getFutureMessages(opts) }
+        respondWithMany(FutureMessage, count, list, params)
     }
 
     // Show
@@ -105,10 +105,10 @@ class FutureMessageController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-    	Long id = params.long("id")
-        if (authService.exists(FutureMessage, id)) {
-            if (authService.hasPermissionsForFutureMessage(id)) {
-                genericShowAction(FutureMessage, id)
+        FutureMessage fMsg1 = FutureMessage.get(params.long("id"))
+        if (fMsg1) {
+            if (authService.hasPermissionsForFutureMessage(fMsg1.id)) {
+                respond(fMsg1, [status:ResultStatus.OK.apiStatus])
             }
             else { forbidden() }
         }
@@ -138,7 +138,7 @@ class FutureMessageController extends BaseController {
             add this message to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(request, "future-message")) { return; }
+    	if (!validateJsonRequest(FutureMessage, request)) { return }
     	Map fInfo = (request.properties.JSON as Map)["future-message"] as Map
         String tz = params.timezone as String
         if (!Helpers.exactly(1, ["contactId", "tagId"], params)) {
@@ -151,13 +151,12 @@ class FutureMessageController extends BaseController {
             }
             // try to create, if allowed
             if (authService.hasPermissionsForContact(cId)) {
-                handleSaveResult(FutureMessage,
-                    futureMessageService.createForContact(cId, fInfo, tz))
+                respondWithResult(FutureMessage, futureMessageService.createForContact(cId, fInfo, tz))
             }
             else {
                 Long sharedId = authService.getSharedContactIdForContact(cId)
                 if (sharedId) {
-                    handleSaveResult(FutureMessage,
+                    respondWithResult(FutureMessage,
                         futureMessageService.createForSharedContact(sharedId, fInfo, tz))
                 }
                 else { forbidden() }
@@ -170,8 +169,7 @@ class FutureMessageController extends BaseController {
             }
             // try to create, if allowed
             if (authService.hasPermissionsForTag(ctId)) {
-                handleSaveResult(FutureMessage,
-                    futureMessageService.createForTag(ctId, fInfo, tz))
+                respondWithResult(FutureMessage, futureMessageService.createForTag(ctId, fInfo, tz))
             }
             else { forbidden() }
         }
@@ -195,13 +193,13 @@ class FutureMessageController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid message.")
     ])
     def update() {
-    	if (!validateJsonRequest(request, "future-message")) { return; }
+    	if (!validateJsonRequest(FutureMessage, request)) { return }
     	Long id = params.long("id")
         if (authService.exists(FutureMessage, id)) {
             if (authService.hasPermissionsForFutureMessage(id)) {
                 Map fInfo = (request.properties.JSON as Map)["future-message"] as Map
-                handleUpdateResult(FutureMessage,
-                	futureMessageService.update(id, fInfo, params.timezone as String))
+                String tz = params.timezone as String
+                respondWithResult(FutureMessage, futureMessageService.update(id, fInfo, tz))
             }
             else { forbidden() }
         }
@@ -224,7 +222,7 @@ class FutureMessageController extends BaseController {
     	Long id = params.long("id")
         if (authService.exists(FutureMessage, id)) {
             if (authService.hasPermissionsForFutureMessage(id)) {
-                handleDeleteResult(futureMessageService.delete(id))
+                respondWithResult(Void, futureMessageService.delete(id))
             }
             else { forbidden() }
         }

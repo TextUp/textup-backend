@@ -6,28 +6,36 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
+import org.springframework.context.support.StaticMessageSource
 import spock.lang.Shared
 import spock.lang.Specification
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt])
+// Need to mock Organization and Location to enable rolling back transaction on resultFactory failure
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
+    Organization, Location, RecordNote, RecordNoteRevision, Location])
 @TestMixin(HibernateTestMixin)
 class RecordSpec extends Specification {
+
+    @Shared
+    MessageSource messageSource = new StaticMessageSource()
 
 	static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
 	def setup() {
-		ResultFactory fac = grailsApplication.mainContext.getBean("resultFactory")
-		fac.messageSource = [getMessage:{ String code, Object[] parameters, Locale locale ->
-			code
-		}] as MessageSource
+		ResultFactory fac = getResultFactory()
+		fac.messageSource = messageSource
 	}
+
+    ResultFactory getResultFactory() {
+        grailsApplication.mainContext.getBean("resultFactory")
+    }
 
     void "test adding items to the record and deletion"() {
     	given: "a valid record"
     	Record rec = new Record()
-    	rec.resultFactory = grailsApplication.mainContext.getBean("resultFactory")
+    	rec.resultFactory = getResultFactory()
     	rec.save(flush:true, failOnError:true)
 
     	when: "we have a record"
@@ -46,22 +54,26 @@ class RecordSpec extends Specification {
 
     	then:
     	res.success == false
-    	res.payload instanceof ValidationErrors
-    	res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	res.errorMessages.size() == 1
+        res.errorMessages[0].contains("contents")
 
     	when: "we add a missing item"
+        String missingCode = "record.noRecordItem"
+        messageSource.addMessage(missingCode, Locale.default, missingCode)
     	res = rec.add(null, null)
 
     	then:
     	res.success == false
-    	res.payload instanceof Map
-    	res.payload.code == "record.noRecordItem"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages.size() == 1
+    	res.errorMessages[0] == missingCode
     }
 
     void "test lastRecordActivity is kept up to date"() {
         given: "a valid record"
         Record rec = new Record()
-        rec.resultFactory = grailsApplication.mainContext.getBean("resultFactory")
+        rec.resultFactory = getResultFactory()
         rec.save(flush:true, failOnError:true)
 
         DateTime currentTimestamp = rec.lastRecordActivity
@@ -84,7 +96,7 @@ class RecordSpec extends Specification {
     void "test retrieving items from the record"() {
     	given: "a record with items of various ages"
     	Record rec = new Record()
-    	rec.resultFactory = grailsApplication.mainContext.getBean("resultFactory")
+    	rec.resultFactory = getResultFactory()
     	rec.save(flush:true, failOnError:true)
     	RecordItem nowItem = rec.add(new RecordItem(), null).payload,
     		lWkItem = rec.add(new RecordItem(), null).payload,
@@ -117,5 +129,69 @@ class RecordSpec extends Specification {
     	items[0] == yestItem // newer item
     	items[1] == twoDItem
     	items[2] == thrDItem // older item
+    }
+
+    void "test getting items from record by type"() {
+        given: "record with items of all types"
+        Record rec1 = new Record()
+        rec1.resultFactory = getResultFactory()
+        rec1.save(flush:true, failOnError:true)
+
+        RecordText rText1 = rec1.addText([contents:"text"], null).payload
+        RecordCall rCall1 = rec1.addCall([:], null).payload
+        RecordNote rNote1 = new RecordNote(record:rec1)
+        [rText1, rCall1, rNote1]*.save(flush:true, failOnError:true)
+
+        DateTime afterDt = DateTime.now().minusWeeks(3)
+        DateTime beforeDt = DateTime.now().plusWeeks(3)
+
+        expect:
+        rec1.countItems([RecordCall]) == 1
+        rec1.countItems([RecordText]) == 1
+        rec1.countItems([RecordNote]) == 1
+        rec1.countItems([RecordCall, RecordText]) == 2
+        rec1.countItems([RecordText, RecordNote]) == 2
+        rec1.countItems([RecordCall, RecordNote]) == 2
+        rec1.countItems([RecordCall, RecordText, RecordNote]) == 3
+
+        rec1.getItems([RecordCall])*.id.every { it in [rCall1]*.id }
+        rec1.getItems([RecordText])*.id.every { it in [rText1]*.id }
+        rec1.getItems([RecordNote])*.id.every { it in [rNote1]*.id }
+        rec1.getItems([RecordCall, RecordText])*.id.every { it in [rText1, rCall1]*.id }
+        rec1.getItems([RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
+        rec1.getItems([RecordCall, RecordNote])*.id.every { it in [rCall1, rNote1]*.id }
+        rec1.getItems([RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rNote1]*.id }
+
+        rec1.countSince(afterDt, [RecordCall]) == 1
+        rec1.countSince(afterDt, [RecordText]) == 1
+        rec1.countSince(afterDt, [RecordNote]) == 1
+        rec1.countSince(afterDt, [RecordCall, RecordText]) == 2
+        rec1.countSince(afterDt, [RecordText, RecordNote]) == 2
+        rec1.countSince(afterDt, [RecordCall, RecordNote]) == 2
+        rec1.countSince(afterDt, [RecordCall, RecordText, RecordNote]) == 3
+
+        rec1.getSince(afterDt, [RecordCall])*.id.every { it in [rCall1]*.id }
+        rec1.getSince(afterDt, [RecordText])*.id.every { it in [rText1]*.id }
+        rec1.getSince(afterDt, [RecordNote])*.id.every { it in [rNote1]*.id }
+        rec1.getSince(afterDt, [RecordCall, RecordText])*.id.every { it in [rText1, rCall1]*.id }
+        rec1.getSince(afterDt, [RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
+        rec1.getSince(afterDt, [RecordCall, RecordNote])*.id.every { it in [rCall1, rNote1]*.id }
+        rec1.getSince(afterDt, [RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rNote1]*.id }
+
+        rec1.countBetween(afterDt, beforeDt, [RecordCall]) == 1
+        rec1.countBetween(afterDt, beforeDt, [RecordText]) == 1
+        rec1.countBetween(afterDt, beforeDt, [RecordNote]) == 1
+        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordText]) == 2
+        rec1.countBetween(afterDt, beforeDt, [RecordText, RecordNote]) == 2
+        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordNote]) == 2
+        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordText, RecordNote]) == 3
+
+        rec1.getBetween(afterDt, beforeDt, [RecordCall])*.id.every { it in [rCall1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordText])*.id.every { it in [rText1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordNote])*.id.every { it in [rNote1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordText])*.id.every { it in [rText1, rCall1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordNote])*.id.every { it in [rCall1, rNote1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rNote1]*.id }
     }
 }

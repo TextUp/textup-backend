@@ -11,26 +11,19 @@ import org.springframework.security.access.annotation.Secured
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.userdetails.UserDetails
 import org.textup.*
-import static org.springframework.http.HttpStatus.*
 
 @GrailsCompileStatic
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class SocketController extends BaseController {
 
-    static namespace = "v1"
+    static String namespace = "v1"
 
     //grailsApplication from superclass
-    //authService from superclass
+    AuthService authService
     Pusher pusherService
 
-    /////////////////
-    // Not allowed //
-    /////////////////
-
-    def index() { notAllowed() }
-    def show() { notAllowed() }
-    def update() { notAllowed() }
-    def delete() { notAllowed() }
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // POST for authenticating private channels with Pusher
     def save() {
@@ -43,17 +36,22 @@ class SocketController extends BaseController {
             authUsername == channelUsername) {
             String authResult = pusherService.authenticate(socketId, channelName)
             try {
-                render status:OK
+                render status:ResultStatus.OK.apiStatus
                 respond(Helpers.toJson(authResult))
             }
             catch (e) {
                 log.error("SocketController.save: could not parse authResult: \
                     ${authResult} with error: ${e.message}")
-                render status:FORBIDDEN
+                render status:ResultStatus.FORBIDDEN.apiStatus
             }
         }
         else {
-            render status:FORBIDDEN
+            render status:ResultStatus.FORBIDDEN.apiStatus
         }
     }
+
+    def index() { notAllowed() }
+    def show() { notAllowed() }
+    def update() { notAllowed() }
+    def delete() { notAllowed() }
 }

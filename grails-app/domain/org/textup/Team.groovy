@@ -1,13 +1,10 @@
 package org.textup
 
 import grails.compiler.GrailsCompileStatic
-import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
-import org.hibernate.FlushMode
-import org.hibernate.Session
 import org.restapidoc.annotation.*
-import org.textup.types.PhoneOwnershipType
-import org.textup.types.StaffStatus
+import org.textup.type.PhoneOwnershipType
+import org.textup.type.StaffStatus
 
 @EqualsAndHashCode
 @RestApiObject(name="Team", description="A team at an organization.")
@@ -58,8 +55,13 @@ class Team {
     }
     static constraints = {
     	name blank:false, validator: { String val, Team obj ->
+            Closure<Boolean> hasExistingTeamName = {
+                // uniqueness check should ignore deleted teams
+                Team t1 = Team.findByOrgAndNameAndIsDeleted(obj.org, val, false)
+                t1?.id != obj.id
+            }
             //within an Org, team name must be unique
-            if (obj.hasExistingTeamName(val)) {
+            if (val && Helpers.<Boolean>doWithoutFlush(hasExistingTeamName)) {
                 ["duplicate", obj.org?.name]
             }
         }
@@ -87,32 +89,14 @@ class Team {
         forStaffs(staffs).list(params)
     }
 
-    // Validator
-    // ---------
-
-    @GrailsCompileStatic
-    protected boolean hasExistingTeamName(String teamName) {
-        boolean duplicateTeam = false
-        Team.withNewSession { Session session ->
-            session.flushMode = FlushMode.MANUAL
-            try {
-                // uniqueness check should ignore deleted teams
-                Team t = Team.findByOrgAndNameAndIsDeleted(this.org, teamName, false)
-                if (t && t.id != this.id) { duplicateTeam = true }
-            }
-            finally { session.flushMode = FlushMode.AUTO }
-        }
-        duplicateTeam
-    }
-
     // Members
     // -------
 
     @GrailsCompileStatic
-    Collection<Staff> getActiveMembers() {
-        this.members?.findAll { Staff s1 ->
+    List<Staff> getActiveMembers() {
+        (this.members?.findAll { Staff s1 ->
             s1.status == StaffStatus.STAFF || s1.status == StaffStatus.ADMIN
-        } ?: []
+        } ?: []) as List<Staff>
     }
     @GrailsCompileStatic
     Collection<Staff> getMembersByStatus(Collection statuses=[]) {

@@ -10,17 +10,21 @@ import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.util.OptimisticLockingRetry
-import static org.springframework.http.HttpStatus.*
+import org.textup.validator.MergeGroup
 
 @GrailsCompileStatic
 @RestApi(name="Contact", description="Operations on contacts, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class ContactController extends BaseController {
 
-    static namespace = "v1"
+    static String namespace = "v1"
 
-    // authService from superclass
+    AuthService authService
     ContactService contactService
+    DuplicateService duplicateService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // List
     // ----
@@ -48,7 +52,11 @@ class ContactController extends BaseController {
             paramType=RestApiParamType.QUERY, description="Id of the tag"),
         @RestApiParam(name="search", type="String", required=false,
             paramType=RestApiParamType.QUERY, description='''String to search for in contact name,
-            limited to active and unread contacts''')
+            limited to active and unread contacts'''),
+        @RestApiParam(name="duplicates", type="Boolean", required=false,
+            paramType=RestApiParamType.QUERY, description='''When true, will disregard all other
+            query parameters except for the team or tag id parameters and will look through all
+            contacts to try to find possible duplicates for contacts (not shared contacts)''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404",description='''The staff or team was not found. Or, the
@@ -57,7 +65,7 @@ class ContactController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
-        if (params.list('ids[]')) {
+        if (params.list("ids[]")) {
             listForIds(params)
         }
         else if (Helpers.exactly(2, ["teamId", "tagId"], params)) {
@@ -81,16 +89,6 @@ class ContactController extends BaseController {
         }
         listForPhone(t1.phone, params)
     }
-    protected def listForTag(GrailsParameterMap params) {
-        ContactTag ct1 = ContactTag.get(params.long("tagId"))
-        if (!ct1) {
-            return notFound()
-        }
-        else if (!authService.hasPermissionsForTag(ct1.id)) {
-            return forbidden()
-        }
-        genericListActionAllResults(Contact, ct1.getMembersByStatus(params.list("status[]")))
-    }
     protected def listForStaff(GrailsParameterMap params) {
         Staff s1 = authService.loggedInAndActive
         if (!s1) {
@@ -102,7 +100,11 @@ class ContactController extends BaseController {
         listForPhone(s1.phone, params)
     }
     protected def listForPhone(Phone p1, GrailsParameterMap params) {
-        Closure count, list
+        if (params.boolean("duplicates")) {
+            return listForDuplicates(duplicateService.findDuplicates(p1), params)
+        }
+        Closure<Integer> count
+        Closure<List<? extends Contactable>> list
         if (params.search) {
             count = { Map ps -> p1.countContacts(ps.search as String) }
             list = { Map ps -> p1.getContacts(ps.search as String, ps) }
@@ -120,10 +122,33 @@ class ContactController extends BaseController {
             count = { Map ps -> p1.countContacts(ps) }
             list = { Map ps -> p1.getContacts(ps) }
         }
-        genericListActionForClosures(Contact, count, list, params)
+        respondWithMany(Contactable, count, list, params)
+    }
+    protected def listForTag(GrailsParameterMap params) {
+        ContactTag ct1 = ContactTag.get(params.long("tagId"))
+        if (!ct1) {
+            return notFound()
+        }
+        else if (!authService.hasPermissionsForTag(ct1.id)) {
+            return forbidden()
+        }
+        Collection<Contact> contacts = ct1.getMembersByStatus(params.list("status[]"))
+        if (params.boolean("duplicates")) {
+            listForDuplicates(duplicateService.findDuplicates(contacts*.id), params)
+        }
+        else { respondWithMany(Contactable, { contacts.size() }, { contacts }) }
+    }
+    protected def listForDuplicates(Result<List<MergeGroup>> res, GrailsParameterMap params) {
+        if (!res.success) {
+            return respondWithResult(Object, res)
+        }
+        List<MergeGroup> merges = res.payload
+        Closure<Integer> count = { merges.size() }
+        Closure<List<MergeGroup>> list = { merges }
+        respondWithMany(MergeGroup, count, list, params)
     }
     protected def listForIds(GrailsParameterMap params) {
-        Collection<Long> ids = Helpers.toIdsList(params.list('ids[]')),
+        Collection<Long> ids = Helpers.allTo(Long, Helpers.to(Collection, params.list("ids[]"))),
             cIds = [],
             scIds = []
         ids.each { Long id ->
@@ -138,10 +163,10 @@ class ContactController extends BaseController {
                 }
             }
         }
-        Collection results = []
-        results += Contact.getAll(cIds as Iterable)
-        results += SharedContact.getAll(scIds as Iterable)
-        genericListActionAllResults(Contact, results)
+        List<? extends Contactable> results = []
+        results.addAll(Contact.getAll(cIds as Iterable))
+        results.addAll(SharedContact.getAll(scIds as Iterable))
+        respondWithMany(Contactable, { results.size() }, { results })
     }
 
     // Show
@@ -162,19 +187,25 @@ class ContactController extends BaseController {
         // need to find the corresponding shared contact if the contact does
         // not belong to the staff's personal TextUp phone
         Long id = params.long("id")
-        if (Contact.exists(id)) {
+        Contact c1 = Contact.get(id)
+        if (c1) {
             if (authService.hasPermissionsForContact(id)) {
-                genericShowAction(Contact, id)
+                respond(c1, [status:ResultStatus.OK.apiStatus])
             }
-            else {
-                Long scId = authService.getSharedContactIdForContact(id)
-                if (scId) {
-                    genericShowAction(SharedContact, scId)
-                }
-                else { forbidden() }
-            }
+            else { showForSharedContact(id) }
         }
         else { notFound() }
+    }
+    protected def showForSharedContact(Long id) {
+        Long scId = authService.getSharedContactIdForContact(id)
+        if (scId) {
+            SharedContact sc1 = SharedContact.get(scId)
+            if (sc1) {
+                respond(sc1, [status:ResultStatus.OK.apiStatus])
+            }
+            else { notFound() }
+        }
+        else { forbidden() }
     }
 
     // Save
@@ -194,21 +225,20 @@ class ContactController extends BaseController {
             add this contact to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(request, "contact")) { return }
+    	if (!validateJsonRequest(Contactable, request)) { return }
         Map contactInfo = (request.properties.JSON as Map).contact as Map
         if (params.teamId) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
                 if (authService.hasPermissionsForTeam(tId)) {
-                    handleSaveResult(Contact,
-                        contactService.createForTeam(tId, contactInfo))
+                    respondWithResult(Contactable, contactService.createForTeam(tId, contactInfo))
                 }
                 else { forbidden() }
             }
             else { notFound() }
         }
         else {
-            handleSaveResult(Contact, contactService.createForStaff(contactInfo))
+            respondWithResult(Contactable, contactService.createForStaff(contactInfo))
         }
     }
 
@@ -228,13 +258,13 @@ class ContactController extends BaseController {
     ])
     @OptimisticLockingRetry
     def update() {
-    	if (!validateJsonRequest(request, "contact")) { return; }
+    	if (!validateJsonRequest(Contactable, request)) { return }
         Long id = params.long("id")
         if (authService.exists(Contact, id)) {
             if (authService.hasPermissionsForContact(id) ||
                 authService.getSharedContactIdForContact(id)) {
                 Map cInfo = (request.properties.JSON as Map).contact as Map
-                handleUpdateResult(Contact, contactService.update(id, cInfo))
+                respondWithResult(Contactable, contactService.update(id, cInfo))
             }
             else { forbidden() }
         }
@@ -244,5 +274,25 @@ class ContactController extends BaseController {
     // Delete
     // ------
 
-    def delete() { notAllowed() }
+    @RestApiMethod(description="Delete an existing contact")
+    @RestApiParams(params=[
+        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
+            description="Id of the contact")
+    ])
+    @RestApiErrors(apierrors=[
+        @RestApiError(code="404", description="The requested contact was not found."),
+        @RestApiError(code="403", description="You do not have permission to delete this contact.")
+    ])
+    def delete() {
+        Long id = params.long("id")
+        if (authService.exists(Contact, id)) {
+            // only the only of the contact can delete it. Collaborators via sharing
+            // are not permitted to delete contacts that have been shared with them
+            if (authService.hasPermissionsForContact(id)) {
+                respondWithResult(Void, contactService.delete(id))
+            }
+            else { forbidden() }
+        }
+        else { notFound() }
+    }
 }

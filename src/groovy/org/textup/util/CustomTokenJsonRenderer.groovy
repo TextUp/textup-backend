@@ -44,7 +44,7 @@ class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
         }
         // add token information
         if (useBearerToken) {
-            result.token_type = 'Bearer'
+            result.token_type = "Bearer"
             result.access_token = accessToken.accessToken
             if (accessToken.expiration) {
                 result.expires_in = accessToken.expiration

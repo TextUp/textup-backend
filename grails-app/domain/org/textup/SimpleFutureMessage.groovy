@@ -4,8 +4,6 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import java.util.concurrent.TimeUnit
 import java.util.UUID
-import org.hibernate.FlushMode
-import org.hibernate.Session
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -16,7 +14,7 @@ import org.quartz.SimpleTrigger
 import org.quartz.Trigger
 import org.quartz.TriggerKey
 import org.restapidoc.annotation.*
-import org.textup.types.FutureMessageType
+import org.textup.type.FutureMessageType
 import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
@@ -51,7 +49,7 @@ class SimpleFutureMessage extends FutureMessage {
     ])
 	static transients = ["repeatIntervalInDays"]
     static constraints = {
-        repeatIntervalInMillis min:Helpers.toLong(TimeUnit.DAYS.toMillis(1))
+        repeatIntervalInMillis min:Helpers.to(Long, TimeUnit.DAYS.toMillis(1))
 		repeatCount nullable:true, validator:{ Integer rNum, SimpleFutureMessage msg ->
 			if (rNum == SimpleTrigger.REPEAT_INDEFINITELY && !msg.endDate) {
 				["unboundedNeedsEndDate"]

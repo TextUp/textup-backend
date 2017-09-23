@@ -11,8 +11,11 @@ import grails.compiler.GrailsCompileStatic
 @Secured("permitAll")
 class PublicStaffController extends StaffController {
 
-    static namespace = "v1"
+    static String namespace = "v1"
     //authService from superclass
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     @Override
     def index() { notAllowed() }

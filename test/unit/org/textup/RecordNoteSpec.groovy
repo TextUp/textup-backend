@@ -9,7 +9,7 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
-import org.textup.types.ReceiptStatus
+import org.textup.type.ReceiptStatus
 import org.textup.validator.PhoneNumber
 import org.textup.validator.UploadItem
 import spock.lang.Ignore

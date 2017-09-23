@@ -12,7 +12,6 @@ import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.util.OptimisticLockingRetry
-import static org.springframework.http.HttpStatus.*
 
 @GrailsCompileStatic
 @RestApi(name="Record",description = "Operations on records of communications \
@@ -20,15 +19,18 @@ import static org.springframework.http.HttpStatus.*
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class RecordController extends BaseController {
 
-    static namespace = "v1"
+    static String namespace = "v1"
 
-    //authService from superclass
+    AuthService authService
     RecordService recordService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // List
     // ----
 
-    @RestApiMethod(description="List contacts for a specific staff or team", listing=true)
+    @RestApiMethod(description="List record items for a specific contact or tag", listing=true)
     @RestApiParams(params=[
         @RestApiParam(name="max", type="Number", required=false,
             paramType=RestApiParamType.QUERY, description="Max number of results"),
@@ -40,6 +42,9 @@ class RecordController extends BaseController {
         @RestApiParam(name="before", type="DateTime", required=false,
             paramType=RestApiParamType.QUERY, description="Get all record items \
                 before. We assume is UTC."),
+        @RestApiParam(name="types[]", type="List", required=false,
+            allowedvalues=["text", "call", "note"], paramType=RestApiParamType.QUERY,
+            description="Filters listed items by type. Unspecified shows everything."),
         @RestApiParam(name="contactId", type="Number", required=true,
             paramType=RestApiParamType.QUERY, description="Id of associated contact"),
         @RestApiParam(name="tagId", type="Number", required=true,
@@ -71,10 +76,13 @@ class RecordController extends BaseController {
                 Long scId = authService.getSharedContactIdForContact(c1.id)
                 if (scId) {
                     cont = SharedContact.get(scId)
+                    if (!cont.record) { // then does not have modify permissions
+                        return forbidden()
+                    }
                 }
                 else { return forbidden() }
             }
-            listForClass(cont, Contactable, params)
+            listForRecord(cont.record, params)
         }
         else { // tag id
             Long ctId = params.long("tagId")
@@ -85,40 +93,29 @@ class RecordController extends BaseController {
             if (!authService.hasPermissionsForTag(ctId)) {
                 return forbidden()
             }
-            listForClass(ct1.record, Record, params)
+            listForRecord(ct1.record, params)
         }
     }
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
-    protected def listForClass(Object obj, Class clazzToCastTo, GrailsParameterMap params) {
-        Closure count, list
+    protected void listForRecord(Record rec1, GrailsParameterMap params) {
+        Closure<Integer> count
+        Closure<List<RecordItem>> list
+        Collection<Class<? extends RecordItem>> types = recordService.parseTypes(params.list("types[]"))
         if (params.since && !params.before) {
             DateTime since = Helpers.toUTCDateTime(params.since)
-            count = { Map options ->
-                (obj.asType(clazzToCastTo)).countSince(since)
-            }
-            list = { Map options ->
-                (obj.asType(clazzToCastTo)).getSince(since, options)
-            }
+            count = { rec1.countSince(since, types) }
+            list = { Map options -> rec1.getSince(since, types, options) }
         }
         else if (params.since && params.before) {
             DateTime start = Helpers.toUTCDateTime(params.since),
                 end = Helpers.toUTCDateTime(params.before)
-            count = { Map options ->
-                (obj.asType(clazzToCastTo)).countBetween(start, end)
-            }
-            list = { Map options ->
-                (obj.asType(clazzToCastTo)).getBetween(start, end, options)
-            }
+            count = { rec1.countBetween(start, end, types) }
+            list = { Map options -> rec1.getBetween(start, end, types, options) }
         }
         else {
-            count = { Map options ->
-                (obj.asType(clazzToCastTo)).countItems()
-            }
-            list = { Map options ->
-                (obj.asType(clazzToCastTo)).getItems(options)
-            }
+            count = { rec1.countItems(types) }
+            list = { Map options -> rec1.getItems(types, options) }
         }
-        genericListActionForClosures("record", count, list, params)
+        respondWithMany(RecordItem, count, list, params)
     }
 
     // Show
@@ -138,10 +135,10 @@ class RecordController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-        Long id = params.long("id")
-        if (RecordItem.exists(id)) {
-            if (authService.hasPermissionsForItem(id)) {
-                genericShowAction(RecordItem, id)
+        RecordItem item1 = RecordItem.get(params.long("id"))
+        if (item1) {
+            if (authService.hasPermissionsForItem(item1.id)) {
+                respond(item1, [status:ResultStatus.OK.apiStatus])
             }
             else { forbidden() }
         }
@@ -169,15 +166,13 @@ class RecordController extends BaseController {
     ])
     @OptimisticLockingRetry
     def save() {
-        if (!validateJsonRequest(request, "record")) { return; }
+        if (!validateJsonRequest(RecordItem, request)) { return }
         Map rInfo = (request.properties.JSON as Map).record as Map
-        if (params.long("teamId")) {
-            Long tId = params.long("teamId")
-            handleResultListForSave("record", recordService.createForTeam(tId, rInfo))
+        Long tId = params.long("teamId")
+        if (tId) {
+            respondWithResult(RecordItem, recordService.createForTeam(tId, rInfo))
         }
-        else {
-            handleResultListForSave("record", recordService.createForStaff(rInfo))
-        }
+        else { respondWithResult(RecordItem, recordService.createForStaff(rInfo)) }
     }
 
     // Update
@@ -196,12 +191,12 @@ class RecordController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid note.")
     ])
     def update() {
-        if (!validateJsonRequest(request, 'record')) { return; }
-        Long id = params.long('id')
+        if (!validateJsonRequest(RecordItem, request)) { return }
+        Long id = params.long("id")
         Map noteInfo = (request.properties.JSON as Map).record as Map
         if (authService.exists(RecordNote, id)) {
             if (authService.hasPermissionsForItem(id)) {
-                handleUpdateResult('record', recordService.update(id, noteInfo))
+                respondWithResult(RecordItem, recordService.update(id, noteInfo))
             }
             else { forbidden() }
         }
@@ -222,10 +217,10 @@ class RecordController extends BaseController {
             and cannot be deleted")
     ])
     def delete() {
-        Long id = params.long('id')
+        Long id = params.long("id")
         if (authService.exists(RecordNote, id)) {
             if (authService.hasPermissionsForItem(id)) {
-                handleDeleteResult(recordService.delete(id))
+                respondWithResult(Void, recordService.delete(id))
             }
             else { forbidden() }
         }

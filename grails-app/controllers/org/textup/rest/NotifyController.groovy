@@ -6,18 +6,21 @@ import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.validator.Notification
-import static org.springframework.http.HttpStatus.*
 
 @GrailsCompileStatic
 @RestApi(name="Notification", description="Claim notifications")
 @Secured("permitAll")
 class NotifyController extends BaseController {
 
-	static namespace = "v1"
+	static String namespace = "v1"
 
 	TokenService tokenService
 
-    def index() { notAllowed() }
+    @Override
+    protected String getNamespaceAsString() { namespace }
+
+    // Showing contents of token
+    // -------------------------
 
     @RestApiMethod(description="Show contents of the notification")
     @RestApiResponseObject(objectIdentifier = "[notification]")
@@ -31,16 +34,11 @@ class NotifyController extends BaseController {
     ])
     def show() {
     	String token = params.id
-    	Result<Notification> res = tokenService.showNotification(token)
-    	if (res.success) {
-			respond(res.payload, [status:OK])
-    	}
-    	else { handleResultFailure(res) }
+        respondWithResult(Notification, tokenService.showNotification(token))
     }
 
+    def index() { notAllowed() }
     def save() { notAllowed() }
-
     def update() { notAllowed() }
-
     def delete() { notAllowed() }
 }

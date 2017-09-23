@@ -1,17 +1,22 @@
 package org.textup.rest
+
+import grails.compiler.GrailsCompileStatic
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import static org.springframework.http.HttpStatus.*
-import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 @RestApi(name="Validate", description = "Validates login credentials and lock codes")
 @Secured("permitAll")
 class ValidateController extends BaseController {
 
+	static String namespace = "v1"
+
 	AuthService authService
+
+	@Override
+    protected String getNamespaceAsString() { namespace }
 
 	@RestApiMethod(description='''Validate login credentails or lockCode.
 		If validating login credentials, must pass in "username" and "password".

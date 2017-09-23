@@ -1,12 +1,11 @@
 package org.textup
 
-import grails.gorm.DetachedCriteria
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.transaction.Transactional
 import org.joda.time.DateTime
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
-import org.textup.types.OrgStatus
-import org.textup.types.StaffStatus
+import org.textup.type.OrgStatus
+import org.textup.type.StaffStatus
 import grails.plugin.springsecurity.userdetails.NoStackUsernameNotFoundException
 import org.springframework.security.core.userdetails.UserDetails
 import grails.compiler.GrailsTypeChecked
@@ -111,6 +110,7 @@ class AuthService {
             List<Phone> phones = s1.allPhones
             Contact.createCriteria().count {
                 eq("id", cId)
+                eq("isDeleted", false)
                 if (phones) {
                     "in"("phone", phones)
                 }
@@ -136,7 +136,10 @@ class AuthService {
             List<Phone> allPhones = s1.allPhones
             SharedContact.createCriteria().list(max:1) {
                 projections { property("id") }
-                eq("contact.id", cId)
+                contact {
+                    eq("id", cId)
+                    eq("isDeleted", false)
+                }
                 if (allPhones) {
                     "in"("sharedWith", allPhones)
                 }
@@ -209,6 +212,7 @@ class AuthService {
             List<Phone> phones = s1.allPhones
             ContactTag.createCriteria().count {
                 eq("id", tId)
+                eq("isDeleted", false)
                 if (phones) {
                     "in"("phone", phones)
                 }

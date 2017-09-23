@@ -7,19 +7,16 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.springframework.context.MessageSource
-import org.textup.types.ResultType
 import org.textup.util.CustomSpec
 import org.textup.validator.PhoneNumber
 import spock.lang.Shared
 import spock.lang.Specification
-import static org.springframework.http.HttpStatus.*
 
 @TestFor(TeamService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole])
+    AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class TeamServiceSpec extends CustomSpec {
 
@@ -31,8 +28,8 @@ class TeamServiceSpec extends CustomSpec {
         super.setupData()
         service.resultFactory = getResultFactory()
         service.phoneService = [
-            createOrUpdatePhone: { Team t1, Map body ->
-                new Result(type:ResultType.SUCCESS, success:true, payload:t1)
+            mergePhone: { Team t1, Map body ->
+                new Result(success:ResultStatus.OK, payload:t1)
             }
         ] as PhoneService
     }
@@ -68,8 +65,8 @@ class TeamServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.VALIDATION
-        res.payload.errorCount == 2
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 2
         Team.count() == baseline
         Location.count() == lBaseline
         Phone.count() == pBaseline
@@ -80,9 +77,10 @@ class TeamServiceSpec extends CustomSpec {
         createInfo.location.lon = lon
         res = service.updateTeamInfo(team1, createInfo)
         assert res.success
-        org.save(flush:true, failOnError:true)
+        res.payload.save(flush:true, failOnError:true)
 
         then:
+        res.status == ResultStatus.OK
         res.payload instanceof Team
         res.payload.name == name
         res.payload.org.id == org.id
@@ -96,12 +94,13 @@ class TeamServiceSpec extends CustomSpec {
 
         when: "update away message when team has phone"
         tPh1.updateOwner(team1)
-        tPh1.save(flush:true, failOnError:true)
+        tPh1.merge(flush:true, failOnError:true)
         String msg = "you da best mon",
             originalAwayMsg = team1.phone.awayMessage
         res = service.updateTeamInfo(team1, [awayMessage:msg])
 
         then: "no change because update happens in phoneService"
+        res.status == ResultStatus.OK
         res.payload instanceof Team
         res.payload.phone.awayMessage != msg
         res.payload.phone.awayMessage == originalAwayMsg
@@ -114,6 +113,7 @@ class TeamServiceSpec extends CustomSpec {
         given: "baselines"
         int baseline = Team.count()
         int lBaseline = Location.count()
+        addToMessageSource("teamService.create.orgNotFound")
 
     	when: "creation of a team with a nonexistent organization"
         Map createInfo = [:]
@@ -121,9 +121,8 @@ class TeamServiceSpec extends CustomSpec {
 
     	then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "teamService.create.orgNotFound"
-        res.payload.status == NOT_FOUND
+        res.errorMessages[0] == "teamService.create.orgNotFound"
+        res.status == ResultStatus.NOT_FOUND
 
     	when: "we create a valid team"
         String name = "Team 888"
@@ -138,9 +137,10 @@ class TeamServiceSpec extends CustomSpec {
         ]
         res = service.create(createInfo)
         assert res.success
-        org.save(flush:true, failOnError:true)
+        res.payload.save(flush:true, failOnError:true)
 
     	then:
+        res.status == ResultStatus.CREATED
         res.payload instanceof Team
         res.payload.name == name
         res.payload.org.id == org.id
@@ -152,30 +152,38 @@ class TeamServiceSpec extends CustomSpec {
     // ------
 
     void "test find team from id"() {
+        given:
+        addToMessageSource("teamService.update.notFound")
+
         when: "nonexistent id"
         Result<Team> res = service.findTeamFromId(-88L)
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.status == NOT_FOUND
-        res.payload.code == "teamService.update.notFound"
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "teamService.update.notFound"
 
         when: "valid id"
         res = service.findTeamFromId(t1.id)
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Team
-        res.payload == t1
+        res.payload.id == t1.id
     }
 
     void "test team actions edge cases"() {
+        given: "an alternate mock for resultFactory's messageSource for extracting messages \
+            from ValidationErrors"
+        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+
         when: "no team actions"
         Result<Team> res = service.handleTeamActions(t1, [:])
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Team
         res.payload.id == t1.id
 
@@ -185,9 +193,9 @@ class TeamServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "teamService.update.teamActionNotList"
-        res.payload.status == BAD_REQUEST
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages.any{ it.contains("emptyOrNotACollection") }
 
         when: "we try to update team action with nonexistent staff member"
         updateInfo = [doTeamActions:[
@@ -197,24 +205,9 @@ class TeamServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "teamService.update.staffNotFound"
-        res.payload.status == NOT_FOUND
-
-        when: "we try to update team action with forbidden staff member"
-        service.authService = [hasPermissionsForStaff: { Long sId ->
-            false
-        }] as AuthService
-        updateInfo = [doTeamActions:[
-            [id:otherS3.id, action:Constants.TEAM_ACTION_ADD]
-        ]]
-        res = service.handleTeamActions(t1, updateInfo)
-
-        then:
-        res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "teamService.update.staffForbidden"
-        res.payload.status == FORBIDDEN
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages.contains("actionContainer.invalidActions")
 
         when: "we update with team action with unspecified action"
         service.authService = [hasPermissionsForStaff: { Long sId ->
@@ -227,9 +220,27 @@ class TeamServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "teamService.update.teamActionInvalid"
-        res.payload.status == BAD_REQUEST
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages.contains("actionContainer.invalidActions")
+
+        when: "we try to update team action with forbidden staff member"
+        // need to restore original messageSource
+        service.resultFactory.messageSource = messageSource
+        addToMessageSource("teamService.update.staffForbidden")
+        service.authService = [hasPermissionsForStaff: { Long sId ->
+            false
+        }] as AuthService
+
+        updateInfo = [doTeamActions:[
+            [id:otherS3.id, action:Constants.TEAM_ACTION_ADD]
+        ]]
+        res = service.handleTeamActions(t1, updateInfo)
+
+        then:
+        res.success == false
+        res.errorMessages[0] == "teamService.update.staffForbidden"
+        res.status == ResultStatus.FORBIDDEN
     }
 
     void "test team actions valid"() {
@@ -249,6 +260,7 @@ class TeamServiceSpec extends CustomSpec {
         t1.save(flush:true, failOnError:true)
 
         then:
+        res.status == ResultStatus.OK
         res.payload instanceof Team
         res.payload.id == t1.id
         res.payload.members.contains(s1) == false
@@ -268,8 +280,8 @@ class TeamServiceSpec extends CustomSpec {
 
     	then:
         res.success == false
-        res.type == ResultType.VALIDATION
-        res.payload.errorCount == 2
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 2
         Team.count() == baseline
         Location.count() == lBaseline
         Phone.count() == pBaseline
@@ -282,6 +294,7 @@ class TeamServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Team
         res.payload.location.lat == lat
         res.payload.location.lon == lon
@@ -294,21 +307,27 @@ class TeamServiceSpec extends CustomSpec {
     // ------
 
     void "test delete"() {
+        given:
+        addToMessageSource("teamService.delete.notFound")
+
     	when: "we delete a nonexistent team"
         Result res = service.delete(-88L)
 
     	then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "teamService.delete.notFound"
-        res.payload.status == NOT_FOUND
+        res.errorMessages[0] == "teamService.delete.notFound"
+        res.status == ResultStatus.NOT_FOUND
 
     	when: "we delete an existing team"
         res = service.delete(t1.id)
         assert res.success
-        org.save(flush:true, failOnError:true)
+        // HYPOTHESIS: transction is committed and session closes after the
+        // service method returns. Therefore, we need to re-fetch the team
+        // in order to get the updated properties
+        t1 = Team.get(t1.id)
 
     	then:
+        res.status == ResultStatus.NO_CONTENT
         t1.isDeleted == true
         t1.org.teams.contains(t1) == false
         t1.members.every { !it.teams.contains(t1) }

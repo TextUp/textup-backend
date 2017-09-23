@@ -3,14 +3,14 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
-import org.textup.types.ContactStatus
-import org.textup.types.AuthorType
+import org.textup.type.ContactStatus
+import org.textup.type.AuthorType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class ContactTagSpec extends CustomSpec {
 
@@ -134,5 +134,81 @@ class ContactTagSpec extends CustomSpec {
         rText.authorId == s1.id
         rText.authorType == AuthorType.STAFF
         rText.authorName == s1.name
+    }
+
+    void "test static finders"() {
+        when: "tags and contacts all not deleted"
+        Contact contact1 = p1.createContact([:], [randPhoneNumber()]).payload
+        Contact contact2 = p1.createContact([:], [randPhoneNumber()]).payload
+        Contact contact3 = p1.createContact([:], [randPhoneNumber()]).payload
+        ContactTag tag1 = p1.createTag([name:randPhoneNumber()]).payload
+        ContactTag tag2 = p1.createTag([name:randPhoneNumber()]).payload
+
+        tag1.addToMembers(contact1)
+        tag1.addToMembers(contact2)
+        tag2.addToMembers(contact1)
+        ContactTag.withSession { it.flush() }
+
+        Collection<ContactTag> tags = [tag1, tag2]
+
+        then:
+        ContactTag.findEveryByContactIds([]*.id).isEmpty()
+        ContactTag.findEveryByContactIds([contact3]*.id).isEmpty()
+        ContactTag.findEveryByContactIds([contact1]*.id).size() == 2
+        ContactTag.findEveryByContactIds([contact1]*.id)*.id.every { it in tags*.id }
+
+        ContactTag.findEveryByContactIds([contact2]*.id).size() == 1
+        ContactTag.findEveryByContactIds([contact2]*.id)*.id.every { it in tags*.id }
+
+        ContactTag.findEveryByContactIds([contact1, contact2]*.id).size() == 2
+        ContactTag.findEveryByContactIds([contact1, contact2]*.id)*.id.every { it in tags*.id }
+
+        ContactTag.findEveryByContactIds([contact3, contact2]*.id).size() == 1
+        ContactTag.findEveryByContactIds([contact3, contact2]*.id)*.id.every { it in tags*.id }
+
+        ContactTag.findEveryByContactIds([contact1, contact2, contact3]*.id).size() == 2
+        ContactTag.findEveryByContactIds([contact1, contact2, contact3]*.id)*.id.every { it in tags*.id }
+
+        when: "both tags deleted, contacts not deleted"
+        tags.each { ContactTag cTag ->
+            cTag.isDeleted = true
+            cTag.save(flush:true, failOnError:true)
+        }
+        [contact1, contact2, contact3].each { Contact contact ->
+            contact.isDeleted = false
+            contact.save(flush:true, failOnError:true)
+        }
+
+        then: "no results"
+        ContactTag.findEveryByContactIds([contact1, contact2, contact3]*.id).size() == 0
+        ContactTag.findEveryByContactIds([contact1, contact2, contact3]*.id).isEmpty() == true
+
+        when: "contacts all deleted, tags not deleted"
+        tags.each { ContactTag cTag ->
+            cTag.isDeleted = false
+            cTag.save(flush:true, failOnError:true)
+        }
+        [contact1, contact2, contact3].each { Contact contact ->
+            contact.isDeleted = true
+            contact.save(flush:true, failOnError:true)
+        }
+
+        then: "no results"
+        ContactTag.findEveryByContactIds([contact1, contact2, contact3]*.id).size() == 0
+        ContactTag.findEveryByContactIds([contact1, contact2, contact3]*.id).isEmpty() == true
+
+        when: "neither tags nor contacts are deleted"
+        tags.each { ContactTag cTag ->
+            cTag.isDeleted = false
+            cTag.save(flush:true, failOnError:true)
+        }
+        [contact1, contact2, contact3].each { Contact contact ->
+            contact.isDeleted = false
+            contact.save(flush:true, failOnError:true)
+        }
+
+        then: "results show up again"
+        ContactTag.findEveryByContactIds([contact1, contact2, contact3]*.id).size() == 2
+        ContactTag.findEveryByContactIds([contact1, contact2, contact3]*.id)*.id.every { it in tags*.id }
     }
 }

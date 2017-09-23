@@ -6,16 +6,16 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
-import org.textup.types.AuthorType
-import org.textup.types.PhoneOwnershipType
-import org.textup.types.StaffStatus
+import org.textup.type.AuthorType
+import org.textup.type.PhoneOwnershipType
+import org.textup.type.StaffStatus
 import org.textup.util.CustomSpec
 import org.textup.validator.Author
 import spock.lang.Ignore
 import spock.lang.Shared
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, NotificationPolicy,
 	Schedule, Location, WeeklySchedule, PhoneOwnership, IncomingSession, Role, StaffRole])
 @TestMixin(HibernateTestMixin)
 class IncomingSessionSpec extends CustomSpec {

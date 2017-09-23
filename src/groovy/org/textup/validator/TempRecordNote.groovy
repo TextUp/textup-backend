@@ -4,11 +4,9 @@ import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.hibernate.FlushMode
 import org.hibernate.Session
 import org.joda.time.DateTime
 import org.joda.time.Duration
-import org.springframework.http.HttpStatus
 import org.textup.*
 
 @GrailsTypeChecked
@@ -30,7 +28,11 @@ class TempRecordNote {
 	Map info
 
 	static constraints = {
-		note nullable:true
+		note nullable:true, validator:{ RecordNote note1, TempRecordNote tempNote ->
+			if (!note1 && (!tempNote.phone || !tempNote.hasTargetForNewNote)) {
+				["missingInfoForNewNote"]
+			}
+		}
 		phone nullable:true
 		contact nullable:true, validator:{ Contact c1, TempRecordNote tempNote ->
 			if (c1 && c1.phone != tempNote?.phone) {
@@ -50,7 +52,6 @@ class TempRecordNote {
 		after nullable:true
 		// ensures that note will have at least one of text, location or images
 		// leaves text and location validation to respective domain objects
-		// DOES validate images for size and number
 		info nullable:false, validator:{ Map noteInfo, TempRecordNote tempNote ->
 			if (!tempNote.note && !noteInfo.noteContents && !noteInfo.location &&
 				!noteInfo.doImageActions) {
@@ -62,18 +63,6 @@ class TempRecordNote {
 	// Validation
 	// ----------
 
-	boolean doValidate() {
-		this.clearErrors()
-		this.validate()
-		validateImageActionsIfAny(this.info)
-
-		boolean isValid = !this.hasErrors()
-		if (!this.note && (!this.phone || !this.hasTargetForNewNote)) {
-			isValid = false
-			this.errors.reject('tempRecordNote.missingInfoForNewNote')
-		}
-		isValid
-	}
 	protected boolean getHasTargetForNewNote() {
 		this.contact || this.sharedContact || this.tag
 	}
@@ -81,31 +70,6 @@ class TempRecordNote {
 	// Methods
 	// -------
 
-	public <T> Result<List<T>> forEachImageToAdd(Closure<T> doThis) {
-		String toMatch = Constants.NOTE_IMAGE_ACTION_ADD
-		forEachImage({ Map info ->
-			doThis(buildUploadItem(info))
-		}, { Map info -> Helpers.toLowerCaseString(info.action) == toMatch })
-	}
-	public <T> Result<List<T>> forEachImageToRemove(Closure<T> doThis) {
-		String toMatch = Constants.NOTE_IMAGE_ACTION_REMOVE
-		forEachImage({ Map info ->
-			doThis(Helpers.toString(info.key))
-		}, { Map info -> Helpers.toLowerCaseString(info.action) == toMatch })
-	}
-	public <T> Result<List<T>> forEachImage(Closure<T> doThis, Closure doesMatch = null) {
-		List actions = this.info.doImageActions instanceof List ?
-			this.info.doImageActions as List : []
-		List<T> results = []
-		for (Object action in actions) {
-			if (!(action instanceof Map)) continue
-			Map actionMap = action as Map
-			if (!doesMatch || (doesMatch && doesMatch(actionMap))) {
-				results << doThis(actionMap)
-			}
-		}
-		getResultFactory().success(results)
-	}
 	// this method will update fields, including removing images, but adding new
 	// images and creating revisions must be handled manually. For adding new images,
 	// you can call the iterator forEachImageToAdd and pass in a closure action
@@ -141,12 +105,12 @@ class TempRecordNote {
 			return note1
 		}
 		note1.author = auth
-		Boolean isDeleted = Helpers.toBoolean(this.info.isDeleted)
+		Boolean isDeleted = Helpers.to(Boolean, this.info.isDeleted)
 		if (isDeleted != null) {
 			note1.isDeleted = isDeleted
 		}
 		if (this.info.noteContents != null) {
-			note1.noteContents = Helpers.toString(this.info.noteContents)
+			note1.noteContents = Helpers.to(String, this.info.noteContents)
 		}
 		if (this.info.location instanceof Map) {
 			// never use existing note location when updating location
@@ -163,13 +127,11 @@ class TempRecordNote {
 			Map lInfo = this.info.location as Map
 			loc.with {
     			if (lInfo.address) address = lInfo.address
-                if (lInfo.lat) lat = Helpers.toBigDecimal(lInfo.lat)
-                if (lInfo.lon) lon = Helpers.toBigDecimal(lInfo.lon)
+                if (lInfo.lat) lat = Helpers.to(BigDecimal, lInfo.lat)
+                if (lInfo.lon) lon = Helpers.to(BigDecimal, lInfo.lon)
     		}
     		note1.location = loc
 		}
-		this.<String>forEachImageToRemove(note1.&removeImage)
-			.logFail('TempRecordNote.updateFields')
 		note1
 	}
 	protected RecordNote modifyWhenCreatedIfNeeded(RecordNote note1, DateTime afterTime) {
@@ -177,73 +139,17 @@ class TempRecordNote {
 			note1.record?.getSince(afterTime, [max:1])[0] : null
 		if (beforeItem) {
 			BigDecimal midpointMillis  = (new Duration(afterTime,
-				beforeItem.whenCreated).millis / 2);
+				beforeItem.whenCreated).millis / 2)
 			long lowerBound = Constants.MIN_NOTE_SPACING_MILLIS,
 				upperBound = Constants.MAX_NOTE_SPACING_MILLIS
 			// # millis to be add should be half the # of millis between time we need to be after
 			// and the time that we need to be before (to avoid passing next item)
 			// BUT this # must be between the specified lower and upper bounds
 			long plusAmount = Math.max(lowerBound,
-				Math.min(Helpers.toLong(midpointMillis), upperBound))
+				Math.min(Helpers.to(Long, midpointMillis), upperBound))
 			// set note's whenCreated to the DateTime we need to be after plus an offset
 			note1.whenCreated = afterTime.plus(plusAmount)
-
 		}
 		note1
-	}
-
-	// Validation Helpers
-	// ------------------
-
-	protected void validateImageActionsIfAny(Map noteInfo) {
-		// short circuit if no image actions
-		if (!noteInfo.doImageActions) {
-			return
-		}
-		// image actions must be a list
-		if (!(noteInfo.doImageActions instanceof List)) {
-			this.errors.reject('tempRecordNote.images.notList')
-			return
-		}
-		Helpers.toList(noteInfo.doImageActions)
-			.each(this.&validateImageAction)
-	}
-	protected void validateImageAction(Object action) {
-		// each action must be a map
-		if (!(action instanceof Map)) {
-			this.errors.reject('tempRecordNote.images.actionNotMap')
-			return
-		}
-
-		Map actionMap = action as Map
-		// check each individual image action for structure and completeness
-		switch (Helpers.toLowerCaseString(actionMap.action)) {
-			case Constants.NOTE_IMAGE_ACTION_REMOVE:
-				if (!actionMap.key) {
-					this.errors.reject("tempRecordNote.images.removeMissingKey")
-				}
-				break
-			case Constants.NOTE_IMAGE_ACTION_ADD:
-				UploadItem uItem = buildUploadItem(actionMap)
-                if (!uItem.validate()) {
-                	Result res = getResultFactory().failWithValidationErrors(uItem.errors)
-                	this.errors.reject("tempRecordNote.images.invalidUploadItem",
-                		[res.errorMessages] as Object[], null)
-                }
-				break
-			default:
-				this.errors.reject("tempRecordNote.images.invalidAction",
-					[actionMap.action] as Object[], "Invalid image action")
-		}
-	}
-
-	protected UploadItem buildUploadItem(Map info) {
-		UploadItem uItem = new UploadItem()
-		uItem.with {
-			mimeType = info.mimeType
-			data = info.data
-			checksum = info.checksum
-		}
-		uItem
 	}
 }

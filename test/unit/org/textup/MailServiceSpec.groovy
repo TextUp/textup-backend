@@ -10,15 +10,14 @@ import spock.lang.Shared
 import spock.lang.Specification
 import grails.plugin.springsecurity.SpringSecurityService
 import org.textup.util.CustomSpec
-import org.textup.types.StaffStatus
-import org.textup.types.OrgStatus
-import org.textup.types.ResultType
+import org.textup.type.StaffStatus
+import org.textup.type.OrgStatus
 import org.textup.validator.EmailEntity
 
 @TestFor(MailService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-	Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+	Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class MailServiceSpec extends CustomSpec {
 
@@ -35,7 +34,7 @@ class MailServiceSpec extends CustomSpec {
     	setupData()
     	service.metaClass.sendMail = { EmailEntity to, EmailEntity from, String subject,
 	    	String contents, String templateId=null ->
-	    	new Result(type:ResultType.SUCCESS, success:true, payload:[
+	    	new Result(status:ResultStatus.OK, payload:[
 	    		to:to,
 	    		from:from,
 	    		subject:subject,
@@ -46,7 +45,9 @@ class MailServiceSpec extends CustomSpec {
 	    service.metaClass.config = { String key ->
 	    	(key == stdEmailKey) ? stdEmail : ((key == selfEmailKey) ? selfEmail : key)
 	    }
-	    service.messageSource = mockMessageSource()
+	    service.messageSource = [getMessage:{ String c, Object[] p, Locale l ->
+            c
+        }] as MessageSource
     }
 
     def cleanup() {
@@ -60,6 +61,7 @@ class MailServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload.to.validate()
     	res.payload.to.name == s1.name
     	res.payload.to.email == s1.email
@@ -77,6 +79,7 @@ class MailServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload.to.validate()
     	res.payload.to.name == "textup.mail.self.name"
     	res.payload.to.email == selfEmail
@@ -92,6 +95,7 @@ class MailServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload.to.validate()
     	res.payload.to.name == s1.name
     	res.payload.to.email == s1.email
@@ -107,6 +111,7 @@ class MailServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload.to.validate()
     	res.payload.to.name == s1.name
     	res.payload.to.email == s1.email
@@ -120,18 +125,23 @@ class MailServiceSpec extends CustomSpec {
 
     void "test signup with existing organization"() {
     	when: "no admins"
+        // result factory messageSource is the StaticMessageSource managed by
+        // CustomSpec. This is a distinct implementation from the mock used
+        // to represent the service's MessageSource
+        addToMessageSource("mailService.notifyAdminsOfPendingStaff.noAdmins")
     	Result res = service.notifyAdminsOfPendingStaff("pendingName", [])
 
     	then:
     	res.success == false
-    	res.type == ResultType.MESSAGE
-    	res.payload.code == "mailService.notifyAdminsOfPendingStaff.noAdmins"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "mailService.notifyAdminsOfPendingStaff.noAdmins"
 
     	when:
     	res = service.notifyAdminsOfPendingStaff("pending", [s1, s2])
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload.size() == 2
     	res.payload[0].to.validate()
     	res.payload[0].to.name == s1.name
@@ -151,6 +161,7 @@ class MailServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload.to.validate()
     	res.payload.to.name == s1.name
     	res.payload.to.email == s1.email
@@ -166,6 +177,7 @@ class MailServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload.to.validate()
     	res.payload.to.name == s1.name
     	res.payload.to.email == s1.email

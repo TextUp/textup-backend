@@ -1,5 +1,7 @@
 package org.textup.rest
 
+import grails.compiler.GrailsCompileStatic
+import groovy.transform.TypeCheckingMode
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
 import org.ocpsoft.prettytime.PrettyTime
@@ -7,11 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.types.CallResponse
-import org.textup.types.TextResponse
-import static org.springframework.http.HttpStatus.*
-import grails.compiler.GrailsCompileStatic
-import groovy.transform.TypeCheckingMode
+import org.textup.type.CallResponse
+import org.textup.type.TextResponse
 
 class TwimlBuilder {
 
@@ -158,8 +157,8 @@ class TwimlBuilder {
             resultFactory.success(responses)
         }
         else {
-            resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                'twimlBuilder.invalidCode', [code])
+            resultFactory.failWithCodeAndStatus('twimlBuilder.invalidCode',
+                ResultStatus.BAD_REQUEST, [code])
         }
     }
     Result<Closure> translate(CallResponse code, Map params=[:]) {
@@ -197,23 +196,43 @@ class TwimlBuilder {
                 }
                 break
             case CallResponse.CONNECT_INCOMING:
-                if (params.numsToCall instanceof Collection &&
-                    params.linkParams instanceof Map) {
-                    String connecting = getMessage("twimlBuilder.call.connectIncoming"),
-                        voicemailWebhook = getLink(params.linkParams)
+                if (params.displayedNumber instanceof String &&
+                    params.numsToCall instanceof Collection &&
+                    params.linkParams instanceof Map &&
+                    params.screenParams instanceof Map) {
+                    String checkVoicemailWebhook = getLink(params.linkParams)
                     callBody = {
-                        Say(connecting)
                         // have a short timeout here because we want to avoid having one
                         // of the TextUp user's personal phone voicemails pick up and
-                        // take the voicemail instea of TextUp storing the voicemail
-                        Dial(timeout:"15") {
-                            for (num in params.numsToCall) { Number(num) }
+                        // take the voicemail instead of TextUp storing the voicemail
+                        Dial(callerId:params.displayedNumber, timeout:"15", answerOnBridge:true,
+                            action:checkVoicemailWebhook) {
+                            for (num in params.numsToCall) {
+                                Number(url:getLink(params.screenParams), num)
+                            }
                         }
-                        Redirect(voicemailWebhook)
                     }
                 }
                 break
-            case CallResponse.VOICEMAIL:
+            case CallResponse.SCREEN_INCOMING:
+                if (params.callerId instanceof String &&
+                    params.linkParams instanceof Map) {
+                    String goodbye = getMessage("twimlBuilder.call.goodbye"),
+                        finishScreenWebhook = getLink(params.linkParams),
+                        directions = getMessage("twimlBuilder.call.screenIncoming", [params.callerId])
+                    callBody = {
+                        Gather(numDigits:"1", action:finishScreenWebhook) {
+                            Pause(length:"1")
+                            // say twice just to make sure the user hears the message
+                            Say(directions)
+                            Say(directions)
+                        }
+                        Say(goodbye)
+                        Hangup()
+                    }
+                }
+                break
+            case CallResponse.CHECK_IF_VOICEMAIL:
                 if (params.awayMessage instanceof String &&
                     params.linkParams instanceof Map &&
                     params.callbackParams instanceof Map) {
@@ -231,23 +250,38 @@ class TwimlBuilder {
                     }
                 }
                 break
+            case CallResponse.VOICEMAIL_DONE:
+                callBody = {}
+                break
             case CallResponse.FINISH_BRIDGE:
                 if (params.contact instanceof Contact) {
                     Contact c1 = params.contact
-                    String done = getMessage("twimlBuilder.call.finishBridgeDone")
+                    List<ContactNumber> nums = c1.sortedNumbers ?: []
+                    int lastIndex = nums.size() - 1
+                    String nameOrNum = c1.getNameOrNumber(true)
                     callBody = {
-                        Pause("1")
-                        c1.sortedNumbers?.each { ContactNumber num ->
-                            Say(getMessage("twimlBuilder.call.bridgeNumber",
-                                [Helpers.formatNumberForSay(num.number)]))
-                            // increase the timeout a bit to allow a longer window
-                            // for the called party's voicemail to answer
-                            Dial(timeout:"60") {
-                                Number(num.e164PhoneNumber)
+                        Pause(length:"1")
+                        if (nums) {
+                            nums.eachWithIndex { ContactNumber num, int index ->
+                                String numForSay = Helpers.formatNumberForSay(num.number)
+                                Say(getMessage("twimlBuilder.call.bridgeNumberStart",
+                                    [numForSay, index + 1, lastIndex + 1]))
+                                if (index != lastIndex) {
+                                    Say(getMessage("twimlBuilder.call.bridgeNumberSkip"))
+                                }
+                                // increase the timeout a bit to allow a longer window
+                                // for the called party's voicemail to answer
+                                Dial(timeout:"60", hangupOnStar:"true") {
+                                    Number(num.e164PhoneNumber)
+                                }
+                                Say(getMessage("twimlBuilder.call.bridgeNumberFinish", [numForSay]))
                             }
+                            Pause(length:"5")
+                            Say(getMessage("twimlBuilder.call.bridgeDone", [nameOrNum]))
                         }
-                        Pause(length:"10")
-                        Say(done)
+                        else {
+                            Say(getMessage("twimlBuilder.call.bridgeNoNumbers", [nameOrNum]))
+                        }
                         Hangup()
                     }
                 }
@@ -317,14 +351,14 @@ class TwimlBuilder {
                 break
             case CallResponse.DIRECT_MESSAGE:
                 if (params.message instanceof String) {
-                    int repeatCount = Helpers.toInteger(params.repeatCount) ?: 0
+                    int repeatCount = Helpers.to(Integer, params.repeatCount) ?: 0
                     Map linkParams = [handle:CallResponse.DIRECT_MESSAGE,
                         message:params.message, repeatCount:repeatCount + 1]
                     if (params.identifier) linkParams.identifier = params.identifier
 
                     if (repeatCount < Constants.MAX_REPEATS) {
                         String ident = params.identifier ?
-                                Helpers.toString(params.identifier) : null,
+                                Helpers.to(String, params.identifier) : null,
                             messageIntro = ident ?
                                 getMessage("twimlBuilder.call.messageIntro", [ident]) :
                                 getMessage("twimlBuilder.call.anonymousMessageIntro"),
@@ -357,11 +391,15 @@ class TwimlBuilder {
                     Hangup()
                 }
                 break
+            case CallResponse.END_CALL:
+                callBody = { Hangup() }
+                break
+            case CallResponse.DO_NOTHING:
+                callBody = {}
+                break
             case CallResponse.BLOCKED:
-                String blocked = getMessage("twimlBuilder.call.blocked")
                 callBody = {
-                    Say(blocked)
-                    Hangup()
+                    Reject(reason:"rejected")
                 }
                 break
         }
@@ -369,8 +407,8 @@ class TwimlBuilder {
             resultFactory.success(callBody)
         }
         else {
-            resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                'twimlBuilder.invalidCode', [code])
+            resultFactory.failWithCodeAndStatus('twimlBuilder.invalidCode',
+                ResultStatus.BAD_REQUEST, [code])
         }
     }
 }

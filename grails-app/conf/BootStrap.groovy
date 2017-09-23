@@ -2,7 +2,7 @@ import com.twilio.Twilio
 import grails.util.GrailsUtil
 import org.textup.*
 import org.textup.rest.*
-import org.textup.types.*
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 

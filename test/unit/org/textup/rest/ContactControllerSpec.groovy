@@ -9,16 +9,17 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.type.ContactStatus
 import org.textup.util.CustomSpec
+import org.textup.validator.MergeGroup
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
-import org.textup.types.ContactStatus
 
 @TestFor(ContactController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class ContactControllerSpec extends CustomSpec {
 
@@ -28,6 +29,12 @@ class ContactControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
+
+        Staff loggedIn = Staff.findByUsername(loggedInUsername)
+        Contact cont1 = loggedIn.phone.createContact([:], [randPhoneNumber()]).payload
+        Contact cont2 = loggedIn.phone.createContact([:], [randPhoneNumber()]).payload
+        [cont1, cont2]*.save(flush:true, failOnError:true)
+        assert loggedIn.phone.countContacts() > 0
     }
     def cleanup() {
         super.cleanupData()
@@ -50,7 +57,7 @@ class ContactControllerSpec extends CustomSpec {
         request.method = "GET"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allToLong(loggedIn.phone.getContacts()*.id)
+        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.getContacts()*.id)
 
         then: "return contacts for currently logged in staff"
         response.status == SC_OK
@@ -76,7 +83,7 @@ class ContactControllerSpec extends CustomSpec {
         request.method = "GET"
         params.tagId = tag1.id
         controller.index()
-        List<Long> ids = Helpers.allToLong(tag1.members*.id)
+        List<Long> ids = Helpers.allTo(Long, tag1.members*.id)
 
         then:
         response.status == SC_OK
@@ -92,7 +99,7 @@ class ContactControllerSpec extends CustomSpec {
         params.shareStatus = "invalid"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allToLong(loggedIn.phone.getContacts()*.id)
+        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.getContacts()*.id)
 
         then: "return contacts for currently logged in staff"
         response.status == SC_OK
@@ -108,7 +115,7 @@ class ContactControllerSpec extends CustomSpec {
         params["status[]"] = [ContactStatus.UNREAD, ContactStatus.ACTIVE]
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allToLong(loggedIn.phone.getSharedByMe()*.id)
+        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.getSharedByMe()*.id)
 
         then: "status[] param is overshadowed"
         response.status == SC_OK
@@ -123,7 +130,7 @@ class ContactControllerSpec extends CustomSpec {
         params.shareStatus = "sharedWithMe"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allToLong(loggedIn.phone.getSharedWithMe()*.id)
+        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.getSharedWithMe()*.id)
 
         then:
         response.status == SC_OK
@@ -138,7 +145,7 @@ class ContactControllerSpec extends CustomSpec {
         request.method = "GET"
         params.teamId = t1.id
         controller.index()
-        List<Long> ids = Helpers.allToLong(t1.phone.getContacts()*.id)
+        List<Long> ids = Helpers.allTo(Long, t1.phone.getContacts()*.id)
 
         then:
         response.status == SC_OK
@@ -153,12 +160,54 @@ class ContactControllerSpec extends CustomSpec {
         params.teamId = t1.id
         params.search = "1222333"
         controller.index()
-        List<Long> ids = Helpers.allToLong(t1.phone.getContacts(params.search)*.id)
+        List<Long> ids = Helpers.allTo(Long, t1.phone.getContacts(params.search)*.id)
 
         then:
         response.status == SC_OK
         response.json.contacts.size() == ids.size()
         response.json.contacts*.id.every { ids.contains(it as Long) }
+    }
+
+    void "test list for duplicates"() {
+        given:
+        boolean calledDuplicatesFinder = false
+        mockForList()
+
+        when: "for those with phone (team or staff)"
+        controller.duplicateService = [findDuplicates:{ Phone p1 ->
+            calledDuplicatesFinder = true
+            new Result<List<MergeGroup>>(status:ResultStatus.OK, payload:[])
+        }] as DuplicateService
+
+        request.method = "GET"
+        params.teamId = t1.id
+        params.duplicates = true
+
+        calledDuplicatesFinder = false
+        controller.index()
+
+        then:
+        calledDuplicatesFinder == true
+        response.status == SC_OK
+
+        when: "for those without phone (tag)"
+        controller.duplicateService = [findDuplicates:{ List<Long> ids ->
+            calledDuplicatesFinder = true
+            new Result<List<MergeGroup>>(status:ResultStatus.OK, payload:[])
+        }] as DuplicateService
+
+        response.reset()
+        request.method = "GET"
+        params.clear()
+        params.tagId = tag1.id
+        params.duplicates = true
+
+        calledDuplicatesFinder = false
+        controller.index()
+
+        then:
+        calledDuplicatesFinder == true
+        response.status == SC_OK
     }
 
     // Show
@@ -214,9 +263,9 @@ class ContactControllerSpec extends CustomSpec {
 
     protected void mockForSave() {
         controller.contactService = [createForStaff:{ Map body ->
-            new Result(payload:c1)
+            new Result(status:ResultStatus.CREATED, payload:c1)
         }, createForTeam:{ Long tId, Map body ->
-            new Result(payload:c1)
+            new Result(status:ResultStatus.CREATED, payload:c1)
         }] as ContactService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
@@ -333,13 +382,53 @@ class ContactControllerSpec extends CustomSpec {
     // Delete
     // ------
 
-    void "test delete a nonexistent contact"() {
+    void "test delete nonexistent contact"() {
+        given:
+        controller.authService = [
+            exists:{ Class clazz, Long id -> false }
+        ] as AuthService
+
+        when:
+        params.id = -88L
+        request.method = "DELETE"
+        controller.delete()
+
+        then:
+        response.status == SC_NOT_FOUND
+    }
+
+    void "test delete forbidden contact"() {
+        given:
+        controller.authService = [
+            exists:{ Class clazz, Long id -> true },
+            hasPermissionsForContact:{ Long id -> false }
+        ] as AuthService
+
         when:
         params.id = c1.id
         request.method = "DELETE"
         controller.delete()
 
         then:
-        response.status == SC_METHOD_NOT_ALLOWED
+        response.status == SC_FORBIDDEN
+    }
+
+    void "test delete contact"() {
+        given:
+        controller.contactService = [delete:{ Long cId ->
+            new Result(payload:null, status:ResultStatus.NO_CONTENT)
+        }] as ContactService
+        controller.authService = [
+            exists:{ Class clazz, Long id -> true },
+            hasPermissionsForContact:{ Long id -> true }
+        ] as AuthService
+
+        when:
+        params.id = c1.id
+        request.method = "DELETE"
+        controller.delete()
+
+        then:
+        response.status == SC_NO_CONTENT
     }
 }

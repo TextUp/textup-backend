@@ -7,9 +7,9 @@ import org.joda.time.DateTime
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
-import org.textup.types.OrgStatus
-import org.textup.types.CallResponse
-import org.textup.types.StaffStatus
+import org.textup.type.OrgStatus
+import org.textup.type.CallResponse
+import org.textup.type.StaffStatus
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 
@@ -67,23 +67,35 @@ class IncomingCallFunctionalSpec extends RestSpec {
         response.status == OK.value()
         response.xml != null
         response.xml.Record.@action.toString().contains("handle=")
+        // want to end call after recording the voicemail because we wait for the
+        // status callback to tell us that the voicemail is doing processing. If we tried to
+        // retrieve the recording right when the recording is finished, it might not be done
+        // processing yet and we'll encounter an error
+        response.xml.Record.@action.toString().contains(CallResponse.END_CALL.toString())
         response.xml.Record.@recordingStatusCallback.toString().contains("handle=")
+        // we wait until the recording is done being processed by waiting for the recording status
+        // callback to return with the VOICEMAIL_DONE status
+        response.xml.Record.@recordingStatusCallback.toString().contains(CallResponse.VOICEMAIL_DONE.toString())
 
         when: "send no-op request from action hook of Record verb"
+        // actionHandle should be a no-op that will just end the call
         String actionHandle = response.xml.Record.@action.toString().split("handle=")[1]
+        // statusHandle should be when we actually retrieve the processed voicemail  `
         String statusHandle = response.xml.Record.@recordingStatusCallback
             .toString()
             .split("handle=")[1]
             .split("&")[0] // to get rid of other parameters
+
         response = rest.post("${requestUrl}?handle=${actionHandle}") {
             contentType("application/x-www-form-urlencoded")
             body(form)
         }
 
-        then: "no response"
+        then: "returns a Hangup verb"
         response.status == OK.value()
         response.xml != null
         response.xml.text() == ""
+        response.body == "<Response><Hangup/></Response>"
 
         when: "storing voicemail when recording has completed processing"
         form.set("RecordingDuration", "1234")
@@ -98,6 +110,7 @@ class IncomingCallFunctionalSpec extends RestSpec {
         response.status == OK.value()
         response.xml != null
         response.xml.text() == ""
+        response.body == "<Response></Response>"
     }
 
     void "test incoming call with some available attempts to connect"() {
@@ -128,14 +141,49 @@ class IncomingCallFunctionalSpec extends RestSpec {
             body(form)
         }
 
-        then: "get sent to voicemail"
+        then: "connect incoming, check if voicemail if none answer, and screen if one answers"
         response.status == OK.value()
         response.xml != null
-        response.xml.Redirect.text() == "$requestUrl?handle=${CallResponse.VOICEMAIL}"
-        response.xml.Dial.Number[0] == personalNum
+        // incoming calls show on the TextUp user's phone as coming from the TextUp phone
+        response.xml.Dial.@callerId.toString() == toNum
+        // for the client, calls continues ringing even if redirected internally
+        response.xml.Dial.@answerOnBridge.toString() == "true"
+        response.xml.Dial.@action.toString().contains("handle=${CallResponse.CHECK_IF_VOICEMAIL.toString()}")
+        response.xml.Dial.Number[0].@url.toString().contains("handle=${CallResponse.SCREEN_INCOMING.toString()}")
+        response.xml.Dial.Number[0].@url.toString().contains("originalFrom=")
+        response.xml.Dial.Number[0].@url.toString().contains(URLEncoder.encode(fromNum, "UTF-8"))
+        response.xml.Dial.Number[0].text() == personalNum
 
-        when: "gets redirected to voicemail"
-        String voicemailUrl = response.xml.Redirect.text()
+        when: "one of the numbers picks up"
+        String voicemailUrl = response.xml.Dial.@action.toString()
+        String screenUrl = response.xml.Dial.Number[0].@url.toString()
+        // to do screening, a child call begins betwen the TextUp phone and personal phone
+        form.set("From", toNum)
+        form.set("To", personalNum)
+        response = rest.post(screenUrl) {
+            contentType("application/x-www-form-urlencoded")
+            body(form)
+        }
+
+        then: "call continues ringing while TextUp user screens the call"
+        response.status == OK.value()
+        response.xml != null
+        // press any digit to be redirected away from the Hangup verb at the end of this TwiML
+        response.xml.Gather.@numDigits.toString() == "1"
+        response.body.contains("Hangup")
+        // after any digit is pressed, this TwiML redirects to a no-op. We don't actually
+        // need to do anything with the Gathered keypress. The whole point was to avoid the
+        // Hangup verb at the end. If we don't Hangup in the Number verb's url in the original
+        // CONNECT_INCOMING request, then the Number verb will continue to connect the call
+        response.xml.Gather.@action.toString().contains("handle=${CallResponse.DO_NOTHING}")
+
+        when: "no user input on screen do caller is redirected to voicemail @action in Dial verb"
+        // When handling voicemail, the from/to numbers are restored to their original config
+        form.set("From", fromNum)
+        form.set("To", toNum)
+        // voicemail only started when the call has NOT connected
+        form.set("DialCallStatus", Constants.PENDING_STATUSES[0])
+
         response = rest.post(voicemailUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)
@@ -144,7 +192,11 @@ class IncomingCallFunctionalSpec extends RestSpec {
         then:
         response.status == OK.value()
         response.xml != null
-        response.xml.Record.@action.toString().contains("handle=")
+        response.xml.Record.@action.toString().contains("handle=${CallResponse.END_CALL}")
+        response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
+        // first Say verb contains the phone's away message which is guaranteed to
+        // have the default emergency message
+        response.xml.Say[0].text().contains(Constants.AWAY_EMERGENCY_MESSAGE)
     }
 
     void "test call self"() {
@@ -222,12 +274,14 @@ class IncomingCallFunctionalSpec extends RestSpec {
             return [
                 message: announce.message,
                 to: p1.number.e164PhoneNumber,
-                from: fromNum
+                from: fromNum,
+                personal: s1.personalPhoneNumber.e164PhoneNumber
             ]
         }.curry(loggedInUsername))
         String message = data.message,
             toNum = data.to,
-            fromNum = data.from
+            fromNum = data.from,
+            personalNum = data.personal
 
         when: "incoming call"
         MultiValueMap<String,String> form = new LinkedMultiValueMap<>()
@@ -298,7 +352,11 @@ class IncomingCallFunctionalSpec extends RestSpec {
         response.status == OK.value()
         response.xml != null
         response.xml.Dial.size() == 0
-        response.xml.Record.@action.toString().contains("handle=")
+        response.xml.Record.@action.toString().contains("handle=${CallResponse.END_CALL}")
+        response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
+        // first Say verb contains the phone's away message which is guaranteed to
+        // have the default emergency message
+        response.xml.Say[0].text().contains(Constants.AWAY_EMERGENCY_MESSAGE)
 
         when: "any key to connect to staff, some staff available"
         remote.exec({ un ->
@@ -316,8 +374,14 @@ class IncomingCallFunctionalSpec extends RestSpec {
         then: "connect incoming"
         response.status == OK.value()
         response.xml != null
-        response.xml.Dial.size() != 0
-        response.xml.Record.size() == 0
-        response.xml.Redirect.text() == "$requestUrl?handle=${CallResponse.VOICEMAIL}"
+        // incoming calls show on the TextUp user's phone as coming from the TextUp phone
+        response.xml.Dial.@callerId.toString() == toNum
+        // for the client, calls continues ringing even if redirected internally
+        response.xml.Dial.@answerOnBridge.toString() == "true"
+        response.xml.Dial.@action.toString().contains("handle=${CallResponse.CHECK_IF_VOICEMAIL.toString()}")
+        response.xml.Dial.Number[0].@url.toString().contains("handle=${CallResponse.SCREEN_INCOMING.toString()}")
+        response.xml.Dial.Number[0].@url.toString().contains("originalFrom=")
+        response.xml.Dial.Number[0].@url.toString().contains(URLEncoder.encode(fromNum, "UTF-8"))
+        response.xml.Dial.Number[0].text() == personalNum
     }
 }

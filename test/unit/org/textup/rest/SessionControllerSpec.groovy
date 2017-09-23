@@ -6,7 +6,6 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.springframework.context.MessageSource
 import org.textup.util.CustomSpec
-import org.textup.types.ResultType
 import spock.lang.Shared
 import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
@@ -15,7 +14,7 @@ import static javax.servlet.http.HttpServletResponse.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt])
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class SessionControllerSpec extends CustomSpec {
 
@@ -50,7 +49,7 @@ class SessionControllerSpec extends CustomSpec {
     	request.method = "GET"
     	controller.index()
     	Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allToLong(loggedIn.phone.sessions*.id)
+        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.sessions*.id)
 
     	then: "implicit staff"
         response.status == SC_OK
@@ -69,7 +68,7 @@ class SessionControllerSpec extends CustomSpec {
     	params.teamId = t1.id
     	request.method = "GET"
     	controller.index()
-        List<Long> ids = Helpers.allToLong(t1.phone.sessions*.id)
+        List<Long> ids = Helpers.allTo(Long, t1.phone.sessions*.id)
 
     	then:
         response.status == SC_OK
@@ -134,7 +133,7 @@ class SessionControllerSpec extends CustomSpec {
     	given:
     	controller.authService = [getIsActive:{ -> true }] as AuthService
     	controller.sessionService = [createForStaff: { Map body ->
-    		new Result(type:ResultType.SUCCESS, success:true, payload:body)
+    		new Result(status:ResultStatus.CREATED, payload:body)
 		}] as SessionService
 
 		when:
@@ -154,7 +153,7 @@ class SessionControllerSpec extends CustomSpec {
     		hasPermissionsForTeam:{ Long id -> true }
 		] as AuthService
     	controller.sessionService = [createForTeam: { Long id, Map body ->
-    		new Result(type:ResultType.SUCCESS, success:true, payload:body)
+    		new Result(status:ResultStatus.CREATED, payload:body)
 		}] as SessionService
 
 		when:
@@ -178,7 +177,7 @@ class SessionControllerSpec extends CustomSpec {
     		hasPermissionsForSession:{ Long id -> true }
 		] as AuthService
     	controller.sessionService = [update: { Long id, Map body ->
-    		new Result(type:ResultType.SUCCESS, success:true, payload:body)
+    		new Result(status:ResultStatus.OK, payload:body)
 		}] as SessionService
 
 		when:

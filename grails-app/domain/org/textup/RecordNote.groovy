@@ -10,7 +10,7 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
-import org.textup.types.AuthorType
+import org.textup.type.AuthorType
 import org.textup.validator.Author
 import org.textup.validator.ImageInfo
 import org.textup.validator.UploadItem
@@ -37,6 +37,12 @@ class RecordNote extends RecordItem {
         allowedType    = "Boolean",
         useForCreation = false)
 	boolean isDeleted = false
+
+    @RestApiObjectField(
+        description    = "Whether this item is a read-only note",
+        allowedType    = "Boolean",
+        useForCreation = false)
+    boolean isReadOnly = false
 
     @RestApiObjectField(
         description    = "Contents of the note",
@@ -88,7 +94,7 @@ class RecordNote extends RecordItem {
                 return ["duplicates", dupKeys]
             }
             // check number of images
-            Integer maxNum = Helpers.toInteger(
+            Integer maxNum = Helpers.to(Integer,
                 noteOrRevision.grailsApplication.flatConfig["textup.maxNumImages"])
             int numImages = noteOrRevision.imageKeys.size()
             if (numImages > maxNum) {

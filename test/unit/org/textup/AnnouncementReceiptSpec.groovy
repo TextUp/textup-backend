@@ -6,9 +6,9 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
-import org.textup.types.PhoneOwnershipType
-import org.textup.types.RecordItemType
-import org.textup.types.StaffStatus
+import org.textup.type.PhoneOwnershipType
+import org.textup.type.RecordItemType
+import org.textup.type.StaffStatus
 import org.textup.util.CustomSpec
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -16,7 +16,7 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole])
+	AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class AnnouncementReceiptSpec extends CustomSpec {
 

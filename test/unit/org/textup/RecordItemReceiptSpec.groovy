@@ -4,7 +4,7 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
-import org.textup.types.ReceiptStatus
+import org.textup.type.ReceiptStatus
 import org.textup.validator.PhoneNumber
 import spock.lang.Ignore
 import spock.lang.Shared

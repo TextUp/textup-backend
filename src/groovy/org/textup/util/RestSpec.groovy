@@ -5,7 +5,7 @@ import grails.plugins.rest.client.RestBuilder
 import grails.plugins.rest.client.RestResponse
 import org.springframework.http.HttpStatus
 import org.textup.*
-import org.textup.types.*
+import org.textup.type.*
 import org.textup.validator.*
 import spock.lang.Shared
 import spock.lang.Specification
@@ -22,7 +22,7 @@ abstract class RestSpec extends Specification {
     RestBuilder rest = new RestBuilder(connectTimeout:10000, readTimeout:20000)
 
     @Shared
-    int iterationCount = 0
+    int iterationCount
 
     RemoteControl remote = new RemoteControl()
 
@@ -51,19 +51,24 @@ abstract class RestSpec extends Specification {
     // Setup data
     // ----------
 
-    Closure doSetup = { int iterationCount ->
+    Closure doSetup = { int iterationCount, Random randGen ->
         CustomSpec spec = new CustomSpec()
-        spec.setupIntegrationData(iterationCount)
+        spec.setupIntegrationData(iterationCount, randGen)
         [loggedInUsername:spec.loggedInUsername, loggedInPassword:spec.loggedInPassword]
     }
 
     void setupData() {
-        Map data = remote.exec(doSetup.curry(iterationCount))
+        // re-seed each time to ensure generation of random numbers
+        long seed = Math.random() * Math.pow(10, 10)
+        Random randomGenerator = new Random(seed)
+        iterationCount = randomGenerator.nextInt(100000000)
+        // Pass these into the integration data setup because when we are using
+        // the RemoteControl plugin to populate the remote server with test data,
+        // we cannot access any of the Shared fields and must supply our own values
+        Map data = remote.exec(doSetup.curry(iterationCount, randomGenerator))
         loggedInUsername = data.loggedInUsername
         loggedInPassword = data.loggedInPassword
     }
 
-    void cleanupData() {
-        iterationCount++
-    }
+    void cleanupData() {}
 }

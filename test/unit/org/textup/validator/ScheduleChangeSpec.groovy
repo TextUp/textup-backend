@@ -3,7 +3,7 @@ package org.textup.validator
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
-import org.textup.types.ScheduleStatus
+import org.textup.type.ScheduleStatus
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll

@@ -4,10 +4,13 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.springframework.context.MessageSource
-import org.textup.types.AuthorType
+import org.textup.type.AuthorType
+import org.textup.type.ContactStatus
+import org.textup.type.SharePermission
 import org.textup.util.CustomSpec
 import org.textup.validator.Author
 import org.textup.validator.IncomingText
+import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -15,7 +18,7 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole])
+	AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class ContactSpec extends CustomSpec {
 
@@ -217,5 +220,99 @@ class ContactSpec extends CustomSpec {
     	inCall.authorId == session.id
     	inCall.authorName == session.numberAsString
     	inCall.outgoing == false
+    }
+
+    void "test static finders"() {
+        given: "a phone with contacts"
+        Phone phone1 = new Phone(numberAsString:randPhoneNumber()),
+            phone2 = new Phone(numberAsString:randPhoneNumber())
+        phone1.updateOwner(s1)
+        phone2.updateOwner(s2)
+        phone1.save(failOnError:true)
+        phone2.save(failOnError:true)
+        List<Contact> contacts = []
+        List<Contact> sharedContacts = []
+        Map<ContactStatus,String> statusToContactNum = [:]
+        Map<ContactStatus,String> statusToSharedContactNum = [:]
+        ContactStatus.values().each { ContactStatus cStatus ->
+            String strNum1 = randPhoneNumber()
+            String strNum2 = randPhoneNumber()
+            // creating contacts
+            statusToContactNum[cStatus] = strNum1
+            contacts << phone1.createContact([status:cStatus], [strNum1]).payload
+            // creating shared contacts
+            statusToSharedContactNum[cStatus] = strNum2
+            Contact otherContact = phone2.createContact([status:cStatus], [strNum2]).payload
+            SharedContact sc1 = new SharedContact(contact:otherContact, sharedBy:phone2,
+                sharedWith:phone1, permission:SharePermission.DELEGATE)
+            sc1.save(flush:true, failOnError:true)
+            sharedContacts << sc1
+            // create deleted contact and shared contact that should not show up
+            phone1.createContact([status:cStatus, isDeleted:true], [strNum1])
+            Contact otherContact2 = phone2.createContact([status:cStatus, isDeleted:true], [strNum2]).payload
+            SharedContact sc2 = new SharedContact(contact:otherContact, sharedBy:phone2,
+                sharedWith:phone1, permission:SharePermission.DELEGATE)
+            sc2.save(flush:true, failOnError:true)
+            // ensure that getting shared contacts respects when contact is deleted
+            assert otherContact2.sharedContacts.isEmpty() == true
+            if (cStatus == ContactStatus.ACTIVE || cStatus == ContactStatus.UNREAD) {
+                assert otherContact.sharedContacts[0]?.id == sc1.id
+            }
+            else {
+                assert otherContact.sharedContacts.isEmpty() == true
+            }
+        }
+        String otherNum = randPhoneNumber()
+
+        expect:
+        Contact.countForPhoneAndSearch(phone1, otherNum) == 0
+        Contact.countForPhoneAndSearch(phone1, "") == 0
+        Contact.countForPhoneAndSearch(phone1, null) == 0
+        Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.UNREAD]) == 1
+        Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.ACTIVE]) == 1
+        Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.ARCHIVED]) == 1
+        Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.BLOCKED]) == 0
+        Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.UNREAD]) == 1
+        Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ACTIVE]) == 1
+        Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED]) == 0
+        Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.BLOCKED]) == 0
+
+        Contact.listForPhoneAndSearch(phone1, otherNum).isEmpty()
+        Contact.listForPhoneAndSearch(phone1, "").isEmpty()
+        Contact.listForPhoneAndSearch(phone1, null).isEmpty()
+        Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.UNREAD])[0].id in contacts*.contactId
+        Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.ACTIVE])[0].id in contacts*.contactId
+        Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.ARCHIVED])[0].id in contacts*.contactId
+        Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.BLOCKED]).isEmpty()
+        Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.UNREAD])[0].id in sharedContacts*.contactId
+        Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ACTIVE])[0].id in sharedContacts*.contactId
+        Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED]).isEmpty()
+        Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.BLOCKED]).isEmpty()
+
+        Contact.countForPhoneAndStatuses(phone1, null) == 4  // defaults to active and unread
+        Contact.countForPhoneAndStatuses(phone1, []) == 4  // defaults to active and unread
+        Contact.countForPhoneAndStatuses(phone1, [ContactStatus.UNREAD]) == 2
+        Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ACTIVE]) == 2
+        Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED]) == 1 // Shared.sharedWithMe excludes ARCHIVED and BLOCKED
+        Contact.countForPhoneAndStatuses(phone1, [ContactStatus.BLOCKED]) == 1 // Shared.sharedWithMe excludes ARCHIVED and BLOCKED
+
+        Contact.listForPhoneAndStatuses(phone1, null)*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
+        Contact.listForPhoneAndStatuses(phone1, [])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
+        Contact.listForPhoneAndStatuses(phone1, [ContactStatus.UNREAD])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
+        Contact.listForPhoneAndStatuses(phone1, [ContactStatus.ACTIVE])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
+        Contact.listForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED])*.id.every { it in contacts*.contactId }
+        Contact.listForPhoneAndStatuses(phone1, [ContactStatus.BLOCKED])*.id.every { it in contacts*.contactId }
+
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:otherNum)).isEmpty()
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:"")).isEmpty()
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:null)).isEmpty()
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToContactNum[ContactStatus.UNREAD]))[0].id in contacts*.contactId
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToContactNum[ContactStatus.ACTIVE]))[0].id in contacts*.contactId
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToContactNum[ContactStatus.ARCHIVED]))[0].id in contacts*.contactId
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToContactNum[ContactStatus.BLOCKED]))[0].id in contacts*.contactId
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToSharedContactNum[ContactStatus.UNREAD])).isEmpty()
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToSharedContactNum[ContactStatus.ACTIVE])).isEmpty()
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToSharedContactNum[ContactStatus.ARCHIVED])).isEmpty()
+        Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToSharedContactNum[ContactStatus.BLOCKED])).isEmpty()
     }
 }

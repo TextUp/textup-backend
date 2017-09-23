@@ -2,14 +2,13 @@ package org.textup.rest
 
 import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
+import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
-import static org.springframework.http.HttpStatus.*
 import org.textup.*
-import grails.transaction.Transactional
 
 @GrailsCompileStatic
 @RestApi(name="Tag", description = "Operations on tags belonging to staff \
@@ -17,10 +16,13 @@ import grails.transaction.Transactional
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class TagController extends BaseController {
 
-	static namespace = "v1"
+	static String namespace = "v1"
 
-	//authService from superclass
+	AuthService authService
 	TagService tagService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // List
     // ----
@@ -61,11 +63,9 @@ class TagController extends BaseController {
             }
             p1 = s1.phone
         }
-        genericListActionForClosures("tag", { Map params ->
-            p1.countTags()
-        }, { Map params ->
-            p1.getTags(params)
-        }, params)
+        Closure<Integer> count = { p1.countTags() }
+        Closure<List<ContactTag>> list = { Map params -> p1.getTags(params) }
+        respondWithMany(ContactTag, count, list, params)
     }
 
     // Show
@@ -82,10 +82,11 @@ class TagController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-    	Long id = params.long("id")
-        if (ContactTag.exists(id)) {
-            if (authService.hasPermissionsForTag(id)) {
-                genericShowAction(ContactTag, id)
+        ContactTag ct1 = ContactTag.get(params.long("id"))
+        if (ct1) {
+            if (authService.hasPermissionsForTag(ct1.id)) {
+                respond(ct1, [status:ResultStatus.OK.apiStatus])
+
             }
             else { forbidden() }
         }
@@ -101,19 +102,22 @@ class TagController extends BaseController {
         	paramType=RestApiParamType.QUERY, description="Id of the team member")
     ])
     @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request. Or, you did not specify either staff id or team id (but not both)"),
+        @RestApiError(code="400", description="Malformed JSON in request. Or, you did not specify \
+            either staff id or team id (but not both)"),
         @RestApiError(code="422", description="The updated fields created an invalid tag."),
-        @RestApiError(code="403", description="You do not permissions to create a new tag for this staff member or team."),
-        @RestApiError(code="404",  description="The staff or team member to add this tag to was not found.")
+        @RestApiError(code="403", description="You do not permissions to create a new tag for this \
+            staff member or team."),
+        @RestApiError(code="404",  description="The staff or team member to add this tag to was \
+            not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(request, "tag")) { return; }
+    	if (!validateJsonRequest(ContactTag, request)) { return }
     	Map tagInfo = (request.properties.JSON as Map).tag as Map
         if (params.long("teamId")) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
                 if (authService.hasPermissionsForTeam(tId)) {
-                    handleSaveResult("tag", tagService.createForTeam(tId, tagInfo))
+                    respondWithResult(ContactTag, tagService.createForTeam(tId, tagInfo))
                 }
                 else { forbidden() }
             }
@@ -121,7 +125,7 @@ class TagController extends BaseController {
         }
         else {
             if (authService.isActive) {
-                handleSaveResult("tag", tagService.createForStaff(tagInfo))
+                respondWithResult(ContactTag, tagService.createForStaff(tagInfo))
             }
             else { forbidden() }
         }
@@ -142,12 +146,12 @@ class TagController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid tag.")
     ])
     def update() {
-    	if (!validateJsonRequest(request, "tag")) { return; }
+    	if (!validateJsonRequest(ContactTag, request)) { return }
     	Long id = params.long("id")
         Map tagInfo = (request.properties.JSON as Map).tag as Map
     	if (authService.exists(ContactTag, id)) {
     		if (authService.hasPermissionsForTag(id)) {
-    			handleUpdateResult("tag", tagService.update(id, tagInfo))
+    			respondWithResult(ContactTag, tagService.update(id, tagInfo))
 			}
 			else { forbidden() }
     	}
@@ -170,7 +174,7 @@ class TagController extends BaseController {
     	Long id = params.long("id")
     	if (authService.exists(ContactTag, id)) {
     		if (authService.hasPermissionsForTag(id)) {
-    			handleDeleteResult(tagService.delete(id))
+    			respondWithResult(Void, tagService.delete(id))
 			}
 			else { forbidden() }
     	}

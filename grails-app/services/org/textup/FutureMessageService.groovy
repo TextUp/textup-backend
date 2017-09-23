@@ -12,12 +12,11 @@ import org.quartz.TriggerKey
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.springframework.transaction.TransactionStatus
-import org.textup.jobs.FutureMessageJob
-import org.textup.types.FutureMessageType
-import org.textup.types.ResultType
+import org.textup.job.FutureMessageJob
+import org.textup.type.FutureMessageType
 import org.textup.util.OptimisticLockingRetry
+import org.textup.validator.BasicNotification
 import org.textup.validator.OutgoingMessage
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @Transactional
@@ -25,6 +24,7 @@ class FutureMessageService {
 
     AuthService authService
     MessageSource messageSource
+    NotificationService notificationService
     ResultFactory resultFactory
     Scheduler quartzScheduler
     SocketService socketService
@@ -34,7 +34,7 @@ class FutureMessageService {
 	// ---------
 
     @Transactional(readOnly=true)
-	Result schedule(FutureMessage fMsg) {
+	Result<Void> schedule(FutureMessage fMsg) {
         try {
             TriggerKey trigKey = fMsg.triggerKey
             Trigger trig = quartzScheduler.getTrigger(trigKey)
@@ -47,14 +47,14 @@ class FutureMessageService {
                 resultFactory.success()
             }
             else {
-                resultFactory.failWithMessageAndStatus(INTERNAL_SERVER_ERROR,
-                    "futureMessageService.schedule.unspecifiedError")
+                resultFactory.failWithCodeAndStatus("futureMessageService.schedule.unspecifiedError",
+                    ResultStatus.INTERNAL_SERVER_ERROR)
             }
         }
         catch (Throwable e) { resultFactory.failWithThrowable(e) }
     }
     @Transactional(readOnly=true)
-    Result unschedule(FutureMessage fMsg) {
+    Result<Void> unschedule(FutureMessage fMsg) {
         try {
             if (!quartzScheduler.unscheduleJob(fMsg.triggerKey)) {
                 log.debug("FutureMessageService.unschedule: tried to unschedule \
@@ -65,8 +65,7 @@ class FutureMessageService {
         }
         catch (Throwable e) { resultFactory.failWithThrowable(e) }
     }
-    protected Trigger buildTrigger(TriggerKey trigKey, TriggerBuilder builder,
-        FutureMessage fMsg) {
+    protected Trigger buildTrigger(TriggerKey trigKey, TriggerBuilder builder, FutureMessage fMsg) {
         builder
             .forJob(FutureMessageJob.class.canonicalName)
             .withIdentity(trigKey)
@@ -90,8 +89,8 @@ class FutureMessageService {
     Result<FutureMessage> markDone(String futureKey) {
         FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
         if (!fMsg) {
-            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "futureMessageService.markDone.messageNotFound", [futureKey])
+            return resultFactory.failWithCodeAndStatus("futureMessageService.markDone.messageNotFound",
+                ResultStatus.NOT_FOUND, [futureKey])
         }
         fMsg.isDone = true
         if (fMsg.save()) {
@@ -100,43 +99,38 @@ class FutureMessageService {
         }
         else { resultFactory.failWithValidationErrors(fMsg.errors) }
     }
-    ResultList<RecordItem> execute(String futureKey, Long staffId) {
+    ResultGroup<RecordItem> execute(String futureKey, Long staffId) {
         FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
         if (!fMsg) {
-            return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "futureMessageService.execute.messageNotFound"))
+            return resultFactory.failWithCodeAndStatus(
+                "futureMessageService.execute.messageNotFound", ResultStatus.NOT_FOUND).toGroup()
         }
         OutgoingMessage msg = fMsg.toOutgoingMessage()
         Phone[] phones = msg.phones.toArray() as Phone[]
         if (!phones || !phones[0]) {
-            return new ResultList(resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "futureMessageService.execute.phoneNotFound"))
+            return resultFactory.failWithCodeAndStatus(
+                "futureMessageService.execute.phoneNotFound", ResultStatus.NOT_FOUND).toGroup()
         }
         Phone p1 = phones[0]
         // skip owner check on the phone because we may be sending through a shared contact
         // OR in the future the contact may not longer be shared with this staff member
         // but any scheduled messages that this staff member initiated should still fire
         // regardless of present sharing status
-        ResultList<RecordItem> resList = p1.sendMessage(msg, Staff.get(staffId), true)
-        socketService.sendItems(resList.successes.collect { Result<RecordItem> res ->
-            res.payload as RecordItem
-        }).logFail("FutureMessageService.execute: sending items through socket")
+        ResultGroup<RecordItem> resGroup = p1.sendMessage(msg, Staff.get(staffId), true)
+        socketService
+            .sendItems(resGroup.payload)
+            .logFail("FutureMessageService.execute: sending items through socket")
         // notify staffs is any successes
-        if (fMsg.notifySelf && resList.isAnySuccess) {
+        if (fMsg.notifySelf && resGroup.anySuccesses) {
             String instructions = messageSource.getMessage(
                 "futureMessageService.notifyStaff.notification", null, LCH.getLocale())
-            p1
-                .getPhonesToAvailableNowForContactIds(msg.contacts*.id)
-                .each { Phone p2, List<Staff> staffs ->
-                    String phoneName = p2.owner.name
-                    staffs.each { Staff s1 ->
-                        tokenService.notifyStaff(p2, s1, fMsg.record.id, true,
-                                fMsg.message, instructions)
-                            .logFail("FutureMessageService.execute: calling notifyStaff")
-                    }
-                }
+            notificationService.build(p1, msg.contacts).each { BasicNotification bn1 ->
+                tokenService
+                    .notifyStaff(bn1, true, fMsg.message, instructions)
+                    .logFail("FutureMessageService.execute: calling notifyStaff")
+            }
         }
-        resList
+        resGroup
     }
 
     // Create
@@ -153,11 +147,11 @@ class FutureMessageService {
     }
     protected Result<FutureMessage> create(Record rec, Map body, String timezone = null) {
         if (!rec) {
-            return resultFactory.failWithMessageAndStatus(UNPROCESSABLE_ENTITY,
-                "futureMessageService.create.noRecord")
+            return resultFactory.failWithCodeAndStatus("futureMessageService.create.noRecord",
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        SimpleFutureMessage fMsg = new SimpleFutureMessage(record:rec)
-        this.setFromBody(fMsg, body, timezone)
+        setFromBody(new SimpleFutureMessage(record:rec), body, timezone)
+            .then({ FutureMessage fm1 -> resultFactory.success(fm1, ResultStatus.CREATED) })
     }
 
     // Update
@@ -166,31 +160,35 @@ class FutureMessageService {
     Result<FutureMessage> update(Long fId, Map body, String timezone = null) {
         FutureMessage fMsg = FutureMessage.get(fId)
         if (fMsg) {
-            this.setFromBody(fMsg, body, timezone)
+            setFromBody(fMsg, body, timezone)
         }
         else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "futureMessageService.update.notFound", [fId])
+            resultFactory.failWithCodeAndStatus("futureMessageService.update.notFound",
+                ResultStatus.NOT_FOUND, [fId])
         }
     }
 
     // Delete
     // ------
 
-    Result delete(Long fId) {
+    Result<Void> delete(Long fId) {
         FutureMessage fMsg = FutureMessage.get(fId)
         if (fMsg) {
-            fMsg.cancel().then({
+            deleteHelper(fMsg).then({
                 if (fMsg.save()) {
                     resultFactory.success()
                 }
                 else { resultFactory.failWithValidationErrors(fMsg.errors) }
-            }) as Result
+            })
         }
         else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "futureMessageService.delete.notFound", [fId])
+            resultFactory.failWithCodeAndStatus("futureMessageService.delete.notFound",
+                ResultStatus.NOT_FOUND, [fId])
         }
+    }
+    // for mocking during testing
+    Result<Void> deleteHelper(FutureMessage fMsg) {
+        fMsg.cancel()
     }
 
     // Helper Methods
@@ -200,20 +198,23 @@ class FutureMessageService {
         fMsg.with {
             if (body.notifySelf != null) notifySelf = body.notifySelf
             if (body.type) {
-                type = Helpers.<FutureMessageType>convertEnum(FutureMessageType, body.type)
+                type = Helpers.convertEnum(FutureMessageType, body.type)
             }
             if (body.message) message = body.message
             // optional properties
-            if (body.startDate) startDate = Helpers.toDateTimeWithZone(body.startDate, timezone)
-            // endDate is nullable!
+            if (body.startDate) {
+                startDate = Helpers.toDateTimeWithZone(body.startDate, timezone)
+            }
+            // don't wrap endDate setter in if statement because we want to support nulling
+            // endDate by omitting it from the passed-in body
             endDate = Helpers.toDateTimeWithZone(body.endDate, timezone)
         }
         if (fMsg.instanceOf(SimpleFutureMessage)) {
             SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage
             // repeat count is nullable!
-            sMsg.repeatCount = Helpers.toInteger(body.repeatCount)
+            sMsg.repeatCount = Helpers.to(Integer, body.repeatCount)
             if (body.repeatIntervalInDays) {
-                sMsg.repeatIntervalInDays = Helpers.toInteger(body.repeatIntervalInDays)
+                sMsg.repeatIntervalInDays = Helpers.to(Integer, body.repeatIntervalInDays)
             }
         }
         // for some reason, calling save here instantly persists the message
@@ -222,10 +223,7 @@ class FutureMessageService {
             if (isNew || fMsg.shouldReschedule) {
                 Result res = this.schedule(fMsg)
                 if (!res.success) {
-                    FutureMessage.withTransaction { TransactionStatus status ->
-                        status.setRollbackOnly()
-                    }
-                    return res
+                    return resultFactory.failWithResultsAndStatus([res], res.status)
                 }
             }
             // call save finally here to persist the message

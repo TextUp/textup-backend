@@ -5,7 +5,7 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
-import org.textup.types.ReceiptStatus
+import org.textup.type.ReceiptStatus
 import org.textup.validator.TempRecordReceipt
 
 @GrailsTypeChecked
@@ -26,6 +26,12 @@ class RecordCall extends RecordItem {
         allowedType    = "Number",
         useForCreation = false)
     int voicemailInSeconds = 0
+
+    @RestApiObjectField(
+        description    = "Contents of the call if a recorded message",
+        allowedType    = "String",
+        useForCreation = false)
+    String callContents
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -59,6 +65,7 @@ class RecordCall extends RecordItem {
     static constraints = {
         durationInSeconds minSize:0
         voicemailInSeconds minSize:0
+        callContents blank:true, nullable:true, maxSize:(Constants.TEXT_LENGTH * 2)
     }
 
     // Property Access
@@ -76,10 +83,10 @@ class RecordCall extends RecordItem {
         }
         RecordItemReceipt receipt = getReceiptsByStatus(ReceiptStatus.SUCCESS)[0]
         if (receipt) {
-            storageService
+            Result<URL> res = storageService
                 .generateAuthLink(receipt.apiId)
-                .logFail('RecordCall.getVoicemailUrl')
-                .then { URL link -> link.toString() } as String
+                .logFail("RecordCall.getVoicemailUrl")
+            res.success ? res.payload.toString() : ""
         }
         else { "" }
     }

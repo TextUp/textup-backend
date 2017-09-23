@@ -7,9 +7,9 @@ import org.joda.time.DateTime
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
-import org.textup.types.CallResponse
-import org.textup.types.OrgStatus
-import org.textup.types.StaffStatus
+import org.textup.type.CallResponse
+import org.textup.type.OrgStatus
+import org.textup.type.StaffStatus
 import org.textup.util.*
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt

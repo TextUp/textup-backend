@@ -1,8 +1,9 @@
 package org.textup
 
-import grails.transaction.Transactional
-import static org.springframework.http.HttpStatus.*
 import grails.compiler.GrailsTypeChecked
+import grails.transaction.Transactional
+import org.textup.validator.action.ActionContainer
+import org.textup.validator.action.TeamAction
 import org.textup.validator.PhoneNumber
 
 @GrailsTypeChecked
@@ -17,21 +18,14 @@ class TeamService {
     // ------
 
     Result<Team> create(Map body) {
-        Organization o1 = Organization.get(Helpers.toLong(body.org))
+        Organization o1 = Organization.get(Helpers.to(Long, body.org))
         if (!o1) {
-            return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "teamService.create.orgNotFound", [body.org])
+            return resultFactory.failWithCodeAndStatus("teamService.create.orgNotFound",
+                ResultStatus.NOT_FOUND, [body.org])
         }
-    	Team t1 = new Team(org:o1)
-        Result.<Team>waterfall(
-            this.&updateTeamInfo.curry(t1, body),
-            phoneService.&createOrUpdatePhone.rcurry(body)
-        ).then({
-            if (t1.save()) {
-                resultFactory.success(t1)
-            }
-            else { resultFactory.failWithValidationErrors(t1.errors) }
-        }) as Result<Team>
+        updateTeamInfo(new Team(org:o1), body)
+            .then({ Team t1 -> phoneService.mergePhone(t1, body) })
+            .then({ Team t1 -> resultFactory.success(t1, ResultStatus.CREATED) })
     }
     protected Result<Team> updateTeamInfo(Team t1, Map body) {
         if (body.name) { t1.name = body.name }
@@ -41,8 +35,8 @@ class TeamService {
             Location loc = t1.location ?: new Location()
             loc.with {
                 if (l.address) address = l.address
-                if (l.lat) lat = Helpers.toBigDecimal(l.lat)
-                if (l.lon) lon = Helpers.toBigDecimal(l.lon)
+                if (l.lat) lat = Helpers.to(BigDecimal, l.lat)
+                if (l.lon) lon = Helpers.to(BigDecimal, l.lon)
             }
             t1.location = loc
             if (!loc.save()) {
@@ -59,17 +53,10 @@ class TeamService {
     // ------
 
     Result<Team> update(Long tId, Map body) {
-        Result.<Team>waterfall(
-            this.&findTeamFromId.curry(tId),
-            this.&handleTeamActions.rcurry(body),
-            this.&updateTeamInfo.rcurry(body),
-            phoneService.&createOrUpdatePhone.rcurry(body)
-        ).then({ Team t1 ->
-            if (t1.save()) {
-                resultFactory.success(t1)
-            }
-            else { resultFactory.failWithValidationErrors(t1.errors) }
-        }) as Result
+        findTeamFromId(tId)
+            .then({ Team t1 -> handleTeamActions(t1, body) })
+            .then({ Team t1 -> updateTeamInfo(t1, body) })
+            .then({ Team t1 -> phoneService.mergePhone(t1, body) })
     }
     protected Result<Team> findTeamFromId(Long tId) {
         Team t1 = Team.get(tId)
@@ -77,43 +64,30 @@ class TeamService {
             resultFactory.success(t1)
         }
         else {
-            resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                "teamService.update.notFound", [tId])
+            resultFactory.failWithCodeAndStatus("teamService.update.notFound",
+                ResultStatus.NOT_FOUND, [tId])
         }
     }
     protected Result<Team> handleTeamActions(Team t1, Map body) {
-        if (!body.doTeamActions) {
-            return resultFactory.success(t1)
-        }
-        else if (!(body.doTeamActions instanceof Collection)) {
-            return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                "teamService.update.teamActionNotList")
-        }
-        for (item in body.doTeamActions) {
-            if (!(item instanceof Map)) { continue }
-            Map tAction = item as Map
-            Staff s1 = Staff.get(Helpers.toLong(tAction.id))
-            if (!s1) {
-                return resultFactory.failWithMessageAndStatus(NOT_FOUND,
-                    "teamService.update.staffNotFound",
-                    [tAction.action, tAction.id])
+        if (body.doTeamActions) {
+            ActionContainer ac1 = new ActionContainer(body.doTeamActions)
+            List<TeamAction> actions = ac1.validateAndBuildActions(TeamAction)
+            if (ac1.hasErrors()) {
+                return resultFactory.failWithValidationErrors(ac1.errors)
             }
-            else if (!authService.hasPermissionsForStaff(s1.id)) {
-                return resultFactory.failWithMessageAndStatus(FORBIDDEN,
-                    "teamService.update.staffForbidden",
-                    [tAction.id])
-            }
-            switch(Helpers.toLowerCaseString(tAction.action)) {
-                case Constants.TEAM_ACTION_ADD:
-                    t1.addToMembers(s1)
-                    break
-                case Constants.TEAM_ACTION_REMOVE:
-                    t1.removeFromMembers(s1)
-                    break
-                default:
-                    return resultFactory.failWithMessageAndStatus(BAD_REQUEST,
-                        "teamService.update.teamActionInvalid",
-                        [tAction.action])
+            for (TeamAction a1 in actions) {
+                Staff s1 = a1.staff
+                if (!authService.hasPermissionsForStaff(s1.id)) {
+                    return resultFactory.failWithCodeAndStatus("teamService.update.staffForbidden",
+                        ResultStatus.FORBIDDEN, [s1.id])
+                }
+                switch (a1) {
+                    case Constants.TEAM_ACTION_ADD:
+                        t1.addToMembers(s1)
+                        break
+                    default: // Constants.TEAM_ACTION_REMOVE
+                        t1.removeFromMembers(s1)
+                }
             }
         }
         resultFactory.success(t1)
@@ -122,7 +96,7 @@ class TeamService {
     // Delete
     // ------
 
-    Result delete(Long tId) {
+    Result<Void> delete(Long tId) {
     	Team t1 = Team.get(tId)
     	if (t1) {
     		t1.isDeleted = true
@@ -132,8 +106,8 @@ class TeamService {
             else { resultFactory.failWithValidationErrors(t1.errors) }
     	}
     	else {
-    		resultFactory.failWithMessageAndStatus(NOT_FOUND,
-    			"teamService.delete.notFound", [tId])
+    		resultFactory.failWithCodeAndStatus("teamService.delete.notFound",
+                ResultStatus.NOT_FOUND, [tId])
     	}
     }
 }

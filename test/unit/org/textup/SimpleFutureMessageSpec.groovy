@@ -6,8 +6,8 @@ import grails.test.mixin.TestMixin
 import java.util.concurrent.TimeUnit
 import org.joda.time.DateTime
 import org.quartz.SimpleTrigger
-import org.textup.types.FutureMessageType
-import org.textup.types.RecordItemType
+import org.textup.type.FutureMessageType
+import org.textup.type.RecordItemType
 import org.textup.util.CustomSpec
 import org.textup.validator.OutgoingMessage
 import spock.lang.Ignore
@@ -16,7 +16,7 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage])
+	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class SimpleFutureMessageSpec extends CustomSpec {
 

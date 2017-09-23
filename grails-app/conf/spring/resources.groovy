@@ -3,10 +3,9 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.pusher.rest.Pusher
 import org.textup.*
 import org.textup.rest.*
-import org.textup.rest.marshallers.*
+import org.textup.rest.marshaller.*
 import org.textup.util.*
-import org.textup.validator.ImageInfo
-import org.textup.validator.Notification
+import org.textup.validator.*
 
 // Place your Spring DSL code here
 beans = {
@@ -220,6 +219,39 @@ beans = {
 		label = tRestConfig.v1.notification.plural
 	}
 	notificationJsonMarshaller(NotificationJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	notificationStatusRenderer(ApiJsonRenderer, NotificationStatus) {
+		label = tRestConfig.v1.notificationStatus.singular
+	}
+	notificationStatusCollectionRenderer(ApiJsonCollectionRenderer, NotificationStatus) {
+		label = tRestConfig.v1.notificationStatus.plural
+	}
+	notificationStatusJsonMarshaller(NotificationStatusJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	availableNumberRenderer(ApiJsonRenderer, AvailablePhoneNumber) {
+		label = tRestConfig.v1.availableNumber.singular
+	}
+	availableNumberCollectionRenderer(ApiJsonCollectionRenderer, AvailablePhoneNumber) {
+		label = tRestConfig.v1.availableNumber.plural
+	}
+	availableNumberJsonMarshaller(AvailablePhoneNumberJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	mergeGroupRenderer(ApiJsonRenderer, MergeGroup) {
+		label = tRestConfig.v1.mergeGroup.singular
+	}
+	mergeGroupCollectionRenderer(ApiJsonCollectionRenderer, MergeGroup) {
+		label = tRestConfig.v1.mergeGroup.plural
+	}
+	mergeGroupJsonMarshaller(MergeGroupJsonMarshaller) {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}

@@ -70,6 +70,36 @@ class CustomResponseDoc {
     ])
     static def notification
 
+    @RestApiObjectField(description = "A message notification sent to a staff")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName   = "id",
+            description    = "Id of the staff member this status pertains to",
+            allowedType    = "Number",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "name",
+            description    = "Name of the staff member this status pertains to",
+            allowedType    = "String",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "username",
+            description    = "Username of the staff member this status pertains to",
+            allowedType    = "String",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "number",
+            description    = "TextUp phone number of the staff member this status pertains to",
+            allowedType    = "String",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "canNotify",
+            description    = "Whether or not this staff member will receive notifications if they are available",
+            allowedType    = "Boolean",
+            useForCreation = true),
+    ])
+    static def notificationStatus
+
     @RestApiObjectField(description = "Modify a contact with relative to a tag")
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -114,7 +144,7 @@ class CustomResponseDoc {
             useForCreation = true),
         @RestApiObjectField(
             apiFieldName = "permission",
-            description = "Level of permission to share with. Allowed: DELEGATE, VIEW",
+            description = "MERGE: Level of permission to share with. Allowed: DELEGATE, VIEW",
             allowedType = "String",
             useForCreation = true)
     ])
@@ -142,6 +172,55 @@ class CustomResponseDoc {
             useForCreation = true)
     ])
     static def numberAction
+
+    @RestApiObjectField(description = "Merge other contacts in the specified contact")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName   = "mergeIds",
+            description    = "List of the other ids to merge into this id",
+            allowedType    = "List",
+            mandatory      = true,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "nameId",
+            description    = "RECONCILE: Id of the contact to keep the name from",
+            allowedType    = "Number",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "noteId",
+            description    = "RECONCILE: Id of the contact to keep the note from",
+            allowedType    = "Number",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "action",
+            description    = "Action to take. Allowed: DEFAULT, RECONCILE",
+            allowedType    = "String",
+            mandatory      = false,
+            useForCreation = true)
+    ])
+    static def mergeAction
+
+    @RestApiObjectField(description = "Enable or disable notifications for a specific contact and staff member")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName = "action",
+            description = "Action to take. Allowed: CHANGEDEFAULT, ENABLE, DISABLE",
+            allowedType = "String",
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "id",
+            description    = "Id of staff member we are customizing notifications for",
+            allowedType    = "Number",
+            mandatory      = true,
+            useForCreation = true),
+        @RestApiObjectField(
+            apiFieldName   = "level",
+            description    = "CHANGEDEFAULT: Default notification level if unspecified. Allowed: ALL, NONE",
+            allowedType    = "String",
+            mandatory      = false,
+            useForCreation = true)
+    ])
+    static def notificationAction
 
     @RestApiObjectField(description = "Deactivate or transfer phone")
     @RestApiObjectFields(params=[
@@ -177,7 +256,7 @@ class CustomResponseDoc {
     ])
     static def phoneAction
 
-    @RestApiObjectField(description = "Remove an image from a note in a record.")
+    @RestApiObjectField(description = "Add or remove an image from a note in a record.")
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName   = "action",

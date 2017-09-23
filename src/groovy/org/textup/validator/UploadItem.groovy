@@ -17,6 +17,12 @@ class UploadItem {
     String data
     String checksum
 
+    UploadItem(Map params) {
+        this.mimeType = params?.mimeType
+        this.data = params?.data
+        this.checksum = params?.checksum
+    }
+
     static constraints = {
         mimeType nullable:false, blank:false, inList:["image/png", "image/jpeg"]
         data nullable:false, blank:false, validator:{ String data ->

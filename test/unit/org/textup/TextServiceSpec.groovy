@@ -1,15 +1,18 @@
 package org.textup
 
+import grails.test.mixin.gorm.Domain
+import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
+import grails.test.mixin.TestMixin
 import org.springframework.context.MessageSource
-import org.textup.types.ResultType
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 import spock.lang.Shared
 import spock.lang.Specification
-import static org.springframework.http.HttpStatus.*
 
+@Domain([Organization, Location])
+@TestMixin(HibernateTestMixin)
 @TestFor(TextService)
 class TextServiceSpec extends Specification {
 
@@ -26,7 +29,7 @@ class TextServiceSpec extends Specification {
         }] as MessageSource
     	service.metaClass.tryText = { BasePhoneNumber fromNum, BasePhoneNumber toNum,
 	        String message ->
-	        new Result(type:ResultType.SUCCESS, success:true, payload:[sid:_sid])
+	        new Result(status:ResultStatus.OK, payload:[sid:_sid])
 	    }
     }
 
@@ -39,9 +42,8 @@ class TextServiceSpec extends Specification {
 
     	then:
     	res.success == false
-    	res.type == ResultType.MESSAGE_STATUS
-    	res.payload.status == UNPROCESSABLE_ENTITY
-    	res.payload.code == "textService.text.allFailed"
+    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	res.errorMessages[0] == "textService.text.allFailed"
 
     	when: "stop on first success"
     	_sid = "I am so secret!!"
@@ -52,6 +54,7 @@ class TextServiceSpec extends Specification {
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload instanceof TempRecordReceipt
     	res.payload.receivedByAsString == toNum1.number
     	res.payload.apiId == _sid

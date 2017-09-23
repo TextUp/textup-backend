@@ -6,16 +6,14 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.textup.types.ResultType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
-import static org.springframework.http.HttpStatus.*
 
 @TestFor(SessionService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt])
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class SessionServiceSpec extends CustomSpec {
 
@@ -38,31 +36,34 @@ class SessionServiceSpec extends CustomSpec {
     void "test create"() {
     	given: "baselines"
     	int sBaseline = IncomingSession.count()
+        addToMessageSource("sessionService.create.noPhone")
 
     	when: "without phone"
     	Result res = service.create(null, [:])
 
     	then:
     	res.success == false
-    	res.type == ResultType.MESSAGE_STATUS
-    	res.payload.status == UNPROCESSABLE_ENTITY
-    	res.payload.code == "sessionService.create.noPhone"
+    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	res.errorMessages[0] == "sessionService.create.noPhone"
 
     	when: "invalid number"
+        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
 		res = service.create(p1, [number:"invalid"])
 
     	then:
     	res.success == false
-    	res.type == ResultType.VALIDATION
-    	res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	res.errorMessages.size() == 1
 
     	when: "all valid"
+        service.resultFactory.messageSource = messageSource
     	Map body = [number:"1112223333"]
     	assert IncomingSession.findByNumberAsStringAndPhone(body.number, p1) == null
     	res = service.create(p1, body)
 
     	then:
     	res.success == true
+        res.status == ResultStatus.CREATED
     	res.payload instanceof IncomingSession
     	res.payload.numberAsString == body.number
     	IncomingSession.count() == sBaseline + 1
@@ -72,6 +73,7 @@ class SessionServiceSpec extends CustomSpec {
 
     	then: "merge"
     	res.success == true
+        res.status == ResultStatus.CREATED
     	res.payload instanceof IncomingSession
     	res.payload.numberAsString == body.number
     	IncomingSession.count() == sBaseline + 1
@@ -84,29 +86,32 @@ class SessionServiceSpec extends CustomSpec {
     	IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString:num)
     	sess1.save(flush:true, failOnError:true)
     	int sBaseline = IncomingSession.count()
+        addToMessageSource("sessionService.update.notFound")
 
     	when: "nonexistent id"
     	Result res = service.update(-88L, [:])
 
     	then:
     	res.success == false
-    	res.type == ResultType.MESSAGE_STATUS
-    	res.payload.status == NOT_FOUND
-    	res.payload.code == "sessionService.update.notFound"
+    	res.status == ResultStatus.NOT_FOUND
+    	res.errorMessages[0] == "sessionService.update.notFound"
 
     	when: "existing id, invalid"
+        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
     	res = service.update(sess1.id, [isSubscribedToText:"hello"])
 
     	then:
     	res.success == false
-    	res.type == ResultType.VALIDATION
-    	res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	res.errorMessages.size() == 1
 
     	when: "existing id, valid"
+        service.resultFactory.messageSource = messageSource
     	res = service.update(sess1.id, [isSubscribedToText:true])
 
     	then:
     	res.success == true
+        res.status == ResultStatus.OK
     	res.payload instanceof IncomingSession
     	res.payload.isSubscribedToText == true
     	IncomingSession.count() == sBaseline

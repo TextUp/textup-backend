@@ -38,6 +38,9 @@ class Record {
     // Add to record
     // -------------
 
+    // We manually associate note (in TempRecordNote) with record and author
+    // We don't use the addAny methods because adding a note should not
+    // trigger a record activity update like adding a text or a call should
     Result<RecordText> addText(Map params, Author auth = null) {
         addAny(RecordText, params, auth)
     }
@@ -61,50 +64,67 @@ class Record {
             }
             else { resultFactory.failWithValidationErrors(item.errors) }
         }
-        else { resultFactory.failWithMessage("record.noRecordItem") }
+        else {
+            resultFactory.failWithCodeAndStatus("record.noRecordItem",
+                ResultStatus.BAD_REQUEST)
+        }
     }
 
     // Property Access
     // ---------------
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<RecordItem> getItems(Map params=[:]) {
-        RecordItem.forRecord(this).list(params)
+        getItems([], params)
     }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    int countItems() {
-        RecordItem.forRecord(this).count()
+    List<RecordItem> getItems(Collection<Class<? extends RecordItem>> types, Map params=[:]) {
+        RecordItem.forRecord(this, types).list(params)
+    }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    int countItems(Collection<Class<? extends RecordItem>> types = []) {
+        RecordItem.forRecord(this, types).count()
     }
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     List<RecordItem> getSince(DateTime since, Map params=[:]) {
+        getSince(since, [], params)
+    }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    List<RecordItem> getSince(DateTime since, Collection<Class<? extends RecordItem>> types,
+        Map params=[:]) {
+
         if (!since) { return [] }
-        RecordItem.forRecordDateSince(this, since).list(params) ?: []
+        RecordItem.forRecordDateSince(this, since, types).list(params) ?: []
     }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    int countSince(DateTime since) {
+    int countSince(DateTime since, Collection<Class<? extends RecordItem>> types = []) {
         if (!since) { return 0 }
-        RecordItem.forRecordDateSince(this, since).count()
+        RecordItem.forRecordDateSince(this, since, types).count()
+    }
+
+    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
+        getBetween(start, end, [], params)
     }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
+    List<RecordItem> getBetween(DateTime start, DateTime end, Collection<Class<? extends RecordItem>> types,
+        Map params=[:]) {
+
         if (!start || !end) { return [] }
         if (end.isBefore(start)) {
             DateTime exchange = start
             start = end
             end = exchange
         }
-        RecordItem.forRecordDateBetween(this, start, end).list(params) ?: []
+        RecordItem.forRecordDateBetween(this, start, end, types).list(params) ?: []
     }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    int countBetween(DateTime start, DateTime end) {
+    int countBetween(DateTime start, DateTime end, Collection<Class<? extends RecordItem>> types = []) {
         if (!start || !end) { return 0 }
         if (end.isBefore(start)) {
             DateTime exchange = start
             start = end
             end = exchange
         }
-        RecordItem.forRecordDateBetween(this, start, end).count()
+        RecordItem.forRecordDateBetween(this, start, end, types).count()
     }
 
     List<FutureMessage> getFutureMessages(Map params=[:]) {

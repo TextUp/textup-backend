@@ -19,7 +19,7 @@ import spock.lang.Specification
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision])
+    RecordNote, RecordNoteRevision, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class TempRecordNoteSpec extends CustomSpec {
 
@@ -68,18 +68,17 @@ class TempRecordNoteSpec extends CustomSpec {
 		TempRecordNote temp1 = new TempRecordNote(phone:p1, info:info)
 
 		then:
-		temp1.doValidate() == false
+		temp1.validate() == false
 		temp1.errors.errorCount == 1
-		temp1.errors.globalErrorCount == 1
-		temp1.errors.globalErrors*.codes
-			.flatten()
-			.contains("tempRecordNote.missingInfoForNewNote")
+		temp1.errors.globalErrorCount == 0 // no longer a global error
+		temp1.errors.fieldErrorCount == 1
+		temp1.errors.getFieldError("note").code == "missingInfoForNewNote"
 
 		when: "try to create an empty new note"
 		temp1 = new TempRecordNote(phone:c1.phone, contact:c1, info:[:])
 
 		then: "empty info is NOT VALID for new notes"
-		temp1.doValidate() == false
+		temp1.validate() == false
 		temp1.errors.errorCount == 1
 		temp1.errors.getFieldErrorCount("info") == 1
 
@@ -87,7 +86,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		temp1.info = info
 
 		then: "is valid"
-		temp1.doValidate() == true
+		temp1.validate() == true
 		temp1.record == c1.record
 		temp1.toNote().validate() == true
 	}
@@ -97,118 +96,31 @@ class TempRecordNoteSpec extends CustomSpec {
 		TempRecordNote temp1 = new TempRecordNote(info:[noteContents:"hi"])
 
 		then: "implicit assumption that we are trying to create new note"
-		temp1.doValidate() == false
+		temp1.validate() == false
 		temp1.errors.errorCount == 1
-		temp1.errors.globalErrorCount == 1
-		temp1.errors.globalErrors*.codes
-			.flatten()
-			.contains("tempRecordNote.missingInfoForNewNote")
+		temp1.errors.globalErrorCount == 0 // no longer a global error
+		temp1.errors.fieldErrorCount == 1
+		temp1.errors.getFieldError("note").code == "missingInfoForNewNote"
 
 		when: "we provide empty info"
 		temp1.note = _note1
 		temp1.info = [:]
 
 		then: "valid for empty info"
-		temp1.doValidate() == true
+		temp1.validate() == true
 
 		when: "provide some info"
 		temp1.info = [noteContents:"hi"]
 
 		then: "still valid"
-		temp1.doValidate() == true
+		temp1.validate() == true
 		temp1.toNote().validate() == true
-	}
-
-	void "validating image actions"() {
-		given: "a possible image to upload"
-		String contentType = "image/png"
-        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
-        String checksum = DigestUtils.md5Hex(data)
-
-		when: "a valid temp note with no image actions on map"
-		Map info = [noteContents:"hi"]
-		TempRecordNote temp1 = new TempRecordNote(info:info, note:_note1)
-
-		then: "short circuits with no errors"
-		temp1.doValidate()
-
-		when: "images actions is not a list"
-		temp1.info = [doImageActions:[i:"am not a list"]]
-
-		then:
-		temp1.doValidate() == false
-		temp1.errors.errorCount == 1
-		temp1.errors.globalErrorCount == 1
-		temp1.errors.globalErrors*.codes
-			.flatten()
-			.contains("tempRecordNote.images.notList")
-
-		when: "an action is not a map, \
-			an action trying to add an image, \
-			an action trying to remove without key, \
-			an action of an invalid type"
-		temp1.info = [doImageActions:[
-			["i am not a map"], // not a map
-			[ // uploading image without a checksum
-				action:Constants.NOTE_IMAGE_ACTION_ADD,
-				mimeType:contentType,
-				data:data
-			],
-			[ // uploading an image with an invalid content type
-				action:Constants.NOTE_IMAGE_ACTION_ADD,
-				mimeType:"invalid",
-				data:data,
-				checksum: checksum
-			],
-			[ // uploading an image with invalidly encoded data
-				action:Constants.NOTE_IMAGE_ACTION_ADD,
-				mimeType:contentType,
-				data:"invalid data that is not base64 encoded",
-				checksum: checksum
-			],
-			[ // removing image with specifying an image key
-				action:Constants.NOTE_IMAGE_ACTION_REMOVE,
-			],
-			[ // action of invalid type
-				action:"i am an invalid action",
-			]
-		]]
-		temp1.doValidate()
-		Collection<String> globalErrorCodes = temp1.errors.globalErrors*.codes.flatten()
-
-		then:
-		temp1.doValidate() == false
-		temp1.errors.errorCount == 6
-		temp1.errors.globalErrorCount == 6
-		[
-			"tempRecordNote.images.actionNotMap",
-			"tempRecordNote.images.removeMissingKey",
-			"tempRecordNote.images.invalidAction",
-			"tempRecordNote.images.invalidUploadItem",
-		].every { it in globalErrorCodes }
-
-		when: "valid image actions"
-		temp1.info = [doImageActions:[
-			[ // valid remove action
-				action:Constants.NOTE_IMAGE_ACTION_REMOVE,
-				key:"valid image key"
-			],
-			[ // valid add image action
-				action:Constants.NOTE_IMAGE_ACTION_ADD,
-				mimeType:contentType,
-				data:data,
-				checksum:checksum
-			]
-		]]
-
-		then:
-		temp1.doValidate() == true
 	}
 
 	void "test modify whenCreated for appropriate positioning in record"() {
 		when: "missing after time"
 		TempRecordNote temp1 = new TempRecordNote(note:_note1, info:[noteContents:"hi"])
-		assert temp1.doValidate()
+		assert temp1.validate()
 		DateTime originalWhenCreated = _note1.whenCreated
 		RecordNote updatedNote = temp1.toNote()
 
@@ -264,7 +176,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		assert _note1.addImage(uItem).payload.getETag() == _eTag
 
 		TempRecordNote temp1 = new TempRecordNote(note:_note1, info:[noteContents:"hi"])
-		assert temp1.doValidate()
+		assert temp1.validate()
 		int lBaseline = Location.count()
 		int iBaseline = _note1.imageKeys.size()
 		assert iBaseline > 0
@@ -282,9 +194,8 @@ class TempRecordNoteSpec extends CustomSpec {
 		int originalNumImages = _note1.imageKeys.size()
 		RecordNote updatedNote1 = temp1.toNote()
 
-		then: "valid, but we need to calling toNote will NOT add images. Need to manually iterate \
-			over the images to add with the provided iterator method"
-		temp1.doValidate() == true
+		then: "valid, but tempRecordNote does not handle image actions"
+		temp1.validate() == true
 		updatedNote1.imageKeys.size() == originalNumImages
 
 		when: "try to remove images from an existing note with images"
@@ -296,8 +207,10 @@ class TempRecordNoteSpec extends CustomSpec {
 		]
 		updatedNote1 = temp1.toNote()
 
-		then:
-		_note1.imageKeys.size() == iBaseline - 1
+		then: "valid, but tempRecordNote does not handle image actions"
+		temp1.validate() == true
+		_note1.imageKeys.size() == iBaseline
+		updatedNote1.imageKeys.size() == originalNumImages
 
 		when: "update field with location"
 		temp1.info.location = [
@@ -332,36 +245,5 @@ class TempRecordNoteSpec extends CustomSpec {
 		then:
 		updatedNote1.isDeleted == false
 		temp1.info.noteContents == ""
-	}
-
-	void "test iterating over validated image actions"() {
-		given: "a valid temp note with only REMOVE image actions"
-		String contentType = "image/png"
-        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
-        String checksum = DigestUtils.md5Hex(data)
-		Map info = [
-			noteContents:"hi",
-			doImageActions:[
-				[ // valid remove action
-					action:Constants.NOTE_IMAGE_ACTION_REMOVE,
-					key:"valid image key"
-				],
-				[
-				action:Constants.NOTE_IMAGE_ACTION_ADD,
-					mimeType:contentType,
-					data:data,
-					checksum:checksum
-				]
-			]
-		]
-		TempRecordNote temp1 = new TempRecordNote(note:_note1, info:info)
-		assert temp1.doValidate()
-
-		expect:
-		// for all images
-		temp1.forEachImage({ Map m -> 1 }).payload.sum() == 2
-		temp1.forEachImageToAdd({ UploadItem uItem -> 1 }).payload.sum() == 1
-		// for images to remove
-		temp1.forEachImageToRemove({ String key -> 1 }).payload.sum() == 1
 	}
 }

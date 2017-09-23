@@ -1,16 +1,15 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
-import grails.gorm.DetachedCriteria
 import grails.plugin.springsecurity.SpringSecurityService
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
 import org.springframework.security.authentication.encoding.PasswordEncoder
-import org.textup.types.AuthorType
-import org.textup.types.PhoneOwnershipType
-import org.textup.types.StaffStatus
+import org.textup.type.AuthorType
+import org.textup.type.PhoneOwnershipType
+import org.textup.type.StaffStatus
 import org.textup.validator.Author
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
@@ -74,7 +73,7 @@ class Staff {
         description  = "If the staff member wants to manually manage schedule.",
         mandatory    = false,
         defaultValue = "false")
-    boolean manualSchedule = false
+    boolean manualSchedule = true
 
     @RestApiObjectField(
         description  = "If the staff member is available. Can only be mutated \
@@ -125,6 +124,7 @@ class Staff {
         }
 	}
 	static mapping = {
+        org lazy:false
 		password column: '`password`'
 	}
     static namedQueries = {
@@ -195,29 +195,43 @@ class Staff {
     }
     @GrailsTypeChecked
     Result<Boolean> isAvailableAt(DateTime dt) {
-        if (!manualSchedule) { resultFactory.success(schedule.isAvailableAt(dt)) }
-        else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
+        if (!manualSchedule) {
+            resultFactory.success(schedule.isAvailableAt(dt))
+        }
+        else {
+            resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+                ResultStatus.BAD_REQUEST)
+        }
     }
     @GrailsTypeChecked
     Result<ScheduleChange> nextChange(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextChange(timezone)
         }
-        else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
+        else {
+            resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+                ResultStatus.BAD_REQUEST)
+        }
     }
     @GrailsTypeChecked
     Result<DateTime> nextAvailable(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextAvailable(timezone)
         }
-        else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
+        else {
+            resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+                ResultStatus.BAD_REQUEST)
+        }
     }
     @GrailsTypeChecked
     Result<DateTime> nextUnavailable(String timezone=null) {
         if (!manualSchedule) {
             schedule.nextUnavailable(timezone)
         }
-        else { resultFactory.failWithMessage("staff.scheduleInfoUnavailable") }
+        else {
+            resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+                ResultStatus.BAD_REQUEST)
+        }
     }
     @GrailsTypeChecked
     Result<Schedule> updateSchedule(Map params) {

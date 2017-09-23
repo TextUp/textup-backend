@@ -10,10 +10,10 @@ import org.quartz.Trigger
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
-import org.textup.jobs.FutureMessageJob
-import org.textup.types.CallResponse
-import org.textup.types.FutureMessageType
-import org.textup.types.ReceiptStatus
+import org.textup.job.FutureMessageJob
+import org.textup.type.CallResponse
+import org.textup.type.FutureMessageType
+import org.textup.type.ReceiptStatus
 import org.textup.util.*
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
@@ -80,9 +80,11 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 		then: "call sent to voicemail"
 		response.status == OK.value()
         response.xml != null
-        response.xml.Record.@action.toString() == "$requestUrl?handle=${CallResponse.VOICEMAIL_STUB}"
-        response.xml.Record.@recordingStatusCallback.toString()
-            .contains("$requestUrl?handle=${CallResponse.VOICEMAIL_DONE}")
+        response.xml.Record.@action.toString().contains("handle=${CallResponse.END_CALL}")
+        response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
+        // first Say verb contains the phone's away message which is guaranteed to
+        // have the default emergency message
+        response.xml.Say[0].text().contains(Constants.AWAY_EMERGENCY_MESSAGE)
 	}
 
 	void "test incoming self call"() {
@@ -104,9 +106,11 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 		then: "treating as normal incoming call, sent to voicemail"
 		response.status == OK.value()
         response.xml != null
-        response.xml.Record.@action.toString() == "$requestUrl?handle=${CallResponse.VOICEMAIL_STUB}"
-        response.xml.Record.@recordingStatusCallback.toString()
-            .contains("$requestUrl?handle=${CallResponse.VOICEMAIL_DONE}")
+        response.xml.Record.@action.toString().contains("handle=${CallResponse.END_CALL}")
+        response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
+        // first Say verb contains the phone's away message which is guaranteed to
+        // have the default emergency message
+        response.xml.Say[0].text().contains(Constants.AWAY_EMERGENCY_MESSAGE)
 	}
 
 	void "test attempting to start an outgoing bridge call"() {
@@ -114,7 +118,9 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
         String authToken = getAuthToken()
         long contactId = remote.exec({ un ->
         	Staff s1 = Staff.findByUsername(un)
-        	return s1.phone.contacts[0].id
+            Contact contact = s1.phone.createContact([:], ["1112223333"]).payload
+            contact.save(flush:true, failOnError:true)
+        	return contact.id
     	}.curry(loggedInUsername))
 
 		when:
@@ -154,9 +160,9 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
             body(form)
         }
 
-		then: "respond with away message as if unavailable"
+		then: "do not respond with away message, just silent does not deliver notification"
 		response.status == OK.value()
-        response.xml.Message.size() == 1
+        response.body == "<Response></Response>"
 	}
 
 	// for outgoing text test see OutgoingTextFunctionalSpec

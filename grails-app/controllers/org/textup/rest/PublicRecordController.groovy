@@ -6,24 +6,25 @@ import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import org.textup.types.LogLevel
-import org.textup.types.ReceiptStatus
-import org.textup.types.ResultType
+import org.textup.type.LogLevel
+import org.textup.type.ReceiptStatus
 import org.textup.validator.PhoneNumber
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @Secured("permitAll")
 class PublicRecordController extends BaseController {
 
-    static namespace = "v1"
+    static String namespace = "v1"
 
     //grailsApplication from superclass
-    //authService from superclass
+    AuthService authService
     RecordService recordService
     CallbackService callbackService
     TwimlBuilder twimlBuilder
     CallService callService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     def index() { notAllowed() }
     def show() { notAllowed() }
@@ -31,18 +32,18 @@ class PublicRecordController extends BaseController {
     def delete() { notAllowed() }
 
     def save() {
-        Result res = callbackService.validate(request, params)
+        Result<Void> res = callbackService.validate(request, params)
         if (!res.success) {
-            return handleResultFailure(res)
+            respondWithResult(Void, res)
         }
-        if (params.handle == Constants.CALLBACK_STATUS) {
+        else if (params.handle == Constants.CALLBACK_STATUS) {
             // first wait for a few seconds to allow for the receipts to be saved
             TimeUnit.SECONDS.sleep(5)
             // then continue handling status
             handleUpdateStatus(params)
         }
         else {
-            handleXmlResult(callbackService.process(params))
+            respondWithResult(Closure, callbackService.process(params))
         }
     }
     protected def handleUpdateStatus(GrailsParameterMap params) {
@@ -50,7 +51,7 @@ class PublicRecordController extends BaseController {
         ReceiptStatus status = params.CallStatus ?
             ReceiptStatus.translate(params.CallStatus as String) :
             ReceiptStatus.translate(params.MessageStatus as String)
-        Integer duration = Helpers.toInteger(params.CallDuration)
+        Integer duration = Helpers.to(Integer, params.CallDuration)
         // update status
         Result<Closure> res = recordService.updateStatus(status, apiId, duration)
         if (!res.success && params.ParentCallSid) {
@@ -80,12 +81,10 @@ class PublicRecordController extends BaseController {
         // we send to a staff member, we are not interested in storing
         // the status of the call or text. If we have a not found error,
         // then catch this and just return an OK status
-        if (!res.success && res.type == ResultType.MESSAGE_STATUS &&
-            (res.payload as Map).status == NOT_FOUND) {
-            res.logFail("PublicRecordController: could not find receipt",
-                LogLevel.DEBUG)
-            handleXmlResult(twimlBuilder.noResponse())
+        if (res.status == ResultStatus.NOT_FOUND) {
+            res.logFail("PublicRecordController: could not find receipt", LogLevel.DEBUG)
+            respondWithResult(Closure, twimlBuilder.noResponse())
         }
-        else { handleXmlResult(res) }
+        else { respondWithResult(Closure, res) }
     }
 }

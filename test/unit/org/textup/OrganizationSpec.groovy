@@ -4,19 +4,24 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import java.util.UUID
 import org.springframework.context.MessageSource
+import org.springframework.context.support.StaticMessageSource
+import org.textup.type.OrgStatus
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
-import org.textup.types.OrgStatus
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class OrganizationSpec extends Specification {
+
+    @Shared
+    MessageSource messageSource = new StaticMessageSource()
 
     static doWithSpring = {
         resultFactory(ResultFactory)
@@ -40,7 +45,7 @@ class OrganizationSpec extends Specification {
         org.timeout == Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
 
         when: "we fill in fields"
-        String orgName = "OrgSpec"
+        String orgName = UUID.randomUUID().toString()
         org.name = orgName
         org.location = new Location(address:"testing", lat:0G, lon:0G)
 
@@ -52,14 +57,14 @@ class OrganizationSpec extends Specification {
 
         then:
         org.validate() == false
-        org.errors.getFieldErrorCount('timeout') == 1
+        org.errors.getFieldErrorCount("timeout") == 1
 
         when: "we have a missing or zero timeout"
         org.timeout = 0
 
         then:
         org.validate() == false
-        org.errors.getFieldErrorCount('timeout') == 1
+        org.errors.getFieldErrorCount("timeout") == 1
 
         when: "we try to create an org with duplicate name-location"
         org.timeout = Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
@@ -82,7 +87,7 @@ class OrganizationSpec extends Specification {
         when: "we approve both organizations"
         org.status = OrgStatus.APPROVED
         org2.status = OrgStatus.APPROVED
-        org2.save(flush:true, failOnError:true)
+        [org, org2]*.save(flush:true, failOnError:true)
 
         then: "search for orgs to gives us both"
         Organization.count() == baseline + 2
@@ -105,18 +110,20 @@ class OrganizationSpec extends Specification {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Staff
         res.payload.validate() == true
 
         when: "we add an invalid staff"
         res.payload.save(flush:true, failOnError:true)
+        org.resultFactory.messageSource = messageSource
         res = org.addStaff(username:"orgstaff2", password:"password",
             name:"Staff", lockCode:Constants.DEFAULT_LOCK_CODE)
 
         then:
         res.success == false
-        res.payload instanceof ValidationErrors
-        res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
 
         expect: "getting staff by status"
         Staff.count() == baseline + 1
@@ -145,21 +152,26 @@ class OrganizationSpec extends Specification {
 
         when: "we try to add a duplicate team"
         res.payload.save(flush:true, failOnError:true)
+
+        MessageSource originalMessageSource = org.resultFactory.messageSource
+        org.resultFactory.messageSource = messageSource
         res = org.addTeam(name:"Team 1",
             location:new Location(address:"testing", lat:0G, lon:0G))
 
         then:
         org.teams.size() == 1
         res.success == false
-        res.payload instanceof ValidationErrors
-        res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
 
         when: "we switch to a unique name"
+        org.resultFactory.messageSource = originalMessageSource
         res = org.addTeam(name:"team 1", //team names CASE SENSITIVE!
             location:new Location(address:"testing", lat:0G, lon:0G))
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof Team
         res.payload.validate() == true
         assert res.payload.save(flush:true, failOnError:true)

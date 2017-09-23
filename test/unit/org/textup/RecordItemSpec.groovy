@@ -1,11 +1,12 @@
 package org.textup
 
+import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import java.util.UUID
-import org.textup.types.AuthorType
-import org.textup.types.ReceiptStatus
+import org.textup.type.AuthorType
+import org.textup.type.ReceiptStatus
 import org.textup.validator.Author
 import spock.lang.Shared
 import spock.lang.Specification
@@ -66,5 +67,23 @@ class RecordItemSpec extends Specification {
         then: "should find all record items"
         rItems.size() == 2
         [rItem1, rItem2].every { it in rItems }
+    }
+
+    void "test building detached criteria for records"() {
+        given: "valid record items"
+        Record rec = new Record()
+        rec.save(flush:true, failOnError:true)
+        RecordItem rItem1 = new RecordItem(record:rec),
+            rItem2 = new RecordItem(record:rec)
+        [rItem1, rItem2]*.save(flush:true, failOnError:true)
+
+        when: "build detached criteria for these items"
+        DetachedCriteria<RecordItem> detachedCrit = RecordItem.buildForRecords([rec])
+        List<RecordItem> itemList = detachedCrit.list()
+        Collection<Long> targetIds = [rItem1, rItem2]*.id
+
+        then: "we are able to fetch these items back from the db"
+        itemList.size() == 2
+        itemList.every { it.id in targetIds }
     }
 }

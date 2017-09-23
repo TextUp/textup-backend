@@ -4,7 +4,7 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.types.RecordItemType
+import org.textup.type.RecordItemType
 import grails.compiler.GrailsCompileStatic
 import groovy.transform.TypeCheckingMode
 
@@ -19,7 +19,7 @@ class AnnouncementReceipt {
 
     static constraints = {
     	announcement validator: { FeaturedAnnouncement val, AnnouncementReceipt obj ->
-    		if (val.owner != obj.session.phone) {
+    		if (val.owner?.id != obj.session.phone?.id) {
     			["differentPhones"]
     		}
     	}

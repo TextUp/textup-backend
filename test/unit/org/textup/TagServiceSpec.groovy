@@ -7,17 +7,15 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
-import org.textup.types.FutureMessageType
-import org.textup.types.ResultType
+import org.textup.type.FutureMessageType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
-import static org.springframework.http.HttpStatus.*
 
 @TestFor(TagService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    FutureMessage, SimpleFutureMessage])
+    FutureMessage, SimpleFutureMessage, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class TagServiceSpec extends CustomSpec {
 
@@ -30,6 +28,11 @@ class TagServiceSpec extends CustomSpec {
     def setup() {
         super.setupData()
         service.resultFactory = getResultFactory()
+        service.notificationService = [
+            handleNotificationActions: { Phone p1, Long recordId, Object rawActions ->
+                new Result(status:ResultStatus.NO_CONTENT, payload:null)
+            }
+        ] as NotificationService
 
         FutureMessage.metaClass.refreshTrigger = { -> null }
         FutureMessage.metaClass.doUnschedule = { ->
@@ -48,6 +51,7 @@ class TagServiceSpec extends CustomSpec {
     void "test create"() {
         given: "baselines"
         int tBaseline = ContactTag.count()
+        addToMessageSource("tagService.create.noPhone")
 
     	when: "we create for a nonexistent Team"
         Map createInfo = [name:"Tag 1"]
@@ -55,16 +59,17 @@ class TagServiceSpec extends CustomSpec {
 
     	then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "tagService.create.noPhone"
-        res.payload.status == UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "tagService.create.noPhone"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
         ContactTag.count() == tBaseline
 
     	when: "we create tag with a unique name"
+        t1.phone.resultFactory = service.resultFactory
         res = service.create(t1.phone, createInfo)
 
     	then:
         res.success == true
+        res.status == ResultStatus.CREATED
         res.payload instanceof ContactTag
         res.payload.name == createInfo.name
         ContactTag.count() == tBaseline + 1
@@ -74,20 +79,23 @@ class TagServiceSpec extends CustomSpec {
     // ------
 
     void "test find tag from id"() {
+        given:
+        addToMessageSource("tagService.update.notFound")
+
         when: "nonexistent tag"
         Result res = service.findTagFromId(-88L)
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "tagService.update.notFound"
-        res.payload.status == NOT_FOUND
+        res.errorMessages[0] == "tagService.update.notFound"
+        res.status == ResultStatus.NOT_FOUND
 
         when: "existing tag"
         res = service.findTagFromId(tag1.id)
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof ContactTag
         res.payload.id == tag1.id
     }
@@ -102,8 +110,8 @@ class TagServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload instanceof ValidationErrors
-        res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
         ContactTag.count() == tBaseline
 
         when: "we update with valid fields and tagActions"
@@ -114,22 +122,43 @@ class TagServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof ContactTag
         res.payload.name == updateInfo.name
         res.payload.hexColor == updateInfo.hexColor
         ContactTag.count() == tBaseline
     }
 
+    void "test updating with notification actions"() {
+        given: "baselines"
+        int tBaseline = ContactTag.count()
+
+        when: "we try to delete nonexistent number"
+        Map notifActions = [doNotificationActions:[[hello:"yes"]]]
+        Result res = service.handleNotificationActions(tag1, notifActions)
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof ContactTag
+        res.payload.id == tag1.id
+        ContactTag.count() == tBaseline
+    }
+
     void "test tag actions invalid"() {
+        given:
+        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+        addToMessageSource("tagService.update.contactForbidden")
+
         when: "we try to update with tag actions that is not list"
         Map updateInfo = [doTagActions:"I am not a list"]
         Result res = service.doTagActions(tag1, updateInfo)
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "tagService.update.tagActionNotList"
-        res.payload.status == BAD_REQUEST
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages.contains("emptyOrNotACollection")
 
         when: "we try to update tag action with nonexistent contact"
         updateInfo = [doTagActions:[
@@ -139,11 +168,12 @@ class TagServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "tagService.update.contactNotFound"
-        res.payload.status == NOT_FOUND
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages.contains("actionContainer.invalidActions")
 
         when: "we try to update tag action with forbidden contact"
+        service.resultFactory.messageSource = messageSource
         updateInfo = [doTagActions:[
             [id:tC1.id, action:Constants.TAG_ACTION_ADD]
         ]]
@@ -151,11 +181,11 @@ class TagServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "tagService.update.contactForbidden"
-        res.payload.status == FORBIDDEN
+        res.errorMessages[0] == "tagService.update.contactForbidden"
+        res.status == ResultStatus.FORBIDDEN
 
         when: "we update with tag action with unspecified action"
+        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
         updateInfo = [doTagActions:[
             [id:c2.id, action:"invalid"]
         ]]
@@ -163,9 +193,9 @@ class TagServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "tagService.update.tagActionInvalid"
-        res.payload.status == BAD_REQUEST
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
+        res.errorMessages.contains("actionContainer.invalidActions")
     }
 
     void "test tag actions valid"() {
@@ -184,6 +214,7 @@ class TagServiceSpec extends CustomSpec {
         then:
         tag2.members.size() == 1
         tag2.members.contains(c2)
+        res.status == ResultStatus.OK
         res.payload instanceof ContactTag
         res.payload.id == tag2.id
 
@@ -198,6 +229,7 @@ class TagServiceSpec extends CustomSpec {
         then:
         tag2.members.isEmpty() == true
         tag2.members.contains(c2) == false
+        res.status == ResultStatus.OK
         res.payload instanceof ContactTag
         res.payload.id == tag2.id
     }
@@ -209,8 +241,8 @@ class TagServiceSpec extends CustomSpec {
 
         then:
         res.success == false
-        res.payload instanceof ValidationErrors
-        res.payload.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
 
         when: "valid update"
         updateInfo.hexColor = "#123"
@@ -218,6 +250,7 @@ class TagServiceSpec extends CustomSpec {
 
         then:
         res.success == true
+        res.status == ResultStatus.OK
         res.payload instanceof ContactTag
         res.payload.id == tag2.id
         res.payload.name == updateInfo.name
@@ -228,21 +261,24 @@ class TagServiceSpec extends CustomSpec {
     // ------
 
     void "test delete"() {
+        given:
+        addToMessageSource("tagService.delete.notFound")
+
     	when: "we delete a nonexistent tag"
         Result res = service.delete(-88L)
 
     	then:
         res.success == false
-        res.type == ResultType.MESSAGE_STATUS
-        res.payload.code == "tagService.delete.notFound"
-        res.payload.status == NOT_FOUND
+        res.errorMessages[0] == "tagService.delete.notFound"
+        res.status == ResultStatus.NOT_FOUND
 
     	when: "we delete an existing team tag"
         res = service.delete(teTag1.id)
         assert res.success
-        t1.save(flush:true, failOnError:true)
+        t1.merge(flush:true, failOnError:true)
 
     	then:
+        res.status == ResultStatus.NO_CONTENT
         teTag1.phone.tags.contains(teTag1) == false
         teTag1.members.every { !it.tags.contains(teTag1) }
     }
@@ -262,6 +298,7 @@ class TagServiceSpec extends CustomSpec {
         tag1.save(flush:true, failOnError:true)
 
         then: "tag marked as deleted and all future messages cancelled"
+        res.status == ResultStatus.NO_CONTENT
         tag1.isDeleted == true
         _cancelCalled == numFutureMsgs
     }

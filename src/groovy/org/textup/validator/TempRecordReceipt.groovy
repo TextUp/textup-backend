@@ -4,7 +4,7 @@ import grails.compiler.GrailsCompileStatic
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
-import org.textup.types.ReceiptStatus
+import org.textup.type.ReceiptStatus
 
 @GrailsCompileStatic
 @EqualsAndHashCode

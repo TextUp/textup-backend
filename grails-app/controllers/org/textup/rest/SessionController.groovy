@@ -8,7 +8,6 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import static org.springframework.http.HttpStatus.*
 
 @GrailsTypeChecked
 @RestApi(name="Session", description="Operations on sessions, after logging in.")
@@ -17,8 +16,11 @@ class SessionController extends BaseController {
 
 	static namespace = "v1"
 
-    // authService from superclass
+    AuthService authService
     SessionService sessionService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // List
     // ----
@@ -60,20 +62,21 @@ class SessionController extends BaseController {
             }
             p1 = s1.phone
         }
-        Closure count, list
+        Closure<Integer> count
+        Closure<List<IncomingSession>> list
         if (params.subscribed == "call") {
-        	count = { Map params -> p1.countCallSubscribedSessions() }
+        	count = { p1.countCallSubscribedSessions() }
         	list = { Map params -> p1.getCallSubscribedSessions(params) }
         }
         else if (params.subscribed == "text") {
-        	count = { Map params -> p1.countTextSubscribedSessions() }
+        	count = { p1.countTextSubscribedSessions() }
         	list = { Map params -> p1.getTextSubscribedSessions(params) }
         }
         else {
-        	count = { Map params -> p1.countSessions() }
+        	count = { p1.countSessions() }
         	list = { Map params -> p1.getSessions(params) }
         }
-        genericListActionForClosures("session", count, list, params)
+        respondWithMany(IncomingSession, count, list, params)
     }
 
     // Show
@@ -90,10 +93,10 @@ class SessionController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-    	Long id = params.long("id")
-        if (IncomingSession.exists(id)) {
-            if (authService.hasPermissionsForSession(id)) {
-                genericShowAction(IncomingSession, id)
+        IncomingSession is1 = IncomingSession.get(params.long("id"))
+        if (is1) {
+            if (authService.hasPermissionsForSession(is1.id)) {
+                respond(is1, [status:ResultStatus.OK.apiStatus])
             }
             else { forbidden() }
         }
@@ -117,14 +120,13 @@ class SessionController extends BaseController {
             add this session to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(request, "session")) { return }
+    	if (!validateJsonRequest(IncomingSession, request)) { return }
     	Map sessInfo = (request.properties.JSON as Map).session as Map
         if (params.long("teamId")) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
                 if (authService.hasPermissionsForTeam(tId)) {
-                    handleSaveResult("session",
-                    	sessionService.createForTeam(tId, sessInfo))
+                    respondWithResult(IncomingSession, sessionService.createForTeam(tId, sessInfo))
                 }
                 else { forbidden() }
             }
@@ -132,7 +134,7 @@ class SessionController extends BaseController {
         }
         else {
             if (authService.isActive) {
-                handleSaveResult("session", sessionService.createForStaff(sessInfo))
+                respondWithResult(IncomingSession, sessionService.createForStaff(sessInfo))
             }
             else { forbidden() }
         }
@@ -153,12 +155,12 @@ class SessionController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid session.")
     ])
     def update() {
-    	if (!validateJsonRequest(request, "session")) { return }
+    	if (!validateJsonRequest(IncomingSession, request)) { return }
     	Long id = params.long("id")
         Map sessInfo = (request.properties.JSON as Map).session as Map
     	if (authService.exists(IncomingSession, id)) {
     		if (authService.hasPermissionsForSession(id)) {
-    			handleUpdateResult("session", sessionService.update(id, sessInfo))
+    			respondWithResult(IncomingSession, sessionService.update(id, sessInfo))
 			}
 			else { forbidden() }
     	}

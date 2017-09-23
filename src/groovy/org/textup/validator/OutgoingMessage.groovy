@@ -7,7 +7,7 @@ import groovy.transform.EqualsAndHashCode
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.types.RecordItemType
+import org.textup.type.RecordItemType
 
 @GrailsTypeChecked
 @EqualsAndHashCode
@@ -70,7 +70,7 @@ class OutgoingMessage {
 		// then manually check the number of recipients
 		HashSet<Contactable> recipients = this.toRecipients()
 		// check number of recipients below maximum (to avoid abuse)
-        Integer maxNumRecip = Helpers.toInteger(Holders.flatConfig["textup.maxNumText"])
+        Integer maxNumRecip = Helpers.to(Integer, Holders.flatConfig["textup.maxNumText"])
         if (recipients.size() > maxNumRecip) {
         	isValid = false
             this.errors.reject('outgoingMessage.tooManyRecipients')
@@ -109,7 +109,9 @@ class OutgoingMessage {
 	}
 	HashSet<Phone> getPhones() {
 		HashSet<Phone> phones = new HashSet<>()
-		this.contacts.each { Contact c1 -> phones.add(c1.phone) }
+		this.contacts.each { Contact c1 ->
+			phones.add(c1.phone)
+		}
 		this.sharedContacts.each { SharedContact sc1 ->
 			phones.add(sc1.sharedBy)
 			phones.add(sc1.sharedWith)

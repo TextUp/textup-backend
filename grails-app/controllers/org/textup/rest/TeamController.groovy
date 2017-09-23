@@ -2,24 +2,26 @@ package org.textup.rest
 
 import grails.compiler.GrailsCompileStatic
 import grails.converters.JSON
+import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
-import static org.springframework.http.HttpStatus.*
 import org.textup.*
-import grails.transaction.Transactional
 
 @GrailsCompileStatic
 @RestApi(name="Team", description = "Operations on teams after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class TeamController extends BaseController {
 
-    static namespace = "v1"
+    static String namespace = "v1"
 
-    //authService from superclass
+    AuthService authService
     TeamService teamService
+
+    @Override
+    protected String getNamespaceAsString() { namespace }
 
     // List
     // ----
@@ -44,7 +46,8 @@ class TeamController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
-        Closure count, list
+        Closure<Integer> count
+        Closure<List<Team>> list
         if (params.long("organizationId")) {
             Organization org = Organization.get(params.long("organizationId"))
             if (!org) {
@@ -64,7 +67,7 @@ class TeamController extends BaseController {
             count = { s1.countTeams() }
             list = { Map params -> s1.getTeams(params) }
         }
-        genericListActionForClosures(Team, count, list, params)
+        respondWithMany(Team, count, list, params)
     }
 
     // Show
@@ -81,10 +84,10 @@ class TeamController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
-        Long id = params.long("id")
-        if (Team.exists(id)) {
-            if (authService.hasPermissionsForTeam(id)) {
-                genericShowAction(Team, id)
+        Team t1 = Team.get(params.long("id"))
+        if (t1) {
+            if (authService.hasPermissionsForTeam(t1.id)) {
+                respond(t1, [status:ResultStatus.OK.apiStatus])
             }
             else { forbidden() }
         }
@@ -106,9 +109,9 @@ class TeamController extends BaseController {
             create a new team for this organization.")
     ])
     def save() {
-        if (!validateJsonRequest(request, "team")) { return }
+        if (!validateJsonRequest(Team, request)) { return }
         Map tInfo = (request.properties.JSON as Map).team as Map
-        handleSaveResult(Team, teamService.create(tInfo))
+        respondWithResult(Team, teamService.create(tInfo))
     }
 
     // Update
@@ -127,12 +130,12 @@ class TeamController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid team.")
     ])
     def update() {
-        if (!validateJsonRequest(request, "team")) { return }
+        if (!validateJsonRequest(Team, request)) { return }
         Long id = params.long("id")
         if (authService.exists(Team, id)) {
             if (authService.hasPermissionsForTeam(id)) {
                 Map tInfo = (request.properties.JSON as Map).team as Map
-                handleUpdateResult(Team, teamService.update(id, tInfo))
+                respondWithResult(Team, teamService.update(id, tInfo))
             }
             else { forbidden() }
         }
@@ -156,7 +159,7 @@ class TeamController extends BaseController {
         Long id = params.long("id")
         if (authService.exists(Team, id)) {
             if (authService.isAdminForTeam(id)) {
-                handleDeleteResult(teamService.delete(id))
+                respondWithResult(Void, teamService.delete(id))
             }
             else { forbidden() }
         }

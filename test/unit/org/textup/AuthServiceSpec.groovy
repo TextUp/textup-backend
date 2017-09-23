@@ -8,9 +8,9 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
-import org.textup.types.OrgStatus
-import org.textup.types.StaffStatus
-import org.textup.types.SharePermission
+import org.textup.type.OrgStatus
+import org.textup.type.StaffStatus
+import org.textup.type.SharePermission
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
@@ -19,7 +19,7 @@ import spock.lang.Specification
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt])
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
 class AuthServiceSpec extends CustomSpec {
 
@@ -112,8 +112,14 @@ class AuthServiceSpec extends CustomSpec {
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
 
+        Contact deletedContact = s1.phone.createContact([isDeleted:true], [randPhoneNumber()]).payload
+        deletedContact.save(flush:true, failOnError:true)
+
         expect: "This is your contact"
         service.hasPermissionsForContact(c1.id) == true
+
+        and: "This is your contact but it is deleted"
+        service.hasPermissionsForContact(deletedContact.id) == false
 
         and: "This is another staff member at the same org's contacts"
         service.hasPermissionsForContact(c2.id) == false
@@ -133,6 +139,8 @@ class AuthServiceSpec extends CustomSpec {
         s1.org.status = OrgStatus.APPROVED
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
+
+        addToMessageSource("phone.share.cannotShare")
 
         when: "Get shared contact id for a contact that is shared with us"
         Long scId = service.getSharedContactIdForContact(c2.id)
@@ -160,7 +168,7 @@ class AuthServiceSpec extends CustomSpec {
         Contact contactToBeShared = p2.contacts[0]
         SharedContact teamSharedContact = p2.share(contactToBeShared,
             teamPhone, SharePermission.DELEGATE).payload
-        p2.save(flush:true, failOnError:true)
+        p2.merge(flush:true)
         scId = service.getSharedContactIdForContact(contactToBeShared.id)
 
         then:
@@ -170,11 +178,20 @@ class AuthServiceSpec extends CustomSpec {
         teamPhone = s1.teams[0].phone
         teamSharedContact = p2.share(contactToBeShared,
             teamPhone, SharePermission.DELEGATE).payload
-        p2.save(flush:true, failOnError:true)
+        p2.merge(flush:true)
         scId = service.getSharedContactIdForContact(contactToBeShared.id)
 
         then:
         scId == teamSharedContact.id
+
+        when: "a contact previously shared with us is deleted"
+        contactToBeShared.isDeleted = true
+        contactToBeShared.merge(flush:true)
+
+        scId = service.getSharedContactIdForContact(contactToBeShared.id)
+
+        then: "no longer have sharing permissions"
+        scId == null
     }
 
     void "test permissions for team as admin"() {
@@ -265,8 +282,14 @@ class AuthServiceSpec extends CustomSpec {
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
 
+        ContactTag deletedTag = s1.phone.createTag([name:randPhoneNumber(), isDeleted:true]).payload
+        deletedTag.save(flush:true, failOnError:true)
+
     	expect: "This tag belongs to you"
     	service.hasPermissionsForTag(tag1.id) == true
+
+        and: "This tag belongs to you but it is deleted"
+        service.hasPermissionsForTag(deletedTag.id) == false
 
     	and: "This tag belongs to a team you are on"
     	service.hasPermissionsForTag(teTag1.id) == true

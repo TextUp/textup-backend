@@ -9,7 +9,7 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.types.FutureMessageType
+import org.textup.type.FutureMessageType
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
@@ -17,7 +17,7 @@ import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(FutureMessageController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, NotificationPolicy,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, FutureMessage])
 @TestMixin(HibernateTestMixin)
 class FutureMessageControllerSpec extends CustomSpec {
@@ -128,12 +128,9 @@ class FutureMessageControllerSpec extends CustomSpec {
     // ----
 
     void "test show nonexistent message"() {
-    	given:
-		mockAuth(false, false)
-
 		when:
 		request.method = "GET"
-		params.id = "1"
+		params.id = "-88L"
 		controller.show()
 
 		then:
@@ -141,11 +138,13 @@ class FutureMessageControllerSpec extends CustomSpec {
     }
     void "test show forbidden message"() {
     	given:
-		mockAuth(true, false)
+		controller.authService = [
+    		hasPermissionsForFutureMessage: { Long id -> false }
+    	] as AuthService
 
 		when:
 		request.method = "GET"
-		params.id = "1"
+		params.id = fMsg1.id
 		controller.show()
 
 		then:
@@ -153,7 +152,9 @@ class FutureMessageControllerSpec extends CustomSpec {
     }
     void "test show message"() {
     	given:
-		mockAuth(true, true)
+    	controller.authService = [
+    		hasPermissionsForFutureMessage: { Long id -> true }
+    	] as AuthService
 
 		when:
 		request.method = "GET"
@@ -173,15 +174,15 @@ class FutureMessageControllerSpec extends CustomSpec {
     	controller.futureMessageService = [
     		createForTag: { Long id, Map body, String timezone = null ->
     			_calledWhichCreate = "tag"
-    			new Result(payload:fMsg1)
+    			new Result(payload:fMsg1, status:ResultStatus.CREATED)
 			},
 			createForContact: { Long id, Map body, String timezone = null ->
 				_calledWhichCreate = "contact"
-				new Result(payload:fMsg1)
+				new Result(payload:fMsg1, status:ResultStatus.CREATED)
 			},
 			createForSharedContact: { Long id, Map body, String timezone = null ->
 				_calledWhichCreate = "sharedContact"
-				new Result(payload:fMsg1)
+				new Result(payload:fMsg1, status:ResultStatus.CREATED)
 			}
     	] as FutureMessageService
     }
@@ -341,7 +342,7 @@ class FutureMessageControllerSpec extends CustomSpec {
 		given:
 		mockAuth(true, true)
 		controller.futureMessageService = [delete: { Long id ->
-			new Result(success:true)
+			new Result<Void>(payload:null, status:ResultStatus.NO_CONTENT)
 		}] as FutureMessageService
 
 		when:
