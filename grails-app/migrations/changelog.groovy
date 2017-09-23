@@ -913,4 +913,6 @@ databaseChangeLog = {
 	include file: 'record-note.groovy'
 
 	include file: 'lock-timeout.groovy'
+
+	include file: 'notification-policy.groovy'
 }
