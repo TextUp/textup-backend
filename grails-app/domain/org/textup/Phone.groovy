@@ -300,7 +300,9 @@ class Phone {
         }
         Collection<ContactStatus> statusEnums = Helpers.toEnumList(ContactStatus, params.statuses)
         //get contacts, both mine and those shared with me
-        replaceContactsWithShared(Contact.listForPhoneAndStatuses(this, statusEnums, params))
+        List<Contact> contactList = Contact.listForPhoneAndStatuses(this, statusEnums, params)
+        List<Contactable> replacedList = replaceContactsWithShared(contactList)
+        replacedList
     }
     int countContacts(String query) {
         if (query == null) {
@@ -345,6 +347,8 @@ class Phone {
                     "in"("contact.id", notMyContactIds)
                 }
                 else { eq("contact.id", null) }
+                // ensure that we only fetch SharedContacts that belong to this phone
+                eq("sharedWith", this)
                 // Ensure that SharedContact is not expired. This might become a problem
                 // when a contact has two SharedContacts, one active and one expired.
                 // The contact will show up in the contacts list and when we find the shared

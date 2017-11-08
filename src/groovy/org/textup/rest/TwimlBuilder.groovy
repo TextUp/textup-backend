@@ -219,7 +219,8 @@ class TwimlBuilder {
                     params.linkParams instanceof Map) {
                     String goodbye = getMessage("twimlBuilder.call.goodbye"),
                         finishScreenWebhook = getLink(params.linkParams),
-                        directions = getMessage("twimlBuilder.call.screenIncoming", [params.callerId])
+                        directions = getMessage("twimlBuilder.call.screenIncoming",
+                            [Helpers.formatForSayIfPhoneNumber(params.callerId)])
                     callBody = {
                         Gather(numDigits:"1", action:finishScreenWebhook) {
                             Pause(length:"1")
@@ -241,6 +242,7 @@ class TwimlBuilder {
                         actionWebhook = getLink(params.linkParams),
                         callbackWebhook = getLink(params.callbackParams)
                     callBody = {
+                        Pause(length:"1")
                         Say(params.awayMessage)
                         Say(directions)
                         Record(action:actionWebhook, maxLength:160,
@@ -354,7 +356,9 @@ class TwimlBuilder {
                     int repeatCount = Helpers.to(Integer, params.repeatCount) ?: 0
                     Map linkParams = [handle:CallResponse.DIRECT_MESSAGE,
                         message:params.message, repeatCount:repeatCount + 1]
-                    if (params.identifier) linkParams.identifier = params.identifier
+                    if (params.identifier) {
+                        linkParams.identifier = params.identifier
+                    }
 
                     if (repeatCount < Constants.MAX_REPEATS) {
                         String ident = params.identifier ?

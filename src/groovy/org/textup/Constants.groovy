@@ -79,6 +79,7 @@ class Constants {
 
 	static final String FALLBACK_SINGULAR = "result"
 	static final String FALLBACK_PLURAL = "results"
+	static final String FALLBACK_RESOURCE_NAME = "resource"
 
 	// REST actions
 	// ------------

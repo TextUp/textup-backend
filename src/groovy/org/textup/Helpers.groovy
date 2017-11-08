@@ -14,6 +14,7 @@ import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam
 import javax.imageio.ImageWriter
 import javax.imageio.stream.ImageOutputStream
+import org.apache.commons.lang3.ClassUtils
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.hibernate.FlushMode
 import org.hibernate.Session
@@ -122,19 +123,20 @@ class Helpers {
         if (val == null) {
             return fallbackVal
         }
+        Class<T> wrappedClazz = ClassUtils.primitiveToWrapper(clazz)
         try {
             String str = "${val}".toLowerCase()
-            switch (clazz) {
+            switch (wrappedClazz) {
                 // note for String conversion we use default toString method on `val` not `str`
                 case String: return val?.toString() ?: fallbackVal
                 case Boolean: return (str == "true" || str == "false") ? str.toBoolean() : fallbackVal
-                case Number: return str.isBigDecimal() ? str.toBigDecimal().asType(clazz) : fallbackVal
+                case Number: return str.isBigDecimal() ? str.toBigDecimal().asType(wrappedClazz) : fallbackVal
                 case PhoneNumber: return new PhoneNumber(number:str)
-                default: return clazz.isAssignableFrom(val.class) ? val.asType(clazz) : fallbackVal
+                default: return wrappedClazz.isAssignableFrom(val.class) ? val.asType(wrappedClazz) : fallbackVal
             }
         }
         catch (ClassCastException e) {
-            log.debug("Helpers.to: clazz: $clazz, val: $val: ${e.message}")
+            log.debug("Helpers.to: wrappedClazz: $wrappedClazz, val: $val: ${e.message}")
             fallbackVal
         }
     }
@@ -340,9 +342,9 @@ class Helpers {
     static String formatNumberForSay(PhoneNumber num) {
         formatNumberForSay(num?.number)
     }
-    static String formatNumberForRead(String number) {
-        PhoneNumber pNum = new PhoneNumber(number:number)
-        pNum.validate() ? pNum.prettyPhoneNumber : number
+    static String formatForSayIfPhoneNumber(String possiblePhoneNumber) {
+        PhoneNumber pNum = new PhoneNumber(number:possiblePhoneNumber)
+        pNum.validate() ? formatNumberForSay(pNum.number) : possiblePhoneNumber
     }
 
     // Security

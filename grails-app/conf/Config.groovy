@@ -98,17 +98,20 @@ environments {
         textup.apiKeys.twilio.appId=System.getenv("TWILIO_NUMBER_APP_ID") ?: (System.getProperty("TWILIO_NUMBER_APP_ID") ?: "APe80c7d1e8a78963cde8c95785fdd8c9d")
         grails.plugin.databasemigration.updateOnStart = true
         grails.plugin.databasemigration.updateOnStartFileNames = ['changelog.groovy']
-        // can't use this because we have compound primary keys in the QRTZ
-        // table and the way that liquibase.structure.core.PrimaryKey is
-        // build up in what is passed to MigrationUtils has a null name even
-        // though the default name of the primary key is PRIMARY. Therefore,
-        // since the databasemigration plugin uses the String contains method
-        // to check to see if the name matches the string specified in ignoredObjects
-        // and the name of the compound primary key is null, then this returns
-        // a NullPointerException per the specifications of the contains method.
-        // We must resort to manually modifying the diff generated each time we
-        // make a db change to avoid dropping all of our QRTZ tables.
-        //grails.plugin.databasemigration.ignoredObjects = 'QRTZ'
+        // ignore all of the Quartz scheduler tables created via direct SQL execution
+        grails.plugin.databasemigration.ignoredObjects = [
+            'QRTZ_BLOB_TRIGGERS',
+            'QRTZ_CALENDARS',
+            'QRTZ_CRON_TRIGGERS',
+            'QRTZ_FIRED_TRIGGERS',
+            'QRTZ_JOB_DETAILS',
+            'QRTZ_LOCKS',
+            'QRTZ_PAUSED_TRIGGER_GRPS',
+            'QRTZ_SCHEDULER_STATE',
+            'QRTZ_SIMPLE_TRIGGERS',
+            'QRTZ_SIMPROP_TRIGGERS',
+            'QRTZ_TRIGGERS'
+        ]
     }
 }
 
@@ -272,7 +275,7 @@ textup {
         defaultLabel = "default" //default is to link to relationships
         v1 {
             announcement = [singular:"announcement", plural:"announcements"]
-            availableNumber = [singular:"available-number", plural:"available-numbers"]
+            availableNumber = [singular:"number", plural:"numbers"]
             contact = [singular:"contact", plural:"contacts"]
             futureMessage = [singular:"future-message", plural:"future-messages"]
             imageInfo = [singular:"image", plural: "images"]

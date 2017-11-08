@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.plugin.jodatime.converters.JodaConverters
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -9,11 +10,11 @@ import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.type.SharePermission
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
-import grails.plugin.jodatime.converters.JodaConverters
 
 @TestFor(RecordController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -99,6 +100,28 @@ class RecordControllerSpec extends CustomSpec {
         request.method = "GET"
         controller.listForRecord(c1.record, params)
         List<Long> ids = Helpers.allTo(Long, c1.items*.id)
+
+        then:
+        response.status == SC_OK
+        response.json.size() == ids.size()
+        response.json*.id.every { ids.contains(it as Long) }
+    }
+
+    void "test list with no dates for shared contact with view-only permissions"() {
+        given:
+        sc1.permission = SharePermission.VIEW
+        sc1.save(flush: true, failOnError: true)
+
+        controller.authService = [
+            hasPermissionsForContact:{ Long id -> false },
+            getSharedContactIdForContact:{ Long cId -> sc1.id }
+        ] as AuthService
+        List<Long> ids = Helpers.allTo(Long, sc1.contact.items*.id)
+
+        when:
+        request.method = "GET"
+        params.contactId = 2L
+        controller.index()
 
         then:
         response.status == SC_OK

@@ -9,6 +9,7 @@ import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.nio.charset.Charset
+import java.util.UUID
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang3.tuple.Pair
 import org.apache.http.client.methods.HttpGet
@@ -279,7 +280,7 @@ class PhoneService {
         Result<TempRecordReceipt> res = msg.isText ?
             textService.send(fromNum, sortedNums, msg.message) :
             callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
-                message:msg.message, identifier:staff?.name])
+                message:msg.message, identifier:phone.name])
         res.then({ TempRecordReceipt receipt ->
             Result<? extends RecordItem> storeRes = msg.isText ?
                 c1.storeOutgoingText(msg.message, receipt, staff) :

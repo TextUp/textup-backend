@@ -17,11 +17,13 @@ class NotificationStatusJsonMarshaller extends JsonNamedMarshaller {
 		Map json = [:]
 		Staff s1 = status1.staff
 
+		// Omit phone number to contact. Notification statuses are always nested in either
+		// a ContactTag or a Contactable. Therefore, the phone number to send the notification
+		// to is obvious and we can save a db call here and omit the number.
 		json.with {
 			id = s1.id
 			name = s1.name
 			username = s1.username
-			number = s1.phone.number.e164PhoneNumber
 			canNotify = status1.canNotify
 		}
 

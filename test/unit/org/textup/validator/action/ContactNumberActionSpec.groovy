@@ -41,13 +41,24 @@ class ContactNumberActionSpec extends Specification {
 		act1.errors.getFieldError("number").code == "format"
 
 		when: "all valid"
+		String validAction = "mErGe"
+		assert validAction.toLowerCase() == Constants.NUMBER_ACTION_MERGE.toLowerCase()
 		act1.with {
-			action = Constants.NUMBER_ACTION_MERGE
+			action = validAction
 			preference = 2
 			number = "1abcdsd2112223333"
 		}
 
 		then:
 		act1.validate() == true
+		// test that matching action in switch statements matches all lower case action names
+		testMatchCaseInSwitch(act1)
+	}
+
+	protected boolean testMatchCaseInSwitch(ContactNumberAction act1) {
+		switch (act1) {
+			case { "MeRgE".toLowerCase() }: return true
+			default: return false
+		}
 	}
 }

@@ -1,5 +1,10 @@
 class UrlMappings {
 
+    /*
+    NOTE: any mapping updates here need to be reflected in the `resolveClassToResourceName`
+    method in BaseController to ensure working url link rendering in the API output
+     */
+
 	static mappings = {
         "/$controller/$action?/$id?(.$format)?"{
             constraints {

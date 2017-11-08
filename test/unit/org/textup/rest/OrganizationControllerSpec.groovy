@@ -28,6 +28,7 @@ class OrganizationControllerSpec extends CustomSpec {
     }
     def setup() {
         super.setupData()
+        controller.authService = [getIsActive:{ -> true }] as AuthService
     }
     def cleanup() {
         super.cleanupData()

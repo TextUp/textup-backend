@@ -19,39 +19,58 @@ class CallService {
     Result<TempRecordReceipt> start(PhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup) {
         String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:[handle:Constants.CALLBACK_STATUS])
-        this.doCall(fromNum, toNum, afterPickup, callback)
+        doCall(fromNum, toNum, afterPickup, callback)
     }
     Result<TempRecordReceipt> start(PhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, Map afterPickup) {
-        if (!(toNums?.size() > 1)) {
-            this.start(fromNum, toNums ? toNums[0] : null, afterPickup)
+        // if one number we can just start without any retry logic
+        if (toNums?.size() <= 1) {
+            start(fromNum, toNums ? toNums[0] : null, afterPickup)
         }
         // if multiple numbers, we want to add in retry logic
-        List<String> toPhoneNums = toNums
-            .collect { BasePhoneNumber pNum -> pNum.e164PhoneNumber }
-        int numRemaining = toNums.size() - 1
-        String afterPickupJson = Helpers.toJsonString(afterPickup)
-        for (int i = numRemaining; i >= 0 ; i--) {
-            List<String> remaining = Helpers.takeRight(toPhoneNums, i)
-            BasePhoneNumber toNum = toNums[numRemaining - i]
-            if (!remaining) { // when only no extra numbers remaining
-                return start(fromNum, toNum, afterPickup)
+        // We start with the first number **that doesn't IMMEDIATELY fail**.
+        // For the first number in the list that succeeds, we append the remaining numbers to try
+        // as callback parameter so that the PublicRecordController can retry with
+        // the remaining numbers until none are left
+        else {
+            List<String> toPhoneNums = toNums
+                .collect { BasePhoneNumber pNum -> pNum.e164PhoneNumber }
+            int numRemaining = toNums.size() - 1
+            String afterPickupJson = Helpers.toJsonString(afterPickup)
+            for (int i = numRemaining; i >= 0 ; i--) {
+                List<String> remaining = Helpers.takeRight(toPhoneNums, i)
+                BasePhoneNumber toNum = toNums[numRemaining - i]
+                // If we are on the last number in the list of numbers because all of the
+                // previous numbers have IMMEDIATELY failed for whatever reason, then this
+                // is the same case as if we are only trying to call one number
+                if (!remaining) {
+                    return start(fromNum, toNum, afterPickup)
+                }
+                // if we still have some numbers remaining to try, then we try to start the
+                // call with this number, and if it succeeds, then we can return and the call has
+                // started. If it IMMEDIATELY fails, then we move onto the next number to use
+                // to try to start this call.
+                else {
+                    String callback = grailsLinkGenerator.link(namespace:"v1",
+                        resource:"publicRecord", action:"save", absolute:true,
+                        params:[
+                            handle:Constants.CALLBACK_STATUS,
+                            remaining:remaining,
+                            afterPickup:afterPickupJson
+                        ]
+                    )
+                    Result<TempRecordReceipt> res = doCall(fromNum, toNum, afterPickup, callback)
+                    if (res.success) {
+                        return res
+                    }
+                }
             }
-            String callback = grailsLinkGenerator.link(namespace:"v1",
-                resource:"publicRecord", action:"save", absolute:true,
-                params:[handle:Constants.CALLBACK_STATUS,
-                    remaining:remaining, afterPickup:afterPickupJson])
-            Result<TempRecordReceipt> res = doCall(fromNum, toNum, afterPickup, callback)
-            if (res.success) {
-                return res
-            }
+            resultFactory.failWithCodeAndStatus("callService.start.missingInfoOrAllFailed",
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
-            ResultStatus.UNPROCESSABLE_ENTITY)
     }
     Result<TempRecordReceipt> retry(PhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup) {
-
         this.start(fromNum, toNums, afterPickup).then({ TempRecordReceipt r1 ->
             List<RecordItem> items = RecordItem.findEveryByApiId(apiId)
             RecordItem.findEveryByApiId(apiId).each { RecordItem item1 ->
@@ -84,7 +103,7 @@ class CallService {
         }
         catch (ApiException | URISyntaxException e) {
             log.error("CallService.doCall: ${e.message}")
-            resultFactory.failWithThrowable(e)
+            resultFactory.failWithThrowable(e, false)
         }
     }
 }

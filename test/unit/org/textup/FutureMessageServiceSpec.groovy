@@ -41,7 +41,7 @@ class FutureMessageServiceSpec extends CustomSpec {
     	service.resultFactory = getResultFactory()
         service.messageSource = messageSource
         service.notificationService = [
-            build: { Phone targetPhone, List<Contact> contacts ->
+            build: { Phone targetPhone, List<Contact> contacts, List<ContactTag> tags ->
                 [new BasicNotification()]
             }
         ] as NotificationService

@@ -11,7 +11,8 @@ import org.textup.*
 @Secured("permitAll")
 class PasswordResetController extends BaseController {
 
-    static String namespace = "v1"
+    // this utility endpoint is NOT namespaced, namespace is therefore NULL not empty string
+    static String namespace = null
 	static allowedMethods = [index:"GET", requestReset:"POST", resetPassword:"PUT", delete:"DELETE"]
 
 	TokenService tokenService

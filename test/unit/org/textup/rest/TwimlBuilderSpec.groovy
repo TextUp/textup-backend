@@ -460,6 +460,7 @@ class TwimlBuilderSpec extends CustomSpec {
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
+                Pause(length:"1")
                 Say(awayMsg)
                 Say("twimlBuilder.call.voicemailDirections")
                 Record(action:linkParams.toString(), maxLength:160,

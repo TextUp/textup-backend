@@ -44,13 +44,15 @@ class NotificationService {
 	// Building notifications
 	// ----------------------
 
-	List<BasicNotification> build(Phone targetPhone, List<Contact> contacts) {
+	List<BasicNotification> build(Phone targetPhone, List<Contact> contacts,
+        List<ContactTag> tags = []) {
+
 		Map<Long, Record> phoneIdToRecord = [:]
 		Map<Long, Long> staffIdToPersonalPhoneId = [:]
 		Map<Phone, List<Staff>> phonesToCanNotify = [:]
 		// populate these data maps from the phone and list of contacts
 		populateData(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify,
-			targetPhone, contacts)
+			targetPhone, contacts, tags)
 		// then build basic notifications with these data maps
 		buildNotifications(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify)
 	}
@@ -60,7 +62,7 @@ class NotificationService {
 
 	protected void populateData(Map<Long, Record> phoneIdToRecord,
 		Map<Long, Long> staffIdToPersonalPhoneId, Map<Phone, List<Staff>> phonesToCanNotify,
-		Phone targetPhone, List<Contact> contacts) {
+		Phone targetPhone, List<Contact> contacts, List<ContactTag> tags = []) {
 
 		List<SharedContact> sharedContacts = SharedContact
 		    .findEveryByContactIdsAndSharedBy(contacts*.id, targetPhone)
@@ -74,10 +76,22 @@ class NotificationService {
 		    phoneIdToRecord[c1.phone.id] = c1.record
 		    recordIds << c1.record.id
 		}
+        // again, currently on support assocating one record with each notification. If there's a
+        // tag record for a group of contacts as well, prefer this record because the tag
+        // brings together a group of contacts
+        tags.each { ContactTag ct1 ->
+            phoneIdToRecord[ct1.phone.id] = ct1.record
+            recordIds << ct1.record.id
+        }
+        // respect the gated getRecord method on the SharedContact, then those with view-only
+        // permissions will not receive notifications or incoming calls
 		sharedContacts.each { SharedContact sc1 ->
-			phoneIdToRecord[sc1.sharedWith.id] = sc1.record
-			allPhones << sc1.sharedWith
-			recordIds << sc1.record.id
+            Record rec1 = sc1.record
+            if (rec1) {
+                phoneIdToRecord[sc1.sharedWith.id] = rec1
+                allPhones << sc1.sharedWith
+                recordIds << rec1.id
+            }
 		}
 		allPhones.each { Phone p1 ->
 			List<Staff> canNotify = p1.owner.getCanNotifyAndAvailable(recordIds)
@@ -102,7 +116,6 @@ class NotificationService {
 	}
 	protected List<BasicNotification> buildNotifications(Map<Long, Record> phoneIdToRecord,
 		Map<Long, Long> staffIdToPersonalPhoneId, Map<Phone, List<Staff>> phonesToCanNotify) {
-
 		List<BasicNotification> notifs = []
 		// if you are concerned about several tokens generated
         // for one message, remember that we also send unique tokens

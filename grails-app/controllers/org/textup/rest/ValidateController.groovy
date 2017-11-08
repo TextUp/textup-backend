@@ -11,7 +11,8 @@ import org.textup.*
 @Secured("permitAll")
 class ValidateController extends BaseController {
 
-	static String namespace = "v1"
+    // this utility endpoint is NOT namespaced, namespace is therefore NULL not empty string
+	static String namespace = null
 
 	AuthService authService
 

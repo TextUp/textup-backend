@@ -58,7 +58,10 @@ class Team {
             Closure<Boolean> hasExistingTeamName = {
                 // uniqueness check should ignore deleted teams
                 Team t1 = Team.findByOrgAndNameAndIsDeleted(obj.org, val, false)
-                t1?.id != obj.id
+                // HAS DUPLICATE IF (1) there is a team `t1` that belonging to this organization
+                // that has name and is not deleted, and (2) this team `t1` is NOT the same as
+                // the team we are validating
+                t1 != null && t1.id != obj.id
             }
             //within an Org, team name must be unique
             if (val && Helpers.<Boolean>doWithoutFlush(hasExistingTeamName)) {

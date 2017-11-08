@@ -75,7 +75,7 @@ class RecordCall extends RecordItem {
         this.hasAwayMessage = hasV
     }
     boolean getHasVoicemail() {
-        this.hasAwayMessage
+        this.hasAwayMessage && this.voicemailInSeconds > 0
     }
     String getVoicemailUrl() {
         if (!this.hasVoicemail) {

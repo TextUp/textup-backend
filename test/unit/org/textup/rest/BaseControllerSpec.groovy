@@ -20,8 +20,6 @@ import org.textup.validator.*
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
 
-import grails.util.GrailsWebUtil
-
 @TestFor(BaseController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
@@ -122,6 +120,21 @@ class BaseControllerSpec extends CustomSpec {
         controller.resolveClassToPlural(Role) == Constants.FALLBACK_PLURAL
     }
 
+    void "test resolving resource names"() {
+        when: "we have classes that have resource names"
+        Collection<Class> resolvableClasses = [AvailablePhoneNumber, Contactable, ContactTag,
+            FeaturedAnnouncement, FutureMessage, IncomingSession, Notification, Organization,
+            RecordItem, Staff, Team]
+
+        then:
+        resolvableClasses.each { Class clazz ->
+            assert controller.resolveClassToResourceName(clazz) != Constants.FALLBACK_RESOURCE_NAME
+        }
+
+        expect: "graceful fallback for classes that do not associated resource names"
+        controller.resolveClassToConfigKey(Role) == "result"
+    }
+
     void "test building pagination options"() {
         given:
         Integer defaultMax = config.textup.defaultMax
@@ -157,6 +170,17 @@ class BaseControllerSpec extends CustomSpec {
         response.status == SC_OK
         response.json.contacts instanceof List
         response.json.contacts.isEmpty() == true
+
+        when: "none returned, but many total"
+        response.reset()
+        controller.respondWithMany(Contact, { 100 }, { [] })
+
+        then: "should have valid next link"
+        response.status == SC_OK
+        response.json.contacts instanceof List
+        response.json.contacts.isEmpty() == true
+        response.json.links instanceof Map
+        response.json.links.next.contains("/v1/contacts")
 
         when: "some found"
         response.reset()

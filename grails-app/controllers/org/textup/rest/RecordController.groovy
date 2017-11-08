@@ -68,21 +68,33 @@ class RecordController extends BaseController {
             if (!c1) {
                 return notFound()
             }
-            Contactable cont
+            Record rec1
             if (authService.hasPermissionsForContact(cId)) {
-                cont = c1
+                rec1 = c1.record
             }
             else {
                 Long scId = authService.getSharedContactIdForContact(c1.id)
                 if (scId) {
-                    cont = SharedContact.get(scId)
-                    if (!cont.record) { // then does not have modify permissions
-                        return forbidden()
+                    SharedContact sc1 = SharedContact.get(scId)
+                    // only need canView permissions to view the items in this contact's record
+                    if (sc1.canView) {
+                        // WORKAROUND: bypass the canModify check in getRecord for the reasons listed
+                        // in the longer comment below
+                        rec1 = sc1.contact.record
                     }
+                    else { return forbidden() }
                 }
                 else { return forbidden() }
             }
-            listForRecord(cont.record, params)
+            // TODO: we need to come up with a better way to manage permission controls, perhaps
+            // via wrapping the Record object in another object that manages access. This way,
+            // we don't have to proxy the Record's methods on the SharedContact and other classes
+            // Also, we don't have to artifically gate access to the Record object on the
+            // SharedContact. The way that we currently implement it, direct access to the Record
+            // object is only possible if the SharedContact has DELEGATE permissions. However, here
+            // we use the Record object to fetch items, so we need to be able to access the Record
+            // object in some limited way even for SharedContacts only with VIEW permissions
+            listForRecord(rec1, params)
         }
         else { // tag id
             Long ctId = params.long("tagId")

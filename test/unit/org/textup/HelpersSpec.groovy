@@ -146,17 +146,23 @@ class HelpersSpec extends Specification {
         Helpers.findHighestValue(["okay":"c", "value":"b", "yas":"a"]).key == "okay"
     }
 
-    void "test type conversion for single types"() {
+    void "test type conversion for single types, including primitives"() {
         given:
         DateTime dt = DateTime.now()
 
         expect:
+        Helpers.to(boolean, "true") == true
+        Helpers.to(boolean, "false") == false
+        Helpers.to(boolean, "hello") == null
         Helpers.to(Boolean, "true") == true
         Helpers.to(Boolean, "false") == false
         Helpers.to(Boolean, "hello") == null
         Helpers.to(Collection, "hello") == null
         Helpers.to(Collection, ["hello"]) instanceof Collection
         Helpers.to(ArrayList, new HashSet<String>()) == null
+        Helpers.to(int, 1234.92) == 1234
+        Helpers.to(Integer, 1234.92) == 1234
+        Helpers.to(long, 1231231231290.92) == 1231231231290
         Helpers.to(Long, 1231231231290.92) == 1231231231290
         Helpers.to(Long, "1231231231290.92") == 1231231231290
         Helpers.to(PhoneNumber, "1231231231290.92") instanceof PhoneNumber
@@ -190,5 +196,21 @@ class HelpersSpec extends Specification {
         Helpers.appendGuaranteeLength("hello", "yes", 7) == "hellyes"
         Helpers.appendGuaranteeLength("hello", "yes", 8) == "helloyes"
         Helpers.appendGuaranteeLength("hello", "yes", 10) == "helloyes"
+    }
+
+    void "test formatting number for say"() {
+        expect:
+        Helpers.formatNumberForSay("1---23asfas") == "1 2 3"
+        Helpers.formatNumberForSay(new PhoneNumber(number:"1---23asfas")) == "1 2 3"
+        Helpers.formatNumberForSay("1---23asfas222asdf8888") == "1 2 3 2 2 2 8 8 8 8"
+        Helpers.formatNumberForSay(new PhoneNumber(number:"1---23asfas222asdf8888")) == "1 2 3 2 2 2 8 8 8 8"
+    }
+
+    void "test formatting number only if phone number"() {
+        expect: "no formatting when argument is not a phone number"
+        Helpers.formatForSayIfPhoneNumber("1---23asfas") == "1---23asfas"
+
+        and: "formatted for say when argument is a valid phone number"
+        Helpers.formatForSayIfPhoneNumber("1---23asfas222asdf8888") == "1 2 3 2 2 2 8 8 8 8"
     }
 }

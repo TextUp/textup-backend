@@ -57,7 +57,7 @@ class OrganizationController extends BaseController {
                 list = { Map params -> Organization.findAllByStatusInList(statusEnums, params) }
             }
         }
-        respondWithMany(Organization, count, list, params)
+        respondWithMany(Organization, count, list, params, !authService.isActive)
     }
 
     // Show

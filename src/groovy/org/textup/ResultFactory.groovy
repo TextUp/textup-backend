@@ -33,25 +33,31 @@ class ResultFactory {
 	// Failure
 	// -------
 
-    public <T> Result<T> failWithResultsAndStatus(Collection<Result<T>> results, ResultStatus status) {
-    	ensureRollbackOnFailure()
+    public <T> Result<T> failWithResultsAndStatus(Collection<Result<T>> results, ResultStatus status,
+        boolean doRollback = true) {
+
+        ensureRollbackOnFailure(doRollback)
     	List<String> messages = []
     	results.each { Result<?> res -> messages += res.errorMessages }
     	Result.<T>createError(messages, status)
     }
-    public <T> Result<T> failWithCodeAndStatus(String code, ResultStatus status, List params = []) {
-    	ensureRollbackOnFailure()
+    public <T> Result<T> failWithCodeAndStatus(String code, ResultStatus status, List params = [],
+        boolean doRollback = true) {
+
+        ensureRollbackOnFailure(doRollback)
 		Result.<T>createError([getMessage(code, params)], status)
     }
-	public <T> Result<T> failWithThrowable(Throwable t) {
-		ensureRollbackOnFailure()
+	public <T> Result<T> failWithThrowable(Throwable t, boolean doRollback = true) {
+		ensureRollbackOnFailure(doRollback)
 		Result.<T>createError([t.message], ResultStatus.INTERNAL_SERVER_ERROR)
 	}
     public <T> Result<T> failWithValidationErrors(Errors errors) {
     	this.<T>failWithManyValidationErrors([errors])
     }
-    public <T> Result<T> failWithManyValidationErrors(Collection<Errors> manyErrors) {
-    	ensureRollbackOnFailure()
+    public <T> Result<T> failWithManyValidationErrors(Collection<Errors> manyErrors,
+        boolean doRollback = true) {
+
+    	ensureRollbackOnFailure(doRollback)
     	List<String> messages = []
     	manyErrors.each { Errors errors ->
     		messages += errors.allErrors.collect { ObjectError e1 -> this.getMessage(e1) }
@@ -62,12 +68,12 @@ class ResultFactory {
     // Service-specific failure
     // ------------------------
 
-    public <T> Result<T> failForPusher(PusherResult pRes) {
-    	ensureRollbackOnFailure()
-    	Result.<T>createError([pRes.message], ResultStatus.convert(pRes.httpStatus))
+    public <T> Result<T> failForPusher(PusherResult pRes, boolean doRollback = true) {
+    	ensureRollbackOnFailure(doRollback)
+    	Result.<T>createError([pRes?.message], ResultStatus.convert(pRes?.httpStatus))
     }
-    public <T> Result<T> failForSendGrid(SendGrid.Response response) {
-    	ensureRollbackOnFailure()
+    public <T> Result<T> failForSendGrid(SendGrid.Response response, boolean doRollback = true) {
+    	ensureRollbackOnFailure(doRollback)
     	Result.<T>createError([response.message], ResultStatus.convert(response.code))
     }
 
@@ -84,8 +90,10 @@ class ResultFactory {
     // We use the Organization class because this domain has relatively few dependencies and the
     // doWithoutFlush method also uses the Organization class so we have to mock only one web
     // of dependencies when testing
-    protected void ensureRollbackOnFailure() {
-    	Organization.withTransaction { TransactionStatus status -> status.setRollbackOnly() }
+    protected void ensureRollbackOnFailure(boolean doRollback) {
+        if (doRollback) {
+            Organization.withTransaction { TransactionStatus status -> status.setRollbackOnly() }
+        }
     }
     // Wrap getting message in these try catch blocks to avoid losing transaction data
     // due to the uncaught exception being thrown. Instead, we log this error so we can go back

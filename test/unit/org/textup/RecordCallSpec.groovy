@@ -71,6 +71,16 @@ class RecordCallSpec extends Specification {
 
         then: "empty string"
         call.validate() == true
+        call.hasVoicemail == false
+        call.voicemailUrl == ""
+
+        when: "we have away message, but voicemail duration is 0"
+        call.hasAwayMessage = true
+        call.voicemailInSeconds = 0
+
+        then: "effectively no voicemail, such as when user hangs up before recording a voicemail"
+        call.validate() == true
+        call.hasVoicemail == false
         call.voicemailUrl == ""
 
         when: "we do have voicemail AND no receipts"
@@ -79,6 +89,7 @@ class RecordCallSpec extends Specification {
         assert call.save(flush:true, failOnError:true)
 
         then: "empty string"
+        call.hasVoicemail == true
         call.voicemailUrl == ""
 
         when: "we add a SUCCESS receipts"
@@ -88,6 +99,7 @@ class RecordCallSpec extends Specification {
         assert call.save(flush:true, failOnError:true)
 
         then: "can get url"
+        call.hasVoicemail == true
         call.voicemailUrl == "${urlRoot}${apiId}"
     }
 }

@@ -204,6 +204,7 @@ class NotificationServiceSpec extends CustomSpec {
         phone1.updateOwner(t1)
         phone1.save(flush:true, failOnError:true)
         Contact contact1 = phone1.createContact([:], ["12223334447"]).payload
+        ContactTag tag1 = phone1.createTag([name:"Tag 1"]).payload
         phone1.save(flush:true, failOnError:true)
 
         Map<Long, Record> phoneIdToRecord = [:]
@@ -224,7 +225,7 @@ class NotificationServiceSpec extends CustomSpec {
         then: "map should be empty, should not have any entries"
         phonesToCanNotify.isEmpty() == true
 
-        when: "has available, no contacts shared"
+        when: "has available, no contacts shared, passing in a contact"
         t1.activeMembers.each { it.isAvailable = true }
         t1.save(flush:true, failOnError:true)
 
@@ -237,6 +238,23 @@ class NotificationServiceSpec extends CustomSpec {
         then: "only this phone to list of available now"
         phonesToCanNotify.size() == 1
         phonesToCanNotify[phone1] instanceof List
+        t1.activeMembers.every { it in phonesToCanNotify[phone1] }
+
+        when: "has available, no contacts shared, passing in both contact and tag"
+        t1.activeMembers.each { it.isAvailable = true }
+        t1.save(flush:true, failOnError:true)
+
+        phoneIdToRecord.clear()
+        staffIdToPersonalPhoneId.clear()
+        phonesToCanNotify.clear()
+        service.populateData(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify,
+            phone1, [contact1], [tag1])
+
+        then: "only this phone to list of available now, tag's record takes precedence over contact's record"
+        phonesToCanNotify.size() == 1
+        phonesToCanNotify[phone1] instanceof List
+        phoneIdToRecord[phone1.id] != contact1.record
+        phoneIdToRecord[phone1.id] == tag1.record
         t1.activeMembers.every { it in phonesToCanNotify[phone1] }
 
         when: "has available, has contacts shared"

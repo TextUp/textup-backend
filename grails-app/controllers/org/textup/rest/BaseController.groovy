@@ -21,7 +21,6 @@ import org.textup.validator.*
 @GrailsCompileStatic
 class BaseController {
 
-    static namespace = "v1" // will be overriden in classes that extend this base class
     static allowedMethods = [index:"GET", save:"POST", show:"GET", update:"PUT", delete:"DELETE"]
     static responseFormats = ["json"]
 
@@ -31,8 +30,8 @@ class BaseController {
     // ---------------
 
     // will be overriden in classes that extend this base class
-    // cannot be getNamespace() becuase that conflicts with the static property of the same name
-    protected String getNamespaceAsString() { namespace }
+    // cannot be getNamespace() because that conflicts with the static property of the same name
+    protected String getNamespaceAsString() { "v1" }
 
     // Validate
     // ----------
@@ -61,16 +60,21 @@ class BaseController {
     // -------
 
     protected <T> void respondWithMany(Class<T> clazz, Closure<Integer> count,
-        Closure<? extends Collection<T>> list, Map<String,? extends Object> params = [:]) {
-        String resourceName = resolveClassToPlural(clazz)
+        Closure<? extends Collection<T>> list, Map<String,? extends Object> params = [:],
+        boolean isPublic = false) {
         Integer max = Helpers.to(Integer, params.max),
             offset = Helpers.to(Integer, params.offset),
             total = count(params)
-        Map<String,? extends Object> linkParams = [namespace:getNamespaceAsString(), resource:resourceName, absolute:false],
+        Map<String,? extends Object> linkParams = [
+                namespace:getNamespaceAsString(),
+                resource:resolveClassToResourceName(clazz, isPublic),
+                action: "index",
+                absolute:false
+            ],
             options = handlePagination(max, offset, total, linkParams)
         // ensure that list has reconciled max and offset values
-        params.max = options.max
-        params.offset = options.offset
+        params.max = (options.meta as Map)?.max
+        params.offset = (options.meta as Map)?.offset
         Collection<T> found = list(params)
         // respond appropriately
         render(status:ResultStatus.OK.apiStatus)
@@ -79,7 +83,7 @@ class BaseController {
                 respond(found, options)
             }
             else {
-                respond(options + [(resourceName):[]]) } // manually display empty list
+                respond(options + [(resolveClassToPlural(clazz)):[]]) } // manually display empty list
         }
     }
     protected <T> void respondWithResult(Class<T> clazz, Result<? extends T> res) {
@@ -94,11 +98,16 @@ class BaseController {
             render([contentType: "text/xml", encoding: "UTF-8"], res.payload as Closure)
         }
         else {
-            String resourceName = resolveClassToSingular(clazz)
             withJsonFormat {
                 response.addHeader(HttpHeaders.LOCATION,
-                    createLink(namespace:getNamespaceAsString(), resource:resourceName,
-                        absolute:true, action:"show", id:getId(res.payload)))
+                    createLink(
+                        namespace:getNamespaceAsString(),
+                        resource:resolveClassToResourceName(clazz),
+                        absolute:true,
+                        action:"show",
+                        id:getId(res.payload)
+                    )
+                )
                 render(status:res.status.apiStatus)
                 respond(res.payload)
             }
@@ -121,12 +130,17 @@ class BaseController {
         render(status:thisStatus)
         withJsonFormat {
             if (resGroup.anySuccesses) {
-                String resourceName = resolveClassToSingular(clazz)
                 List<Result<T>> successes = resGroup.successes
                 Long resourceId = getId(successes.toArray(new Result<T>[successes.size()])[0]?.payload)
                 response.addHeader(HttpHeaders.LOCATION,
-                    createLink(namespace:getNamespaceAsString(), resource:resourceName,
-                        absolute:true, action:"show", id:resourceId))
+                    createLink(
+                        namespace:getNamespaceAsString(),
+                        resource:resolveClassToResourceName(clazz),
+                        absolute:true,
+                        action:"show",
+                        id:resourceId
+                    )
+                )
             }
             respond(responseObj, responseInfo)
         }
@@ -174,6 +188,9 @@ class BaseController {
     }
     @GrailsCompileStatic(TypeCheckingMode.SKIP)
     protected String createLink(Map<?,?> linkParams) {
+        // the generated link must be provided with the CONTROLLER name as the resource
+        // NOT the pluralized resource name. Also, must specify the action and for each action
+        // must provide all necessary information (e.g., id for show/update/delete)
         g.createLink(linkParams)
     }
     @GrailsCompileStatic(TypeCheckingMode.SKIP)
@@ -235,6 +252,22 @@ class BaseController {
             default: return "result"
         }
     }
+    protected String resolveClassToResourceName(Class clazz, boolean isPublic = false) {
+        switch (clazz) {
+            case AvailablePhoneNumber: return "number"
+            case Contactable: return "contact"
+            case ContactTag: return "tag"
+            case FeaturedAnnouncement: return "announcement"
+            case FutureMessage: return "futureMessage"
+            case IncomingSession: return "session"
+            case Notification: return "notify"
+            case Organization: return isPublic ? "publicOrganization" : "organization"
+            case RecordItem: return "record" // will never return records via public API
+            case Staff: return isPublic ? "publicStaff" : "staff"
+            case Team: return "team"
+            default: return "resource"
+        }
+    }
 
     protected Map<String,? extends Object> handlePagination(Integer optMax, Integer optOffset,
         Integer optTotal, Map<String,? extends Object> linkParams = [:]) {
@@ -243,16 +276,17 @@ class BaseController {
         Integer offset = paginationOptions[1]
         Integer total = paginationOptions[2]
         Map<String,String> links = [:]
+
         // if there is an offset, then we need to include previous link
         if (offset > 0) {
             int prevOffset = offset - max
             prevOffset = (prevOffset >= 0) ? prevOffset : 0
-            links.prev = createLink(linkParams + [max:max, offset:prevOffset])
+            links.prev = createLink(linkParams + [params:[max:max, offset:prevOffset]])
         }
         // if there are more results that to display, include next link
         if ((offset + max) < total) {
             int nextOffset = offset + max
-            links.next = createLink(linkParams + [max:max, offset:nextOffset])
+            links.next = createLink(linkParams + [params:[max:max, offset:nextOffset]])
         }
         Map<String,? extends Object> results = [meta:[max:max, offset:offset, total:total]]
         if (links) {

@@ -1,19 +1,33 @@
 package org.textup.rest.marshaller
 
-import org.textup.util.CustomSpec
 import grails.converters.JSON
 import org.textup.*
+import org.textup.type.StaffStatus
+import org.textup.util.CustomSpec
 
 class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
 
     def grailsApplication
+    AuthService authService
+    def _originalIsLoggedIn
+    def _originalIsAdminAtSameOrgAs
 
     def setup() {
-    	setupIntegrationData()
+        setupIntegrationData()
+        authService = grailsApplication.mainContext.getBean('authService')
     }
 
     def cleanup() {
-    	cleanupIntegrationData()
+        cleanupIntegrationData()
+        // restore overriden methods
+        if (_originalIsLoggedIn) {
+            authService.metaClass.isLoggedIn = _originalIsLoggedIn
+            _originalIsLoggedIn = null
+        }
+        if (_originalIsAdminAtSameOrgAs) {
+            authService.metaClass.isAdminAtSameOrgAs = _originalIsAdminAtSameOrgAs
+            _originalIsAdminAtSameOrgAs = null
+        }
     }
 
     protected boolean validate(Map json, Staff s1) {
@@ -80,5 +94,35 @@ class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
         then:
         validate(json, s1)
         json.phone == null
+    }
+
+    void "test marshalling when is admin at organization"() {
+        given:
+        s1.manualSchedule = true
+        s1.isAvailable = true
+        s1.phone.deactivate()
+        s1.save(flush:true, failOnError:true)
+
+        _originalIsLoggedIn = authService.metaClass.isLoggedIn
+        _originalIsAdminAtSameOrgAs = authService.metaClass.isAdminAtSameOrgAs
+        authService.metaClass.isLoggedIn = { Long id -> true }
+        authService.metaClass.isAdminAtSameOrgAs = { Long id -> true }
+
+        when:
+        Map json
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = jsonToObject(s1 as JSON) as Map
+        }
+
+        then:
+        validate(json, s1)
+        json.isAvailable != null
+        json.phone == null
+        json.org instanceof Map
+        json.org.id == s1.org.id
+        json.personalPhoneNumber == s1.personalPhoneNumber.e164PhoneNumber
+        json.teams instanceof List
+        json.teams.size() == s1.getTeams().size()
+        s1.getTeams().every { Team team -> json.teams.find { it.id == team.id } }
     }
 }

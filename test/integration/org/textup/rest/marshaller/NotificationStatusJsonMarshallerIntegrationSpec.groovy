@@ -31,7 +31,8 @@ class NotificationStatusJsonMarshallerIntegrationSpec extends CustomSpec {
     	json.id == stat1.staff.id
     	json.name == stat1.staff.name
     	json.username == stat1.staff.username
-    	json.number == stat1.staff.phone.number.e164PhoneNumber
     	json.canNotify == stat1.canNotify
+        // no longer include phone number to contact. See corresponding class for details
+        json.number == null
 	}
 }

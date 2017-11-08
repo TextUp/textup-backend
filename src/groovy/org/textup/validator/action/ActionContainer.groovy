@@ -57,8 +57,9 @@ class ActionContainer {
 					// pass the data map into the newInstance constructor
 					dataMap.each { Object k, Object v ->
 						String kStr = k?.toString()
-						if (action.hasProperty(kStr)) {
-							action[kStr] = v
+						MetaProperty propertyInfo = action.hasProperty(kStr)
+						if (propertyInfo) {
+							action[kStr] = Helpers.to(propertyInfo.type, v)
 						}
 					}
 					if (action.validate()) { actions << action }

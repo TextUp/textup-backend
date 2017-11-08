@@ -48,7 +48,7 @@ databaseChangeLog = {
 
 	changeSet(author: "ericbai (generated)", id: "1506196842002-5") {
 		addColumn(tableName: "record_item") {
-			column(name: "is_read_only", type: "bit")
+			column(name: "is_read_only", type: "bit", valueBoolean: false)
 		}
 	}
 

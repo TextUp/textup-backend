@@ -95,7 +95,8 @@ class SignupFunctionalSpec extends RestSpec {
         response.json.staff.status == StaffStatus.ADMIN.toString()
         response.json.staff.org instanceof Map
         response.json.staff.org.name == orgN
-        response.json.staff.org.status == OrgStatus.PENDING.toString()
+        // should be PENDING but we are not logged in so cannot see this info
+        response.json.staff.org.status == null
         response.json.roles instanceof List
         response.json.roles.isEmpty() == false
         response.json.roles.contains("ROLE_NO_ROLES") == false
@@ -111,13 +112,18 @@ class SignupFunctionalSpec extends RestSpec {
         then:
         response.status == OK.value()
         response.json.organization.id == orgId
-        response.json.organization.status == OrgStatus.PENDING.toString()
+        response.json.organization.name instanceof String
         response.json.organization.location.address == add
         response.json.organization.location.lat == latitude
         response.json.organization.location.lon == longitude
-        response.json.organization.teams == []
-        response.json.organization.numAdmins == 1
         response.json.organization.links != null
+        // STILL cannot see authenticated information because, by definition, the staff member
+        // must be either STAFF or ADMIN and be at an approved org to be active. Since this org
+        // is not approved, we are not active even though we are logged in
+        response.json.organization.status == null
+        response.json.organization.teams == null
+        response.json.organization.numAdmins == null
+        response.json.organization.timeout == null
     }
 
     void "test signup with existing organization"() {

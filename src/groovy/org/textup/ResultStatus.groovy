@@ -78,6 +78,9 @@ enum ResultStatus {
 	boolean getIsSuccess() { this.intStatus < 400 }
 
 	static ResultStatus convert(HttpStatus status) {
+		if (!status) {
+			return null
+		}
 		ResultStatus foundStat = ResultStatus.values().find { ResultStatus rStat ->
 			rStat.springStatus == status
 		}

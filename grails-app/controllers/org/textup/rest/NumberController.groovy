@@ -11,7 +11,6 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.AvailablePhoneNumber
 
 @GrailsCompileStatic
-@Transactional(readOnly=true)
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class NumberController extends BaseController {
 
@@ -26,6 +25,8 @@ class NumberController extends BaseController {
     ResultFactory resultFactory
     TokenService tokenService
 
+    // requesting list of available twilio numbers
+    @Transactional(readOnly=true)
     def index() {
         String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
         Staff s1 = authService.loggedInAndActive
@@ -46,6 +47,7 @@ class NumberController extends BaseController {
         else { respondWithResult(Object, res) }
     }
 
+    // requesting and checking phone number validation tokens
     def save() {
         Map vInfo = request.properties.JSON as Map
         PhoneNumber pNum = new PhoneNumber(number:vInfo.phoneNumber as String)
@@ -61,6 +63,8 @@ class NumberController extends BaseController {
         }
     }
 
+    // validating phone number against the twilio phone number validator
+    @Transactional(readOnly=true)
     def show() {
         PhoneNumber pNum = new PhoneNumber(number:params.id as String)
         if (!pNum.validate()) {

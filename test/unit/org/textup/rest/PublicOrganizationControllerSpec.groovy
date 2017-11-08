@@ -27,6 +27,7 @@ class PublicOrganizationControllerSpec extends CustomSpec {
     }
     def setup() {
         super.setupData()
+        controller.authService = [getIsActive:{ -> false }] as AuthService
     }
     def cleanup() {
         super.cleanupData()

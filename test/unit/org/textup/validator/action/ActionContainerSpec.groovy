@@ -70,7 +70,8 @@ class ActionContainerSpec extends CustomSpec {
 			],
 			[
 				action:Constants.NUMBER_ACTION_MERGE,
-				number:num
+				number:num,
+				preference: "8" // this string will be cast to an integer
 			]
 		]
 
@@ -84,6 +85,6 @@ class ActionContainerSpec extends CustomSpec {
 		actions[0] instanceof ContactNumberAction
 		actions[0].number == num
 		actions[0].action == Constants.NUMBER_ACTION_MERGE
-		actions[0].preference == 0
+		actions[0].preference == 8
 	}
 }

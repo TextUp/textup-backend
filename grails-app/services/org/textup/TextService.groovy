@@ -51,7 +51,7 @@ class TextService {
         }
         catch (ApiException e) {
             log.error("TextService.tryText: ${e.message}")
-            resultFactory.failWithThrowable(e)
+            resultFactory.failWithThrowable(e, false)
         }
     }
 }
