@@ -55,4 +55,14 @@ class Notification extends BasicNotification {
 	String getOtherName() {
 		this.contact?.getNameOrNumber() ?: this.tag?.name
 	}
+
+	// Methods
+	// -------
+
+	// override toString handler to avoid leaking message contents when this Notification
+	// is logged
+	@Override
+	String toString() {
+		"Notification: tokenId: $tokenId, contact: $contact, tag: $tag"
+	}
 }

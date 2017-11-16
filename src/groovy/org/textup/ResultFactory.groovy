@@ -70,7 +70,10 @@ class ResultFactory {
 
     public <T> Result<T> failForPusher(PusherResult pRes, boolean doRollback = true) {
     	ensureRollbackOnFailure(doRollback)
-    	Result.<T>createError([pRes?.message], ResultStatus.convert(pRes?.httpStatus))
+    	Result.<T>createError([pRes?.message],
+            // anecdotally, PusherResult may have null httpStatus when the network connection is spotty
+            // and the message will be for a `java.net.UnknownHostException`
+            pRes?.httpStatus ? ResultStatus.convert(pRes.httpStatus) : ResultStatus.SERVICE_UNAVAILABLE)
     }
     public <T> Result<T> failForSendGrid(SendGrid.Response response, boolean doRollback = true) {
     	ensureRollbackOnFailure(doRollback)
