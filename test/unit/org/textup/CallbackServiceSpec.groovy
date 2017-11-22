@@ -82,7 +82,11 @@ class CallbackServiceSpec extends CustomSpec {
         	new Result(status:ResultStatus.OK, payload:"notFoundForText")
     	}, notFoundForCall: { ->
     		new Result(status:ResultStatus.OK, payload:"notFoundForCall")
-    	}] as TwimlBuilder
+    	}, invalidNumberForText: { ->
+            new Result(status:ResultStatus.OK, payload:"invalidNumberForText")
+        }, invalidNumberForCall: { ->
+            new Result(status:ResultStatus.OK, payload:"invalidNumberForCall")
+        }] as TwimlBuilder
     }
 
     // Validate
@@ -136,7 +140,9 @@ class CallbackServiceSpec extends CustomSpec {
     void "test process"() {
     	when: "'to' maps to nonexistent phone"
     	HttpServletRequest request = [:] as HttpServletRequest
-    	GrailsParameterMap params = new GrailsParameterMap([To:"invalid"], request)
+        String nonexistentNumber = "8888888888"
+        assert Phone.countByNumberAsString(nonexistentNumber) == 0
+    	GrailsParameterMap params = new GrailsParameterMap([From: nonexistentNumber, To:nonexistentNumber], request)
     	Result<Closure> res = service.process(params)
 
     	then:
@@ -152,6 +158,25 @@ class CallbackServiceSpec extends CustomSpec {
     	res.success == false
     	res.status == ResultStatus.BAD_REQUEST
     	res.errorMessages[0] == "callbackService.process.invalid"
+    }
+
+    void "test process for invalid (non-US) numbers"() {
+        when: "incoming is non-US number for text"
+        HttpServletRequest request = [:] as HttpServletRequest
+        GrailsParameterMap params = new GrailsParameterMap([To:"blah", From:"invalid", MessageSid:"ok"], request)
+        Result<Closure> res = service.process(params)
+
+        then:
+        res.success == true
+        res.payload == "invalidNumberForText"
+
+        when: "incoming is non-US number for call"
+        params = new GrailsParameterMap([To: "blah", From:"invalid", CallSid:"ok"], request)
+        res = service.process(params)
+
+        then:
+        res.success == true
+        res.payload == "invalidNumberForCall"
     }
 
     void "test process for utility call responses"() {
@@ -222,6 +247,7 @@ class CallbackServiceSpec extends CustomSpec {
         //  of the "from" client and the "to" TextUp phone number
         params.originalFrom = clientNum
         params.From = p1.numberAsString
+        params.To = "1112223333"
         Result<Closure> res = service.process(params)
 
         then:

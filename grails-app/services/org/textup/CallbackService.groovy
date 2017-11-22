@@ -104,6 +104,11 @@ class CallbackService {
             //usually handle incoming from session (client) to phone (staff)
             phoneNum = toNum,
             sessionNum = fromNum
+        // check that both to and from numbers are valid US phone numbers
+        if (!fromNum.validate() || !toNum.validate()) {
+            return params.CallSid ? twimlBuilder.invalidNumberForCall() :
+                twimlBuilder.invalidNumberForText()
+        }
         // finish bridge is call from phone to personal phone
         // announcements are from phone to session (client)
         if (params.handle == CallResponse.FINISH_BRIDGE.toString() ||

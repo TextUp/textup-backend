@@ -25,25 +25,21 @@ class MailServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    String stdEmailKey = "textup.mail.standard.email",
-    	stdEmail = "ok@example.com",
-    	selfEmailKey = "textup.mail.self.email",
-    	selfEmail = "self@self.com"
+    Map flatConfig
 
     def setup() {
     	setupData()
-    	service.metaClass.sendMail = { EmailEntity to, EmailEntity from, String subject,
-	    	String contents, String templateId=null ->
+
+        flatConfig = config.flatten()
+        service.grailsApplication.flatConfig = flatConfig
+    	service.metaClass.sendMail = { EmailEntity to, EmailEntity from, String templateId,
+            Map<String, String> data ->
 	    	new Result(status:ResultStatus.OK, payload:[
 	    		to:to,
 	    		from:from,
-	    		subject:subject,
-	    		contents:contents,
-	    		templateId:templateId
+	    		templateId:templateId,
+                data: data
     		])
-	    }
-	    service.metaClass.config = { String key ->
-	    	(key == stdEmailKey) ? stdEmail : ((key == selfEmailKey) ? selfEmail : key)
 	    }
 	    service.messageSource = [getMessage:{ String c, Object[] p, Locale l ->
             c
@@ -66,126 +62,127 @@ class MailServiceSpec extends CustomSpec {
     	res.payload.to.name == s1.name
     	res.payload.to.email == s1.email
     	res.payload.from.validate()
-		res.payload.from.name == "textup.mail.standard.name"
-		res.payload.from.email == stdEmail
-		res.payload.subject == "mail.passwordReset.subject"
-		res.payload.contents == "mail.passwordReset.body"
-		res.payload.templateId == null
+		res.payload.from.name == flatConfig["textup.mail.standard.name"]
+		res.payload.from.email == flatConfig["textup.mail.standard.email"]
+		res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.passwordReset"]
+        res.payload.data.name == s1.name
+        res.payload.data.username == s1.username
+        res.payload.data.link == flatConfig["textup.links.passwordReset"] + token
     }
 
-    void "test signup with new organization"() {
+    void "test pending new organization"() {
     	when:
-    	Result res = service.notifySuperOfNewOrganization("orgName")
+    	Result res = service.notifyAboutPendingOrg(org)
 
     	then:
     	res.success == true
         res.status == ResultStatus.OK
     	res.payload.to.validate()
-    	res.payload.to.name == "textup.mail.self.name"
-    	res.payload.to.email == selfEmail
+        res.payload.to.name == flatConfig["textup.mail.self.name"]
+        res.payload.to.email == flatConfig["textup.mail.self.email"]
     	res.payload.from.validate()
-		res.payload.from.name == "textup.mail.standard.name"
-		res.payload.from.email == stdEmail
-		res.payload.subject == "mail.newOrganizationForSuper.subject"
-		res.payload.contents == "mail.newOrganizationForSuper.body"
-		res.payload.templateId == null
-
-    	when:
-    	res = service.notifyNewOrganizationOfApproval(s1)
-
-    	then:
-    	res.success == true
-        res.status == ResultStatus.OK
-    	res.payload.to.validate()
-    	res.payload.to.name == s1.name
-    	res.payload.to.email == s1.email
-    	res.payload.from.validate()
-		res.payload.from.name == "textup.mail.standard.name"
-		res.payload.from.email == stdEmail
-		res.payload.subject == "mail.approveForNewOrg.subject"
-		res.payload.contents == "mail.approveForNewOrg.body"
-		res.payload.templateId == null
-
-    	when:
-    	res = service.notifyNewOrganizationOfRejection(s1)
-
-    	then:
-    	res.success == true
-        res.status == ResultStatus.OK
-    	res.payload.to.validate()
-    	res.payload.to.name == s1.name
-    	res.payload.to.email == s1.email
-    	res.payload.from.validate()
-		res.payload.from.name == "textup.mail.standard.name"
-		res.payload.from.email == stdEmail
-		res.payload.subject == "mail.rejectForNewOrg.subject"
-		res.payload.contents == "mail.rejectForNewOrg.body"
-		res.payload.templateId == null
+		res.payload.from.name == flatConfig["textup.mail.standard.name"]
+        res.payload.from.email == flatConfig["textup.mail.standard.email"]
+		res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.pendingOrg"]
+        res.payload.data.org == org.name
+        res.payload.data.link == flatConfig["textup.links.superDashboard"]
     }
 
-    void "test signup with existing organization"() {
-    	when: "no admins"
+    void "testing notifying of pending staff"() {
+        when: "no admins"
         // result factory messageSource is the StaticMessageSource managed by
         // CustomSpec. This is a distinct implementation from the mock used
         // to represent the service's MessageSource
-        addToMessageSource("mailService.notifyAdminsOfPendingStaff.noAdmins")
-    	Result res = service.notifyAdminsOfPendingStaff("pendingName", [])
+        addToMessageSource("mailService.notifyAboutPendingStaff.noAdmins")
+        Result res = service.notifyAboutPendingStaff(s3, [])
 
-    	then:
-    	res.success == false
+        then:
+        res.success == false
         res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "mailService.notifyAdminsOfPendingStaff.noAdmins"
+        res.errorMessages[0] == "mailService.notifyAboutPendingStaff.noAdmins"
 
-    	when:
-    	res = service.notifyAdminsOfPendingStaff("pending", [s1, s2])
+        when:
+        res = service.notifyAboutPendingStaff(s3, [s1, s2])
 
-    	then:
-    	res.success == true
+        then:
+        res.success == true
         res.status == ResultStatus.OK
-    	res.payload.size() == 2
-    	res.payload[0].to.validate()
-    	res.payload[0].to.name == s1.name
-    	res.payload[0].to.email == s1.email
-    	res.payload[0].from.validate()
-		res.payload[0].from.name == "textup.mail.standard.name"
-		res.payload[0].from.email == stdEmail
-		res.payload[0].subject == "mail.pendingForAdmin.subject"
-		res.payload[0].contents == "mail.pendingForAdmin.body"
-		res.payload[0].templateId == null
-		res.payload[1].to.validate()
-    	res.payload[1].to.name == s2.name
-    	res.payload[1].to.email == s2.email
+        res.payload.size() == 2
+        res.payload[0].to.validate()
+        res.payload[0].to.name == s1.name
+        res.payload[0].to.email == s1.email
+        res.payload[0].from.validate()
+        res.payload[0].from.name == flatConfig["textup.mail.standard.name"]
+        res.payload[0].from.email == flatConfig["textup.mail.standard.email"]
+        res.payload[0].templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.pendingStaff"]
+        res.payload[0].data.staff == s3.name
+        res.payload[0].data.org == s3.org.name
+        res.payload[0].data.link == flatConfig["textup.links.adminDashboard"]
+        // just check the email recipient, everything else should be the same
+        res.payload[1].to.validate()
+        res.payload[1].to.name == s2.name
+        res.payload[1].to.email == s2.email
+    }
 
-    	when:
-    	res = service.notifyPendingOfApproval(s1)
+    void "test sending new user invitation"() {
+        when:
+        String pwd = "i am a password"
+        String code = "i am a lock code"
+        Result res = service.notifyInvitation(s1, s2, pwd, code)
 
-    	then:
-    	res.success == true
+        then:
+        res.success == true
         res.status == ResultStatus.OK
-    	res.payload.to.validate()
-    	res.payload.to.name == s1.name
-    	res.payload.to.email == s1.email
-    	res.payload.from.validate()
-		res.payload.from.name == "textup.mail.standard.name"
-		res.payload.from.email == stdEmail
-		res.payload.subject == "mail.approveForPending.subject"
-		res.payload.contents == "mail.approveForPending.body"
-		res.payload.templateId == null
+        res.payload.to.validate()
+        res.payload.to.name == s2.name
+        res.payload.to.email == s2.email
+        res.payload.from.validate()
+        res.payload.from.name == flatConfig["textup.mail.standard.name"]
+        res.payload.from.email == flatConfig["textup.mail.standard.email"]
+        res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.invited"]
+        res.payload.data.inviter == s1.name
+        res.payload.data.invitee == s2.name
+        res.payload.data.username == s2.username
+        res.payload.data.password == pwd
+        res.payload.data.lockCode == code
+        res.payload.data.link == flatConfig["textup.links.setupAccount"]
+    }
 
-    	when:
-    	res = service.notifyPendingOfRejection(s1)
+    void "test sending approval"() {
+        when:
+        Result res = service.notifyApproval(s1)
 
-    	then:
-    	res.success == true
+        then:
+        res.success == true
         res.status == ResultStatus.OK
-    	res.payload.to.validate()
-    	res.payload.to.name == s1.name
-    	res.payload.to.email == s1.email
-    	res.payload.from.validate()
-		res.payload.from.name == "textup.mail.standard.name"
-		res.payload.from.email == stdEmail
-		res.payload.subject == "mail.rejectForPending.subject"
-		res.payload.contents == "mail.rejectForPending.body"
-		res.payload.templateId == null
+        res.payload.to.validate()
+        res.payload.to.name == s1.name
+        res.payload.to.email == s1.email
+        res.payload.from.validate()
+        res.payload.from.name == flatConfig["textup.mail.standard.name"]
+        res.payload.from.email == flatConfig["textup.mail.standard.email"]
+        res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.approved"]
+        res.payload.data.name == s1.name
+        res.payload.data.username == s1.username
+        res.payload.data.org == s1.org.name
+        res.payload.data.link == flatConfig["textup.links.setupAccount"]
+    }
+
+    void "test sending rejection"() {
+        when:
+        Result res = service.notifyRejection(s1)
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload.to.validate()
+        res.payload.to.name == s1.name
+        res.payload.to.email == s1.email
+        res.payload.from.validate()
+        res.payload.from.name == flatConfig["textup.mail.standard.name"]
+        res.payload.from.email == flatConfig["textup.mail.standard.email"]
+        res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.rejected"]
+        res.payload.data.name == s1.name
+        res.payload.data.username == s1.username
     }
 }

@@ -37,10 +37,10 @@ class SuperControllerSpec extends CustomSpec {
         	reauthenticate:{ String un -> }
         ] as SpringSecurityService
         controller.mailService = [
-        	notifyNewOrganizationOfRejection:{ Staff s1 ->
+        	notifyRejection:{ Staff s1 ->
         		new Result(status:ResultStatus.OK, payload:null)
     		},
-			notifyNewOrganizationOfApproval:{ Staff s1 ->
+			notifyApproval:{ Staff s1 ->
 				new Result(status:ResultStatus.OK, payload:null)
 			},
         ] as MailService

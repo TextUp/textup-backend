@@ -171,16 +171,17 @@ class StaffService {
     protected Result<Staff> notifyAfterCreation(Staff s1, Organization o1, Map body) {
         Result<?> res
         if (o1.status == OrgStatus.PENDING) {
-            res = mailService.notifySuperOfNewOrganization(o1.name)
+            res = mailService.notifyAboutPendingOrg(o1)
         }
         else if (s1.status == StaffStatus.PENDING) {
-            res = mailService.notifyAdminsOfPendingStaff(s1.name, o1.getAdmins())
+            res = mailService.notifyAboutPendingStaff(s1, o1.getAdmins())
         }
         else if (s1.status == StaffStatus.STAFF) {
             String pwd = body.password as String,
                 lockCode = body.lockCode ? body.lockCode as String :
                     Constants.DEFAULT_LOCK_CODE
-            res = mailService.notifyStaffOfSignup(s1, pwd, lockCode)
+            Staff invitedBy = authService.loggedIn
+            res = mailService.notifyInvitation(invitedBy, s1, pwd, lockCode)
         }
 
         if (res?.success) {
@@ -202,8 +203,8 @@ class StaffService {
                 // email notifications if changing away from pending
                 if (oldStatus.isPending && !s1.status.isPending) {
                     Result<?> res = s1.status.isActive ?
-                        mailService.notifyPendingOfApproval(s1) :
-                        mailService.notifyPendingOfRejection(s1)
+                        mailService.notifyApproval(s1) :
+                        mailService.notifyRejection(s1)
                     if (!res.success) {
                         return resultFactory.failWithResultsAndStatus([res], res.status)
                     }

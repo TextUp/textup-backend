@@ -24,6 +24,22 @@ class TwimlBuilder {
     // Errors
     // ------
 
+    Result<Closure> invalidNumberForText() {
+        String invalidNumber = getMessage("twimlBuilder.invalidNumber")
+        resultFactory.success({
+            Response { Message(invalidNumber) }
+        })
+    }
+    Result<Closure> invalidNumberForCall() {
+        String invalidNumber = getMessage("twimlBuilder.invalidNumber")
+        resultFactory.success({
+            Response {
+                Say(invalidNumber)
+                Hangup()
+            }
+        })
+    }
+
     Result<Closure> notFoundForText() {
         String notFound = getMessage("twimlBuilder.notFound")
         resultFactory.success({

@@ -49,6 +49,36 @@ class TwimlBuilderSpec extends CustomSpec {
         writer.toString()
     }
 
+    void "test invalid number responses"() {
+        given: "twiml builder"
+        TwimlBuilder builder = new TwimlBuilder()
+        builder.resultFactory = getResultFactory()
+        builder.resultFactory.messageSource = mockMessageSource()
+        builder.messageSource = mockMessageSource()
+        builder.linkGenerator = mockLinkGenerator()
+
+        when: "invalid number for call"
+        Result<Closure> res = builder.invalidNumberForCall()
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response {
+                Say("twimlBuilder.invalidNumber")
+                Hangup()
+            }
+        })
+
+        when: "invalid number for text"
+        res = builder.invalidNumberForText()
+
+        then:
+        res.success == true
+        buildXml(res.payload) == buildXml({
+            Response { Message("twimlBuilder.invalidNumber") }
+        })
+    }
+
     void "test not found responses"() {
         given: "twiml builder"
         TwimlBuilder builder = new TwimlBuilder()

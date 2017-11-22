@@ -33,19 +33,19 @@ class StaffServiceSpec extends CustomSpec {
         super.setupData()
         service.resultFactory = getResultFactory()
         service.mailService = [
-            notifyAdminsOfPendingStaff: { String pendingName, List<Staff> admins ->
+            notifyAboutPendingStaff: { Staff s1, List<Staff> admins ->
                 new Result(status:ResultStatus.OK, payload:null)
             },
-            notifySuperOfNewOrganization: { String orgName ->
+            notifyAboutPendingOrg: { Organization org1 ->
                 new Result(status:ResultStatus.OK, payload:null)
             },
-            notifyPendingOfApproval: { Staff approvedStaff ->
+            notifyApproval: { Staff approvedStaff ->
                 new Result(status:ResultStatus.OK, payload:null)
             },
-            notifyPendingOfRejection: { Staff rejectedStaff ->
+            notifyRejection: { Staff rejectedStaff ->
                 new Result(status:ResultStatus.OK, payload:null)
             },
-            notifyStaffOfSignup: { Staff s1, String password ->
+            notifyInvitation: { Staff invitedBy, Staff s1, String password, String lockCode ->
                 new Result(status:ResultStatus.OK, payload:null)
             }
         ] as MailService

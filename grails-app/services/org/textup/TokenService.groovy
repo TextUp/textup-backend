@@ -86,7 +86,7 @@ class TokenService {
             .then({ Token t1 ->
                 t1.expires = DateTime.now(DateTimeZone.UTC).plusDays(1)
                 String notifyLink = grailsApplication
-                    .flatConfig["textup.links.notifyStaff"]
+                    .flatConfig["textup.links.notifyMessage"]
                 String notification = "${instr} \n\n ${notifyLink + t1.token}"
                 textService
                     .send(p1.number, [s1.personalPhoneNumber], notification)

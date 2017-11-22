@@ -1,5 +1,6 @@
 package org.textup.validator
 
+import com.sendgrid.Email
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import spock.lang.Shared
@@ -10,7 +11,7 @@ import spock.lang.Unroll
 @Unroll
 class EmailEntitySpec extends Specification {
 
-	void "test constraints"() {
+	void "test constraints and conversion"() {
 		when: "all fields are null"
 		EmailEntity emailEnt = new EmailEntity()
 
@@ -30,5 +31,12 @@ class EmailEntitySpec extends Specification {
 
 		then: "valid"
 		emailEnt.validate() == true
+
+		when: "converting a SendGrid email"
+		Email email1 = emailEnt.toEmail()
+
+		then:
+		email1.name == emailEnt.name
+		email1.email == emailEnt.email
 	}
 }

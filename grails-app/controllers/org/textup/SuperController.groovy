@@ -76,7 +76,7 @@ class SuperController {
             org.status = OrgStatus.REJECTED
             if (org.save()) {
                 flash.messages = ["Successfully rejected ${org.name}"]
-                Result res = mailService.notifyNewOrganizationOfRejection(org.getAdmins()[0])
+                Result res = mailService.notifyRejection(org.getAdmins()[0])
                 if (!res.success) {
                     log.error("SuperController.rejectOrg: could not notify \
                         $org of rejection: ${res.payload}")
@@ -100,7 +100,7 @@ class SuperController {
             org.status = OrgStatus.APPROVED
             if (org.save()) {
                 flash.messages = ["Successfully approved ${org.name}"]
-                Result res = mailService.notifyNewOrganizationOfApproval(org.getAdmins()[0])
+                Result res = mailService.notifyApproval(org.getAdmins()[0])
                 if (!res.success) {
                     log.error("SuperController.approveOrg: could not notify \
                         $org of approval: ${res.payload}")

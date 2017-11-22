@@ -235,10 +235,11 @@ textup {
         }
     }
     links {
+        adminDashboard = System.getenv("URL_ADMIN_DASHBOARD") ?: (System.getProperty("URL_ADMIN_DASHBOARD") ?: "https://app.textup.org/#/admin")
+        setupAccount = System.getenv("URL_SETUP_ACCOUNT") ?: (System.getProperty("URL_SETUP_ACCOUNT") ?: "https://app.textup.org/#/setup")
+        superDashboard = System.getenv("URL_SUPER_DASHBOARD") ?: (System.getProperty("URL_SUPER_DASHBOARD") ?: "https://v2.textup.org/super")
         passwordReset = System.getenv("URL_PASSWORD_RESET") ?: (System.getProperty("URL_PASSWORD_RESET") ?: "https://app.textup.org/#/reset?token=")
-        setupNewOrg = System.getenv("URL_SETUP_NEW_ORG") ?: (System.getProperty("URL_SETUP_NEW_ORG") ?: "https://app.textup.org/#/setup")
-        setupExistingOrg = System.getenv("URL_SETUP_EXISTING_ORG") ?: (System.getProperty("URL_SETUP_EXISTING_ORG") ?: "https://app.textup.org/#/setup")
-        notifyStaff = System.getenv("URL_NOTIFY_STAFF") ?: (System.getProperty("URL_NOTIFY_STAFF") ?: "https://app.textup.org/#/notify?token=")
+        notifyMessage = System.getenv("URL_NOTIFY_MESSAGE") ?: (System.getProperty("URL_NOTIFY_MESSAGE") ?: "https://app.textup.org/#/notify?token=")
     }
 
     //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
@@ -256,10 +257,17 @@ textup {
             secretKey = System.getenv("AWS_SECRET_KEY") ?: System.getProperty("AWS_SECRET_KEY")
         }
         sendGrid {
-            username = System.getenv("SENDGRID_USERNAME") ?: System.getProperty("SENDGRID_USERNAME")
-            password = System.getenv("SENDGRID_PASSWORD") ?: System.getProperty("SENDGRID_PASSWORD")
+            apiKey = System.getenv("SENDGRID_API_KEY") ?: System.getProperty("SENDGRID_API_KEY")
             templateIds {
-                standard = "6c024f79-e180-4f96-bfad-4178dc0204ab"
+                invited = "87c36daa-c4a8-4f33-8539-22005cd252a8"
+                approved = "7346d586-4466-4982-abfe-7a891e51c0a1"
+                pendingOrg = "0f13e96f-e673-481f-95a0-8d1044b5afe9"
+                pendingStaff = "9bb56ba3-902f-4207-8e75-3b2ebf347a51"
+                passwordReset = "b4e228a7-2b1e-4f80-a4dc-42eb3205c538"
+                rejected = "d3287be3-b427-4010-9591-71d7aaf5f040"
+            }
+            groupIds {
+                account = 8717
             }
         }
         pusher {

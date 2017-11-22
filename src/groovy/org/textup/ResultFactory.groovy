@@ -1,7 +1,7 @@
 package org.textup
 
 import com.pusher.rest.data.Result as PusherResult
-import com.sendgrid.SendGrid
+import com.sendgrid.Response as SendGridResponse
 import grails.compiler.GrailsCompileStatic
 import groovy.util.logging.Log4j
 import org.springframework.beans.factory.annotation.Autowired
@@ -75,9 +75,9 @@ class ResultFactory {
             // and the message will be for a `java.net.UnknownHostException`
             pRes?.httpStatus ? ResultStatus.convert(pRes.httpStatus) : ResultStatus.SERVICE_UNAVAILABLE)
     }
-    public <T> Result<T> failForSendGrid(SendGrid.Response response, boolean doRollback = true) {
+    public <T> Result<T> failForSendGrid(SendGridResponse response, boolean doRollback = true) {
     	ensureRollbackOnFailure(doRollback)
-    	Result.<T>createError([response.message], ResultStatus.convert(response.code))
+    	Result.<T>createError([response.body], ResultStatus.convert(response.statusCode))
     }
 
     // Helpers
