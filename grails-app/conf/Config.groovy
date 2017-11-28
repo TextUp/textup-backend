@@ -204,7 +204,7 @@ grails.doc.authors = "Eric Bai"
 grails.doc.license = "MIT"
 
 textup {
-    maxNumText = 250 //max number of recipients to text
+    maxNumText = 500 //max number of recipients to text
     maxNumImages = 10 //max number of images allowed per note
     maxImageSizeInBytes = 1000000 //max size in bytes for each image
     imageCompressionQualty = 0.5
