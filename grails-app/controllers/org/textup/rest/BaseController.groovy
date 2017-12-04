@@ -36,24 +36,43 @@ class BaseController {
     // Validate
     // ----------
 
-    protected boolean validateJsonRequest(HttpServletRequest req) {
-        validateJsonRequest(null, req)
+    protected Map getJsonPayload(HttpServletRequest req) {
+        getJsonPayload(null, req)
     }
-    protected boolean validateJsonRequest(Class clazz, HttpServletRequest req) {
+    protected Map getJsonPayload(Class clazz, HttpServletRequest req) {
         String requiredRoot = clazz ? resolveClassToSingular(clazz) : null
         try {
-            Map json = req.properties.JSON as Map
-            if (json == null || (requiredRoot && json[requiredRoot] == null)) {
-                badRequest()
-                return false
+            Map json = getRequestJson(req)
+            if (requiredRoot) {
+                if (json == null || json[requiredRoot] == null) {
+                    badRequest(); return null;
+                }
+                else { return Helpers.to(Map, json[requiredRoot]) }
+            }
+            else { // no required root so just make sure json is not null
+                if (json == null) {
+                    badRequest(); return null;
+                }
+                else { return json }
             }
         }
         catch (e) {
-            log.debug "BaseController.validateJsonRequest with root '$requiredRoot': ${e.message}"
+            log.debug "BaseController.getJsonPayload with root '$requiredRoot': ${e.message}"
             badRequest()
-            return false
+            return null
         }
-        return true
+    }
+    // (1) Access `request.properties` results in `[Fatal Error] :1:1: Content is not allowed in prolog.`
+    // printed to the console each time after the first time this property is accessed. This might
+    // be because we only use the JSON property so the XML property is null. We resolve this issue
+    // by only accessing the JSON property such that the XML property is never accessed because
+    // we are not resolving all properties with `request.properties`.
+    // (2) The reason we need to skip type checking here is that Grails dynamically adds
+    // additional properties to `HttpServletRequest` and, because these properties are dynamic,
+    // they are not added to the interface and the compiler fails
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    protected Map getRequestJson(HttpServletRequest req) {
+        req.JSON
     }
 
     // Respond

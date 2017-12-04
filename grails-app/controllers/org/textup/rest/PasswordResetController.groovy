@@ -32,8 +32,8 @@ class PasswordResetController extends BaseController {
             not found or has no email."),
     ])
     def requestReset() {
-        if (!validateJsonRequest(request)) { return }
-        Map info = request.properties.JSON as Map
+        Map info = getJsonPayload(request)
+        if (info == null) { return }
         if (!info.username) {
             badRequest()
         }
@@ -48,8 +48,8 @@ class PasswordResetController extends BaseController {
         @RestApiError(code="422", description="The new password is invalid.")
     ])
     def resetPassword() {
-        if (!validateJsonRequest(request)) { return }
-        Map info = request.properties.JSON as Map
+        Map info = getJsonPayload(request)
+        if (info == null) { return }
         if (!info.token || !info.password) {
             return badRequest()
         }

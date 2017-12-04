@@ -109,8 +109,8 @@ class TeamController extends BaseController {
             create a new team for this organization.")
     ])
     def save() {
-        if (!validateJsonRequest(Team, request)) { return }
-        Map tInfo = (request.properties.JSON as Map).team as Map
+        Map tInfo = getJsonPayload(Team, request)
+        if (tInfo == null) { return }
         respondWithResult(Team, teamService.create(tInfo))
     }
 
@@ -130,11 +130,11 @@ class TeamController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid team.")
     ])
     def update() {
-        if (!validateJsonRequest(Team, request)) { return }
+        Map tInfo = getJsonPayload(Team, request)
+        if (tInfo == null) { return }
         Long id = params.long("id")
         if (authService.exists(Team, id)) {
             if (authService.hasPermissionsForTeam(id)) {
-                Map tInfo = (request.properties.JSON as Map).team as Map
                 respondWithResult(Team, teamService.update(id, tInfo))
             }
             else { forbidden() }

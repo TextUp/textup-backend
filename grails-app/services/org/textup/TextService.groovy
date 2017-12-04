@@ -35,7 +35,7 @@ class TextService {
         }
         // if still not returned, that means that none of the numbers worked
         resultFactory.failWithCodeAndStatus("textService.text.allFailed",
-            ResultStatus.UNPROCESSABLE_ENTITY)
+            ResultStatus.UNPROCESSABLE_ENTITY, null, false)
 	}
 
     protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,

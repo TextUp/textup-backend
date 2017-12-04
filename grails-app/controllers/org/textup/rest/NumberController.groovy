@@ -49,7 +49,8 @@ class NumberController extends BaseController {
 
     // requesting and checking phone number validation tokens
     def save() {
-        Map vInfo = request.properties.JSON as Map
+        Map vInfo = getJsonPayload(request)
+        if (vInfo == null) { return }
         PhoneNumber pNum = new PhoneNumber(number:vInfo.phoneNumber as String)
         String token = vInfo.token
         if (pNum.validate()) {

@@ -107,8 +107,8 @@ class AnnouncementController extends BaseController {
             add this announcement to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(FeaturedAnnouncement, request)) { return }
-    	Map aInfo = (request.properties.JSON as Map).announcement as Map
+        Map aInfo = getJsonPayload(FeaturedAnnouncement, request)
+        if (aInfo == null) { return }
         if (params.long("teamId")) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
@@ -145,9 +145,9 @@ class AnnouncementController extends BaseController {
             invalid announcement.")
     ])
     def update() {
-    	if (!validateJsonRequest(FeaturedAnnouncement, request)) { return }
+        Map aInfo = getJsonPayload(FeaturedAnnouncement, request)
+        if (aInfo == null) { return }
     	Long id = params.long("id")
-        Map aInfo = (request.properties.JSON as Map).announcement as Map
     	if (authService.exists(FeaturedAnnouncement, id)) {
     		if (authService.hasPermissionsForAnnouncement(id)) {
     			respondWithResult(FeaturedAnnouncement, announcementService.update(id, aInfo))

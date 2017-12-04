@@ -120,8 +120,8 @@ class SessionController extends BaseController {
             add this session to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(IncomingSession, request)) { return }
-    	Map sessInfo = (request.properties.JSON as Map).session as Map
+        Map sessInfo = getJsonPayload(IncomingSession, request)
+        if (sessInfo == null) { return }
         if (params.long("teamId")) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
@@ -155,9 +155,9 @@ class SessionController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid session.")
     ])
     def update() {
-    	if (!validateJsonRequest(IncomingSession, request)) { return }
+        Map sessInfo = getJsonPayload(IncomingSession, request)
+        if (sessInfo == null) { return }
     	Long id = params.long("id")
-        Map sessInfo = (request.properties.JSON as Map).session as Map
     	if (authService.exists(IncomingSession, id)) {
     		if (authService.hasPermissionsForSession(id)) {
     			respondWithResult(IncomingSession, sessionService.update(id, sessInfo))

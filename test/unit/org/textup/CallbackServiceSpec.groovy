@@ -125,7 +125,7 @@ class CallbackServiceSpec extends CustomSpec {
 			getAttribute: { String n -> "" },
 			getHeader: { String n -> toMatch }
     	] as HttpServletRequest
-        request.metaClass.getProperties = { ["forwardURI":""] }
+        request.metaClass.forwardURI = ""
     	GrailsParameterMap allParams = new GrailsParameterMap([test1:"hello",
     		test2:"bye", test3:"kiki"], request)
     	Result res = service.validate(request, allParams)

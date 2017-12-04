@@ -111,8 +111,8 @@ class TagController extends BaseController {
             not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(ContactTag, request)) { return }
-    	Map tagInfo = (request.properties.JSON as Map).tag as Map
+        Map tagInfo = getJsonPayload(ContactTag, request)
+        if (tagInfo == null) { return }
         if (params.long("teamId")) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
@@ -146,9 +146,9 @@ class TagController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid tag.")
     ])
     def update() {
-    	if (!validateJsonRequest(ContactTag, request)) { return }
+        Map tagInfo = getJsonPayload(ContactTag, request)
+        if (tagInfo == null) { return }
     	Long id = params.long("id")
-        Map tagInfo = (request.properties.JSON as Map).tag as Map
     	if (authService.exists(ContactTag, id)) {
     		if (authService.hasPermissionsForTag(id)) {
     			respondWithResult(ContactTag, tagService.update(id, tagInfo))

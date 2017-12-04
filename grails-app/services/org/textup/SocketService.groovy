@@ -78,20 +78,20 @@ class SocketService {
                     if (pRes.status == PusherStatus.SUCCESS) {
                         resultFactory.success(s1)
                     }
-                    else { resultFactory.failForPusher(pRes) }
+                    else { resultFactory.failForPusher(pRes, false) } // don't rollback transaction
                 }
                 else { resultFactory.success(s1) }
             }
             catch (e) {
                 log.error("SocketService.sendToDataToStaff: error: ${e.message}")
-                resultFactory.failWithThrowable(e)
+                resultFactory.failWithThrowable(e, false) // don't rollback transaction
             }
         }
         else {
             log.error("SocketService.sendToDataToStaff: error: ${pRes}, \
                 pRes.status: ${pRes.status}, \
                 pRes.message: ${pRes.message}")
-            resultFactory.failForPusher(pRes)
+            resultFactory.failForPusher(pRes, false) // don't rollback transaction
         }
     }
 }

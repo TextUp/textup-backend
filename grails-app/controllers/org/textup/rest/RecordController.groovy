@@ -178,8 +178,8 @@ class RecordController extends BaseController {
     ])
     @OptimisticLockingRetry
     def save() {
-        if (!validateJsonRequest(RecordItem, request)) { return }
-        Map rInfo = (request.properties.JSON as Map).record as Map
+        Map rInfo = getJsonPayload(RecordItem, request)
+        if (rInfo == null) { return }
         Long tId = params.long("teamId")
         if (tId) {
             respondWithResult(RecordItem, recordService.createForTeam(tId, rInfo))
@@ -203,9 +203,9 @@ class RecordController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid note.")
     ])
     def update() {
-        if (!validateJsonRequest(RecordItem, request)) { return }
+        Map noteInfo = getJsonPayload(RecordItem, request)
+        if (noteInfo == null) { return }
         Long id = params.long("id")
-        Map noteInfo = (request.properties.JSON as Map).record as Map
         if (authService.exists(RecordNote, id)) {
             if (authService.hasPermissionsForItem(id)) {
                 respondWithResult(RecordItem, recordService.update(id, noteInfo))

@@ -225,8 +225,8 @@ class ContactController extends BaseController {
             add this contact to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(Contactable, request)) { return }
-        Map contactInfo = (request.properties.JSON as Map).contact as Map
+        Map contactInfo = getJsonPayload(Contactable, request)
+        if (contactInfo == null) { return }
         if (params.teamId) {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
@@ -258,13 +258,13 @@ class ContactController extends BaseController {
     ])
     @OptimisticLockingRetry
     def update() {
-    	if (!validateJsonRequest(Contactable, request)) { return }
+        Map contactInfo = getJsonPayload(Contactable, request)
+        if (contactInfo == null) { return }
         Long id = params.long("id")
         if (authService.exists(Contact, id)) {
             if (authService.hasPermissionsForContact(id) ||
                 authService.getSharedContactIdForContact(id)) {
-                Map cInfo = (request.properties.JSON as Map).contact as Map
-                respondWithResult(Contactable, contactService.update(id, cInfo))
+                respondWithResult(Contactable, contactService.update(id, contactInfo))
             }
             else { forbidden() }
         }

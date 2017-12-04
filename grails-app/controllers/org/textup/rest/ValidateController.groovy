@@ -28,7 +28,8 @@ class ValidateController extends BaseController {
         @RestApiError(code="403", description="Passed-in fields are invalid.")
     ])
 	def save() {
-		Map data = request.properties.JSON as Map
+		Map data = getJsonPayload(request)
+        if (data == null) { return }
 		String un = data.username
 		if (un && data.password) {
 			authService.isValidUsernamePassword(un, data.password as String) ?

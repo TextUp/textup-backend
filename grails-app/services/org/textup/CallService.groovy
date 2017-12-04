@@ -66,7 +66,7 @@ class CallService {
                 }
             }
             resultFactory.failWithCodeAndStatus("callService.start.missingInfoOrAllFailed",
-                ResultStatus.UNPROCESSABLE_ENTITY)
+                ResultStatus.UNPROCESSABLE_ENTITY, null, false)
         }
     }
     Result<TempRecordReceipt> retry(PhoneNumber fromNum,
@@ -85,7 +85,7 @@ class CallService {
         Map afterPickup, String callback) {
         if (!fromNum || !toNum) {
             resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
-                ResultStatus.UNPROCESSABLE_ENTITY)
+                ResultStatus.UNPROCESSABLE_ENTITY, null, false)
         }
         String afterLink = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:afterPickup)

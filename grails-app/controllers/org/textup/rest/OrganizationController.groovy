@@ -104,13 +104,13 @@ class OrganizationController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid organization.")
     ])
     def update() {
-        if (!validateJsonRequest(Organization, request)) { return }
+        Map oInfo = getJsonPayload(Organization, request)
+        if (oInfo == null) { return }
         Long id = params.long("id")
         if (authService.exists(Organization, id)) {
             if (!authService.isAdminAt(id)) {
                 return forbidden()
             }
-            Map oInfo = (request.properties.JSON as Map).organization as Map
             respondWithResult(Organization, organizationService.update(id, oInfo))
         }
         else { notFound() }

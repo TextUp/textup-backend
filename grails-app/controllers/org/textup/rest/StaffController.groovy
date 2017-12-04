@@ -172,8 +172,8 @@ class StaffController extends BaseController {
             description="The updated fields created an invalid staff member.")
     ])
     def save() {
-        if (!validateJsonRequest(Staff, request)) { return }
-        Map sInfo = (request.properties.JSON as Map).staff as Map
+        Map sInfo = getJsonPayload(Staff, request)
+        if (sInfo == null) { return }
         String tz = params.timezone as String
         if (tz) { //for the json marshaller
             request.setAttribute("timezone", tz)
@@ -204,12 +204,12 @@ class StaffController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid staff member.")
     ])
     def update() {
-        if (!validateJsonRequest(Staff, request)) { return }
+        Map sInfo = getJsonPayload(Staff, request)
+        if (sInfo == null) { return }
         String tz = params.timezone as String
         if (params.timezone) { //for the json marshaller
             request.setAttribute("timezone", tz)
         }
-        Map sInfo = (request.properties.JSON as Map).staff as Map
         Long id = params.long("id")
         if (authService.exists(Staff, id)) {
             if (authService.isLoggedIn(id) || authService.isAdminAtSameOrgAs(id)) {

@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import groovy.transform.TypeCheckingMode
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
@@ -24,7 +25,7 @@ class CallbackService {
 	// ----------------
 
     Result<Void> validate(HttpServletRequest request, GrailsParameterMap params) {
-        String browserURL = (request.requestURL.toString() - request.requestURI) + request.properties.forwardURI,
+        String browserURL = (request.requestURL.toString() - request.requestURI) + getForwardURI(request),
             authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
             authHeaderName = "x-twilio-signature",
             authHeader = request.getHeader(authHeaderName)
@@ -62,6 +63,11 @@ class CallbackService {
             isAuth = (encoded == authHeader)
         }
         isAuth ? resultFactory.success() : invalidResult
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    protected String getForwardURI(HttpServletRequest request) {
+        request.getForwardURI()
     }
 
     protected Map<String,String> extractTwilioParams(HttpServletRequest request,

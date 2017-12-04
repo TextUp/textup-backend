@@ -18,8 +18,8 @@ class SignupFunctionalSpec extends RestSpec {
         setupData()
         // mock mail sending
         remote.exec({
-            ctx.mailService.metaClass.sendMail = { EmailEntity to, EmailEntity from,
-                String subject, String contents, String templateId=null ->
+            ctx.mailService.metaClass.sendMail = {  EmailEntity toEntity, EmailEntity fromEntity,
+                String templateId1, Map<String, String> data=[:] ->
                 ctx.resultFactory.success()
             }
             ctx.staffService.metaClass.verifyCreateRequest = { Map body ->

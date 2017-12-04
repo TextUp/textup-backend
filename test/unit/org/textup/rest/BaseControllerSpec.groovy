@@ -43,40 +43,42 @@ class BaseControllerSpec extends CustomSpec {
     void "test validating json requests"() {
         when: "invalid json without specified class"
         request.json = "{'invaild:{}}"
-        boolean outcome = controller.validateJsonRequest(request)
+        Map payload = controller.getJsonPayload(request)
 
         then: "bad request"
-        outcome == false
+        payload == null
         response.status == SC_BAD_REQUEST
     }
 
     void "test validating json requests"() {
         when: "valid json without specified class"
         request.json = "{'valid':{}}"
-        boolean outcome = controller.validateJsonRequest(request)
+        Map payload = controller.getJsonPayload(request)
 
         then:
-        outcome == true
+        payload instanceof Map
+        payload.valid instanceof Map
         response.status == SC_OK
     }
 
     void "test validating json requests"() {
         when: "invalid json with class specified"
         request.json = "{'contact':{'invalid:123}}"
-        boolean outcome = controller.validateJsonRequest(Contact, request)
+        Map payload = controller.getJsonPayload(Contact, request)
 
         then: "bad request"
-        outcome == false
+        payload == null
         response.status == SC_BAD_REQUEST
     }
 
     void "test validating json requests"() {
         when: "valid json with class specified"
         request.json = "{'contact':{'valid':123}}"
-        boolean outcome = controller.validateJsonRequest(Contact, request)
+        Map payload = controller.getJsonPayload(Contact, request)
 
-        then:
-        outcome == true
+        then: "parses and returns the payload WITHOUT the root `contact`"
+        payload instanceof Map
+        payload.valid == 123
         response.status == SC_OK
     }
 

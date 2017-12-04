@@ -138,8 +138,8 @@ class FutureMessageController extends BaseController {
             add this message to was not found.")
     ])
     def save() {
-    	if (!validateJsonRequest(FutureMessage, request)) { return }
-    	Map fInfo = (request.properties.JSON as Map)["future-message"] as Map
+        Map fInfo = getJsonPayload(FutureMessage, request)
+        if (fInfo == null) { return }
         String tz = params.timezone as String
         if (!Helpers.exactly(1, ["contactId", "tagId"], params)) {
             badRequest()
@@ -193,11 +193,11 @@ class FutureMessageController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid message.")
     ])
     def update() {
-    	if (!validateJsonRequest(FutureMessage, request)) { return }
+        Map fInfo = getJsonPayload(FutureMessage, request)
+        if (fInfo == null) { return }
     	Long id = params.long("id")
         if (authService.exists(FutureMessage, id)) {
             if (authService.hasPermissionsForFutureMessage(id)) {
-                Map fInfo = (request.properties.JSON as Map)["future-message"] as Map
                 String tz = params.timezone as String
                 respondWithResult(FutureMessage, futureMessageService.update(id, fInfo, tz))
             }

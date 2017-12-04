@@ -73,6 +73,9 @@ class PublicRecordControllerSpec extends CustomSpec {
     }
 
     void "test updating status for not found receipt"() {
+        given:
+        addToMessageSource("recordService.updateStatus.receiptsNotFound")
+
         when:
         mockValidate()
         request.method = "POST"
