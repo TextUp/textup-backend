@@ -268,6 +268,22 @@ class WeeklyScheduleSpec extends Specification {
     		new LocalTime(18, 0), new LocalTime(23, 59))]
     	s.getAllAsLocalIntervals(tz).monday == [new LocalInterval(
     		new LocalTime(0, 0), new LocalTime(0, 30))]
+
+        when: "update on the edge of timezones"
+        tz = "America/New_York"
+        assert s.updateWithIntervalStrings([
+            tuesday:["0100:0130", "1900:2100"],
+            wednesday:["0100:0130", "0600:1200","1300:1700","1900:2100"]], tz).success
+
+        then:
+        s.getAllAsLocalIntervals(tz).tuesday == [
+            new LocalInterval(new LocalTime(1, 0), new LocalTime(1, 30)),
+            new LocalInterval(new LocalTime(19, 0), new LocalTime(21, 0))]
+        s.getAllAsLocalIntervals(tz).wednesday == [
+            new LocalInterval(new LocalTime(1, 0), new LocalTime(1, 30)),
+            new LocalInterval(new LocalTime(6, 0), new LocalTime(12, 0)),
+            new LocalInterval(new LocalTime(13, 0), new LocalTime(17, 0)),
+            new LocalInterval(new LocalTime(19, 0), new LocalTime(21, 0))]
     }
 
     void "test updating and asking availability"() {

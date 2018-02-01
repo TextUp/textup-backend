@@ -395,7 +395,12 @@ class WeeklySchedule extends Schedule {
         int addDays, DateTimeZone zone=null) {
         List<Interval> result = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
-        DateTime today = DateTime.now(DateTimeZone.UTC)
+        DateTime today = DateTime.now(DateTimeZone.UTC),
+            zoneToday = DateTime.now(zone)
+        // order of the arguments in this call is very important
+        // we put the zone first so that the result number is the modifier that we
+        // can use to scale the addDays amount by.
+        int daysBetween = Helpers.getDaysBetween(zoneToday, today)
 
         for (str in intStrings) {
             try {
@@ -408,7 +413,12 @@ class WeeklySchedule extends Schedule {
                     //add days until we've reached the desired offset from today
                     //we use the start date as reference and increment the end date
                     //accordingly to preserve the range
-                    while (Helpers.getDaysBetween(today, start) < addDays) {
+                    //NO NEED to take into account the # days between start/end date and today here
+                    //because if the start/end dates are actually a day ahead or behind because
+                    //of timezone differences, the helper to parse the strings into DateTime objects
+                    //already take that into account. All we need to do is boost by the correct
+                    //number of days here scaled by the number of days between UTC today and timezone today
+                    (addDays + daysBetween).times {
                         start = start.plusDays(1)
                         end = end.plusDays(1)
                     }
