@@ -32,7 +32,7 @@ class LocalInterval implements Comparable<LocalInterval> {
 
     static constraints = {
     	start nullable:false, validator:{ LocalTime s, LocalInterval obj ->
-    		if (s.isAfter(obj.end) || s.isEqual(obj.end)) { ["invalid"] }
+    		if (s.isAfter(obj.end)) { ["invalid"] }
     	}
     	end nullable:false
     }

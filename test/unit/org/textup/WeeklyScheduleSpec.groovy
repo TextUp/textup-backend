@@ -273,7 +273,8 @@ class WeeklyScheduleSpec extends Specification {
         tz = "America/New_York"
         assert s.updateWithIntervalStrings([
             tuesday:["0100:0130", "1900:2100"],
-            wednesday:["0100:0130", "0600:1200","1300:1700","1900:2100"]], tz).success
+            wednesday:["0100:0130", "0600:1200","1300:1700","1900:2100"],
+            thursday:["1859:1900"]], tz).success
 
         then:
         s.getAllAsLocalIntervals(tz).tuesday == [
@@ -284,6 +285,8 @@ class WeeklyScheduleSpec extends Specification {
             new LocalInterval(new LocalTime(6, 0), new LocalTime(12, 0)),
             new LocalInterval(new LocalTime(13, 0), new LocalTime(17, 0)),
             new LocalInterval(new LocalTime(19, 0), new LocalTime(21, 0))]
+        s.getAllAsLocalIntervals(tz).thursday == [
+            new LocalInterval(new LocalTime(18, 59), new LocalTime(19, 0))]
     }
 
     void "test updating and asking availability"() {

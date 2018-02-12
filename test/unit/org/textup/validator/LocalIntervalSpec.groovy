@@ -26,9 +26,8 @@ class LocalIntervalSpec extends Specification {
     	LocalTime t = LocalTime.now()
     	l = new LocalInterval(start:t, end:t)
 
-    	then: "invalid"
-    	l.validate() == false
-    	l.errors.errorCount == 1
+    	then: "valid"
+    	l.validate() == true
 
     	when: "we have a valid interval starting at midnight"
     	LocalTime midnight = new LocalTime(0, 0), afterMidnight = midnight.plusMinutes(10)
