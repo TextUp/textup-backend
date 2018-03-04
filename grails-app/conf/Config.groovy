@@ -155,6 +155,7 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
     '/**/images/**':                  ['permitAll'],
     '/**/favicon.ico':                ['permitAll'],
     '/grails-remote-control':         ['permitAll'], //needed for remote control in functional tests
+    '/monitoring/**':                 ['ROLE_USER', 'ROLE_ADMIN'],
     '/dbconsole/**':                  ['ROLE_USER', 'ROLE_ADMIN'],
     "/console/**":                    ['ROLE_USER', 'ROLE_ADMIN'],
     "/plugins/console*/**":           ['ROLE_USER', 'ROLE_ADMIN'],

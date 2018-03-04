@@ -114,6 +114,11 @@ grails.project.dependency.resolution = {
         //for api documentation generation
         compile ":rest-api-doc:0.6.1"
 
+        // for performance monitoring
+        // JavaMelody causes problems with tomcat7 from starting from v1.55.0
+        // https://github.com/javamelody/grails-melody-plugin/issues/23
+        compile "org.grails.plugins:grails-melody:1.54.0"
+
         // plugins needed at runtime but not for compilation
         runtime ":hibernate4:4.3.6.1" // or ":hibernate:3.6.10.18"
         runtime ":database-migration:1.4.0"
