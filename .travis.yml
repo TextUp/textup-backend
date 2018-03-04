@@ -1,0 +1,21 @@
+language: groovy
+jdk:
+  - openjdk7
+
+sudo: false
+
+branches:
+  only:
+  - master
+  - dev
+
+before_script:
+  — chmod +x grailsw
+  - ./grailsw clean
+  - ./grailsw refresh-dependencies
+
+script: # need to split up test suite to avoid running out of permgen space
+  - "./grailsw test-app functional:"
+  - "./grailsw test-app integration:"
+  - "./grailsw test-app unit: org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.*"
+  - "./grailsw test-app unit: org.textup.rest.*"
