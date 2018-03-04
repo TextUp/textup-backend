@@ -28,6 +28,7 @@ after_success:
 
 before_deploy:
   - chmod +x .travis/deploy.sh
+  - chmod 400 .travis/textup.pem
 
 deploy:
   - provider: script
