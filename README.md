@@ -1,9 +1,14 @@
 # TextUp Backend
+
 TextUp Grails backend
 
-## License 
+| Service | Master | Dev |
+| --- | --- | --- |
+| CI Status | [![Build Status](https://travis-ci.org/TextUp/textup-backend.svg?branch=master)](https://travis-ci.org/TextUp/textup-backend) | [![Build Status](https://travis-ci.org/TextUp/textup-backend.svg?branch=dev)](https://travis-ci.org/TextUp/textup-backend) |
 
-Copyright 2017 TextUp 
+## License
+
+Copyright 2017 TextUp
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
