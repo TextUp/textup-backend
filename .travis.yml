@@ -10,7 +10,7 @@ branches:
   - dev
 
 before_script:
-  — chmod +x grailsw
+  - chmod +x grailsw
   - ./grailsw clean
   - ./grailsw refresh-dependencies
 
