@@ -95,12 +95,12 @@ grails.project.dependency.resolution = {
         build ":tomcat:7.0.55"
 
         // plugins for the compile step
-        compile "org.grails.plugins:codenarc:0.24.1" //static source code analysis
+        compile ":codenarc:0.24.1" //static source code analysis
         compile ":scaffolding:2.1.2"
         compile ':cache:1.1.8'
         compile ":asset-pipeline:1.9.9"
         compile ":joda-time:1.5"
-        compile "org.grails.plugins:quartz:1.0.2"
+        compile ":quartz:1.0.2"
 
         compile ":spring-security-core:2.0-RC4"
         compile ":spring-security-rest:1.5.3", {
@@ -117,7 +117,7 @@ grails.project.dependency.resolution = {
         // for performance monitoring
         // JavaMelody causes problems with tomcat7 from starting from v1.55.0
         // https://github.com/javamelody/grails-melody-plugin/issues/23
-        compile "org.grails.plugins:grails-melody:1.54.0"
+        compile ":grails-melody:1.54.0"
 
         // plugins needed at runtime but not for compilation
         runtime ":hibernate4:4.3.6.1" // or ":hibernate:3.6.10.18"
