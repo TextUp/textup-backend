@@ -299,6 +299,16 @@ class FutureMessageServiceSpec extends CustomSpec {
         assert fMsg.id == null
         String tz = "America/Los_Angeles"
         DateTimeZone myZone = DateTimeZone.forID(tz)
+        // Need to calculate the change in offset (if any) for the end date
+        // for the edge case where we are running this test within two days of reaching
+        // a daylight savings time transition point. During the two days leading up
+        // when daylight savings time starts or ends, the hourOfDay assertions for the end
+        // time will fail because during that special period
+        // `DateTime.now().withZone(myZone).plusDays(2) != DateTime.now().plusDays(2).withZone(myZone)`
+        DateTime now = DateTime.now()
+        long currentOffset = myZone.getOffset(now),
+            futureOffset = myZone.getOffset(now.plusDays(2)),
+            changeInOffset = TimeUnit.MILLISECONDS.toHours(futureOffset - currentOffset);
         DateTime startCustomDateTime = DateTime.now()
                 .withZone(myZone),
             startUTCDateTime = DateTime.now()
@@ -325,7 +335,7 @@ class FutureMessageServiceSpec extends CustomSpec {
             startUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
             endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
+        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + changeInOffset) % 24) ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
 
         when: "setting date properties WITH timezone"
@@ -341,7 +351,7 @@ class FutureMessageServiceSpec extends CustomSpec {
             startUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
             endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
+        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + changeInOffset) % 24) ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
     }
     void "test appropriate status codes when creating, updating, and deleting"() {
