@@ -9,20 +9,22 @@ branches:
   - master
   - dev
 
+env:
+  - TEST_SCOPE="functional:"
+  - TEST_SCOPE="integration:"
+  - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.*'
+  - TEST_SCOPE='"unit:" org.textup.rest.*'
+
+before_script:
+  - chmod +x grailsw
+  - ./grailsw clean
+  - ./grailsw refresh-dependencies
+
+script:
+  - ./grailsw test-app $TEST_SCOPE
+
 jobs:
   include:
-    - stage: test
-      env:
-        - TEST_SCOPE="functional:"
-        - TEST_SCOPE="integration:"
-        - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.*'
-        - TEST_SCOPE='"unit:" org.textup.rest.*'
-      before_script:
-        - chmod +x grailsw
-        - ./grailsw clean
-        - ./grailsw refresh-dependencies
-      script:
-        - ./grailsw test-app $TEST_SCOPE
     - stage: deploy
       before_install:
         - openssl aes-256-cbc -K $encrypted_8c97747a3917_key -iv $encrypted_8c97747a3917_iv -in .travis/textup.pem.enc -out .travis/textup.pem -d
