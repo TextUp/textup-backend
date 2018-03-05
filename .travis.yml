@@ -9,6 +9,12 @@ branches:
   - master
   - dev
 
+env:
+  - TEST_SCOPE="functional:"
+  - TEST_SCOPE="integration:"
+  - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.*'
+  - TEST_SCOPE='"unit:" org.textup.rest.*'
+
 before_install:
   - openssl aes-256-cbc -K $encrypted_8c97747a3917_key -iv $encrypted_8c97747a3917_iv -in .travis/textup.pem.enc -out .travis/textup.pem -d
 
@@ -18,10 +24,7 @@ before_script:
   - ./grailsw refresh-dependencies
 
 script:
-  - "./grailsw test-app functional:"
-  - "./grailsw test-app integration:"
-  - "./grailsw test-app unit: org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.*"
-  - "./grailsw test-app unit: org.textup.rest.*"
+  - "./grailsw test-app $TEST_SCOPE"
 
 after_success:
   - ./grailsw prod war

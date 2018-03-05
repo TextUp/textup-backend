@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
+import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.*
 import org.textup.type.OrgStatus
 import org.textup.util.CustomSpec
@@ -28,9 +29,10 @@ class SuperControllerSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    private String _username, _token
+    boolean _passwordValidOutcome
 
     def setup() {
+        _passwordValidOutcome = true
         setupData()
         controller.springSecurityService = [
         	getCurrentUser:{ Staff.findByUsername(loggedInUsername) },
@@ -44,6 +46,11 @@ class SuperControllerSpec extends CustomSpec {
 				new Result(status:ResultStatus.OK, payload:null)
 			},
         ] as MailService
+        controller.passwordEncoder = [
+            isPasswordValid:{ String encPass, String rawPass, Object salt  ->
+                _passwordValidOutcome
+            }
+        ] as PasswordEncoder
     }
     def cleanup() {
         cleanupData()
@@ -52,10 +59,52 @@ class SuperControllerSpec extends CustomSpec {
     // Page handlers
     // -------------
 
+    void "test not updating password"() {
+        when: "none of the password fields are filled out"
+        controller.updateSettings()
+
+        then: "other fields can still be filled out"
+        response.redirectUrl == "/super/settings"
+        flash.messages instanceof List
+        flash.messages.size() == 1
+        flash.messages[0] == "Successfully updated settings."
+    }
+
+    void "test updating passwords missing current password"() {
+        when: "missing current password"
+        params.newPassword = "testing"
+        params.confirmNewPassword = "testing"
+        controller.updateSettings()
+
+        then: "cannot update password"
+        response.redirectUrl == "/super/settings"
+        flash.messages instanceof List
+        flash.messages.size() == 1
+        flash.messages[0] == "Could not update password. Current password is either blank or incorrect."
+    }
+
+    void "test updating passwords incorrect current password"() {
+        given:
+        _passwordValidOutcome = false
+
+        when: "incorrect current password"
+        params.currentPassword = "invalid blah blah blah"
+        params.newPassword = "testing"
+        params.confirmNewPassword = "testing"
+        controller.updateSettings()
+
+        then: "cannot update password"
+        response.redirectUrl == "/super/settings"
+        flash.messages instanceof List
+        flash.messages.size() == 1
+        flash.messages[0] == "Could not update password. Current password is either blank or incorrect."
+    }
+
     void "test update passwords, passwords do not match"() {
     	when:
-    	params.password = "testing"
-    	params.confirmPassword = "kikibai"
+        params.currentPassword = loggedInPassword
+    	params.newPassword = "testing"
+    	params.confirmNewPassword = "kikibai"
     	controller.updateSettings()
 
     	then:
@@ -69,8 +118,9 @@ class SuperControllerSpec extends CustomSpec {
     	String un = "IAmANewUsername"
 
     	when:
-    	params.password = pwd
-    	params.confirmPassword = pwd
+        params.currentPassword = loggedInPassword
+    	params.newPassword = pwd
+    	params.confirmNewPassword = pwd
     	params.username = un
     	controller.updateSettings()
     	Staff.withSession { it.flush() }

@@ -36,12 +36,16 @@
                     <g:field class="form-control" type="text" name="username" required="" value="${staff.username}"/>
                 </div>
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <g:field class="form-control" type="password" name="password"/>
+                    <label for="password">Current Password</label>
+                    <g:field class="form-control" type="password" name="currentPassword"/>
+                </div>
+                <div class="form-group">
+                    <label for="password">New Password</label>
+                    <g:field class="form-control" type="password" name="newPassword"/>
                 </div>
                 <div class="form-group">
                     <label for="confirmPassword">Confirm Password</label>
-                    <g:field class="form-control" type="password" name="confirmPassword"/>
+                    <g:field class="form-control" type="password" name="confirmNewPassword"/>
                 </div>
                 <div class="form-group">
                     <label for="email">Email</label>

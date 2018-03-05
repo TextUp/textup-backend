@@ -1,10 +1,11 @@
 package org.textup
 
-import grails.plugin.springsecurity.SpringSecurityUtils
-import org.springframework.security.access.annotation.Secured
-import grails.transaction.Transactional
 import grails.compiler.GrailsCompileStatic
 import grails.plugin.springsecurity.SpringSecurityService
+import grails.plugin.springsecurity.SpringSecurityUtils
+import grails.transaction.Transactional
+import org.springframework.security.access.annotation.Secured
+import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.type.OrgStatus
 
 @GrailsCompileStatic
@@ -12,8 +13,9 @@ import org.textup.type.OrgStatus
 @Transactional
 class SuperController {
 
-    SpringSecurityService springSecurityService
     MailService mailService
+    PasswordEncoder passwordEncoder
+    SpringSecurityService springSecurityService
 
     // Page handlers
     // -------------
@@ -38,26 +40,42 @@ class SuperController {
     }
 
     def updateSettings() {
-        if (params.password && params.password != params.confirmPassword) {
+        String newPassword = params.newPassword
+        if (newPassword && newPassword != params.confirmNewPassword) {
             flash.messages = ["New passwords must match."]
+            return redirect(action: "settings")
         }
-        else {
-            Staff s1 = springSecurityService.currentUser as Staff
-            String oldUsername = s1.username
-            s1.properties.each { obj, val ->
-                String prop = obj as String
-                if (params[prop]) {
-                    s1.setProperty(prop, params[prop])
-                }
-            }
-            if (s1.save()) {
-                springSecurityService.reauthenticate(oldUsername)
-                flash.messages = ["Successfully updated settings."]
+
+        Staff s1 = springSecurityService.currentUser as Staff
+        String oldUsername = s1.username
+
+        // if wanting to change password, need to validate current password first
+        if (newPassword) {
+            if (params.currentPassword &&
+                passwordEncoder.isPasswordValid(s1.password, params.currentPassword as String, null)) {
+
+                s1.password = newPassword
             }
             else {
-                flash.errorObj = s1
-                s1.discard()
+                flash.messages = ["Could not update password. Current password is either blank or incorrect."]
+                return redirect(action: "settings")
             }
+        }
+        // update other properties
+        s1.properties.each { obj, val ->
+            String prop = obj as String
+            if (params[prop] && s1.hasProperty(prop)) {
+                s1.setProperty(prop, params[prop])
+            }
+        }
+        // save new settings
+        if (s1.save()) {
+            springSecurityService.reauthenticate(oldUsername)
+            flash.messages = ["Successfully updated settings."]
+        }
+        else {
+            flash.errorObj = s1
+            s1.discard()
         }
         redirect(action: "settings")
     }
