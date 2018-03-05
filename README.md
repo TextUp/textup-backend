@@ -43,8 +43,8 @@ In order to successfully run, certain environment variables are required, access
 * `CDN_PRIVATE_KEY_PATH`: usually `/cloudfront-2017-private.der`
 * `RECAPTCHA_SECRET`: secure token
 * `SERVER_URL`: usually `https://v2.textup.org`
-* `JAVA_MELODY_STORAGE_DIRECTORY`: usually `/home/ubuntu/javamelody`
-    * Make sure user and group for this folder are both `tomcat7` if copying from another location: `sudo chown -R tomcat7:tomcat7 ~/javamelody`
+
+### Travis CI
 
 Environment variables used by Travis when building and deploying are:
 
@@ -52,6 +52,12 @@ Environment variables used by Travis when building and deploying are:
 * `HOSTNAME_STAGING`
 * `USER_PRODUCTION`
 * `USER_STAGING`
+
+### JavaMelody monitoring
+
+Storage directory must be hardcoded in `grails-app/conf/GrailsMelodyConfig.groovy` because this value fixed when the WAR file is built. Therefore, the app requires a folder `/grails-monitoring`.
+
+Make sure user and group for this folder are both `tomcat7`: `sudo chown -R tomcat7:tomcat7 /grails-monitoring`
 
 ## Running / Development
 
