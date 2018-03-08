@@ -18,6 +18,7 @@ class TextService {
 
     Result<TempRecordReceipt> send(BasePhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String message) {
+        ResultGroup<Message> failResults = new ResultGroup<>()
         Result<Message> res
         for (toNum in toNums) {
             res = this.tryText(fromNum, toNum, message)
@@ -32,10 +33,16 @@ class TextService {
                     return resultFactory.failWithValidationErrors(receipt.errors)
                 }
             }
+            else { failResults << res }
         }
-        // if still not returned, that means that none of the numbers worked
-        resultFactory.failWithCodeAndStatus("textService.text.allFailed",
-            ResultStatus.UNPROCESSABLE_ENTITY, null, false)
+        if (!failResults.isEmpty) {
+            resultFactory.failWithResultsAndStatus(failResults.failures,
+                failResults.failureStatus, false)
+        }
+        else {
+            resultFactory.failWithCodeAndStatus("textService.text.noNumbers",
+                ResultStatus.UNPROCESSABLE_ENTITY, null, false)
+        }
 	}
 
     protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
@@ -49,9 +56,14 @@ class TextService {
                 .create()
             resultFactory.success(m)
         }
-        catch (ApiException e) {
-            log.error("TextService.tryText: ${e.message}")
-            resultFactory.failWithThrowable(e, false)
+        catch (Throwable e) {
+            log.error("TextService.tryText: ${e.class}, ${e.message}")
+            // if an ApiException from Twilio, then would be a validation error
+            Result res = resultFactory.failWithThrowable(e, false)
+            if (e instanceof ApiException) {
+                res.status = ResultStatus.UNPROCESSABLE_ENTITY
+            }
+            res
         }
     }
 }

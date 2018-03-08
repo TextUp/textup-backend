@@ -13,6 +13,7 @@ import org.textup.type.ReceiptStatus
 import org.textup.type.RecordItemType
 import org.textup.type.SharePermission
 import org.textup.type.TextResponse
+import org.textup.type.VoiceType
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
 import org.textup.validator.OutgoingMessage
@@ -40,6 +41,13 @@ class Phone {
             allowedType   = "String")
     String awayMessage = Constants.DEFAULT_AWAY_MESSAGE
 
+    @RestApiObjectField(
+        description  = "Voice to use when speaking during calls. Allowed: MALE, FEMALE",
+        mandatory    = false,
+        allowedType  = "String",
+        defaultValue = "MALE")
+    VoiceType voice = VoiceType.MALE
+
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName = "number",
@@ -66,6 +74,7 @@ class Phone {
     static transients = ["number", "resultFactory", "phoneService", "twimlBuilder"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
+        voice blank:false, nullable:false
         numberAsString blank:true, nullable:true, validator:{ String num, Phone obj ->
             if (!num) { // short circuit if number is blank
                 return;
@@ -590,6 +599,7 @@ class Phone {
         else {
             twimlBuilder.build(CallResponse.CHECK_IF_VOICEMAIL,
                 [
+                    voice: this.voice,
                     awayMessage:this.awayMessage,
                     // no-op for Record Twiml verb to call because recording might not be ready
                     linkParams:[handle:CallResponse.END_CALL],

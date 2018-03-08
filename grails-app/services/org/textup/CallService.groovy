@@ -101,9 +101,14 @@ class CallService {
             }
             else { resultFactory.failWithValidationErrors(receipt.errors) }
         }
-        catch (ApiException | URISyntaxException e) {
-            log.error("CallService.doCall: ${e.message}")
-            resultFactory.failWithThrowable(e, false)
+        catch (Throwable e) {
+            log.error("CallService.doCall: ${e.class}, ${e.message}")
+            // if an ApiException from Twilio, then would be a validation error
+            Result res = resultFactory.failWithThrowable(e, false)
+            if (e instanceof ApiException) {
+                res.status = ResultStatus.UNPROCESSABLE_ENTITY
+            }
+            res
         }
     }
 }

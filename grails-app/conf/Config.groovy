@@ -86,16 +86,26 @@ grails.hibernate.osiv.readonly = false
 
 environments {
     development {
+        textup.apiKeys.twilio.sid = System.getenv("TWILIO_TEST_SID") ?: System.getProperty("TWILIO_TEST_SID")
+        textup.apiKeys.twilio.authToken = System.getenv("TWILIO_TEST_AUTH") ?: System.getProperty("TWILIO_TEST_AUTH")
+        textup.apiKeys.twilio.appId="AP762342f6263b687fdc60c12dc9fbded8"
+
         grails.logging.jul.usebridge = true
         grails.plugin.databasemigration.updateOnStart = false
         grails.serverURL = System.getenv("SERVER_URL") ?: System.getProperty("SERVER_URL")
-        textup.apiKeys.twilio.appId="AP762342f6263b687fdc60c12dc9fbded8"
         grails.plugin.console.baseUrl="http://localhost:8080/console"
     }
+    test {
+        textup.apiKeys.twilio.sid = System.getenv("TWILIO_TEST_SID") ?: System.getProperty("TWILIO_TEST_SID")
+        textup.apiKeys.twilio.authToken = System.getenv("TWILIO_TEST_AUTH") ?: System.getProperty("TWILIO_TEST_AUTH")
+    }
     production {
+        textup.apiKeys.twilio.sid = System.getenv("TWILIO_SID") ?: System.getProperty("TWILIO_SID")
+        textup.apiKeys.twilio.authToken = System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
+        textup.apiKeys.twilio.appId=System.getenv("TWILIO_NUMBER_APP_ID") ?: (System.getProperty("TWILIO_NUMBER_APP_ID") ?: "APe80c7d1e8a78963cde8c95785fdd8c9d")
+
         grails.logging.jul.usebridge = false
         grails.serverURL = System.getenv("SERVER_URL") ?: (System.getProperty("SERVER_URL") ?: "https://dev.textup.org")
-        textup.apiKeys.twilio.appId=System.getenv("TWILIO_NUMBER_APP_ID") ?: (System.getProperty("TWILIO_NUMBER_APP_ID") ?: "APe80c7d1e8a78963cde8c95785fdd8c9d")
         grails.plugin.databasemigration.updateOnStart = true
         grails.plugin.databasemigration.updateOnStartFileNames = ['changelog.groovy']
         // ignore all of the Quartz scheduler tables created via direct SQL execution
@@ -247,8 +257,6 @@ textup {
     //in the format: JAVA_OPTS="${JAVA_OPTS} -Dkey=value"
     apiKeys {
         twilio {
-            sid = System.getenv("TWILIO_SID") ?: System.getProperty("TWILIO_SID")
-            authToken = System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
             unavailable="assigned"
             available="unassigned"
             notificationNumber = System.getenv("TWILIO_NOTIFICATIONS_NUMBER") ?: System.getProperty("TWILIO_NOTIFICATIONS_NUMBER")

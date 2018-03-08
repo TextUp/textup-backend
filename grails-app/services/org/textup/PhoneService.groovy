@@ -28,6 +28,7 @@ import org.textup.type.PhoneOwnershipType
 import org.textup.type.ReceiptStatus
 import org.textup.type.RecordItemType
 import org.textup.type.TextResponse
+import org.textup.type.VoiceType
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.PhoneAction
 import org.textup.validator.BasicNotification
@@ -74,6 +75,9 @@ class PhoneService {
     protected Result<Phone> update(Phone p1, Map body) {
         if (body.awayMessage) {
             p1.awayMessage = body.awayMessage
+        }
+        if (body.voice) {
+            p1.voice = Helpers.convertEnum(VoiceType, body.voice)
         }
         if (body.doPhoneActions) {
             ActionContainer ac1 = new ActionContainer(body.doPhoneActions)

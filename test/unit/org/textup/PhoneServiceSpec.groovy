@@ -16,6 +16,7 @@ import org.textup.type.RecordItemType
 import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
 import org.textup.type.TextResponse
+import org.textup.type.VoiceType
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.BasicNotification
@@ -121,6 +122,24 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload instanceof Phone
         res.payload.awayMessage.contains(msg)
         res.payload.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
+    }
+    void "test updating voice type"() {
+        when: "invalid voice type"
+        Result<Phone> res = service.update(s1.phone, [voice:"invalid"])
+
+        then:
+        res.success == false
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0].contains("voice")
+
+        when: "valid voice type"
+        res = service.update(s1.phone, [voice:VoiceType.FEMALE.toString()])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Phone
+        res.payload.voice == VoiceType.FEMALE
     }
     void "test updating phone number when not active"() {
         given:

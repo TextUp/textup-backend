@@ -22,8 +22,10 @@ TextUp Grails backend
 
 In order to successfully run, certain environment variables are required, accessed primarily in `grails-app/conf/BuildConfig.groovy`. These variables are:
 
-* `TWILIO_AUTH`: secure token
-* `TWILIO_SID`: secure token
+* `TWILIO_AUTH`: secure token, non-production servers should have test credential here
+* `TWILIO_SID`: secure token, non-production servers should have test credential here
+* `TWILIO_TEST_AUTH`: secure token, not needed on production machines, should be duplicate of non-test version on dev and testing environments
+* `TWILIO_TEST_SID`: secure token, not needed on production machines, should be duplicate of non-test version on dev and testing environments
 * `TWILIO_NUMBER_APP_ID`: secure token
 * `SENDGRID_API_KEY`: secure token
 * `AWS_ACCESS_KEY`: secure token

@@ -15,6 +15,12 @@ import spock.lang.Shared
 import spock.lang.Specification
 import static org.springframework.http.HttpStatus.*
 
+// Because the CallService is so heavily dependent on callbacks,
+// we mock the `doCall` method in this test class to allow for greater
+// visibility into testing how the callback maps are passed.
+// To test error checking, for making calls initially, see
+// `CallServiceNoMockSpec.groovy`
+
 @Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt])
 @TestMixin(HibernateTestMixin)
 @TestFor(CallService)

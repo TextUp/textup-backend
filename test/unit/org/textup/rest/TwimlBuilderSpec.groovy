@@ -11,6 +11,7 @@ import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.CallResponse
 import org.textup.type.TextResponse
+import org.textup.type.VoiceType
 import org.textup.util.CustomSpec
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -483,15 +484,16 @@ class TwimlBuilderSpec extends CustomSpec {
         when: "voicemail valid"
         Map linkParams =  [you:"got this!"]
         String awayMsg = "i am away"
+        VoiceType voiceType = VoiceType.FEMALE
         res = builder.build(CallResponse.CHECK_IF_VOICEMAIL, [awayMessage:awayMsg,
-            linkParams:linkParams, callbackParams:linkParams])
+            linkParams:linkParams, callbackParams:linkParams, voice:voiceType])
 
         then:
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
                 Pause(length:"1")
-                Say(awayMsg)
+                Say(voice:voiceType.toTwimlValue(), awayMsg)
                 Say("twimlBuilder.call.voicemailDirections")
                 Record(action:linkParams.toString(), maxLength:160,
                     recordingStatusCallback:linkParams.toString())

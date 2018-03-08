@@ -15,6 +15,7 @@ import org.textup.type.ReceiptStatus
 import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
 import org.textup.type.TextResponse
+import org.textup.type.VoiceType
 import org.textup.util.CustomSpec
 import org.textup.validator.IncomingText
 import org.textup.validator.OutgoingMessage
@@ -62,8 +63,17 @@ class PhoneSpec extends CustomSpec {
     	p1.errors.errorCount == 1
         p1.isActive == false
 
+        when: "we have a null voice type"
+        p1.voice = null
+
+        then:
+        p1.validate() == false
+        p1.errors.errorCount == 2
+        p1.errors.getFieldErrorCount("voice") == 1
+
     	when: "we have a phone with a unique number"
         String num = "5223334444"
+        p1.voice = VoiceType.FEMALE
     	p1.numberAsString = num
         p1.updateOwner(s1)
 
@@ -1001,7 +1011,7 @@ class PhoneSpec extends CustomSpec {
         assert toNum.validate()
         Result<Closure> res = p1.tryStartVoicemail(fromNum, toNum, ReceiptStatus.SUCCESS)
 
-        then:
+        then: "don't need to connect to voicemail"
         res.success == true
         res.status == ResultStatus.OK
         res.payload == "noResponse"
@@ -1009,7 +1019,7 @@ class PhoneSpec extends CustomSpec {
         when: "try starting voicemail prompt when call has NOT been connected"
         res = p1.tryStartVoicemail(fromNum, toNum, ReceiptStatus.PENDING)
 
-        then:
+        then: "will connect to voicemail"
         res.success == true
         res.status == ResultStatus.OK
         res.payload == CallResponse.CHECK_IF_VOICEMAIL

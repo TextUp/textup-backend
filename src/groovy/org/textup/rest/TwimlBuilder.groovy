@@ -11,6 +11,7 @@ import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.CallResponse
 import org.textup.type.TextResponse
+import org.textup.type.VoiceType
 
 class TwimlBuilder {
 
@@ -252,14 +253,16 @@ class TwimlBuilder {
             case CallResponse.CHECK_IF_VOICEMAIL:
                 if (params.awayMessage instanceof String &&
                     params.linkParams instanceof Map &&
-                    params.callbackParams instanceof Map) {
+                    params.callbackParams instanceof Map &&
+                    params.voice instanceof VoiceType) {
                     String directions = getMessage("twimlBuilder.call.voicemailDirections"),
                         goodbye = getMessage("twimlBuilder.call.goodbye"),
                         actionWebhook = getLink(params.linkParams),
-                        callbackWebhook = getLink(params.callbackParams)
+                        callbackWebhook = getLink(params.callbackParams),
+                        twimlVoice = params.voice.toTwimlValue()
                     callBody = {
                         Pause(length:"1")
-                        Say(params.awayMessage)
+                        Say(voice:twimlVoice, params.awayMessage)
                         Say(directions)
                         Record(action:actionWebhook, maxLength:160,
                             recordingStatusCallback:callbackWebhook)

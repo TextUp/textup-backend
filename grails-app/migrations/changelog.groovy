@@ -915,4 +915,6 @@ databaseChangeLog = {
 	include file: 'lock-timeout.groovy'
 
 	include file: 'notification-policy.groovy'
+
+	include file: 'phone-voice.groovy'
 }
