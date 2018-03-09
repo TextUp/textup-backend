@@ -86,8 +86,8 @@ grails.hibernate.osiv.readonly = false
 
 environments {
     development {
-        textup.apiKeys.twilio.sid = System.getenv("TWILIO_TEST_SID") ?: System.getProperty("TWILIO_TEST_SID")
-        textup.apiKeys.twilio.authToken = System.getenv("TWILIO_TEST_AUTH") ?: System.getProperty("TWILIO_TEST_AUTH")
+        textup.apiKeys.twilio.sid = System.getenv("TWILIO_SID") ?: System.getProperty("TWILIO_SID")
+        textup.apiKeys.twilio.authToken = System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
         textup.apiKeys.twilio.appId="AP762342f6263b687fdc60c12dc9fbded8"
 
         grails.logging.jul.usebridge = true
