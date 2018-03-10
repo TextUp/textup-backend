@@ -303,25 +303,29 @@ class FutureMessageServiceSpec extends CustomSpec {
         // for the edge case where we are running this test within two days of reaching
         // a daylight savings time transition point. During the two days leading up
         // when daylight savings time starts or ends, the hourOfDay assertions for the end
-        // time will fail because during that special period
-        // `DateTime.now().withZone(myZone).plusDays(2) != DateTime.now().plusDays(2).withZone(myZone)`
-        DateTime now = DateTime.now()
-        long currentOffset = myZone.getOffset(now),
-            futureOffset = myZone.getOffset(now.plusDays(2)),
-            changeInOffset = TimeUnit.MILLISECONDS.toHours(futureOffset - currentOffset);
+        // time will fail
+        DateTime payloadNow = DateTime.now()
+        long currentOffset1 = myZone.getOffset(payloadNow),
+            futureOffset1 = myZone.getOffset(payloadNow.plusDays(2)),
+            payloadChangeInOffset = TimeUnit.MILLISECONDS.toHours(futureOffset1 - currentOffset1);
+        DateTime targetNow = DateTime.now().withZone(myZone)
+        long currentOffset2 = myZone.getOffset(targetNow),
+            futureOffset2 = myZone.getOffset(targetNow.plusDays(2)),
+            targetChangeInOffset = TimeUnit.MILLISECONDS.toHours(futureOffset2 - currentOffset2);
+
         DateTime startCustomDateTime = DateTime.now()
                 .withZone(myZone),
             startUTCDateTime = DateTime.now()
                 .withZone(DateTimeZone.UTC),
-            endCustomDateTime = DateTime.now()
-                .withZone(myZone).plusDays(2),
+            endCustomDateTime = targetNow.plusDays(2),
+            // UTC doesn't care about daylight savings
             endUTCDateTime = DateTime.now()
                 .withZone(DateTimeZone.UTC).plusDays(2)
 
         when: "setting date properties without timezone"
         Map info = [
             startDate: DateTime.now(),
-            endDate: DateTime.now().plusDays(2)
+            endDate: payloadNow.plusDays(2)
         ]
         Result<FutureMessage> res = service.setFromBody(fMsg, info)
 
@@ -333,9 +337,9 @@ class FutureMessageServiceSpec extends CustomSpec {
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
-            endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + changeInOffset) % 24) ==
+        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
+            ((endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay + targetChangeInOffset) % 24)
+        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
 
         when: "setting date properties WITH timezone"
@@ -349,9 +353,9 @@ class FutureMessageServiceSpec extends CustomSpec {
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
-            endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + changeInOffset) % 24) ==
+        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
+            ((endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay + targetChangeInOffset) % 24)
+        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
     }
     void "test appropriate status codes when creating, updating, and deleting"() {
