@@ -297,28 +297,35 @@ class FutureMessageServiceSpec extends CustomSpec {
         FutureMessage fMsg = new FutureMessage(record:c1.record,
             type:FutureMessageType.CALL, message: "hi")
         assert fMsg.id == null
-        String tz = "America/Los_Angeles"
-        DateTimeZone myZone = DateTimeZone.forID(tz)
+
+        String targetTz = "America/Los_Angeles",
+            payloadTz = "America/New_York"
+        DateTimeZone targetZone = DateTimeZone.forID(targetTz),
+            payloadZone = DateTimeZone.forID(payloadTz)
+        // Need to declare an explicit time zone for the payload end time.
+        // On MacOS High Sierra, the DateTime seems to have an implicit time zone. That is,
+        // even if we don't explicitly set, the DateTime will make the appropriate adjustments
+        // to respect daylight saving time. However, on Ubuntu 14.04, this does not take place
+        // unless we explictly set the payload time zone here.
+        DateTime payloadNow = DateTime.now().withZone(payloadZone),
+            targetNow = DateTime.now().withZone(targetZone)
         // Need to calculate the change in offset (if any) for the end date
         // for the edge case where we are running this test within two days of reaching
         // a daylight savings time transition point. During the two days leading up
         // when daylight savings time starts or ends, the hourOfDay assertions for the end
-        // time will fail
-        DateTime payloadNow = DateTime.now()
-        long currentOffset1 = myZone.getOffset(payloadNow),
-            futureOffset1 = myZone.getOffset(payloadNow.plusDays(2)),
-            payloadChangeInOffset = TimeUnit.MILLISECONDS.toHours(futureOffset1 - currentOffset1);
-        DateTime targetNow = DateTime.now().withZone(myZone)
-        long currentOffset2 = myZone.getOffset(targetNow),
-            futureOffset2 = myZone.getOffset(targetNow.plusDays(2)),
-            targetChangeInOffset = TimeUnit.MILLISECONDS.toHours(futureOffset2 - currentOffset2);
+        // time will fail because `endUTCDateTime` is not sensitive to daylight saving time
+        long payloadCurrentOffset = payloadZone.getOffset(payloadNow),
+            payloadFutureOffset = payloadZone.getOffset(payloadNow.plusDays(2)),
+            payloadChangeInOffset = TimeUnit.MILLISECONDS.toHours(payloadFutureOffset - payloadCurrentOffset);
 
         DateTime startCustomDateTime = DateTime.now()
-                .withZone(myZone),
+                .withZone(targetZone),
             startUTCDateTime = DateTime.now()
                 .withZone(DateTimeZone.UTC),
             endCustomDateTime = targetNow.plusDays(2),
-            // UTC doesn't care about daylight savings
+            // UTC doesn't care about daylight savings so we need to adjust the offset
+            // when comparing with a DateTime with a zone that does care about daylight saving time
+            // in order for the assertion to pas
             endUTCDateTime = DateTime.now()
                 .withZone(DateTimeZone.UTC).plusDays(2)
 
@@ -337,13 +344,17 @@ class FutureMessageServiceSpec extends CustomSpec {
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
-            ((endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay + targetChangeInOffset) % 24)
+        // both payload and target here are sensitive to daylight saving time so we don't need
+        // to manually adjust with offset
+        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
+            endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
+        // the payload is sensitive to daylight saving time, but UTC target is not so we DO
+        // need to manually adjust to calculated daylight saving time offset here
         ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
 
         when: "setting date properties WITH timezone"
-        res = service.setFromBody(fMsg, info, tz)
+        res = service.setFromBody(fMsg, info, targetTz)
 
         then: "all date values have their values preserved no matter initial timezone"
         res.success == true
@@ -353,8 +364,12 @@ class FutureMessageServiceSpec extends CustomSpec {
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
-        ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
-            ((endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay + targetChangeInOffset) % 24)
+        // both payload and target here are sensitive to daylight saving time so we don't need
+        // to manually adjust with offset
+        res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay ==
+            endCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
+        // the payload is sensitive to daylight saving time, but UTC target is not so we DO
+        // need to manually adjust to calculated daylight saving time offset here
         ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
     }
