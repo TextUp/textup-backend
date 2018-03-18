@@ -249,6 +249,7 @@ class DuplicateService {
         }
         catch (Throwable e) {
             log.error("DuplicateService.mergeTags: ${e.message}")
+            e.printStackTrace()
             resultFactory.failWithThrowable(e)
         }
     }
@@ -262,6 +263,7 @@ class DuplicateService {
         }
         catch (Throwable e) {
             log.error("DuplicateService.mergeSharedContacts: ${e.message}")
+            e.printStackTrace()
             resultFactory.failWithThrowable(e)
         }
     }
@@ -278,6 +280,7 @@ class DuplicateService {
         }
         catch (Throwable e) {
             log.error("DuplicateService.mergeRecords: ${e.message}")
+            e.printStackTrace()
             resultFactory.failWithThrowable(e)
         }
     }

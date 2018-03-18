@@ -108,6 +108,7 @@ class ResultFactory {
     	}
     	catch (NoSuchMessageException e) {
     		log.error("ResultFactory.getMessage for code $code with error ${e.message}")
+            e.printStackTrace()
     		""
     	}
     }
@@ -117,6 +118,7 @@ class ResultFactory {
     	}
     	catch (NoSuchMessageException e) {
     		log.error("ResultFactory.getMessage for resolvable $resolvable with error ${e.message}")
+            e.printStackTrace()
     		""
     	}
     }

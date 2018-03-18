@@ -42,7 +42,8 @@ class StorageService {
         }
         catch (Throwable e) {
             log.error("StorageService.generateAuthLink: ${e.message}")
-            return resultFactory.failWithThrowable(e)
+            e.printStackTrace()
+            resultFactory.failWithThrowable(e)
         }
     }
     protected URL getSignedLink(Protocol protocol, String root, File keyFile,

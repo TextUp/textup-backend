@@ -89,9 +89,10 @@ class RecordNoteRevision {
         try {
             Helpers.toJson(this.imageKeysAsString) as Collection<String>
         }
-        catch (e) {
+        catch (Throwable e) {
             log.error("RecordNoteRevision.getImageKeys: \
             	invalid json string '${this.imageKeysAsString}'")
+            e.printStackTrace()
             []
         }
     }

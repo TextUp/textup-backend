@@ -164,6 +164,7 @@ class MailService {
         }
         catch (IOException e) {
             log.error("MailService.sendMail: ${e.message}")
+            e.printStackTrace()
             resultFactory.failWithThrowable(e, false) // don't rollback on failure
         }
     }

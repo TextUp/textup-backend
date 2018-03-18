@@ -113,13 +113,6 @@ class ContactTag {
         this.phone.owner.getNotificationStatusesForRecords([this.record.id])
     }
 
-    // Record keeping
-    // --------------
-
-    Result<RecordText> addTextToRecord(Map params, Staff staff = null) {
-        this.record.addText(params, staff?.toAuthor())
-    }
-
     // Members
     // -------
 

@@ -292,6 +292,10 @@ class Contact implements Contactable {
         this.id
     }
     @GrailsTypeChecked
+    PhoneNumber getFromNum() {
+        this.phone.number
+    }
+    @GrailsTypeChecked
     DateTime getLastRecordActivity() {
         this.record.lastRecordActivity
     }

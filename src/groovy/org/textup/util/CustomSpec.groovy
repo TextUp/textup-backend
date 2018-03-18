@@ -97,7 +97,8 @@ class CustomSpec extends Specification {
     }
     protected String randPhoneNumber(Random randGen = null) {
         Random thisRand = randGen ?: randomGenerator
-        thisRand.nextInt(Math.pow(10, 10) as Integer).toString().padRight(10, "0")
+        int randString = thisRand.nextInt(Math.pow(10, 10) as Integer)
+        "${Constants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
     }
     protected int randIntegerUpTo(Integer max, Random randGen = null) {
         Random thisRand = randGen ?: randomGenerator

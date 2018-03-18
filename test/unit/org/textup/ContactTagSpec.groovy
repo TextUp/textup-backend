@@ -124,18 +124,6 @@ class ContactTagSpec extends CustomSpec {
         t1.members.isEmpty() == true
     }
 
-    void "test adding text to record"() {
-        when: "adding text to record"
-        String message = "hello!"
-        RecordText rText = tag1.addTextToRecord([contents:message], s1).payload
-
-        then:
-        rText.contents == message
-        rText.authorId == s1.id
-        rText.authorType == AuthorType.STAFF
-        rText.authorName == s1.name
-    }
-
     void "test static finders"() {
         when: "tags and contacts all not deleted"
         Contact contact1 = p1.createContact([:], [randPhoneNumber()]).payload
