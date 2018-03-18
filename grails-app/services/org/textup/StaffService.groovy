@@ -36,8 +36,9 @@ class StaffService {
                 StaffRole.create(s1, role, true)
                 resultFactory.success(s1)
             }
-            catch (e) {
+            catch (Throwable e) {
                 log.error("StaffService.addRoleToStaff: ${e.message}, $e")
+                e.printStackTrace()
                 resultFactory.failWithThrowable(e)
             }
         }

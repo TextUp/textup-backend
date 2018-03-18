@@ -5,6 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
+import java.util.concurrent.atomic.AtomicInteger
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
@@ -43,13 +44,19 @@ class PhoneServiceSpec extends CustomSpec {
     }
 
     String _apiId = "iamsospecial!!!"
-    int _numTextsSent = 0
-    List<Long> _notifyRecordIds = []
-    List<Long> _notifyPhoneIds = []
-    List<Staff> _whoIsAvailable = []
+    AtomicInteger _numTextsSent
+    List<Long> _notifyRecordIds
+    List<Long> _notifyPhoneIds
+    List<Staff> _whoIsAvailable
 
     def setup() {
         setupData()
+
+        _numTextsSent = new AtomicInteger(0)
+        _notifyRecordIds = []
+        _notifyPhoneIds = []
+        _whoIsAvailable = []
+
         service.resultFactory = getResultFactory()
         service.resultFactory.messageSource = messageSource
         service.messageSource = messageSource
@@ -64,7 +71,7 @@ class PhoneServiceSpec extends CustomSpec {
         service.tokenService = [
             notifyStaff:{ BasicNotification bn1, Boolean outgoing, String msg,
                 String instructions ->
-                _numTextsSent++
+                _numTextsSent.getAndIncrement()
                 _notifyRecordIds << bn1.record.id
                 _notifyPhoneIds << bn1.owner.phone.id
                 new Result(status:ResultStatus.OK)
@@ -72,7 +79,7 @@ class PhoneServiceSpec extends CustomSpec {
         ]  as TokenService
         service.textService = [send:{ BasePhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, String message ->
-            _numTextsSent++
+            _numTextsSent.getAndIncrement()
             new Result(status:ResultStatus.OK,
                 payload: new TempRecordReceipt(apiId:_apiId, receivedByAsString:toNums[0].number))
         }] as TextService
@@ -504,6 +511,24 @@ class PhoneServiceSpec extends CustomSpec {
         // one receipt for each member of each tag
         RecordItemReceipt.count() == rBaseline + uniqueContacts.size() +
             msg.sharedContacts.size() + totalTagMembers
+        // make sure that `storeMessageInTag` is storing appropriate record item type
+        // with appropriate contents
+        if (type == RecordItemType.TEXT) {
+            msg.tags.each { ContactTag ct1 ->
+                RecordItem latestItem = ct1.record.getItems([max:1])[0]
+                // if an outgoing text, latest item is a text with contents set to message
+                assert latestItem.instanceOf(RecordText)
+                assert latestItem.contents == msg.message
+            }
+        }
+        else {
+            msg.tags.each { ContactTag ct1 ->
+                RecordItem latestItem = ct1.record.getItems([max:1])[0]
+                // if an outgoing call, latest item is a call with callContents set to message
+                assert latestItem.instanceOf(RecordCall)
+                assert latestItem.callContents == msg.message
+            }
+        }
 
         where:
         type                | _
@@ -721,7 +746,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         IncomingText text = new IncomingText(apiId:"iamsosecret", message:"hello")
         assert text.validate()
-        _numTextsSent = 0
+        _numTextsSent.getAndSet(0)
         _notifyRecordIds = []
         _notifyPhoneIds = []
         Result res = service.relayText(sBy, text, session)
@@ -730,7 +755,7 @@ class PhoneServiceSpec extends CustomSpec {
         res.success == true
         res.status == ResultStatus.OK
         res.payload == []
-        _numTextsSent == sWith.owner.all.size()
+        _numTextsSent.intValue() == sWith.owner.all.size()
         _notifyRecordIds.every { it == sc1.contact.record.id }
         // We no longer test the line below because this functionality of resolving
         // shared relationships is now encapsulated in notificationService and is
@@ -740,14 +765,14 @@ class PhoneServiceSpec extends CustomSpec {
         when: "that shared with phone's staff owner is no longer available"
         // phone that contact is shared with has staff that are available
         _whoIsAvailable = []
-        _numTextsSent = 0
+        _numTextsSent.getAndSet(0)
         res = service.relayText(sBy, text, session)
 
         then: "away message is sent since no staff are available"
         res.success == true
         res.status == ResultStatus.OK
         res.payload == [sBy.awayMessage]
-        _numTextsSent == 0
+        _numTextsSent.intValue() == 0
     }
 
     @FreshRuntime

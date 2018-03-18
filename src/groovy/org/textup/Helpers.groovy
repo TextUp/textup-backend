@@ -359,8 +359,9 @@ class Helpers {
             byte[] rawHmac = mac.doFinal(data.bytes)
             result = rawHmac.encodeBase64().toString()
         }
-        catch (e) {
+        catch (Throwable e) {
             log.error("Helpers.getBase64HmacSHA1: data: $data, error: ${e.message}")
+            e.printStackTrace()
         }
         result
     }
