@@ -15,8 +15,10 @@ cache:
 
 env:
   - TEST_SCOPE="functional:"
-  - TEST_SCOPE="integration:"
-  - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.*'
+  - TEST_SCOPE='"integration:" org.textup.rest.marshaller.*'
+  - TEST_SCOPE='"integration:" org.textup.*'
+  - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.*'
+  - TEST_SCOPE='"unit:" org.textup.*'
   - TEST_SCOPE='"unit:" org.textup.rest.*'
 
 before_script:

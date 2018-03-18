@@ -114,8 +114,9 @@ class NotificationPolicy {
     			if (recordId) { hydrated.add(recordId) }
     		}
     	}
-    	catch (e) {
+    	catch (Throwable e) {
     		log.error("NotificationPolicy.invalid data: ${e.message} for string '${data}'")
+            e.printStackTrace()
     	}
     	hydrated
     }

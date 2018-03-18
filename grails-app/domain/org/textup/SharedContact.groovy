@@ -10,6 +10,7 @@ import org.restapidoc.annotation.*
 import org.textup.rest.NotificationStatus
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
+import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 
 @EqualsAndHashCode
@@ -250,6 +251,10 @@ class SharedContact implements Contactable {
     @GrailsCompileStatic
     Long getContactId() {
         this.canView ? this.contact.contactId : null
+    }
+    @GrailsCompileStatic
+    PhoneNumber getFromNum() {
+        this.canView ? this.sharedBy.number : null
     }
     @GrailsCompileStatic
     DateTime getLastRecordActivity() {

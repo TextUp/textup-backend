@@ -41,6 +41,7 @@ class ContactSpec extends CustomSpec {
 
     	then: "an empty record is automatically added"
     	c1.validate() == true
+        c1.fromNum.number == p1.number.number
     	c1.record != null
 
     	when: "we add a tag membership and define a too-long note"

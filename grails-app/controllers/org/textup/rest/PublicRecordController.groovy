@@ -72,8 +72,9 @@ class PublicRecordController extends BaseController {
                     .retry(fromNum, toNums, apiId, afterPickup)
                     .logFail("PublicRecordController: retrying call: params: ${params}")
             }
-            catch (e) {
+            catch (Throwable e) {
                 log.error("PublicRecordController: retry: ${e.message}")
+                e.printStackTrace()
             }
         }
         // We don't always immediately store the receipt so sometimes

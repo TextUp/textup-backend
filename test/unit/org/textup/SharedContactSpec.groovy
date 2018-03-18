@@ -46,6 +46,7 @@ class SharedContactSpec extends CustomSpec {
 
     	then:
     	sc.validate() == true
+        sc.fromNum.number == p1.number.number
 
     	when: "we try to share a contact that is not our's"
     	sc = new SharedContact(contact:c2, sharedBy:p1, sharedWith:p2,
@@ -69,6 +70,7 @@ class SharedContactSpec extends CustomSpec {
 
     	then: "still valid, check for same teams happens when sharing through a phone"
     	sc.validate() == true
+        sc.fromNum.number == p1.number.number
     }
 
     void "test sharing permissions and expiration"() {

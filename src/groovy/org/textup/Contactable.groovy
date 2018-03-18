@@ -4,6 +4,7 @@ import grails.compiler.GrailsCompileStatic
 import org.joda.time.DateTime
 import org.textup.rest.NotificationStatus
 import org.textup.type.ContactStatus
+import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 
 @GrailsCompileStatic
@@ -13,6 +14,7 @@ interface Contactable {
     String getName()
     String getNote()
     ContactStatus getStatus()
+    PhoneNumber getFromNum()
     List<ContactNumber> getNumbers()
     List<ContactNumber> getSortedNumbers()
     Record getRecord()

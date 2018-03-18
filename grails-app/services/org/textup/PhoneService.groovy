@@ -6,9 +6,13 @@ import com.twilio.http.HttpMethod
 import com.twilio.rest.api.v2010.account.Call
 import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import com.twilio.rest.api.v2010.account.Recording
+import grails.async.Promise
+import grails.async.PromiseMap
+import grails.async.Promises
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.nio.charset.Charset
+import java.util.concurrent.TimeUnit
 import java.util.UUID
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang3.tuple.Pair
@@ -220,17 +224,17 @@ class PhoneService {
     // --------
 
     ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg, Staff staff = null) {
-        ResultGroup<RecordItem> resGroup = new ResultGroup<>()
         HashSet<Contactable> recipients = msg.toRecipients()
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
             .withDefault { [] as List<TempRecordReceipt> }
         // send to each contactable
-        recipients.each { Contactable c1 ->
-            resGroup << sendToContactable(phone, c1, msg, staff, contactIdToReceipts)
-        }
+        ResultGroup<RecordItem> resGroup =
+            sendToContactable(phone, recipients, msg, staff, contactIdToReceipts)
         // record all receipts on each tag, if applicable
-        msg.tags.each { ContactTag ct1 ->
-            resGroup << storeMessageInTag(ct1, msg, staff, contactIdToReceipts)
+        if (resGroup.anySuccesses) {
+            msg.tags.each { ContactTag ct1 ->
+                resGroup << storeMessageInTag(ct1, msg, staff, contactIdToReceipts)
+            }
         }
         resGroup
     }
@@ -273,40 +277,66 @@ class PhoneService {
     // Outgoing helper methods
     // -----------------------
 
-    protected Result<RecordItem> sendToContactable(Phone phone,
-        Contactable c1, OutgoingMessage msg, Staff staff = null,
+    protected ResultGroup<RecordItem> sendToContactable(Phone phone,
+        Collection<Contactable> recipients, OutgoingMessage msg, Staff staff = null,
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
+        ResultGroup<RecordItem> resGroup = new ResultGroup<>()
+        try {
+            PromiseMap<Contactable, Result<TempRecordReceipt>> pMap1 =
+                new PromiseMap<>(recipients.collectEntries { Contactable c1 ->
+                    [(c1):sendToContactableAsyncHelper(phone, c1, msg)]
+                })
+            pMap1
+                .get(1, TimeUnit.MINUTES)
+                .each { Contactable c1, Result<TempRecordReceipt> res ->
+                    resGroup << res.then({ TempRecordReceipt receipt ->
+                        Result<? extends RecordItem> storeRes = msg.isText ?
+                            c1.storeOutgoingText(msg.message, receipt, staff) :
+                            c1.storeOutgoingCall(receipt, staff, msg.message)
+                        if (c1.instanceOf(Contact) && storeRes.success) {
+                            contactIdToReceipts[c1.contactId]?.add(receipt)
+                        }
+                        resultFactory.success(storeRes.payload, ResultStatus.CREATED)
+                    })
+                }
+            resGroup
+        }
+        catch (Throwable e) { // an async error and SHOULD rollback transaction
+            log.error("PhoneService.sendToContactable: ${e.class}, ${e.message}")
+            e.printStackTrace()
+            resGroup << resultFactory.failWithThrowable(e)
+        }
+    }
 
-        boolean isContact = c1.instanceOf(Contact)
-        PhoneNumber fromNum = isContact ? phone.number :
-            ((c1 instanceof SharedContact) ? c1.sharedBy.number : null)
+    protected Promise<Result<TempRecordReceipt>> sendToContactableAsyncHelper(Phone phone,
+        Contactable c1, OutgoingMessage msg) {
+        PhoneNumber fromNum = c1.fromNum
         List<ContactNumber> sortedNums = c1.sortedNumbers
-        Result<TempRecordReceipt> res = msg.isText ?
-            textService.send(fromNum, sortedNums, msg.message) :
-            callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
-                message:msg.message, identifier:phone.name])
-        res.then({ TempRecordReceipt receipt ->
-            Result<? extends RecordItem> storeRes = msg.isText ?
-                c1.storeOutgoingText(msg.message, receipt, staff) :
-                c1.storeOutgoingCall(receipt, staff, msg.message)
-            if (isContact && storeRes.success) {
-                contactIdToReceipts[c1.contactId]?.add(receipt)
-            }
-            resultFactory.success(storeRes.payload, ResultStatus.CREATED)
-        })
+        String phoneName = phone.name // this makes a db callx
+        // NO HIBERNATE SESSION WITHIN NEW THREAD!!
+        // Any calls that will make a db call needs to be made outside of the task closure
+        Promises.task {
+            msg.isText ?
+                textService.send(fromNum, sortedNums, msg.message) :
+                callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
+                    message:msg.message, identifier:phoneName])
+        }
     }
     protected Result<RecordItem> storeMessageInTag(ContactTag ct1, OutgoingMessage msg,
         Staff staff = null, Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
         // create a new msg on the tag's record
-        ct1.addTextToRecord([contents:msg.message], staff).then({ RecordItem tagText ->
+        Result<? extends RecordItem> res = msg.isText ?
+            ct1.record.addText([contents:msg.message], staff?.toAuthor()) :
+            ct1.record.addCall([callContents:msg.message], staff?.toAuthor())
+        res.then({ RecordItem tagItem ->
             ct1.members.each { Contact c1 ->
                 // add contact msg's receipts to tag's msg
                 contactIdToReceipts[c1.id]?.each { TempRecordReceipt r ->
-                    tagText.addReceipt(r)
-                    tagText.save()
+                    tagItem.addReceipt(r)
+                    tagItem.save()
                 }
             }
-            resultFactory.success(tagText, ResultStatus.CREATED)
+            resultFactory.success(tagItem, ResultStatus.CREATED)
         })
     }
     protected Map<String, Result<TempRecordReceipt>> startAnnouncement(Phone phone,
@@ -553,8 +583,9 @@ class PhoneService {
             }
             finally { resp.close() }
         }
-        catch (e) {
+        catch (Throwable e) {
             log.error("PhoneService.moveVoicemail throwable: ${e.message}")
+            e.printStackTrace()
             resultFactory.failWithThrowable(e)
         }
         finally { client.close() }

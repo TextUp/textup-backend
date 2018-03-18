@@ -82,8 +82,9 @@ class SocketService {
                 }
                 else { resultFactory.success(s1) }
             }
-            catch (e) {
+            catch (Throwable e) {
                 log.error("SocketService.sendToDataToStaff: error: ${e.message}")
+                e.printStackTrace()
                 resultFactory.failWithThrowable(e, false) // don't rollback transaction
             }
         }

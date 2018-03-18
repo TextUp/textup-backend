@@ -39,9 +39,10 @@ class SocketController extends BaseController {
                 render status:ResultStatus.OK.apiStatus
                 respond(Helpers.toJson(authResult))
             }
-            catch (e) {
+            catch (Throwable e) {
                 log.error("SocketController.save: could not parse authResult: \
                     ${authResult} with error: ${e.message}")
+                e.printStackTrace()
                 render status:ResultStatus.FORBIDDEN.apiStatus
             }
         }
