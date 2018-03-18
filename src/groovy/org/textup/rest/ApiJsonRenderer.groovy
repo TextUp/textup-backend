@@ -66,6 +66,7 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
         }
         catch (ConverterException e1) {
             log.error "ApiJsonRenderer: while rendering '$object', converter with view '$view' not found: ${e1.message}"
+            e1.printStackTrace()
             try {
                 JSON.use("default") {
                     converter = object as ApiJson
@@ -73,6 +74,7 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
             }
             catch (ConverterException e2) {
                 log.error "ApiJsonRenderer: 'default' converter also not found: ${e2.message}"
+                e2.printStackTrace()
                 converter = object as JSON
             }
         }

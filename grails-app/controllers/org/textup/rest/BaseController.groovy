@@ -218,8 +218,9 @@ class BaseController {
         try {
             obj?.id
         }
-        catch(e) {
+        catch(Throwable e) {
             log.error("BaseController.getId: obj $obj, with error ${e.message}")
+            e.printStackTrace()
         }
         thisId
     }

@@ -156,8 +156,9 @@ class RecordNote extends RecordItem {
         try {
             Helpers.toJson(this.imageKeysAsString) as Collection<String>
         }
-        catch (e) {
+        catch (Throwable e) {
             log.error("RecordNote.getImageKeys: invalid json string '${this.imageKeysAsString}'")
+            e.printStackTrace()
             []
         }
     }

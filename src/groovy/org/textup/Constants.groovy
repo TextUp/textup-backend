@@ -111,6 +111,11 @@ class Constants {
 	static final String NOTE_IMAGE_ACTION_REMOVE = "remove"
 	static final String NOTE_IMAGE_ACTION_ADD = "add"
 
+	// Testing constants
+	// -----------------
+
+	static final String TEST_DEFAULT_AREA_CODE = "626"
+
 	// Twilio test API numbers
 	// -----------------------
 

@@ -82,8 +82,9 @@ class Token {
         try {
             Helpers.toJson(this.stringData) as Map
         }
-        catch (e) {
+        catch (Throwable e) {
             log.error("Token.getData: invalid json string '${this.stringData}'")
+            e.printStackTrace()
             [:]
         }
     }
