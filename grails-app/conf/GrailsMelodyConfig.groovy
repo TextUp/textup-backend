@@ -13,3 +13,5 @@ javamelody.'storage-directory' = '/grails-monitoring'
 Turn on Grails Service monitoring by adding 'spring' in displayed-counters parameter.
  */
 javamelody.'displayed-counters' = 'http,sql,error,log,spring,jsp'
+
+javamelody.'system-actions-enabled' = 'false'

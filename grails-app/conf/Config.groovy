@@ -147,6 +147,7 @@ log4j.main = {
            'org.springframework',
            'org.hibernate',
            'net.sf.ehcache.hibernate',
+           'net.bull.javamelody',                           // Melody monitoring
            'grails.app.jobs'                                // Quartz jobs
 }
 
