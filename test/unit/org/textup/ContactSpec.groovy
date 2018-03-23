@@ -256,7 +256,8 @@ class ContactSpec extends CustomSpec {
             sc2.save(flush:true, failOnError:true)
             // ensure that getting shared contacts respects when contact is deleted
             assert otherContact2.sharedContacts.isEmpty() == true
-            if (cStatus == ContactStatus.ACTIVE || cStatus == ContactStatus.UNREAD) {
+            if (cStatus == ContactStatus.ACTIVE || cStatus == ContactStatus.UNREAD ||
+                cStatus == ContactStatus.ARCHIVED) {
                 assert otherContact.sharedContacts[0]?.id == sc1.id
             }
             else {
@@ -275,7 +276,7 @@ class ContactSpec extends CustomSpec {
         Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.BLOCKED]) == 0
         Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.UNREAD]) == 1
         Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ACTIVE]) == 1
-        Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED]) == 0
+        Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED]) == 1
         Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.BLOCKED]) == 0
 
         Contact.listForPhoneAndSearch(phone1, otherNum).isEmpty()
@@ -287,21 +288,21 @@ class ContactSpec extends CustomSpec {
         Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.BLOCKED]).isEmpty()
         Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.UNREAD])[0].id in sharedContacts*.contactId
         Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ACTIVE])[0].id in sharedContacts*.contactId
-        Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED]).isEmpty()
+        Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED])[0].id in sharedContacts*.contactId
         Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.BLOCKED]).isEmpty()
 
         Contact.countForPhoneAndStatuses(phone1, null) == 4  // defaults to active and unread
         Contact.countForPhoneAndStatuses(phone1, []) == 4  // defaults to active and unread
         Contact.countForPhoneAndStatuses(phone1, [ContactStatus.UNREAD]) == 2
         Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ACTIVE]) == 2
-        Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED]) == 1 // Shared.sharedWithMe excludes ARCHIVED and BLOCKED
-        Contact.countForPhoneAndStatuses(phone1, [ContactStatus.BLOCKED]) == 1 // Shared.sharedWithMe excludes ARCHIVED and BLOCKED
+        Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED]) == 2
+        Contact.countForPhoneAndStatuses(phone1, [ContactStatus.BLOCKED]) == 1 // Shared.sharedWithMe excludes BLOCKED
 
         Contact.listForPhoneAndStatuses(phone1, null)*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
         Contact.listForPhoneAndStatuses(phone1, [])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
         Contact.listForPhoneAndStatuses(phone1, [ContactStatus.UNREAD])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
         Contact.listForPhoneAndStatuses(phone1, [ContactStatus.ACTIVE])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
-        Contact.listForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED])*.id.every { it in contacts*.contactId }
+        Contact.listForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
         Contact.listForPhoneAndStatuses(phone1, [ContactStatus.BLOCKED])*.id.every { it in contacts*.contactId }
 
         Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:otherNum)).isEmpty()

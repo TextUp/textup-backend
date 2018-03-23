@@ -85,7 +85,7 @@ class Contact implements Contactable {
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "sharedWith",
-            description    = "A list of other staff you'ved shared this contact with.",
+            description    = "A list of other staff you'ved shared this contact with. Will always be empty if contact is BLOCKED.",
             allowedType    = "List<SharedContact>",
             useForCreation = false),
         @RestApiObjectField(
@@ -364,7 +364,7 @@ class Contact implements Contactable {
                 gt("dateExpired", DateTime.now())
             }
             contact {
-                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
                 // must not be deleted
                 eq("isDeleted", false)
             }
