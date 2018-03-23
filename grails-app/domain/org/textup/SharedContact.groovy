@@ -101,7 +101,7 @@ class SharedContact implements Contactable {
                 gt("dateExpired", DateTime.now(DateTimeZone.UTC))
             }
             contact {
-                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
                 // must not be deleted
                 eq("isDeleted", false)
             }
@@ -116,7 +116,7 @@ class SharedContact implements Contactable {
                 gt("dateExpired", DateTime.now(DateTimeZone.UTC))
             }
             contact {
-                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
                 // must not be deleted
                 eq("isDeleted", false)
             }
@@ -165,7 +165,7 @@ class SharedContact implements Contactable {
                 gt("dateExpired", DateTime.now())
             }
             contact {
-                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD])
+                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
                 if (cIds) { "in"("id", cIds) }
                 else { eq("id", null) }
                 // must not be deleted
