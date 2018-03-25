@@ -273,25 +273,31 @@ class PhoneSpec extends CustomSpec {
         res.errorMessages.size() == 1
         res.errorMessages[0] == "phone.share.cannotShare"
 
-    	when: "we start sharing contact with someone on the same team "
+    	when: "we start sharing contact with someone on the same team"
+        c1.status = ContactStatus.ARCHIVED
+        assert c1.save(flush:true)
     	res = p1.share(c1, p2, SharePermission.DELEGATE)
 
-    	then:
+    	then: "new shared contact created with contact's status"
     	res.success == true
         res.status == ResultStatus.OK
     	res.payload.instanceOf(SharedContact)
+        res.payload.status == c1.status
 
     	when: "we start sharing contact that we've already shared with the same person"
+        c1.status = ContactStatus.UNREAD
+        assert c1.save(flush:true)
     	int sBaseline = SharedContact.count()
 		res = p1.share(c1, p2, SharePermission.DELEGATE)
 		assert res.success
 		SharedContact shared0 = res.payload
 		res.payload.save(flush:true, failOnError:true)
 
-    	then: "we don't create a duplicate SharedContact"
+    	then: "we don't create a duplicate SharedContact and status is updated"
         res.status == ResultStatus.OK
     	shared0.instanceOf(SharedContact)
     	SharedContact.count() == sBaseline
+        shared0.status == c1.status
 
     	when: "we share three more and list all shared so far"
 		SharedContact shared1 = p1.share(c1_1, p2, SharePermission.DELEGATE).payload,

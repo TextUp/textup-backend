@@ -25,9 +25,6 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         if (c1.note) {
             json.note = c1.note
         }
-        if (c1.status) {
-            json.status = c1.status.toString()
-        }
         json.numbers = c1.sortedNumbers.collect { ContactNumber num -> [number:num.prettyPhoneNumber] }
         json.futureMessages = c1.getFutureMessages()
         json.notificationStatuses = c1.getNotificationStatuses()
@@ -45,6 +42,7 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
                 ]
             }
             json.phone = contact.phone.id
+            json.status = c1.status?.toString()
         }
         else if (c1.instanceOf(SharedContact)) {
             SharedContact sc = c1 as SharedContact
@@ -53,6 +51,7 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
             json.sharedBy = sc.sharedBy.name
             json.sharedById = sc.sharedBy.id
             json.phone = sc.sharedWith.id
+            json.status = sc.status?.toString()
         }
         else {
             log.error("ContactableJsonMarshaller: passed in Contactable $c1 is \

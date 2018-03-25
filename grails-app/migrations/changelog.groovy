@@ -917,4 +917,6 @@ databaseChangeLog = {
 	include file: 'notification-policy.groovy'
 
 	include file: 'phone-voice.groovy'
+
+	include file: 'shared-contact-separate-status.groovy'
 }

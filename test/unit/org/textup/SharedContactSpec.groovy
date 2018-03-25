@@ -8,6 +8,7 @@ import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.textup.rest.NotificationStatus
+import org.textup.type.ContactStatus
 import org.textup.type.NotificationLevel
 import org.textup.type.SharePermission
 import org.textup.util.CustomSpec
@@ -38,7 +39,7 @@ class SharedContactSpec extends CustomSpec {
 
     	then: "invalid"
     	sc.validate() == false
-    	sc.errors.errorCount == 4
+    	sc.errors.errorCount == 5
 
     	when: "we have a valid SharedContact"
     	sc = new SharedContact(contact:c1, sharedBy:p1, sharedWith:p2,
@@ -47,6 +48,7 @@ class SharedContactSpec extends CustomSpec {
     	then:
     	sc.validate() == true
         sc.fromNum.number == p1.number.number
+        sc1.status == c1.status // copied contact's status over
 
     	when: "we try to share a contact that is not our's"
     	sc = new SharedContact(contact:c2, sharedBy:p1, sharedWith:p2,
@@ -71,6 +73,16 @@ class SharedContactSpec extends CustomSpec {
     	then: "still valid, check for same teams happens when sharing through a phone"
     	sc.validate() == true
         sc.fromNum.number == p1.number.number
+        sc1.status == c1.status // copied contact's status over
+
+        when: "we set divergent statuses for a SharedContact that already has a set status"
+        sc1.status = ContactStatus.ACTIVE
+        c1.status = ContactStatus.UNREAD
+
+        then: "two separate copies are maintained"
+        sc.validate() == true
+        sc1.status != c1.status
+        sc1.status == ContactStatus.ACTIVE
     }
 
     void "test sharing permissions and expiration"() {

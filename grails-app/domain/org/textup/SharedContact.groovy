@@ -29,6 +29,13 @@ class SharedContact implements Contactable {
 	DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     @RestApiObjectField(
+        description = "Status of this shared contact. Allowed: ACTIVE, UNREAD, ARCHIVED, BLOCKED",
+        defaultValue   = "the contact's status at the time of sharing",
+        mandatory      = false,
+        allowedType = "String")
+    ContactStatus status
+
+    @RestApiObjectField(
         description = "Level of permissions you shared this contact with. \
             Allowed: DELEGATE, VIEW",
         allowedType = "String")
@@ -210,11 +217,22 @@ class SharedContact implements Contactable {
             }
     }
 
+    // Events
+    // ------
+
+    // if the shared contact's status is null and we are validating, copy over the contact's status
+    def beforeValidate() {
+        if (!this.status) {
+            this.status = this.contact?.status
+        }
+    }
+
     // Sharing
     // -------
 
     @GrailsCompileStatic
-    SharedContact startSharing(SharePermission perm) {
+    SharedContact startSharing(ContactStatus cStatus1, SharePermission perm) {
+        this.status = cStatus1
         this.permission = perm
         this.dateExpired = null
         this
@@ -267,10 +285,6 @@ class SharedContact implements Contactable {
     @GrailsCompileStatic
     String getNote() {
         this.canView ? this.contact.note : null
-    }
-    @GrailsCompileStatic
-    ContactStatus getStatus() {
-        this.canView ? this.contact.status : null
     }
     @GrailsCompileStatic
     List<ContactNumber> getNumbers() {

@@ -1,8 +1,9 @@
 package org.textup.rest.marshaller
 
-import org.textup.util.CustomSpec
 import grails.converters.JSON
 import org.textup.*
+import org.textup.type.ContactStatus
+import org.textup.util.CustomSpec
 
 class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
 
@@ -21,7 +22,6 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.lastRecordActivity == c1.lastRecordActivity.toString()
         assert json.name == c1.name
         assert json.note == c1.note
-        assert json.status == c1.status.toString()
         assert json.numbers instanceof List
         assert json.numbers.size() == (c1.numbers ? c1.numbers.size() : 0)
         c1.numbers?.each { ContactNumber num ->
@@ -49,6 +49,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
 
     	then:
         validate(json, c1)
+        json.status == c1.status.toString()
         json.tags instanceof List
         json.tags.size() == c1.tags.size()
         c1.tags.every { ContactTag ct1 -> json.tags.find { it.id == ct1.id } }
@@ -65,6 +66,11 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
     }
 
     void "test marshalling shared contact"() {
+        given: "different statuses for contact and shared contact"
+        sc2.contact.status = ContactStatus.ARCHIVED
+        sc2.status = ContactStatus.UNREAD
+        [sc2, sc2.contact]*.save(flush:true, failOnError:true)
+
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
@@ -73,6 +79,8 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
 
         then:
         validate(json, sc2)
+        json.status == sc2.status.toString()
+        json.status != sc2.contact.status.toString()
         json.permission == sc2.permission.toString()
         json.startedSharing == sc2.whenCreated.toString()
         json.sharedBy == sc2.sharedBy.name
