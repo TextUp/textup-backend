@@ -262,9 +262,9 @@ class ContactController extends BaseController {
         if (contactInfo == null) { return }
         Long id = params.long("id")
         if (authService.exists(Contact, id)) {
-            if (authService.hasPermissionsForContact(id) ||
-                authService.getSharedContactIdForContact(id)) {
-                respondWithResult(Contactable, contactService.update(id, contactInfo))
+            Long scId = authService.getSharedContactIdForContact(id)
+            if (scId || authService.hasPermissionsForContact(id)) {
+                respondWithResult(Contactable, contactService.update(id, contactInfo, scId))
             }
             else { forbidden() }
         }

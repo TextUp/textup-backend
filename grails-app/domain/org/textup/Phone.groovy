@@ -227,7 +227,7 @@ class Phone {
         sharedWithTeams.any { it in allowedTeams }
     }
     Result<SharedContact> share(Contact c1, Phone sWith, SharePermission perm) {
-        if (c1?.phone != this) {
+        if (c1?.phone?.id != this.id) {
             return resultFactory.failWithCodeAndStatus("phone.contactNotMine",
                 ResultStatus.BAD_REQUEST, [c1?.name])
         }
@@ -238,7 +238,7 @@ class Phone {
         //check to see that there isn't already an active shared contact
         SharedContact sc = SharedContact.listForContactAndSharedWith(c1, sWith, [max:1])[0]
         if (sc) {
-            sc.startSharing(perm)
+            sc.startSharing(c1.status, perm)
         }
         else {
             sc = new SharedContact(contact:c1, sharedBy:this, sharedWith:sWith, permission:perm)

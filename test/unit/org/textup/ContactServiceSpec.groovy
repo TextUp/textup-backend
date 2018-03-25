@@ -5,10 +5,11 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import java.util.UUID
 import org.springframework.context.MessageSource
 import org.textup.type.ContactStatus
-import org.textup.type.StaffStatus
 import org.textup.type.SharePermission
+import org.textup.type.StaffStatus
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
@@ -121,8 +122,16 @@ class ContactServiceSpec extends CustomSpec {
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
 
-        when: "we successfully update a contact"
+        when: "we try to update with a valid contact id but a nonexistent shared id"
         String name = "kiki bai"
+        res = service.update(c1.id, [name:name], -88L)
+
+        then:
+        res.success == false
+        res.errorMessages[0] == "contactService.update.notFound"
+        res.status == ResultStatus.NOT_FOUND
+
+        when: "we successfully update a contact"
         res = service.update(c1.id, [name:name])
 
         then:
@@ -167,6 +176,31 @@ class ContactServiceSpec extends CustomSpec {
         res.payload.status == ContactStatus.UNREAD
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
+    }
+
+    void "test updating contact info with shared contact provided"() {
+        given:
+        Contact contact1 = sc1.contact
+        contact1.status = ContactStatus.UNREAD
+        assert sc1.isActive
+        assert contact1.save(flush:true)
+
+        when: "updating fields with shared contact info provided too"
+        Map updateInfo = [
+            name: UUID.randomUUID().toString(),
+            note: UUID.randomUUID().toString(),
+            status: ContactStatus.ARCHIVED.toString()
+        ]
+        ContactStatus newStatus1 = Helpers.convertEnum(ContactStatus, updateInfo.status)
+        Result res = service.updateContactInfo(contact1, updateInfo, sc1)
+
+        then: "all field updated except for the status, which is updated on shared contact"
+        res.status == ResultStatus.OK
+        res.payload instanceof Contact
+        res.payload.name == updateInfo.name
+        res.payload.note == updateInfo.note
+        res.payload.status != newStatus1
+        SharedContact.get(sc1.id).status == newStatus1
     }
 
     void "test updating with notification actions"() {

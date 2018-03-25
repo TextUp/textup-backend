@@ -63,9 +63,12 @@ class ContactService {
     // Update
     // ------
 
-	Result<Contact> update(Long cId, Map body) {
+	Result<Contact> update(Long cId, Map body, Long scId = null) {
         Contact c1 = Contact.get(cId)
-        if (!c1) {
+        SharedContact sc1
+        if (scId) { sc1 = SharedContact.get(scId) }
+        // only mandate existence for the shared contact if a shared contact id is provided
+        if (!c1 || (scId && !sc1)) {
             return resultFactory.failWithCodeAndStatus("contactService.update.notFound",
                 ResultStatus.NOT_FOUND, [cId])
         }
@@ -73,16 +76,23 @@ class ContactService {
             .then({ Contact cont1 -> handleNumberActions(cont1, body) })
             .then({ Contact cont1 -> handleShareActions(cont1, body) })
             .then({ Contact cont1 -> handleMergeActions(cont1, body) })
-            .then({ Contact cont1 -> updateContactInfo(cont1, body) })
+            .then({ Contact cont1 -> updateContactInfo(cont1, body, sc1) })
 	}
-    protected Result<Contact> updateContactInfo(Contact c1, Map body) {
+    protected Result<Contact> updateContactInfo(Contact c1, Map body, SharedContact sc1 = null) {
         //update other fields
         c1.with {
             if (body.name) name = body.name
             if (body.note) note = body.note
-            if (body.status) {
-                status = Helpers.convertEnum(ContactStatus, body.status)
+        }
+        // if updating the status, update on the shared contact if available to avoid overwriting
+        // the status on the original contact
+        if (body.status) {
+            ContactStatus newStat1 = Helpers.convertEnum(ContactStatus, body.status)
+            if (sc1) {
+                sc1.status = newStat1
+                if (!sc1.save()) { return resultFactory.failWithValidationErrors(sc1.errors) }
             }
+            else { c1.status = newStat1 }
         }
         if (c1.save()) {
             resultFactory.success(c1)

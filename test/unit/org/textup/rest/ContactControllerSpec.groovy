@@ -338,12 +338,13 @@ class ContactControllerSpec extends CustomSpec {
 
     void "test update a contact"() {
         given:
-        controller.contactService = [update:{ Long cId, Map body ->
+        controller.contactService = [update:{ Long cId, Map body, Long sharedId ->
             new Result(payload:c1)
         }] as ContactService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
-            hasPermissionsForContact:{ Long id -> true }
+            hasPermissionsForContact:{ Long id -> true },
+            getSharedContactIdForContact:{ Long id -> null }
         ] as AuthService
 
         when:
@@ -359,7 +360,7 @@ class ContactControllerSpec extends CustomSpec {
 
     void "test update contact that is shard with this phone"() {
         given:
-        controller.contactService = [update:{ Long cId, Map body ->
+        controller.contactService = [update:{ Long cId, Map body, Long sharedId ->
             new Result(payload:c1)
         }] as ContactService
         controller.authService = [
