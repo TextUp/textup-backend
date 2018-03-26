@@ -1,0 +1,48 @@
+package org.textup.job
+
+import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
+import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
+import org.quartz.Job
+import org.quartz.JobExecutionContext
+import org.quartz.utils.Key
+import org.textup.FutureMessage
+
+class FutureMessageCleanupJob implements Job {
+    static triggers = {
+      cron cronExpression: "0 0 5 * * ?" // note this is in UTC time
+    }
+
+    boolean concurrent = false
+    String group = Key.DEFAULT_GROUP
+
+    @GrailsTypeChecked
+    void execute(JobExecutionContext context) {
+        DateTime now = DateTime.now(DateTimeZone.UTC)
+        // examine messages that are NOT done but have started either today are earlier
+        DetachedCriteria query = FutureMessage.where {
+            isDone == false &&
+                year(startDate) <= now.getYear() &&
+                month(startDate) <= now.getMonthOfYear() &&
+                day(startDate) <= now.getDayOfMonth()
+        }
+        Collection<FutureMessage> toBeCheckedList = query.list()
+        Collection<FutureMessage> withErrorMsgs = []
+        // // get all messages our db records show as NOT done
+        toBeCheckedList.each { FutureMessage fMsg1 ->
+            // for those that are marked as NOT done but ARE actually done
+            if (fMsg1.isReallyDone) {
+                // update our db records to make these as done
+                fMsg1.isDone = true
+                if (!fMsg1.save()) { withErrorMsgs << fMsg1 }
+            }
+        }
+        if (withErrorMsgs) {
+            log.error """
+                FutureMessageCleanupJob: could not mark following scheduled message ids as
+                done ${withErrorMsgs*.id}. Validation errors are: ${withErrorMsgs*.errors}
+            """
+        }
+    }
+}

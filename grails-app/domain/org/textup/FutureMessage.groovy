@@ -7,6 +7,7 @@ import groovy.transform.TypeCheckingMode
 import java.util.concurrent.TimeUnit
 import java.util.UUID
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
+import org.jadira.usertype.dateandtime.joda.PersistentDateTimeZoneAsString
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.quartz.ScheduleBuilder
@@ -29,13 +30,23 @@ class FutureMessage {
     String keyName = UUID.randomUUID().toString()
     Record record
 
+    // specify the datetime in UTC when this future message's start time should be adjusted
+    // to account for daylight savings change. See `FutureMessageDaylightSavingsJob`
+    // for more details about adjustment. If the job has already been adjusted this particular
+    // job, then the `hasAdjustedDaylightSavings` will be set to true and this job will
+    // not be adjusted again. However, any time the `whenAdjustDaylightSavings` entry is set
+    // to a new value, this flag will be reset to false.
+    DateTime whenAdjustDaylightSavings
+    boolean hasAdjustedDaylightSavings = false
+    DateTimeZone daylightSavingsZone
+
     // In the job, when this message will not be executed again, we manually mark
     // the job as 'done'. We have to rely on this manual bookkeeping because we want
     // to keep our implementation of done-ness agnostic of the Quartz jobstore we
     // choose. If we choose the in-memory jobstore, there isn't a way that we can
     // incorporate the information in the scheduler about the done-ness in our db query
     // However, after retrieving this instance, we can double check to see if we
-    // were correct by calling the getIsActuallyDone method
+    // were correct by calling the getIsReallyDone method
     @RestApiObjectField(
         description    = "Whether all scheduled firings of this message have completed",
         mandatory      = false,
@@ -103,11 +114,15 @@ class FutureMessage {
                 ["endBeforeStart"]
             }
         }
+        whenAdjustDaylightSavings nullable:true
+        daylightSavingsZone nullable:true
     }
     static mapping = {
         whenCreated type:PersistentDateTime
         startDate type:PersistentDateTime
         endDate type:PersistentDateTime
+        whenAdjustDaylightSavings type:PersistentDateTime
+        daylightSavingsZone type:PersistentDateTimeZoneAsString
     }
 
     // Events
@@ -141,6 +156,21 @@ class FutureMessage {
     Result<Void> cancel() {
         this.isDone = true
         doUnschedule()
+    }
+
+    void checkScheduleDaylightSavingsAdjustment(DateTimeZone zone1) {
+        if (this.whenCreated && this.startDate && zone1?.isFixed() == false) {
+            DateTime changeDate = new DateTime(zone1.nextTransition(this.whenCreated.getMillis()))
+            if (changeDate.isBefore(this.startDate)) {
+                DateTime newChangeDate = changeDate.withZone(DateTimeZone.UTC)
+                // only update `whenAdjustDaylightSavings` and reset the flag if a different value
+                if (newChangeDate != this.whenAdjustDaylightSavings) {
+                    this.whenAdjustDaylightSavings = newChangeDate
+                    this.hasAdjustedDaylightSavings = false
+                    this.daylightSavingsZone = zone1
+                }
+            }
+        }
     }
 
     // Helper Methods

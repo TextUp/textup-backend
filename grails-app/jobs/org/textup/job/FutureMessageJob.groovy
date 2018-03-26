@@ -2,6 +2,7 @@ package org.textup.job
 
 import grails.compiler.GrailsTypeChecked
 import java.util.concurrent.TimeUnit
+import org.quartz.Job
 import org.quartz.JobDataMap
 import org.quartz.JobExecutionContext
 import org.quartz.utils.Key
@@ -9,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.textup.*
 
 @GrailsTypeChecked
-class FutureMessageJob {
+class FutureMessageJob implements Job {
 
 	@Autowired
 	FutureMessageService futureMessageService

@@ -217,6 +217,11 @@ class FutureMessageService {
                 sMsg.repeatIntervalInDays = Helpers.to(Integer, body.repeatIntervalInDays)
             }
         }
+        // if timezone is provided, determine if we need to schedule a date to adjust to
+        // account for daylight savings time
+        if (timezone) {
+            fMsg.checkScheduleDaylightSavingsAdjustment(Helpers.getZoneFromId(timezone))
+        }
         // for some reason, calling save here instantly persists the message
         if (fMsg.validate()) {
             boolean isNew = !fMsg.id // is new if no id yet
