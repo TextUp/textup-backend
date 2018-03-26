@@ -13,6 +13,11 @@ class Constants {
 	static final String AWAY_EMERGENCY_MESSAGE = " If this is an emergency, contact 9 1 1."
 	static final int DEFAULT_TOKEN_LENGTH = 25
 
+	// Concurrency
+	// -----------
+
+	static final int CONCURRENT_SEND_BATCH_SIZE = 20
+
 	// Lock code
 	// ---------
 

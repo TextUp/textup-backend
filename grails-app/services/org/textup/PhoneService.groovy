@@ -7,7 +7,7 @@ import com.twilio.rest.api.v2010.account.Call
 import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import com.twilio.rest.api.v2010.account.Recording
 import grails.async.Promise
-import grails.async.PromiseMap
+import grails.async.PromiseList
 import grails.async.Promises
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
@@ -229,7 +229,7 @@ class PhoneService {
             .withDefault { [] as List<TempRecordReceipt> }
         // send to each contactable
         ResultGroup<RecordItem> resGroup =
-            sendToContactable(phone, recipients, msg, staff, contactIdToReceipts)
+            sendToContactable(phone, recipients.toList(), msg, staff, contactIdToReceipts)
         // record all receipts on each tag, if applicable
         if (resGroup.anySuccesses) {
             msg.tags.each { ContactTag ct1 ->
@@ -278,26 +278,29 @@ class PhoneService {
     // -----------------------
 
     protected ResultGroup<RecordItem> sendToContactable(Phone phone,
-        Collection<Contactable> recipients, OutgoingMessage msg, Staff staff = null,
+        List<Contactable> recipients, OutgoingMessage msg, Staff staff = null,
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]) {
         ResultGroup<RecordItem> resGroup = new ResultGroup<>()
         try {
-            PromiseMap<Contactable, Result<TempRecordReceipt>> pMap1 =
-                new PromiseMap<>(recipients.collectEntries { Contactable c1 ->
-                    [(c1):sendToContactableAsyncHelper(phone, c1, msg)]
-                })
-            pMap1
-                .get(1, TimeUnit.MINUTES)
-                .each { Contactable c1, Result<TempRecordReceipt> res ->
-                    resGroup << res.then({ TempRecordReceipt receipt ->
-                        Result<? extends RecordItem> storeRes = msg.isText ?
-                            c1.storeOutgoingText(msg.message, receipt, staff) :
-                            c1.storeOutgoingCall(receipt, staff, msg.message)
-                        if (c1.instanceOf(Contact) && storeRes.success) {
-                            contactIdToReceipts[c1.contactId]?.add(receipt)
-                        }
-                        resultFactory.success(storeRes.payload, ResultStatus.CREATED)
-                    })
+            PromiseList<Map<Contactable, Result<TempRecordReceipt>>> pList1 = new PromiseList<>()
+            recipients
+                .collate(Constants.CONCURRENT_SEND_BATCH_SIZE)
+                .each { List<Contactable> contactables ->
+                    pList1 << sendToContactableAsyncHelper(phone, contactables, msg)
+                }
+            (pList1.get(1, TimeUnit.MINUTES) as List<Map<Contactable, Result<TempRecordReceipt>>>)
+                .each { Map<Contactable, Result<TempRecordReceipt>> contactableToRes ->
+                    contactableToRes.each { Contactable c1, Result<TempRecordReceipt> res ->
+                        resGroup << res.then({ TempRecordReceipt receipt ->
+                            Result<? extends RecordItem> storeRes = msg.isText ?
+                                c1.storeOutgoingText(msg.message, receipt, staff) :
+                                c1.storeOutgoingCall(receipt, staff, msg.message)
+                            if (c1.instanceOf(Contact) && storeRes.success) {
+                                contactIdToReceipts[c1.contactId]?.add(receipt)
+                            }
+                            resultFactory.success(storeRes.payload, ResultStatus.CREATED)
+                        })
+                    }
                 }
             resGroup
         }
@@ -308,18 +311,32 @@ class PhoneService {
         }
     }
 
-    protected Promise<Result<TempRecordReceipt>> sendToContactableAsyncHelper(Phone phone,
-        Contactable c1, OutgoingMessage msg) {
-        PhoneNumber fromNum = c1.fromNum
-        List<ContactNumber> sortedNums = c1.sortedNumbers
-        String phoneName = phone.name // this makes a db callx
+    protected Promise<Map<Contactable, Result<TempRecordReceipt>>> sendToContactableAsyncHelper(
+        Phone phone, List<Contactable> contactables, OutgoingMessage msg) {
+        // store needed data outside of the promise closure to prevent accidentally making
+        // any db calls inside of the closure and triggering a `no session` error
+        Map<Long, PhoneNumber> contactIdToFromNum = [:]
+        Map<Long, List<ContactNumber>> contactIdToNums = [:]
+        contactables.each { Contactable c1 ->
+            Long cId = c1.contactId
+            contactIdToFromNum[cId] = c1.fromNum
+            contactIdToNums[cId] = c1.sortedNumbers
+        }
+        String phoneName = phone.name // this makes a db call
         // NO HIBERNATE SESSION WITHIN NEW THREAD!!
         // Any calls that will make a db call needs to be made outside of the task closure
         Promises.task {
-            msg.isText ?
-                textService.send(fromNum, sortedNums, msg.message) :
-                callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
-                    message:msg.message, identifier:phoneName])
+            Map<Contactable, Result<TempRecordReceipt>> contactableToRes = [:]
+            contactables.each { Contactable c1 ->
+                Long cId = c1.contactId
+                PhoneNumber fromNum = contactIdToFromNum[cId]
+                List<ContactNumber> sortedNums = contactIdToNums[cId]
+                contactableToRes[c1] = msg.isText ?
+                    textService.send(fromNum, sortedNums, msg.message) :
+                    callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
+                        message:msg.message, identifier:phoneName])
+            }
+            contactableToRes
         }
     }
     protected Result<RecordItem> storeMessageInTag(ContactTag ct1, OutgoingMessage msg,
