@@ -179,11 +179,12 @@ class ContactServiceSpec extends CustomSpec {
     }
 
     void "test updating contact info with shared contact provided"() {
-        given:
+        given: "shared contact with collaborator permissions"
         Contact contact1 = sc1.contact
         contact1.status = ContactStatus.UNREAD
-        assert sc1.isActive
-        assert contact1.save(flush:true)
+        sc1.permission = SharePermission.DELEGATE
+        [sc1, contact1]*.save(flush:true, failOnError:true)
+        assert sc1.isActive && sc1.canModify
 
         when: "updating fields with shared contact info provided too"
         Map updateInfo = [
@@ -199,6 +200,26 @@ class ContactServiceSpec extends CustomSpec {
         res.payload instanceof Contact
         res.payload.name == updateInfo.name
         res.payload.note == updateInfo.note
+        res.payload.status != newStatus1
+        SharedContact.get(sc1.id).status == newStatus1
+
+        when: "shared contact is view-only"
+        sc1.permission = SharePermission.VIEW
+        sc1.save(flush:true, failOnError:true)
+
+        updateInfo = [
+            name: UUID.randomUUID().toString(),
+            note: UUID.randomUUID().toString(),
+            status: ContactStatus.BLOCKED.toString()
+        ]
+        newStatus1 = Helpers.convertEnum(ContactStatus, updateInfo.status)
+        res = service.updateContactInfo(contact1, updateInfo, sc1)
+
+        then: "only status flag is respected"
+        res.status == ResultStatus.OK
+        res.payload instanceof Contact
+        res.payload.name != updateInfo.name
+        res.payload.note != updateInfo.note
         res.payload.status != newStatus1
         SharedContact.get(sc1.id).status == newStatus1
     }
@@ -223,6 +244,34 @@ class ContactServiceSpec extends CustomSpec {
         res.success == true
         res.payload instanceof Contact
         res.payload.id == c1.id
+        Contact.count() == cBaseline
+
+        when: "with delegate permissions"
+        sc1.permission = SharePermission.DELEGATE
+        sc1.save(flush:true, failOnError:true)
+
+        wasServiceCalled = false
+        res = service.handleNotificationActions(sc1.contact, notifActions, sc1)
+
+        then: "ignored"
+        wasServiceCalled == false
+        res.success == true
+        res.payload instanceof Contact
+        res.payload.id == sc1.contact.id
+        Contact.count() == cBaseline
+
+        when: "with view-only permissions"
+        sc1.permission = SharePermission.VIEW
+        sc1.save(flush:true, failOnError:true)
+
+        wasServiceCalled = false
+        res = service.handleNotificationActions(sc1.contact, notifActions, sc1)
+
+        then: "ignored"
+        wasServiceCalled == false
+        res.success == true
+        res.payload instanceof Contact
+        res.payload.id == sc1.contact.id
         Contact.count() == cBaseline
     }
 
@@ -271,14 +320,30 @@ class ContactServiceSpec extends CustomSpec {
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline - numOriginalNums + 2
 
-        when: "we delete one of the numbers we just added"
+        when: "we delete one of the numbers we just added with view-only permissions"
+        sc1.permission = SharePermission.VIEW
+        sc1.save(flush:true, failOnError:true)
+
         numActions = [doNumberActions:[
             [number:num1, action:Constants.NUMBER_ACTION_DELETE]
         ]]
-        res = service.handleNumberActions(c1, numActions)
+        res = service.handleNumberActions(c1, numActions, sc1)
         c1.save(flush:true, failOnError:true)
 
-        then:
+        then: "ignored"
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Contact
+        res.payload.numbers.size() == 2 // still two -- no deletion happened
+
+        when: "try deleting again with delegate permissions"
+        sc1.permission = SharePermission.DELEGATE
+        sc1.save(flush:true, failOnError:true)
+
+        res = service.handleNumberActions(c1, numActions, sc1)
+        c1.save(flush:true, failOnError:true)
+
+        then: "allowed"
         res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof Contact
@@ -488,10 +553,48 @@ class ContactServiceSpec extends CustomSpec {
         SharedContact.count() == sBaseline + 2
         RecordNote.count() == noteBaseline + 3
 
-        when: "we stop sharing"
+        when: "we stop sharing with view-only permissions"
+        sc1.permission = SharePermission.VIEW
+        sc1.save(flush:true, failOnError:true)
+
         updateInfo = [doShareActions:[
             [id:s2.phone.id, action:Constants.SHARE_ACTION_STOP]
         ]]
+        res = service.handleShareActions(tC2, updateInfo, sc1)
+        tC2.save(flush:true, failOnError:true)
+
+        then: "ignored"
+        res.success == true
+        res.payload instanceof Contact
+        SharedContact.findBySharedWithAndSharedByAndContactAndPermission(s2.phone,
+            tC2.phone, tC2, SharePermission.VIEW) != null
+        s2.phone.sharedWithMe.any { it.contact.id == tC2.id } == true
+        t2.phone.sharedByMe.any { it.id == tC2.id } == true
+        Contact.count() == cBaseline
+        ContactNumber.count() == nBaseline
+        SharedContact.count() == sBaseline + 2
+        RecordNote.count() == noteBaseline + 3
+
+        when: "try again with delegate permissions"
+        sc1.permission = SharePermission.DELEGATE
+        sc1.save(flush:true, failOnError:true)
+
+        res = service.handleShareActions(tC2, updateInfo, sc1)
+        tC2.save(flush:true, failOnError:true)
+
+        then: "ignored"
+        res.success == true
+        res.payload instanceof Contact
+        SharedContact.findBySharedWithAndSharedByAndContactAndPermission(s2.phone,
+            tC2.phone, tC2, SharePermission.VIEW) != null
+        s2.phone.sharedWithMe.any { it.contact.id == tC2.id } == true
+        t2.phone.sharedByMe.any { it.id == tC2.id } == true
+        Contact.count() == cBaseline
+        ContactNumber.count() == nBaseline
+        SharedContact.count() == sBaseline + 2
+        RecordNote.count() == noteBaseline + 3
+
+        when: "try again without any sharing"
         res = service.handleShareActions(tC2, updateInfo)
         tC2.save(flush:true, failOnError:true)
 
@@ -538,17 +641,45 @@ class ContactServiceSpec extends CustomSpec {
         res.payload.note == note
         Contact.get(c1_1.id).isDeleted == true
 
-        when: "merging and reconciling differences"
+        when: "merging and reconciling differences with view-only permissions"
         name = c1_2.name
         note = c1_2.note
-        res = service.handleMergeActions(c1, [doMergeActions: [
+        Map mergeAction = [doMergeActions: [
             [
                 action:Constants.MERGE_ACTION_RECONCILE,
                 mergeIds:[c1_2.id],
                 nameId:c1_2.id,
                 noteId:c1_2.id
             ]
-        ]])
+        ]]
+
+        sc1.permission = SharePermission.VIEW
+        sc1.save(flush:true, failOnError:true)
+
+        res = service.handleMergeActions(c1, mergeAction, sc1)
+        Contact.withSession { it.flush() }
+
+        then: "ignored"
+        res.status == ResultStatus.OK
+        res.payload instanceof Contact
+        res.payload.id == c1.id
+        Contact.get(c1_2.id).isDeleted == false
+
+        when: "merging and reconciling differences with delegate permissions"
+        sc1.permission = SharePermission.DELEGATE
+        sc1.save(flush:true, failOnError:true)
+
+        res = service.handleMergeActions(c1, mergeAction, sc1)
+        Contact.withSession { it.flush() }
+
+        then: "ignored"
+        res.status == ResultStatus.OK
+        res.payload instanceof Contact
+        res.payload.id == c1.id
+        Contact.get(c1_2.id).isDeleted == false
+
+        when: "try again without any sharing"
+        res = service.handleMergeActions(c1, mergeAction)
         Contact.withSession { it.flush() }
 
         then: "success and merged-in contacts marked as deleted"

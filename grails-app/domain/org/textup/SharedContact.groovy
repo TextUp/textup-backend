@@ -63,10 +63,10 @@ class SharedContact implements Contactable {
     static constraints = {
     	dateExpired nullable:true
         contact validator:{ Contact val, SharedContact obj ->
-            if (val.phone != obj.sharedBy) { ["contactOwnership", val.name] }
+            if (val.phone?.id != obj.sharedBy?.id) { ["contactOwnership", val.name] }
         }
         sharedBy validator:{ Phone sBy, SharedContact obj ->
-            if (sBy == obj.sharedWith) { ["shareWithMyself"] }
+            if (sBy?.id == obj.sharedWith?.id) { ["shareWithMyself"] }
         }
     }
     static mapping = {

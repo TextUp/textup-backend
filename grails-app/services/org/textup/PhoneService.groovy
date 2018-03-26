@@ -656,9 +656,21 @@ class PhoneService {
         //note that blocked contacts will not even have the incoming message be stored
         notBlockedContacts.each { Contact c1 ->
             contactStoreAction(c1)
-            //only change status to unread
-            //dont' have to worry about blocked contacts since we already filtered those out
+            // only change status to unread
+            // dont' have to worry about blocked contacts since we already filtered those out
             c1.status = ContactStatus.UNREAD
+            List<SharedContact> sharedContacts = c1.sharedContacts
+            for (SharedContact sc1 in sharedContacts) {
+                // only marked the shared contact's status as unread IF the shared contact's
+                // status is NOT blocked. If the collaborator has blocked this contact then
+                // we want to respect that decision.
+                if (sc1.status != ContactStatus.BLOCKED) {
+                    sc1.status = ContactStatus.UNREAD
+                    if (!sc1.save()) {
+                        return resultFactory.failWithValidationErrors(sc1.errors)
+                    }
+                }
+            }
             if (!c1.save()) {
                 return resultFactory.failWithValidationErrors(c1.errors)
             }
