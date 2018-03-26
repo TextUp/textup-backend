@@ -744,6 +744,12 @@ class PhoneServiceSpec extends CustomSpec {
         _whoIsAvailable = sWith.owner.all
         [sBy, sWith]*.save(flush:true, failOnError:true)
 
+        // set status to something different to check to see if they will both
+        // be set to unread afterwards
+        sc1.status = ContactStatus.ACTIVE
+        sc1.contact.status = ContactStatus.ARCHIVED
+        [sc1, sc1.contact]*.save(flush:true, failOnError:true)
+
         IncomingText text = new IncomingText(apiId:"iamsosecret", message:"hello")
         assert text.validate()
         _numTextsSent.getAndSet(0)
@@ -757,6 +763,8 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload == []
         _numTextsSent.intValue() == sWith.owner.all.size()
         _notifyRecordIds.every { it == sc1.contact.record.id }
+        Contact.get(sc1.contact.id).status == ContactStatus.UNREAD
+        SharedContact.get(sc1.id).status == ContactStatus.UNREAD
         // We no longer test the line below because this functionality of resolving
         // shared relationships is now encapsulated in notificationService and is
         // not present in our simple mock of the notificationService
@@ -852,6 +860,12 @@ class PhoneServiceSpec extends CustomSpec {
             lastSentInstructions:DateTime.now().minusDays(1))
         session.save(flush:true, failOnError:true)
 
+        // set status to something different to check to see if they will both
+        // be set to unread afterwards
+        sc1.status = ContactStatus.BLOCKED
+        sc1.contact.status = ContactStatus.ACTIVE
+        [sc1, sc1.contact]*.save(flush:true, failOnError:true)
+
         when: "call sharedBy is unavailable but sharedWith is available"
         _whoIsAvailable = sWith.owner.all
         Result res = service.relayCall(sBy, "apiId", session)
@@ -863,6 +877,10 @@ class PhoneServiceSpec extends CustomSpec {
         res.success == true
         res.status == ResultStatus.OK
         res.payload == CallResponse.CONNECT_INCOMING
+        // contact is marked as unread but the SharedContact is STILL BLOCKED
+        // because we respect the collaborator's decision to block that contact.
+        Contact.get(sc1.contact.id).status == ContactStatus.UNREAD
+        SharedContact.get(sc1.id).status == ContactStatus.BLOCKED
 
         when: "none avabilable"
         _whoIsAvailable = []

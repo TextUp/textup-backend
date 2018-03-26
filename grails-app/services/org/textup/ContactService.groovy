@@ -72,18 +72,21 @@ class ContactService {
             return resultFactory.failWithCodeAndStatus("contactService.update.notFound",
                 ResultStatus.NOT_FOUND, [cId])
         }
-        handleNotificationActions(c1, body)
-            .then({ Contact cont1 -> handleNumberActions(cont1, body) })
-            .then({ Contact cont1 -> handleShareActions(cont1, body) })
-            .then({ Contact cont1 -> handleMergeActions(cont1, body) })
-            .then({ Contact cont1 -> updateContactInfo(cont1, body, sc1) })
+        handleNotificationActions(c1, body, sc1) // off-limits for collaborators
+            .then({ Contact cont1 -> handleNumberActions(cont1, body, sc1) }) // delegate ok
+            .then({ Contact cont1 -> handleShareActions(cont1, body, sc1) }) // no for collaborators
+            .then({ Contact cont1 -> handleMergeActions(cont1, body, sc1) }) // no for collaborators
+            .then({ Contact cont1 -> updateContactInfo(cont1, body, sc1) }) // all collaborators
 	}
     protected Result<Contact> updateContactInfo(Contact c1, Map body, SharedContact sc1 = null) {
-        //update other fields
-        c1.with {
-            if (body.name) name = body.name
-            if (body.note) note = body.note
+        if (!sc1 || sc1.canModify) {
+            //update other fields only if my contact or with modify permissions
+            c1.with {
+                if (body.name) name = body.name
+                if (body.note) note = body.note
+            }
         }
+        // both owner of the contact and all active collaborators can modify status
         // if updating the status, update on the shared contact if available to avoid overwriting
         // the status on the original contact
         if (body.status) {
@@ -99,8 +102,8 @@ class ContactService {
         }
         else { resultFactory.failWithValidationErrors(c1.errors) }
     }
-    protected Result<Contact> handleNotificationActions(Contact c1, Map body) {
-        if (body.doNotificationActions) {
+    protected Result<Contact> handleNotificationActions(Contact c1, Map body, SharedContact sc1 = null) {
+        if (body.doNotificationActions && !sc1) {
             Result<Void> res = notificationService.handleNotificationActions(c1.phone,
                 c1.record.id, body.doNotificationActions)
             if (!res.success) {
@@ -109,10 +112,10 @@ class ContactService {
         }
         resultFactory.success(c1)
     }
-    protected Result<Contact> handleNumberActions(Contact c1, Map body) {
+    protected Result<Contact> handleNumberActions(Contact c1, Map body, SharedContact sc1 = null) {
         //do at the beginning so we don't need to discard any field changes
         //number actions validate only, see below for number actions
-        if (body.doNumberActions) {
+        if (body.doNumberActions && (!sc1 || sc1.canModify)) {
             ActionContainer ac1 = new ActionContainer(body.doNumberActions)
             List<ContactNumberAction> actions = ac1.validateAndBuildActions(ContactNumberAction)
             if (ac1.hasErrors()) {
@@ -139,8 +142,8 @@ class ContactService {
         }
         resultFactory.success(c1)
     }
-    protected Result<Contact> handleShareActions(Contact c1, Map body) {
-        if (body.doShareActions) {
+    protected Result<Contact> handleShareActions(Contact c1, Map body, SharedContact sc1 = null) {
+        if (body.doShareActions && !sc1) {
             ActionContainer ac1 = new ActionContainer(body.doShareActions)
             List<ShareContactAction> actions = ac1.validateAndBuildActions(ShareContactAction)
             if (ac1.hasErrors()) {
@@ -220,8 +223,8 @@ class ContactService {
             resultFactory.failWithThrowable(e)
         }
     }
-    protected Result<Contact> handleMergeActions(Contact c1, Map body) {
-        if (body.doMergeActions) {
+    protected Result<Contact> handleMergeActions(Contact c1, Map body, SharedContact sc1 = null) {
+        if (body.doMergeActions && !sc1) {
             ActionContainer ac1 = new ActionContainer(body.doMergeActions)
             List<MergeAction> actions = ac1.validateAndBuildActions(MergeAction)
             if (ac1.hasErrors()) {
