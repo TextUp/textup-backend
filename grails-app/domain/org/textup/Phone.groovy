@@ -300,18 +300,19 @@ class Phone {
         if (params == null) {
             return 0
         }
-        Contact.countForPhoneAndStatuses(this, Helpers.toEnumList(ContactStatus, params.statuses))
+        Contact.countForPhoneAndStatuses(this,
+            Helpers.toEnumList(ContactStatus, params.statuses, Constants.CONTACT_ACTIVE_STATUSES))
     }
     //Optional specify 'status' corresponding to valid contact statuses
     List<Contactable> getContacts(Map params=[:]) {
         if (params == null) {
             return []
         }
-        Collection<ContactStatus> statusEnums = Helpers.toEnumList(ContactStatus, params.statuses)
+        Collection<ContactStatus> statusEnums =
+            Helpers.toEnumList(ContactStatus, params.statuses, Constants.CONTACT_ACTIVE_STATUSES)
         //get contacts, both mine and those shared with me
         List<Contact> contactList = Contact.listForPhoneAndStatuses(this, statusEnums, params)
-        List<Contactable> replacedList = replaceContactsWithShared(contactList)
-        replacedList
+        replaceContactsWithShared(contactList)
     }
     int countContacts(String query) {
         if (query == null) {

@@ -101,15 +101,19 @@ class SharedContact implements Contactable {
                 eq("isDeleted", false)
             }
         }
-        sharedWithMe { Phone sWith ->
+        sharedWithMe { Phone sWith,
+            Collection<ContactStatus> sharedStatuses = [] ->
             sharedBy { isNotNull("numberAsString") }
-            eq('sharedWith', sWith)
+            eq("sharedWith", sWith)
             or {
                 isNull("dateExpired") //not expired if null
                 gt("dateExpired", DateTime.now(DateTimeZone.UTC))
             }
+            if (sharedStatuses) {
+                "in"("status", sharedStatuses)
+            }
             contact {
-                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
+                "in"("status", Constants.CONTACT_VISIBLE_STATUSES)
                 // must not be deleted
                 eq("isDeleted", false)
             }
@@ -118,13 +122,13 @@ class SharedContact implements Contactable {
         sharedByMe { Phone sBy ->
             sharedBy { isNotNull("numberAsString") }
             projections { distinct("contact") }
-            eq('sharedBy', sBy)
+            eq("sharedBy", sBy)
             or {
                 isNull("dateExpired") //not expired if null
                 gt("dateExpired", DateTime.now(DateTimeZone.UTC))
             }
             contact {
-                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
+                "in"("status", Constants.CONTACT_VISIBLE_STATUSES)
                 // must not be deleted
                 eq("isDeleted", false)
             }

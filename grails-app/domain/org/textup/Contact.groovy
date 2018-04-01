@@ -127,16 +127,32 @@ class Contact implements Contactable {
         numbers lazy:false, cascade:"all-delete-orphan"
     }
     static namedQueries = {
-        forPhoneAndStatuses { Phone thisPhone, Collection<ContactStatus> statuses ->
+        forPhoneAndStatuses { Phone thisPhone,
+            Collection<ContactStatus> statuses = Constants.CONTACT_ACTIVE_STATUSES ->
             // get both my contacts and contacts that have SharedContact with me
             or {
-                eq("phone", thisPhone)
-                List<SharedContact> shareds = SharedContact.sharedWithMe(thisPhone).list()
-                if (shareds) { "in"("id", shareds*.contact*.id) }
+                // if my contact, check status directly on this contact
+                and {
+                    eq("phone", thisPhone)
+                    if (statuses) {
+                        "in"("status", statuses)
+                    }
+                }
+                // if not my contact (shared with me), check the status on the shared contact
+                // NOTE: by default, this finder will NOT show shared contacts for contacts
+                // blocked by the original owner. See `Constants.CONTACT_VISIBLE_STATUSES`
+                Collection<SharedContact> shareds = SharedContact
+                    .sharedWithMe(thisPhone, statuses)
+                    .list()
+                if (shareds) {
+                    // critical that this `and` criteria builder clause is nested INSIDE of
+                    // this `if` statement. Otherwise, an empty `and` clause inside of an
+                    // `or` clause will be interpreted as permitting ALL contacts to be displayed
+                    and {
+                        "in"("id", shareds*.contact*.id)
+                    }
+                }
             }
-            // filter by statuses
-            if (statuses) { "in"("status", statuses) }
-            else { "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD]) }
             // must not be deleted
             eq("isDeleted", false)
             // sort appropriately
@@ -149,11 +165,15 @@ class Contact implements Contactable {
             // get both my contacts and contacts that have SharedContact with me
             or {
                 eq("phone", thisPhone)
-                List<SharedContact> shareds = SharedContact.sharedWithMe(thisPhone).list()
-                if (shareds) { "in"("id", shareds*.contact*.id) }
+                List<SharedContact> shareds = SharedContact
+                    .sharedWithMe(thisPhone, Constants.CONTACT_VISIBLE_STATUSES)
+                    .list()
+                if (shareds) {
+                    "in"("id", shareds*.contact*.id)
+                }
             }
             // search results should include all contacts EXCEPT blocked contacts
-            "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
+            "in"("status", Constants.CONTACT_VISIBLE_STATUSES)
             // must not be deleted
             eq("isDeleted", false)
             // conduct search in contact name and associated numbers
@@ -195,13 +215,23 @@ class Contact implements Contactable {
     }
 
     static int countForPhoneAndStatuses(Phone thisPhone, Collection<ContactStatus> statuses = []) {
-        forPhoneAndStatuses(thisPhone, statuses).count()
+        if (statuses) {
+            forPhoneAndStatuses(thisPhone, statuses).count()
+        }
+        else { // allow static finder default
+            forPhoneAndStatuses(thisPhone).count()
+        }
     }
     // return contacts, some of which are mine and other of which
     // are NOT mine have SharedContacts with me
     static List<Contact> listForPhoneAndStatuses(Phone thisPhone,
         Collection<ContactStatus> statuses = [], Map params=[:]) {
-        forPhoneAndStatuses(thisPhone, statuses).list(params)
+        if (statuses) {
+            forPhoneAndStatuses(thisPhone, statuses).list(params)
+        }
+        else { // allow static finder default
+            forPhoneAndStatuses(thisPhone).list(params)
+        }
     }
     // purposefully also allow blocked contacts to show up here. We want ALL contacts EXCEPT deleted ones
     static List<Contact> listForPhoneAndNum(Phone thisPhone, PhoneNumber num) {

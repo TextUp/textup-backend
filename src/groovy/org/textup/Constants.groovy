@@ -1,6 +1,7 @@
 package org.textup
 
 import grails.compiler.GrailsCompileStatic
+import org.textup.type.ContactStatus
 
 @GrailsCompileStatic
 class Constants {
@@ -12,6 +13,14 @@ class Constants {
 	// accurate count of how much to truncate for API consumers
 	static final String AWAY_EMERGENCY_MESSAGE = " If this is an emergency, contact 9 1 1."
 	static final int DEFAULT_TOKEN_LENGTH = 25
+
+	// Contacts
+	// --------
+
+	static final List<ContactStatus> CONTACT_ACTIVE_STATUSES =
+		[ContactStatus.ACTIVE, ContactStatus.UNREAD]
+	static final List<ContactStatus> CONTACT_VISIBLE_STATUSES =
+		[ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED]
 
 	// Concurrency
 	// -----------

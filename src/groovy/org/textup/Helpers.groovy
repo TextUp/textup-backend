@@ -42,14 +42,15 @@ class Helpers {
         enumClass?.values().find { it.toString() == enumString } ?: null
     }
     @GrailsCompileStatic(TypeCheckingMode.SKIP)
-    static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, def enumsOrStrings) {
+    static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, def enumsOrStrings,
+        List<T> fallbackList = []) {
         if (enumsOrStrings instanceof Collection) {
             enumsOrStrings?.collect { enumOrString ->
                 (enumClass?.isInstance(enumOrString)) ? enumOrString :
                     convertEnum(enumClass, enumOrString)
-            } ?: []
+            } ?: fallbackList
         }
-        else { [] }
+        else { fallbackList }
     }
 
     // Validator
