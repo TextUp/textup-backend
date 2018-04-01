@@ -676,6 +676,11 @@ class PhoneService {
             // only change status to unread
             // dont' have to worry about blocked contacts since we already filtered those out
             c1.status = ContactStatus.UNREAD
+            // NOTE: because we've already screened out all contacts that have been blocked
+            // by the owner of the contact, this effectively means that blocking also effectively
+            // stops all sharing relationships because we do not even attempt to deliver
+            // message to shared contacts that have had their original contact blocked by
+            // the original owner
             List<SharedContact> sharedContacts = c1.sharedContacts
             for (SharedContact sc1 in sharedContacts) {
                 // only marked the shared contact's status as unread IF the shared contact's
