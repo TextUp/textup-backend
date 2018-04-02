@@ -6,6 +6,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import java.util.concurrent.TimeUnit
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.textup.type.FutureMessageType
 import org.textup.type.RecordItemType
 import org.textup.util.CustomSpec
@@ -170,5 +171,70 @@ class FutureMessageSpec extends CustomSpec {
         then: "we are able to fetch these items back from the db"
         fMsgList.size() == 2
         fMsgList.every { it.id in targetIds }
+    }
+
+    void "test checking for daylight savings time adjustment"() {
+        given: "a valid future message with start date past next daylight savings change point"
+        Record rec1 = new Record()
+        rec1.save(flush:true, failOnError:true)
+        FutureMessage fm1 = new FutureMessage(type:FutureMessageType.TEXT, message:"hi",
+            record:rec1, startDate: DateTime.now().plusYears(10))
+        fm1.metaClass.refreshTrigger = { -> }
+        fm1.save(flush:true, failOnError:true)
+
+        assert fm1.whenAdjustDaylightSavings == null
+        assert fm1.hasAdjustedDaylightSavings == false
+        assert fm1.daylightSavingsZone == null
+
+        when: "check without timezone"
+        fm1.checkScheduleDaylightSavingsAdjustment(null)
+
+        then: "no change"
+        fm1.whenAdjustDaylightSavings == null
+        fm1.hasAdjustedDaylightSavings == false
+        fm1.daylightSavingsZone == null
+
+        when: "check with fixed timezone (doesn't observe daylight savings)"
+        fm1.checkScheduleDaylightSavingsAdjustment(DateTimeZone.UTC)
+
+        then: "no change"
+        fm1.whenAdjustDaylightSavings == null
+        fm1.hasAdjustedDaylightSavings == false
+        fm1.daylightSavingsZone == null
+
+        when: "check with mutable timezone"
+        DateTimeZone tz1 = DateTimeZone.forID("America/New_York")
+        fm1.checkScheduleDaylightSavingsAdjustment(tz1)
+
+        then: "daylight savings adjustment data stored"
+        fm1.whenAdjustDaylightSavings != null
+        // adjustment time is in the future because we store the changepoint
+        // immediately prior to the start date
+        fm1.whenAdjustDaylightSavings.year > DateTime.now().year
+        fm1.hasAdjustedDaylightSavings == false
+        fm1.daylightSavingsZone == tz1
+
+        when: "call again with same timezone"
+        fm1.hasAdjustedDaylightSavings = true
+        DateTime originalAdjustTime = fm1.whenAdjustDaylightSavings
+
+        fm1.checkScheduleDaylightSavingsAdjustment(tz1)
+
+        then: "short circuited because adjusted flag still true"
+        fm1.whenAdjustDaylightSavings == originalAdjustTime
+        fm1.hasAdjustedDaylightSavings == true
+        fm1.daylightSavingsZone == tz1
+
+        when: "call again with different timezone"
+        DateTimeZone tz2 = DateTimeZone.forID("America/Los_Angeles")
+
+        fm1.checkScheduleDaylightSavingsAdjustment(tz2)
+
+        then: "reset to new adjustment time"
+        fm1.whenAdjustDaylightSavings != originalAdjustTime
+        fm1.whenAdjustDaylightSavings != null
+        fm1.whenAdjustDaylightSavings.year > DateTime.now().year
+        fm1.hasAdjustedDaylightSavings == false
+        fm1.daylightSavingsZone == tz2
     }
 }

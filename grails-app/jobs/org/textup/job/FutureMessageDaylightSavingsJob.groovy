@@ -18,23 +18,19 @@ class FutureMessageDaylightSavingsJob implements Job {
     String group = Key.DEFAULT_GROUP
 
     @GrailsTypeChecked
-    void execute(JobExecutionContext context) {
-
-        DateTime now = DateTime.now(DateTimeZone.UTC)
-        // query future messages NOT ADJUSTED YET that are scheduled for adjustment EITHER
-        // (1) today at either the current hour or at a previous hour OR
-        // (2) at any hour yesterday
-        // We include previous times here for redundancy in case of a prior job error.
+    void execute(JobExecutionContext context = null) {
+        // set datetime to the end of this current hour or very start of the next hour
+        DateTime dateTime1 = DateTime
+            .now(DateTimeZone.UTC)
+            .withMinuteOfHour(0)
+            .withSecondOfMinute(0)
+            .plusHours(1)
+        // query future messages NOT ADJUSTED YET that are scheduled for adjustment during this
+        // current or anytime before. We include previous times here for redundancy in case
+        // of a prior job error.
         DetachedCriteria query = FutureMessage.where {
             isDone == false && hasAdjustedDaylightSavings == false &&
-                year(whenAdjustDaylightSavings) == now.getYear() &&
-                month(whenAdjustDaylightSavings) == now.getMonthOfYear() &&
-                (
-                    (day(whenAdjustDaylightSavings) == now.getDayOfMonth() &&
-                        hour(whenAdjustDaylightSavings) <= now.getHourOfDay()) ||
-                    (day(whenAdjustDaylightSavings) == now.getDayOfMonth() - 1)
-                )
-
+                whenAdjustDaylightSavings < dateTime1
         }
         Collection<FutureMessage> toBeAdjustedList = query.list()
         Collection<FutureMessage> withErrorMsgs = []

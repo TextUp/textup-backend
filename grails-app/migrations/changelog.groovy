@@ -919,4 +919,6 @@ databaseChangeLog = {
 	include file: 'phone-voice.groovy'
 
 	include file: 'shared-contact-separate-status.groovy'
+
+	include file: 'future-message-daylight-savings-adjustment.groovy'
 }

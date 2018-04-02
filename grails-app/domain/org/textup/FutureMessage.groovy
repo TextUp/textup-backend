@@ -160,11 +160,22 @@ class FutureMessage {
 
     void checkScheduleDaylightSavingsAdjustment(DateTimeZone zone1) {
         if (this.whenCreated && this.startDate && zone1?.isFixed() == false) {
-            DateTime changeDate = new DateTime(zone1.nextTransition(this.whenCreated.getMillis()))
-            if (changeDate.isBefore(this.startDate)) {
-                DateTime newChangeDate = changeDate.withZone(DateTimeZone.UTC)
+            DateTime prevChangeDate = null,
+                changeDate = new DateTime(zone1.nextTransition(this.whenCreated.getMillis()))
+            // stop iterating once we have the daylight savings change point BEFORE the start date
+            // and the start time after the start date
+            while (changeDate.isBefore(this.startDate)) {
+                prevChangeDate = changeDate
+                changeDate = new DateTime(zone1.nextTransition(changeDate.plusDays(1).getMillis()))
+            }
+            // if the prevChangeDate is null, then that means that the startDate is before the
+            // next possible change point. That means there's no need to adjust this message
+            // OTHERWISE, if the `prevChangeDate` has a non-null value, then we do need to adjust
+            // because that means that this date is before the start date (see the while-loop check)
+            if (prevChangeDate) {
+                DateTime newChangeDate = prevChangeDate.withZone(DateTimeZone.UTC)
                 // only update `whenAdjustDaylightSavings` and reset the flag if a different value
-                if (newChangeDate != this.whenAdjustDaylightSavings) {
+                if ( !this.whenAdjustDaylightSavings || newChangeDate != this.whenAdjustDaylightSavings) {
                     this.whenAdjustDaylightSavings = newChangeDate
                     this.hasAdjustedDaylightSavings = false
                     this.daylightSavingsZone = zone1

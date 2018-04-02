@@ -353,13 +353,19 @@ class FutureMessageServiceSpec extends CustomSpec {
         ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
 
-        when: "setting date properties WITH timezone"
+        when: "setting date properties WITH timezone for start time BEFORE DST change point"
         res = service.setFromBody(fMsg, info, targetTz)
 
         then: "all date values have their values preserved no matter initial timezone"
         res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
+        // daylight savings time adjust info populated because start time is
+        // far enough into the future
+        res.payload.whenAdjustDaylightSavings == null
+        res.payload.hasAdjustedDaylightSavings == false
+        res.payload.daylightSavingsZone == null
+
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
             startCustomDateTime.withZone(DateTimeZone.UTC).hourOfDay
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
@@ -372,6 +378,20 @@ class FutureMessageServiceSpec extends CustomSpec {
         // need to manually adjust to calculated daylight saving time offset here
         ((res.payload.endDate.withZone(DateTimeZone.UTC).hourOfDay + payloadChangeInOffset) % 24) ==
             endUTCDateTime.withZone(DateTimeZone.UTC).hourOfDay
+
+        when: "setting with time zone and start date far into the future"
+        info.startDate = DateTime.now().plusYears(2)
+        info.endDate = DateTime.now().plusYears(5)
+        res = service.setFromBody(fMsg, info, targetZone.getID())
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof FutureMessage
+        res.payload.whenAdjustDaylightSavings != null
+        res.payload.whenAdjustDaylightSavings.year > DateTime.now().year
+        res.payload.hasAdjustedDaylightSavings == false
+        res.payload.daylightSavingsZone == targetZone
     }
     void "test appropriate status codes when creating, updating, and deleting"() {
         given:

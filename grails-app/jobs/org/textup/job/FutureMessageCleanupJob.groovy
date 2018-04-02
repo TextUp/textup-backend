@@ -18,18 +18,15 @@ class FutureMessageCleanupJob implements Job {
     String group = Key.DEFAULT_GROUP
 
     @GrailsTypeChecked
-    void execute(JobExecutionContext context) {
+    void execute(JobExecutionContext context = null) {
         DateTime now = DateTime.now(DateTimeZone.UTC)
-        // examine messages that are NOT done but have started either today are earlier
+        // examine messages that are NOT done but have started either today or earlier
         DetachedCriteria query = FutureMessage.where {
-            isDone == false &&
-                year(startDate) <= now.getYear() &&
-                month(startDate) <= now.getMonthOfYear() &&
-                day(startDate) <= now.getDayOfMonth()
+            isDone == false && startDate <= DateTime.now()
         }
         Collection<FutureMessage> toBeCheckedList = query.list()
         Collection<FutureMessage> withErrorMsgs = []
-        // // get all messages our db records show as NOT done
+        // get all messages our db records show as NOT done
         toBeCheckedList.each { FutureMessage fMsg1 ->
             // for those that are marked as NOT done but ARE actually done
             if (fMsg1.isReallyDone) {

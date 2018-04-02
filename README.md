@@ -18,6 +18,14 @@ TextUp Grails backend
 * [Install SDKMAN!](http://sdkman.io/install.html)
 * `sdk install grails 2.4.4`
 
+## Databases
+
+Both development and testing environments use an in-memory H2 database.
+
+Staging and production environments use a MySQL v5.6 database. In order for the app to successfully start up, the appropriate user must be created with full permissions on the production database. Check `DataSource.groovy` to see the name of the production database.
+
+Make sure to pass in the correct username and password values for the database user you create with access to the production database. See the following section on environment variables for the names of the properties you may use to pass in the database username and password.
+
 ## Environment variables
 
 In order to successfully run, certain environment variables are required, accessed primarily in `grails-app/conf/BuildConfig.groovy`. Below, we outline variables required for each environment with typical values where appropriate.
@@ -72,17 +80,19 @@ Travis uses the same values as the development environment except for the follow
 * `CDN_KEY_ID`: secure token
 * `CDN_PRIVATE_KEY_PATH`: usually `/cloudfront-2017-private.der`
 * `CDN_ROOT`: usually `staging-media.textup.org`
-* **`ENABLE_QUARTZ`: should be `false`**
+* **`DB_PASSWORD`: secure value**
+* **`DB_USERNAME`: secure value**
+* **`ENABLE_QUARTZ`: should be `true`**
 * `PUSHER_API_KEY`: secure token
 * `PUSHER_API_SECRET`: secure token
 * `RECAPTCHA_SECRET`: secure token
 * `SENDGRID_API_KEY`: secure token
 * **`SERVER_URL`: usually `https://dev.textup.org`**
 * `STORAGE_BUCKET_NAME`: usually `staging-media-textup-org`
-* `TWILIO_AUTH`: secure token, should be **production credential**
+* `TWILIO_AUTH`: secure token, can be either test or production credentials
 * `TWILIO_NOTIFICATIONS_NUMBER`: usually `+14012878632`
 * `TWILIO_NUMBER_APP_ID`: secure token
-* `TWILIO_SID`: secure token, should be **production credential**
+* `TWILIO_SID`: secure token, can be either test or production credentials
 * `URL_ADMIN_DASHBOARD`: usually `http://demo.textup.org/#/admin`
 * `URL_NOTIFY_MESSAGE`: usually `http://demo.textup.org/#/notify?token=`
 * `URL_PASSWORD_RESET`: usually `http://demo.textup.org/#/reset?token=`
@@ -96,6 +106,8 @@ Travis uses the same values as the development environment except for the follow
 * `CDN_KEY_ID`: secure token
 * `CDN_PRIVATE_KEY_PATH`: usually `/cloudfront-2017-private.der`
 * `CDN_ROOT`: usually `media.textup.org`
+* **`DB_PASSWORD`: secure value**
+* **`DB_USERNAME`: secure value**
 * **`ENABLE_QUARTZ`: should be `true`**
 * `PUSHER_API_KEY`: secure token
 * `PUSHER_API_SECRET`: secure token
@@ -115,6 +127,8 @@ Travis uses the same values as the development environment except for the follow
 
 ## Running / Development
 
+### Development
+
 * `grails run-app`
 
 ### Running Tests
@@ -123,7 +137,7 @@ Running the entire test suite may lead to an insufficient PermGen space error. T
 
 See the `script` section of `.travis.yml` for the tests. Note that the command is `grails` instead of `./grailsw` if you installed via SDKMAN! and are not using the wrapper.
 
-### Building
+### Building for deployment
 
 * `grails prod war`
 

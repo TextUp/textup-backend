@@ -49,8 +49,8 @@ environments {
             // override our settings in /etc/mysql/my.cnf to set the character
             // encoding to utf8mb4
             url = "jdbc:mysql://localhost/prodDb?useUnicode=true"
-            username = "prod"
-            password = "textupprod"
+            username = System.getenv("DB_USERNAME") ?: System.getProperty("DB_USERNAME")
+            password = System.getenv("DB_PASSWORD") ?: System.getProperty("DB_PASSWORD")
 
             properties {
                 minEvictableIdleTimeMillis = 180000
