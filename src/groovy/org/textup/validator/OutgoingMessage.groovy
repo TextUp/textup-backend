@@ -8,6 +8,7 @@ import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.RecordItemType
+import org.textup.type.VoiceLanguage
 
 @GrailsTypeChecked
 @EqualsAndHashCode
@@ -16,6 +17,7 @@ class OutgoingMessage {
 
 	String message
 	RecordItemType type = RecordItemType.TEXT
+	VoiceLanguage language = VoiceLanguage.ENGLISH
 	List<Contact> contacts = []
 	List<SharedContact> sharedContacts = []
 	List<ContactTag> tags = []

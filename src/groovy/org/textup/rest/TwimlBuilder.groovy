@@ -11,6 +11,7 @@ import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.CallResponse
 import org.textup.type.TextResponse
+import org.textup.type.VoiceLanguage
 import org.textup.type.VoiceType
 
 class TwimlBuilder {
@@ -371,7 +372,11 @@ class TwimlBuilder {
                 }
                 break
             case CallResponse.DIRECT_MESSAGE:
-                if (params.message instanceof String) {
+                // cannot have language be of type VoiceLanguage because this hook is called
+                // after the the TextUp user picks up the call and we must serialize the
+                // parameters that are then passed back to TextUp by Twilio after pickup
+                if (params.message instanceof String && params.language instanceof String) {
+                    VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, params.language)
                     int repeatCount = Helpers.to(Integer, params.repeatCount) ?: 0
                     Map linkParams = [handle:CallResponse.DIRECT_MESSAGE,
                         message:params.message, repeatCount:repeatCount + 1]
@@ -389,7 +394,10 @@ class TwimlBuilder {
                         callBody = {
                             Say(messageIntro)
                             Pause(length:"1")
-                            Say(params.message)
+                            if (lang) {
+                                Say(language:lang, params.message)
+                            }
+                            else { Say(params.message) }
                             Redirect(repeatWebhook)
                         }
                     }

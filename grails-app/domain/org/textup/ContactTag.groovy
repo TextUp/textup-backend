@@ -34,6 +34,13 @@ class ContactTag {
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
+            apiFieldName = "language",
+            description  = "Language to use when speaking during calls. Allowed: \
+                CHINESE, ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, PORTUGUESE, RUSSIAN, SPANISH",
+            mandatory    = false,
+            allowedType  = "String",
+            defaultValue = "ENGLISH"),
+        @RestApiObjectField(
             apiFieldName   = "lastRecordActivity",
             description    = "Date and time of the most recent communication \
                 if this tag keeps a record",

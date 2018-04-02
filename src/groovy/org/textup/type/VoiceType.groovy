@@ -1,13 +1,20 @@
 package org.textup.type
 
+import com.twilio.twiml.Say.Voice
 import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 enum VoiceType {
-    MALE,
-    FEMALE
+    MALE(Voice.MAN),
+    FEMALE(Voice.WOMAN)
+
+    private final Voice twilioVoice
+
+    VoiceType(Voice voice) {
+        this.twilioVoice = voice
+    }
 
     String toTwimlValue() {
-        this == MALE ? 'man' : 'woman'
+        this.twilioVoice.toString()
     }
 }

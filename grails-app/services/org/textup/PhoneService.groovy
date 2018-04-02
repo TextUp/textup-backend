@@ -334,7 +334,7 @@ class PhoneService {
                 contactableToRes[c1] = msg.isText ?
                     textService.send(fromNum, sortedNums, msg.message) :
                     callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
-                        message:msg.message, identifier:phoneName])
+                        message:msg.message, identifier:phoneName, language:msg.language?.toTwimlValue()])
             }
             contactableToRes
         }

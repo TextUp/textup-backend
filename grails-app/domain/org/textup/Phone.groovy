@@ -15,6 +15,7 @@ import org.textup.type.ReceiptStatus
 import org.textup.type.RecordItemType
 import org.textup.type.SharePermission
 import org.textup.type.TextResponse
+import org.textup.type.VoiceLanguage
 import org.textup.type.VoiceType
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
@@ -51,6 +52,14 @@ class Phone {
         allowedType  = "String",
         defaultValue = "MALE")
     VoiceType voice = VoiceType.MALE
+
+    @RestApiObjectField(
+        description  = "Language to use when speaking during calls. Allowed: \
+            CHINESE, ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, PORTUGUESE, RUSSIAN, SPANISH",
+        mandatory    = false,
+        allowedType  = "String",
+        defaultValue = "ENGLISH")
+    VoiceLanguage language = VoiceLanguage.ENGLISH
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(

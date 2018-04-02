@@ -17,6 +17,7 @@ import org.quartz.Trigger
 import org.quartz.TriggerKey
 import org.restapidoc.annotation.*
 import org.textup.type.FutureMessageType
+import org.textup.type.VoiceLanguage
 import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
@@ -91,6 +92,14 @@ class FutureMessage {
         mandatory      = true,
         useForCreation = true)
     FutureMessageType type
+
+    @RestApiObjectField(
+        description  = "Language to use when speaking during calls. Allowed: \
+            CHINESE, ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, PORTUGUESE, RUSSIAN, SPANISH",
+        mandatory    = false,
+        allowedType  = "String",
+        defaultValue = "ENGLISH")
+    VoiceLanguage language = VoiceLanguage.ENGLISH
 
     @RestApiObjectField(
         description    = "Contents of the message. Max 320 characters",
@@ -210,9 +219,8 @@ class FutureMessage {
 
     OutgoingMessage toOutgoingMessage() {
         Helpers.<OutgoingMessage>doWithoutFlush({
-            OutgoingMessage msg = new OutgoingMessage(message:this.message)
-            // set type
-            msg.type = this.type?.toRecordItemType()
+            OutgoingMessage msg = new OutgoingMessage(message:this.message, language:this.language,
+                type:this.type?.toRecordItemType())
             // set recipients (manual flush)
             ContactTag tag = ContactTag.findByRecord(this.record)
             if (tag) { msg.tags << tag  }

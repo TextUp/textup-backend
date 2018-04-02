@@ -6,6 +6,7 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.type.VoiceLanguage
 import org.textup.validator.Author
 
 @GrailsTypeChecked
@@ -15,6 +16,7 @@ class Record {
     ResultFactory resultFactory
 
     DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
+    VoiceLanguage language = VoiceLanguage.ENGLISH
 
     static transients = ["resultFactory"]
     static constraints = {
