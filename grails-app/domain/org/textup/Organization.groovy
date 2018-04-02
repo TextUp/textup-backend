@@ -1,16 +1,21 @@
 package org.textup
 
-import groovy.transform.EqualsAndHashCode
-import org.restapidoc.annotation.*
-import org.textup.type.StaffStatus
-import org.textup.type.OrgStatus
 import grails.compiler.GrailsCompileStatic
+import groovy.transform.EqualsAndHashCode
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
+import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
+import org.restapidoc.annotation.*
+import org.textup.type.OrgStatus
+import org.textup.type.StaffStatus
 
 @EqualsAndHashCode
 @RestApiObject(name="Organization", description="An organization of staff members and teams.")
 class Organization {
 
     ResultFactory resultFactory
+
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     @RestApiObjectField(
         description    = "Name of the organization",
@@ -66,6 +71,9 @@ class Organization {
     	}
         status blank:false, nullable:false
         timeout min:Constants.DEFAULT_LOCK_TIMEOUT_MILLIS, max:Constants.MAX_LOCK_TIMEOUT_MILLIS
+    }
+    static mapping = {
+        whenCreated type:PersistentDateTime
     }
     static namedQueries = {
         ilikeForNameAndAddress { String query ->

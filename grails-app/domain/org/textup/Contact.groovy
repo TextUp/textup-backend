@@ -4,7 +4,9 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.rest.NotificationStatus
 import org.textup.type.AuthorType
@@ -20,6 +22,8 @@ import org.textup.validator.TempRecordReceipt
 class Contact implements Contactable {
 
     ResultFactory resultFactory
+
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     Phone phone //phone that owns this contact
     Record record
@@ -124,6 +128,7 @@ class Contact implements Contactable {
     }
     static hasMany = [numbers:ContactNumber]
     static mapping = {
+        whenCreated type:PersistentDateTime
         numbers lazy:false, cascade:"all-delete-orphan"
     }
     static namedQueries = {

@@ -2,6 +2,9 @@ package org.textup
 
 import grails.compiler.GrailsCompileStatic
 import groovy.transform.EqualsAndHashCode
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
+import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.type.PhoneOwnershipType
 import org.textup.type.StaffStatus
@@ -11,6 +14,8 @@ import org.textup.type.StaffStatus
 class Team {
 
     boolean isDeleted = false
+
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     @RestApiObjectField(description="Name of the team")
 	String name
@@ -51,6 +56,7 @@ class Team {
     static transients = ["phone"]
     static hasMany = [members:Staff]
     static mapping = {
+        whenCreated type:PersistentDateTime
         members lazy:false, cascade:"save-update"
     }
     static constraints = {

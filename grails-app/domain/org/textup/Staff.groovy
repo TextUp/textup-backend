@@ -4,7 +4,9 @@ import grails.compiler.GrailsTypeChecked
 import grails.plugin.springsecurity.SpringSecurityService
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.type.AuthorType
@@ -22,6 +24,8 @@ class Staff {
     ResultFactory resultFactory
 	SpringSecurityService springSecurityService
     PasswordEncoder passwordEncoder
+
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     boolean enabled = true
     boolean accountExpired
@@ -124,6 +128,7 @@ class Staff {
         }
 	}
 	static mapping = {
+        whenCreated type:PersistentDateTime
         org lazy:false
 		password column: '`password`'
 	}

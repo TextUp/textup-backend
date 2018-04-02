@@ -3,6 +3,9 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
+import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.rest.NotificationStatus
 import org.textup.type.AuthorType
@@ -13,6 +16,8 @@ import org.textup.validator.Author
 @EqualsAndHashCode
 @RestApiObject(name="Tag", description="A tag for grouping contacts")
 class ContactTag {
+
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
 	Phone phone
     Record record
@@ -71,6 +76,7 @@ class ContactTag {
     }
     static mappedBy = [members: "none"] // members is a unidirectional association
     static mapping = {
+        whenCreated type:PersistentDateTime
         members lazy:false, cascade:"save-update"
     }
 

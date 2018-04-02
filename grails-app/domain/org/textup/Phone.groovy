@@ -3,7 +3,9 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.rest.TwimlBuilder
 import org.textup.type.CallResponse
@@ -28,6 +30,8 @@ class Phone {
     ResultFactory resultFactory
     PhoneService phoneService
     TwimlBuilder twimlBuilder
+
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     //unique id assigned to this phone's number
     String apiId
@@ -92,6 +96,9 @@ class Phone {
             }
         }
         awayMessage blank:false, size:1..(Constants.TEXT_LENGTH)
+    }
+    static mapping = {
+        whenCreated type:PersistentDateTime
     }
 
     /*
