@@ -14,6 +14,7 @@ import org.springframework.context.MessageSource
 import org.springframework.transaction.TransactionStatus
 import org.textup.job.FutureMessageJob
 import org.textup.type.FutureMessageType
+import org.textup.type.VoiceLanguage
 import org.textup.util.OptimisticLockingRetry
 import org.textup.validator.BasicNotification
 import org.textup.validator.OutgoingMessage
@@ -204,6 +205,9 @@ class FutureMessageService {
             // optional properties
             if (body.startDate) {
                 startDate = Helpers.toDateTimeWithZone(body.startDate, timezone)
+            }
+            if (body.language) {
+                language = Helpers.convertEnum(VoiceLanguage, body.language)
             }
             // don't wrap endDate setter in if statement because we want to support nulling
             // endDate by omitting it from the passed-in body
