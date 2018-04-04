@@ -378,8 +378,12 @@ class TwimlBuilder {
                 if (params.message instanceof String && params.language instanceof String) {
                     VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, params.language)
                     int repeatCount = Helpers.to(Integer, params.repeatCount) ?: 0
-                    Map linkParams = [handle:CallResponse.DIRECT_MESSAGE,
-                        message:params.message, repeatCount:repeatCount + 1]
+                    Map linkParams = [
+                        handle:CallResponse.DIRECT_MESSAGE,
+                        message:params.message,
+                        repeatCount:repeatCount + 1,
+                        language: params.language
+                    ]
                     if (params.identifier) {
                         linkParams.identifier = params.identifier
                     }
@@ -395,7 +399,7 @@ class TwimlBuilder {
                             Say(messageIntro)
                             Pause(length:"1")
                             if (lang) {
-                                Say(language:lang, params.message)
+                                Say(language:lang.toTwimlValue(), params.message)
                             }
                             else { Say(params.message) }
                             Redirect(repeatWebhook)

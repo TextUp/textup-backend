@@ -11,6 +11,7 @@ import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.CallResponse
 import org.textup.type.TextResponse
+import org.textup.type.VoiceLanguage
 import org.textup.type.VoiceType
 import org.textup.util.CustomSpec
 import spock.lang.Ignore
@@ -666,7 +667,13 @@ class TwimlBuilderSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "direct messsage only message, no identifier"
-        Map linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message, repeatCount:2]
+        VoiceLanguage lang = VoiceLanguage.ENGLISH
+        Map linkParams = [
+            handle:CallResponse.DIRECT_MESSAGE,
+            message:message,
+            repeatCount:2,
+            language: lang.toString()
+        ]
         res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
         linkParams.repeatCount++
 
@@ -676,18 +683,23 @@ class TwimlBuilderSpec extends CustomSpec {
             Response {
                 Say("twimlBuilder.call.anonymousMessageIntro")
                 Pause(length:"1")
-                Say(message)
+                Say(language:lang.toTwimlValue(), message)
                 Redirect(linkParams.toString())
             }
         })
 
         when: "direct message both message and identifier"
-        linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message, repeatCount:2,
-            identifier:identifier]
+        linkParams = [
+            handle:CallResponse.DIRECT_MESSAGE,
+            message:message,
+            repeatCount:2,
+            language: "invalidbutstillpresent",
+            identifier:identifier
+        ]
         res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
         linkParams.repeatCount++
 
-        then:
+        then: "language is just required to be present, if invalid then is omitted"
         res.success == true
         buildXml(res.payload) == buildXml({
             Response {
@@ -699,8 +711,13 @@ class TwimlBuilderSpec extends CustomSpec {
         })
 
         when: "exceeded repeat maximum"
-        linkParams = [handle:CallResponse.DIRECT_MESSAGE, message:message,
-            repeatCount:Constants.MAX_REPEATS, identifier:identifier]
+        linkParams = [
+            handle:CallResponse.DIRECT_MESSAGE,
+            message:message,
+            repeatCount:Constants.MAX_REPEATS,
+            identifier:identifier,
+            language: VoiceLanguage.ENGLISH.toString()
+        ]
         res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
 
         then:
