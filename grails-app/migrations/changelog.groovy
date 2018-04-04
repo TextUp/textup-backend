@@ -923,4 +923,6 @@ databaseChangeLog = {
 	include file: 'future-message-daylight-savings-adjustment.groovy'
 
 	include file: 'domain-timestamps.groovy'
+
+	include file: 'voice-language.groovy'
 }

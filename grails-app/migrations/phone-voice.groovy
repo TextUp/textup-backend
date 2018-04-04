@@ -1,3 +1,5 @@
+import org.textup.type.VoiceType
+
 databaseChangeLog = {
 
 	changeSet(author: "ericbai (generated)", id: "1520385235492-1") {
