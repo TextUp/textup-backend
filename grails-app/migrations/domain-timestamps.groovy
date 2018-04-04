@@ -1,11 +1,8 @@
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
-import org.joda.time.format.DateTimeFormat
-
 databaseChangeLog = {
 
-	DateTime dt1 = DateTime.now(DateTimeZone.UTC)
-	String defaultNow = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").print(dt1)
+	// CANNOT make this value dynamically calculated because the checksums would not match up
+	// and the app would throw an error on start for all future deployments
+	String defaultNow = "2018-04-02 03:22:17"
 
 	changeSet(author: "ericbai (generated)", id: "1522633873471-1") {
 		addColumn(tableName: "contact") {
