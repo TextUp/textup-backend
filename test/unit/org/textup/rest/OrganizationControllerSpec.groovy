@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.plugin.jodatime.converters.JodaConverters
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -28,6 +29,8 @@ class OrganizationControllerSpec extends CustomSpec {
     }
     def setup() {
         super.setupData()
+        JodaConverters.registerJsonAndXmlMarshallers()
+
         controller.authService = [getIsActive:{ -> true }] as AuthService
     }
     def cleanup() {

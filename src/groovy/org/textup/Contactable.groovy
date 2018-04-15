@@ -4,6 +4,7 @@ import grails.compiler.GrailsCompileStatic
 import org.joda.time.DateTime
 import org.textup.rest.NotificationStatus
 import org.textup.type.ContactStatus
+import org.textup.type.VoiceLanguage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 
@@ -18,6 +19,9 @@ interface Contactable {
     List<ContactNumber> getNumbers()
     List<ContactNumber> getSortedNumbers()
     Record getRecord()
+
+    void setLanguage(VoiceLanguage lang)
+    VoiceLanguage getLanguage()
 
     List<RecordItem> getItems()
     List<RecordItem> getItems(Map params)

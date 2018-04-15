@@ -198,16 +198,24 @@ class Phone {
 
     Result<ContactTag> createTag(Map params) {
         ContactTag tag = new ContactTag()
-        tag.properties = params
-        tag.with {
-            phone = this
-            name = params.name
-            if (params.hexColor) hexColor = params.hexColor
+        tag.phone = this
+        tag.name = params.name
+        if (params.hexColor) tag.hexColor = params.hexColor
+        if (params.isDeleted != null) tag.isDeleted = params.isDeleted
+
+        // need to validate to initialize empty record
+        if (tag.validate()) {
+            // don't need null-check because withDefault uses the phone's language
+            // if the provided value is null
+            tag.language = Helpers.withDefault(
+                Helpers.convertEnum(VoiceLanguage, params.language),
+                this.language
+            )
+            if (tag.save()) {
+                return resultFactory.success(tag, ResultStatus.CREATED)
+            }
         }
-        if (tag.save()) {
-            resultFactory.success(tag, ResultStatus.CREATED)
-        }
-        else { resultFactory.failWithValidationErrors(tag.errors) }
+        resultFactory.failWithValidationErrors(tag.errors)
     }
 
     // Contacts
@@ -215,21 +223,34 @@ class Phone {
 
     Result<Contact> createContact(Map params=[:], Collection<String> numbers=[]) {
         Contact contact = new Contact([:])
-        contact.properties = params
         contact.phone = this
-        if (contact.save()) {
-            Collection<String> toBeAdded = numbers.unique()
-            int numbersLen = toBeAdded.size()
-            for (int i = 0; i < numbersLen; i++) {
-                String num = toBeAdded[i]
-                Result res = contact.mergeNumber(num, [preference:i])
-                if (!res.success) {
-                    return res
+        if (params.name) contact.name = params.name
+        if (params.note) contact.note = params.note
+        if (params.status) contact.status = Helpers.convertEnum(ContactStatus, params.status)
+        if (params.isDeleted != null) contact.isDeleted = params.isDeleted
+
+        // need to initialize record in order to proxy setting language on associated record
+        if (contact.validate()) {
+            contact.language = Helpers.withDefault(
+                Helpers.convertEnum(VoiceLanguage, params.language),
+                this.language
+            )
+            // need to save contact before adding numbers so that the contact domain is assigned an
+            // ID to be associated with the ContactNumbers to avoid a TransientObjectException
+            if (contact.save()) {
+                Collection<String> toBeAdded = numbers.unique()
+                int numbersLen = toBeAdded.size()
+                for (int i = 0; i < numbersLen; i++) {
+                    String num = toBeAdded[i]
+                    Result res = contact.mergeNumber(num, [preference:i])
+                    if (!res.success) {
+                        return res
+                    }
                 }
+                return resultFactory.success(contact, ResultStatus.CREATED)
             }
-            resultFactory.success(contact, ResultStatus.CREATED)
         }
-        else { resultFactory.failWithValidationErrors(contact.errors) }
+        resultFactory.failWithValidationErrors(contact.errors)
     }
 
     // Sharing

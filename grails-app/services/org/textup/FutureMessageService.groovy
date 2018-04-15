@@ -152,7 +152,13 @@ class FutureMessageService {
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         setFromBody(new SimpleFutureMessage(record:rec), body, timezone)
-            .then({ FutureMessage fm1 -> resultFactory.success(fm1, ResultStatus.CREATED) })
+            .then({ FutureMessage fm1 ->
+                fm1.language = Helpers.withDefault(
+                    Helpers.convertEnum(VoiceLanguage, body.language),
+                    rec.language
+                )
+                resultFactory.success(fm1, ResultStatus.CREATED)
+            })
     }
 
     // Update

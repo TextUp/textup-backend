@@ -38,7 +38,13 @@ class HelpersSpec extends Specification {
             CallResponse.ANNOUNCEMENT_GREETING]
     }
 
-
+    void "test with default"() {
+        expect:
+        "hello" == Helpers.withDefault(null, "hello")
+        "wut" == Helpers.withDefault("wut", "hello")
+        22L == Helpers.withDefault(null, 22L)
+        8L == Helpers.withDefault(8L, 22L)
+    }
 
     void "test take right"() {
         given: "a list"

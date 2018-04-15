@@ -32,6 +32,7 @@ import org.textup.type.PhoneOwnershipType
 import org.textup.type.ReceiptStatus
 import org.textup.type.RecordItemType
 import org.textup.type.TextResponse
+import org.textup.type.VoiceLanguage
 import org.textup.type.VoiceType
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.PhoneAction
@@ -82,6 +83,9 @@ class PhoneService {
         }
         if (body.voice) {
             p1.voice = Helpers.convertEnum(VoiceType, body.voice)
+        }
+        if (body.language) {
+            p1.language = Helpers.convertEnum(VoiceLanguage, body.language)
         }
         if (body.doPhoneActions) {
             ActionContainer ac1 = new ActionContainer(body.doPhoneActions)
@@ -333,8 +337,15 @@ class PhoneService {
                 List<ContactNumber> sortedNums = contactIdToNums[cId]
                 contactableToRes[c1] = msg.isText ?
                     textService.send(fromNum, sortedNums, msg.message) :
-                    callService.start(fromNum, sortedNums, [handle:CallResponse.DIRECT_MESSAGE,
-                        message:msg.message, identifier:phoneName, language:msg.language?.toTwimlValue()])
+                    callService.start(fromNum, sortedNums, [
+                        handle:CallResponse.DIRECT_MESSAGE,
+                        message:msg.message,
+                        identifier:phoneName,
+                        // pass in string representation of this enum NOT the twiml value
+                        // because we need to parse this string value to re-obtain the enum
+                        // on the callback hook after pick-up
+                        language:msg.language?.toString()
+                    ])
             }
             contactableToRes
         }

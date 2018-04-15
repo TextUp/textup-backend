@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import org.hibernate.Session
+import org.textup.type.VoiceLanguage
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.ContactTagAction
 
@@ -56,6 +57,7 @@ class TagService {
         ct1.with {
             if (body.name) name = body.name
             if (body.hexColor) hexColor = body.hexColor
+            if (body.language) language = Helpers.convertEnum(VoiceLanguage, body.language)
         }
         if (ct1.save()) {
             resultFactory.success(ct1)

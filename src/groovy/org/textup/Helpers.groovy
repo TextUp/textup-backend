@@ -53,6 +53,13 @@ class Helpers {
         else { fallbackList }
     }
 
+    // Setters
+    // -------
+
+    static <T> T withDefault(T val, T defaultVal) {
+        val ? val : defaultVal
+    }
+
     // Validator
     // ---------
 

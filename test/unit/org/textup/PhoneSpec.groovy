@@ -16,6 +16,7 @@ import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
 import org.textup.type.TextResponse
 import org.textup.type.VoiceType
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import org.textup.validator.IncomingText
 import org.textup.validator.OutgoingMessage
@@ -338,7 +339,7 @@ class PhoneSpec extends CustomSpec {
 
     	when: "stop sharing by contacts"
     	SharedContact shared4 = p2.share(c2, p3, SharePermission.DELEGATE).payload
-    	p2.merge(flush:true)
+        shared4.save(flush:true, failOnError:true)
         //same underlying contact
     	assert p2.sharedByMe.every { it in [shared4, shared3]*.contact }
     	assert p1.sharedWithMe[0].id == shared3.id && p3.sharedWithMe[0].id == shared4.id
@@ -434,13 +435,19 @@ class PhoneSpec extends CustomSpec {
     }
 
     void "test creating contacts"() {
+        given:
+        p1.language = VoiceLanguage.CHINESE
+        p1.save(flush:true, failOnError:true)
+
         when: "we create a blank contact"
-        Result res = p1.createContact()
+        Result<Contact> res = p1.createContact(language:"blah invalid")
 
         then:
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload.instanceOf(Contact)
+        // use phone default because no valid language provided
+        res.payload.language == p1.language
 
         when: "contact with duplicate numbers"
         int cNumBaseline = ContactNumber.count(),
@@ -466,15 +473,24 @@ class PhoneSpec extends CustomSpec {
         contactBaseline = Contact.count()
         String num1 = "1112223333",
             num2 = "1232343456",
-            name1 = "Kiki"
-        res = p1.createContact([name:name1], [num2, num2, num1, num2, num1])
+            name1 = UUID.randomUUID().toString()[0..10],
+            note1 = UUID.randomUUID().toString()[0..10]
+        res = p1.createContact([
+                name:name1,
+                language:VoiceLanguage.PORTUGUESE.toString(),
+                note:note1,
+                status:ContactStatus.ARCHIVED.toString()
+            ],
+            [num2, num2, num1, num2, num1])
         p1.save(flush:true, failOnError:true)
 
         then:
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload.instanceOf(Contact)
-        res.payload.name == name
+        res.payload.name == name1
+        res.payload.note == note1
+        res.payload.status == ContactStatus.ARCHIVED
         res.payload.numbers.size() == 2
         res.payload.numbers[0].number == num2
         res.payload.numbers[0].preference == 0
@@ -482,6 +498,9 @@ class PhoneSpec extends CustomSpec {
         res.payload.numbers[1].preference == 1
         Contact.count() == contactBaseline + 1
         ContactNumber.count() == cNumBaseline + 2
+        // valid language provided so do not use phone language as default
+        res.payload.language != p1.language
+        res.payload.language == VoiceLanguage.PORTUGUESE
     }
 
     void "test creating tags"() {
@@ -490,36 +509,45 @@ class PhoneSpec extends CustomSpec {
         int recBaseline = Record.count()
         int origNumTags = p1.tags.size()
 
+        p1.language = VoiceLanguage.CHINESE
+        p1.save(flush:true, failOnError:true)
+
     	when: "we add a tag with unique name"
-    	assert p1.createTag(name:"tag1").success
+        Result<ContactTag> tagRes1 = p1.createTag(name:"tag1", language: "blah invalid")
+        assert tagRes1.success
     	p1.save(flush:true, failOnError:true)
 
     	then:
     	p1.tags.size() == origNumTags + 1
         ContactTag.count() == tagBaseline + 1
         Record.count() == recBaseline + 1
+        // because no valid language provided, defaults to phone's language
+        tagRes1.payload.language == p1.language
 
     	when: "we add a tag with a duplicate name"
-    	Result res = p1.createTag(name:"tag1")
+    	Result<ContactTag> tagRes2 = p1.createTag(name:"tag1")
 
     	then:
-    	res.success == false
-    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    	res.errorMessages.size() == 1
+    	tagRes2.success == false
+    	tagRes2.status == ResultStatus.UNPROCESSABLE_ENTITY
+    	tagRes2.errorMessages.size() == 1
         ContactTag.count() == tagBaseline + 1
         Record.count() == recBaseline + 1
 
     	when: "we change to a unique name"
-    	res = p1.createTag(name:"tag2")
-        assert res.payload.instanceOf(ContactTag)
-        res.payload.save(flush:true, failOnError:true)
+    	tagRes2 = p1.createTag(name:"tag2", language:VoiceLanguage.PORTUGUESE.toString())
+        assert tagRes2.payload.instanceOf(ContactTag)
+        tagRes2.payload.save(flush:true, failOnError:true)
 
     	then:
-    	res.success == true
-        res.status == ResultStatus.CREATED
+    	tagRes2.success == true
+        tagRes2.status == ResultStatus.CREATED
         p1.tags.size() == origNumTags + 2
         ContactTag.count() == tagBaseline + 2
         Record.count() == recBaseline + 2
+        // valid language provided so we don't use phone language as default
+        tagRes2.payload.language != p1.language
+        tagRes2.payload.language == VoiceLanguage.PORTUGUESE
     }
 
     // Communications functionality

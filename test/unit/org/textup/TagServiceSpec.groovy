@@ -8,6 +8,7 @@ import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.type.FutureMessageType
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 
@@ -51,6 +52,7 @@ class TagServiceSpec extends CustomSpec {
     void "test create"() {
         given: "baselines"
         int tBaseline = ContactTag.count()
+        int rBaseline = Record.count()
         addToMessageSource("tagService.create.noPhone")
 
     	when: "we create for a nonexistent Team"
@@ -62,8 +64,10 @@ class TagServiceSpec extends CustomSpec {
         res.errorMessages[0] == "tagService.create.noPhone"
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         ContactTag.count() == tBaseline
+        Record.count() == rBaseline
 
     	when: "we create tag with a unique name"
+        createInfo.language = VoiceLanguage.KOREAN.toString()
         t1.phone.resultFactory = service.resultFactory
         res = service.create(t1.phone, createInfo)
 
@@ -71,8 +75,10 @@ class TagServiceSpec extends CustomSpec {
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload instanceof ContactTag
+        res.payload.language == VoiceLanguage.KOREAN
         res.payload.name == createInfo.name
         ContactTag.count() == tBaseline + 1
+        Record.count() == rBaseline + 1
     }
 
     // Update
@@ -246,7 +252,9 @@ class TagServiceSpec extends CustomSpec {
 
         when: "valid update"
         updateInfo.hexColor = "#123"
+        updateInfo.language = VoiceLanguage.JAPANESE.toString()
         res = service.update(tag2.id, updateInfo)
+        res.payload.save(flush:true, failOnError:true)
 
         then:
         res.success == true
@@ -255,6 +263,7 @@ class TagServiceSpec extends CustomSpec {
         res.payload.id == tag2.id
         res.payload.name == updateInfo.name
         res.payload.hexColor == updateInfo.hexColor
+        res.payload.language == VoiceLanguage.JAPANESE
     }
 
     // Delete

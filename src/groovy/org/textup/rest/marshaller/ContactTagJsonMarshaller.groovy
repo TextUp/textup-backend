@@ -22,6 +22,7 @@ class ContactTagJsonMarshaller extends JsonNamedMarshaller {
             numMembers = ct.getMembersByStatus([ContactStatus.ACTIVE, ContactStatus.UNREAD]).size()
             futureMessages = ct.record.getFutureMessages()
             notificationStatuses = ct.getNotificationStatuses()
+            language = ct.language?.toString()
             phone = ct.phone.id
         }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,

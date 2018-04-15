@@ -4,6 +4,7 @@ import grails.converters.JSON
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.FutureMessageType
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 
 class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
@@ -27,6 +28,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.message == fMsg.message
         assert json.isDone == fMsg.isReallyDone
         assert json.isRepeating == fMsg.isRepeating
+        assert json.language == fMsg.language.toString()
         // always will be null because we aren't actually scheduling
         assert json.timesTriggered == null
         assert json.nextFireDate == null
@@ -42,8 +44,12 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
 
     void "test marshalling future message"() {
         given: "a nonrepeating future message"
-        FutureMessage fMsg = new FutureMessage(type:FutureMessageType.CALL,
-            message:"hi", record:c1.record)
+        FutureMessage fMsg = new FutureMessage(
+            type:FutureMessageType.CALL,
+            message:"hi",
+            record:c1.record,
+            language: VoiceLanguage.PORTUGUESE
+        )
         fMsg.save(flush:true, failOnError:true)
 
         when: "we marshal this message"
@@ -61,8 +67,12 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
 
     void "test marshalling simple future message"() {
         given: "a nonrepeating simple future message"
-        SimpleFutureMessage sMsg = new SimpleFutureMessage(type:FutureMessageType.CALL,
-            message:"hi", record:c1.record)
+        SimpleFutureMessage sMsg = new SimpleFutureMessage(
+            type:FutureMessageType.CALL,
+            message:"hi",
+            record:c1.record,
+            language: VoiceLanguage.ITALIAN
+        )
         sMsg.save(flush:true, failOnError:true)
 
         when: "we make this message repeating via repeatCount then marshal"

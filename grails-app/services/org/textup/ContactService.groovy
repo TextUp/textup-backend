@@ -9,6 +9,7 @@ import org.springframework.context.NoSuchMessageException
 import org.springframework.transaction.TransactionStatus
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
+import org.textup.type.VoiceLanguage
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.ContactNumberAction
 import org.textup.validator.action.MergeAction
@@ -55,7 +56,7 @@ class ContactService {
 		}
         createHelper(p1, body, nums)
 	}
-    // factored for mocking during testing
+    // factored out for mocking during testing
     protected Result<Contact> createHelper(Phone p1, Map body, List<String> nums) {
         p1.createContact(body, nums)
     }
@@ -84,6 +85,7 @@ class ContactService {
             c1.with {
                 if (body.name) name = body.name
                 if (body.note) note = body.note
+                if (body.language) language = Helpers.convertEnum(VoiceLanguage, body.language)
             }
         }
         // both owner of the contact and all active collaborators can modify status

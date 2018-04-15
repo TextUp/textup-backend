@@ -9,6 +9,7 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.FutureMessageType
 import org.textup.type.RecordItemType
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import org.textup.validator.OutgoingMessage
 import spock.lang.Ignore
@@ -80,12 +81,16 @@ class FutureMessageSpec extends CustomSpec {
     void "test converting to outgoing message for #type's record"() {
     	given: "a valid future message"
     	def owner = (type == "contact") ? c1 : tag1
-    	FutureMessage fMsg = new FutureMessage(type:FutureMessageType.CALL,
-    		record:owner.record, message:"hi")
+    	FutureMessage fMsg = new FutureMessage(
+            type:FutureMessageType.CALL,
+    		record:owner.record,
+            message:"hi"
+        )
     	assert fMsg.validate()
 
     	when: "message is a text"
     	fMsg.type = FutureMessageType.TEXT
+        fMsg.language = VoiceLanguage.CHINESE
     	OutgoingMessage msg = fMsg.toOutgoingMessage()
     	Collection hasMembers, noMembers
     	if (type == "contact") {
@@ -99,6 +104,7 @@ class FutureMessageSpec extends CustomSpec {
 
     	then: "make outgoing message without flushing"
     	msg.type == RecordItemType.TEXT
+        msg.language == VoiceLanguage.CHINESE
     	msg.message == fMsg.message
 		noMembers.isEmpty()
     	hasMembers.size() == 1
@@ -106,6 +112,7 @@ class FutureMessageSpec extends CustomSpec {
 
     	when: "message is a call"
     	fMsg.type = FutureMessageType.CALL
+        fMsg.language = VoiceLanguage.ITALIAN
     	msg = fMsg.toOutgoingMessage()
     	if (type == "contact") {
 			hasMembers = msg.contacts
@@ -118,6 +125,7 @@ class FutureMessageSpec extends CustomSpec {
 
     	then: "make outgoing message without flushing"
     	msg.type == RecordItemType.CALL
+        msg.language == VoiceLanguage.ITALIAN
     	msg.message == fMsg.message
     	noMembers.isEmpty()
     	hasMembers.size() == 1

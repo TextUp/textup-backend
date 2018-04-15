@@ -23,6 +23,7 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 			message = fMsg.message
             isDone = fMsg.isReallyDone
             isRepeating = fMsg.isRepeating
+            language = fMsg.language?.toString()
             if (fMsg.nextFireDate) nextFireDate = fMsg.nextFireDate
 			if (fMsg.isRepeating) {
 				if (fMsg.endDate) endDate = fMsg.endDate

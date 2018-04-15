@@ -11,6 +11,7 @@ import org.joda.time.DateTimeZone
 import org.quartz.SimpleTrigger
 import org.textup.type.FutureMessageType
 import org.textup.type.RecordItemType
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.BasicNotification
@@ -160,6 +161,7 @@ class FutureMessageServiceSpec extends CustomSpec {
             notifySelf: true,
             type: fType.toString().toLowerCase(),
             message: "hi",
+            language: VoiceLanguage.SPANISH.toString(),
             startDate: DateTime.now().minusDays(2),
             endDate: DateTime.now().plusDays(2),
         ]
@@ -170,6 +172,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload instanceof FutureMessage
         res.payload.notifySelf == info.notifySelf
         res.payload.type == fType
+        res.payload.language == VoiceLanguage.SPANISH
         res.payload.message == info.message
         res.payload.startDate.withZone(DateTimeZone.UTC).toString() ==
             info.startDate.withZone(DateTimeZone.UTC).toString()
@@ -204,6 +207,7 @@ class FutureMessageServiceSpec extends CustomSpec {
             info.startDate.withZone(DateTimeZone.UTC).toString()
         _didSchedule == true
     }
+
     void "test set from body for simple future message"() {
         given: "an unsaved (new) future message with record"
         mockForCRUD()
@@ -291,6 +295,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.repeatCount == info.repeatCount
         _didSchedule == true
     }
+
     void "test set from body for a specific timezone"() {
         given: "an unsaved (new) future message with record"
         mockForCRUD()
@@ -393,6 +398,60 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.hasAdjustedDaylightSavings == false
         res.payload.daylightSavingsZone == targetZone
     }
+
+    void "test handling language for creation versus updating"() {
+        given:
+        mockForCRUD()
+
+        c1.phone.language = VoiceLanguage.ENGLISH
+        c1.phone.save(flush:true, failOnError:true)
+
+        when: "creating withOUT specified language"
+        Map info = [
+            type: FutureMessageType.CALL.toString(),
+            message: UUID.randomUUID().toString(),
+            startDate: DateTime.now().plusDays(2)
+        ]
+        Result<FutureMessage> res = service.create(c1.record, info)
+
+        then: "use phone default"
+        res.success == true
+        res.status == ResultStatus.CREATED
+        res.payload.language == c1.phone.language
+
+        when: "creating with specified language"
+        info.language = VoiceLanguage.SPANISH.toString()
+        res = service.create(c1.record, info)
+
+        then: "use specified language"
+        res.success == true
+        res.status == ResultStatus.CREATED
+        res.payload.language != c1.phone.language
+        res.payload.language == VoiceLanguage.SPANISH
+
+        when: "updating without specified language"
+        info = [message: UUID.randomUUID().toString()]
+        VoiceLanguage originalLang = res.payload.language
+        res = service.update(res.payload.id, info)
+
+        then: "do not change the language"
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload.message == info.message
+        res.payload.language == originalLang
+
+        when: "updating with specified language"
+        info = [message: UUID.randomUUID().toString(), language: VoiceLanguage.CHINESE.toString()]
+        res = service.update(res.payload.id, info)
+
+        then: "update the language"
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload.message == info.message
+        res.payload.language != originalLang
+        res.payload.language == VoiceLanguage.CHINESE
+    }
+
     void "test appropriate status codes when creating, updating, and deleting"() {
         given:
         mockForCRUD()
@@ -433,6 +492,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         FutureMessage.get(id).isDone == false // didn't actually do delete, just mocked it
         FutureMessage.count() == fBaseline + 1
     }
+
     void "test create errors"() {
     	when: "no record"
         addToMessageSource("futureMessageService.create.noRecord")
@@ -443,6 +503,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         res.errorMessages[0] == "futureMessageService.create.noRecord"
     }
+
     void "test update errors"() {
         when: "nonexistent future message id"
         addToMessageSource("futureMessageService.update.notFound")
@@ -453,6 +514,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.status == ResultStatus.NOT_FOUND
         res.errorMessages[0] == "futureMessageService.update.notFound"
     }
+
     void "test delete errors"() {
         when: "nonexistent future message id"
         addToMessageSource("futureMessageService.delete.notFound")

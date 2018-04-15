@@ -10,6 +10,7 @@ import org.springframework.context.MessageSource
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
@@ -165,6 +166,7 @@ class ContactServiceSpec extends CustomSpec {
 
         when: "we update with valid fields"
         updateInfo.status = "uNrEAd"
+        updateInfo.language = VoiceLanguage.JAPANESE.toString()
         res = service.updateContactInfo(c1, updateInfo)
 
         then:
@@ -173,6 +175,7 @@ class ContactServiceSpec extends CustomSpec {
         res.payload instanceof Contact
         res.payload.name == updateInfo.name
         res.payload.note == updateInfo.note
+        res.payload.language == VoiceLanguage.JAPANESE
         res.payload.status == ContactStatus.UNREAD
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline

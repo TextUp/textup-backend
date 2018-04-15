@@ -178,7 +178,7 @@ class AuthServiceSpec extends CustomSpec {
         teamPhone = s1.teams[0].phone
         teamSharedContact = p2.share(contactToBeShared,
             teamPhone, SharePermission.DELEGATE).payload
-        p2.merge(flush:true)
+        teamSharedContact.save(flush:true, failOnError:true)
         scId = service.getSharedContactIdForContact(contactToBeShared.id)
 
         then:

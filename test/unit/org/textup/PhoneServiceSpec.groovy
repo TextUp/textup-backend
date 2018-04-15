@@ -18,6 +18,7 @@ import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
 import org.textup.type.TextResponse
 import org.textup.type.VoiceType
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.BasicNotification
@@ -130,6 +131,7 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.awayMessage.contains(msg)
         res.payload.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
     }
+
     void "test updating voice type"() {
         when: "invalid voice type"
         Result<Phone> res = service.update(s1.phone, [voice:"invalid"])
@@ -148,6 +150,26 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload instanceof Phone
         res.payload.voice == VoiceType.FEMALE
     }
+
+    void "test updating voice language"() {
+        when: "invalid voice language"
+        Result<Phone> res = service.update(s1.phone, [language:"invalid"])
+
+        then:
+        res.success == false
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0].contains("language")
+
+        when: "valid voice language"
+        res = service.update(s1.phone, [language:VoiceLanguage.RUSSIAN.toString()])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Phone
+        res.payload.language == VoiceLanguage.RUSSIAN
+    }
+
     void "test updating phone number when not active"() {
         given:
         service.authService = [getIsActive: { false }] as AuthService
@@ -164,6 +186,7 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload instanceof Phone
         res.payload.numberAsString == originalNum
     }
+
     @FreshRuntime
     void "test updating phone number with apiId"() {
         given: "baseline"
@@ -534,6 +557,38 @@ class PhoneServiceSpec extends CustomSpec {
         type                | _
         RecordItemType.TEXT | _
         RecordItemType.CALL | _
+    }
+
+    void "test language paramters for direct messaging"() {
+        given:
+        Map capturedAfterPickup
+        addToMessageSource("outgoingMessage.getName.contactId")
+        service.callService = [start:{ PhoneNumber fromNum,
+            List<? extends BasePhoneNumber> toNums, Map afterPickup ->
+            capturedAfterPickup = afterPickup
+            new Result(status:ResultStatus.OK, payload: new TempRecordReceipt(apiId:_apiId,
+                receivedByAsString:toNums[0].number))
+        }] as CallService
+
+        when: "we send a valid call direct message"
+        OutgoingMessage msg = new OutgoingMessage(
+            message:"hello",
+            type:RecordItemType.CALL,
+            language: VoiceLanguage.PORTUGUESE,
+            contacts:[c1]
+        )
+        assert msg.validateSetPhone(p1)
+        capturedAfterPickup = null
+        ResultGroup resGroup = service.sendMessage(p1, msg, s1)
+        p1.save(flush:true, failOnError:true)
+
+        then:
+        !resGroup.isEmpty && resGroup.failures.isEmpty() == true // all successes
+        capturedAfterPickup.handle == CallResponse.DIRECT_MESSAGE
+        capturedAfterPickup.message == msg.message
+        capturedAfterPickup.identifier == p1.name
+        // we want the string representation of the enum NOT the Twiml value
+        capturedAfterPickup.language == VoiceLanguage.PORTUGUESE.toString()
     }
 
     void "test starting bridge call"() {

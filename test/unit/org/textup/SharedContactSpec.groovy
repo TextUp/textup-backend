@@ -11,9 +11,11 @@ import org.textup.rest.NotificationStatus
 import org.textup.type.ContactStatus
 import org.textup.type.NotificationLevel
 import org.textup.type.SharePermission
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import spock.lang.Ignore
 import spock.lang.Shared
+import spock.lang.Unroll
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
@@ -83,6 +85,34 @@ class SharedContactSpec extends CustomSpec {
         sc.validate() == true
         sc1.status != c1.status
         sc1.status == ContactStatus.ACTIVE
+    }
+
+    @Unroll
+    void "test language for status #status"() {
+        given: "valid shared contacts with various permissions"
+        SharedContact sc1 = new SharedContact(contact:c1, sharedBy:p1, sharedWith:p3)
+        switch (status) {
+            case "expired":
+                sc1.permission = SharePermission.DELEGATE; sc1.stopSharing(); break;
+            case "view":
+                sc1.permission = SharePermission.VIEW; break;
+            case "delegate":
+                sc1.permission = SharePermission.DELEGATE; break;
+        }
+        assert sc1.validate() == true
+
+        when: "we set the language"
+        sc1.language = VoiceLanguage.RUSSIAN
+
+        then:
+        (c1.record.language == VoiceLanguage.RUSSIAN) == didSetStatus
+        (sc1.language != null) == canViewStatus
+
+        where:
+        status     | didSetStatus | canViewStatus
+        "expired"  | false        | false
+        "view"     | false        | true
+        "delegate" | true         | true
     }
 
     void "test sharing permissions and expiration"() {

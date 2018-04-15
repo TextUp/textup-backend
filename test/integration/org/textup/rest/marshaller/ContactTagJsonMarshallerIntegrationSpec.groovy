@@ -27,6 +27,7 @@ class ContactTagJsonMarshallerIntegrationSpec extends CustomSpec {
     	json.id == tag1.id
     	json.name == tag1.name
     	json.hexColor == tag1.hexColor
+        json.language == tag1.language.toString()
     	json.lastRecordActivity == tag1.record.lastRecordActivity.toString()
         json.futureMessages instanceof List
         json.futureMessages.size() == (tag1.record.futureMessages ?

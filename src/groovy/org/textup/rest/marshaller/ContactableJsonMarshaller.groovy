@@ -28,6 +28,7 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         json.numbers = c1.sortedNumbers.collect { ContactNumber num -> [number:num.prettyPhoneNumber] }
         json.futureMessages = c1.getFutureMessages()
         json.notificationStatuses = c1.getNotificationStatuses()
+        json.language = c1.getLanguage()?.toString()
         // add fields specific to Contacts or SharedContacts
         if (c1.instanceOf(Contact)) {
             Contact contact = c1 as Contact

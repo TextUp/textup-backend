@@ -22,6 +22,7 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             voice = p1.voice.toString()
             mandatoryEmergencyMessage = Constants.AWAY_EMERGENCY_MESSAGE
             tags = p1.getTags() ?: []
+            language = p1.language.toString()
         }
         json
     }

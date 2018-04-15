@@ -10,6 +10,7 @@ import org.restapidoc.annotation.*
 import org.textup.rest.NotificationStatus
 import org.textup.type.AuthorType
 import org.textup.type.ContactStatus
+import org.textup.type.VoiceLanguage
 import org.textup.validator.Author
 
 @GrailsTypeChecked
@@ -65,7 +66,7 @@ class ContactTag {
             allowedType    = "List<notificationStatus>",
             useForCreation = false)
     ])
-    static transients = []
+    static transients = ["language"]
     static hasMany = [members:Contact]
     static constraints = {
         name blank:false, nullable:false, validator:{ String val, ContactTag obj ->
@@ -124,6 +125,16 @@ class ContactTag {
     }
     List<NotificationStatus> getNotificationStatuses() {
         this.phone.owner.getNotificationStatusesForRecords([this.record.id])
+    }
+
+    void setLanguage(VoiceLanguage lang) {
+        if (this.record && lang) {
+            this.record.language = lang
+            this.record.save()
+        }
+    }
+    VoiceLanguage getLanguage() {
+        this.record?.language
     }
 
     // Members

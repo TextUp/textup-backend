@@ -11,6 +11,7 @@ import org.restapidoc.annotation.*
 import org.textup.rest.NotificationStatus
 import org.textup.type.AuthorType
 import org.textup.type.ContactStatus
+import org.textup.type.VoiceLanguage
 import org.textup.validator.Author
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
@@ -128,7 +129,7 @@ class Contact implements Contactable {
             allowedType    = "List<Tag>",
             useForCreation = false)
     ])
-    static transients = ["resultFactory"]
+    static transients = ["resultFactory", "language"]
     static constraints = {
     	name blank:true, nullable:true
     	note blank:true, nullable:true, size:1..1000
@@ -420,6 +421,16 @@ class Contact implements Contactable {
         this.numbers ? this.numbers.sort(false) { ContactNumber n1, ContactNumber n2 ->
             n1.preference <=> n2.preference
         } : []
+    }
+
+    void setLanguage(VoiceLanguage lang) {
+        if (this.record && lang) {
+            this.record.language = lang
+            this.record.save()
+        }
+    }
+    VoiceLanguage getLanguage() {
+        this.record?.language
     }
 
     // Outgoing

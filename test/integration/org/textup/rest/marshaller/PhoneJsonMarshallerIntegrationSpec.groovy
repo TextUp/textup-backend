@@ -29,6 +29,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         json.awayMessage == p1.awayMessage
         json.tags.size() == p1.tags.size()
         json.voice == p1.voice.toString()
+        json.language == p1.language.toString()
         json.mandatoryEmergencyMessage == Constants.AWAY_EMERGENCY_MESSAGE
         p1.tags.every { ContactTag ct1 ->
             json.tags.find { it.id == ct1.id }

@@ -3,8 +3,9 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
-import org.textup.type.ContactStatus
 import org.textup.type.AuthorType
+import org.textup.type.ContactStatus
+import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import spock.lang.Shared
 
@@ -54,6 +55,25 @@ class ContactTagSpec extends CustomSpec {
 
         then:
         t1.validate() == true
+    }
+
+    void "test language"() {
+        given: "a valid empty contact"
+        ContactTag ct1 = new ContactTag(phone:p1, name:UUID.randomUUID().toString())
+        assert ct1.validate() == true
+
+        when: "we set the underlying record's language"
+        ct1.record.language = VoiceLanguage.RUSSIAN
+
+        then: "that change is reflected"
+        ct1.language == VoiceLanguage.RUSSIAN
+
+        when: "we set the language using the proxy method"
+        ct1.language = VoiceLanguage.PORTUGUESE
+
+        then: "change is still reflected"
+        ct1.language == VoiceLanguage.PORTUGUESE
+        ct1.record.language == VoiceLanguage.PORTUGUESE
     }
 
     void "test retrieving members"() {
@@ -113,15 +133,6 @@ class ContactTagSpec extends CustomSpec {
         t1.getMembersByStatus([ContactStatus.ACTIVE]).size() == 0
         t1.getMembersByStatus([ContactStatus.ARCHIVED]).size() == 0
         t1.getMembersByStatus([ContactStatus.UNREAD]).size() == 0
-
-        when: "we remove the contact from tag"
-        t1.refresh()
-        c1.refresh()
-        t1.removeFromMembers(c1)
-        t1.save(flush:true, failOnError:true)
-
-        then: "removed"
-        t1.members.isEmpty() == true
     }
 
     void "test static finders"() {

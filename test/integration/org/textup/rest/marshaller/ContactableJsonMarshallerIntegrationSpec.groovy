@@ -23,6 +23,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.name == c1.name
         assert json.note == c1.note
         assert json.numbers instanceof List
+        assert json.language == c1.language.toString()
         assert json.numbers.size() == (c1.numbers ? c1.numbers.size() : 0)
         c1.numbers?.each { ContactNumber num ->
             assert json.numbers.find { it.number == num.prettyPhoneNumber }

@@ -10,6 +10,7 @@ import org.restapidoc.annotation.*
 import org.textup.rest.NotificationStatus
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
+import org.textup.type.VoiceLanguage
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 
@@ -59,7 +60,7 @@ class SharedContact implements Contactable {
             allowedType    = "DateTime",
             useForCreation = false)
     ])
-    static transients = ["resultFactory"]
+    static transients = ["resultFactory", "language"]
     static constraints = {
     	dateExpired nullable:true
         contact validator:{ Contact val, SharedContact obj ->
@@ -371,5 +372,18 @@ class SharedContact implements Contactable {
             resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
                 ResultStatus.FORBIDDEN)
         }
+    }
+
+    // Property access
+    // ---------------
+
+    void setLanguage(VoiceLanguage lang) {
+        if (this.canModify && this.contact?.record && lang) {
+            this.contact.record.language = lang
+            this.contact.record.save()
+        }
+    }
+    VoiceLanguage getLanguage() {
+        this.canView ? this.contact?.record?.language : null
     }
 }
