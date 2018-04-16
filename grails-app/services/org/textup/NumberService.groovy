@@ -58,7 +58,12 @@ class NumberService {
 		    		.setNearLatLong("${loc.lat},${loc.lon}".toString())
 		        	.setDistance(searchRadius)
 		    }
-		   	if (query) {
+            // if three numbers then use this as an area code search
+            if (query.size() == 3 && query.isInteger()) {
+                reader.setAreaCode(query.toInteger())
+            }
+            // otherwise, then just use a generic contains search
+            else if (query) {
 		   		reader.setContains(query)
 		   	}
 		   	ResourceSet<Local> lNums = reader.read()
