@@ -44,7 +44,7 @@ class NumberService {
         }
     }
 
-    Result<List<AvailablePhoneNumber>> listNewNumbers(String toMatch, Location loc,
+    Result<List<AvailablePhoneNumber>> listNewNumbers(String toMatch, Location loc = null,
     	Integer searchRadius = 200) {
     	try {
     		String query = cleanQuery(toMatch)
@@ -53,18 +53,24 @@ class NumberService {
 		        .setSmsEnabled(true)
 		        .setMmsEnabled(true)
 		        .setVoiceEnabled(true)
-		    if (loc) {
-		    	reader
-		    		.setNearLatLong("${loc.lat},${loc.lon}".toString())
-		        	.setDistance(searchRadius)
-		    }
             // if three numbers then use this as an area code search
-            if (query.size() == 3 && query.isInteger()) {
+            if (query?.size() == 3 && query.isInteger()) {
                 reader.setAreaCode(query.toInteger())
             }
-            // otherwise, then just use a generic contains search
-            else if (query) {
-		   		reader.setContains(query)
+            else {
+                // only accept queries LONGER THAN 1 character. Twilio's search
+                // will throw an "Invalid Pattern Provided" error if given only one character
+                // because the search is too broad
+                if (query?.size() > 1) {
+                    reader.setContains(query)
+                }
+                // if we are not doing an area code search, also scope results to location
+                // to improve relevance of results
+                if (loc) {
+                    reader
+                        .setNearLatLong("${loc.lat},${loc.lon}".toString())
+                        .setDistance(searchRadius)
+                }
 		   	}
 		   	ResourceSet<Local> lNums = reader.read()
 		   	List<AvailablePhoneNumber> aNums = []
@@ -80,8 +86,10 @@ class NumberService {
 		    resultFactory.success(aNums)
     	}
     	catch (TwilioException e) {
-            log.error("NumberService.listNewNumbers: ${e.message}")
-            resultFactory.failWithThrowable(e, false) // don't rollback transaction
+            // we accept freeform input so we should expect TwilioException errors
+            // return an empty array on error
+            log.debug("NumberService.listNewNumbers: ${e.message}")
+            resultFactory.success([])
         }
     }
 
