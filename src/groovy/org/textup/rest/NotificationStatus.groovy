@@ -1,6 +1,7 @@
 package org.textup.rest
 
 import grails.compiler.GrailsCompileStatic
+import grails.validation.Validateable
 import groovy.transform.ToString
 import org.textup.Staff
 
@@ -9,7 +10,17 @@ import org.textup.Staff
 
 @GrailsCompileStatic
 @ToString
+@Validateable
 class NotificationStatus {
 	Staff staff
-	boolean canNotify
+	Boolean canNotify
+
+    // only for internal tracking of if notification should happen in PhoneOwnership
+    Boolean isAvailableNow
+
+    static constraints = {
+        staff nullable: false
+        canNotify nullable: false
+        isAvailableNow nullable: false
+    }
 }

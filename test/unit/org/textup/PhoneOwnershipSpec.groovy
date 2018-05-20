@@ -98,13 +98,23 @@ class PhoneOwnershipSpec extends CustomSpec {
 
     void "test getting notification statuses"() {
         given: "notification policy for a staff "
-        Staff staff1 = new Staff(username:UUID.randomUUID().toString(), name:"Name",
-            password:"password", email:"hello@its.me", org:org)
+        Staff staff1 = new Staff(username: UUID.randomUUID().toString(),
+            name: "Name",
+            password: "password",
+            email: "hello@its.me",
+            org: org,
+            manualSchedule: true,
+            isAvailable: false)
         staff1.save(flush:true, failOnError:true)
 
         Long recId = 2L
-        NotificationPolicy np1 = new NotificationPolicy(staffId:staff1.id,
-            level:NotificationLevel.ALL)
+        // policy-level is available and staff-level is NOT available
+        NotificationPolicy np1 = new NotificationPolicy(
+            staffId: staff1.id,
+            level: NotificationLevel.ALL,
+            useStaffAvailability: false,
+            manualSchedule: true,
+            isAvailable: true)
         np1.addToBlacklist(recId)
         np1.save(flush:true, failOnError:true)
 
@@ -115,16 +125,18 @@ class PhoneOwnershipSpec extends CustomSpec {
         List<NotificationStatus> statuses = p1.owner
             .getNotificationStatusesForStaffsAndRecords([staff1], [recId])
 
-        then:
+        then: "policy is found and use policy-level availability"
         statuses.size() == 1
         statuses[0].staff.id == staff1.id
         statuses[0].canNotify == false
+        statuses[0].validate() == true
+        statuses[0].isAvailableNow == true // policy-level is available even if staff-level is not
 
         when: "we get notification status for staff that does not have any policies"
         assert p1.owner.getPolicyForStaff(s1.id) == null
         s1.with {
             manualSchedule = true
-            isAvailable = true
+            isAvailable = false
         }
         p1.owner.with {
             type = PhoneOwnershipType.INDIVIDUAL
@@ -136,16 +148,18 @@ class PhoneOwnershipSpec extends CustomSpec {
         List<NotificationStatus> statuses2 = p1.owner.getNotificationStatusesForRecords([recId])
         List<Staff> staffList = p1.owner.getCanNotifyAndAvailable([recId])
 
-        then: "default is permissive"
+        then: "default is permissive and uses staff-level availability"
         statuses.size() == 1
         statuses[0].staff.id == s1.id
         statuses[0].canNotify == true
+        statuses[0].isAvailableNow == false
         // if not specify statuses, then use getAll()
         statuses2.size() == 1
         statuses2[0].staff.id == s1.id
         statuses2[0].canNotify == true
+        statuses[0].isAvailableNow == false
 
-        staffList.size() == 1
-        staffList[0].id == s1.id
+        // policy is permissive, but the staff-level is NOT available
+        staffList.size() == 0
     }
 }

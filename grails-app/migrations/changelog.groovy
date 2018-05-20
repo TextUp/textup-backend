@@ -925,4 +925,6 @@ databaseChangeLog = {
 	include file: 'domain-timestamps.groovy'
 
 	include file: 'voice-language.groovy'
+
+	include file: 'policy-specific-availability.groovy'
 }

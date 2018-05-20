@@ -5,11 +5,25 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.rest.NotificationStatus
 import org.textup.type.NotificationLevel
-import spock.lang.Specification
+import org.textup.util.CustomSpec
 
-@Domain(NotificationPolicy)
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
 @TestMixin(HibernateTestMixin)
-class NotificationPolicySpec extends Specification {
+class NotificationPolicySpec extends CustomSpec {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        setupData()
+    }
+
+    def cleanup() {
+        cleanupData()
+    }
 
     void "test constraints"() {
     	when: "an empty notification policy"
@@ -26,6 +40,99 @@ class NotificationPolicySpec extends Specification {
 
     	then: "valid"
     	np1.validate() == true
+    }
+
+    void "test caching staff object"() {
+        when: "we have a new notification policy and a staff"
+        NotificationPolicy np1 = new NotificationPolicy(staffId:s1.id)
+        assert np1.validate() == true
+
+        then: "cached staff is null"
+        np1._staff == null
+
+        when: "we get the staff object"
+        np1.getStaff()
+
+        then: "cached staff is no longer null"
+        np1._staff instanceof Staff
+        np1._staff.id == s1.id
+        np1.getStaff().id == s1.id
+
+        when: "we update the staff id"
+        np1.staffId = s2.id
+
+        then: "cached staff is cleared"
+        np1._staff == null
+
+        when: "we get the staff object"
+        np1.getStaff()
+
+        then: "cached staff corresponds to the newly-updated id"
+        np1._staff instanceof Staff
+        np1._staff.id == s2.id
+        np1.getStaff().id == s2.id
+    }
+
+    void "test availability on the policy"() {
+        given: "a new notification policy not using staff availability"
+        NotificationPolicy np1 = new NotificationPolicy(staffId: s1.id,
+            useStaffAvailability: false)
+        np1.save(flush:true, failOnError:true)
+        s1.manualSchedule = true
+        s1.isAvailable = true
+        s1.save(flush:true, failOnError:true)
+
+        int sBaseline = Schedule.count()
+
+        when: "we update manual availability on policy"
+        np1.manualSchedule = true
+        np1.isAvailable = false
+
+        then: "availability methods ignore staff availability value"
+        np1.policyIsAvailableNow() == false
+        np1.isAvailableNow() == false
+        s1.isAvailableNow() == true
+
+        when: "we switch to schedule-based availability on policy"
+        np1.manualSchedule = false
+        np1.isAvailable = false
+        assert np1.updateSchedule([
+            monday:["0000:2359"],
+            tuesday:["0000:2359"],
+            wednesday:["0000:2359"],
+            thursday:["0000:2359"],
+            friday:["0000:2359"],
+            saturday:["0000:2359"],
+            sunday:["0000:2359"]
+        ]).success
+        np1.save(flush:true, failOnError:true)
+
+        s1.isAvailable = false
+        s1.save(flush:true, failOnError:true)
+
+        then: "new schedule is created for policy and staff availability is ignored"
+        Schedule.count() == sBaseline + 1
+        np1.isAvailable == false
+        np1.policyIsAvailableNow() == true
+        np1.isAvailableNow() == true
+        s1.isAvailableNow() == false
+    }
+
+    void "test availability proxied to the staff"() {
+        when: "a new notification policy using staff availability"
+        NotificationPolicy np1 = new NotificationPolicy(staffId: s1.id,
+            useStaffAvailability: true, manualSchedule: true, isAvailable: false)
+        np1.save(flush:true, failOnError:true)
+        s1.manualSchedule = true
+        s1.isAvailable = true
+        s1.save(flush:true, failOnError:true)
+
+        then: "policy-level availability is ignored"
+        np1.useStaffAvailability == true
+        np1.isAvailable == false
+        np1.policyIsAvailableNow() == false
+        np1.isAvailableNow() == true
+        s1.isAvailableNow() == true
     }
 
     void "manipulating lists"() {

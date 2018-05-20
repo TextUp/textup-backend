@@ -19,7 +19,8 @@ class NotificationStatusJsonMarshallerIntegrationSpec extends CustomSpec {
 
     void "test marshalling notification"() {
     	given: "a notification status"
-    	NotificationStatus stat1 = new NotificationStatus(staff:s1, canNotify:true)
+    	NotificationStatus stat1 = new NotificationStatus(staff:s1, canNotify:true, isAvailableNow:true)
+        assert stat1.validate()
 
     	when:
     	Map json

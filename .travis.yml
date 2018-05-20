@@ -38,6 +38,7 @@ jobs:
         - chmod +x grailsw
       script: skip # already have run tests, so skip this step
       after_success:
+        - ./grailsw rest-api-doc # build latest version of API docs
         - ./grailsw prod war
       before_deploy:
         - chmod +x .travis/deploy.sh

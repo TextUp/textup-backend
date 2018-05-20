@@ -19,7 +19,7 @@ import org.textup.validator.ScheduleChange
 
 @EqualsAndHashCode
 @RestApiObject(name="Staff", description="A staff member at an organization.")
-class Staff {
+class Staff implements Schedulable {
 
     ResultFactory resultFactory
 	SpringSecurityService springSecurityService
@@ -68,6 +68,7 @@ class Staff {
 
     @RestApiObjectField(
         description    = "Schedule of the staff member.",
+        allowedType    = "Schedule",
         useForCreation = false)
 	Schedule schedule
 

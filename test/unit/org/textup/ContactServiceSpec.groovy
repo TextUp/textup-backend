@@ -253,11 +253,12 @@ class ContactServiceSpec extends CustomSpec {
         sc1.permission = SharePermission.DELEGATE
         sc1.save(flush:true, failOnError:true)
 
-        wasServiceCalled = false
+        wasServiceCalled = true
         res = service.handleNotificationActions(sc1.contact, notifActions, sc1)
 
-        then: "ignored"
-        wasServiceCalled == false
+        then: "ALLOWED because delegate collaborators do receive notifications and should be able to \
+            configure these notifications"
+        wasServiceCalled == true
         res.success == true
         res.payload instanceof Contact
         res.payload.id == sc1.contact.id

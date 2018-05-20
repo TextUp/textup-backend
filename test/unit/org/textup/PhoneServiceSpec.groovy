@@ -17,8 +17,8 @@ import org.textup.type.RecordItemType
 import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
 import org.textup.type.TextResponse
-import org.textup.type.VoiceType
 import org.textup.type.VoiceLanguage
+import org.textup.type.VoiceType
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.BasicNotification
@@ -101,7 +101,10 @@ class PhoneServiceSpec extends CustomSpec {
         }, translate:{ code, params=[:] ->
             new Result(status:ResultStatus.OK, payload:code)
         }] as TwimlBuilder
-        service.authService = [getIsActive: { true }] as AuthService
+        service.authService = [
+            getIsActive: { true },
+            getLoggedIn: { s1 }
+        ] as AuthService
 
         OutgoingMessage.metaClass.getMessageSource = { -> messageSource }
         Phone.metaClass.tryStartVoicemail = { PhoneNumber fromNum, PhoneNumber toNum, ReceiptStatus stat ->
@@ -172,7 +175,10 @@ class PhoneServiceSpec extends CustomSpec {
 
     void "test updating phone number when not active"() {
         given:
-        service.authService = [getIsActive: { false }] as AuthService
+        service.authService = [
+            getIsActive: { false },
+            getLoggedIn: { s1 }
+        ] as AuthService
 
         when:
         PhoneNumber newNum = new PhoneNumber(number:'1112223333')
@@ -244,6 +250,116 @@ class PhoneServiceSpec extends CustomSpec {
         Phone.count() == baseline
     }
 
+    void "test updating schedule at policy level"() {
+        given: "currently logged-in is a staff without policy for this phone"
+        Staff staff1 = new Staff(username: UUID.randomUUID().toString(),
+            name: "Name",
+            password: "password",
+            email: "hello@its.me",
+            org: org)
+        staff1.save(flush:true, failOnError:true)
+
+        service.authService = [
+            getIsActive: { true },
+            getLoggedIn: { staff1 }
+        ] as AuthService
+        int pBaseline = NotificationPolicy.count()
+        int sBaseline = Schedule.count()
+
+        when: "handling availability with no schedule-related updates"
+        Result<NotificationPolicy> res = service.handleAvailability(p1, [:])
+
+        then: "a new policy is created even if no schedule-related updates"
+        res.success == true
+        res.payload instanceof NotificationPolicy
+        NotificationPolicy.count() == pBaseline + 1
+        Schedule.count() == sBaseline
+
+        when: "update with valid non-schedule info"
+        res = service.handleAvailability(p1, [
+            useStaffAvailability: false,
+            manualSchedule: false,
+            isAvailable: false
+        ])
+
+        then: "updated"
+        res.success == true
+        res.payload instanceof NotificationPolicy
+        res.payload.useStaffAvailability == false
+        res.payload.manualSchedule == false
+        res.payload.isAvailable == false
+        NotificationPolicy.count() == pBaseline + 1
+        Schedule.count() == sBaseline
+
+        when: "update with some invalid non-schedule info"
+        res = service.handleAvailability(p1, [
+            useStaffAvailability: "invalid, not a boolean",
+            manualSchedule: "invalid, not a boolean",
+            isAvailable: true,
+        ])
+
+        then: "invalid values ignored, valid values updated"
+        res.success == true
+        res.payload instanceof NotificationPolicy
+        res.payload.useStaffAvailability == false
+        res.payload.manualSchedule == false
+        res.payload.isAvailable == true
+        NotificationPolicy.count() == pBaseline + 1
+        Schedule.count() == sBaseline
+
+        when: "handling schedule with valid schedule-related updates"
+        String mondayString = "0000:1230"
+        res = service.handleAvailability(p1, [schedule:[monday:[mondayString]]])
+
+        then: "a new schedule is created and all updates are made"
+        res.success == true
+        res.payload instanceof NotificationPolicy
+        NotificationPolicy.count() == pBaseline + 1
+        Schedule.count() == sBaseline + 1
+        res.payload.useStaffAvailability == false
+        res.payload.manualSchedule == false
+        res.payload.isAvailable == true
+        res.payload.schedule.monday == mondayString.replaceAll(":", ",") // different delimiter when saved
+    }
+
+    // separate out error state from updating with valid information because when there is an
+    // invalid update, the session will always roll back any changes. Due to limitations in the
+    // testing environment, this means that any subsequent attempts to update the schedule with
+    // valid information are rolled back, even if we do so in a new session.
+    void "test updating availability at policy level with invalid schedule information"() {
+        given: "currently logged-in is a staff without policy for this phone"
+        Staff staff1 = new Staff(username: UUID.randomUUID().toString(),
+            name: "Name",
+            password: "password",
+            email: "hello@its.me",
+            org: org)
+        staff1.save(flush:true, failOnError:true)
+
+        service.authService = [
+            getIsActive: { true },
+            getLoggedIn: { staff1 }
+        ] as AuthService
+        int pBaseline = NotificationPolicy.count()
+        int sBaseline = Schedule.count()
+
+        when: "handling schedule with INVALID schedule-related updates"
+        addToMessageSource("weeklySchedule.strIntsNotList")
+        Result res
+        // wrap this call in a transaction so we can rollback on any input errors
+        // so we don't have a bunch of orphan schedules
+        Phone.withTransaction {
+            res = service.handleAvailability(p1, [schedule:[monday:"invalid time range"]])
+        }
+
+        then: "error and no new schedule is created"
+        res.success == false
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "weeklySchedule.strIntsNotList"
+        NotificationPolicy.count() == pBaseline
+        Schedule.count() == sBaseline
+    }
+
+    @FreshRuntime
     @Unroll
     void "test create or update phone for staff OR team"() {
         given:
@@ -257,8 +373,12 @@ class PhoneServiceSpec extends CustomSpec {
         noPhoneEntity.save(flush:true, failOnError:true)
         def withPhoneEntity = forStaff ? s1 : t1
 
+        Staff loggedInStaff = s1
+
         int pBaseline = Phone.count()
         int oBaseline = PhoneOwnership.count()
+        int policyBaseline = NotificationPolicy.count()
+        int schedBaseline = Schedule.count()
         String msg = "I am away",
             msg2 = "I am a different message!",
             msg3 = "still another message!"
@@ -271,7 +391,7 @@ class PhoneServiceSpec extends CustomSpec {
         assert res.success
         noPhoneEntity.save(flush:true, failOnError:true)
 
-        then:
+        then: "no new phone or policy is created because short-circuited in mergePhone"
         res.status == ResultStatus.OK
         if (forStaff) {
             assert res.payload instanceof Staff
@@ -280,16 +400,21 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.id == noPhoneEntity.id
         Phone.count() == pBaseline
         PhoneOwnership.count() == oBaseline
+        NotificationPolicy.count() == policyBaseline
+        Schedule.count() == schedBaseline
 
-        when: "when logged in staff is inactive"
-        service.authService = [getIsActive: { false }] as AuthService
+        when: "when logged in staff with existing phone is inactive"
+        service.authService = [
+            getIsActive: { false },
+            getLoggedIn: { loggedInStaff }
+        ] as AuthService
         withPhoneEntity.phone.awayMessage = msg2
         withPhoneEntity.phone.save(flush:true, failOnError:true)
         res = service.mergePhone(
             forStaff ? withPhoneEntity as Staff : withPhoneEntity as Team,
             [ phone:[awayMessage:msg] ])
 
-        then:
+        then: "phone is NOT updated AND no new phone is created because the logged-in user is inactive"
         res.success == true
         res.status == ResultStatus.OK
         if (forStaff) {
@@ -301,14 +426,20 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.phone.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         Phone.count() == pBaseline
         PhoneOwnership.count() == oBaseline
+        NotificationPolicy.count() == policyBaseline
+        Schedule.count() == schedBaseline
 
         when: "for ACTIVE staff with existing phone"
-        service.authService = [getIsActive: { true }] as AuthService
+        service.authService = [
+            getIsActive: { true },
+            getLoggedIn: { loggedInStaff }
+        ] as AuthService
         res = service.mergePhone(
             forStaff ? withPhoneEntity as Staff : withPhoneEntity as Team,
             [ phone:[awayMessage:msg] ])
 
-        then:
+        then: "phone is updated, no new phone is created, and new policy is created \
+            because this is the first time we have encountered with phone entity"
         res.success == true
         res.status == ResultStatus.OK
         if (forStaff) {
@@ -319,18 +450,30 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.phone.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         Phone.count() == pBaseline
         PhoneOwnership.count() == oBaseline
+        NotificationPolicy.count() == policyBaseline + 1
+        Schedule.count() == schedBaseline
 
         when: "for staff without a phone with validly formatted body"
+        String mondayString1 = "0000:1230"
         res = service.mergePhone(
             forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team,
-            [ phone:[awayMessage:msg] ])
+            [ phone:[
+                awayMessage:msg,
+                useStaffAvailability: false,
+                schedule: [
+                    monday: [mondayString1]
+                ]
+            ] ])
         assert res.success
         noPhoneEntity.save(flush:true, failOnError:true)
 
-        then: "phone is created, but inactive because no number"
+        then: "phone is created, but inactive because no number, policy is created \
+            because this is first time we've encountered no phone entity, schedule on policy is created"
         res.status == ResultStatus.OK
         Phone.count() == pBaseline + 1
         PhoneOwnership.count() == oBaseline + 1
+        NotificationPolicy.count() == policyBaseline + 2
+        Schedule.count() == schedBaseline + 1
         if (forStaff) {
             assert res.payload instanceof Staff
         }
@@ -341,18 +484,31 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.phoneWithAnyStatus.awayMessage.contains(msg)
         res.payload.phoneWithAnyStatus.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         res.payload.phoneWithAnyStatus.isActive == false
+        res.payload.phoneWithAnyStatus.owner.getPolicyForStaff(loggedInStaff.id) instanceof NotificationPolicy
+        res.payload.phoneWithAnyStatus.owner.getPolicyForStaff(loggedInStaff.id).schedule.monday ==
+            mondayString1.replaceAll(":", ",")
 
         when: "for active staff with inactive phone with validly formatted body"
+        String mondayString2 = "0100:0200"
+        String tuesdayString1 = "0345:0445"
         res = service.mergePhone(
             forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team,
-            [ phone:[awayMessage:msg3] ])
+            [ phone:[
+                awayMessage:msg3,
+                schedule: [
+                    monday: [mondayString2],
+                    tuesday: [tuesdayString1]
+                ]
+            ] ])
         assert res.success
         noPhoneEntity.save(flush:true, failOnError:true)
 
-        then: "no new phone created"
+        then: "no new phone created and existing schedule is updated"
         res.status == ResultStatus.OK
         Phone.count() == pBaseline + 1
         PhoneOwnership.count() == oBaseline + 1
+        NotificationPolicy.count() == policyBaseline + 2
+        Schedule.count() == schedBaseline + 1
         if (forStaff) {
             assert res.payload instanceof Staff
         }
@@ -363,6 +519,11 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.phoneWithAnyStatus.awayMessage.contains(msg3)
         res.payload.phoneWithAnyStatus.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         res.payload.phoneWithAnyStatus.isActive == false
+        res.payload.phoneWithAnyStatus.owner.getPolicyForStaff(loggedInStaff.id) instanceof NotificationPolicy
+        res.payload.phoneWithAnyStatus.owner.getPolicyForStaff(loggedInStaff.id).schedule.monday ==
+            mondayString2.replaceAll(":", ",")
+        res.payload.phoneWithAnyStatus.owner.getPolicyForStaff(loggedInStaff.id).schedule.tuesday ==
+            tuesdayString1.replaceAll(":", ",")
 
         where:
         forStaff | _

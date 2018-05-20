@@ -82,6 +82,37 @@ class Phone {
             apiFieldName   = "tags",
             description    = "List of tags, if any.",
             allowedType    = "List<Tag>",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "isAvailableNow",
+            description    = "READ ONLY, use this value to determine whether or not the staff member is available \
+                regardless of other availability settings",
+            allowedType    = "boolean",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "useStaffAvailability",
+            description    = "whether to use the staff's default availability or use phone-specific \
+                availability settings",
+            allowedType    = "boolean",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "manualSchedule",
+            description    = "if using phone-specific availability settings, whether or not availability \
+                is manually specific instead of on a schedule",
+            allowedType    = "boolean",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "isAvailable",
+            description    = "if using phone-specific availability settings AND manually specifying \
+                availability, whether or not this staff member is available to receive notifications \
+                from this TextUp phone",
+            allowedType    = "boolean",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "schedule",
+            description    = "if using phone-specific availability settings AND specifying \
+                availability according to a schedule, this is the schedule that will be used",
+            allowedType    = "Schedule",
             useForCreation = false)
     ])
     static transients = ["number", "resultFactory", "phoneService", "twimlBuilder"]
@@ -108,6 +139,7 @@ class Phone {
     }
     static mapping = {
         whenCreated type:PersistentDateTime
+        owner fetch:"join", cascade:"all-delete-orphan"
     }
 
     /*

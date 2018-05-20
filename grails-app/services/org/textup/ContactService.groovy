@@ -73,7 +73,7 @@ class ContactService {
             return resultFactory.failWithCodeAndStatus("contactService.update.notFound",
                 ResultStatus.NOT_FOUND, [cId])
         }
-        handleNotificationActions(c1, body, sc1) // off-limits for collaborators
+        handleNotificationActions(c1, body, sc1) // delegate ok
             .then({ Contact cont1 -> handleNumberActions(cont1, body, sc1) }) // delegate ok
             .then({ Contact cont1 -> handleShareActions(cont1, body, sc1) }) // no for collaborators
             .then({ Contact cont1 -> handleMergeActions(cont1, body, sc1) }) // no for collaborators
@@ -105,7 +105,10 @@ class ContactService {
         else { resultFactory.failWithValidationErrors(c1.errors) }
     }
     protected Result<Contact> handleNotificationActions(Contact c1, Map body, SharedContact sc1 = null) {
-        if (body.doNotificationActions && !sc1) {
+        // collaborators with delegate permissions should be able to modify notification settings
+        // because they also receive notifications and also need the ability to have fine-grained
+        // notification settings just as the original contact owner.
+        if (body.doNotificationActions  && (!sc1 || sc1.canModify)) {
             Result<Void> res = notificationService.handleNotificationActions(c1.phone,
                 c1.record.id, body.doNotificationActions)
             if (!res.success) {

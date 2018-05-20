@@ -65,7 +65,7 @@ class PhoneService {
         if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = s1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(s1)
-            this.update(p1, body.phone as Map).then({ resultFactory.success(s1) })
+            update(p1, body.phone as Map).then({ resultFactory.success(s1) })
         }
         else { resultFactory.success(s1) }
     }
@@ -73,52 +73,79 @@ class PhoneService {
         if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = t1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(t1)
-            this.update(p1, body.phone as Map).then({ resultFactory.success(t1) })
+            update(p1, body.phone as Map).then({ resultFactory.success(t1) })
         }
         else { resultFactory.success(t1) }
     }
     protected Result<Phone> update(Phone p1, Map body) {
-        if (body.awayMessage) {
-            p1.awayMessage = body.awayMessage
-        }
-        if (body.voice) {
-            p1.voice = Helpers.convertEnum(VoiceType, body.voice)
-        }
-        if (body.language) {
-            p1.language = Helpers.convertEnum(VoiceLanguage, body.language)
-        }
-        if (body.doPhoneActions) {
-            ActionContainer ac1 = new ActionContainer(body.doPhoneActions)
-            List<PhoneAction> actions = ac1.validateAndBuildActions(PhoneAction)
-            if (ac1.hasErrors()) {
-                return resultFactory.failWithValidationErrors(ac1.errors)
+        // handle any availability-related modifications pertaining to this logged-in user and this phone
+        handleAvailability(p1, body).then({
+            if (body.awayMessage) {
+                p1.awayMessage = body.awayMessage
             }
-            Collection<Result<?>> failResults = []
-            for (PhoneAction a1 in actions) {
-                Result<Phone> res
-                switch (a1) {
-                    case Constants.PHONE_ACTION_DEACTIVATE:
-                        res = deactivatePhone(p1)
-                        break
-                    case Constants.PHONE_ACTION_TRANSFER:
-                        res = transferPhone(p1, a1.id, a1.typeAsEnum)
-                        break
-                    case Constants.PHONE_ACTION_NEW_NUM_BY_NUM:
-                        res = updatePhoneForNumber(p1, a1.phoneNumber)
-                        break
-                    default: // Constants.PHONE_ACTION_NEW_NUM_BY_ID
-                        res = updatePhoneForApiId(p1, a1.numberId)
+            if (body.voice) {
+                p1.voice = Helpers.convertEnum(VoiceType, body.voice)
+            }
+            if (body.language) {
+                p1.language = Helpers.convertEnum(VoiceLanguage, body.language)
+            }
+            if (body.doPhoneActions) {
+                ActionContainer ac1 = new ActionContainer(body.doPhoneActions)
+                List<PhoneAction> actions = ac1.validateAndBuildActions(PhoneAction)
+                if (ac1.hasErrors()) {
+                    return resultFactory.failWithValidationErrors(ac1.errors)
                 }
-                if (!res.success) { failResults << res }
+                Collection<Result<?>> failResults = []
+                for (PhoneAction a1 in actions) {
+                    Result<Phone> res
+                    switch (a1) {
+                        case Constants.PHONE_ACTION_DEACTIVATE:
+                            res = deactivatePhone(p1)
+                            break
+                        case Constants.PHONE_ACTION_TRANSFER:
+                            res = transferPhone(p1, a1.id, a1.typeAsEnum)
+                            break
+                        case Constants.PHONE_ACTION_NEW_NUM_BY_NUM:
+                            res = updatePhoneForNumber(p1, a1.phoneNumber)
+                            break
+                        default: // Constants.PHONE_ACTION_NEW_NUM_BY_ID
+                            res = updatePhoneForApiId(p1, a1.numberId)
+                    }
+                    if (!res.success) { failResults << res }
+                }
+                if (failResults) {
+                    return resultFactory.failWithResultsAndStatus(failResults, ResultStatus.BAD_REQUEST)
+                }
             }
-            if (failResults) {
-                return resultFactory.failWithResultsAndStatus(failResults, ResultStatus.BAD_REQUEST)
+            if (p1.save()) {
+                resultFactory.success(p1)
+            }
+            else { resultFactory.failWithValidationErrors(p1.errors) }
+        })
+    }
+    protected Result<NotificationPolicy> handleAvailability(Phone p1, Map body) {
+        NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authService.loggedIn.id)
+        if (Helpers.to(Boolean, body.useStaffAvailability) != null) {
+            np1.useStaffAvailability = Helpers.to(Boolean, body.useStaffAvailability)
+        }
+        if (Helpers.to(Boolean, body.manualSchedule) != null) {
+            np1.manualSchedule = Helpers.to(Boolean, body.manualSchedule)
+        }
+        if (Helpers.to(Boolean, body.isAvailable) != null) {
+            np1.isAvailable = Helpers.to(Boolean, body.isAvailable)
+        }
+        if (body.schedule instanceof Map) {
+            Result<Schedule> res = body.timezone ?
+                np1.updateSchedule(body.schedule as Map, body.timezone as String) :
+                np1.updateSchedule(body.schedule as Map)
+            if (!res.success) {
+                return res
             }
         }
-        if (p1.save()) {
-            resultFactory.success(p1)
+        if (np1.save()) {
+            resultFactory.success(np1)
         }
-        else { resultFactory.failWithValidationErrors(p1.errors) }
+        else { resultFactory.failWithValidationErrors(np1.errors) }
     }
     protected Result<Phone> deactivatePhone(Phone p1) {
         String oldApiId = p1.apiId
@@ -145,8 +172,8 @@ class PhoneService {
             return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        this.changeForNumber(pNum).then({ IncomingPhoneNumber iNum ->
-            this.updatePhoneWithNewNumber(iNum, p1)
+        changeForNumber(pNum).then({ IncomingPhoneNumber iNum ->
+            updatePhoneWithNewNumber(iNum, p1)
         })
     }
     protected Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
@@ -157,8 +184,8 @@ class PhoneService {
             return resultFactory.<Phone>failWithCodeAndStatus("phoneService.changeNumber.duplicate",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        this.changeForApiId(apiId).then({ IncomingPhoneNumber iNum ->
-            this.updatePhoneWithNewNumber(iNum, p1)
+        changeForApiId(apiId).then({ IncomingPhoneNumber iNum ->
+            updatePhoneWithNewNumber(iNum, p1)
         })
     }
 

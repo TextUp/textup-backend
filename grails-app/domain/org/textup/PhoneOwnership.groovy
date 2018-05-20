@@ -31,12 +31,16 @@ class PhoneOwnership {
     // Property access
     // ---------------
 
-    // staff members can be notified if they are available right now and if they
-    // have a notification policy that allows it
+    // Staff member can be notified if they are available and have a permissive notification policy
     List<Staff> getCanNotifyAndAvailable(Collection<Long> recordIds) {
         List<Staff> canNotify = []
         getNotificationStatusesForRecords(recordIds).each { NotificationStatus status ->
-            if (status.canNotify && status.staff.isAvailableNow()) { canNotify << status.staff }
+            if (status.validate()) {
+                if (status.canNotify && status.isAvailableNow) { canNotify << status.staff }
+            }
+            else {
+                log.error("PhoneOwnership.getCanNotifyAndAvailable: invalid notification: ${status.errors}")
+            }
         }
         canNotify
     }
@@ -48,10 +52,17 @@ class PhoneOwnership {
         List<NotificationStatus> statuses = []
         staffs.each { Staff s1 ->
             NotificationPolicy np1 = getPolicyForStaff(s1.id)
-            // can notify if doesn't have a notification policy OR
-            // has a notification policy that permits notification
-            statuses << new NotificationStatus(staff:s1,
-                canNotify:!np1 || np1?.canNotifyForAny(recordIds))
+            // if no notification policy, then can notify and default to staff availability
+            if (!np1) {
+                statuses << new NotificationStatus(staff: s1,
+                    isAvailableNow: s1.isAvailableNow(),
+                    canNotify: true)
+            }
+            else {
+                statuses << new NotificationStatus(staff: s1,
+                    isAvailableNow: np1.isAvailableNow(),
+                    canNotify: np1.canNotifyForAny(recordIds))
+            }
         }
         statuses
     }
@@ -72,7 +83,7 @@ class PhoneOwnership {
             Team.get(this.ownerId)?.name ?: ''
         }
     }
-    // Notification Policies might not all correspond to staff members that åre owners on this phone
+    // Notification Policies might not all correspond to staff members that are owners on this phone
     // because we also include staff members that can access one of this phone's contacts
     // through a sharing arrangement. Also, if we transfer phones, then the new owners will not
     // correspond with the staff ids in this list of policies

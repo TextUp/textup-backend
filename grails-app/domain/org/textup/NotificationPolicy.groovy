@@ -1,24 +1,38 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.textup.type.NotificationLevel
 
-@GrailsCompileStatic
-@EqualsAndHashCode
-class NotificationPolicy {
 
-	private HashSet<Long> _blacklist // Transient
-	private HashSet<Long> _whitelist // Transient
+import org.springframework.transaction.TransactionStatus
+
+
+
+@GrailsTypeChecked
+@EqualsAndHashCode
+class NotificationPolicy implements Schedulable {
+
+    ResultFactory resultFactory
+
+	private HashSet<Long> _blacklist // transient
+	private HashSet<Long> _whitelist // transient
+    private Staff _staff // transient
 
 	Long staffId
 	NotificationLevel level = NotificationLevel.ALL
+
+    boolean useStaffAvailability = true
+
+    boolean manualSchedule = true
+    boolean isAvailable = true
+    Schedule schedule
 
 	// black/white list of record ids
 	String blacklistData = ""
 	String whitelistData = ""
 
-	static transients = ["_blacklist", "_whitelist"]
+	static transients = ["resultFactory", "_blacklist", "_whitelist", "_staff"]
     // we chose not to implement an existence check for staff id
     // because we know that we will pass in a staff id into this
     // constructor. Since we don't update notification policies
@@ -29,6 +43,7 @@ class NotificationPolicy {
     static constraints = {
     	blacklistData nullable:true, blank:true
     	whitelistData nullable:true, blank:true
+        schedule nullable:true
     }
     static mapping = {
         blacklistData type:"text"
@@ -46,15 +61,38 @@ class NotificationPolicy {
     // Methods
     // -------
 
+    boolean isAvailableNow() {
+        useStaffAvailability ? getStaff()?.isAvailableNow() : policyIsAvailableNow()
+    }
+    protected boolean policyIsAvailableNow() {
+        manualSchedule ? isAvailable : schedule?.isAvailableNow()
+    }
+
+    Result<Schedule> updateSchedule(Map<String,List<String>> params, String timezone="UTC") {
+        if (!schedule) {
+            schedule = new WeeklySchedule([:])
+            if (!schedule.save()) {
+                return resultFactory.failWithValidationErrors(schedule.errors)
+            }
+        }
+        schedule.instanceOf(WeeklySchedule) ?
+            (schedule as WeeklySchedule).updateWithIntervalStrings(params, timezone) :
+            schedule.update(params)
+    }
+
     boolean canNotifyForAny(Collection<Long> recordIds) {
     	recordIds?.any { Long recordId -> canNotify(recordId) }
     }
+    // do NOT integrate notion of availability into this method because we want staff
+    // members to still be able to configure per-record notification settings even
+    // when they are not available. If we integrated availability into this method
+    // then these two concepts would be mixed
  	boolean canNotify(Long recordId) {
- 		if (this.level == NotificationLevel.ALL) {
- 			this.isInBlacklist(recordId) ? false : true
+ 		if (level == NotificationLevel.ALL) {
+ 			isInBlacklist(recordId) ? false : true
  		}
  		else { // otherwise is NotificationLevel.NONE
- 			this.isInWhitelist(recordId) ? true : false
+ 			isInWhitelist(recordId) ? true : false
  		}
  	}
     boolean enable(Long recordId) {
@@ -87,9 +125,20 @@ class NotificationPolicy {
     	getOrBuildWhitelist().contains(recordId)
     }
 
+    void setStaffId(Long sId) {
+        this.staffId = sId
+        this._staff = null // clear transient staff so can be refetch next time needed
+    }
+
     // Helpers
     // -------
 
+    protected Staff getStaff() {
+        if (!this._staff) {
+            this._staff = Staff.get(this.staffId)
+        }
+        this._staff
+    }
     protected HashSet<Long> getOrBuildBlacklist() {
         if (!this._blacklist) {
             this._blacklist = hydrateList(this.blacklistData)

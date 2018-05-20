@@ -76,7 +76,7 @@ class NotificationService {
 		    phoneIdToRecord[c1.phone.id] = c1.record
 		    recordIds << c1.record.id
 		}
-        // again, currently on support assocating one record with each notification. If there's a
+        // again, currently only support associating one record with each notification. If there's a
         // tag record for a group of contacts as well, prefer this record because the tag
         // brings together a group of contacts
         tags.each { ContactTag ct1 ->
