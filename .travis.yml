@@ -32,10 +32,10 @@ script:
 jobs:
   include:
     - stage: deploy
+      env: TEST_SCOPE="none"
       before_install:
         - openssl aes-256-cbc -K $encrypted_8c97747a3917_key -iv $encrypted_8c97747a3917_iv -in .travis/textup.pem.enc -out .travis/textup.pem -d
-      before_script:
-        - chmod +x grailsw
+      # inherits global before_script, which refreshes dependencies to enable rest-api-doc
       script: skip # already have run tests, so skip this step
       after_success:
         - ./grailsw rest-api-doc # build latest version of API docs
