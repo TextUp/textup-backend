@@ -44,6 +44,7 @@ class PhoneServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
+    String _utcTimezone = "Etc/UTC"
     String _apiId = "iamsospecial!!!"
     AtomicInteger _numTextsSent
     List<Long> _notifyRecordIds
@@ -125,7 +126,7 @@ class PhoneServiceSpec extends CustomSpec {
     void "test updating phone away message"() {
         when:
         String msg = "ting ting 123"
-        Result<Phone> res = service.update(s1.phone, [awayMessage:msg])
+        Result<Phone> res = service.update(s1.phone, [awayMessage:msg], null)
 
         then:
         res.success == true
@@ -137,7 +138,7 @@ class PhoneServiceSpec extends CustomSpec {
 
     void "test updating voice type"() {
         when: "invalid voice type"
-        Result<Phone> res = service.update(s1.phone, [voice:"invalid"])
+        Result<Phone> res = service.update(s1.phone, [voice:"invalid"], null)
 
         then:
         res.success == false
@@ -145,7 +146,7 @@ class PhoneServiceSpec extends CustomSpec {
         res.errorMessages[0].contains("voice")
 
         when: "valid voice type"
-        res = service.update(s1.phone, [voice:VoiceType.FEMALE.toString()])
+        res = service.update(s1.phone, [voice:VoiceType.FEMALE.toString()], null)
 
         then:
         res.success == true
@@ -156,7 +157,7 @@ class PhoneServiceSpec extends CustomSpec {
 
     void "test updating voice language"() {
         when: "invalid voice language"
-        Result<Phone> res = service.update(s1.phone, [language:"invalid"])
+        Result<Phone> res = service.update(s1.phone, [language:"invalid"], null)
 
         then:
         res.success == false
@@ -164,7 +165,7 @@ class PhoneServiceSpec extends CustomSpec {
         res.errorMessages[0].contains("language")
 
         when: "valid voice language"
-        res = service.update(s1.phone, [language:VoiceLanguage.RUSSIAN.toString()])
+        res = service.update(s1.phone, [language:VoiceLanguage.RUSSIAN.toString()], null)
 
         then:
         res.success == true
@@ -183,7 +184,7 @@ class PhoneServiceSpec extends CustomSpec {
         when:
         PhoneNumber newNum = new PhoneNumber(number:'1112223333')
         assert newNum.validate()
-        Result<Phone> res = service.update(s1.phone, [number:newNum.number])
+        Result<Phone> res = service.update(s1.phone, [number:newNum.number], null)
         String originalNum = s1.phone.numberAsString
 
         then: "new number is ignored"
@@ -267,7 +268,7 @@ class PhoneServiceSpec extends CustomSpec {
         int sBaseline = Schedule.count()
 
         when: "handling availability with no schedule-related updates"
-        Result<NotificationPolicy> res = service.handleAvailability(p1, [:])
+        Result<NotificationPolicy> res = service.handleAvailability(p1, [:], _utcTimezone)
 
         then: "a new policy is created even if no schedule-related updates"
         res.success == true
@@ -280,7 +281,7 @@ class PhoneServiceSpec extends CustomSpec {
             useStaffAvailability: false,
             manualSchedule: false,
             isAvailable: false
-        ])
+        ], _utcTimezone)
 
         then: "updated"
         res.success == true
@@ -296,7 +297,7 @@ class PhoneServiceSpec extends CustomSpec {
             useStaffAvailability: "invalid, not a boolean",
             manualSchedule: "invalid, not a boolean",
             isAvailable: true,
-        ])
+        ], _utcTimezone)
 
         then: "invalid values ignored, valid values updated"
         res.success == true
@@ -309,7 +310,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         when: "handling schedule with valid schedule-related updates"
         String mondayString = "0000:1230"
-        res = service.handleAvailability(p1, [schedule:[monday:[mondayString]]])
+        res = service.handleAvailability(p1, [schedule:[monday:[mondayString]]], _utcTimezone)
 
         then: "a new schedule is created and all updates are made"
         res.success == true
@@ -348,7 +349,7 @@ class PhoneServiceSpec extends CustomSpec {
         // wrap this call in a transaction so we can rollback on any input errors
         // so we don't have a bunch of orphan schedules
         Phone.withTransaction {
-            res = service.handleAvailability(p1, [schedule:[monday:"invalid time range"]])
+            res = service.handleAvailability(p1, [schedule:[monday:"invalid time range"]], null)
         }
 
         then: "error and no new schedule is created"
@@ -387,7 +388,7 @@ class PhoneServiceSpec extends CustomSpec {
         Result<Staff> res = service.mergePhone(
             forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team, [
             phone:msg
-        ])
+        ], _utcTimezone)
         assert res.success
         noPhoneEntity.save(flush:true, failOnError:true)
 
@@ -412,7 +413,7 @@ class PhoneServiceSpec extends CustomSpec {
         withPhoneEntity.phone.save(flush:true, failOnError:true)
         res = service.mergePhone(
             forStaff ? withPhoneEntity as Staff : withPhoneEntity as Team,
-            [ phone:[awayMessage:msg] ])
+            [phone: [awayMessage:msg]], _utcTimezone)
 
         then: "phone is NOT updated AND no new phone is created because the logged-in user is inactive"
         res.success == true
@@ -436,10 +437,10 @@ class PhoneServiceSpec extends CustomSpec {
         ] as AuthService
         res = service.mergePhone(
             forStaff ? withPhoneEntity as Staff : withPhoneEntity as Team,
-            [ phone:[awayMessage:msg] ])
+            [phone: [awayMessage:msg]], _utcTimezone)
 
-        then: "phone is updated, no new phone is created, and new policy is created \
-            because this is the first time we have encountered with phone entity"
+        then: "phone is updated, no new phone is created, and new policy is NOT created \
+            because we haven't updated anything related to availability yet"
         res.success == true
         res.status == ResultStatus.OK
         if (forStaff) {
@@ -450,20 +451,24 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.phone.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         Phone.count() == pBaseline
         PhoneOwnership.count() == oBaseline
-        NotificationPolicy.count() == policyBaseline + 1
+        NotificationPolicy.count() == policyBaseline
         Schedule.count() == schedBaseline
 
         when: "for staff without a phone with validly formatted body"
         String mondayString1 = "0000:1230"
         res = service.mergePhone(
             forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team,
-            [ phone:[
-                awayMessage:msg,
-                useStaffAvailability: false,
-                schedule: [
-                    monday: [mondayString1]
+            [
+                phone: [
+                    awayMessage: msg,
+                    availability: [
+                        useStaffAvailability: false,
+                        schedule: [
+                            monday: [mondayString1]
+                        ]
+                    ]
                 ]
-            ] ])
+            ], _utcTimezone)
         assert res.success
         noPhoneEntity.save(flush:true, failOnError:true)
 
@@ -472,7 +477,7 @@ class PhoneServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         Phone.count() == pBaseline + 1
         PhoneOwnership.count() == oBaseline + 1
-        NotificationPolicy.count() == policyBaseline + 2
+        NotificationPolicy.count() == policyBaseline + 1
         Schedule.count() == schedBaseline + 1
         if (forStaff) {
             assert res.payload instanceof Staff
@@ -493,13 +498,17 @@ class PhoneServiceSpec extends CustomSpec {
         String tuesdayString1 = "0345:0445"
         res = service.mergePhone(
             forStaff ? noPhoneEntity as Staff : noPhoneEntity as Team,
-            [ phone:[
-                awayMessage:msg3,
-                schedule: [
-                    monday: [mondayString2],
-                    tuesday: [tuesdayString1]
+            [
+                phone:[
+                    awayMessage: msg3,
+                    availability: [
+                        schedule: [
+                            monday: [mondayString2],
+                            tuesday: [tuesdayString1]
+                        ]
+                    ]
                 ]
-            ] ])
+            ], _utcTimezone)
         assert res.success
         noPhoneEntity.save(flush:true, failOnError:true)
 
@@ -507,7 +516,7 @@ class PhoneServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         Phone.count() == pBaseline + 1
         PhoneOwnership.count() == oBaseline + 1
-        NotificationPolicy.count() == policyBaseline + 2
+        NotificationPolicy.count() == policyBaseline + 1
         Schedule.count() == schedBaseline + 1
         if (forStaff) {
             assert res.payload instanceof Staff
@@ -537,7 +546,7 @@ class PhoneServiceSpec extends CustomSpec {
         service.resultFactory.messageSource = mockMessageSourceWithResolvable()
 
         when: "no phone actions"
-        Result<Phone> res = service.update(p1, [:])
+        Result<Phone> res = service.update(p1, [:], _utcTimezone)
 
         then: "return passed-in phone with no modifications"
         res.success == true
@@ -546,7 +555,7 @@ class PhoneServiceSpec extends CustomSpec {
         when: "phone actions not a list"
         res = service.update(p1, [doPhoneActions: [
             hello:"i am not a list"
-        ]])
+        ]], _utcTimezone)
 
         then:
         res.success == false
@@ -557,7 +566,7 @@ class PhoneServiceSpec extends CustomSpec {
         when: "item in phone actions is not a map"
         res = service.update(p1, [doPhoneActions: [
             ["i", "am", "not", "a", "map"]
-        ]])
+        ]], _utcTimezone)
 
         then: "ignored"
         res.success == false
@@ -572,7 +581,7 @@ class PhoneServiceSpec extends CustomSpec {
                 action: "i am an invalid action",
                 test:"I'm a property that doesn't exist"
             ]
-        ]])
+        ]], _utcTimezone)
 
         then:
         res.success == false
@@ -589,7 +598,7 @@ class PhoneServiceSpec extends CustomSpec {
         when: "deactivating phone"
         Result<Phone> res = service.update(p1, [doPhoneActions: [
             [action: Constants.PHONE_ACTION_DEACTIVATE]
-        ]])
+        ]], _utcTimezone)
         p1.save(flush:true, failOnError:true)
 
         then:
@@ -607,7 +616,7 @@ class PhoneServiceSpec extends CustomSpec {
                 id: t1.id,
                 type: PhoneOwnershipType.GROUP.toString()
             ]
-        ]])
+        ]], _utcTimezone)
         p1.save(flush:true, failOnError:true)
 
         then:
@@ -623,7 +632,7 @@ class PhoneServiceSpec extends CustomSpec {
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_NUM,
                 number: "invalidNum123" // so that short circuits
             ]
-        ]])
+        ]], _utcTimezone)
 
         then:
         res.success == false
@@ -638,7 +647,7 @@ class PhoneServiceSpec extends CustomSpec {
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_ID,
                 numberId: p1.apiId // so that short circuits
             ]
-        ]])
+        ]], _utcTimezone)
 
         then:
         res.success == true

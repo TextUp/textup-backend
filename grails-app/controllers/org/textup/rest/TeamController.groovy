@@ -35,7 +35,10 @@ class TeamController extends BaseController {
         @RestApiParam(name="organizationId", type="Number", paramType=RestApiParamType.QUERY,
             required=true, description="Id of the organization"),
         @RestApiParam(name="staffId", type="Number", paramType=RestApiParamType.QUERY,
-            required=true, description="Id of the staff")
+            required=true, description="Id of the staff"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key to convert times to,
+            include schedule intervals, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404",description="The organization or staff was \
@@ -46,6 +49,9 @@ class TeamController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def index() {
+        if (params.timezone) { //for the json marshaller
+            request.setAttribute("timezone", params.timezone as String)
+        }
         Closure<Integer> count
         Closure<List<Team>> list
         if (params.long("organizationId")) {
@@ -76,7 +82,10 @@ class TeamController extends BaseController {
     @RestApiMethod(description="Show specifics about a team")
     @RestApiParams(params=[
         @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
-            description="Id of the team")
+            description="Id of the team"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key to convert times to,
+            include schedule intervals, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="404",description="The requested team was not found."),
@@ -84,6 +93,9 @@ class TeamController extends BaseController {
     ])
     @Transactional(readOnly=true)
     def show() {
+        if (params.timezone) { //for the json marshaller
+            request.setAttribute("timezone", params.timezone as String)
+        }
         Team t1 = Team.get(params.long("id"))
         if (t1) {
             if (authService.hasPermissionsForTeam(t1.id)) {
@@ -99,6 +111,13 @@ class TeamController extends BaseController {
 
     @RestApiMethod(description="Create a new team and associated it with an \
         existing organization")
+    @RestApiResponseObject(objectIdentifier = "Team")
+    @RestApiBodyObject(name = "Team")
+    @RestApiParams(params=[
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key that the dates, including schedule intervals
+            passed in are in, defaults to UTC if unspecified or invalid''')
+    ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),
         @RestApiError(code="404",description="The organization to add the team \
@@ -111,16 +130,25 @@ class TeamController extends BaseController {
     def save() {
         Map tInfo = getJsonPayload(Team, request)
         if (tInfo == null) { return }
-        respondWithResult(Team, teamService.create(tInfo))
+        String tz = params.timezone as String
+        if (tz) { //for the json marshaller
+            request.setAttribute("timezone", tz)
+        }
+        respondWithResult(Team, teamService.create(tInfo, tz))
     }
 
     // Update
     // ------
 
     @RestApiMethod(description="Update an existing team")
+    @RestApiResponseObject(objectIdentifier = "Team")
+    @RestApiBodyObject(name = "Team")
     @RestApiParams(params=[
         @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
-            description="Id of the team")
+            description="Id of the team"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key that the dates, including schedule intervals
+            passed in are in, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiErrors(apierrors=[
         @RestApiError(code="400", description="Malformed JSON in request."),
@@ -132,10 +160,14 @@ class TeamController extends BaseController {
     def update() {
         Map tInfo = getJsonPayload(Team, request)
         if (tInfo == null) { return }
+        String tz = params.timezone as String
+        if (params.timezone) { //for the json marshaller
+            request.setAttribute("timezone", tz)
+        }
         Long id = params.long("id")
         if (authService.exists(Team, id)) {
             if (authService.hasPermissionsForTeam(id)) {
-                respondWithResult(Team, teamService.update(id, tInfo))
+                respondWithResult(Team, teamService.update(id, tInfo, tz))
             }
             else { forbidden() }
         }

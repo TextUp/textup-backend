@@ -63,7 +63,7 @@ class BootStrap {
 				t2.save(flush:true, failOnError:true)
 				//create phones for teams
 				Phone tPh1 = new Phone()
-		        tPh1.numberAsString = "9252755153"
+		        tPh1.numberAsString = "2678887452"
 		        tPh1.updateOwner(t1)
 		        tPh1.save(flush:true, failOnError:true)
 
@@ -78,8 +78,8 @@ class BootStrap {
 					name:"Johnny Staff3", email:"connect@textup.org", org:org,
 					status:StaffStatus.PENDING, lockCode:Constants.DEFAULT_LOCK_CODE)
 		    	admin.personalPhoneAsString = "6262027548"
-		    	s1.personalPhoneAsString = "5865338761"
-		    	s2.personalPhoneAsString = "2678887452"
+		    	s1.personalPhoneAsString = "6262027548"
+		    	s2.personalPhoneAsString = "6262027548"
 		    	admin.save(flush:true, failOnError:true)
 				s1.save(flush:true, failOnError:true)
 				s2.save(flush:true, failOnError:true)

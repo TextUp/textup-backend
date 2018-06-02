@@ -28,7 +28,7 @@ class TeamServiceSpec extends CustomSpec {
         super.setupData()
         service.resultFactory = getResultFactory()
         service.phoneService = [
-            mergePhone: { Team t1, Map body ->
+            mergePhone: { Team t1, Map body, String timezone ->
                 new Result(success:ResultStatus.OK, payload:t1)
             }
         ] as PhoneService
@@ -117,7 +117,7 @@ class TeamServiceSpec extends CustomSpec {
 
     	when: "creation of a team with a nonexistent organization"
         Map createInfo = [:]
-        Result res = service.create(createInfo)
+        Result res = service.create(createInfo, null)
 
     	then:
         res.success == false
@@ -135,7 +135,7 @@ class TeamServiceSpec extends CustomSpec {
                 lon:10G
             ]
         ]
-        res = service.create(createInfo)
+        res = service.create(createInfo, null)
         assert res.success
         res.payload.save(flush:true, failOnError:true)
 
@@ -276,7 +276,7 @@ class TeamServiceSpec extends CustomSpec {
 
     	when: "we update a team with an invalid location"
         Map updateInfo = [location:[lat:-888G, lon:-888G]]
-        Result res = service.update(t1.id, updateInfo)
+        Result res = service.update(t1.id, updateInfo, null)
 
     	then:
         res.success == false
@@ -290,7 +290,7 @@ class TeamServiceSpec extends CustomSpec {
         BigDecimal lat = 8G, lon = 10G
         updateInfo.location.lat = lat
         updateInfo.location.lon = lon
-        res = service.update(t1.id, updateInfo)
+        res = service.update(t1.id, updateInfo, null)
 
         then:
         res.success == true

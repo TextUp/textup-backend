@@ -128,7 +128,7 @@ class TeamControllerSpec extends CustomSpec {
 
     void "test save team"() {
         given:
-        controller.teamService = [create:{ Map body ->
+        controller.teamService = [create:{ Map body, String timezone ->
             new Result(payload:t1, status:ResultStatus.CREATED)
         }] as TeamService
 
@@ -182,7 +182,7 @@ class TeamControllerSpec extends CustomSpec {
 
     void "test update team"() {
         given:
-        controller.teamService = [update:{ Long cId, Map body ->
+        controller.teamService = [update:{ Long cId, Map body, String timezone ->
             new Result(payload:t1, status:ResultStatus.OK)
         }] as TeamService
         controller.authService = [

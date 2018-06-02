@@ -53,7 +53,7 @@ class StaffServiceSpec extends CustomSpec {
             getIsActive: { true }
         } as AuthService
         service.phoneService = [
-            mergePhone: { Staff s1, Map body ->
+            mergePhone: { Staff s1, Map body, String timezone ->
                 new Result(status:ResultStatus.OK, payload:s1)
             }
         ] as PhoneService

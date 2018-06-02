@@ -93,7 +93,7 @@ class Contact implements Contactable {
         @RestApiObjectField(
             apiFieldName   = "notificationStatuses",
             description    = "Whether or not a specified staff member will be notified of updates for this specific contact",
-            allowedType    = "List<notificationStatus>",
+            allowedType    = "List<NotificationStatus>",
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "sharedWith",

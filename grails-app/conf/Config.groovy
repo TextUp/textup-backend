@@ -311,6 +311,7 @@ textup {
             schedule = [singular:"schedule", plural:"schedules"]
             session = [singular:"session", plural:"sessions"]
             staff = [singular:"staff", plural:"staff"]
+            staffPolicyAvailability = [singular:"availability", plural:"availabilities"]
             tag = [singular:"tag", plural:"tags"]
             team = [singular:"team", plural:"teams"]
         }

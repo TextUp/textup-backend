@@ -234,6 +234,17 @@ beans = {
 		namespace = v1Namespace
 	}
 
+	staffPolicyAvailabilityRenderer(ApiJsonRenderer, StaffPolicyAvailability) {
+		label = tRestConfig.v1.staffPolicyAvailability.singular
+	}
+	staffPolicyAvailabilityCollectionRenderer(ApiJsonCollectionRenderer, StaffPolicyAvailability) {
+		label = tRestConfig.v1.staffPolicyAvailability.plural
+	}
+	staffPolicyAvailabilityJsonMarshaller(StaffPolicyAvailabilityJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
 	availableNumberRenderer(ApiJsonRenderer, AvailablePhoneNumber) {
 		label = tRestConfig.v1.availableNumber.singular
 	}

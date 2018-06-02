@@ -17,14 +17,14 @@ class TeamService {
     // Create
     // ------
 
-    Result<Team> create(Map body) {
+    Result<Team> create(Map body, String timezone) {
         Organization o1 = Organization.get(Helpers.to(Long, body.org))
         if (!o1) {
             return resultFactory.failWithCodeAndStatus("teamService.create.orgNotFound",
                 ResultStatus.NOT_FOUND, [body.org])
         }
         updateTeamInfo(new Team(org:o1), body)
-            .then({ Team t1 -> phoneService.mergePhone(t1, body) })
+            .then({ Team t1 -> phoneService.mergePhone(t1, body, timezone) })
             .then({ Team t1 -> resultFactory.success(t1, ResultStatus.CREATED) })
     }
     protected Result<Team> updateTeamInfo(Team t1, Map body) {
@@ -52,11 +52,11 @@ class TeamService {
     // Update
     // ------
 
-    Result<Team> update(Long tId, Map body) {
+    Result<Team> update(Long tId, Map body, String timezone) {
         findTeamFromId(tId)
             .then({ Team t1 -> handleTeamActions(t1, body) })
             .then({ Team t1 -> updateTeamInfo(t1, body) })
-            .then({ Team t1 -> phoneService.mergePhone(t1, body) })
+            .then({ Team t1 -> phoneService.mergePhone(t1, body, timezone) })
     }
     protected Result<Team> findTeamFromId(Long tId) {
         Team t1 = Team.get(tId)

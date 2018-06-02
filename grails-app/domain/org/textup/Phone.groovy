@@ -84,35 +84,16 @@ class Phone {
             allowedType    = "List<Tag>",
             useForCreation = false),
         @RestApiObjectField(
-            apiFieldName   = "isAvailableNow",
-            description    = "READ ONLY, use this value to determine whether or not the staff member is available \
-                regardless of other availability settings",
-            allowedType    = "boolean",
+            apiFieldName   = "availability",
+            description    = "Contains availability info for a particular staff for this phone, \
+                update attributes in this object to update phone-specific availability",
+            allowedType    = "StaffPolicyAvailability",
             useForCreation = false),
         @RestApiObjectField(
-            apiFieldName   = "useStaffAvailability",
-            description    = "whether to use the staff's default availability or use phone-specific \
-                availability settings",
-            allowedType    = "boolean",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "manualSchedule",
-            description    = "if using phone-specific availability settings, whether or not availability \
-                is manually specific instead of on a schedule",
-            allowedType    = "boolean",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "isAvailable",
-            description    = "if using phone-specific availability settings AND manually specifying \
-                availability, whether or not this staff member is available to receive notifications \
-                from this TextUp phone",
-            allowedType    = "boolean",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "schedule",
-            description    = "if using phone-specific availability settings AND specifying \
-                availability according to a schedule, this is the schedule that will be used",
-            allowedType    = "Schedule",
+            apiFieldName   = "others",
+            description    = "READ ONLY, full availability information for other staff owners of this \
+                particular phone if this is a team phone.",
+            allowedType    = "List<StaffPolicyAvailability>",
             useForCreation = false)
     ])
     static transients = ["number", "resultFactory", "phoneService", "twimlBuilder"]

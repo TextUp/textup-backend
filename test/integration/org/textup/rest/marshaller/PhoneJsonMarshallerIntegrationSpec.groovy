@@ -35,7 +35,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
     }
 
     @Unroll
-    void "test marshal phone when has notification policy is #description"() {
+    void "test marshal phone when has notification policy and is #description"() {
         given:
         Staff authUser
         if (isLoggedIn) {
@@ -72,19 +72,19 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         }
         if (showAvailabilityInfo) {
             NotificationPolicy np1 = p1.owner.getPolicyForStaff(authUser.id)
-            assert json.useStaffAvailability == true
-            assert json.manualSchedule == np1.useStaffAvailability
-            assert json.isAvailable == np1.useStaffAvailability
-            assert json.isAvailableNow == s1.isAvailableNow()
-            assert json.schedule == np1.schedule
-            assert json.schedule == null // no schedule created yet
+            assert json.availability instanceof Map
+            assert json.availability.useStaffAvailability == true
+            assert json.availability.manualSchedule == np1.useStaffAvailability
+            assert json.availability.isAvailable == np1.useStaffAvailability
+            assert json.availability.isAvailableNow == s1.isAvailableNow()
+            assert json.availability.schedule == np1.schedule
+            assert json.availability.schedule == null // no schedule created yet
+            assert json.others instanceof Collection
+            assert json.others.size() == p1.owner.all.size() - 1
         }
         else {
-            assert json.useStaffAvailability == null
-            assert json.manualSchedule == null
-            assert json.isAvailable == null
-            assert json.isAvailableNow == null
-            assert json.schedule == null
+            assert json.availability == null
+            assert json.others == null
         }
 
         where:
@@ -117,7 +117,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
             json = jsonToObject(p1 as JSON) as Map
         }
 
-        then: "default to staff availability and do not sure policy-level availability info"
+        then: "default to staff availability and do not show policy-level availability info"
         json.id == p1.id
         json.number == p1.number.e164PhoneNumber
         json.awayMessage == p1.awayMessage
@@ -128,11 +128,14 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         p1.tags.every { ContactTag ct1 ->
             json.tags.find { it.id == ct1.id }
         }
-        json.useStaffAvailability == true
-        json.isAvailableNow == staff1.isAvailableNow()
+        json.availability instanceof Map
+        json.availability.useStaffAvailability == true
+        json.availability.isAvailableNow == staff1.isAvailableNow()
         // no policy-level availability info
-        json.manualSchedule == null
-        json.isAvailable == null
-        json.schedule == null
+        json.availability.manualSchedule == null
+        json.availability.isAvailable == null
+        json.availability.schedule == null
+        json.others instanceof Collection
+        json.others.size() == 0 // this is a personal TextUp phone
     }
 }

@@ -104,7 +104,7 @@ class NotificationPolicySpec extends CustomSpec {
             friday:["0000:2359"],
             saturday:["0000:2359"],
             sunday:["0000:2359"]
-        ]).success
+        ], "Etc/UTC").success
         np1.save(flush:true, failOnError:true)
 
         s1.isAvailable = false

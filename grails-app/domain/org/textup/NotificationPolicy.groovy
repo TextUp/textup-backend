@@ -75,9 +75,17 @@ class NotificationPolicy implements Schedulable {
                 return resultFactory.failWithValidationErrors(schedule.errors)
             }
         }
-        schedule.instanceOf(WeeklySchedule) ?
-            (schedule as WeeklySchedule).updateWithIntervalStrings(params, timezone) :
-            schedule.update(params)
+        if (schedule.instanceOf(WeeklySchedule)) {
+            // direct casting to WeeklySchedule doesn't seem to work here because the schedule
+            // class may be proxied and therefore casting yields a ClassCastException
+            WeeklySchedule wSched1 = WeeklySchedule.get(schedule.id)
+            if (wSched1) {
+                // if updating here, return to avoid fallthrough
+                return wSched1.updateWithIntervalStrings(params, timezone)
+            }
+        }
+        // fallthrough/backup is just to use the generic schedule update method
+        schedule.update(params)
     }
 
     boolean canNotifyForAny(Collection<Long> recordIds) {

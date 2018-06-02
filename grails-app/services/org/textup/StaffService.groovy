@@ -51,7 +51,7 @@ class StaffService {
     Result<Staff> create(Map body, String timezone) {
         verifyCreateRequest(body)
             .then({ fillStaffInfo(new Staff(), body, timezone) })
-            .then({ Staff s1 -> completeStaffCreation(s1, body) })
+            .then({ Staff s1 -> completeStaffCreation(s1, body, timezone) })
             .then({ Staff s1 -> resultFactory.success(s1, ResultStatus.CREATED) })
     }
     protected Result<Void> verifyCreateRequest(Map body) {
@@ -118,7 +118,7 @@ class StaffService {
         // leave validation for later step because might not have org
         resultFactory.success(s1)
     }
-    protected Result<Staff> completeStaffCreation(Staff s1, Map body) {
+    protected Result<Staff> completeStaffCreation(Staff s1, Map body, String timezone) {
         tryAddStaffToOrg(s1, body.org).then({ Organization o1 ->
             // only allowed to change status if is admin and organization
             // is not pending
@@ -130,7 +130,7 @@ class StaffService {
             // before trying to send out email notification and adding a phone
             if (s1.save()) {
                 phoneService
-                    .mergePhone(s1, body)
+                    .mergePhone(s1, body, timezone)
                     .then({ notifyAfterCreation(s1, o1, body) })
             }
             else { resultFactory.failWithValidationErrors(s1.errors) }
@@ -198,7 +198,7 @@ class StaffService {
         findStaffForId(staffId)
             .then({ Staff s1 -> fillStaffInfo(s1, body, timezone) })
             .then({ Staff s1 -> tryUpdateStatus(s1, body) })
-            .then({ Staff s1 -> phoneService.mergePhone(s1, body) })
+            .then({ Staff s1 -> phoneService.mergePhone(s1, body, timezone) })
             .then({ Staff s1 ->
                 StaffStatus oldStatus = s1.getPersistentValue("status") as StaffStatus
                 // email notifications if changing away from pending
