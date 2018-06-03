@@ -138,60 +138,63 @@ class RecordSpec extends Specification {
         rec1.save(flush:true, failOnError:true)
 
         RecordText rText1 = rec1.addText([contents:"text"], null).payload
-        RecordCall rCall1 = rec1.addCall([:], null).payload
+        RecordCall rCall1 = rec1.addCall([:], null).payload,
+            rCall2 = rec1.addCall([voicemailInSeconds: 22, hasAwayMessage: true], null).payload
         RecordNote rNote1 = new RecordNote(record:rec1)
-        [rText1, rCall1, rNote1]*.save(flush:true, failOnError:true)
+        [rText1, rCall1, rCall2, rNote1]*.save(flush:true, failOnError:true)
 
         DateTime afterDt = DateTime.now().minusWeeks(3)
         DateTime beforeDt = DateTime.now().plusWeeks(3)
 
         expect:
-        rec1.countItems([RecordCall]) == 1
+        rec1.countItems([RecordCall]) == 2
         rec1.countItems([RecordText]) == 1
         rec1.countItems([RecordNote]) == 1
-        rec1.countItems([RecordCall, RecordText]) == 2
+        rec1.countItems([RecordCall, RecordText]) == 3
         rec1.countItems([RecordText, RecordNote]) == 2
-        rec1.countItems([RecordCall, RecordNote]) == 2
-        rec1.countItems([RecordCall, RecordText, RecordNote]) == 3
+        rec1.countItems([RecordCall, RecordNote]) == 3
+        rec1.countItems([RecordCall, RecordText, RecordNote]) == 4
 
-        rec1.getItems([RecordCall])*.id.every { it in [rCall1]*.id }
+        rec1.getItems([RecordCall])*.id.every { it in [rCall1, rCall2]*.id }
         rec1.getItems([RecordText])*.id.every { it in [rText1]*.id }
         rec1.getItems([RecordNote])*.id.every { it in [rNote1]*.id }
-        rec1.getItems([RecordCall, RecordText])*.id.every { it in [rText1, rCall1]*.id }
+        rec1.getItems([RecordCall, RecordText])*.id.every { it in [rText1, rCall1, rCall2]*.id }
         rec1.getItems([RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
-        rec1.getItems([RecordCall, RecordNote])*.id.every { it in [rCall1, rNote1]*.id }
-        rec1.getItems([RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rNote1]*.id }
+        rec1.getItems([RecordCall, RecordNote])*.id.every { it in [rCall1, rNote1, rCall2]*.id }
+        rec1.getItems([RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
 
-        rec1.countSince(afterDt, [RecordCall]) == 1
+        rec1.countCallsSince(afterDt, false) == 1 // one call that isn't a voicemail
+        rec1.countCallsSince(afterDt, true) == 1 // one call that IS a voicemail
+        rec1.countSince(afterDt, [RecordCall]) == 2 // overall, two calls of any voicemail status
         rec1.countSince(afterDt, [RecordText]) == 1
         rec1.countSince(afterDt, [RecordNote]) == 1
-        rec1.countSince(afterDt, [RecordCall, RecordText]) == 2
+        rec1.countSince(afterDt, [RecordCall, RecordText]) == 3
         rec1.countSince(afterDt, [RecordText, RecordNote]) == 2
-        rec1.countSince(afterDt, [RecordCall, RecordNote]) == 2
-        rec1.countSince(afterDt, [RecordCall, RecordText, RecordNote]) == 3
+        rec1.countSince(afterDt, [RecordCall, RecordNote]) == 3
+        rec1.countSince(afterDt, [RecordCall, RecordText, RecordNote]) == 4
 
-        rec1.getSince(afterDt, [RecordCall])*.id.every { it in [rCall1]*.id }
+        rec1.getSince(afterDt, [RecordCall])*.id.every { it in [rCall1, rCall2]*.id }
         rec1.getSince(afterDt, [RecordText])*.id.every { it in [rText1]*.id }
         rec1.getSince(afterDt, [RecordNote])*.id.every { it in [rNote1]*.id }
-        rec1.getSince(afterDt, [RecordCall, RecordText])*.id.every { it in [rText1, rCall1]*.id }
+        rec1.getSince(afterDt, [RecordCall, RecordText])*.id.every { it in [rText1, rCall1, rCall2]*.id }
         rec1.getSince(afterDt, [RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
-        rec1.getSince(afterDt, [RecordCall, RecordNote])*.id.every { it in [rCall1, rNote1]*.id }
-        rec1.getSince(afterDt, [RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rNote1]*.id }
+        rec1.getSince(afterDt, [RecordCall, RecordNote])*.id.every { it in [rCall1, rCall2, rNote1]*.id }
+        rec1.getSince(afterDt, [RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
 
-        rec1.countBetween(afterDt, beforeDt, [RecordCall]) == 1
+        rec1.countBetween(afterDt, beforeDt, [RecordCall]) == 2
         rec1.countBetween(afterDt, beforeDt, [RecordText]) == 1
         rec1.countBetween(afterDt, beforeDt, [RecordNote]) == 1
-        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordText]) == 2
+        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordText]) == 3
         rec1.countBetween(afterDt, beforeDt, [RecordText, RecordNote]) == 2
-        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordNote]) == 2
-        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordText, RecordNote]) == 3
+        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordNote]) == 3
+        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordText, RecordNote]) == 4
 
-        rec1.getBetween(afterDt, beforeDt, [RecordCall])*.id.every { it in [rCall1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordCall])*.id.every { it in [rCall1, rCall2]*.id }
         rec1.getBetween(afterDt, beforeDt, [RecordText])*.id.every { it in [rText1]*.id }
         rec1.getBetween(afterDt, beforeDt, [RecordNote])*.id.every { it in [rNote1]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordText])*.id.every { it in [rText1, rCall1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordText])*.id.every { it in [rText1, rCall1, rCall2]*.id }
         rec1.getBetween(afterDt, beforeDt, [RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordNote])*.id.every { it in [rCall1, rNote1]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rNote1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordNote])*.id.every { it in [rCall1, rCall2, rNote1]*.id }
+        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
     }
 }

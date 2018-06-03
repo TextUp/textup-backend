@@ -1,6 +1,7 @@
 package org.textup.rest.marshaller
 
 import grails.converters.JSON
+import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.ContactStatus
 import org.textup.util.CustomSpec
@@ -39,7 +40,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
     void "test marshalling contact"() {
         given:
         IncomingSession sess1 = new IncomingSession(phone:c1.phone,
-            numberAsString:"1112223333")
+            numberAsString:c1.numbers[0].number)
         sess1.save(flush:true, failOnError:true)
 
     	when:
@@ -86,5 +87,47 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         json.startedSharing == sc2.whenCreated.toString()
         json.sharedBy == sc2.sharedBy.name
         json.sharedById == sc2.sharedBy.id
+    }
+
+    void "test marshalling unread contactable and detailed unread info"() {
+        given: "a contactable NOT UNREAD with last touched before some record items"
+        c1.lastTouched = DateTime.now()
+        c1.status = ContactStatus.ACTIVE
+        DateTime dtInFuture = DateTime.now().plusDays(2)
+        RecordText rText1 = c1.record.addText([lastTouched: dtInFuture, contents: "text"], null).payload
+        RecordCall rCall1 = c1.record.addCall([lastTouched: dtInFuture], null).payload
+        [c1, rText1, rCall1]*.save(flush: true, failOnError: true)
+
+        when: "we marshal this contactable"
+        Map json
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = jsonToObject(c1 as JSON) as Map
+        }
+
+        then: "detailed unread info DOES NOT show up because status is not unread"
+        json.unreadInfo == null
+
+        when: "we update status to be unread"
+        c1.status = ContactStatus.UNREAD
+        c1.save(flush: true, failOnError: true)
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = jsonToObject(c1 as JSON) as Map
+        }
+
+        then: "detailed unread info shows up"
+        json.unreadInfo instanceof Map
+        json.unreadInfo.numTexts == 1
+        json.unreadInfo.numCalls == 1
+        json.unreadInfo.numVoicemails == 0
+
+        when: "we update last touched so it is after all record items"
+        c1.lastTouched = dtInFuture.plusDays(2)
+        c1.save(flush: true, failOnError: true)
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = jsonToObject(c1 as JSON) as Map
+        }
+
+        then: "no detailed unread info even if status is unread"
+        json.unreadInfo == null
     }
 }

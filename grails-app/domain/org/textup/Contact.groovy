@@ -51,6 +51,8 @@ class Contact implements Contactable {
         useForCreation = true)
     ContactStatus status = ContactStatus.ACTIVE
 
+    DateTime lastTouched = DateTime.now()
+
     @RestApiObjectField(
         apiFieldName   = "numbers",
         description    = "Numbers that pertain to this contact. Order in this \
@@ -137,6 +139,7 @@ class Contact implements Contactable {
     static hasMany = [numbers:ContactNumber]
     static mapping = {
         whenCreated type:PersistentDateTime
+        lastTouched type:PersistentDateTime
         numbers lazy:false, cascade:"all-delete-orphan"
     }
     static namedQueries = {

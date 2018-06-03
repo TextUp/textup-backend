@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.hibernate.Session
+import org.joda.time.DateTime
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.springframework.context.NoSuchMessageException
@@ -88,16 +89,20 @@ class ContactService {
                 if (body.language) language = Helpers.convertEnum(VoiceLanguage, body.language)
             }
         }
-        // both owner of the contact and all active collaborators can modify status
+        // both owner of the contact and active collaborators of all permissions can modify status
         // if updating the status, update on the shared contact if available to avoid overwriting
         // the status on the original contact
         if (body.status) {
             ContactStatus newStat1 = Helpers.convertEnum(ContactStatus, body.status)
             if (sc1) {
                 sc1.status = newStat1
+                sc1.lastTouched = DateTime.now()
                 if (!sc1.save()) { return resultFactory.failWithValidationErrors(sc1.errors) }
             }
-            else { c1.status = newStat1 }
+            else {
+                c1.status = newStat1
+                c1.lastTouched = DateTime.now()
+            }
         }
         if (c1.save()) {
             resultFactory.success(c1)

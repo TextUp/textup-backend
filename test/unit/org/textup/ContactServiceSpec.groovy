@@ -5,7 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
-import java.util.UUID
+import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
@@ -148,6 +148,7 @@ class ContactServiceSpec extends CustomSpec {
         given: "baselines"
         int cBaseline = Contact.count()
         int nBaseline = ContactNumber.count()
+        DateTime originalTouched = c1.lastTouched
 
         when: "we update with invalid fields"
         Map updateInfo = [
@@ -177,6 +178,7 @@ class ContactServiceSpec extends CustomSpec {
         res.payload.note == updateInfo.note
         res.payload.language == VoiceLanguage.JAPANESE
         res.payload.status == ContactStatus.UNREAD
+        res.payload.lastTouched.isAfter(originalTouched)
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
     }
@@ -185,7 +187,11 @@ class ContactServiceSpec extends CustomSpec {
         given: "shared contact with collaborator permissions"
         Contact contact1 = sc1.contact
         contact1.status = ContactStatus.UNREAD
+        contact1.lastTouched = DateTime.now().minusDays(6)
         sc1.permission = SharePermission.DELEGATE
+        sc1.lastTouched = DateTime.now().minusDays(3)
+        DateTime contactOriginalTouched = contact1.lastTouched,
+            sharedOriginalTouched = sc1.lastTouched
         [sc1, contact1]*.save(flush:true, failOnError:true)
         assert sc1.isActive && sc1.canModify
 
@@ -204,11 +210,18 @@ class ContactServiceSpec extends CustomSpec {
         res.payload.name == updateInfo.name
         res.payload.note == updateInfo.note
         res.payload.status != newStatus1
+        res.payload.lastTouched.isEqual(contactOriginalTouched)
+        res.payload.lastTouched.isEqual(sharedOriginalTouched) == false
+        // status and last touched updated on shared contact instead of original contact
         SharedContact.get(sc1.id).status == newStatus1
+        SharedContact.get(sc1.id).lastTouched.isAfter(sharedOriginalTouched)
 
         when: "shared contact is view-only"
+        sc1 = SharedContact.get(sc1.id)
+
         sc1.permission = SharePermission.VIEW
         sc1.save(flush:true, failOnError:true)
+        sharedOriginalTouched = sc1.lastTouched
 
         updateInfo = [
             name: UUID.randomUUID().toString(),
@@ -224,7 +237,10 @@ class ContactServiceSpec extends CustomSpec {
         res.payload.name != updateInfo.name
         res.payload.note != updateInfo.note
         res.payload.status != newStatus1
+        // collaborators of any permission level can update status, which implicitly updates
+        // last touched
         SharedContact.get(sc1.id).status == newStatus1
+        SharedContact.get(sc1.id).lastTouched.isAfter(sharedOriginalTouched)
     }
 
     void "test updating with notification actions"() {

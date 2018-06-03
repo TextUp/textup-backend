@@ -102,6 +102,19 @@ class Record {
         if (!since) { return 0 }
         RecordItem.forRecordDateSince(this, since, types).count()
     }
+    // specialized version of countSince that distinguishes between calls that have a voicemail
+    // and calls that do not have a voicemail
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    int countCallsSince(DateTime since, boolean hasVoicemail = false) {
+        if (!since) { return 0 }
+        RecordItem.forRecordDateSince(this, since, [RecordCall]).count {
+            if (hasVoicemail) {
+                gt("voicemailInSeconds", 0)
+            }
+            else { eq("voicemailInSeconds", 0) }
+        }
+    }
+
 
     List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
         getBetween(start, end, [], params)

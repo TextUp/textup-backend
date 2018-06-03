@@ -36,6 +36,8 @@ class SharedContact implements Contactable {
         allowedType = "String")
     ContactStatus status
 
+    DateTime lastTouched = DateTime.now()
+
     @RestApiObjectField(
         description = "Level of permissions you shared this contact with. \
             Allowed: DELEGATE, VIEW",
@@ -73,6 +75,7 @@ class SharedContact implements Contactable {
     static mapping = {
         whenCreated type:PersistentDateTime
         dateExpired type:PersistentDateTime
+        lastTouched type:PersistentDateTime
     }
     static namedQueries = {
         forContact { Contact c1 ->

@@ -14,14 +14,19 @@ interface Contactable {
     DateTime getLastRecordActivity()
     String getName()
     String getNote()
-    ContactStatus getStatus()
     PhoneNumber getFromNum()
     List<ContactNumber> getNumbers()
     List<ContactNumber> getSortedNumbers()
     Record getRecord()
 
-    void setLanguage(VoiceLanguage lang)
+    ContactStatus getStatus()
+    void setStatus(ContactStatus val)
+
+    DateTime getLastTouched()
+    void setLastTouched(DateTime val)
+
     VoiceLanguage getLanguage()
+    void setLanguage(VoiceLanguage lang)
 
     List<RecordItem> getItems()
     List<RecordItem> getItems(Map params)

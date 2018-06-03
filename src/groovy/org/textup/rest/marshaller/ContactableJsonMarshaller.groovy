@@ -7,6 +7,7 @@ import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.rest.*
+import org.textup.type.ContactStatus
 
 @GrailsCompileStatic
 @Log4j
@@ -29,6 +30,20 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         json.futureMessages = c1.getFutureMessages()
         json.notificationStatuses = c1.getNotificationStatuses()
         json.language = c1.getLanguage()?.toString()
+        json.status = c1.status?.toString()
+        if (c1.status == ContactStatus.UNREAD) {
+            Record rec1 = c1.record
+            // especially when manually marking as unread, a contact that is unread may not
+            // have any unread counts to report
+            if (rec1.countSince(c1.lastTouched) > 0) {
+                Map<String, Integer> unreadInfo = [
+                    numTexts: rec1.countSince(c1.lastTouched, [RecordText]),
+                    numCalls: rec1.countCallsSince(c1.lastTouched, false),
+                    numVoicemails: rec1.countCallsSince(c1.lastTouched, true)
+                ]
+                json.unreadInfo = unreadInfo
+            }
+        }
         // add fields specific to Contacts or SharedContacts
         if (c1.instanceOf(Contact)) {
             Contact contact = c1 as Contact
@@ -43,7 +58,6 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
                 ]
             }
             json.phone = contact.phone.id
-            json.status = c1.status?.toString()
         }
         else if (c1.instanceOf(SharedContact)) {
             SharedContact sc = c1 as SharedContact
@@ -52,7 +66,6 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
             json.sharedBy = sc.sharedBy.name
             json.sharedById = sc.sharedBy.id
             json.phone = sc.sharedWith.id
-            json.status = sc.status?.toString()
         }
         else {
             log.error("ContactableJsonMarshaller: passed in Contactable $c1 is \
