@@ -100,7 +100,7 @@ class CustomResponseDoc {
     ])
     static def notificationStatus
 
-    @RestApiObjectField(description = "A message notification sent to a staff")
+    @RestApiObjectField(description = "Availability information for a particular staff member for a particular TextUp phone")
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName   = "isAvailableNow",

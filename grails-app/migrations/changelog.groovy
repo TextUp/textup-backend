@@ -927,4 +927,6 @@ databaseChangeLog = {
 	include file: 'voice-language.groovy'
 
 	include file: 'policy-specific-availability.groovy'
+
+	include file: 'detailed-unread-info.groovy'
 }
