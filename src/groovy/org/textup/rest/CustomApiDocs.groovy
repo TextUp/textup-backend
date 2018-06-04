@@ -100,6 +100,27 @@ class CustomResponseDoc {
     ])
     static def notificationStatus
 
+    @RestApiObjectField(description = "If the contact is unread, provides counts for what record items have \
+        not been viewed yet by record item type")
+    @RestApiObjectFields(params=[
+        @RestApiObjectField(
+            apiFieldName   = "numTexts",
+            description    = "Number of texts not viewed yet",
+            allowedType    = "Number",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "numCalls",
+            description    = "Number of calls without voicemails not viewed yet",
+            allowedType    = "Number",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "numVoicemails",
+            description    = "Number of voicemails not viewed yet",
+            allowedType    = "Number",
+            useForCreation = false)
+    ])
+    static def unreadInfo
+
     @RestApiObjectField(description = "Availability information for a particular staff member for a particular TextUp phone")
     @RestApiObjectFields(params=[
         @RestApiObjectField(

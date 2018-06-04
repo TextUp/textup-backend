@@ -129,6 +129,12 @@ class Contact implements Contactable {
             description    = "List of tags this contact belongs to, if any. \
                 Note that this will be empty for a shared contact.",
             allowedType    = "List<Tag>",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "unreadInfo",
+            description    = "If this contact is unread and has specific record items that have not \
+                been viewed yet, this object provides counts by record item type.",
+            allowedType    = "UnreadInfo",
             useForCreation = false)
     ])
     static transients = ["resultFactory", "language"]
