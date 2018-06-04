@@ -19,7 +19,7 @@ class DocController {
             Helpers.toJson(input.text)
         }
         finally {
-            input.close()
+            input?.close()
         }
     }
 }
