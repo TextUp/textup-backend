@@ -35,7 +35,8 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
             Record rec1 = c1.record
             // especially when manually marking as unread, a contact that is unread may not
             // have any unread counts to report
-            if (rec1.countSince(c1.lastTouched) > 0) {
+            // NEED TO DO A NULL CHECK HERE because view only shared contacts
+            if (rec1 && rec1.countSince(c1.lastTouched) > 0) {
                 Map<String, Integer> unreadInfo = [
                     numTexts: rec1.countSince(c1.lastTouched, [RecordText]),
                     numCalls: rec1.countCallsSince(c1.lastTouched, false),
