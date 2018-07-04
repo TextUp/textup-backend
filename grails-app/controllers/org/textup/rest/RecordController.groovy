@@ -68,7 +68,7 @@ class RecordController extends BaseController {
             if (!c1) {
                 return notFound()
             }
-            Record rec1
+            ReadOnlyRecord rec1
             if (authService.hasPermissionsForContact(cId)) {
                 rec1 = c1.record
             }
@@ -76,24 +76,15 @@ class RecordController extends BaseController {
                 Long scId = authService.getSharedContactIdForContact(c1.id)
                 if (scId) {
                     SharedContact sc1 = SharedContact.get(scId)
-                    // only need canView permissions to view the items in this contact's record
-                    if (sc1.canView) {
-                        // WORKAROUND: bypass the canModify check in getRecord for the reasons listed
-                        // in the longer comment below
-                        rec1 = sc1.contact.record
+                    // authService implicitly checks at the shared contact is NOT expired
+                    // AND any active shared contact has at least view permissions
+                    if (sc1?.isActive) {
+                        rec1 = sc1.readOnlyRecord
                     }
                     else { return forbidden() }
                 }
                 else { return forbidden() }
             }
-            // TODO: we need to come up with a better way to manage permission controls, perhaps
-            // via wrapping the Record object in another object that manages access. This way,
-            // we don't have to proxy the Record's methods on the SharedContact and other classes
-            // Also, we don't have to artifically gate access to the Record object on the
-            // SharedContact. The way that we currently implement it, direct access to the Record
-            // object is only possible if the SharedContact has DELEGATE permissions. However, here
-            // we use the Record object to fetch items, so we need to be able to access the Record
-            // object in some limited way even for SharedContacts only with VIEW permissions
             listForRecord(rec1, params)
         }
         else { // tag id
@@ -108,9 +99,9 @@ class RecordController extends BaseController {
             listForRecord(ct1.record, params)
         }
     }
-    protected void listForRecord(Record rec1, GrailsParameterMap params) {
+    protected void listForRecord(ReadOnlyRecord rec1, GrailsParameterMap params) {
         Closure<Integer> count
-        Closure<List<RecordItem>> list
+        Closure<List<ReadOnlyRecordItem>> list
         Collection<Class<? extends RecordItem>> types = recordService.parseTypes(params.list("types[]"))
         if (params.since && !params.before) {
             DateTime since = Helpers.toUTCDateTime(params.since)

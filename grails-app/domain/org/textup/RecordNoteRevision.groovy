@@ -14,7 +14,7 @@ import org.textup.validator.ImageInfo
 @EqualsAndHashCode
 @RestApiObject(name="RecordNoteRevision",
 	description="Previous versions of the note.")
-class RecordNoteRevision {
+class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
 
     StorageService storageService
     // for executing imported RecordNote constraints

@@ -11,7 +11,7 @@ import org.textup.validator.Author
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Record {
+class Record implements ReadOnlyRecord {
 
     ResultFactory resultFactory
 

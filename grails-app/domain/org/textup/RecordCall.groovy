@@ -11,7 +11,7 @@ import org.textup.validator.TempRecordReceipt
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="RecordCall", description="A phone call entry in a contact's record.")
-class RecordCall extends RecordItem {
+class RecordCall extends RecordItem implements ReadOnlyRecordCall {
 
     StorageService storageService
 

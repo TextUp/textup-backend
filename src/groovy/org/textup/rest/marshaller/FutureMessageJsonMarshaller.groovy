@@ -11,7 +11,7 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 
 	static final Closure marshalClosure = { String namespace,
         SpringSecurityService springSecurityService, AuthService authService,
-        LinkGenerator linkGenerator, FutureMessage fMsg ->
+        LinkGenerator linkGenerator, ReadOnlyFutureMessage fMsg ->
 
         Map json = [:]
         json.with {
@@ -29,11 +29,10 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 				if (fMsg.endDate) endDate = fMsg.endDate
 				hasEndDate = !!fMsg.endDate
 				// repeating specific to simple schedule
-				if (fMsg.instanceOf(SimpleFutureMessage)) {
-					SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage
-					repeatIntervalInDays = sMsg.repeatIntervalInDays
-					if (sMsg.repeatCount) repeatCount = sMsg.repeatCount
-					if (sMsg.timesTriggered) timesTriggered = sMsg.timesTriggered
+				if (fMsg instanceof ReadOnlySimpleFutureMessage) {
+					repeatIntervalInDays = fMsg.repeatIntervalInDays
+					if (fMsg.repeatCount) repeatCount = fMsg.repeatCount
+					if (fMsg.timesTriggered) timesTriggered = fMsg.timesTriggered
 				}
 			}
         }
@@ -48,6 +47,6 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 	}
 
 	FutureMessageJsonMarshaller() {
-		super(FutureMessage, marshalClosure)
+		super(ReadOnlyFutureMessage, marshalClosure)
 	}
 }

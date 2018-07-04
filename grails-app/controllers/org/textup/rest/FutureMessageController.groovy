@@ -60,21 +60,23 @@ class FutureMessageController extends BaseController {
         if (!c1) {
         	return notFound()
         }
-        Contactable cont
+        ReadOnlyRecord rec1
         if (authService.hasPermissionsForContact(cId)) {
-            cont = c1 as Contactable
+            rec1 = c1.readOnlyRecord
         }
         else {
             Long scId = authService.getSharedContactIdForContact(c1.id)
             if (scId) {
-                cont = SharedContact.get(scId) as Contactable
+                SharedContact sc1 = SharedContact.get(scId)
+                if (sc1.isActive) {
+                    rec1 = sc1.readOnlyRecord
+                }
+                else { return forbidden() }
             }
-            else {
-                return forbidden()
-            }
+            else { return forbidden() }
         }
-        Closure<Integer> count = { cont.countFutureMessages() }
-        Closure<List<FutureMessage>> list = { Map opts -> cont.getFutureMessages(opts) }
+        Closure<Integer> count = { rec1.countFutureMessages() }
+        Closure<List<ReadOnlyFutureMessage>> list = { Map opts -> rec1.getFutureMessages(opts) }
         respondWithMany(FutureMessage, count, list, params)
     }
     protected def listForTag(GrailsParameterMap params) {

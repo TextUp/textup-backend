@@ -21,7 +21,7 @@ import org.textup.validator.OutgoingMessage
 @GrailsTypeChecked
 @RestApiObject(name="Simple Future Message", description='''Message to be sent at \
     some point in the future. Can repeat at a regular interval.''')
-class SimpleFutureMessage extends FutureMessage {
+class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureMessage {
 
 	long repeatIntervalInMillis = TimeUnit.DAYS.toMillis(1)
 

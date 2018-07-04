@@ -11,7 +11,7 @@ class RecordItemReceiptJsonMarshaller extends JsonNamedMarshaller {
 
 	static final Closure marshalClosure = { String namespace,
 		SpringSecurityService springSecurityService, AuthService authService,
-		LinkGenerator linkGenerator, RecordItemReceipt receipt ->
+		LinkGenerator linkGenerator, ReadOnlyRecordItemReceipt receipt ->
 		[
 			id: receipt.id,
 			status: receipt.status.toString(),
@@ -20,6 +20,6 @@ class RecordItemReceiptJsonMarshaller extends JsonNamedMarshaller {
 	}
 
 	RecordItemReceiptJsonMarshaller() {
-		super(RecordItemReceipt, marshalClosure)
+		super(ReadOnlyRecordItemReceipt, marshalClosure)
 	}
 }

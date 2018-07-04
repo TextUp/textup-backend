@@ -495,13 +495,13 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     void "test create errors"() {
     	when: "no record"
-        addToMessageSource("futureMessageService.create.noRecord")
+        addToMessageSource("futureMessageService.create.noRecordOrInsufficientPermissions")
         Result res = service.create(null, [:])
 
     	then: "unprocessable entity"
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "futureMessageService.create.noRecord"
+        res.errorMessages[0] == "futureMessageService.create.noRecordOrInsufficientPermissions"
     }
 
     void "test update errors"() {

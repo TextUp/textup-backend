@@ -80,10 +80,10 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	locationRenderer(ApiJsonRenderer, Location) {
+	locationRenderer(ApiJsonRenderer, ReadOnlyLocation) {
 		label = tRestConfig.v1.location.singular
 	}
-	locationCollectionRenderer(ApiJsonCollectionRenderer, Location) {
+	locationCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyLocation) {
 		label = tRestConfig.v1.location.plural
 	}
 	locationJsonMarshaller(LocationJsonMarshaller) {
@@ -102,10 +102,10 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	recordRenderer(ApiJsonRenderer, RecordItem) {
+	recordRenderer(ApiJsonRenderer, ReadOnlyRecordItem) {
 		label = tRestConfig.v1.record.singular
 	}
-	recordCollectionRenderer(ApiJsonCollectionRenderer, RecordItem) {
+	recordCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyRecordItem) {
 		label = tRestConfig.v1.record.plural
 	}
 	recordJsonMarshaller(RecordItemJsonMarshaller) {
@@ -113,10 +113,10 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	receiptRenderer(ApiJsonRenderer, RecordItemReceipt) {
+	receiptRenderer(ApiJsonRenderer, ReadOnlyRecordItemReceipt) {
 		label = tRestConfig.v1.receipt.singular
 	}
-	receiptCollectionRenderer(ApiJsonCollectionRenderer, RecordItemReceipt) {
+	receiptCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyRecordItemReceipt) {
 		label = tRestConfig.v1.receipt.plural
 	}
 	receiptJsonMarshaller(RecordItemReceiptJsonMarshaller) {
@@ -124,10 +124,10 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	revisionRenderer(ApiJsonRenderer, RecordNoteRevision) {
+	revisionRenderer(ApiJsonRenderer, ReadOnlyRecordNoteRevision) {
 		label = tRestConfig.v1.revision.singular
 	}
-	revisionCollectionRenderer(ApiJsonCollectionRenderer, RecordNoteRevision) {
+	revisionCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyRecordNoteRevision) {
 		label = tRestConfig.v1.revision.plural
 	}
 	revisionJsonMarshaller(RecordNoteRevisionJsonMarshaller) {
@@ -146,10 +146,10 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	futureMessageRenderer(ApiJsonRenderer, FutureMessage) {
+	futureMessageRenderer(ApiJsonRenderer, ReadOnlyFutureMessage) {
 		label = tRestConfig.v1.futureMessage.singular
 	}
-	futureMessageCollectionRenderer(ApiJsonCollectionRenderer, FutureMessage) {
+	futureMessageCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyFutureMessage) {
 		label = tRestConfig.v1.futureMessage.plural
 	}
 	futureMessageJsonMarshaller(FutureMessageJsonMarshaller) {

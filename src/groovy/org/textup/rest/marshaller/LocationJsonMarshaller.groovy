@@ -10,7 +10,7 @@ import org.textup.rest.*
 class LocationJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace,
         SpringSecurityService springSecurityService, AuthService authService,
-        LinkGenerator linkGenerator, Location loc ->
+        LinkGenerator linkGenerator, ReadOnlyLocation loc ->
 
         Map json = [:]
         json.with {
@@ -23,6 +23,6 @@ class LocationJsonMarshaller extends JsonNamedMarshaller {
     }
 
     LocationJsonMarshaller() {
-        super(Location, marshalClosure)
+        super(ReadOnlyLocation, marshalClosure)
     }
 }

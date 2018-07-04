@@ -16,10 +16,11 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         SpringSecurityService springSecurityService, AuthService authService,
         LinkGenerator linkGenerator, Contactable c1 ->
 
+        ReadOnlyRecord rec1 = c1.readOnlyRecord
         Map json = [:]
         // add general Contactable fields
         json.id = c1.contactId
-        json.lastRecordActivity = c1.lastRecordActivity
+        json.lastRecordActivity = rec1.lastRecordActivity
         if (c1.name) {
             json.name = c1.name
         }
@@ -27,23 +28,19 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
             json.note = c1.note
         }
         json.numbers = c1.sortedNumbers.collect { ContactNumber num -> [number:num.prettyPhoneNumber] }
-        json.futureMessages = c1.getFutureMessages()
+        json.futureMessages = rec1.getFutureMessages()
         json.notificationStatuses = c1.getNotificationStatuses()
-        json.language = c1.getLanguage()?.toString()
+        json.language = rec1.getLanguage()?.toString()
         json.status = c1.status?.toString()
-        if (c1.status == ContactStatus.UNREAD) {
-            Record rec1 = c1.record
-            // especially when manually marking as unread, a contact that is unread may not
-            // have any unread counts to report
-            // NEED TO DO A NULL CHECK HERE because view only shared contacts
-            if (rec1 && rec1.countSince(c1.lastTouched) > 0) {
-                Map<String, Integer> unreadInfo = [
-                    numTexts: rec1.countSince(c1.lastTouched, [RecordText]),
-                    numCalls: rec1.countCallsSince(c1.lastTouched, false),
-                    numVoicemails: rec1.countCallsSince(c1.lastTouched, true)
-                ]
-                json.unreadInfo = unreadInfo
-            }
+        // when manually marking as unread, a contact that is unread may not
+        // have any unread counts to report
+        if (c1.status == ContactStatus.UNREAD && rec1.countSince(c1.lastTouched) > 0) {
+            Map<String, Integer> unreadInfo = [
+                numTexts: rec1.countSince(c1.lastTouched, [RecordText]),
+                numCalls: rec1.countCallsSince(c1.lastTouched, false),
+                numVoicemails: rec1.countCallsSince(c1.lastTouched, true)
+            ]
+            json.unreadInfo = unreadInfo
         }
         // add fields specific to Contacts or SharedContacts
         if (c1.instanceOf(Contact)) {

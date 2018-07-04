@@ -7,7 +7,7 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="RecordText", description="A text message entry in a contact's record.")
-class RecordText extends RecordItem {
+class RecordText extends RecordItem implements ReadOnlyRecordText {
 
     @RestApiObjectField(description = "Contents of the text")
 	String contents

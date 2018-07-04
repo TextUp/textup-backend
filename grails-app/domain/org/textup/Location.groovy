@@ -7,7 +7,7 @@ import grails.compiler.GrailsCompileStatic
 @GrailsCompileStatic
 @EqualsAndHashCode
 @RestApiObject(name="Location", description="A location")
-class Location {
+class Location implements ReadOnlyLocation {
 
     @RestApiObjectField(description = "Human readable address of the location")
 	String address

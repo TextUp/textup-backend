@@ -40,7 +40,7 @@ class TempRecordNote {
 			}
 		}
 		sharedContact nullable:true, validator:{ SharedContact sc1, TempRecordNote tempNote ->
-			if (sc1 && (!sc1.isActive || sc1.sharedWith != tempNote?.phone)) {
+			if (sc1 && (!sc1.canModify || sc1.sharedWith != tempNote?.phone)) {
 				["notShared", sc1.id]
 			}
 		}

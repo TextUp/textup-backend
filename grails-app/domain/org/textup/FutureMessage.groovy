@@ -22,7 +22,7 @@ import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class FutureMessage {
+class FutureMessage implements ReadOnlyFutureMessage {
 
     Trigger trigger
     FutureMessageService futureMessageService

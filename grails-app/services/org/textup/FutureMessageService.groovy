@@ -148,7 +148,8 @@ class FutureMessageService {
     }
     protected Result<FutureMessage> create(Record rec, Map body, String timezone = null) {
         if (!rec) {
-            return resultFactory.failWithCodeAndStatus("futureMessageService.create.noRecord",
+            return resultFactory.failWithCodeAndStatus(
+                "futureMessageService.create.noRecordOrInsufficientPermissions",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         setFromBody(new SimpleFutureMessage(record:rec), body, timezone)

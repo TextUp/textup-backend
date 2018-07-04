@@ -4,7 +4,6 @@ import com.amazonaws.services.s3.model.PutObjectResult
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import groovy.transform.EqualsAndHashCode
-import java.util.UUID
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
@@ -17,7 +16,7 @@ import org.textup.validator.UploadItem
 
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="RecordNote", description="Notes that are part of the record.")
-class RecordNote extends RecordItem {
+class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 
     GrailsApplication grailsApplication
 	StorageService storageService

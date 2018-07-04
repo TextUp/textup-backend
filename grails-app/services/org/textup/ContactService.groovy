@@ -86,7 +86,11 @@ class ContactService {
             c1.with {
                 if (body.name) name = body.name
                 if (body.note) note = body.note
-                if (body.language) language = Helpers.convertEnum(VoiceLanguage, body.language)
+            }
+            // since we are updating an existing contact, we can be sure that this contact's
+            // record has already been initialized
+            if (body.language) {
+                c1.record.language = Helpers.convertEnum(VoiceLanguage, body.language)
             }
         }
         // both owner of the contact and active collaborators of all permissions can modify status

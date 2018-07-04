@@ -13,7 +13,7 @@ import org.textup.validator.Author
 import org.textup.validator.TempRecordReceipt
 
 @EqualsAndHashCode
-class RecordItem {
+class RecordItem implements ReadOnlyRecordItem {
 
     @RestApiObjectField(
         description    = "Date this item was added to the record",

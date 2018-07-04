@@ -340,48 +340,16 @@ class Contact implements Contactable {
     // ------------------------------
 
     @GrailsTypeChecked
+    ReadOnlyRecord getReadOnlyRecord() {
+        this.record
+    }
+    @GrailsTypeChecked
     Long getContactId() {
         this.id
     }
     @GrailsTypeChecked
     PhoneNumber getFromNum() {
         this.phone.number
-    }
-    @GrailsTypeChecked
-    DateTime getLastRecordActivity() {
-        this.record.lastRecordActivity
-    }
-    @GrailsTypeChecked
-    List<RecordItem> getItems(Map params=[:]) {
-        this.record.getItems(params)
-    }
-    @GrailsTypeChecked
-    int countItems() {
-        this.record.countItems()
-    }
-    @GrailsTypeChecked
-    List<RecordItem> getSince(DateTime since, Map params=[:]) {
-        this.record.getSince(since, params)
-    }
-    @GrailsTypeChecked
-    int countSince(DateTime since) {
-        this.record.countSince(since)
-    }
-    @GrailsTypeChecked
-    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
-        this.record.getBetween(start, end, params)
-    }
-    @GrailsTypeChecked
-    int countBetween(DateTime start, DateTime end) {
-        this.record.countBetween(start, end)
-    }
-    @GrailsTypeChecked
-    List<FutureMessage> getFutureMessages(Map params=[:]) {
-        this.record.getFutureMessages(params)
-    }
-    @GrailsTypeChecked
-    int countFutureMessages() {
-        this.record.countFutureMessages()
     }
     @GrailsTypeChecked
     List<NotificationStatus> getNotificationStatuses() {
@@ -430,16 +398,6 @@ class Contact implements Contactable {
         this.numbers ? this.numbers.sort(false) { ContactNumber n1, ContactNumber n2 ->
             n1.preference <=> n2.preference
         } : []
-    }
-
-    void setLanguage(VoiceLanguage lang) {
-        if (this.record && lang) {
-            this.record.language = lang
-            this.record.save()
-        }
-    }
-    VoiceLanguage getLanguage() {
-        this.record?.language
     }
 
     // Outgoing

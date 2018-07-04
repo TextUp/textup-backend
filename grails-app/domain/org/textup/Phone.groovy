@@ -241,27 +241,28 @@ class Phone {
         if (params.note) contact.note = params.note
         if (params.status) contact.status = Helpers.convertEnum(ContactStatus, params.status)
         if (params.isDeleted != null) contact.isDeleted = params.isDeleted
-
-        // need to initialize record in order to proxy setting language on associated record
-        if (contact.validate()) {
-            contact.language = Helpers.withDefault(
-                Helpers.convertEnum(VoiceLanguage, params.language),
-                this.language
-            )
-            // need to save contact before adding numbers so that the contact domain is assigned an
-            // ID to be associated with the ContactNumbers to avoid a TransientObjectException
-            if (contact.save()) {
-                Collection<String> toBeAdded = numbers.unique()
-                int numbersLen = toBeAdded.size()
-                for (int i = 0; i < numbersLen; i++) {
-                    String num = toBeAdded[i]
-                    Result res = contact.mergeNumber(num, [preference:i])
-                    if (!res.success) {
-                        return res
-                    }
-                }
-                return resultFactory.success(contact, ResultStatus.CREATED)
+        // if language is provided but record is not initialized yet, need to do so in order
+        // to set the language on the record object
+        VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, params.language)
+        if (lang && !contact.record) {
+            contact.record = new Record(language: Helpers.withDefault(lang, this.language))
+            if (!contact.record.save()) {
+                return resultFactory.failWithValidationErrors(contact.record.errors)
             }
+        }
+        // need to save contact before adding numbers so that the contact domain is assigned an
+        // ID to be associated with the ContactNumbers to avoid a TransientObjectException
+        if (contact.save()) {
+            Collection<String> toBeAdded = numbers.unique()
+            int numbersLen = toBeAdded.size()
+            for (int i = 0; i < numbersLen; i++) {
+                String num = toBeAdded[i]
+                Result res = contact.mergeNumber(num, [preference:i])
+                if (!res.success) {
+                    return res
+                }
+            }
+            return resultFactory.success(contact, ResultStatus.CREATED)
         }
         resultFactory.failWithValidationErrors(contact.errors)
     }

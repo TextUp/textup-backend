@@ -283,10 +283,6 @@ class SharedContact implements Contactable {
         this.canView ? this.sharedBy.number : null
     }
     @GrailsCompileStatic
-    DateTime getLastRecordActivity() {
-        this.canView ? this.contact.lastRecordActivity : null
-    }
-    @GrailsCompileStatic
     String getName() {
         this.canView ? this.contact.name : null
     }
@@ -302,40 +298,6 @@ class SharedContact implements Contactable {
     List<ContactNumber> getSortedNumbers() {
         this.canView ? this.contact.sortedNumbers : null
     }
-    @GrailsCompileStatic
-    List<RecordItem> getItems(Map params=[:]) {
-        this.canView ? this.contact.getItems(params) : null
-    }
-    @GrailsCompileStatic
-    int countItems() {
-        this.canView ? this.contact.countItems() : 0
-    }
-    @GrailsCompileStatic
-    List<RecordItem> getSince(DateTime since, Map params=[:]) {
-        this.canView ? this.contact.getSince(since, params) : null
-    }
-    @GrailsCompileStatic
-    int countSince(DateTime since) {
-        this.canView ? this.contact.countSince(since) : 0
-    }
-    @GrailsCompileStatic
-    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
-        this.canView ? this.contact.getBetween(start, end, params) : null
-    }
-    @GrailsCompileStatic
-    int countBetween(DateTime start, DateTime end) {
-        this.canView ? this.contact.countBetween(start, end) : 0
-    }
-
-    @GrailsCompileStatic
-    List<FutureMessage> getFutureMessages(Map params=[:]) {
-        this.canView ? this.contact.getFutureMessages(params) : null
-    }
-    @GrailsCompileStatic
-    int countFutureMessages() {
-        this.canView ? this.contact.countFutureMessages() : 0
-    }
-
     @GrailsCompileStatic
     List<NotificationStatus> getNotificationStatuses() {
         // If we are modifying through a shared contact in contactService, we use the contact id
@@ -354,6 +316,11 @@ class SharedContact implements Contactable {
     Record getRecord() {
         this.canModify ? this.contact.record : null
     }
+    @GrailsCompileStatic
+    ReadOnlyRecord getReadOnlyRecord() {
+        this.isActive ? this.contact.record : null
+    }
+
     @GrailsCompileStatic
     Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt,
         Staff staff = null) {
@@ -375,18 +342,5 @@ class SharedContact implements Contactable {
             resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
                 ResultStatus.FORBIDDEN)
         }
-    }
-
-    // Property access
-    // ---------------
-
-    void setLanguage(VoiceLanguage lang) {
-        if (this.canModify && this.contact?.record && lang) {
-            this.contact.record.language = lang
-            this.contact.record.save()
-        }
-    }
-    VoiceLanguage getLanguage() {
-        this.canView ? this.contact?.record?.language : null
     }
 }

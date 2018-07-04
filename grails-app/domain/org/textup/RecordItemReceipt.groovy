@@ -1,18 +1,17 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
-import org.textup.ReceiptStatus
 import org.textup.type.ReceiptStatus
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
-import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 @EqualsAndHashCode
 @RestApiObject(name="Receipt", description="A receipt indicating the status \
     of a communication sent to a phone number.")
-class RecordItemReceipt {
+class RecordItemReceipt implements ReadOnlyRecordItemReceipt {
 
     //unique id assigned to this record by the communications provider
     //used for finding the RecordItem in a StatusCallback

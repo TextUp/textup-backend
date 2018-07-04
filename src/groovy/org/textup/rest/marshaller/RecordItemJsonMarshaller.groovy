@@ -16,7 +16,7 @@ import org.textup.validator.ImageInfo
 class RecordItemJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace,
         SpringSecurityService springSecurityService, AuthService authService,
-        LinkGenerator linkGenerator, RecordItem item ->
+        LinkGenerator linkGenerator, ReadOnlyRecordItem item ->
 
         Collection<ImageInfo> uploadErrors = []
         try {
@@ -39,34 +39,31 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             if (item.authorId) authorId = item.authorId
             if (item.authorType) authorType = item.authorType.toString()
 
-            if (item.instanceOf(RecordCall)) {
-                RecordCall call = item as RecordCall
-                durationInSeconds = call.durationInSeconds
-                hasVoicemail = call.hasVoicemail
-                if (call.hasVoicemail) {
-                    voicemailUrl = call.voicemailUrl
-                    voicemailInSeconds = call.voicemailInSeconds
+            if (item instanceof ReadOnlyRecordCall) {
+                durationInSeconds = item.durationInSeconds
+                hasVoicemail = item.hasVoicemail
+                if (item.hasVoicemail) {
+                    voicemailUrl = item.voicemailUrl
+                    voicemailInSeconds = item.voicemailInSeconds
                 }
-                if (call.callContents) {
-                    callContents = call.callContents
+                if (item.callContents) {
+                    callContents = item.callContents
                 }
                 type = RecordItemType.CALL.toString()
             }
-            else if (item.instanceOf(RecordText)) {
-                RecordText text = item as RecordText
-                contents = text.contents
+            else if (item instanceof ReadOnlyRecordText) {
+                contents = item.contents
                 type = RecordItemType.TEXT.toString()
             }
-            else if (item.instanceOf(RecordNote)) {
-                RecordNote note = item as RecordNote
-                whenChanged = note.whenChanged
-                isDeleted = note.isDeleted
-                isReadOnly = note.isReadOnly
-                revisions = note.revisions
+            else if (item instanceof RecordNote) {
+                whenChanged = item.whenChanged
+                isDeleted = item.isDeleted
+                isReadOnly = item.isReadOnly
+                revisions = item.revisions
 
-                noteContents = note.noteContents
-                location = note.location
-                images = note.images
+                noteContents = item.noteContents
+                location = item.location
+                images = item.images
             }
         }
         if (uploadErrors) {
@@ -83,6 +80,6 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
     }
 
     RecordItemJsonMarshaller() {
-        super(RecordItem, marshalClosure)
+        super(ReadOnlyRecordItem, marshalClosure)
     }
 }
