@@ -447,7 +447,7 @@ class PhoneSpec extends CustomSpec {
         res.status == ResultStatus.CREATED
         res.payload.instanceOf(Contact)
         // use phone default because no valid language provided
-        res.payload.language == p1.language
+        res.payload.record.language == p1.language
 
         when: "contact with duplicate numbers"
         int cNumBaseline = ContactNumber.count(),
@@ -499,8 +499,8 @@ class PhoneSpec extends CustomSpec {
         Contact.count() == contactBaseline + 1
         ContactNumber.count() == cNumBaseline + 2
         // valid language provided so do not use phone language as default
-        res.payload.language != p1.language
-        res.payload.language == VoiceLanguage.PORTUGUESE
+        res.payload.record.language != p1.language
+        res.payload.record.language == VoiceLanguage.PORTUGUESE
     }
 
     void "test creating tags"() {

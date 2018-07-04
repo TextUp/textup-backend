@@ -99,7 +99,7 @@ class RecordControllerSpec extends CustomSpec {
         when:
         request.method = "GET"
         controller.listForRecord(c1.record, params)
-        List<Long> ids = Helpers.allTo(Long, c1.items*.id)
+        List<Long> ids = Helpers.allTo(Long, c1.record.items*.id)
 
         then:
         response.status == SC_OK
@@ -116,7 +116,7 @@ class RecordControllerSpec extends CustomSpec {
             hasPermissionsForContact:{ Long id -> false },
             getSharedContactIdForContact:{ Long cId -> sc1.id }
         ] as AuthService
-        List<Long> ids = Helpers.allTo(Long, sc1.contact.items*.id)
+        List<Long> ids = Helpers.allTo(Long, sc1.readOnlyRecord.items*.id)
 
         when:
         request.method = "GET"
@@ -135,7 +135,7 @@ class RecordControllerSpec extends CustomSpec {
         request.method = "GET"
         params.since = since.toDate()
         controller.listForRecord(c1.record, params)
-        List<Long> ids = Helpers.allTo(Long, c1.getSince(since)*.id)
+        List<Long> ids = Helpers.allTo(Long, c1.record.getSince(since)*.id)
 
         then:
         response.status == SC_OK
@@ -151,7 +151,7 @@ class RecordControllerSpec extends CustomSpec {
         params.since = since.toDate()
         params.before = before.toDate()
         controller.listForRecord(c1.record, params)
-        List<Long> ids = Helpers.allTo(Long, c1.getBetween(since, before)*.id)
+        List<Long> ids = Helpers.allTo(Long, c1.record.getBetween(since, before)*.id)
 
         then:
         response.status == SC_OK

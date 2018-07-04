@@ -75,26 +75,6 @@ class ContactSpec extends CustomSpec {
     	c1.validate() == true
     }
 
-    void "test language"() {
-        given: "a valid empty contact"
-        Contact c1 = new Contact(phone:p1)
-        c1.resultFactory = getResultFactory()
-        assert c1.validate() == true
-
-        when: "we set the underlying record's language"
-        c1.record.language = VoiceLanguage.RUSSIAN
-
-        then: "that change is reflected"
-        c1.language == VoiceLanguage.RUSSIAN
-
-        when: "we set the language using the proxy method"
-        c1.language = VoiceLanguage.PORTUGUESE
-
-        then: "change is still reflected"
-        c1.language == VoiceLanguage.PORTUGUESE
-        c1.record.language == VoiceLanguage.PORTUGUESE
-    }
-
  	void "test no duplicate numbers for one contact, autoincrement preference"() {
  		given:
  		int maxPref = c1.numbers.max { it.preference }.preference

@@ -460,8 +460,8 @@ class DuplicateServiceSpec extends CustomSpec {
     		assert it.record.id == c1.record.id
     	}
     	[contact1, contact2].each {
-    		assert it.countItems() == 0
-    		assert it.countFutureMessages() == 0
+    		assert it.record.countItems() == 0
+    		assert it.record.countFutureMessages() == 0
     	}
 
     	when: "delete afterwards to ensure that all dependencies are eliminated"
@@ -542,8 +542,8 @@ class DuplicateServiceSpec extends CustomSpec {
         // merged-in contacts to the caller of the merge method
     	[contact1, contact2].each {
     		assert it.isDeleted == false // merged-in contacts are NOT deleted
-    		assert it.countItems() == 0
-    		assert it.countFutureMessages() == 0
+    		assert it.record.countItems() == 0
+    		assert it.record.countFutureMessages() == 0
     	}
 
     	when: "try merging without any contacts to be merged"

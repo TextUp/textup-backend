@@ -11,6 +11,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.type.SharePermission
 import org.textup.util.CustomSpec
 import org.textup.validator.UploadItem
 import spock.lang.Shared
@@ -84,6 +85,28 @@ class TempRecordNoteSpec extends CustomSpec {
 
 		when: "specify some info"
 		temp1.info = info
+
+		then: "is valid"
+		temp1.validate() == true
+		temp1.record == c1.record
+		temp1.toNote().validate() == true
+
+		when: "change target from contact to a view-only shared contact"
+		sc1.permission = SharePermission.VIEW
+		sc1.save(flush:true, failOnError:true)
+
+		temp1.contact = null
+		temp1.sharedContact = sc1
+		temp1.phone = sc1.sharedWith
+
+		then: "creating notes is forbidden for view-only shared contacts"
+		temp1.validate() == false
+		temp1.errors.errorCount == 1
+		temp1.errors.getFieldErrorCount("sharedContact") == 1
+
+		when: "change to collaborate shared contact"
+		sc1.permission = SharePermission.DELEGATE
+		sc1.save(flush:true, failOnError:true)
 
 		then: "is valid"
 		temp1.validate() == true

@@ -88,7 +88,7 @@ class SharedContactSpec extends CustomSpec {
     }
 
     @Unroll
-    void "test language for status #status"() {
+    void "test getting records for status #status"() {
         given: "valid shared contacts with various permissions"
         SharedContact sc1 = new SharedContact(contact:c1, sharedBy:p1, sharedWith:p3)
         switch (status) {
@@ -101,15 +101,12 @@ class SharedContactSpec extends CustomSpec {
         }
         assert sc1.validate() == true
 
-        when: "we set the language"
-        sc1.language = VoiceLanguage.RUSSIAN
-
-        then:
-        (c1.record.language == VoiceLanguage.RUSSIAN) == didSetStatus
-        (sc1.language != null) == canViewStatus
+        expect:
+        !!sc1.record == canGetRecord
+        !!sc1.readOnlyRecord == canGetReadOnlyRecord
 
         where:
-        status     | didSetStatus | canViewStatus
+        status     | canGetRecord | canGetReadOnlyRecord
         "expired"  | false        | false
         "view"     | false        | true
         "delegate" | true         | true

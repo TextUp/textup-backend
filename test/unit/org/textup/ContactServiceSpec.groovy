@@ -176,7 +176,7 @@ class ContactServiceSpec extends CustomSpec {
         res.payload instanceof Contact
         res.payload.name == updateInfo.name
         res.payload.note == updateInfo.note
-        res.payload.language == VoiceLanguage.JAPANESE
+        res.payload.record.language == VoiceLanguage.JAPANESE
         res.payload.status == ContactStatus.UNREAD
         res.payload.lastTouched.isAfter(originalTouched)
         Contact.count() == cBaseline

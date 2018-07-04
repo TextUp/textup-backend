@@ -243,12 +243,15 @@ class Phone {
         if (params.isDeleted != null) contact.isDeleted = params.isDeleted
         // if language is provided but record is not initialized yet, need to do so in order
         // to set the language on the record object
-        VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, params.language)
-        if (lang && !contact.record) {
-            contact.record = new Record(language: Helpers.withDefault(lang, this.language))
-            if (!contact.record.save()) {
-                return resultFactory.failWithValidationErrors(contact.record.errors)
-            }
+        VoiceLanguage lang = Helpers.withDefault(Helpers.convertEnum(VoiceLanguage, params.language),
+            this.language)
+        if (!contact.record) {
+            contact.record = new Record(language: lang)
+        }
+        else { contact.record.language = lang }
+        // need to save once language is modified so record will be persisted at the end of transaction
+        if (!contact.record.save()) {
+            return resultFactory.failWithValidationErrors(contact.record.errors)
         }
         // need to save contact before adding numbers so that the contact domain is assigned an
         // ID to be associated with the ContactNumbers to avoid a TransientObjectException

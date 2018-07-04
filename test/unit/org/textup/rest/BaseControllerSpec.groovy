@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.plugin.jodatime.converters.JodaConverters
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
@@ -33,6 +34,7 @@ class BaseControllerSpec extends CustomSpec {
 
     def setup() {
         setupData()
+        JodaConverters.registerJsonAndXmlMarshallers()
         // enables resolving of resource names from class
         controller.grailsApplication.flatConfig = config.flatten()
     }

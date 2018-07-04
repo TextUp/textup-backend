@@ -91,6 +91,9 @@ class ContactService {
             // record has already been initialized
             if (body.language) {
                 c1.record.language = Helpers.convertEnum(VoiceLanguage, body.language)
+                if (!c1.record.save()) {
+                    return resultFactory.failWithValidationErrors(c1.record.errors)
+                }
             }
         }
         // both owner of the contact and active collaborators of all permissions can modify status

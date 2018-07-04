@@ -11,6 +11,7 @@ import org.joda.time.DateTimeZone
 import org.quartz.SimpleTrigger
 import org.textup.type.FutureMessageType
 import org.textup.type.RecordItemType
+import org.textup.type.SharePermission
 import org.textup.type.VoiceLanguage
 import org.textup.util.CustomSpec
 import org.textup.validator.BasePhoneNumber
@@ -499,6 +500,17 @@ class FutureMessageServiceSpec extends CustomSpec {
         Result res = service.create(null, [:])
 
     	then: "unprocessable entity"
+        res.success == false
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "futureMessageService.create.noRecordOrInsufficientPermissions"
+
+        when: "attempting to create for a view-only shared contact"
+        sc1.permission = SharePermission.VIEW
+        sc1.save(flush:true, failOnError:true)
+
+        res = service.createForSharedContact(sc1.id, [:])
+
+        then: "unprocessable entity"
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         res.errorMessages[0] == "futureMessageService.create.noRecordOrInsufficientPermissions"
