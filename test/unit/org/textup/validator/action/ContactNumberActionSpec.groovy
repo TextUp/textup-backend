@@ -55,6 +55,23 @@ class ContactNumberActionSpec extends Specification {
 		testMatchCaseInSwitch(act1)
 	}
 
+	void "test deleting numbers allows invalid numbers"() {
+		when: "attempting to remove an invalid phone number"
+		ContactNumberAction act1 = new ContactNumberAction(action: Constants.NUMBER_ACTION_DELETE,
+			number: 'i am not a valid number')
+
+		then: "should be allowed to do so even if the number is invalid"
+		act1.validate() == true
+
+		when: "attempting to merge an invalid phone number"
+		act1.action = Constants.NUMBER_ACTION_MERGE
+
+		then: "the action becomes invalid"
+		act1.validate() == false
+		act1.errors.errorCount == 1
+		act1.errors.getFieldError("number").code == "format"
+	}
+
 	protected boolean testMatchCaseInSwitch(ContactNumberAction act1) {
 		switch (act1) {
 			case { "MeRgE".toLowerCase() }: return true

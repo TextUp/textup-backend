@@ -17,8 +17,12 @@ class ContactNumberAction extends BaseAction {
 
 	static constraints =  {
 		preference min:0
-		number validator:{ String val ->
-	        if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+		number validator:{ String val, ContactNumberAction obj  ->
+	        if (!obj.matches(Constants.NUMBER_ACTION_DELETE) &&
+	        	!(val?.toString() ==~ /^(\d){10}$/)) {
+
+	        	["format"]
+	        }
 	    }
 	}
 
