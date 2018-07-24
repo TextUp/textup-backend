@@ -6,6 +6,7 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
+import org.textup.type.MediaType
 
 @GrailsCompileStatic
 @EqualsAndHashCode
@@ -13,33 +14,69 @@ import org.apache.commons.codec.digest.DigestUtils
 @Validateable
 class UploadItem {
 
+    MediaVersion version
     String mimeType
-    String data
-    String checksum
+    String key = UUID.randomUUID().toString()
+    byte[] data
 
-    UploadItem(Map params) {
-        this.mimeType = params?.mimeType
-        this.data = params?.data
-        this.checksum = params?.checksum
-    }
-
-    static constraints = {
-        mimeType nullable:false, blank:false, inList:["image/png", "image/jpeg"]
-        data nullable:false, blank:false, validator:{ String data ->
-            if (!Base64.isBase64(data)) {
-                ["invalidFormat"]
-            }
-        }
-        checksum nullable:false, blank:false, validator: { String checksum, UploadItem uItem ->
-            if (checksum != DigestUtils.md5Hex(uItem.data)) {
-                ["compromisedIntegrity"]
+    static constraints = { // default nullable: false
+        mimeType blank:false, validator: { String mimeType ->
+            if (!MediaType.isValidMimeType(mimeType)) {
+                ["invalidType"]
             }
         }
     }
 
-    ByteArrayInputStream getStream() {
-        if (data && Base64.isBase64(data)) {
-            new ByteArrayInputStream(Base64.decodeBase64(this.data))
-        }
+    MediaType getType() {
+        MediaType.convertMimeType(this.mimeType)
     }
+
+    Long getWidthInPixels() {
+
+    }
+    Long getSizeInBytes() {
+
+    }
+
+    ImageItem tryResizeToWidth(long maxWidthInPixels) {
+
+    }
+    ImageItem tryCompress(long maxSizeInBytes) {
+
+    }
+    // ImageItem tryCompress(float compressionFactor = 0.5f)
+
+    // protected Result<List<UploadItem>> tryCompressUploads(List<UploadItem> uItems) {
+
+    //     ByteArrayInputStream original = uItem?.stream
+    //     if (!uItem?.validate() || uItem.mimeType != "image/jpeg") {
+    //         return original
+    //     }
+    //     // TODO: need to properly close using `withCloseable` or finally
+    //     try {
+    //         BufferedImage img = ImageIO.read(original)
+    //         // obtain image writer
+    //         Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/jpeg")
+    //         ImageWriter writer = writers.next()
+    //         // set compression parameters
+    //         ImageWriteParam param = writer.defaultWriteParam
+    //         param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+    //         param.setCompressionQuality(quality);
+    //         // create output
+    //         ByteArrayOutputStream os = new ByteArrayOutputStream();
+    //         ImageOutputStream outputStream = ImageIO.createImageOutputStream(os);
+    //         writer.setOutput(outputStream);
+    //         // write with compression
+    //         writer.write(null, new IIOImage(img, null, null), param);
+    //         // clean up
+    //         outputStream.close()
+    //         writer.dispose()
+    //         ByteArrayInputStream compressed = new ByteArrayInputStream(os.toByteArray())
+    //         compressed
+    //     }
+    //     catch (Throwable e) {
+    //         log.debug("Helpers.tryCompressUploadItemStream: ${e.message}")
+    //         original
+    //     }
+    // }
 }

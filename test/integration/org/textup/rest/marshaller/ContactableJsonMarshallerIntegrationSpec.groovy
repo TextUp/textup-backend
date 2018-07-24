@@ -94,8 +94,8 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         c1.lastTouched = DateTime.now()
         c1.status = ContactStatus.ACTIVE
         DateTime dtInFuture = DateTime.now().plusDays(2)
-        RecordText rText1 = c1.record.addText([lastTouched: dtInFuture, contents: "text"], null).payload
-        RecordCall rCall1 = c1.record.addCall([lastTouched: dtInFuture], null).payload
+        RecordText rText1 = c1.record.addText([whenCreated: dtInFuture, contents: "text"], null).payload
+        RecordCall rCall1 = c1.record.addCall([whenCreated: dtInFuture], null).payload
         [c1, rText1, rCall1]*.save(flush: true, failOnError: true)
 
         when: "we marshal this contactable"

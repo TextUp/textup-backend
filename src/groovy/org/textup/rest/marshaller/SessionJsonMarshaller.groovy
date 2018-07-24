@@ -1,7 +1,7 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsCompileStatic
-import grails.plugin.springsecurity.SpringSecurityService
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
@@ -9,8 +9,7 @@ import org.textup.type.PhoneOwnershipType
 
 @GrailsCompileStatic
 class SessionJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace,
-        SpringSecurityService springSecurityService, AuthService authService,
+    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, IncomingSession sess ->
 
         Map json = [:]

@@ -355,6 +355,14 @@ class Contact implements Contactable {
     List<NotificationStatus> getNotificationStatuses() {
         this.phone.owner.getNotificationStatusesForRecords([this.record.id])
     }
+    @GrailsTypeChecked
+    Result<Record> tryGetRecord() {
+        resultFactory.success(this.contact.record)
+    }
+    @GrailsTypeChecked
+    Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
+        resultFactory.success(this.contact.record)
+    }
 
     // Property Access
     // ---------------
@@ -398,65 +406,5 @@ class Contact implements Contactable {
         this.numbers ? this.numbers.sort(false) { ContactNumber n1, ContactNumber n2 ->
             n1.preference <=> n2.preference
         } : []
-    }
-
-    // Outgoing
-    // --------
-
-    @GrailsTypeChecked
-    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt,
-        Staff staff = null) {
-        record.addText([outgoing:true, contents:message], staff?.toAuthor())
-            .then({ RecordText rText ->
-                rText.addReceipt(receipt)
-                if (rText.save()) {
-                    resultFactory.success(rText)
-                }
-                else { resultFactory.failWithValidationErrors(rText.errors) }
-            })
-    }
-    @GrailsTypeChecked
-    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff = null,
-        String message = null) {
-        record.addCall([outgoing:true], staff?.toAuthor()).then({ RecordCall rCall ->
-            if (message) {
-                rCall.callContents = message
-            }
-            rCall.addReceipt(receipt)
-
-            if (rCall.save()) {
-                resultFactory.success(rCall)
-            }
-            else { resultFactory.failWithValidationErrors(rCall.errors) }
-        })
-    }
-
-    // Incoming
-    // --------
-
-    @GrailsTypeChecked
-    Result<RecordText> storeIncomingText(IncomingText text, IncomingSession session = null) {
-        record.addText([outgoing:false, contents:text.message], session?.toAuthor())
-            .then({ RecordText rText ->
-                RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId)
-                receipt.receivedBy = this.phone.number
-                rText.addToReceipts(receipt)
-                if (rText.save()) {
-                    resultFactory.success(rText)
-                }
-                else { resultFactory.failWithValidationErrors(rText.errors) }
-            })
-    }
-    @GrailsTypeChecked
-    Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session = null) {
-        record.addCall([outgoing:false], session?.toAuthor()).then({ RecordCall rCall ->
-            RecordItemReceipt receipt = new RecordItemReceipt(apiId:apiId)
-            receipt.receivedBy = this.phone.number
-            rCall.addToReceipts(receipt)
-            if (rCall.save()) {
-                resultFactory.success(rCall)
-            }
-            else { resultFactory.failWithValidationErrors(rCall.errors) }
-        })
     }
 }

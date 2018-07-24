@@ -5,32 +5,35 @@ import com.amazonaws.services.cloudfront.CloudFrontUrlSigner.Protocol
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.ObjectMetadata
 import com.amazonaws.services.s3.model.PutObjectResult
+import grails.async.Promises
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
+import org.textup.type.MediaType
 import org.textup.validator.UploadItem
 
 @GrailsTypeChecked
 @Transactional
 class StorageService {
 
-	AmazonS3Client s3Service
-	GrailsApplication grailsApplication
-	ResultFactory resultFactory
+    AmazonS3Client s3Service
+    GrailsApplication grailsApplication
+    ResultFactory resultFactory
+    MediaService mediaService
 
     // Auth link
     // ---------
 
-	Result<URL> generateAuthLink(String objectKey) {
+	Result<URL> generateAuthLink(String identifier) {
 		DateTime expires = DateTime.now().plusHours(1)
-		generateAuthLink(objectKey, expires)
+		generateAuthLink(identifier, expires)
 	}
     // It is acceptable to call this method multiple times even for the same object
     // because presigned url is generated locally. Therefore, we don't have to worry
     // about the additional complexity of caching these results because we don't
     // have to worry about the additional performance penalty of network requests.
-    Result<URL> generateAuthLink(String objectKey, DateTime expires) {
+    Result<URL> generateAuthLink(String identifier, DateTime expires) {
     	try {
             String root = grailsApplication.flatConfig["textup.media.cdn.root"],
                 keyId = grailsApplication.flatConfig["textup.media.cdn.keyId"],
@@ -38,7 +41,7 @@ class StorageService {
             File keyFile = new File(privateKeyPath)
             Date expiresAt = expires.toDate()
             resultFactory.success(getSignedLink(Protocol.https, root, keyFile,
-                objectKey, keyId, expiresAt))
+                identifier, keyId, expiresAt))
         }
         catch (Throwable e) {
             log.error("StorageService.generateAuthLink: ${e.message}")
@@ -47,35 +50,42 @@ class StorageService {
         }
     }
     protected URL getSignedLink(Protocol protocol, String root, File keyFile,
-        String objectKey, String keyId, Date expiresAt) {
+        String identifier, String keyId, Date expiresAt) {
         new URL(CloudFrontUrlSigner.getSignedURLWithCannedPolicy(protocol, root, keyFile,
-            objectKey, keyId, expiresAt))
+            identifier, keyId, expiresAt))
     }
 
     // Uploading
     // ---------
 
-    Result<PutObjectResult> upload(String objectKey, UploadItem uItem) {
+    ResultGroup<PutObjectResult> uploadAsync(List<UploadItem> uItems) {
+        Helpers
+            .<UploadItem, ResultGroup<?>>doAsyncInBatches(itemsToUpload, { List<UploadItem> batch ->
+                Promises.task {
+                    new ResultGroup<PutObjectResult>(batch.collect(storageService.&upload))
+                }
+            }, Constants.CONCURRENT_UPLOAD_BATCH_SIZE)
+            .inject(new ResultGroup<PutObjectResult>(),
+                { ResultGroup<PutObjectResult> res, ResultGroup<PutObjectResult> i -> res.merge(i) })
+    }
+    Result<PutObjectResult> upload(UploadItem uItem) {
         if (uItem.validate()) {
-            upload(objectKey, uItem.mimeType, compressIfImage(uItem))
+            new ByteArrayInputStream(uItem.data).withCloseable { ByteArrayInputStream bStream ->
+                upload(uItem.key, uItem.mimeType, bStream)
+            }
         }
         else { resultFactory.failWithValidationErrors(uItem.errors) }
     }
-    Result<PutObjectResult> upload(String objectKey, String mimeType, InputStream stream) {
+    Result<PutObjectResult> upload(String identifier, String mimeType, InputStream stream) {
         String bucketName = grailsApplication.flatConfig["textup.media.bucketName"]
         try {
             ObjectMetadata metadata = new ObjectMetadata()
             metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION)
             metadata.setContentType(mimeType)
-            resultFactory.success(s3Service.putObject(bucketName, objectKey, stream, metadata))
+            resultFactory.success(s3Service.putObject(bucketName, identifier, stream, metadata))
         }
         catch (e) {
             resultFactory.failWithThrowable(e)
         }
-    }
-    protected ByteArrayInputStream compressIfImage(UploadItem uItem) {
-        Float quality = Helpers.to(Float, grailsApplication
-            .flatConfig["textup.imageCompressionQualty"]) ?: 0.5f
-        Helpers.tryCompressUploadItemStream(uItem, quality)
     }
 }

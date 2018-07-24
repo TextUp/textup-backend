@@ -8,7 +8,7 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 
 @GrailsCompileStatic
-interface Contactable {
+interface Contactable extends WithRecord {
     Long getContactId()
     String getName()
     String getNote()
@@ -17,20 +17,14 @@ interface Contactable {
     List<ContactNumber> getSortedNumbers()
     List<NotificationStatus> getNotificationStatuses()
 
-    Record getRecord()
-    ReadOnlyRecord getReadOnlyRecord()
+    Result<Record> tryGetRecord()
+    Result<ReadOnlyRecord> tryGetReadOnlyRecord()
 
     ContactStatus getStatus()
     void setStatus(ContactStatus val)
 
     DateTime getLastTouched()
     void setLastTouched(DateTime val)
-
-    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt)
-    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt, Staff staff)
-    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt)
-    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff)
-    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff, String message)
 
     boolean instanceOf(Class clazz)
 }

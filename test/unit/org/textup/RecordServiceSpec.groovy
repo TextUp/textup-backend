@@ -399,11 +399,11 @@ class RecordServiceSpec extends CustomSpec {
             noteContents:"hi",
             doImageActions:[
                 [
-                    action:Constants.NOTE_IMAGE_ACTION_REMOVE,
+                    action:Constants.MEDIA_ACTION_REMOVE,
                     key:"i am a valid key"
                 ],
                 [ // valid add image action
-                    action:Constants.NOTE_IMAGE_ACTION_ADD,
+                    action:Constants.MEDIA_ACTION_ADD,
                     mimeType:contentType,
                     data:data,
                     checksum:checksum
@@ -611,7 +611,7 @@ class RecordServiceSpec extends CustomSpec {
         when: "an action trying to add an image"
         imageActions = [
             [ // uploading image without a checksum
-                action:Constants.NOTE_IMAGE_ACTION_ADD,
+                action:Constants.MEDIA_ACTION_ADD,
                 mimeType:contentType,
                 data:data
             ]
@@ -628,7 +628,7 @@ class RecordServiceSpec extends CustomSpec {
         when: "an action trying to add an image"
         imageActions = [
             [ // uploading an image with an invalid content type
-                action:Constants.NOTE_IMAGE_ACTION_ADD,
+                action:Constants.MEDIA_ACTION_ADD,
                 mimeType:"invalid",
                 data:data,
                 checksum: checksum
@@ -646,7 +646,7 @@ class RecordServiceSpec extends CustomSpec {
         when: "an action trying to add an image"
         imageActions = [
             [ // uploading an image with invalidly encoded data
-                action:Constants.NOTE_IMAGE_ACTION_ADD,
+                action:Constants.MEDIA_ACTION_ADD,
                 mimeType:contentType,
                 data:"invalid data that is not base64 encoded",
                 checksum: checksum
@@ -664,7 +664,7 @@ class RecordServiceSpec extends CustomSpec {
         when: "an action trying to remove without key"
         imageActions = [
             [ // removing image with specifying an image key
-                action:Constants.NOTE_IMAGE_ACTION_REMOVE,
+                action:Constants.MEDIA_ACTION_REMOVE,
             ]
         ]
         res = service.createOrUpdateNote(temp1, imageActions)
@@ -696,11 +696,11 @@ class RecordServiceSpec extends CustomSpec {
         assert _note1.imageKeys.size() == 0
         imageActions = [
             [ // valid remove action
-                action:Constants.NOTE_IMAGE_ACTION_REMOVE,
+                action:Constants.MEDIA_ACTION_REMOVE,
                 key:"valid image key"
             ],
             [ // valid add image action
-                action:Constants.NOTE_IMAGE_ACTION_ADD,
+                action:Constants.MEDIA_ACTION_ADD,
                 mimeType:contentType,
                 data:data,
                 checksum:checksum

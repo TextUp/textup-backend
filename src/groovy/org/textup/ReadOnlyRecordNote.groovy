@@ -1,16 +1,13 @@
 package org.textup
 
 import grails.compiler.GrailsCompileStatic
-import org.joda.time.DateTime
-import org.textup.validator.ImageInfo
+
+// Adds some additional properties that a RecordNote should have but child
+// RecordNoteRevisions should not have
 
 @GrailsCompileStatic
-interface ReadOnlyRecordNote extends ReadOnlyRecordItem {
-    DateTime getWhenChanged()
+interface ReadOnlyRecordNote extends ReadOnlyBaseRecordNote {
     boolean getIsDeleted()
     boolean getIsReadOnly()
     Set<ReadOnlyRecordNoteRevision> getRevisions()
-    String getNoteContents()
-    ReadOnlyLocation getLocation()
-    Collection<ImageInfo> getImages()
 }

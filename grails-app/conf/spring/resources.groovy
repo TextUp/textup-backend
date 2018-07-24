@@ -135,13 +135,24 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	imageInfoRenderer(ApiJsonRenderer, ImageInfo) {
-		label = tRestConfig.v1.imageInfo.singular
+	mediaInfoRenderer(ApiJsonRenderer, MediaInfo) {
+		label = tRestConfig.v1.mediaInfo.singular
 	}
-	imageInfoCollectionRenderer(ApiJsonCollectionRenderer, ImageInfo) {
-		label = tRestConfig.v1.imageInfo.plural
+	mediaInfoCollectionRenderer(ApiJsonCollectionRenderer, MediaInfo) {
+		label = tRestConfig.v1.mediaInfo.plural
 	}
-	imageInfoJsonMarshaller(ImageInfoJsonMarshaller) {
+	mediaInfoJsonMarshaller(MediaInfoJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
+	mediaElementRenderer(ApiJsonRenderer, MediaElement) {
+		label = tRestConfig.v1.mediaElement.singular
+	}
+	mediaElementCollectionRenderer(ApiJsonCollectionRenderer, MediaElement) {
+		label = tRestConfig.v1.mediaElement.plural
+	}
+	mediaElementJsonMarshaller(MediaElementJsonMarshaller) {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}

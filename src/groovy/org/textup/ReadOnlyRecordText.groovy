@@ -3,6 +3,6 @@ package org.textup
 import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
-interface ReadOnlyRecordText extends ReadOnlyRecordItem {
+interface ReadOnlyRecordText {
     String getContents()
 }

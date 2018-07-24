@@ -2,23 +2,20 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.type.AuthorType
 import org.textup.validator.Author
-import org.textup.validator.ImageInfo
+import org.textup.validator.MediaInfo
 
 @EqualsAndHashCode
 @RestApiObject(name="RecordNoteRevision",
 	description="Previous versions of the note.")
-class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
+class RecordNoteRevision implements ReadOnlyBaseRecordNote {
 
-    StorageService storageService
-    // for executing imported RecordNote constraints
-    GrailsApplication grailsApplication
+    MediaService mediaService
 
     @RestApiObjectField(
         description    = "When this revision happened",
@@ -26,13 +23,11 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
         useForCreation = false)
 	DateTime whenChanged
 
-	String noteContents
     @RestApiObjectField(
         description    = "Location this revision is associated with",
         allowedType    = "Location",
         useForCreation = true)
 	Location location
-	String imageKeysAsString
 
     @RestApiObjectField(
         description    = "Author of this entry.",
@@ -49,19 +44,23 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
         useForCreation = false)
 	AuthorType authorType
 
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
+    @RestApiObjectField(
             apiFieldName   = "contents",
             description    = "Text of the note",
             allowedType    = "String",
-            useForCreation = true),
+            useForCreation = true)
+    String noteContents
+    String serializedMedia
+    MediaInfo media
+
+    @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName   = "images",
             description    = "List of image links associated with this revision",
             allowedType    = "List<String>",
             useForCreation = false),
     ])
-    static transients = ['storageService', 'grailsApplication']
+    static transients = ["media", "mediaService"]
 	static belongsTo = [note:RecordNote]
     static constraints = {
     	importFrom RecordItem
@@ -69,31 +68,15 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
     }
     static mapping = {
     	whenChanged type:PersistentDateTime
+        noteContents type: "text"
+        serializedMedia type: "text"
     }
-
-    // Methods
-    // -------
 
     // Property Access
     // ---------------
 
     @GrailsTypeChecked
-    Collection<ImageInfo> getImages() {
-        Helpers.buildImagesFromImageKeys(storageService, this.note.id, this.imageKeys)
-    }
-    @GrailsTypeChecked
-    Collection<String> getImageKeys() {
-    	if (!this.imageKeysAsString) {
-        	return []
-    	}
-        try {
-            Helpers.toJson(this.imageKeysAsString) as Collection<String>
-        }
-        catch (Throwable e) {
-            log.error("RecordNoteRevision.getImageKeys: \
-            	invalid json string '${this.imageKeysAsString}'")
-            e.printStackTrace()
-            []
-        }
+    MediaInfo getMedia() {
+        mediaService.getMedia(this)
     }
 }

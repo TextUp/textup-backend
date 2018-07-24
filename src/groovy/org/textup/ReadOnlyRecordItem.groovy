@@ -4,7 +4,7 @@ import grails.compiler.GrailsCompileStatic
 import org.joda.time.DateTime
 
 @GrailsCompileStatic
-interface ReadOnlyRecordItem extends Authorable {
+interface ReadOnlyRecordItem extends Authorable, ReadOnlyWithMedia {
     Long getId()
     ReadOnlyRecord getRecord()
 
@@ -12,5 +12,7 @@ interface ReadOnlyRecordItem extends Authorable {
     boolean getOutgoing()
     boolean getHasAwayMessage()
     boolean getIsAnnouncement()
+
+    String getNoteContents()
     Set<ReadOnlyRecordItemReceipt> getReceipts()
 }

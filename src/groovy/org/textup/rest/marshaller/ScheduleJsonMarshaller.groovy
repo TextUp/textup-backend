@@ -1,20 +1,16 @@
 package org.textup.rest.marshaller
 
-import grails.plugin.springsecurity.SpringSecurityService
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
+import grails.compiler.GrailsCompileStatic
+import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
 import org.textup.validator.LocalInterval
-import grails.compiler.GrailsCompileStatic
-import javax.servlet.http.HttpServletRequest
 
 @GrailsCompileStatic
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace,
-        SpringSecurityService springSecurityService, AuthService authService,
-        LinkGenerator linkGenerator, Schedule sched ->
+    static final Closure marshalClosure = { Schedule sched ->
 
         String timezone = null
         try {

@@ -26,6 +26,7 @@ class Constants {
 	// -----------
 
 	static final int CONCURRENT_SEND_BATCH_SIZE = 20
+	static final int CONCURRENT_UPLOAD_BATCH_SIZE = 8
 
 	// Lock code
 	// ---------
@@ -43,10 +44,12 @@ class Constants {
 	static final long MIN_NOTE_SPACING_MILLIS = 100
 	static final long MAX_NOTE_SPACING_MILLIS = 60000
 
-	// Uploader
-	// --------
+	// Media
+	// -----
 
 	static final String UPLOAD_ERRORS = "uploadErrors"
+	static final long MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES = 5000000
+	static final int MAX_NUM_MEDIA_PER_MESSAGE = 10
 
 	// Schedule
 	// --------
@@ -122,8 +125,8 @@ class Constants {
 	static final String PHONE_ACTION_NEW_NUM_BY_NUM  = "numbynum"
 	static final String PHONE_ACTION_NEW_NUM_BY_ID = "numbyid"
 
-	static final String NOTE_IMAGE_ACTION_REMOVE = "remove"
-	static final String NOTE_IMAGE_ACTION_ADD = "add"
+	static final String MEDIA_ACTION_REMOVE = "remove"
+	static final String MEDIA_ACTION_ADD = "add"
 
 	// Testing constants
 	// -----------------

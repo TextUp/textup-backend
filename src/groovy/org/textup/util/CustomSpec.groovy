@@ -314,13 +314,13 @@ class CustomSpec extends Specification {
         	*.save(flush:true, failOnError:true)
 
         //add record texts to all contacts
-        rText1 = c1.record.addText([contents:"text"], null).payload
-        rText2 = c2.record.addText([contents:"text"], null).payload
-        rTeText1 = tC1.record.addText([contents:"text"], null).payload
-        rTeText2 = tC2.record.addText([contents:"text"], null).payload
+        rText1 = c1.record.storeOutgoingText("text", null).payload
+        rText2 = c2.record.storeOutgoingText("text", null).payload
+        rTeText1 = tC1.record.storeOutgoingText("text", null).payload
+        rTeText2 = tC2.record.storeOutgoingText("text", null).payload
 
-        otherRText2 = otherC2.record.addText([contents:"text"], null).payload
-        otherRTeText2 = otherTC2.record.addText([contents:"text"], null).payload
+        otherRText2 = otherC2.record.storeOutgoingText("text", null).payload
+        otherRTeText2 = otherTC2.record.storeOutgoingText("text", null).payload
 
         [rText1, rText2, rTeText1, rTeText2, otherRText2, otherRTeText2]
         	*.save(flush:true, failOnError:true)
@@ -344,9 +344,9 @@ class CustomSpec extends Specification {
         [tag1, tag1_1, tag2, teTag1, teTag2, otherTag2, otherTeTag2]
         	*.save(flush:true, failOnError:true)
 
-        teTag1.record.addText([contents:"text"], null)
+        teTag1.record.storeOutgoingText("text", null)
         	.payload.save(flush:true, failOnError:true)
-        teTag2.record.addText([contents:"text"], null)
+        teTag2.record.storeOutgoingText("text", null)
         	.payload.save(flush:true, failOnError:true)
     }
 

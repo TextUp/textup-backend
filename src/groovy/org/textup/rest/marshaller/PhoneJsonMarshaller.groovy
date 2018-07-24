@@ -1,18 +1,15 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
-import grails.plugin.springsecurity.SpringSecurityService
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.codehaus.groovy.grails.web.util.WebUtils
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
 
 @GrailsTypeChecked
 class PhoneJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace,
-        SpringSecurityService springSecurityService, AuthService authService,
-        LinkGenerator linkGenerator, Phone p1 ->
+    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
+        Phone p1 ->
 
         Map json = [:]
         json.with {
@@ -25,6 +22,7 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             language = p1.language.toString()
         }
 
+        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
         Staff loggedIn = authService.getLoggedInAndActive()
         // for rare cases during testing when phone is no longer attached,
         // re-fetch the phone. Using `.attach()` may throw a DuplicateKeyException

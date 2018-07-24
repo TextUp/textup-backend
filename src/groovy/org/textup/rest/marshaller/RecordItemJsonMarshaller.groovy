@@ -1,7 +1,7 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsCompileStatic
-import grails.plugin.springsecurity.SpringSecurityService
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import groovy.util.logging.Log4j
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
@@ -9,16 +9,14 @@ import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.RecordItemType
-import org.textup.validator.ImageInfo
 
 @GrailsCompileStatic
 @Log4j
 class RecordItemJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace,
-        SpringSecurityService springSecurityService, AuthService authService,
+    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, ReadOnlyRecordItem item ->
 
-        Collection<ImageInfo> uploadErrors = []
+        List<String> uploadErrors = []
         try {
             HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
             uploadErrors = Helpers.to(List, request.getAttribute(Constants.UPLOAD_ERRORS))

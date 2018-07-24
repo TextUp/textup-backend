@@ -19,6 +19,9 @@ class NumberService {
 	GrailsApplication grailsApplication
 	ResultFactory resultFactory
 
+    // Numbers utility methods
+    // -----------------------
+
     Result<List<AvailablePhoneNumber>> listExistingNumbers() {
     	try {
     		String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
@@ -113,11 +116,73 @@ class NumberService {
     	}
     }
 
-    // Helpers
-    // -------
-
     protected cleanQuery(String query) {
     	// only allow these specified valid characters
     	query?.replaceAll(/[^\[0-9a-zA-Z\]\*]/, "") ?: ""
+    }
+
+    // Operations on numbers
+    // ---------------------
+
+    Result<IncomingPhoneNumber> changeForNumber(PhoneNumber pNum) {
+        try {
+            String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
+                appId = grailsApplication.flatConfig["textup.apiKeys.twilio.appId"]
+            IncomingPhoneNumber iNum = IncomingPhoneNumber
+                .creator(pNum.toApiPhoneNumber())
+                .setFriendlyName(unavailable)
+                .setSmsApplicationSid(appId)
+                .setSmsMethod(HttpMethod.POST)
+                .setVoiceApplicationSid(appId)
+                .setVoiceMethod(HttpMethod.POST)
+                .create()
+            resultFactory.success(iNum)
+        }
+        catch (TwilioException e) {
+            resultFactory.failWithThrowable(e)
+        }
+    }
+
+    Result<IncomingPhoneNumber> changeForApiId(String newApiId) {
+        try {
+            String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
+                appId = grailsApplication.flatConfig["textup.apiKeys.twilio.appId"]
+            IncomingPhoneNumber uNum = IncomingPhoneNumber
+                .updater(newApiId)
+                .setFriendlyName(unavailable)
+                .setSmsApplicationSid(appId)
+                .setSmsMethod(HttpMethod.POST)
+                .setVoiceApplicationSid(appId)
+                .setVoiceMethod(HttpMethod.POST)
+                .update()
+            resultFactory.success(uNum)
+        }
+        catch (TwilioException e) {
+            resultFactory.failWithThrowable(e)
+        }
+    }
+
+    Result<Phone> updatePhoneWithNewNumber(IncomingPhoneNumber newNum, Phone p1) {
+        String oldApiId = p1.apiId
+        p1.apiId = newNum.sid
+        p1.number = new PhoneNumber(number:newNum.phoneNumber as String)
+        if (oldApiId) {
+            freeExistingNumber(oldApiId).then({ resultFactory.success(p1) })
+        }
+        else { resultFactory.success(p1) }
+    }
+
+    Result<IncomingPhoneNumber> freeExistingNumber(String oldApiId) {
+        try {
+            String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
+            IncomingPhoneNumber uNum = IncomingPhoneNumber
+                .updater(oldApiId)
+                .setFriendlyName(available)
+                .update()
+            resultFactory.success(uNum)
+        }
+        catch (TwilioException e) {
+            resultFactory.failWithThrowable(e)
+        }
     }
 }

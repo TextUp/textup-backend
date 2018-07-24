@@ -165,9 +165,6 @@ class SharedContact implements Contactable {
     static List<Contact> listSharedByMe(Phone sBy, Map params=[:]) {
         SharedContact.sharedByMe(sBy).list(params)
     }
-    static SharedContact findByContactIdAndSharedWith(Long cId, Phone sWith) {
-        findEveryByContactIdsAndSharedWith([cId], sWith)[0]
-    }
     static List<SharedContact> findEveryByContactIdsAndSharedWith(Collection<Long> cIds,
         Phone sWith) {
         if (!cIds || cIds.isEmpty() || !sWith) {
@@ -313,34 +310,17 @@ class SharedContact implements Contactable {
     }
 
     @GrailsCompileStatic
-    Record getRecord() {
-        this.canModify ? this.contact.record : null
-    }
-    @GrailsCompileStatic
-    ReadOnlyRecord getReadOnlyRecord() {
-        this.isActive ? this.contact.record : null
-    }
-
-    @GrailsCompileStatic
-    Result<RecordText> storeOutgoingText(String message, TempRecordReceipt receipt,
-        Staff staff = null) {
-        if (this.canModify) {
-            this.contact.storeOutgoingText(message, receipt, staff)
-        }
-        else {
+    Result<Record> tryGetRecord() {
+        this.canModify ?
+            resultFactory.success(this.contact.record) :
             resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
                 ResultStatus.FORBIDDEN)
-        }
     }
     @GrailsCompileStatic
-    Result<RecordCall> storeOutgoingCall(TempRecordReceipt receipt, Staff staff = null,
-        String message = null) {
-        if (this.canModify) {
-            this.contact.storeOutgoingCall(receipt, staff, message)
-        }
-        else {
+    Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
+        this.isActive ?
+            resultFactory.success(this.contact.record) :
             resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
                 ResultStatus.FORBIDDEN)
-        }
     }
 }

@@ -119,11 +119,11 @@ class BootStrap {
 				Contact tC1 = tPh1.createContact([:], ["1112223333", "4018681240"]).payload
 				[c1, c2, tC1]*.save(flush:true, failOnError:true)
 				RecordText rText1 = c1.record
-					.addText([contents:"Hi! Hope you're doing well today."], null).payload
+					.storeOutgoingText("Hi! Hope you're doing well today.", null).payload
 		        RecordText rText2 = c2.record
-		        	.addText([contents:"Hi! Hope you're doing well today."], null).payload
+		        	.storeOutgoingText("Hi! Hope you're doing well today.", null).payload
 		        RecordText rTeText1 = tC1.record
-		        	.addText([contents:"Hi! Hope you're doing well today."], null).payload
+		        	.storeOutgoingText("Hi! Hope you're doing well today.", null).payload
 				[rText1, rText2, rTeText1]*.save(flush:true, failOnError:true)
 
 				//share contacts
@@ -137,7 +137,8 @@ class BootStrap {
     		    ContactTag teTag1 = tPh1.createTag(name:"Shared New Clients").payload
         		[tag1, tag2, teTag1]*.save(flush:true, failOnError:true)
 		    	//create items for team tags
-		    	teTag1.record.addText([contents:"Hi! Hope you're doing well today."], null)
+		    	teTag1.record
+		    		.storeOutgoingText("Hi! Hope you're doing well today.", null)
 		    		.payload
 		    		.save(flush:true, failOnError:true)
 		    	//tag memberships

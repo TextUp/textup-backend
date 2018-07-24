@@ -949,7 +949,7 @@ class PhoneServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int tBaseline = RecordText.count()
         int rBaseline = RecordItemReceipt.count()
-        addToMessageSource("phoneService.notifyStaff.notification")
+        addToMessageSource("incomingMessageService.notifyStaff.notification")
 
         IncomingSession session = new IncomingSession(phone:p1,
             numberAsString:sc1.numbers[0].number,

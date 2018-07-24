@@ -40,10 +40,10 @@ class Phone {
     PhoneOwnership owner
 
     @RestApiObjectField(
-            apiFieldName  = "awayMessage",
-            description   = "Away message when no staff members in this team \
-                are available to respond to texts or calls",
-            allowedType   = "String")
+        apiFieldName  = "awayMessage",
+        description   = "Away message when no staff members in this team \
+            are available to respond to texts or calls",
+        allowedType   = "String")
     String awayMessage = Constants.DEFAULT_AWAY_MESSAGE
 
     @RestApiObjectField(
@@ -487,32 +487,20 @@ class Phone {
     // Outgoing
     // --------
 
-    ResultGroup<RecordItem> sendMessage(OutgoingMessage msg, Staff staff = null,
+    ResultGroup<RecordItem> sendMessage(OutgoingMessage msg, MediaInfo mInfo, Staff staff = null,
         boolean skipOwnerCheck = false) {
         if (!this.isActive) {
             resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND).toGroup()
         }
-        else if (!msg.validateSetPhone(this)) { // validate msg
-            resultFactory.failWithValidationErrors(msg.errors).toGroup()
-        }
         else if (!skipOwnerCheck && !this.owner.all.any { Staff s1 -> s1.id == staff.id }) { // validate staff
             resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
         }
-        else { phoneService.sendMessage(this, msg, staff) }
+        else { phoneService.sendMessage(this, msg, mInfo, staff) }
     }
     // start bridge call, confirmed (if staff picks up) by contact
-    Result<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
+    Result<RecordCall> startBridgeCall(Recipients<Long, ? extends Contactable> c1, Staff staff) {
         if (!this.isActive) {
             resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
-        }
-        else if ((c1 instanceof Contact || c1 instanceof SharedContact) && !c1.validate()) {
-            resultFactory.failWithValidationErrors(c1.errors)
-        }
-        else if (c1 instanceof Contact && c1.phone?.id != this.id) {
-            resultFactory.failWithCodeAndStatus("phone.startBridgeCall.forbidden", ResultStatus.FORBIDDEN)
-        }
-        else if (c1 instanceof SharedContact && !(c1.canModify && c1.sharedWith?.id == this.id)) {
-            resultFactory.failWithCodeAndStatus("phone.startBridgeCall.forbidden", ResultStatus.FORBIDDEN)
         }
         else if (!this.owner.all.any { Staff s1 -> s1.id == staff.id }) { // validate staff
             resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
@@ -594,30 +582,7 @@ class Phone {
             resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
         }
         else if (this.getAnnouncements()) {
-            switch (text.message) {
-                case Constants.TEXT_SEE_ANNOUNCEMENTS:
-                    Collection<FeaturedAnnouncement> announces = this.getAnnouncements()
-                    announces.each { FeaturedAnnouncement announce ->
-                        announce
-                            .addToReceipts(RecordItemType.TEXT, session)
-                            .logFail("Phone.receiveText: add announce receipt")
-                    }
-                    twimlBuilder.build(TextResponse.SEE_ANNOUNCEMENTS,
-                        [announcements:announces])
-                    break
-                case Constants.TEXT_TOGGLE_SUBSCRIBE:
-                    if (session.isSubscribedToText) {
-                        session.isSubscribedToText = false
-                        twimlBuilder.build(TextResponse.UNSUBSCRIBED)
-                    }
-                    else {
-                        session.isSubscribedToText = true
-                        twimlBuilder.build(TextResponse.SUBSCRIBED)
-                    }
-                    break
-                default:
-                    phoneService.relayText(this, text, session)
-            }
+            phoneService.handleAnnouncementText(this, text, session)
         }
         else { phoneService.relayText(this, text, session) }
     }

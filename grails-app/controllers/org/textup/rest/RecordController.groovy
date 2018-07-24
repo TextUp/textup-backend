@@ -23,6 +23,7 @@ class RecordController extends BaseController {
 
     AuthService authService
     RecordService recordService
+    ResultFactory resultFactory
 
     @Override
     protected String getNamespaceAsString() { namespace }
@@ -172,10 +173,39 @@ class RecordController extends BaseController {
         Map rInfo = getJsonPayload(RecordItem, request)
         if (rInfo == null) { return }
         Long tId = params.long("teamId")
-        if (tId) {
-            respondWithResult(RecordItem, recordService.createForTeam(tId, rInfo))
+        if (authService.exists(Team, tId)) {
+            if (authService.hasPermissionsForTeam(tId)) {
+                createForPhone(Team.get(tId)?.phone?.id, rInfo)
+            }
+            else { forbidden() }
         }
-        else { respondWithResult(RecordItem, recordService.createForStaff(rInfo)) }
+        else { createForPhone(authService.loggedInAndActive?.phone?.id, rInfo) }
+    }
+    protected void createForPhone(Long phoneId, Map body) {
+        Result<RecordItem> resGroup = validateCreateBody(body)
+            .then { -> recordService.create(phoneId, body) }
+        respondWithResult(ResultItem, resGroup)
+    }
+    protected ResultGroup<Void> validateCreateBody(Map body) {
+        Result<Class<RecordItem>> res = recordService.determineClass(rInfo)
+        if (!res.success) {
+            return res.toGroup()
+        }
+        switch(res.payload) {
+            case RecordCall:
+                if (!Helpers.exactly(1, ["callContact", "callSharedContact"], body)) {
+                    return resultFactory.failWithCodeAndStatus("recordController.create.tooManyForCall",
+                        ResultStatus.BAD_REQUEST).toGroup()
+                }
+                break
+            case RecordNote:
+                if (!Helpers.exactly(1, ["forContact", "forSharedContact", "forTag"], body)) {
+                    return resultFactory.failWithCodeAndStatus("recordController.create.tooManyForNote",
+                        ResultStatus.BAD_REQUEST).toGroup()
+                }
+                break
+        }
+        resultFactory.success().toGroup()
     }
 
     // Update

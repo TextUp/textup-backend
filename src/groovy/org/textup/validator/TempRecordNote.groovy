@@ -1,7 +1,6 @@
 package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
-import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.hibernate.Session
@@ -14,57 +13,19 @@ import org.textup.*
 @Validateable
 class TempRecordNote {
 
-	// specify record note if we are updating
 	RecordNote note
-
-	// specify the following if we are creating a new note
-	Phone phone
-	Contact contact
-	SharedContact sharedContact
-	ContactTag tag
-
-	// info to create or update the note with
 	DateTime after
 	Map info
 
-	static constraints = {
-		note nullable:true, validator:{ RecordNote note1, TempRecordNote tempNote ->
-			if (!note1 && (!tempNote.phone || !tempNote.hasTargetForNewNote)) {
-				["missingInfoForNewNote"]
-			}
-		}
-		phone nullable:true
-		contact nullable:true, validator:{ Contact c1, TempRecordNote tempNote ->
-			if (c1 && c1.phone != tempNote?.phone) {
-				["foreign", c1.id]
-			}
-		}
-		sharedContact nullable:true, validator:{ SharedContact sc1, TempRecordNote tempNote ->
-			if (sc1 && (!sc1.canModify || sc1.sharedWith != tempNote?.phone)) {
-				["notShared", sc1.id]
-			}
-		}
-		tag nullable:true, validator:{ ContactTag tag1, TempRecordNote tempNote ->
-			if (tag1 && tag1.phone != tempNote?.phone) {
-				["foreign", tag1.id]
-			}
-		}
-		after nullable:true
+	static constraints = { // default nullable: false
+		after nullable: true
 		// ensures that note will have at least one of text, location or images
 		// leaves text and location validation to respective domain objects
-		info nullable:false, validator:{ Map noteInfo, TempRecordNote tempNote ->
-			if (!tempNote.note && !noteInfo.noteContents && !noteInfo.location &&
-				!noteInfo.doImageActions) {
+		info validator:{ Map noteInfo, TempRecordNote tempNote ->
+			if (!noteInfo.noteContents && !noteInfo.location && !noteInfo.doImageActions) {
 				['noInfo']
 			}
 		}
-	}
-
-	// Validation
-	// ----------
-
-	protected boolean getHasTargetForNewNote() {
-		this.contact || this.sharedContact || this.tag
 	}
 
 	// Methods
@@ -75,31 +36,29 @@ class TempRecordNote {
 	// you can call the iterator forEachImageToAdd and pass in a closure action
 	// (for example, the addImage method on RecordNote) because we also need to generate
 	// an upload link when adding a new image.
-	RecordNote toNote(Author auth) {
+	Result<RecordNote> toNote(Author auth) {
+		RecordNote note1 = note
 		// we manually associate note with record and author instead of using
 		// the addAny methods in the record because adding a note should not
 		// trigger a record activity update like adding a text or a call should
-		RecordNote note1 = this.note ?: new RecordNote(record:getRecord())
 		updateFields(note1, auth)
 		// If there is a item we need to before, we will modify the whenCreated
 		// time to artificially insert this note into the appropriate position
 		// in the record. Otherwise, we will preserve the default value
 		modifyWhenCreatedIfNeeded(note1, this.after)
+		// validate and save
+        if (!tempNote.validate()) {
+            return resultFactory.failWithValidationErrors(tempNote.errors)
+        }
+        if (note1.location && !note1.location.save()) {
+            return resultFactory.failWithValidationErrors(note1.location.errors)
+        }
+        if (note1.save()) {
+            resultFactory.success(note1)
+        }
+        else { resultFactory.failWithValidationErrors(note1.errors) }
 	}
 
-	// Note Helpers
-	// ------------
-
-	protected ResultFactory getResultFactory() {
-		Holders
-			.applicationContext
-			.getBean('resultFactory') as ResultFactory
-	}
-	protected Record getRecord() {
-		this.contact ? this.contact.record :
-			(this.sharedContact ? this.sharedContact.record :
-				(this.tag ? this.tag.record : null))
-	}
 	protected RecordNote updateFields(RecordNote note1, Author auth) {
 		if (!note1) {
 			return note1
@@ -134,6 +93,7 @@ class TempRecordNote {
 		}
 		note1
 	}
+
 	protected RecordNote modifyWhenCreatedIfNeeded(RecordNote note1, DateTime afterTime) {
 		RecordItem beforeItem = afterTime ?
 			note1.record?.getSince(afterTime, [max:1])[0] : null

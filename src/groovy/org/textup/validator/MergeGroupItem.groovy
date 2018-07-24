@@ -1,7 +1,6 @@
 package org.textup.validator
 
 import grails.compiler.GrailsCompileStatic
-import grails.util.Holders
 import grails.validation.Validateable
 import org.textup.*
 

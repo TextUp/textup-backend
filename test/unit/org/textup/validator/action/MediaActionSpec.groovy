@@ -11,7 +11,7 @@ import org.textup.util.CustomSpec
 
 @Domain([Organization, Location])
 @TestMixin(HibernateTestMixin)
-class NoteImageActionSpec extends CustomSpec {
+class MediaActionSpec extends CustomSpec {
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
@@ -25,7 +25,7 @@ class NoteImageActionSpec extends CustomSpec {
 
 	void "test constraints when empty"() {
 		when: "completely empty"
-		NoteImageAction act1 = new NoteImageAction()
+		MediaAction act1 = new MediaAction()
 
 		then:
 		act1.validate() == false
@@ -33,7 +33,7 @@ class NoteImageActionSpec extends CustomSpec {
 		act1.errors.getFieldError("action").code == "nullable"
 
 		when: "empty for removing"
-		act1.action = Constants.NOTE_IMAGE_ACTION_REMOVE
+		act1.action = Constants.MEDIA_ACTION_REMOVE
 
 		then:
 		act1.validate() == false
@@ -41,7 +41,7 @@ class NoteImageActionSpec extends CustomSpec {
 		act1.errors.getFieldError("action").code == "missingForRemove"
 
 		when: "empty for adding"
-		act1.action = Constants.NOTE_IMAGE_ACTION_ADD
+		act1.action = Constants.MEDIA_ACTION_ADD
 
 		then:
 		act1.validate() == false
@@ -51,7 +51,7 @@ class NoteImageActionSpec extends CustomSpec {
 
 	void "test constraints for removing"() {
 		given: "an empty action to remove"
-		NoteImageAction act1 = new NoteImageAction(action:Constants.NOTE_IMAGE_ACTION_REMOVE)
+		MediaAction act1 = new MediaAction(action:Constants.MEDIA_ACTION_REMOVE)
 
 		when: "key specified for removing"
 		act1.key = "I am a random string key"
@@ -66,7 +66,7 @@ class NoteImageActionSpec extends CustomSpec {
 		String rawData = "I am some data"
 		String encodedData = Base64.encodeBase64String(rawData.getBytes(StandardCharsets.UTF_8))
 		String checksum = DigestUtils.md5Hex(encodedData)
-		NoteImageAction act1 = new NoteImageAction(action:Constants.NOTE_IMAGE_ACTION_ADD,
+		MediaAction act1 = new MediaAction(action:Constants.MEDIA_ACTION_ADD,
 			mimeType:mimeType, data:encodedData, checksum:checksum)
 		assert act1.validate() == true
 

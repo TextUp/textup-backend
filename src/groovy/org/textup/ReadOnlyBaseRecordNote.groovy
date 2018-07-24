@@ -2,13 +2,14 @@ package org.textup
 
 import grails.compiler.GrailsCompileStatic
 import org.joda.time.DateTime
-import org.textup.validator.ImageInfo
+
+// An interface that delineates the basic properties that a note or a revision
+// of a note should have
 
 @GrailsCompileStatic
-interface ReadOnlyRecordNoteRevision extends Authorable {
+interface ReadOnlyBaseRecordNote extends Authorable, ReadOnlyWithMedia {
     Long getId()
     DateTime getWhenChanged()
     String getNoteContents()
     ReadOnlyLocation getLocation()
-    Collection<ImageInfo> getImages()
 }

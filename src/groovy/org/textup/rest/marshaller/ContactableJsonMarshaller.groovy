@@ -1,8 +1,8 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsCompileStatic
-import grails.plugin.springsecurity.SpringSecurityService
 import groovy.util.logging.Log4j
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
@@ -12,8 +12,7 @@ import org.textup.type.ContactStatus
 @GrailsCompileStatic
 @Log4j
 class ContactableJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace,
-        SpringSecurityService springSecurityService, AuthService authService,
+    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, Contactable c1 ->
 
         ReadOnlyRecord rec1 = c1.readOnlyRecord

@@ -1,19 +1,19 @@
 package org.textup
 
+import grails.async.Promise
+import grails.async.PromiseList
+import grails.async.Promises
 import grails.compiler.GrailsCompileStatic
+import grails.util.Holders
 import groovy.json.JsonBuilder
 import groovy.json.JsonException
 import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import java.awt.image.BufferedImage
+import java.util.concurrent.TimeUnit
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import javax.imageio.IIOImage
-import javax.imageio.ImageIO
-import javax.imageio.ImageWriteParam
-import javax.imageio.ImageWriter
-import javax.imageio.stream.ImageOutputStream
 import org.apache.commons.lang3.ClassUtils
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.hibernate.FlushMode
@@ -22,7 +22,6 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.Days
 import org.joda.time.LocalTime
-import org.textup.validator.ImageInfo
 import org.textup.validator.LocalInterval
 import org.textup.validator.PhoneNumber
 import org.textup.validator.UploadItem
@@ -53,6 +52,20 @@ class Helpers {
         else { fallbackList }
     }
 
+    // Dependency injection
+    // --------------------
+
+    static ResultFactory getResultFactory() {
+        Holders
+            .applicationContext
+            .getBean(ResultFactory) as ResultFactory
+    }
+    static MessageSource getMessageSource() {
+        Holders
+            .applicationContext
+            .getBean(MessageSource) as MessageSource
+    }
+
     // Setters
     // -------
 
@@ -74,6 +87,18 @@ class Helpers {
             finally { session.flushMode = FlushMode.AUTO }
         }
         result
+    }
+
+    // Async
+    // -----
+
+    static <K, T> List<T> doAsyncInBatches(List<K> data, Closure<Promise<T>> doAction,
+        int batchSize = Constants.CONCURRENT_SEND_BATCH_SIZE) {
+        PromiseList<T> pList1 = new PromiseList<>()
+        data.collate(batchSize).collect { List<K> batch ->
+            pList1 << doAction(batch)
+        }
+        pList.get(1, TimeUnit.MINUTES) as List<T>
     }
 
     // Lists
@@ -139,7 +164,6 @@ class Helpers {
                 case String: return val?.toString() ?: fallbackVal
                 case Boolean: return (str == "true" || str == "false") ? str.toBoolean() : fallbackVal
                 case Number: return str.isBigDecimal() ? str.toBigDecimal().asType(wrappedClazz) : fallbackVal
-                case PhoneNumber: return new PhoneNumber(number:str)
                 default: return wrappedClazz.isAssignableFrom(val.class) ? val.asType(wrappedClazz) : fallbackVal
             }
         }
@@ -285,60 +309,6 @@ class Helpers {
     }
     static Object toJson(String str) throws JsonException {
         str ? new JsonSlurper().parseText(str) : null
-    }
-
-    // Images
-    // ------
-
-    static String buildObjectKeyFromImageKey(Long id, String imageKey) {
-        "note-${id}/${imageKey}"
-    }
-    static Collection<ImageInfo> buildImagesFromImageKeys(StorageService storageService,
-        Long id, Collection<String> imageKeys) {
-        Collection<ImageInfo> imageInfoList = []
-        imageKeys.each { String imageKey ->
-            String objectKey = Helpers.buildObjectKeyFromImageKey(id, imageKey)
-            Result<URL> res = storageService
-                .generateAuthLink(objectKey)
-                .logFail('RecordNote.getImageLinks')
-            String link = res.success ? res.payload.toString() : ""
-            ImageInfo info = new ImageInfo(key:imageKey, link:link)
-            if (info.validate()) {
-                imageInfoList << info
-            }
-        }
-        imageInfoList
-    }
-    static ByteArrayInputStream tryCompressUploadItemStream(UploadItem uItem, float quality) {
-        ByteArrayInputStream original = uItem?.stream
-        if (!uItem?.validate() || uItem.mimeType != "image/jpeg") {
-            return original
-        }
-        try {
-            BufferedImage img = ImageIO.read(original)
-            // obtain image writer
-            Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/jpeg")
-            ImageWriter writer = writers.next()
-            // set compression parameters
-            ImageWriteParam param = writer.defaultWriteParam
-            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-            param.setCompressionQuality(quality);
-            // create output
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-            ImageOutputStream outputStream = ImageIO.createImageOutputStream(os);
-            writer.setOutput(outputStream);
-            // write with compression
-            writer.write(null, new IIOImage(img, null, null), param);
-            // clean up
-            outputStream.close()
-            writer.dispose()
-            ByteArrayInputStream compressed = new ByteArrayInputStream(os.toByteArray())
-            compressed
-        }
-        catch (Throwable e) {
-            log.debug("Helpers.tryCompressUploadItemStream: ${e.message}")
-            original
-        }
     }
 
     // TwimlBuilder

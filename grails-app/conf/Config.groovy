@@ -1,3 +1,7 @@
+import org.textup.Helpers
+import org.textup.Result
+import org.textup.validator.MediaInfo
+
 // locations to search for config files that get merged into the main config;
 // config files can be ConfigSlurper scripts, Java properties files, or classes
 // in the classpath in ConfigSlurper format
@@ -215,10 +219,21 @@ grails.doc.subtitle = "A getting started guide to the backend and frontend codeb
 grails.doc.authors = "Eric Bai"
 grails.doc.license = "MIT"
 
+grails.gorm.default.constraints = {
+    // 65535 bytes max size `text` column type divided by 4 bytes per character ut8mb4
+    textSqlType(maxSize:15000)
+    serializedMedia(blank:true, nullable:true, maxSize:15000)
+    media(validator: { MediaInfo mInfo ->
+        // mInfo may be null because serializedMedia is optional
+        if (mInfo && !mInfo.validate()) {
+            Result res = Helpers.resultFactory.failWithValidationErrors(mInfo.errors)
+            ["errors", res.errorMessages]
+        }
+    })
+}
+
 textup {
     maxNumText = 500 //max number of recipients to text
-    maxNumImages = 10 //max number of images allowed per note
-    maxImageSizeInBytes = 1000000 //max size in bytes for each image
     imageCompressionQualty = 0.5
 
     defaultMax = 10 //default max during pagination
@@ -297,8 +312,9 @@ textup {
             availableNumber = [singular:"number", plural:"numbers"]
             contact = [singular:"contact", plural:"contacts"]
             futureMessage = [singular:"future-message", plural:"future-messages"]
-            imageInfo = [singular:"image", plural: "images"]
             location = [singular:"location", plural:"locations"]
+            mediaElement = [singular:"mediaElement", plural: "mediaElements"]
+            mediaInfo = [singular:"medium", plural: "media"]
             mergeGroup = [singular:"contact", plural: "contacts"]
             notification = [singular:"notification", plural:"notifications"]
             notificationStatus = [singular:"notification-status", plural:"notification-statuses"]

@@ -50,7 +50,7 @@ class PhoneAction extends BaseAction {
 				}
 				PhoneNumber pNum = new PhoneNumber(number:val)
 				if (!pNum.validate()) {
-					Result res = obj.getResultFactory().failWithValidationErrors(pNum.errors)
+					Result res = Helpers.resultFactory.failWithValidationErrors(pNum.errors)
 					return ["invalid", res.errorMessages]
 				}
 			}
@@ -88,14 +88,5 @@ class PhoneAction extends BaseAction {
 	void setNumber(String num) {
 		// clean number before validate
 		this.number = (new PhoneNumber(number:num)).number
-	}
-
-	// Helpers
-	// -------
-
-	protected ResultFactory getResultFactory() {
-		Holders
-			.applicationContext
-			.getBean("resultFactory") as ResultFactory
 	}
 }

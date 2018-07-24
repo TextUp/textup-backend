@@ -1,7 +1,6 @@
 package org.textup.validator.action
 
 import grails.compiler.GrailsCompileStatic
-import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.Helpers
@@ -44,7 +43,6 @@ class ActionContainer {
 		if (!clazz) { // even if clazz is null, we still want to validate
 			return actions
 		}
-		ResultFactory resultFactory = getResultFactory()
 		Collection dataCollection = Helpers.to(Collection, data)
 		List<String> errorMessages = []
 		if (dataCollection) {
@@ -64,7 +62,7 @@ class ActionContainer {
 					}
 					if (action.validate()) { actions << action }
 					else {
-						Result res = resultFactory.failWithValidationErrors(action.errors)
+						Result res = Helpers.resultFactory.failWithValidationErrors(action.errors)
 						errorMessages += res.errorMessages
 					}
 				}
@@ -75,14 +73,5 @@ class ActionContainer {
 				"Invalid action items")
 		}
 		actions
-	}
-
-	// Helpers
-	// -------
-
-	protected ResultFactory getResultFactory() {
-		Holders
-			.applicationContext
-			.getBean("resultFactory") as ResultFactory
 	}
 }

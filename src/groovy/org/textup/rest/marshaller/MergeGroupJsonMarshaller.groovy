@@ -1,7 +1,7 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsCompileStatic
-import grails.plugin.springsecurity.SpringSecurityService
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
@@ -11,8 +11,7 @@ import org.textup.validator.MergeGroupItem
 @GrailsCompileStatic
 class MergeGroupJsonMarshaller extends JsonNamedMarshaller {
 
-	static final Closure marshalClosure = { String namespace,
-        SpringSecurityService springSecurityService, AuthService authService,
+	static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, MergeGroup mGroup ->
 
         Contact c1 = mGroup.targetContact

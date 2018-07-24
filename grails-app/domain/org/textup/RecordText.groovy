@@ -53,7 +53,7 @@ class RecordText extends RecordItem implements ReadOnlyRecordText {
     // this should not happen since we have no control over the contents of incoming
     // messages and we do not want to knowingly fail to deliver incoming messages
     static constraints = {
-    	contents blank:false, nullable:false
+    	contents blank: false, nullable: false, shared: "textSqlType"
     }
     static mapping = {
         contents type:"text"

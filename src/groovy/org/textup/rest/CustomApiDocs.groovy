@@ -345,5 +345,5 @@ class CustomResponseDoc {
             mandatory      = false,
             useForCreation = true)
     ])
-    static def noteImageAction
+    static def mediaAction
 }

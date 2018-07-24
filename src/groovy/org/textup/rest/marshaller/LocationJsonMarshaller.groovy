@@ -1,16 +1,13 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsCompileStatic
-import grails.plugin.springsecurity.SpringSecurityService
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
 
 @GrailsCompileStatic
 class LocationJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace,
-        SpringSecurityService springSecurityService, AuthService authService,
-        LinkGenerator linkGenerator, ReadOnlyLocation loc ->
+    static final Closure marshalClosure = { ReadOnlyLocation loc ->
 
         Map json = [:]
         json.with {

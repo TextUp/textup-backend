@@ -40,36 +40,48 @@ class Record implements ReadOnlyRecord {
     // Add to record
     // -------------
 
-    // We manually associate note (in TempRecordNote) with record and author
-    // We don't use the addAny methods because adding a note should not
-    // trigger a record activity update like adding a text or a call should
-    Result<RecordText> addText(Map params, Author auth = null) {
-        addAny(RecordText, params, auth)
+    Result<RecordText> storeOutgoingText(String message, Author author, MediaInfo mInfo = null) {
+        add(new RecordText(outgoing: true, contents: message, media: mInfo), author)
     }
-    Result<RecordCall> addCall(Map params, Author auth = null) {
-        addAny(RecordCall, params, auth)
+    Result<RecordCall> storeOutgoingCall(Author author, String message = null, MediaInfo mInfo = null) {
+        add(new RecordCall(outgoing: true, noteContents: message, media: mInfo), author)
     }
-    protected Result addAny(Class<? extends RecordItem> clazz, Map params,
-        Author auth = null) {
-        this.add(clazz.newInstance(params), auth)
+
+    Result<RecordText> storeIncomingText(IncomingText text, Author author, MediaInfo mInfo = null) {
+        RecordText rText1 = new RecordText(outgoing: false, contents: text.message, media: mInfo)
+        add(rText1, author).then {
+            RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId)
+            receipt.receivedBy = this.phone.number
+            rText1.addToReceipts(receipt)
+            rText1.save() ? resultFactory.success(rText1) :
+                resultFactory.failWithValidationErrors(rText1.errors)
+        }
     }
+    Result<RecordCall> storeIncomingCall(String apiId, Author author, MediaInfo mInfo = null) {
+        RecordCall rCall1 = new RecordCall(outgoing: false, media: mInfo)
+        add(rCall1, author).then {
+            RecordItemReceipt receipt = new RecordItemReceipt(apiId: apiId)
+            receipt.receivedBy = this.phone.number
+            rCall1.addToReceipts(receipt)
+            rCall1.save() ? resultFactory.success(rCall1) :
+                resultFactory.failWithValidationErrors(rCall1.errors)
+        }
+    }
+
     // No method to addNote because we handle adding in TempRecordNote
     // we don't do add notes here because we adding a note should not
     // trigger a record activity update like adding a text or a call should
-    Result<RecordItem> add(RecordItem item, Author auth = null) {
+    protected Result<RecordItem> add(RecordItem item, Author author) {
         if (item) {
-            item.author = auth
+            item.author = author
             item.record = this
             if (item.save()) {
                 this.updateLastRecordActivity()
-                resultFactory.success(item)
+                resultFactory.success(item, ResultStatus.CREATED)
             }
             else { resultFactory.failWithValidationErrors(item.errors) }
         }
-        else {
-            resultFactory.failWithCodeAndStatus("record.noRecordItem",
-                ResultStatus.BAD_REQUEST)
-        }
+        else { resultFactory.failWithCodeAndStatus("record.noRecordItem", ResultStatus.BAD_REQUEST) }
     }
 
     // Property Access

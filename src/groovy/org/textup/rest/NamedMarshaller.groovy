@@ -1,14 +1,13 @@
 package org.textup.rest
 
-import org.textup.AuthService
-import grails.plugin.springsecurity.SpringSecurityService
+import grails.compiler.GrailsCompileStatic
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.converters.configuration.DefaultConverterConfiguration
 import org.codehaus.groovy.grails.web.converters.Converter
 import org.codehaus.groovy.grails.web.converters.marshaller.ClosureObjectMarshaller
 import org.codehaus.groovy.grails.web.converters.marshaller.ObjectMarshaller
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.beans.factory.annotation.Autowired
-import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 class NamedMarshaller {
@@ -16,9 +15,7 @@ class NamedMarshaller {
     @Autowired
     LinkGenerator linkGenerator
     @Autowired
-    SpringSecurityService springSecurityService
-    @Autowired
-    AuthService authService
+    GrailsApplication grailsApplication
 
     ObjectMarshaller marshaller
     Class<? extends Converter> converterClass
@@ -37,14 +34,11 @@ class NamedMarshaller {
     ObjectMarshaller getMarshaller() {
         if (!this.marshaller) {
             int numParams = this.closure.getMaximumNumberOfParameters()
-            if (numParams == 5) {
-                this.marshaller = new ClosureObjectMarshaller(this.clazz, this.closure.curry(namespace, springSecurityService, authService, linkGenerator))
-            }
-            else if (numParams == 4) {
-                this.marshaller = new ClosureObjectMarshaller(this.clazz, this.closure.curry(namespace, springSecurityService, linkGenerator))
+            if (numParams == 4) {
+                this.marshaller = new ClosureObjectMarshaller(this.clazz, this.closure.curry(namespace, grailsApplication, linkGenerator))
             }
             else if (numParams == 3) {
-                this.marshaller = new ClosureObjectMarshaller(this.clazz, this.closure.curry(namespace, linkGenerator))
+                this.marshaller = new ClosureObjectMarshaller(this.clazz, this.closure.curry(namespace, grailsApplication))
             }
             else if (numParams == 2) {
                 this.marshaller = new ClosureObjectMarshaller(this.clazz, this.closure.curry(namespace))

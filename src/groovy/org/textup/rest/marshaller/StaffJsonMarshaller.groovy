@@ -1,7 +1,7 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
-import grails.plugin.springsecurity.SpringSecurityService
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.joda.time.DateTime
@@ -11,8 +11,7 @@ import org.textup.validator.LocalInterval
 
 @GrailsTypeChecked
 class StaffJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace,
-        SpringSecurityService springSecurityService, AuthService authService,
+    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, Staff s1 ->
 
         Map json = [:]
@@ -31,6 +30,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
                 isAvailable = s1.isAvailable
             }
         }
+        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
         if (authService.isLoggedIn(s1.id) || authService.isAdminAtSameOrgAs(s1.id)) {
             json.with {
                 org = s1.org

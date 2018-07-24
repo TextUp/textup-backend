@@ -208,7 +208,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		when: "try to add images"
 		temp1.info.doImageActions = [
 			[
-				action:Constants.NOTE_IMAGE_ACTION_ADD,
+				action:Constants.MEDIA_ACTION_ADD,
 				mimeType:contentType,
 				data:data,
 				checksum:checksum
@@ -224,7 +224,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		when: "try to remove images from an existing note with images"
 		temp1.info.doImageActions = [
 			[
-				action:Constants.NOTE_IMAGE_ACTION_REMOVE,
+				action:Constants.MEDIA_ACTION_REMOVE,
 				key:existingImageKey
 			]
 		]

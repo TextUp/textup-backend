@@ -6,8 +6,7 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.rest.TwimlBuilder
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
@@ -16,12 +15,13 @@ class TextService {
     LinkGenerator grailsLinkGenerator
 	ResultFactory resultFactory
 
-    Result<TempRecordReceipt> send(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, String message) {
+    Result<TempRecordReceipt> send(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
+        String message, List<MediaElement> media = []) {
+
         ResultGroup<Message> failResults = new ResultGroup<>()
         Result<Message> res
         for (toNum in toNums) {
-            res = this.tryText(fromNum, toNum, message)
+            res = this.tryText(fromNum, toNum, message, media)
             //record receipt and return on first success
             if (res.success) {
                 TempRecordReceipt receipt = new TempRecordReceipt(apiId:res.payload.sid)
@@ -46,15 +46,19 @@ class TextService {
 	}
 
     protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
-        String message) {
+        String message, List<MediaElement> media) {
+
         String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
                 action:"save", absolute:true, params:[handle:Constants.CALLBACK_STATUS])
         try {
-            Message m = Message
+            Message msg1 = Message
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), message)
                 .setStatusCallback(callback)
+                .setMediaUrl(media.collect { MediaElement e1 ->
+                    e1.versions[MediaVersion.SEND]?.getLink(storageService)?.toURI()
+                })
                 .create()
-            resultFactory.success(m)
+            resultFactory.success(msg1)
         }
         catch (Throwable e) {
             log.error("TextService.tryText: ${e.class}, ${e.message}")

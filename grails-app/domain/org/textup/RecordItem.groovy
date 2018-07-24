@@ -13,7 +13,9 @@ import org.textup.validator.Author
 import org.textup.validator.TempRecordReceipt
 
 @EqualsAndHashCode
-class RecordItem implements ReadOnlyRecordItem {
+class RecordItem implements ReadOnlyRecordItem, WithMedia {
+
+    MediaService mediaService
 
     @RestApiObjectField(
         description    = "Date this item was added to the record",
@@ -57,14 +59,35 @@ class RecordItem implements ReadOnlyRecordItem {
         useForCreation = false)
     boolean isAnnouncement = false
 
+    @RestApiObjectField(
+        description    = "Contents of the note",
+        allowedType    = "String",
+        useForCreation = true)
+    String noteContents
+
+    @RestApiObjectField(
+        apiFieldName   = "media",
+        description    = "List of image keys and image links associated with this note",
+        allowedType    = "List<Map>",
+        useForCreation = false),
+    MediaInfo media
+
+    String serializedMedia
+
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName= "type",
             description = "Type of record item. One of: TEXT, or CALL",
             allowedType =  "String",
-            useForCreation = false)
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName      = "doMediaActions",
+            description       = "List of actions to perform related to media assets",
+            allowedType       = "List<[mediaAction]>",
+            useForCreation    = false,
+            presentInResponse = false)
     ])
-	static transients = ["author"]
+	static transients = ["mediaService", "author", "media"]
     @RestApiObjectField(
         apiFieldName   = "receipts",
         description    = "Statuses of all phone numbers who were sent this response",
@@ -75,10 +98,15 @@ class RecordItem implements ReadOnlyRecordItem {
     	authorName blank:true, nullable:true
     	authorId nullable:true
         authorType nullable:true
+        noteContents blank:true, nullable:true, shared: "textSqlType"
+        serializedMedia shared: "serializedMedia"
+        media shared: "media"
     }
     static mapping = {
         receipts lazy:false, cascade:"all-delete-orphan"
         whenCreated type:PersistentDateTime
+        noteContents type: "text"
+        serializedMedia type: "text"
     }
     static namedQueries = {
         forRecord { Record rec, Collection<Class<? extends RecordItem>> types = [] ->
@@ -166,5 +194,19 @@ class RecordItem implements ReadOnlyRecordItem {
     @GrailsTypeChecked
     Author getAuthor() {
         new Author(name:this.authorName, id:this.authorId, type:this.authorType)
+    }
+
+
+    @GrailsTypeChecked
+    Result<MediaInfo> synchronizeMedia(String data) {
+        mediaService.synchronizeMedia(this, data)
+    }
+    @GrailsTypeChecked
+    Result<String> synchronizeMedia(MediaInfo mInfo) {
+        mediaService.synchronizeMedia(this, mInfo)
+    }
+    @GrailsTypeChecked
+    MediaInfo getMedia() {
+        mediaService.getMedia(this)
     }
 }

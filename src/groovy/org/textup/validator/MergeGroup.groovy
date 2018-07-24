@@ -1,7 +1,6 @@
 package org.textup.validator
 
 import grails.compiler.GrailsCompileStatic
-import grails.util.Holders
 import grails.validation.Validateable
 import org.textup.*
 
@@ -80,14 +79,5 @@ class MergeGroup {
 
 	Contact getTargetContact() {
 		Contact.get(this.targetContactId)
-	}
-
-	// Helpers
-	// -------
-
-	protected ResultFactory getResultFactory() {
-		Holders
-			.applicationContext
-			.getBean("resultFactory") as ResultFactory
 	}
 }
