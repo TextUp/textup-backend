@@ -35,14 +35,14 @@ class RecordItemReceiptSpec extends Specification {
 		receipt.errors.errorCount == 1
 
 		when: "we set an invalid phone number"
-		receipt.receivedBy = new PhoneNumber(number:"invalid123")
+		receipt.contactNumber = new PhoneNumber(number:"invalid123")
 
 		then:
 		receipt.validate() == false
 		receipt.errors.errorCount == 1
 
 		when: "we set a valid phone number"
-		receipt.receivedBy = new PhoneNumber(number:"222 333 4444")
+		receipt.contactNumber = new PhoneNumber(number:"222 333 4444")
 
 		then:
 		receipt.validate() == true
@@ -50,7 +50,7 @@ class RecordItemReceiptSpec extends Specification {
 
 	private void addReceiptToItem(RecordItem rItem, ReceiptStatus status) {
 		RecordItemReceipt receipt = new RecordItemReceipt(apiId:"test",
-			status:status, receivedByAsString:"2223334444")
+			status:status, contactNumberAsString:"2223334444")
 		rItem.addToReceipts(receipt)
 		receipt.save(flush:true)
 	}

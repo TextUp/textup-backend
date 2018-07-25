@@ -19,10 +19,10 @@ class TempRecordNote {
 
 	static constraints = { // default nullable: false
 		after nullable: true
-		// ensures that note will have at least one of text, location or images
+		// ensures that note will have at least one of text, location or media
 		// leaves text and location validation to respective domain objects
-		info validator:{ Map noteInfo, TempRecordNote tempNote ->
-			if (!noteInfo.noteContents && !noteInfo.location && !noteInfo.doImageActions) {
+		info validator:{ Map noteInfo, TempRecordNote obj ->
+			if (!noteInfo.noteContents && !noteInfo.location && (!obj.media || obj.media.isEmpty())) {
 				['noInfo']
 			}
 		}
@@ -31,11 +31,7 @@ class TempRecordNote {
 	// Methods
 	// -------
 
-	// this method will update fields, including removing images, but adding new
-	// images and creating revisions must be handled manually. For adding new images,
-	// you can call the iterator forEachImageToAdd and pass in a closure action
-	// (for example, the addImage method on RecordNote) because we also need to generate
-	// an upload link when adding a new image.
+	// This method will update fields and will NOT handle media or revisions
 	Result<RecordNote> toNote(Author auth) {
 		RecordNote note1 = note
 		// we manually associate note with record and author instead of using

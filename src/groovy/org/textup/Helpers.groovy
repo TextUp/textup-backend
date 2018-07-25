@@ -10,21 +10,14 @@ import groovy.json.JsonException
 import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
-import java.awt.image.BufferedImage
 import java.util.concurrent.TimeUnit
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
+import javax.servlet.http.HttpServletRequest
 import org.apache.commons.lang3.ClassUtils
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.hibernate.FlushMode
 import org.hibernate.Session
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
-import org.joda.time.Days
-import org.joda.time.LocalTime
-import org.textup.validator.LocalInterval
-import org.textup.validator.PhoneNumber
-import org.textup.validator.UploadItem
+import org.joda.time.*
+import org.textup.validator.*
 
 @GrailsCompileStatic
 @Log4j
@@ -64,6 +57,32 @@ class Helpers {
         Holders
             .applicationContext
             .getBean(MessageSource) as MessageSource
+    }
+
+    // Request
+    // -------
+
+    static Result<Void> trySetOnRequest(String key, Object obj) {
+        ResultFactory resultFactory = getResultFactory()
+        try {
+            WebUtils.retrieveGrailsWebRequest().currentRequest.setAttribute(key, obj)
+            resultFactory.success()
+        }
+        catch (IllegalStateException e) {
+            resultFactory.failWithThrowable(e)
+        }
+    }
+
+    static <T> Result<T> tryGetFromRequest(String key) {
+        ResultFactory resultFactory = getResultFactory()
+        try {
+            HttpServletRequest req = WebUtils.retrieveGrailsWebRequest().currentRequest
+            Object obj = req.getAttribute(key) ?: req.getParameter(key)
+            resultFactory.success(to(T, obj))
+        }
+        catch (IllegalStateException e) {
+            resultFactory.failWithThrowable(e)
+        }
     }
 
     // Setters
@@ -327,22 +346,6 @@ class Helpers {
 
     // Security
     // --------
-
-    static String getBase64HmacSHA1(String data, String key) {
-        String result = ""
-        try {
-            SecretKeySpec signingKey = new SecretKeySpec(key.bytes, HMAC_SHA1_ALGORITHM)
-            Mac mac = Mac.getInstance(HMAC_SHA1_ALGORITHM)
-            mac.init(signingKey)
-            byte[] rawHmac = mac.doFinal(data.bytes)
-            result = rawHmac.encodeBase64().toString()
-        }
-        catch (Throwable e) {
-            log.error("Helpers.getBase64HmacSHA1: data: $data, error: ${e.message}")
-            e.printStackTrace()
-        }
-        result
-    }
 
     @GrailsCompileStatic(TypeCheckingMode.SKIP)
     static String randomAlphanumericString(Integer l) {

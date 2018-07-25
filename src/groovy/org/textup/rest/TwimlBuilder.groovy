@@ -22,6 +22,8 @@ class TwimlBuilder {
     MessageSource messageSource
     @Autowired
     ResultFactory resultFactory
+    @Autowired
+    TokenService tokenService
 
     // Errors
     // ------
@@ -372,41 +374,9 @@ class TwimlBuilder {
                 }
                 break
             case CallResponse.DIRECT_MESSAGE:
-                // cannot have language be of type VoiceLanguage because this hook is called
-                // after the the TextUp user picks up the call and we must serialize the
-                // parameters that are then passed back to TextUp by Twilio after pickup
-                if (params.message instanceof String && params.language instanceof String) {
-                    VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, params.language)
-                    int repeatCount = Helpers.to(Integer, params.repeatCount) ?: 0
-                    Map linkParams = [
-                        handle:CallResponse.DIRECT_MESSAGE,
-                        message:params.message,
-                        repeatCount:repeatCount + 1,
-                        language: params.language
-                    ]
-                    if (params.identifier) {
-                        linkParams.identifier = params.identifier
-                    }
-
-                    if (repeatCount < Constants.MAX_REPEATS) {
-                        String ident = params.identifier ?
-                                Helpers.to(String, params.identifier) : null,
-                            messageIntro = ident ?
-                                getMessage("twimlBuilder.call.messageIntro", [ident]) :
-                                getMessage("twimlBuilder.call.anonymousMessageIntro"),
-                            repeatWebhook = getLink(linkParams)
-                        callBody = {
-                            Say(messageIntro)
-                            Pause(length:"1")
-                            if (lang) {
-                                Say(language:lang.toTwimlValue(), params.message)
-                            }
-                            else { Say(params.message) }
-                            Redirect(repeatWebhook)
-                        }
-                    }
-                    else { callBody = { Hangup() } }
-                }
+                callBody = tokenService.buildCallDirectMessageBody(getMessage, getLink,
+                    Helpers.to(String, params.token),
+                    Helpers.to(Integer, params.repeatCount))
                 break
             case CallResponse.UNSUBSCRIBED:
                 String unsubscribed = getMessage("twimlBuilder.call.unsubscribed"),

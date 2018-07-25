@@ -74,7 +74,7 @@ class CallServiceNoMockSpec extends Specification {
         res.status == ResultStatus.OK
         res.payload instanceof TempRecordReceipt
         res.payload.apiId != null
-        res.payload.receivedByAsString == toNum1.number
+        res.payload.contactNumberAsString == toNum1.number
 
         when: "we start a call with multiple 'to' numbers where first is invalid"
         res = service.start(fromNum1, [invalidNum1, toNum1, toNum2], [:])
@@ -84,6 +84,6 @@ class CallServiceNoMockSpec extends Specification {
         res.status == ResultStatus.OK
         res.payload instanceof TempRecordReceipt
         res.payload.apiId != null
-        res.payload.receivedByAsString == toNum1.number
+        res.payload.contactNumberAsString == toNum1.number
     }
 }

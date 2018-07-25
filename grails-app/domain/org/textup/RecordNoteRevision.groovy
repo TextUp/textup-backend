@@ -10,12 +10,11 @@ import org.textup.type.AuthorType
 import org.textup.validator.Author
 import org.textup.validator.MediaInfo
 
+@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(name="RecordNoteRevision",
 	description="Previous versions of the note.")
-class RecordNoteRevision implements ReadOnlyBaseRecordNote {
-
-    MediaService mediaService
+class RecordNoteRevision implements ReadOnlyBaseRecordNote, ReadOnlyWithMedia {
 
     @RestApiObjectField(
         description    = "When this revision happened",
@@ -45,22 +44,17 @@ class RecordNoteRevision implements ReadOnlyBaseRecordNote {
 	AuthorType authorType
 
     @RestApiObjectField(
-            apiFieldName   = "contents",
-            description    = "Text of the note",
-            allowedType    = "String",
-            useForCreation = true)
+        description    = "Text of the note",
+        allowedType    = "String",
+        useForCreation = true)
     String noteContents
-    String serializedMedia
+
+    @RestApiObjectField(
+        description    = "Media associated with this revision",
+        allowedType    = "MediaInfo",
+        useForCreation = false)
     MediaInfo media
 
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName   = "images",
-            description    = "List of image links associated with this revision",
-            allowedType    = "List<String>",
-            useForCreation = false),
-    ])
-    static transients = ["media", "mediaService"]
 	static belongsTo = [note:RecordNote]
     static constraints = {
     	importFrom RecordItem
@@ -69,14 +63,5 @@ class RecordNoteRevision implements ReadOnlyBaseRecordNote {
     static mapping = {
     	whenChanged type:PersistentDateTime
         noteContents type: "text"
-        serializedMedia type: "text"
-    }
-
-    // Property Access
-    // ---------------
-
-    @GrailsTypeChecked
-    MediaInfo getMedia() {
-        mediaService.getMedia(this)
     }
 }

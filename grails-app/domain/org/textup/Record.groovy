@@ -47,21 +47,21 @@ class Record implements ReadOnlyRecord {
         add(new RecordCall(outgoing: true, noteContents: message, media: mInfo), author)
     }
 
-    Result<RecordText> storeIncomingText(IncomingText text, Author author, MediaInfo mInfo = null) {
+    Result<RecordText> storeIncomingText(IncomingText text, IncomingSession session1, MediaInfo mInfo = null) {
         RecordText rText1 = new RecordText(outgoing: false, contents: text.message, media: mInfo)
-        add(rText1, author).then {
+        add(rText1, session1.toAuthor()).then {
             RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId)
-            receipt.receivedBy = this.phone.number
+            receipt.contactNumber = session1.number
             rText1.addToReceipts(receipt)
             rText1.save() ? resultFactory.success(rText1) :
                 resultFactory.failWithValidationErrors(rText1.errors)
         }
     }
-    Result<RecordCall> storeIncomingCall(String apiId, Author author, MediaInfo mInfo = null) {
-        RecordCall rCall1 = new RecordCall(outgoing: false, media: mInfo)
-        add(rCall1, author).then {
+    Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session1) {
+        RecordCall rCall1 = new RecordCall(outgoing: false)
+        add(rCall1, session1.toAuthor()).then {
             RecordItemReceipt receipt = new RecordItemReceipt(apiId: apiId)
-            receipt.receivedBy = this.phone.number
+            receipt.contactNumber = session1.number
             rCall1.addToReceipts(receipt)
             rCall1.save() ? resultFactory.success(rCall1) :
                 resultFactory.failWithValidationErrors(rCall1.errors)

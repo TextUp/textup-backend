@@ -111,7 +111,7 @@ class RecordServiceSpec extends CustomSpec {
         given: "an existing receipt"
         String apiId = "iamsosecretApiId"
         [rText1, rText2, rTeText1, rTeText2].each {
-            it.addToReceipts(apiId:apiId, receivedByAsString:"1112223333")
+            it.addToReceipts(apiId:apiId, contactNumberAsString:"1112223333")
             it.save(flush:true, failOnError:true)
         }
         addToMessageSource("recordService.updateStatus.receiptsNotFound")

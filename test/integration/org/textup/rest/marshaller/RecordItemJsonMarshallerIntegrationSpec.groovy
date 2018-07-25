@@ -45,7 +45,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         Author author = new Author(id:s1.id, name:s1.name, type:AuthorType.STAFF)
         RecordCall rCall1 = c1.record.addCall([:], author).payload
         TempRecordReceipt r1 = new TempRecordReceipt(status:ReceiptStatus.BUSY,
-            apiId:"apiId", receivedByAsString:"1112223333")
+            apiId:"apiId", contactNumberAsString:"1112223333")
         assert r1.validate()
         rCall1.addReceipt(r1)
         rCall1.save(flush:true, failOnError:true)
@@ -68,7 +68,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         json.receipts.size() == rCall1.receipts.size()
         json.receipts[0].id != null
         json.receipts[0].status == r1.status.toString()
-        json.receipts[0].receivedBy == r1.receivedBy.e164PhoneNumber
+        json.receipts[0].contactNumber == r1.contactNumber.e164PhoneNumber
     }
 
     void "test marshalling text without author or receipts"() {

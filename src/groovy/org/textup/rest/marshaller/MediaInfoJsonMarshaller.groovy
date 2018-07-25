@@ -9,8 +9,8 @@ import org.textup.validator.MediaInfo
 @GrailsCompileStatic
 class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
 
-    static final Closure marshalClosure = { MediaInfo mInfo ->
-        [images: mInfo.getElements(MediaType.IMAGE)]
+    static final Closure marshalClosure = { ReadOnlyMediaInfo mInfo ->
+        [images: mInfo.getElements([MediaType.IMAGE])]
     }
 
     MediaInfoJsonMarshaller() {

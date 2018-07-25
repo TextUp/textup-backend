@@ -1,5 +1,6 @@
 package org.textup
 
+import com.twilio.security.RequestValidator
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import groovy.transform.TypeCheckingMode
@@ -25,46 +26,24 @@ class CallbackService {
 	// ----------------
 
     Result<Void> validate(HttpServletRequest request, GrailsParameterMap params) {
-        String browserURL = (request.requestURL.toString() - request.requestURI) + getForwardURI(request),
-            authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
-            authHeaderName = "x-twilio-signature",
-            authHeader = request.getHeader(authHeaderName)
-        Result invalidResult = resultFactory.failWithCodeAndStatus("callbackService.validate.invalid",
+        // step 1: try to extract auth header
+        Result invalidRes = resultFactory.failWithCodeAndStatus("callbackService.validate.invalid",
             ResultStatus.BAD_REQUEST)
-        if (!authHeader) {
-        	return invalidResult
-        }
-        if (request.queryString) { browserURL = "$browserURL?${request.queryString}" }
-        Map<String,String> twilioParams = this.extractTwilioParams(request, params)
-        StringBuilder data = new StringBuilder(browserURL)
-        //sort keys lexicographically
-        List<String> sortedKeys = twilioParams.keySet().toList().sort()
-        sortedKeys.each { String key -> data << key << twilioParams[key] }
-        //first check https then check http if fails. Scheme detection in request object is spotty
-        String dataString = data.toString(), httpsData, httpData
-        if (dataString.startsWith("http://")) {
-            httpData = dataString
-            httpsData = dataString.replace("http://", "https://")
-        }
-        else if (dataString.startsWith("https://")) {
-            httpData = dataString.replace("https://", "http://")
-            httpsData = dataString
-        }
-        else {
-            log.error("CallbackService.authenticateRequest: invalid data: $dataString")
-            return invalidResult
-        }
-        //first try https
-        String encoded = Helpers.getBase64HmacSHA1(httpsData.toString(), authToken)
-        boolean isAuth = (encoded == authHeader)
-        //then fallback to checking http if needed
-        if (!isAuth) {
-            encoded = Helpers.getBase64HmacSHA1(httpData.toString(), authToken)
-            isAuth = (encoded == authHeader)
-        }
-        isAuth ? resultFactory.success() : invalidResult
+        String authHeader = request.getHeader("x-twilio-signature")
+        if (!authHeader) { return invalidRes }
+        // step 2: build browser url and extract Twilio params
+        String url = getBrowserURL()
+        Map<String, String> twilioParams = extractTwilioParams(request, params)
+        // step 3: build and run request validator
+        String authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
+        RequestValidator validator = new RequestValidator(authToken)
+        validator.validate(url, twilioParams, authHeader) ? resultFactory.success() : invalidRes
     }
 
+    protected String getBrowserURL(HttpServletRequest request) {
+        String browserURL = (request.requestURL.toString() - request.requestURI) + getForwardURI(request)
+        request.queryString ? "$browserURL?${request.queryString}" : browserURL
+    }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected String getForwardURI(HttpServletRequest request) {
         request.getForwardURI()
@@ -72,10 +51,14 @@ class CallbackService {
 
     protected Map<String,String> extractTwilioParams(HttpServletRequest request,
     	GrailsParameterMap allParams) {
-        Collection<String> requestParamKeys = request.parameterMap.keySet(), queryParams = []
+        // step 1: build list of what to ignore. Params that should be ignored are query params
+        // that we append to the callback functions that should be factored into the validation
+        Collection<String> requestParamKeys = request.parameterMap.keySet(),
+            queryParams = []
         request.queryString?.tokenize("&")?.each { queryParams << it.tokenize("=")[0] }
         HashSet<String> ignoreParamKeys = new HashSet<>(queryParams),
             keepParamKeys = new HashSet<>(requestParamKeys)
+        // step 2: collect params
         Map<String,String> twilioParams = [:]
         allParams.each {
             String key = it.key, val = it.value
@@ -102,84 +85,144 @@ class CallbackService {
         else if (params.handle == CallResponse.END_CALL.toString()) {
             return twimlBuilder.build(CallResponse.END_CALL)
         }
-        // otherwise, continue handling other possibilities
-    	String apiId = params.CallSid ?: params.MessageSid,
-    		digits = params.Digits
-    	PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
-    		toNum = new PhoneNumber(number:params.To as String),
-            //usually handle incoming from session (client) to phone (staff)
-            phoneNum = toNum,
-            sessionNum = fromNum
+        else { processForNumbers(params) }
+    }
+
+    protected Result<Closure> processForNumbers(Map params) {
         // check that both to and from numbers are valid US phone numbers
+        PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
+            toNum = new PhoneNumber(number:params.To as String)
         if (!fromNum.validate() || !toNum.validate()) {
-            return params.CallSid ? twimlBuilder.invalidNumberForCall() :
-                twimlBuilder.invalidNumberForText()
+            return params.CallSid ? twimlBuilder.invalidNumberForCall() : twimlBuilder.invalidNumberForText()
         }
+        // get session
+        Result<IncomingSession> iRes = getOrCreateIncomingSession(fromNum, toNum, params)
+        IncomingSession is1
+        if (iRes.success) {is1 = iRes.payload }
+        else { return iRes }
+        // get phone
+        PhoneNumber pNum = getNumberForPhone(fromNum, toNum, params)
+        Phone p1 = Phone.findByNumberAsString(phoneNum.number)
+        if (!p1) {
+            return params.CallSid ? twimlBuilder.notFoundForCall() : twimlBuilder.notFoundForText()
+        }
+        // process request
+        String apiId = params.CallSid ?: params.MessageSid
+        if (params.CallSid) {
+            processCall(p1, is1, apiId, params)
+        }
+        else if (params.MessageSid) {
+            processText(p1, is1, apiId, params)
+        }
+        else {
+            resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
+                ResultStatus.BAD_REQUEST)
+        }
+    }
+
+    protected Result<IncomingSession> getOrCreateIncomingSession(BasePhoneNumber fromNum,
+        BasePhoneNumber toNum, Map params) {
+
+        //usually handle incoming from session (client) to phone (staff)
+        PhoneNumber sessionNum = fromNum
         // finish bridge is call from phone to personal phone
         // announcements are from phone to session (client)
         if (params.handle == CallResponse.FINISH_BRIDGE.toString() ||
             params.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()) {
-            phoneNum = fromNum
             sessionNum = toNum
         }
         // when screening incoming calls, the From number is the TextUp phone,
         // the original caller is stored in the originalFrom parameter and the
         // To number is actually the staff member's personal phone number
         else if (params.handle == CallResponse.SCREEN_INCOMING.toString()) {
-            phoneNum = fromNum
             sessionNum = new PhoneNumber(number:params.originalFrom as String)
         }
-    	Phone phone = Phone.findByNumberAsString(phoneNum.number)
-    	if (!phone) {
-    		return params.CallSid ? twimlBuilder.notFoundForCall() :
-    			twimlBuilder.notFoundForText()
-    	}
-    	IncomingSession session = IncomingSession.findByPhoneAndNumberAsString(phone,
-    		sessionNum.number)
-    	// create session for this phone if one doesn't exist yet
-    	if (!session) {
-    		session = new IncomingSession(phone:phone, numberAsString:sessionNum.number)
-    		if (!session.save()) {
-    			return resultFactory.failWithValidationErrors(session.errors)
-    		}
-    	}
-    	// process request
-    	if (params.CallSid) {
-            switch(params.handle) {
-                case CallResponse.SCREEN_INCOMING.toString():
-                    phone.screenIncomingCall(session)
-                    break
-                case CallResponse.CHECK_IF_VOICEMAIL.toString():
-                    ReceiptStatus rStatus = ReceiptStatus.translate(params.DialCallStatus as String)
-                    phone.tryStartVoicemail(sessionNum, phoneNum, rStatus)
-                    break
-                case CallResponse.VOICEMAIL_DONE.toString():
-                    Integer voicemailDuration = Helpers.to(Integer, params.RecordingDuration)
-                    String callId = Helpers.to(String, params.CallSid),
-                        recordingId = Helpers.to(String, params.RecordingSid),
-                        voicemailUrl = Helpers.to(String, params.RecordingUrl)
-                    phone.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
-                    break
-                case CallResponse.FINISH_BRIDGE.toString():
-                	Contact c1 = Contact.get(params.long("contactId"))
-                    phone.finishBridgeCall(c1)
-                    break
-                case CallResponse.ANNOUNCEMENT_AND_DIGITS.toString():
-                    String msg = params.message,
-                        ident = params.identifier
-                    phone.completeCallAnnouncement(digits, msg, ident, session)
-                    break
-                default:
-                    phone.receiveCall(apiId, digits, session)
+        IncomingSession is1 = IncomingSession.findByPhoneAndNumberAsString(phone, sessionNum.number)
+        // create session for this phone if one doesn't exist yet
+        if (!is1) {
+            is1 = new IncomingSession(phone:phone, numberAsString:sessionNum.number)
+            if (!is1.save()) { return resultFactory.failWithValidationErrors(is1.errors) }
+        }
+        resultFactory.success(is1)
+    }
+
+    protected PhoneNumber getNumberForPhone(BasePhoneNumber fromNum, BasePhoneNumber toNum, Map params) {
+        //usually handle incoming from session (client) to phone (staff)
+        PhoneNumber phoneNum = toNum
+        // finish bridge is call from phone to personal phone
+        // announcements are from phone to session (client)
+        if (params.handle == CallResponse.FINISH_BRIDGE.toString() ||
+            params.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()) {
+            phoneNum = fromNum
+        }
+        // when screening incoming calls, the From number is the TextUp phone,
+        // the original caller is stored in the originalFrom parameter and the
+        // To number is actually the staff member's personal phone number
+        else if (params.handle == CallResponse.SCREEN_INCOMING.toString()) {
+            phoneNum = fromNum
+        }
+        phoneNum
+    }
+
+    protected Result<Closure> processCall(Phone p1, IncomingSession is1, String apiId, Map params) {
+        String digits = params.Digits
+        switch(params.handle) {
+            case CallResponse.SCREEN_INCOMING.toString():
+                p1.screenIncomingCall(is1)
+                break
+            case CallResponse.CHECK_IF_VOICEMAIL.toString():
+                ReceiptStatus rStatus = ReceiptStatus.translate(params.DialCallStatus as String)
+                p1.tryStartVoicemail(is1.number, p1.number, rStatus)
+                break
+            case CallResponse.VOICEMAIL_DONE.toString():
+                Integer voicemailDuration = Helpers.to(Integer, params.RecordingDuration)
+                String callId = Helpers.to(String, params.CallSid),
+                    recordingId = Helpers.to(String, params.RecordingSid),
+                    voicemailUrl = Helpers.to(String, params.RecordingUrl)
+                p1.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
+                break
+            case CallResponse.FINISH_BRIDGE.toString():
+                Contact c1 = Contact.get(params.long("contactId"))
+                p1.finishBridgeCall(c1)
+                break
+            case CallResponse.ANNOUNCEMENT_AND_DIGITS.toString():
+                String msg = params.message,
+                    ident = params.identifier
+                p1.completeCallAnnouncement(digits, msg, ident, is1)
+                break
+            default:
+                p1.receiveCall(apiId, digits, is1)
+        }
+    }
+
+    protected Result<Closure> processText(Phone p1, IncomingSession is1, String apiId, Map params) {
+        // step 1: handle media, if applicable
+        MediaInfo mInfo
+        Set<String> mediaIdsToDelete = Collections.emptySet()
+        IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)
+        if (numMedia > 0) {
+            Map<String, String> urlToMimeType = [:]
+            for (int i = 0; i < numMedia; ++i) {
+                urlToMimeType[params["MediaContentType${i}"]] = params["MediaUrl${i}"]
             }
+            Result<MediaInfo> mediaRes = mediaService
+                .buildFromIncomingMedia(urlToMimeType, mediaIdsToDelete.&add)
+                .logFail("CallbackService.process: building incoming media")
+            if (mediaRes.success) {
+                mInfo = mediaRes.payload
+            }
+            else { return errorForText() }
         }
-        else if (params.MessageSid) {
-        	IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)
-            phone.receiveText(text, session)
+        // step 2: relay text
+        IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)
+        if (text.validate()) { //validate text
+            Result<Closure> res = p1.receiveText(text, is1, mInfo)
+            if (res.success && mediaIdsToDelete) {
+                mediaService.deleteMedia(apiId, mediaIdsToDelete)
+                    .logFail("CallbackService.processText: deleting media")
+            }
+            res
         }
-        else {
-        	resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
-                ResultStatus.BAD_REQUEST)
-        }
+        else { resultFactory.failWithValidationErrors(text.errors) }
     }
 }

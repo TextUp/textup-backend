@@ -487,11 +487,16 @@ class Phone {
     // Outgoing
     // --------
 
-    ResultGroup<RecordItem> sendMessage(OutgoingMessage msg, MediaInfo mInfo, Staff staff = null,
+    ResultGroup<RecordItem> sendMessage(OutgoingMessage msg, MediaInfo mInfo = null, Staff staff = null,
         boolean skipOwnerCheck = false) {
+
         if (!this.isActive) {
             resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND).toGroup()
         }
+        // skip owner check on the phone because we may be sending through a shared contact
+        // OR in the future the contact may not longer be shared with this staff member
+        // but any scheduled messages that this staff member initiated should still fire
+        // regardless of present sharing status
         else if (!skipOwnerCheck && !this.owner.all.any { Staff s1 -> s1.id == staff.id }) { // validate staff
             resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
         }
@@ -513,8 +518,7 @@ class Phone {
             phoneService.startBridgeCall(this, c1, staff)
         }
     }
-    Result<FeaturedAnnouncement> sendAnnouncement(String message,
-        DateTime expiresAt, Staff staff) {
+    Result<FeaturedAnnouncement> sendAnnouncement(String message, DateTime expiresAt, Staff staff) {
         if (!this.isActive) {
             return resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
         }
@@ -574,17 +578,14 @@ class Phone {
     // Incoming
     // --------
 
-    Result<Closure> receiveText(IncomingText text, IncomingSession session) {
-        if (!text.validate()) { //validate text
-            resultFactory.failWithValidationErrors(text.errors)
-        }
-        else if (session.phone?.id != this.id) { //validate session
+    Result<Closure> receiveText(IncomingText text, IncomingSession session, MediaInfo mInfo = null) {
+        if (session.phone?.id != this.id) { //validate session
             resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
         }
         else if (this.getAnnouncements()) {
-            phoneService.handleAnnouncementText(this, text, session)
+            phoneService.handleAnnouncementText(this, text, session, mInfo)
         }
-        else { phoneService.relayText(this, text, session) }
+        else { phoneService.relayText(this, text, session, mInfo) }
     }
     Result<Closure> receiveCall(String apiId, String digits, IncomingSession session) {
         if (session.phone != this) { //validate session
@@ -612,7 +613,7 @@ class Phone {
             phoneService.screenIncomingCall(this, session)
         }
     }
-    Result<Closure> tryStartVoicemail(PhoneNumber fromNum, PhoneNumber toNum, ReceiptStatus status) {
+    Result<Closure> tryStartVoicemail(BasePhoneNumber fromNum, BasePhoneNumber toNum, ReceiptStatus status) {
         if (status == ReceiptStatus.SUCCESS) { // call already connected so no voicemail
             twimlBuilder.noResponse()
         }

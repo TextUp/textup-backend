@@ -138,82 +138,81 @@ class AnnouncementService {
         //return result map
         resMap
     }
-}
 
-// Incoming
-// --------
+    // Incoming
+    // --------
 
+    Result<Closure> handleAnnouncementText(Phone phone, IncomingText text, IncomingSession session,
+        Closure<Result<Closure>> fallbackAction) {
 
-Result<Closure> handleAnnouncementText(Phone phone, IncomingText text, IncomingSession session,
-    Closure<Result<Closure>> fallbackAction) {
-
-    switch (text.message) {
-        case Constants.TEXT_SEE_ANNOUNCEMENTS:
-            Collection<FeaturedAnnouncement> announces = phone.getAnnouncements()
-            announces.each { FeaturedAnnouncement announce ->
-                announce
-                    .addToReceipts(RecordItemType.TEXT, session)
-                    .logFail("AnnouncementService.handleAnnouncementText: add announce receipt")
-            }
-            twimlBuilder.build(TextResponse.SEE_ANNOUNCEMENTS,
-                [announcements:announces])
-            break
-        case Constants.TEXT_TOGGLE_SUBSCRIBE:
-            if (session.isSubscribedToText) {
-                session.isSubscribedToText = false
-                twimlBuilder.build(TextResponse.UNSUBSCRIBED)
-            }
-            else {
-                session.isSubscribedToText = true
-                twimlBuilder.build(TextResponse.SUBSCRIBED)
-            }
-            break
-        default:
-            fallbackAction()
-    }
-}
-Result<List<String> tryBuildTextInstructions(Phone phone, IncomingSession session) {
-    if (phone.getAnnouncements() && session.shouldSendInstructions) {
-        session.updateLastSentInstructions()
-        TextResponse code = session.isSubscribedToText ?
-            TextResponse.INSTRUCTIONS_SUBSCRIBED :
-            TextResponse.INSTRUCTIONS_UNSUBSCRIBED
-        twimlBuilder.translate(code)
-    }
-    else { resultFactory.success([]) }
-}
-
-Result<Closure> handleAnnouncementCall(Phone phone, String digits, IncomingSession session,
-    Closure<Result<Closure>> fallbackAction) {
-
-    if (digits) {
-        switch(digits) {
-            case Constants.CALL_HEAR_ANNOUNCEMENTS:
-                List<FeaturedAnnouncement> announces = phone.getAnnouncements()
+        switch (text.message) {
+            case Constants.TEXT_SEE_ANNOUNCEMENTS:
+                Collection<FeaturedAnnouncement> announces = phone.getAnnouncements()
                 announces.each { FeaturedAnnouncement announce ->
-                    announce.addToReceipts(RecordItemType.CALL, session)
-                        .logFail("AnnouncementService.handleAnnouncementCall: add announce receipt")
+                    announce
+                        .addToReceipts(RecordItemType.TEXT, session)
+                        .logFail("AnnouncementService.handleAnnouncementText: add announce receipt")
                 }
-                twimlBuilder.build(CallResponse.HEAR_ANNOUNCEMENTS,
-                    [announcements:announces, isSubscribed:session.isSubscribedToCall])
+                twimlBuilder.build(TextResponse.SEE_ANNOUNCEMENTS,
+                    [announcements:announces])
                 break
-            case Constants.CALL_TOGGLE_SUBSCRIBE:
-                if (session.isSubscribedToCall) {
-                    session.isSubscribedToCall = false
-                    twimlBuilder.build(CallResponse.UNSUBSCRIBED)
+            case Constants.TEXT_TOGGLE_SUBSCRIBE:
+                if (session.isSubscribedToText) {
+                    session.isSubscribedToText = false
+                    twimlBuilder.build(TextResponse.UNSUBSCRIBED)
                 }
                 else {
-                    session.isSubscribedToCall = true
-                    twimlBuilder.build(CallResponse.SUBSCRIBED)
+                    session.isSubscribedToText = true
+                    twimlBuilder.build(TextResponse.SUBSCRIBED)
                 }
                 break
             default:
                 fallbackAction()
         }
     }
-    else if (phone.getAnnouncements()) {
-        twimlBuilder.build(CallResponse.ANNOUNCEMENT_GREETING,
-            [name:phone.owner.name, isSubscribed:session.isSubscribedToCall])
+    Result<List<String>> tryBuildTextInstructions(Phone phone, IncomingSession session) {
+        if (phone.getAnnouncements() && session.shouldSendInstructions) {
+            session.updateLastSentInstructions()
+            TextResponse code = session.isSubscribedToText ?
+                TextResponse.INSTRUCTIONS_SUBSCRIBED :
+                TextResponse.INSTRUCTIONS_UNSUBSCRIBED
+            twimlBuilder.translate(code)
+        }
+        else { resultFactory.success([]) }
     }
-    else { fallbackAction() }
+
+    Result<Closure> handleAnnouncementCall(Phone phone, String digits, IncomingSession session,
+        Closure<Result<Closure>> fallbackAction) {
+
+        if (digits) {
+            switch(digits) {
+                case Constants.CALL_HEAR_ANNOUNCEMENTS:
+                    List<FeaturedAnnouncement> announces = phone.getAnnouncements()
+                    announces.each { FeaturedAnnouncement announce ->
+                        announce.addToReceipts(RecordItemType.CALL, session)
+                            .logFail("AnnouncementService.handleAnnouncementCall: add announce receipt")
+                    }
+                    twimlBuilder.build(CallResponse.HEAR_ANNOUNCEMENTS,
+                        [announcements:announces, isSubscribed:session.isSubscribedToCall])
+                    break
+                case Constants.CALL_TOGGLE_SUBSCRIBE:
+                    if (session.isSubscribedToCall) {
+                        session.isSubscribedToCall = false
+                        twimlBuilder.build(CallResponse.UNSUBSCRIBED)
+                    }
+                    else {
+                        session.isSubscribedToCall = true
+                        twimlBuilder.build(CallResponse.SUBSCRIBED)
+                    }
+                    break
+                default:
+                    fallbackAction()
+            }
+        }
+        else if (phone.getAnnouncements()) {
+            twimlBuilder.build(CallResponse.ANNOUNCEMENT_GREETING,
+                [name:phone.owner.name, isSubscribed:session.isSubscribedToCall])
+        }
+        else { fallbackAction() }
+    }
 }

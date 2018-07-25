@@ -46,7 +46,7 @@ class StorageService {
         catch (Throwable e) {
             log.error("StorageService.generateAuthLink: ${e.message}")
             e.printStackTrace()
-            resultFactory.failWithThrowable(e)
+            resultFactory.failWithThrowable(e, false)
         }
     }
     protected URL getSignedLink(Protocol protocol, String root, File keyFile,
@@ -59,6 +59,9 @@ class StorageService {
     // ---------
 
     ResultGroup<PutObjectResult> uploadAsync(List<UploadItem> uItems) {
+        if (!uItems) {
+            return new ResultGroup<PutObjectResult>()
+        }
         Helpers
             .<UploadItem, ResultGroup<?>>doAsyncInBatches(itemsToUpload, { List<UploadItem> batch ->
                 Promises.task {
@@ -74,7 +77,7 @@ class StorageService {
                 upload(uItem.key, uItem.mimeType, bStream)
             }
         }
-        else { resultFactory.failWithValidationErrors(uItem.errors) }
+        else { resultFactory.failWithValidationErrors(uItem.errors, false) }
     }
     Result<PutObjectResult> upload(String identifier, String mimeType, InputStream stream) {
         String bucketName = grailsApplication.flatConfig["textup.media.bucketName"]
@@ -84,8 +87,8 @@ class StorageService {
             metadata.setContentType(mimeType)
             resultFactory.success(s3Service.putObject(bucketName, identifier, stream, metadata))
         }
-        catch (e) {
-            resultFactory.failWithThrowable(e)
+        catch (Throwable e) {
+            resultFactory.failWithThrowable(e, false)
         }
     }
 }

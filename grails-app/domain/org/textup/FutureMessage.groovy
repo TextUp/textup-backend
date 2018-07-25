@@ -22,7 +22,7 @@ import org.textup.validator.OutgoingMessage
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class FutureMessage implements ReadOnlyFutureMessage {
+class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
 
     Trigger trigger
     FutureMessageService futureMessageService
@@ -108,16 +108,35 @@ class FutureMessage implements ReadOnlyFutureMessage {
         useForCreation = true)
 	String message
 
+    @RestApiObjectField(
+        apiFieldName   = "media",
+        description    = "Media associated with this scheduled message",
+        allowedType    = "MediaInfo",
+        useForCreation = false)
+    MediaInfo media
+
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName   = "nextFireDate",
             description    = "Next date the message is set to be fired if not done yet",
             allowedType    = "DateTime",
-            useForCreation = false)
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName      = "doMediaActions",
+            description       = "List of actions to perform related to media assets",
+            allowedType       = "List<[mediaAction]>",
+            useForCreation    = false,
+            presentInResponse = false)
     ])
 	static transients = ["trigger", "futureMessageService", "quartzScheduler"]
     static constraints = {
-        message blank:false, nullable:false, maxSize:(Constants.TEXT_LENGTH * 2)
+        // removed the constraint the prohibited message from being null because a future message
+        // can now have media so outgoing message can have either text only, media only, or both.
+        message blank: true, nullable: true, maxSize:(Constants.TEXT_LENGTH * 2)
+        media nullable: true, validator: { MediaInfo mInfo, FutureMessage obj ->
+            // message must have at least one of text and media
+            if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }
+        }
         endDate nullable:true, validator:{ DateTime end, FutureMessage msg ->
             if (end && end.isBefore(msg.startDate)) {
                 ["endBeforeStart"]
@@ -197,8 +216,7 @@ class FutureMessage implements ReadOnlyFutureMessage {
     // --------------
 
     protected Result<Void> doUnschedule() {
-        futureMessageService.unschedule(this)
-            .logFail("FutureMessage.cancel")
+        futureMessageService.unschedule(this).logFail("FutureMessage.cancel")
     }
     protected void refreshTrigger() {
         this.trigger = quartzScheduler.getTrigger(this.triggerKey)

@@ -15,8 +15,6 @@ import org.textup.validator.TempRecordReceipt
 @EqualsAndHashCode
 class RecordItem implements ReadOnlyRecordItem, WithMedia {
 
-    MediaService mediaService
-
     @RestApiObjectField(
         description    = "Date this item was added to the record",
         allowedType    = "DateTime",
@@ -60,25 +58,23 @@ class RecordItem implements ReadOnlyRecordItem, WithMedia {
     boolean isAnnouncement = false
 
     @RestApiObjectField(
-        description    = "Contents of the note",
+        description    = "Internal notes added by staff for this record item",
         allowedType    = "String",
         useForCreation = true)
     String noteContents
 
     @RestApiObjectField(
         apiFieldName   = "media",
-        description    = "List of image keys and image links associated with this note",
-        allowedType    = "List<Map>",
-        useForCreation = false),
+        description    = "Media associated with this item in the record",
+        allowedType    = "MediaInfo",
+        useForCreation = false)
     MediaInfo media
-
-    String serializedMedia
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
-            apiFieldName= "type",
-            description = "Type of record item. One of: TEXT, or CALL",
-            allowedType =  "String",
+            apiFieldName   = "type",
+            description    = "Type of record item. One of: TEXT, or CALL",
+            allowedType    =  "String",
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName      = "doMediaActions",
@@ -87,7 +83,7 @@ class RecordItem implements ReadOnlyRecordItem, WithMedia {
             useForCreation    = false,
             presentInResponse = false)
     ])
-	static transients = ["mediaService", "author", "media"]
+	static transients = ["author"]
     @RestApiObjectField(
         apiFieldName   = "receipts",
         description    = "Statuses of all phone numbers who were sent this response",
@@ -98,15 +94,13 @@ class RecordItem implements ReadOnlyRecordItem, WithMedia {
     	authorName blank:true, nullable:true
     	authorId nullable:true
         authorType nullable:true
+        media nullable:true // can be null for backwards compatibility for RecordItems that predate this
         noteContents blank:true, nullable:true, shared: "textSqlType"
-        serializedMedia shared: "serializedMedia"
-        media shared: "media"
     }
     static mapping = {
         receipts lazy:false, cascade:"all-delete-orphan"
         whenCreated type:PersistentDateTime
         noteContents type: "text"
-        serializedMedia type: "text"
     }
     static namedQueries = {
         forRecord { Record rec, Collection<Class<? extends RecordItem>> types = [] ->
@@ -169,7 +163,7 @@ class RecordItem implements ReadOnlyRecordItem, WithMedia {
     @GrailsTypeChecked
     RecordItem addReceipt(TempRecordReceipt r1) {
         RecordItemReceipt receipt = new RecordItemReceipt(status:r1.status,
-            apiId:r1.apiId, receivedByAsString:r1.receivedByAsString)
+            apiId:r1.apiId, contactNumberAsString:r1.contactNumberAsString)
         addToReceipts(receipt)
         this
     }
@@ -181,6 +175,12 @@ class RecordItem implements ReadOnlyRecordItem, WithMedia {
     List<RecordItemReceipt> getReceiptsByStatus(ReceiptStatus stat) {
         RecordItemReceipt.findAllByItemAndStatus(this, stat)
     }
+
+    @GrailsTypeChecked
+    RecordItemStatus groupReceiptsByStatus() {
+        new RecordItemStatus(this.receipts)
+    }
+
     @GrailsTypeChecked
     void setAuthor(Author author) {
         if (author?.validate()) {
@@ -194,19 +194,5 @@ class RecordItem implements ReadOnlyRecordItem, WithMedia {
     @GrailsTypeChecked
     Author getAuthor() {
         new Author(name:this.authorName, id:this.authorId, type:this.authorType)
-    }
-
-
-    @GrailsTypeChecked
-    Result<MediaInfo> synchronizeMedia(String data) {
-        mediaService.synchronizeMedia(this, data)
-    }
-    @GrailsTypeChecked
-    Result<String> synchronizeMedia(MediaInfo mInfo) {
-        mediaService.synchronizeMedia(this, mInfo)
-    }
-    @GrailsTypeChecked
-    MediaInfo getMedia() {
-        mediaService.getMedia(this)
     }
 }

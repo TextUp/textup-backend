@@ -168,7 +168,7 @@ class ContactSpec extends CustomSpec {
 
     	when: "we store outgoing text"
     	TempRecordReceipt receipt = new TempRecordReceipt(apiId:"testing",
-    		receivedByAsString:"1112223333")
+    		contactNumberAsString:"1112223333")
     	RecordText outText = c1.storeOutgoingText("hello", receipt, s1).payload
     	c1.save(flush:true, failOnError:true)
 
@@ -178,12 +178,12 @@ class ContactSpec extends CustomSpec {
     	outText.authorType == AuthorType.STAFF
     	outText.authorId == s1.id
     	outText.authorName == s1.name
-    	outText.receipts.any { it.receivedByAsString == receipt.receivedByAsString }
+    	outText.receipts.any { it.contactNumberAsString == receipt.contactNumberAsString }
     	outText.outgoing == true
 
     	when: "store outgoing call"
     	receipt = new TempRecordReceipt(apiId:"testing",
-    		receivedByAsString:"1112223333")
+    		contactNumberAsString:"1112223333")
     	RecordCall outCall = c1.storeOutgoingCall(receipt, s1).payload
     	c1.save(flush:true, failOnError:true)
 
@@ -193,7 +193,7 @@ class ContactSpec extends CustomSpec {
     	outCall.authorType == AuthorType.STAFF
     	outCall.authorId == s1.id
     	outCall.authorName == s1.name
-    	outText.receipts.any { it.receivedByAsString == receipt.receivedByAsString }
+    	outText.receipts.any { it.contactNumberAsString == receipt.contactNumberAsString }
     	outCall.outgoing == true
 
     	when: "store incoming text"

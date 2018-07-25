@@ -42,7 +42,7 @@ class CallRetryFunctionalSpec extends RestSpec {
 
                 String apiId = apiId1
                 ctx.resultFactory.success(new TempRecordReceipt(apiId:apiId,
-                    receivedByAsString:toNumAsString))
+                    contactNumberAsString:toNumAsString))
             }
             ctx.callService.metaClass.retry = { PhoneNumber fromNum,
                 List<? extends BasePhoneNumber> toNums,
@@ -51,7 +51,7 @@ class CallRetryFunctionalSpec extends RestSpec {
                 String toNumAsString = toNums[0].number
                 String retryApiId = apiId2
                 TempRecordReceipt tempReceipt = new TempRecordReceipt(apiId:retryApiId,
-                    receivedByAsString:toNumAsString)
+                    contactNumberAsString:toNumAsString)
                 RecordItem.findEveryByApiId(existingApiId).each { RecordItem item1 ->
                     item1.addReceipt(tempReceipt)
                     item1.save(flush:true, failOnError:true)

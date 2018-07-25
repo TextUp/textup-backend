@@ -3,7 +3,6 @@ package org.textup.rest.marshaller
 import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.codehaus.groovy.grails.web.util.WebUtils
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*

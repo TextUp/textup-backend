@@ -28,7 +28,7 @@ class OutgoingTextFunctionalSpec extends RestSpec {
                 List<? extends BasePhoneNumber> toNums, String message ->
                 assert toNums.isEmpty() == false
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
-                temp.receivedBy = toNums[0]
+                temp.contactNumber = toNums[0]
                 assert temp.validate()
                 ctx.resultFactory.success(temp)
             }

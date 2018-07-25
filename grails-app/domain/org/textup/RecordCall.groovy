@@ -13,7 +13,7 @@ import org.textup.validator.TempRecordReceipt
 @RestApiObject(name="RecordCall", description="A phone call entry in a contact's record.")
 class RecordCall extends RecordItem implements ReadOnlyRecordCall {
 
-    StorageService storageService
+    VoicemailService voicemailService
 
     @RestApiObjectField(
         description    = "Duration of the call",
@@ -26,12 +26,6 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
         allowedType    = "Number",
         useForCreation = false)
     int voicemailInSeconds = 0
-
-    @RestApiObjectField(
-        description    = "Contents of the call if a recorded message",
-        allowedType    = "String",
-        useForCreation = false)
-    String callContents
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -61,19 +55,15 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
             useForCreation    = false,
             presentInResponse = true)
     ])
-    static transients = ["hasVoicemail", "storageService"]
+    static transients = ["voicemailService"]
     static constraints = {
         durationInSeconds minSize:0
         voicemailInSeconds minSize:0
-        callContents blank:true, nullable:true, maxSize:(Constants.TEXT_LENGTH * 2)
     }
 
     // Property Access
     // ---------------
 
-    void setHasVoicemail(boolean hasV) {
-        this.hasAwayMessage = hasV
-    }
     boolean getHasVoicemail() {
         this.hasAwayMessage && this.voicemailInSeconds > 0
     }
@@ -81,13 +71,6 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
         if (!this.hasVoicemail) {
             return ""
         }
-        RecordItemReceipt receipt = getReceiptsByStatus(ReceiptStatus.SUCCESS)[0]
-        if (receipt) {
-            Result<URL> res = storageService
-                .generateAuthLink(receipt.apiId)
-                .logFail("RecordCall.getVoicemailUrl")
-            res.success ? res.payload.toString() : ""
-        }
-        else { "" }
+        voicemailService.getVoicemailUrl(getReceiptsByStatus(ReceiptStatus.SUCCESS)[0])
     }
 }

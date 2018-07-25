@@ -2,11 +2,13 @@ package org.textup
 
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
+import groovy.transform.TypeCheckingMode
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
+import org.springframework.transaction.TransactionDefinition
 import org.textup.type.TokenType
 import org.textup.validator.BasicNotification
 import org.textup.validator.Notification
@@ -35,7 +37,7 @@ class TokenService {
             return resultFactory.failWithCodeAndStatus("tokenService.requestReset.staffNoEmail",
                 ResultStatus.NOT_FOUND)
         }
-        generate(TokenType.PASSWORD_RESET, 1, [toBeResetId:s1.id])
+        generate(TokenType.PASSWORD_RESET, [toBeResetId:s1.id], 1)
             .then({ Token t1 -> mailService.notifyPasswordReset(s1, t1.token) })
             .then({ resultFactory.success() })
     }
@@ -57,7 +59,7 @@ class TokenService {
         	return resultFactory.failWithValidationErrors(fromNum.errors)
         }
         // actually generate token
-        generate(TokenType.VERIFY_NUMBER, null, [toVerifyNumber:toNum.number])
+        generate(TokenType.VERIFY_NUMBER, [toVerifyNumber:toNum.number])
             .then({ Token t1 ->
             	String msg = messageSource.getMessage("tokenService.requestVerify.message",
             		[t1.token] as Object[], LCH.getLocale())
@@ -82,7 +84,7 @@ class TokenService {
         ]
         Integer maxNumAccess = Helpers.to(Integer, grailsApplication
             .flatConfig["textup.numTimesAccessNotification"])
-        generate(TokenType.NOTIFY_STAFF, maxNumAccess, tokenData)
+        generate(TokenType.NOTIFY_STAFF, tokenData, maxNumAccess)
             .then({ Token t1 ->
                 t1.expires = DateTime.now(DateTimeZone.UTC).plusDays(1)
                 String notifyLink = grailsApplication
@@ -93,6 +95,32 @@ class TokenService {
                     .logFail("TokenService.notifyStaff for data $tokenData")
             })
             .then({ resultFactory.success() })
+    }
+
+    // Note that this must return an ALREADY-SAVED token so that we don't have a
+    // race condition in which the callback from the started call reaches the app before
+    // the transaction finishes and the token is saved
+    @Transactional(TransactionDefinition.PROPAGATION_REQUIRES_NEW)
+    Token tryBuildAndPersistCallToken(String identifier, OutgoingMessage msg1) {
+        // [FUTURE] right now, the only available media type is `IMAGE` so if we have no images
+        // to send and only text, then even if the OutgoingMessage type is a call, we will still
+        // send as a text message. HOWEVER, in the future, when we add in audio recording
+        // capability, then we need to revisit this method because we will want to send the images
+        // as a text message and the audio recordings over phone call
+        if (!msg1.isText && msg1.message) {
+            Result<Token> res = generate(TokenType.CALL_DIRECT_MESSAGE, [
+                identifier: identifier,
+                message: msg1.message,
+                // cannot have language be of type VoiceLanguage because this hook is called
+                // after the the TextUp user picks up the call and we must serialize the
+                // parameters that are then passed back to TextUp by Twilio after pickup
+                language: msg1.lang?.toString()
+            ])
+            if (!res.success) {
+                log.error("Token.tryBuildAndPersistCallToken: ${res.errorMessages}")
+            }
+            res.success ? res.payload : null
+        }
     }
 
     // Complete
@@ -154,10 +182,49 @@ class TokenService {
         }) as Result<Notification>
     }
 
+    Closure buildCallDirectMessageBody(Closure<String> getMessage, Closure<String> getLink,
+        String token = null, Integer repeatsSoFar = null) {
+
+        if (!token) { return }
+        Result<Token> res = findToken(TokenType.CALL_DIRECT_MESSAGE, token)
+        if (!res.success) { return }
+
+        int repeatCount = repeatsSoFar ?: 0
+        if (repeatCount < Constants.MAX_REPEATS) {
+            Token tok1 = res.payload
+            Map<String, ?> tData = tok1.data
+            VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, tData.language)
+            String messageIntro = getMessage("twimlBuilder.call.messageIntro", [tData.identifier]),
+                repeatWebhook = getLink([
+                    handle: CallResponse.DIRECT_MESSAGE,
+                    token: tok1.token,
+                    repeatCount: repeatCount + 1
+                ])
+            buildCallResponse(messageIntro, tData.message, lang, repeatWebhook)
+        }
+        else { buildCallEnd() }
+    }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    protected Closure buildCallResponse(String intro, String message, VoiceLanguage lang,
+        String repeatWebhook) {
+
+        return {
+            Say(intro)
+            Pause(length:"1")
+            if (lang) {
+                Say(language:lang.toTwimlValue(), message)
+            }
+            else { Say(message) }
+            Redirect(repeatWebhook)
+        }
+    }
+    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    protected Closure buildCallEnd() { return { Hangup() } }
+
     // Helpers
     // -------
 
-    protected Result<Token> generate(TokenType type, Integer maxNumAccess, Map data) {
+    protected Result<Token> generate(TokenType type, Map data, Integer maxNumAccess = null) {
         Token token = new Token(type:type, maxNumAccess:maxNumAccess)
         token.data = data
         if (token.save()) {

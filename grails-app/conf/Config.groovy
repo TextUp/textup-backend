@@ -222,19 +222,10 @@ grails.doc.license = "MIT"
 grails.gorm.default.constraints = {
     // 65535 bytes max size `text` column type divided by 4 bytes per character ut8mb4
     textSqlType(maxSize:15000)
-    serializedMedia(blank:true, nullable:true, maxSize:15000)
-    media(validator: { MediaInfo mInfo ->
-        // mInfo may be null because serializedMedia is optional
-        if (mInfo && !mInfo.validate()) {
-            Result res = Helpers.resultFactory.failWithValidationErrors(mInfo.errors)
-            ["errors", res.errorMessages]
-        }
-    })
 }
 
 textup {
     maxNumText = 500 //max number of recipients to text
-    imageCompressionQualty = 0.5
 
     defaultMax = 10 //default max during pagination
     largestMax = 100 //largest max allowed during pagination
@@ -320,8 +311,8 @@ textup {
             notificationStatus = [singular:"notification-status", plural:"notification-statuses"]
             organization = [singular:"organization", plural:"organizations"]
             phone = [singular:"phone", plural:"phones"]
-            receipt = [singular:"receipt", plural:"receipts"]
             record = [singular:"record", plural:"records"]
+            recordItemStatus = [singular:"record-status", plural:"record-statuses"]
             result = [singular:"result", plural:"results"]
             revision = [singular:"revision", plural:"revisions"]
             schedule = [singular:"schedule", plural:"schedules"]

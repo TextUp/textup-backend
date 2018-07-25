@@ -24,7 +24,7 @@ class RecordItemReceiptJsonMarshallerIntegrationSpec extends CustomSpec {
     void "test marshalling receipt"() {
         given: "receipt"
         TempRecordReceipt r1 = new TempRecordReceipt(status:ReceiptStatus.BUSY,
-            apiId:"apiId", receivedByAsString:"1112223333")
+            apiId:"apiId", contactNumberAsString:"1112223333")
         assert r1.validate()
         rText1.addReceipt(r1)
         rText1.save(flush:true, failOnError:true)
@@ -39,6 +39,6 @@ class RecordItemReceiptJsonMarshallerIntegrationSpec extends CustomSpec {
     	then:
         json.id == rpt1.id
         json.status ==  rpt1.status.toString()
-        json.receivedBy == rpt1.receivedBy.e164PhoneNumber
+        json.contactNumber == rpt1.contactNumber.e164PhoneNumber
     }
 }

@@ -1,14 +1,13 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsCompileStatic
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import groovy.util.logging.Log4j
 import javax.servlet.http.HttpServletRequest
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.rest.*
-import org.textup.type.RecordItemType
+import org.textup.type.*
 
 @GrailsCompileStatic
 @Log4j
@@ -16,26 +15,24 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, ReadOnlyRecordItem item ->
 
-        List<String> uploadErrors = []
-        try {
-            HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
-            uploadErrors = Helpers.to(List, request.getAttribute(Constants.UPLOAD_ERRORS))
-        }
-        catch (IllegalStateException e) {
-            log.debug("RecordItemJsonMarshaller: no available request: $e")
-        }
+        List<String> uploadErrors = Collections.emptyList()
+        Helpers.<List<String>>tryGetFromRequest(Constants.UPLOAD_ERRORS)
+            .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
+            .then { List<String> errors -> uploadErrors = errors }
 
-        Map json = [:]
+        Map json = uploadErrors ? [uploadErrors: uploadErrors] : [:]
         json.with {
             id = item.id
             whenCreated = item.whenCreated
             outgoing = item.outgoing
             hasAwayMessage = item.hasAwayMessage
             isAnnouncement = item.isAnnouncement
-            receipts = item.receipts
-            if (item.authorName) authorName = item.authorName
-            if (item.authorId) authorId = item.authorId
-            if (item.authorType) authorType = item.authorType.toString()
+            receipts = item.groupReceiptsByStatus()
+            media = item.media
+            if (item.authorName) { authorName = item.authorName }
+            if (item.authorId) { authorId = item.authorId }
+            if (item.authorType) { authorType = item.authorType.toString() }
+            if (item.noteContents) { noteContents = item.noteContents }
 
             if (item instanceof ReadOnlyRecordCall) {
                 durationInSeconds = item.durationInSeconds
@@ -43,9 +40,6 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 if (item.hasVoicemail) {
                     voicemailUrl = item.voicemailUrl
                     voicemailInSeconds = item.voicemailInSeconds
-                }
-                if (item.callContents) {
-                    callContents = item.callContents
                 }
                 type = RecordItemType.CALL.toString()
             }
@@ -58,14 +52,8 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 isDeleted = item.isDeleted
                 isReadOnly = item.isReadOnly
                 revisions = item.revisions
-
-                noteContents = item.noteContents
                 location = item.location
-                images = item.images
             }
-        }
-        if (uploadErrors) {
-            json.uploadErrors = uploadErrors
         }
         // find owner, may be a contact or a tag
         json.contact = Contact.findByRecord(item.record)?.id

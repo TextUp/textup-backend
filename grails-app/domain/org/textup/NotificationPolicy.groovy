@@ -4,11 +4,6 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.textup.type.NotificationLevel
 
-
-import org.springframework.transaction.TransactionStatus
-
-
-
 @GrailsTypeChecked
 @EqualsAndHashCode
 class NotificationPolicy implements Schedulable {

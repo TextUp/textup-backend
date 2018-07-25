@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import java.nio.charset.Charset
+import org.apache.commons.codec.binary.Base64
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.HttpHeaders
 import org.apache.http.HttpResponse
@@ -21,9 +22,8 @@ class VoicemailService {
     StorageService storageService
 
     Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
-        // build a HttpClient and execute the get request
-        HttpClients.createDefault().withCloseable { CloseableHttpClient client ->
-            try {
+        try {
+            HttpClients.createDefault().withCloseable { CloseableHttpClient client ->
                 HttpGet req = new HttpGet(voicemailUrl + ".mp3")
                 req.setHeader(HttpHeaders.AUTHORIZATION, buildBasicAuth());
                 client.execute(req).withCloseable { HttpResponse resp ->
@@ -47,11 +47,11 @@ class VoicemailService {
                     }
                 }
             }
-            catch (Throwable e) {
-                log.error("VoicemailService.moveVoicemail throwable: ${e.message}")
-                e.printStackTrace()
-                resultFactory.failWithThrowable(e)
-            }
+        }
+        catch (Throwable e) {
+            log.error("VoicemailService.moveVoicemail throwable: ${e.message}")
+            e.printStackTrace()
+            resultFactory.failWithThrowable(e)
         }
     }
 
@@ -62,7 +62,7 @@ class VoicemailService {
             RecordItem item = receipt.item
             if (item.instanceOf(RecordCall)) {
                 RecordCall call = item as RecordCall
-                call.hasVoicemail = true
+                call.hasAwayMessage = true // proxied to hasVoicemail in RecordCall
                 call.voicemailInSeconds = voicemailDuration
                 call.record.updateLastRecordActivity()
                 if (call.save() && call.record.save()) {
@@ -79,6 +79,16 @@ class VoicemailService {
         // send updated items with receipts through socket
         socketService.sendItems(resGroup.payload*.item)
         resGroup
+    }
+
+    String getVoicemailUrl(RecordItemReceipt receipt) {
+        if (receipt) {
+            Result<URL> res = storageService
+                .generateAuthLink(receipt.apiId)
+                .logFail("VoicemailService.getVoicemailUrl")
+            res.success ? res.payload.toString() : ""
+        }
+        else { "" }
     }
 
     // Helpers

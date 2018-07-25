@@ -94,7 +94,7 @@ class RecordCallSpec extends Specification {
 
         when: "we add a SUCCESS receipts"
         String apiId = "testing123"
-        call.addToReceipts(apiId:apiId, receivedByAsString:"1112223333",
+        call.addToReceipts(apiId:apiId, contactNumberAsString:"1112223333",
             status:ReceiptStatus.SUCCESS)
         assert call.save(flush:true, failOnError:true)
 

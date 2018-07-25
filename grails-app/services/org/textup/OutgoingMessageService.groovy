@@ -12,6 +12,7 @@ class OutgoingMessageService {
     CallService callService
     MediaService mediaService
     ResultFactory resultFactory
+    TokenService tokenService
 
     // Sending
     // -------
@@ -31,14 +32,19 @@ class OutgoingMessageService {
     }
 
     Result<Map<Contactable, Result<List<TempRecordReceipt>>>> sendForContactables(Phone phone,
-        List<Contactable> recipients, OutgoingMessage msg, MediaInfo mInfo) {
+        List<Contactable> recipients, OutgoingMessage msg1, MediaInfo mInfo = null) {
 
         try {
             Map<Contactable, Result<List<TempRecordReceipt>>> resultMap = [:]
+            // this returns a call token that has ALREADY BEEN SAVED. If a call token is returned
+            // instead of a null value, then that means that we are sending out this message as a call
+            // See `mediaService.sendWithMedia` to see how this is handled
+            Token callToken = tokenService.tryBuildAndPersistCallToken(phone.name, msg1)
             Helpers
                 .<Contactable, Map<Contactable, Result<List<TempRecordReceipt>>>>doAsyncInBatches(
-                    recipients,
-                    sendContactableBatch.curry(phone, msg, mInfo))
+                    recipients, { List<Contactable> batchSoFar ->
+                        sendContactableBatch(phone, batchSoFar, msg1.message, mInfo, callToken)
+                    })
                 .each { Map<Contactable, Result<List<TempRecordReceipt>>> batchMap ->
                     resultMap << batchMap
                 }
@@ -52,7 +58,9 @@ class OutgoingMessageService {
     }
 
     protected Promise<Map<Contactable, Result<List<TempRecordReceipt>>>> sendContactableBatch(
-        Phone phone, OutgoingMessage msg1, MediaInfo mInfo, List<Contactable> batchSoFar) {
+        Phone phone, List<Contactable> batchSoFar, String contents1,
+        MediaInfo mInfo = null, Token callToken = null) {
+
         // store needed data outside of the promise closure to prevent accidentally making
         // any db calls inside of the closure and triggering a `no session` error
         Map<Long, PhoneNumber> contactIdToFromNum = [:]
@@ -62,9 +70,6 @@ class OutgoingMessageService {
             contactIdToFromNum[cId] = c1.fromNum
             contactIdToNums[cId] = c1.sortedNumbers
         }
-        String contents1 = msg.message
-        VoiceLanguage lang1 = msg.language
-        String phoneName = phone.name // this makes a db call
         // NO HIBERNATE SESSION WITHIN NEW THREAD!!
         // Any calls that will make a db call needs to be made outside of the task closure
         Promises.task {
@@ -73,8 +78,8 @@ class OutgoingMessageService {
                 Long cId = c1.contactId
                 PhoneNumber fromNum = contactIdToFromNum[cId]
                 List<ContactNumber> toNums = contactIdToNums[cId]
-                contactableToRes[c1] = mediaService.sendWithMedia(fromNum,
-                    toNums, mInfo, contents1, lang1, phoneName)
+                contactableToRes[c1] = mediaService.sendWithMedia(fromNum, toNums, contents1,
+                    mInfo, callToken)
             }
             contactableToRes
         }
@@ -83,6 +88,7 @@ class OutgoingMessageService {
     // Storing
     // -------
 
+    // Note: MediaInfo may be null
     ResultGroup<RecordItem> storeForContactables(OutgoingMessage msg1, MediaInfo mInfo,
         Author author1, Closure<Void> doWhenAddingReceipt,
         Map<Contactable, Result<List<TempRecordReceipt>>> contactableToReceiptResults) {
@@ -106,6 +112,7 @@ class OutgoingMessageService {
         }
     }
 
+    // Note: MediaInfo may be null
     ResultGroup<RecordItem> storeForTags(OutgoingMessage msg1, MediaInfo mInfo, Author author1,
         Closure<List<TempRecordReceipt>> getReceiptsFromContactId, ResultGroup<RecordItem> resGroup) {
         if (resGroup.anySuccesses) {

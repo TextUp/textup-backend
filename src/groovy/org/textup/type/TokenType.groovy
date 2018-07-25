@@ -20,6 +20,11 @@ enum TokenType {
 				   // the phone may not necessarily be the one associated with record
 		"contents", // contents of the message we are notifying for
 		"outgoing" // whether or not the message we are notifying for is outgoing
+	]),
+	CALL_DIRECT_MESSAGE([
+		"message", // contents of the message to deliver as a call
+		"identifier", // who to identify the message as being from
+		"language" // VoiceLanguage enum as string (NOT Twiml value) to read the message in
 	])
 
 	private final Collection<String> requiredKeys

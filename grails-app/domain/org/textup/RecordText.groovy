@@ -48,12 +48,14 @@ class RecordText extends RecordItem implements ReadOnlyRecordText {
             presentInResponse = false)
     ])
     static transients = []
-    // removed the length constraint on contents (maxSize:(Constants.TEXT_LENGTH * 2))
-    // presence of this constraint will reject incoming messages that are too long
-    // this should not happen since we have no control over the contents of incoming
-    // messages and we do not want to knowingly fail to deliver incoming messages
     static constraints = {
-    	contents blank: false, nullable: false, shared: "textSqlType"
+        // (1) removed the length constraint on contents (maxSize:(Constants.TEXT_LENGTH * 2))
+        // presence of this constraint will reject incoming messages that are too long
+        // this should not happen since we have no control over the contents of incoming
+        // messages and we do not want to knowingly fail to deliver incoming messages
+        // (2) removed the constraint the prohibited contents from being null because a text message
+        // can now have media too so outgoing message can have either text only, media only, or both.
+    	contents blank: true, nullable: true, shared: "textSqlType"
     }
     static mapping = {
         contents type:"text"

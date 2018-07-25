@@ -21,11 +21,13 @@ class IncomingMessageService {
     // Texts
     // -----
 
-    Result<Closure> relayText(Phone phone, IncomingText text, IncomingSession session) {
+    Result<Closure> relayText(Phone phone, IncomingText text, IncomingSession session,
+        MediaInfo mInfo = null) {
+
         List<RecordText> rTexts = []
         storeForNumber(phone, session.number, { Contact c1 ->
             Result<RecordText> res = c1.record
-                .storeIncomingText(text, session.toAuthor())
+                .storeIncomingText(text, session.toAuthor(), mInfo)
                 .logFail("IncomingMessageService.relayText: store text for contact ${c1.id}")
             if (res.success) {
                 rTexts << res.payload
@@ -125,7 +127,7 @@ class IncomingMessageService {
             PhoneNumber pNum = new PhoneNumber(number:digits)
             if (pNum.validate()) { //then is a valid phone number
                 TempRecordReceipt receipt = new TempRecordReceipt(apiId:apiId)
-                receipt.receivedBy = pNum
+                receipt.contactNumber = pNum
                 if (receipt.validate()) {
                     storeForNumber(phone, pNum, { Contact c1 ->
                         c1.record
@@ -164,6 +166,7 @@ class IncomingMessageService {
 
     protected Result<List<Contact>> storeForNumber(Phone phone, PhoneNumber pNum,
         Closure<Void> contactStoreAction) {
+
         Pair<List<Contact>, List<Contact>> deliverables = getDeliverableContacts(phone, pNum)
         List<Contact> contacts = deliverables.left,
             notBlockedContacts = deliverables.right

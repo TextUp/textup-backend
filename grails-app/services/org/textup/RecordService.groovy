@@ -3,30 +3,25 @@ package org.textup
 import com.amazonaws.services.s3.model.PutObjectResult
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.web.util.WebUtils
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.rest.TwimlBuilder
-import org.textup.type.ReceiptStatus
+import org.textup.type.*
 import org.textup.util.OptimisticLockingRetry
-import org.textup.validator.action.ActionContainer
-import org.textup.validator.action.MediaAction
-import org.textup.validator.Author
-import org.textup.validator.OutgoingMessage
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordNote
-import org.textup.validator.UploadItem
+import org.textup.validator.*
+import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
 class RecordService {
 
     AuthService authService
-    ResultFactory resultFactory
     GrailsApplication grailsApplication
+    MediaService mediaService
+    ResultFactory resultFactory
     SocketService socketService
+    StorageService storageService
     TwimlBuilder twimlBuilder
 
     // Status
@@ -77,27 +72,36 @@ class RecordService {
         switch(res.payload) {
             case RecordText: createText(p1, body); break;
             case RecordCall: createCall(p1, body).toGroup(); break;
-            default RecordNote: createNote(p1, body).toGroup()
+            default: createNote(p1, body).toGroup() // RecordNote
         }
     }
     protected ResultGroup<RecordItem> createText(Phone p1, Map body) {
-        // step 1: build outgoing message and check to see if # recipients falls within bounds
-        Result<OutgoingMessage> msgRes = buildOutgoingMessage(p1, body)
-            .then { OutgoingMessage msg1 -> checkOutgoingMessageRecipients(msg1) }
-        if (msgRes.success) {
-            // step 2: handle media upload, storing upload errors on request
-            Collection<String> errorMsgs = []
-            Result<MediaInfo> mediaRes = mediaService.buildMediaInfo(new MediaInfo(), errorMsgs, body)
+        // step 1: handle media upload, storing upload errors on request
+        Collection<UploadItem> itemsToUpload = []
+        MediaInfo mInfo
+        if (mediaService.hasMediaActions(body)) {
+            Result<MediaInfo> mediaRes = mediaService.handleActions(new MediaInfo(),
+                itemsToUpload.&addAll, body)
             if (mediaRes.success) {
-                storeErrorsOnRequest(errorMsgs)
-                // step 3: actually send outgoing message
-                createTextHelper(p1, msgRes.payload, mediaRes.payload, authService.loggedInAndActive)
+                mInfo = mediaRes.payload
             }
-            else { mediaRes.toGroup() }
+            else { return mediaRes.toGroup() }
         }
-        else { msgRes.toGroup() }
+        // step 2: build outgoing message and check to see if # recipients falls within bounds
+        Result<OutgoingMessage> msgRes = buildOutgoingMessage(p1, body, mInfo)
+            .then { OutgoingMessage msg1 -> checkOutgoingMessageRecipients(msg1) }
+        if (!msgRes.success) { return msgRes.toGroup() }
+        // step 3: upload assets after all validation is done
+        Collection<String> errorMsgs = []
+        storageService.uploadAsync(itemsToUpload)
+            .failures
+            .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+        Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
+            .logFail("RecordService.createText")
+        // step 4: actually send outgoing message
+        createTextHelper(p1, msgRes.payload, authService.loggedInAndActive, mInfo)
     }
-    protected Result<OutgoingMessage> buildOutgoingMessage(Phone p1, Map body) {
+    protected Result<OutgoingMessage> buildOutgoingMessage(Phone p1, Map body, MediaInfo mInfo = null) {
         // step 1: create each type of recipient
         ContactRecipients contacts = new ContactRecipients(phone: p1,
             ids: Helpers.allTo(Long, Helpers.to(List, body.sendToContacts)))
@@ -118,6 +122,7 @@ class RecordService {
         }
         // step 2: build outgoing msg
         OutgoingMessage msg1 = new OutgoingMessage(message:body.contents as String,
+            media: mInfo,
             contacts:contacts.merge(numToContacts),
             sharedContacts:sharedContacts,
             tags:tags)
@@ -145,7 +150,7 @@ class RecordService {
     // the service under test to avoid calling the actual startBridgeCall method since we are
     // focusing on testing this service in isolation in the unit test
     protected ResultGroup<RecordItem> createTextHelper(Phone p1, OutgoingMessage msg,
-        MediaInfo mInfo, Staff staff) {
+        Staff staff, MediaInfo mInfo = null) {
         p1.sendMessage(msg, mInfo, staff)
     }
 
@@ -190,32 +195,38 @@ class RecordService {
             return resultFactory.failWithCodeAndStatus("recordService.create.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
-        // step 3: create validator object for note
-        TempRecordNote tempNote = new TempRecordNote(note: new RecordNote(record:with1.record),
-            info: body,
+        // step 3: handle media actions
+        Collection<UploadItem> itemsToUpload = []
+        MediaInfo mInfo
+        if (mediaService.hasMediaActions(body)) {
+            Result<MediaInfo> mediaRes = mediaService.handleActions(new MediaInfo(),
+                itemsToUpload.&addAll, body)
+            if (mediaRes.success) {
+                mInfo = mediaRes.payload
+            }
+            else { return mediaRes.toGroup() }
+        }
+        // step 4: create validator object for note
+        TempRecordNote tempNote = new TempRecordNote(info: body,
+            note: new RecordNote(record:with1.record, media: mInfo),
             after: body.after ? Helpers.toDateTimeWithZone(body.after) : null)
-        Collection<String> errorMsgs = []
         tempNote.toNote(authService.loggedInAndActive.toAuthor())
-            // step 4: handle media actions
-            .then({ RecordNote note1 ->
-                mediaService.<RecordNote>handleMediaActions(note1, errorMsgs, body)
-            })
-            // step 5: handle upload errors + actually save the note
-            .then({ RecordNote note1 ->
-                storeErrorsOnRequest(errorMsgs)
+            .then { RecordNote note1 ->
+                Collection<String> errorMsgs = []
+                storageService.uploadAsync(itemsToUpload)
+                    .failures
+                    .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+                Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
+                    .logFail("RecordService.createNote")
                 resultFactory.success(note1, ResultStatus.CREATED)
-            })
-    }
-    protected void storeErrorsOnRequest(Collection<String> errorMsgs) {
-        WebUtils.retrieveGrailsWebRequest()
-            ?.currentRequest
-            ?.setAttribute(Constants.UPLOAD_ERRORS, errorMsgs)
+            }
     }
 
     // Update note
     // -----------
 
     Result<RecordItem> update(Long noteId, Map body) {
+        // step 1: fetch and validate note
         RecordNote note1 = RecordNote.get(noteId)
         if (!note1) {
             return resultFactory.failWithCodeAndStatus("recordService.update.notFound",
@@ -225,18 +236,26 @@ class RecordService {
             return resultFactory.failWithCodeAndStatus("recordService.update.readOnly",
                 ResultStatus.FORBIDDEN, [noteId])
         }
-        TempRecordNote tempNote = new TempRecordNote(note:note1,
-            info:body
+        // step 2: handle media actions
+        Collection<UploadItem> itemsToUpload = []
+        if (mediaService.hasMediaActions(body)) {
+            Result<MediaInfo> mediaRes = mediaService.handleActions(note1.media,
+                itemsToUpload.&addAll, body)
+            if (!mediaRes.success) { return mediaRes.toGroup() }
+        }
+        // step 3: build validate object to update fields
+        TempRecordNote tempNote = new TempRecordNote(note:note1, info:body,
             after:body.after ? Helpers.toDateTimeWithZone(body.after) : null)
-        Collection<String> errorMsgs = []
         tempNote.toNote(authService.loggedInAndActive.toAuthor())
-            .then({ RecordNote note1 ->
-                mediaService.<RecordNote>handleMediaActions(note1, errorMsgs, body)
-            })
-            .then({ RecordNote note1 ->
-                storeErrorsOnRequest(errorMsgs)
+            .then { RecordNote note1 ->
+                Collection<String> errorMsgs = []
+                storageService.uploadAsync(itemsToUpload)
+                    .failures
+                    .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+                Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
+                    .logFail("RecordService.update")
                 note1.tryCreateRevision()
-            })
+            }
     }
 
     // Delete note

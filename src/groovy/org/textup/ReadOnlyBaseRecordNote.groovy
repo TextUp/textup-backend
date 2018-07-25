@@ -7,7 +7,7 @@ import org.joda.time.DateTime
 // of a note should have
 
 @GrailsCompileStatic
-interface ReadOnlyBaseRecordNote extends Authorable, ReadOnlyWithMedia {
+interface ReadOnlyBaseRecordNote extends Authorable {
     Long getId()
     DateTime getWhenChanged()
     String getNoteContents()

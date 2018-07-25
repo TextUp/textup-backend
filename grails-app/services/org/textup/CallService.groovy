@@ -95,7 +95,7 @@ class CallService {
                 .setStatusCallback(callback)
                 .create()
             TempRecordReceipt receipt = new TempRecordReceipt(apiId:call.sid)
-            receipt.receivedBy = toNum
+            receipt.contactNumber = toNum
             if (receipt.validate()) {
                 resultFactory.success(receipt)
             }

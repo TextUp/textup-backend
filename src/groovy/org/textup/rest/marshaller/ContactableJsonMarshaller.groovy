@@ -4,7 +4,6 @@ import grails.compiler.GrailsCompileStatic
 import groovy.util.logging.Log4j
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.ContactStatus

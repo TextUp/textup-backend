@@ -3,10 +3,8 @@ package org.textup.validator.action
 import grails.compiler.GrailsCompileStatic
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.textup.Constants
-import org.textup.Helpers
-import org.textup.Result
-import org.textup.ResultFactory
+import org.apache.commons.codec.digest.DigestUtils
+import org.textup.*
 import org.textup.validator.UploadItem
 
 // documented as [mediaAction] in CustomApiDocs.groovy

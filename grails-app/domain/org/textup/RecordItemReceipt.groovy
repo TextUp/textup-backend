@@ -11,12 +11,12 @@ import org.textup.validator.PhoneNumber
 @EqualsAndHashCode
 @RestApiObject(name="Receipt", description="A receipt indicating the status \
     of a communication sent to a phone number.")
-class RecordItemReceipt implements ReadOnlyRecordItemReceipt {
+class RecordItemReceipt {
 
     //unique id assigned to this record by the communications provider
     //used for finding the RecordItem in a StatusCallback
     String apiId
-    String receivedByAsString
+    String contactNumberAsString
 
     @RestApiObjectField(
         description="Status of communication. Allowed: FAILED, PENDING, BUSY, SUCCESS",
@@ -26,15 +26,15 @@ class RecordItemReceipt implements ReadOnlyRecordItemReceipt {
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
-            apiFieldName = 'receivedBy',
-            description="Phone number that this communication was sent to",
+            apiFieldName = "contactNumber",
+            description="Contact number that is responsible for this receipt, whether incoming or outgoing",
             useForCreation=false,
             allowedType="String")
     ])
-    static transients = ['receivedBy']
-    static belongsTo = [item:RecordItem]
+    static transients = ["contactNumber"]
+    static belongsTo = [item: RecordItem]
     static constraints = {
-        receivedByAsString validator:{ String val, RecordItemReceipt obj ->
+        contactNumberAsString validator:{ String val, RecordItemReceipt obj ->
             if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
     }
@@ -42,10 +42,10 @@ class RecordItemReceipt implements ReadOnlyRecordItemReceipt {
     // Property Access
     // ---------------
 
-    void setReceivedBy(BasePhoneNumber pNum) {
-        this.receivedByAsString = pNum?.number
+    void setContactNumber(BasePhoneNumber pNum) {
+        this.contactNumberAsString = pNum?.number
     }
-    PhoneNumber getReceivedBy() {
-        new PhoneNumber(number:this.receivedByAsString)
+    PhoneNumber getContactNumber() {
+        new PhoneNumber(number: this.contactNumberAsString)
     }
 }

@@ -57,7 +57,7 @@ class RecordItemSpec extends Specification {
             rItem2 = new RecordItem(record:rec)
         [rItem1, rItem2].each { RecordItem rItem ->
             rItem.addToReceipts(new RecordItemReceipt(status:ReceiptStatus.SUCCESS,
-                apiId:apiId, receivedByAsString:"1112223333"))
+                apiId:apiId, contactNumberAsString:"1112223333"))
             rItem.save(flush:true, failOnError:true)
         }
 

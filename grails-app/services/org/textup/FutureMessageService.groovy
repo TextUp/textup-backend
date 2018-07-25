@@ -24,11 +24,13 @@ import org.textup.validator.OutgoingMessage
 class FutureMessageService {
 
     AuthService authService
+    MediaService mediaService
     MessageSource messageSource
     NotificationService notificationService
     ResultFactory resultFactory
     Scheduler quartzScheduler
     SocketService socketService
+    StorageService storageService
     TokenService tokenService
 
 	// Scheduler
@@ -117,7 +119,7 @@ class FutureMessageService {
         // OR in the future the contact may not longer be shared with this staff member
         // but any scheduled messages that this staff member initiated should still fire
         // regardless of present sharing status
-        ResultGroup<RecordItem> resGroup = p1.sendMessage(msg, Staff.get(staffId), true)
+        ResultGroup<RecordItem> resGroup = p1.sendMessage(msg, fMsg.media, Staff.get(staffId), true)
         socketService
             .sendItems(resGroup.payload)
             .logFail("FutureMessageService.execute: sending items through socket")
@@ -152,12 +154,32 @@ class FutureMessageService {
                 "futureMessageService.create.noRecordOrInsufficientPermissions",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        setFromBody(new SimpleFutureMessage(record:rec), body, timezone)
+        // step 1: handle media upload, storing upload errors on request
+        Collection<UploadItem> itemsToUpload = []
+        MediaInfo mInfo
+        if (mediaService.hasMediaActions(body)) {
+            Result<MediaInfo> mediaRes = mediaService.handleActions(new MediaInfo(),
+                itemsToUpload.&addAll, body)
+            if (mediaRes.success) {
+                mInfo = mediaRes.payload
+            }
+            else { return mediaRes.toGroup() }
+        }
+        // step 2: create future message
+        setFromBody(new SimpleFutureMessage(record: rec, media: mInfo), body, timezone)
             .then({ FutureMessage fm1 ->
                 fm1.language = Helpers.withDefault(
                     Helpers.convertEnum(VoiceLanguage, body.language),
                     rec.language
                 )
+                // step 3: upload media, if needed
+                Collection<String> errorMsgs = []
+                storageService.uploadAsync(itemsToUpload)
+                    .failures
+                    .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+                Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
+                    .logFail("FutureMessageService.create")
+
                 resultFactory.success(fm1, ResultStatus.CREATED)
             })
     }
@@ -167,13 +189,33 @@ class FutureMessageService {
 
     Result<FutureMessage> update(Long fId, Map body, String timezone = null) {
         FutureMessage fMsg = FutureMessage.get(fId)
-        if (fMsg) {
-            setFromBody(fMsg, body, timezone)
-        }
-        else {
-            resultFactory.failWithCodeAndStatus("futureMessageService.update.notFound",
+        if (!fMsg) {
+            return resultFactory.failWithCodeAndStatus("futureMessageService.update.notFound",
                 ResultStatus.NOT_FOUND, [fId])
         }
+        // step 1: handle media upload, storing upload errors on request
+        Collection<UploadItem> itemsToUpload = []
+        if (mediaService.hasMediaActions(body)) {
+            if (!fMsg.media) {
+                fMsg.media = new MediaInfo()
+            }
+            Result<MediaInfo> mediaRes = mediaService.handleActions(fMsg.media,
+                itemsToUpload.&addAll, body)
+            if (!mediaRes.success) { return mediaRes.toGroup() }
+        }
+        // step 2: update future message
+        setFromBody(fMsg, body, timezone)
+            .then({ FutureMessage fm1 ->
+                // step 3: upload media, if needed
+                Collection<String> errorMsgs = []
+                storageService.uploadAsync(itemsToUpload)
+                    .failures
+                    .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+                Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
+                    .logFail("FutureMessageService.update")
+
+                resultFactory.success(fm1)
+            })
     }
 
     // Delete

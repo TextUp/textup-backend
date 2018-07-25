@@ -83,12 +83,12 @@ class PhoneServiceSpec extends CustomSpec {
             List<? extends BasePhoneNumber> toNums, String message ->
             _numTextsSent.getAndIncrement()
             new Result(status:ResultStatus.OK,
-                payload: new TempRecordReceipt(apiId:_apiId, receivedByAsString:toNums[0].number))
+                payload: new TempRecordReceipt(apiId:_apiId, contactNumberAsString:toNums[0].number))
         }] as TextService
         service.callService = [start:{ PhoneNumber fromNum, PhoneNumber toNum,
             Map afterPickup ->
             new Result(status:ResultStatus.OK,
-                payload: new TempRecordReceipt(apiId:_apiId, receivedByAsString:toNum.number))
+                payload: new TempRecordReceipt(apiId:_apiId, contactNumberAsString:toNum.number))
         }] as CallService
         service.socketService = [sendContacts:{ List<Contact> contacts ->
             new ResultGroup()
@@ -668,7 +668,7 @@ class PhoneServiceSpec extends CustomSpec {
         service.callService = [start:{ PhoneNumber fromNum,
             List<? extends BasePhoneNumber> toNums, Map afterPickup ->
             new Result(status:ResultStatus.OK, payload: new TempRecordReceipt(apiId:_apiId,
-                receivedByAsString:toNums[0].number))
+                contactNumberAsString:toNums[0].number))
         }] as CallService
 
         when: "we send to contacts, shared contacts and tags"
@@ -737,7 +737,7 @@ class PhoneServiceSpec extends CustomSpec {
             List<? extends BasePhoneNumber> toNums, Map afterPickup ->
             capturedAfterPickup = afterPickup
             new Result(status:ResultStatus.OK, payload: new TempRecordReceipt(apiId:_apiId,
-                receivedByAsString:toNums[0].number))
+                contactNumberAsString:toNums[0].number))
         }] as CallService
 
         when: "we send a valid call direct message"
@@ -808,7 +808,7 @@ class PhoneServiceSpec extends CustomSpec {
         ContactNumber.count() == nBaseline + 1
         resMap[session.numberAsString].success == true
         resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload.receivedByAsString == session.numberAsString
+        resMap[session.numberAsString].payload.contactNumberAsString == session.numberAsString
 
         when: "for session with multiple contacts"
         resMap = service.sendTextAnnouncement(p1, message, ident, [session], s1)
@@ -820,7 +820,7 @@ class PhoneServiceSpec extends CustomSpec {
         ContactNumber.count() == nBaseline + 1
         resMap[session.numberAsString].success == true
         resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload.receivedByAsString == session.numberAsString
+        resMap[session.numberAsString].payload.contactNumberAsString == session.numberAsString
     }
 
     void "test starting call announcement"() {
@@ -848,7 +848,7 @@ class PhoneServiceSpec extends CustomSpec {
         ContactNumber.count() == nBaseline + 1
         resMap[session.numberAsString].success == true
         resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload.receivedByAsString == session.numberAsString
+        resMap[session.numberAsString].payload.contactNumberAsString == session.numberAsString
     }
 
     // Incoming
@@ -1288,7 +1288,7 @@ class PhoneServiceSpec extends CustomSpec {
 
         when: "apiId corresponds to NOT RecordCall"
         String apiId = "thisoneisunique!!!"
-        rText1.addToReceipts(apiId:apiId, receivedByAsString:"1234449309")
+        rText1.addToReceipts(apiId:apiId, contactNumberAsString:"1234449309")
         rText1.save(flush:true, failOnError:true)
         iBaseline = RecordCall.count()
         rBaseline = RecordItemReceipt.count()
@@ -1305,7 +1305,7 @@ class PhoneServiceSpec extends CustomSpec {
         RecordCall rCall1 = c1.record.addCall(null, null).payload,
             rCall2 = c1.record.addCall(null, null).payload
         [rCall1, rCall2].each {
-            it.addToReceipts(apiId:apiId, receivedByAsString:"1234449309")
+            it.addToReceipts(apiId:apiId, contactNumberAsString:"1234449309")
             it.save(flush:true, failOnError:true)
         }
         int dur = 12

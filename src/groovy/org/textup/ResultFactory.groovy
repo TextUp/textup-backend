@@ -51,8 +51,8 @@ class ResultFactory {
 		ensureRollbackOnFailure(doRollback)
 		Result.<T>createError([t.message], ResultStatus.INTERNAL_SERVER_ERROR)
 	}
-    public <T> Result<T> failWithValidationErrors(Errors errors) {
-    	this.<T>failWithManyValidationErrors([errors])
+    public <T> Result<T> failWithValidationErrors(Errors errors, boolean doRollback = true) {
+    	this.<T>failWithManyValidationErrors([errors], doRollback)
     }
     public <T> Result<T> failWithManyValidationErrors(Collection<Errors> manyErrors,
         boolean doRollback = true) {

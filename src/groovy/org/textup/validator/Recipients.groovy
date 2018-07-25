@@ -6,7 +6,7 @@ import org.textup.*
 
 @GrailsCompileStatic
 @Validateable
-abtract class Recipients<T, E> {
+abstract class Recipients<T, E> {
 
     // ids (and therefore recipients) can be empty
     Collection<T> ids = Collections.emptyList()

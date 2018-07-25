@@ -265,7 +265,7 @@ class BaseController {
             case Organization: return "organization"
             case Phone: return "phone"
             case RecordItem: return "record"
-            case RecordItemReceipt: return "receipt"
+            case RecordItemStatus: return "recordItemStatus"
             case RecordNoteRevision: return "revision"
             case Schedule: return "schedule"
             case Staff: return "staff"

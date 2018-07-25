@@ -2,25 +2,19 @@ package org.textup.rest.marshaller
 
 import grails.compiler.GrailsCompileStatic
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.util.WebUtils
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
+import org.textup.type.LogLevel
 import org.textup.validator.LocalInterval
 
 @GrailsCompileStatic
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { Schedule sched ->
-
         String timezone = null
-        try {
-            HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
-            timezone = (request.getAttribute("timezone") ?:
-                request.getParameter('timezone'))  as String
-        }
-        catch (IllegalStateException e) {
-            log.debug("ScheduleJsonMarshaller: no available request: $e")
-        }
+        Helpers.<String>tryGetFromRequest("timezone")
+            .logFail("ScheduleJsonMarshaller: no available request", LogLevel.DEBUG)
+            .then { String tz -> timezone = tz }
 
         Map json = [:]
         json.with {

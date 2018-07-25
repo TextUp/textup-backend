@@ -1,8 +1,8 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
-import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 @EqualsAndHashCode

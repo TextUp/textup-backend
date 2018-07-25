@@ -69,7 +69,7 @@ class TextServiceSpec extends Specification {
     	res.success == true
         res.status == ResultStatus.OK
     	res.payload instanceof TempRecordReceipt
-    	res.payload.receivedByAsString == toNum1.number
+    	res.payload.contactNumberAsString == toNum1.number
         res.payload.apiId != null
     }
 }

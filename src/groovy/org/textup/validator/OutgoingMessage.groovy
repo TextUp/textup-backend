@@ -15,7 +15,8 @@ import org.textup.type.VoiceLanguage
 @Validateable
 class OutgoingMessage {
 
-	String message
+	String message = ""
+	MediaInfo media
 	RecordItemType type = RecordItemType.TEXT
 	VoiceLanguage language = VoiceLanguage.ENGLISH
 
@@ -24,7 +25,11 @@ class OutgoingMessage {
 	ContactTagRecipients tags
 
 	static constraints = {
-		message blank:false, nullable:false, shared: "textSqlType"
+		message blank: true, nullable: true, shared: "textSqlType"
+		media nullable: true, validator: { MediaInfo mInfo, OutgoingMessage obj ->
+			// message must have at least one of text and media
+			if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }
+		}
 	}
 
 	// Methods

@@ -30,7 +30,7 @@ class AnnouncementFunctionalSpec extends RestSpec {
                 List<? extends BasePhoneNumber> toNums, String message ->
                 assert toNums.isEmpty() == false
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
-                temp.receivedBy = toNums[0]
+                temp.contactNumber = toNums[0]
                 assert temp.validate()
                 // store recipient in list for later retrieval
                 app.config.textRecipientList << toNums[0]
@@ -40,7 +40,7 @@ class AnnouncementFunctionalSpec extends RestSpec {
             ctx.callService.metaClass.start = { PhoneNumber fromNum, PhoneNumber toNum,
                 Map afterPickup ->
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
-                temp.receivedBy = toNum
+                temp.contactNumber = toNum
                 assert temp.validate()
                 // store params in config for later retrieval
                 app.config.callParamsList << afterPickup

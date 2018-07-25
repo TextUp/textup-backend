@@ -25,7 +25,7 @@ class TextService {
             //record receipt and return on first success
             if (res.success) {
                 TempRecordReceipt receipt = new TempRecordReceipt(apiId:res.payload.sid)
-                receipt.receivedBy = toNum
+                receipt.contactNumber = toNum
                 if (receipt.validate()) {
                     return resultFactory.success(receipt)
                 }
@@ -55,7 +55,7 @@ class TextService {
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), message)
                 .setStatusCallback(callback)
                 .setMediaUrl(media.collect { MediaElement e1 ->
-                    e1.versions[MediaVersion.SEND]?.getLink(storageService)?.toURI()
+                    e1.versions[MediaVersion.SEND]?.link?.toURI()
                 })
                 .create()
             resultFactory.success(msg1)

@@ -75,19 +75,13 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
     @GrailsTypeChecked
     protected RecordNoteRevision createRevision() {
         Closure doGet = { String propName -> this.getPersistentValue(propName) }
-
-        // TODO: how do we get the original media, without all of the changes to the media
-        // We want to refer to the original set of elements that the original media info object did
-        // OK if two media info objects contain the same media element so we don't have to create
-        // many duplicate media element objects
-
     	RecordNoteRevision rev1 = new RecordNoteRevision(authorName:doGet("authorName"),
-			authorId:doGet("authorId"),
-			authorType:doGet("authorType"),
-			whenChanged:doGet("whenChanged"),
-			noteContents:doGet("noteContents"),
-			location:doGet("location"),
-			serializedMedia:doGet("serializedMedia"))
+            authorId: doGet("authorId"),
+            authorType: doGet("authorType"),
+            whenChanged: doGet("whenChanged"),
+            noteContents: doGet("noteContents"),
+            location: doGet("location"),
+            media: media?.duplicatePersistentState())
     	this.addToRevisions(rev1)
     	rev1
     }

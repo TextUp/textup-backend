@@ -85,18 +85,18 @@ class CallServiceSpec extends Specification {
     	RecordItem rItem1 = new RecordItem(record:rec)
     	RecordItem rItem2 = new RecordItem(record:rec)
     	[rItem1, rItem2].each { RecordItem rItem ->
-    		rItem.addToReceipts(apiId:existingApiId, receivedByAsString:"2223338888")
+    		rItem.addToReceipts(apiId:existingApiId, contactNumberAsString:"2223338888")
     		rItem.save(flush:true, failOnError:true)
     	}
     	// baselines
     	int iBaseline = RecordItem.count(),
     		rBaseline = RecordItemReceipt.count()
-    	String receivedByString = "2223338888"
+    	String contactNumberString = "2223338888"
     	// override start method to limit scope of the test
     	service.metaClass.start = { PhoneNumber fNum,
         	List<? extends BasePhoneNumber> tNums, Map afterPickup ->
 	        new Result(status:ResultStatus.OK,
-	        	payload:new TempRecordReceipt(apiId:newApiId, receivedByAsString:receivedByString))
+	        	payload:new TempRecordReceipt(apiId:newApiId, contactNumberAsString:contactNumberString))
 	    }
 
     	when:

@@ -150,7 +150,7 @@ class PhoneService {
     // Outgoing
     // --------
 
-    ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg1, MediaInfo mInfo,
+    ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg1, MediaInfo mInfo = null,
         Staff staff = null) {
         // initialize variables
         List<Contactable> recipients = msg1.toRecipients().toList()
@@ -183,12 +183,16 @@ class PhoneService {
 	// Incoming
 	// --------
 
-    Result<Closure> relayText(Phone phone, IncomingText text, IncomingSession session) {
-        incomingMessageService.relayText(phone, text, session)
+    Result<Closure> relayText(Phone phone, IncomingText text, IncomingSession session,
+        MediaInfo mInfo = null) {
+
+        incomingMessageService.relayText(phone, text, session, mInfo)
     }
-    Result<Closure> handleAnnouncementText(Phone phone, IncomingText text, IncomingSession session) {
+    Result<Closure> handleAnnouncementText(Phone phone, IncomingText text, IncomingSession session,
+        MediaInfo mInfo = null) {
+
         announcementService.handleAnnouncementCall(phone, text, session,
-            relayText.curry(phone, text, session))
+            relayText.curry(phone, text, session, mInfo))
     }
 
     Result<Closure> relayCall(Phone phone, String apiId, IncomingSession session) {

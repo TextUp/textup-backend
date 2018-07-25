@@ -31,7 +31,7 @@ class OutgoingCallFunctionalSpec extends RestSpec {
             ctx.callService.metaClass.start = { PhoneNumber fromNum, PhoneNumber toNum,
                 Map afterPickup ->
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
-                temp.receivedBy = toNum
+                temp.contactNumber = toNum
                 assert temp.validate()
                 // store params in config for later retrieval
                 app.config.callParams = afterPickup

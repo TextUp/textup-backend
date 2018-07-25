@@ -113,13 +113,13 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	receiptRenderer(ApiJsonRenderer, ReadOnlyRecordItemReceipt) {
-		label = tRestConfig.v1.receipt.singular
+	recordItemStatusRenderer(ApiJsonRenderer, RecordItemStatus) {
+		label = tRestConfig.v1.recordItemStatus.singular
 	}
-	receiptCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyRecordItemReceipt) {
-		label = tRestConfig.v1.receipt.plural
+	recordItemStatusCollectionRenderer(ApiJsonCollectionRenderer, RecordItemStatus) {
+		label = tRestConfig.v1.recordItemStatus.plural
 	}
-	receiptJsonMarshaller(RecordItemReceiptJsonMarshaller) {
+	recordItemStatusJsonMarshaller(RecordItemStatusJsonMarshaller) {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}
@@ -135,10 +135,10 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	mediaInfoRenderer(ApiJsonRenderer, MediaInfo) {
+	mediaInfoRenderer(ApiJsonRenderer, ReadOnlyMediaInfo) {
 		label = tRestConfig.v1.mediaInfo.singular
 	}
-	mediaInfoCollectionRenderer(ApiJsonCollectionRenderer, MediaInfo) {
+	mediaInfoCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyMediaInfo) {
 		label = tRestConfig.v1.mediaInfo.plural
 	}
 	mediaInfoJsonMarshaller(MediaInfoJsonMarshaller) {
@@ -146,10 +146,10 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	mediaElementRenderer(ApiJsonRenderer, MediaElement) {
+	mediaElementRenderer(ApiJsonRenderer, ReadOnlyMediaElement) {
 		label = tRestConfig.v1.mediaElement.singular
 	}
-	mediaElementCollectionRenderer(ApiJsonCollectionRenderer, MediaElement) {
+	mediaElementCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyMediaElement) {
 		label = tRestConfig.v1.mediaElement.plural
 	}
 	mediaElementJsonMarshaller(MediaElementJsonMarshaller) {
