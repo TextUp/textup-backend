@@ -66,14 +66,12 @@ class FutureMessageController extends BaseController {
         }
         else {
             Long scId = authService.getSharedContactIdForContact(c1.id)
-            if (scId) {
-                SharedContact sc1 = SharedContact.get(scId)
-                if (sc1.isActive) {
-                    rec1 = sc1.readOnlyRecord
-                }
-                else { return forbidden() }
-            }
-            else { return forbidden() }
+            if (!scId) { return forbidden() }
+            SharedContact sc1 = SharedContact.get(scId)
+            if (!sc1) { return forbidden() }
+            Result<ReadOnlyRecord> res = sc1.tryGetReadOnlyRecord()
+            if (!res.success) { return forbidden() }
+            rec1 = res.payload
         }
         Closure<Integer> count = { rec1.countFutureMessages() }
         Closure<List<ReadOnlyFutureMessage>> list = { Map opts -> rec1.getFutureMessages(opts) }

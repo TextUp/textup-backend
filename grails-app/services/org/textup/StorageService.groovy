@@ -19,8 +19,9 @@ class StorageService {
 
     AmazonS3Client s3Service
     GrailsApplication grailsApplication
-    ResultFactory resultFactory
     MediaService mediaService
+    ResultFactory resultFactory
+    StorageService storageService
 
     // Auth link
     // ---------
@@ -62,18 +63,21 @@ class StorageService {
         if (!uItems) {
             return new ResultGroup<PutObjectResult>()
         }
-        Helpers
-            .<UploadItem, ResultGroup<?>>doAsyncInBatches(itemsToUpload, { List<UploadItem> batch ->
-                Promises.task {
-                    new ResultGroup<PutObjectResult>(batch.collect(storageService.&upload))
-                }
-            }, Constants.CONCURRENT_UPLOAD_BATCH_SIZE)
-            .inject(new ResultGroup<PutObjectResult>(),
-                { ResultGroup<PutObjectResult> res, ResultGroup<PutObjectResult> i -> res.merge(i) })
+        List<ResultGroup<PutObjectResult>> resGroupList = Helpers
+            .<UploadItem, ResultGroup<PutObjectResult>>doAsyncInBatches(uItems,
+                { List<UploadItem> batch ->
+                    Promises.task {
+                        List<Result<PutObjectResult>> resList = batch.collect(storageService.&upload)
+                        new ResultGroup<PutObjectResult>(resList)
+                    }
+                }, Constants.CONCURRENT_UPLOAD_BATCH_SIZE)
+        ResultGroup<PutObjectResult> resGroup = new ResultGroup<>()
+        resGroupList.each { ResultGroup<PutObjectResult> group -> resGroup.merge(group) }
+        resGroup
     }
     Result<PutObjectResult> upload(UploadItem uItem) {
         if (uItem.validate()) {
-            new ByteArrayInputStream(uItem.data).withCloseable { ByteArrayInputStream bStream ->
+            new ByteArrayInputStream(uItem.data).withStream { InputStream bStream ->
                 upload(uItem.key, uItem.mimeType, bStream)
             }
         }

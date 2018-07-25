@@ -86,7 +86,7 @@ class TwimlBuilder {
             buildTexts(responses)
         })
     }
-    Result<Closure> buildTexts(List<String> responses) {
+    Result<Closure> buildTexts(Collection<String> responses) {
         resultFactory.success({
             Response { responses.each { Message(it) } }
         })

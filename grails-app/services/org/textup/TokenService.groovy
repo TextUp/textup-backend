@@ -8,10 +8,13 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
-import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.annotation.Propagation
+import org.textup.type.CallResponse
 import org.textup.type.TokenType
+import org.textup.type.VoiceLanguage
 import org.textup.validator.BasicNotification
 import org.textup.validator.Notification
+import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 
 @GrailsCompileStatic
@@ -100,7 +103,7 @@ class TokenService {
     // Note that this must return an ALREADY-SAVED token so that we don't have a
     // race condition in which the callback from the started call reaches the app before
     // the transaction finishes and the token is saved
-    @Transactional(TransactionDefinition.PROPAGATION_REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     Token tryBuildAndPersistCallToken(String identifier, OutgoingMessage msg1) {
         // [FUTURE] right now, the only available media type is `IMAGE` so if we have no images
         // to send and only text, then even if the OutgoingMessage type is a call, we will still
@@ -114,7 +117,7 @@ class TokenService {
                 // cannot have language be of type VoiceLanguage because this hook is called
                 // after the the TextUp user picks up the call and we must serialize the
                 // parameters that are then passed back to TextUp by Twilio after pickup
-                language: msg1.lang?.toString()
+                language: msg1.language?.toString()
             ])
             if (!res.success) {
                 log.error("Token.tryBuildAndPersistCallToken: ${res.errorMessages}")
@@ -200,7 +203,7 @@ class TokenService {
                     token: tok1.token,
                     repeatCount: repeatCount + 1
                 ])
-            buildCallResponse(messageIntro, tData.message, lang, repeatWebhook)
+            buildCallResponse(messageIntro, tData.message as String, lang, repeatWebhook)
         }
         else { buildCallEnd() }
     }

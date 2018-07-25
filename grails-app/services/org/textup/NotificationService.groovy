@@ -44,8 +44,8 @@ class NotificationService {
 	// Building notifications
 	// ----------------------
 
-	List<BasicNotification> build(Phone targetPhone, List<Contact> contacts,
-        List<ContactTag> tags = []) {
+	List<BasicNotification> build(Phone targetPhone, Collection<Contact> contacts,
+        Collection<ContactTag> tags = []) {
 
 		Map<Long, Record> phoneIdToRecord = [:]
 		Map<Long, Long> staffIdToPersonalPhoneId = [:]
@@ -62,7 +62,7 @@ class NotificationService {
 
 	protected void populateData(Map<Long, Record> phoneIdToRecord,
 		Map<Long, Long> staffIdToPersonalPhoneId, Map<Phone, List<Staff>> phonesToCanNotify,
-		Phone targetPhone, List<Contact> contacts, List<ContactTag> tags = []) {
+		Phone targetPhone, Collection<Contact> contacts, Collection<ContactTag> tags = []) {
 
 		List<SharedContact> sharedContacts = SharedContact
 		    .findEveryByContactIdsAndSharedBy(contacts*.id, targetPhone)
@@ -86,8 +86,7 @@ class NotificationService {
         // respect the gated getRecord method on the SharedContact, then those with view-only
         // permissions will not receive notifications or incoming calls
 		sharedContacts.each { SharedContact sc1 ->
-            Record rec1 = sc1.record
-            if (rec1) {
+            sc1.tryGetRecord().then { Record rec1 ->
                 phoneIdToRecord[sc1.sharedWith.id] = rec1
                 allPhones << sc1.sharedWith
                 recordIds << rec1.id

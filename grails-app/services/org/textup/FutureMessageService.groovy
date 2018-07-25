@@ -18,6 +18,7 @@ import org.textup.type.VoiceLanguage
 import org.textup.util.OptimisticLockingRetry
 import org.textup.validator.BasicNotification
 import org.textup.validator.OutgoingMessage
+import org.textup.validator.UploadItem
 
 @GrailsTypeChecked
 @Transactional
@@ -127,11 +128,12 @@ class FutureMessageService {
         if (fMsg.notifySelf && resGroup.anySuccesses) {
             String instructions = messageSource.getMessage(
                 "futureMessageService.notifyStaff.notification", null, LCH.getLocale())
-            notificationService.build(p1, msg.contacts, msg.tags).each { BasicNotification bn1 ->
-                tokenService
-                    .notifyStaff(bn1, true, fMsg.message, instructions)
-                    .logFail("FutureMessageService.execute: calling notifyStaff")
-            }
+            notificationService.build(p1, msg.contacts.recipients, msg.tags.recipients)
+                .each { BasicNotification bn1 ->
+                    tokenService
+                        .notifyStaff(bn1, true, fMsg.message, instructions)
+                        .logFail("FutureMessageService.execute: calling notifyStaff")
+                }
         }
         resGroup
     }
@@ -143,7 +145,13 @@ class FutureMessageService {
         this.create(Contact.get(cId)?.record, body, timezone)
     }
     Result<FutureMessage> createForSharedContact(Long scId, Map body, String timezone = null) {
-        this.create(SharedContact.get(scId)?.record, body, timezone)
+        SharedContact sc1 = SharedContact.get(scId)
+        if (!sc1) {
+            return resultFactory.failWithCodeAndStatus(
+                "futureMessageService.create.noRecordOrInsufficientPermissions",
+                ResultStatus.UNPROCESSABLE_ENTITY)
+        }
+        sc1.tryGetRecord().then { Record rec1 -> this.create(rec1, body, timezone) }
     }
     Result<FutureMessage> createForTag(Long ctId, Map body, String timezone = null) {
         this.create(ContactTag.get(ctId)?.record, body, timezone)
@@ -163,7 +171,7 @@ class FutureMessageService {
             if (mediaRes.success) {
                 mInfo = mediaRes.payload
             }
-            else { return mediaRes.toGroup() }
+            else { return mediaRes }
         }
         // step 2: create future message
         setFromBody(new SimpleFutureMessage(record: rec, media: mInfo), body, timezone)
@@ -201,7 +209,7 @@ class FutureMessageService {
             }
             Result<MediaInfo> mediaRes = mediaService.handleActions(fMsg.media,
                 itemsToUpload.&addAll, body)
-            if (!mediaRes.success) { return mediaRes.toGroup() }
+            if (!mediaRes.success) { return mediaRes }
         }
         // step 2: update future message
         setFromBody(fMsg, body, timezone)

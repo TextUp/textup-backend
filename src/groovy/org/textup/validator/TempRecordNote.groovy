@@ -22,7 +22,9 @@ class TempRecordNote {
 		// ensures that note will have at least one of text, location or media
 		// leaves text and location validation to respective domain objects
 		info validator:{ Map noteInfo, TempRecordNote obj ->
-			if (!noteInfo.noteContents && !noteInfo.location && (!obj.media || obj.media.isEmpty())) {
+			if (!noteInfo.noteContents && !noteInfo.location &&
+				(!obj.note?.media || obj.note.media.isEmpty())) {
+
 				['noInfo']
 			}
 		}
@@ -43,16 +45,16 @@ class TempRecordNote {
 		// in the record. Otherwise, we will preserve the default value
 		modifyWhenCreatedIfNeeded(note1, this.after)
 		// validate and save
-        if (!tempNote.validate()) {
-            return resultFactory.failWithValidationErrors(tempNote.errors)
+        if (!this.validate()) {
+            return Helpers.resultFactory.failWithValidationErrors(this.errors)
         }
         if (note1.location && !note1.location.save()) {
-            return resultFactory.failWithValidationErrors(note1.location.errors)
+            return Helpers.resultFactory.failWithValidationErrors(note1.location.errors)
         }
         if (note1.save()) {
-            resultFactory.success(note1)
+            Helpers.resultFactory.success(note1)
         }
-        else { resultFactory.failWithValidationErrors(note1.errors) }
+        else { Helpers.resultFactory.failWithValidationErrors(note1.errors) }
 	}
 
 	protected RecordNote updateFields(RecordNote note1, Author auth) {

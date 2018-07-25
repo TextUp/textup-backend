@@ -18,8 +18,8 @@ class NumberToContactRecipients extends Recipients<String, Contact> {
             List<String> msgs = []
             List<Contact> contacts = []
             Helpers.<Void>doWithoutFlush {
-                ids.collect { String num ->
-                    PhoneNumber pNum = new PhoneNumber(number:num)
+                for (Object num in ids) {
+                    PhoneNumber pNum = new PhoneNumber(number:num as String)
                     if (!pNum.validate()) { // ignore invalid phone numbers
                         continue
                     }

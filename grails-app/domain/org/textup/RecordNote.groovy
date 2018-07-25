@@ -11,6 +11,8 @@ import org.restapidoc.annotation.*
 @RestApiObject(name="RecordNote", description="Notes that are part of the record.")
 class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 
+    ResultFactory resultFactory
+
 	// whenCreated is used for making notes show up in the correct
 	// position in the chronological record, this 'whenChanged' field
 	// is when this note actually was created
@@ -39,6 +41,7 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
         useForCreation = true)
 	Location location
 
+    static transients = ["resultFactory"]
     @RestApiObjectField(
         apiFieldName   = "revisions",
         description    = "Previous revisions of this note.",

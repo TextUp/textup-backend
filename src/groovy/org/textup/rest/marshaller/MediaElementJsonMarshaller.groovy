@@ -9,14 +9,16 @@ import org.textup.type.MediaVersion
 class MediaElementJsonMarshaller extends JsonNamedMarshaller {
 
     static final Closure marshalClosure = { ReadOnlyMediaElement e1 ->
-        Map json = [uid: e1.uid]
-        e1.displayVersions.each { MediaVersion k, ReadOnlyMediaElementVersion v ->
-            json[k.displayName] = [
+        Map json = [:]
+        json.uid = e1.uid
+        e1.versionsForDisplay.each { MediaVersion k, ReadOnlyMediaElementVersion v ->
+            Map vInfo = [
                 // MIME type is provided in the Content-Type header of the response once
                 // the user fetches the content from the provided url
-                link: v.link?.toString(),
-                width: v.inherentWidth
+                link: v.getLink()?.toString(),
+                width: v.getInherentWidth()
             ]
+            json[k.displayName] = vInfo
         }
         json
     }

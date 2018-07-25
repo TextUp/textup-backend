@@ -5,6 +5,7 @@ import grails.transaction.Transactional
 import org.apache.commons.lang3.tuple.Pair
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
+import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -14,9 +15,11 @@ class IncomingMessageService {
 
     AnnouncementService announcementService
     NotificationService notificationService
+    ResultFactory resultFactory
     SocketService socketService
     TokenService tokenService
     TwimlBuilder twimlBuilder
+    MessageSource messageSource
 
     // Texts
     // -----
@@ -27,7 +30,7 @@ class IncomingMessageService {
         List<RecordText> rTexts = []
         storeForNumber(phone, session.number, { Contact c1 ->
             Result<RecordText> res = c1.record
-                .storeIncomingText(text, session.toAuthor(), mInfo)
+                .storeIncomingText(text, session, mInfo)
                 .logFail("IncomingMessageService.relayText: store text for contact ${c1.id}")
             if (res.success) {
                 rTexts << res.payload
@@ -74,7 +77,7 @@ class IncomingMessageService {
         List<RecordCall> rCalls = []
         storeForNumber(phone, session.number, { Contact c1 ->
             Result<RecordCall> res = c1.record
-                .storeIncomingCall(apiId, session.toAuthor())
+                .storeIncomingCall(apiId, session)
                 .logFail("IncomingMessageService.relayCall")
             if (res.success) {
                 rCalls << res.payload
@@ -133,7 +136,7 @@ class IncomingMessageService {
                         c1.record
                             .storeOutgoingCall(staff.toAuthor())
                             .logFail("IncomingMessageService.handleSelfCall")
-                            .then { RecordCall rCall1 -> rCall.addReceipt(receipt) }
+                            .then { RecordCall rCall1 -> rCall1.addReceipt(receipt) }
                     })
                     twimlBuilder.build(CallResponse.SELF_CONNECTING,
                         [displayedNumber:phone.number.e164PhoneNumber, numAsString:pNum.number])

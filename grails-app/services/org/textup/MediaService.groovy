@@ -9,10 +9,21 @@ import org.apache.http.HttpResponse
 import org.apache.http.HttpStatus as ApacheHttpStatus
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
+import org.textup.type.CallResponse
+import org.textup.type.MediaVersion
+import org.textup.validator.action.ActionContainer
+import org.textup.validator.action.MediaAction
+import org.textup.validator.BasePhoneNumber
+import org.textup.validator.TempRecordReceipt
+import org.textup.validator.UploadItem
 
 @GrailsCompileStatic
 @Transactional
 class MediaService {
+
+    CallService callService
+    ResultFactory resultFactory
+    TextService textService
 
     // Sending media via media actions
     // -------------------------------
@@ -108,11 +119,13 @@ class MediaService {
             MediaInfo mInfo = new MediaInfo()
             List<Result<MediaInfo>> failRes = []
             urlToMimeType.each { String url, String mimeType ->
-                HttpClients.createDefault().withCloseable { CloseableHttpClient client ->
-                    client.execute(new HttpGet(url)).withCloseable { HttpResponse resp ->
+                CloseableHttpClient client = HttpClients.createDefault()
+                client.withCloseable {
+                    HttpResponse resp = client.execute(new HttpGet(url))
+                    resp.withCloseable {
                         int statusCode = resp.statusLine.statusCode
                         if (statusCode == ApacheHttpStatus.SC_OK) {
-                            resp.entity.content.withCloseable { InputStream stream ->
+                            resp.entity.content.withStream { InputStream stream ->
                                 byte[] data = IOUtils.toByteArray(stream)
                                 Result<MediaInfo> res = createUploads(mimeType, data)
                                     .then { List<UploadItem> uItems ->
@@ -156,8 +169,10 @@ class MediaService {
     }
 
     Result<Void> deleteMedia(String messageId, Collection<String> mediaIds) {
-        List<ResultGroup<Boolean>> resGroup = Helpers.<String, ResultGroup<Boolean>>doAsyncInBatches(
-            mediaIds, deleteMediaHelper.curry(messageId))
+        List<ResultGroup<Boolean>> resGroupList = Helpers.<String, ResultGroup<Boolean>>doAsyncInBatches(
+            mediaIds, { Collection<String> batch -> deleteMediaHelper(messageId, batch) })
+        ResultGroup<Boolean> resGroup = new ResultGroup<>()
+        resGroupList.each { ResultGroup<Boolean> i -> resGroup.merge(i) }
         if (resGroup.anyFailures) {
             resultFactory.failWithResultsAndStatus(resGroup.failures, ResultStatus.INTERNAL_SERVER_ERROR, false)
         }
@@ -218,10 +233,10 @@ class MediaService {
         ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
         // if this call has media (currently only images), send only media as a text
         if (mInfo && !mInfo.isEmpty()) {
-            resGroup << sendWithMediaForText(fromNum, toNums, "", mInfo)
+            resGroup.merge(sendWithMediaForText(fromNum, toNums, "", mInfo))
         }
-        resGroup << callService.start(fromNum, sortedNums, [
-            handle:CallResponse.DIRECT_MESSAGE,
+        resGroup << callService.start(fromNum, toNums, [
+            handle: CallResponse.DIRECT_MESSAGE,
             token: callToken.token
         ])
         resGroup

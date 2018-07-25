@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.joda.time.DateTime
+import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -11,8 +12,9 @@ import org.textup.validator.*
 class AnnouncementService {
 
     AuthService authService
-    ResultFactory resultFactory
     CallService callService
+    ResultFactory resultFactory
+    SocketService socketService
     TextService textService
     TwimlBuilder twimlBuilder
 
@@ -70,9 +72,11 @@ class AnnouncementService {
         startAnnouncement(phone, sessions, { IncomingSession s1 ->
             textService.send(phone.number, [s1.number], announcement)
         }, { Contact c1, TempRecordReceipt receipt ->
-            Result<RecordText> storeRes = c1.record.storeOutgoingText(message, author1)
-            storeRes.then { RecordText rText1 -> rText1.addReceipt(receipt) }
-            storeRes
+            c1.record.storeOutgoingText(message, author1)
+                .then { RecordText rText1 ->
+                    rText1.addReceipt(receipt)
+                    resultFactory.success(rText1)
+                }
         })
     }
     Map<String, Result<TempRecordReceipt>> startCallAnnouncement(Phone phone, String message,
@@ -86,9 +90,11 @@ class AnnouncementService {
                 identifier:identifier
             ])
         }, { Contact c1, TempRecordReceipt receipt ->
-            Result<RecordCall> storeRes = c1.record.storeOutgoingCall(author1, message)
-            storeRes.then { RecordCall rCall1 -> rCall1.addReceipt(receipt) }
-            storeRes
+            c1.record.storeOutgoingCall(author1, message)
+                .then { RecordCall rCall1 ->
+                    rCall1.addReceipt(receipt)
+                    resultFactory.success(rCall1)
+                }
         })
     }
 

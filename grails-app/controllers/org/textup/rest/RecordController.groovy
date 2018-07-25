@@ -69,24 +69,20 @@ class RecordController extends BaseController {
             if (!c1) {
                 return notFound()
             }
-            ReadOnlyRecord rec1
             if (authService.hasPermissionsForContact(cId)) {
-                rec1 = c1.record
+                listForRecord(c1.record, params)
             }
             else {
                 Long scId = authService.getSharedContactIdForContact(c1.id)
-                if (scId) {
-                    SharedContact sc1 = SharedContact.get(scId)
-                    // authService implicitly checks at the shared contact is NOT expired
-                    // AND any active shared contact has at least view permissions
-                    if (sc1?.isActive) {
-                        rec1 = sc1.readOnlyRecord
-                    }
-                    else { return forbidden() }
+                if (!scId) { return forbidden() }
+                SharedContact sc1 = SharedContact.get(scId)
+                if (!sc1) { return forbidden() }
+                Result<ReadOnlyRecord> res = sc1.tryGetReadOnlyRecord()
+                if (res.success) {
+                    listForRecord(res.payload, params)
                 }
-                else { return forbidden() }
+                else { forbidden() }
             }
-            listForRecord(rec1, params)
         }
         else { // tag id
             Long ctId = params.long("tagId")
@@ -182,30 +178,33 @@ class RecordController extends BaseController {
         else { createForPhone(authService.loggedInAndActive?.phone?.id, rInfo) }
     }
     protected void createForPhone(Long phoneId, Map body) {
-        Result<RecordItem> resGroup = validateCreateBody(body)
-            .then { -> recordService.create(phoneId, body) }
-        respondWithResult(ResultItem, resGroup)
+        if (validateCreateBody(body)) {
+            respondWithResult(RecordItem, recordService.create(phoneId, body))
+        }
     }
-    protected ResultGroup<Void> validateCreateBody(Map body) {
-        Result<Class<RecordItem>> res = recordService.determineClass(rInfo)
+    protected boolean validateCreateBody(Map body) {
+        Result<Class<RecordItem>> res = recordService.determineClass(body)
         if (!res.success) {
-            return res.toGroup()
+            badRequest()
+            return false
         }
         switch(res.payload) {
             case RecordCall:
                 if (!Helpers.exactly(1, ["callContact", "callSharedContact"], body)) {
-                    return resultFactory.failWithCodeAndStatus("recordController.create.tooManyForCall",
-                        ResultStatus.BAD_REQUEST).toGroup()
+                    respondWithResult(RecordItem, resultFactory.failWithCodeAndStatus(
+                        "recordController.create.tooManyForCall", ResultStatus.BAD_REQUEST))
+                    return false
                 }
                 break
             case RecordNote:
                 if (!Helpers.exactly(1, ["forContact", "forSharedContact", "forTag"], body)) {
-                    return resultFactory.failWithCodeAndStatus("recordController.create.tooManyForNote",
-                        ResultStatus.BAD_REQUEST).toGroup()
+                    respondWithResult(RecordItem, resultFactory.failWithCodeAndStatus(
+                        "recordController.create.tooManyForNote", ResultStatus.BAD_REQUEST))
+                    return false
                 }
                 break
         }
-        resultFactory.success().toGroup()
+        return true
     }
 
     // Update

@@ -10,7 +10,7 @@ import org.textup.type.*
 @RestApiObject(
     name        = "MediaInfo",
     description = "Contains all media elements for a message or batch of messages")
-class MediaInfo {
+class MediaInfo implements ReadOnlyMediaInfo {
 
     @RestApiObjectField(
         apiFieldName   = "elements",
@@ -27,13 +27,13 @@ class MediaInfo {
     // Methods
     // -------
 
-    void forEachBatch(Closure<Void> doAction, Collection<MediaType> typesToRetrieve = []) {
+    void forEachBatch(Closure<?> doAction, Collection<MediaType> typesToRetrieve = []) {
         int maxFileCount = Constants.MAX_NUM_MEDIA_PER_MESSAGE
         long maxFileSize = Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES,
             currentBatchSize = 0
         List<MediaElement> batchSoFar = []
-        getElements(typesToRetrieve).forEach { MediaElement element ->
-            Long elementSize = element.sendVersionInBytes
+        getElements(typesToRetrieve).each { MediaElement element ->
+            Long elementSize = element.sendVersion?.sizeInBytes ?: 0
             // if adding the current element would exceed either the file size or file number
             // thresholds, then execute this batch first and then clear to start new batch
             if (currentBatchSize + elementSize > maxFileSize ||
@@ -61,8 +61,10 @@ class MediaInfo {
     // Property access
     // ---------------
 
-    List<MediaElement> getElements(Collection<MediaType> typesToRetrieve = []) {
-        typesToRetrieve ? elements.findAll { MediaEement e1 -> e1.type in mediaTypes } : elements
+    List<MediaElement> getElements(Collection<MediaType> typesToFind = []) {
+        Collection<MediaElement> elementCollection = typesToFind ?
+            elements.findAll { MediaElement e1 -> e1.type in typesToFind } : elements
+        new ArrayList<MediaElement>(elementCollection)
     }
 
     MediaElement removeElement(String uid) {

@@ -1,6 +1,5 @@
 package org.textup
 
-import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
@@ -8,13 +7,12 @@ import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.type.AuthorType
 import org.textup.validator.Author
-import org.textup.validator.MediaInfo
 
-@GrailsTypeChecked
 @EqualsAndHashCode
-@RestApiObject(name="RecordNoteRevision",
-	description="Previous versions of the note.")
-class RecordNoteRevision implements ReadOnlyBaseRecordNote, ReadOnlyWithMedia {
+@RestApiObject(
+    name        = "RecordNoteRevision",
+    description = "Previous versions of the note.")
+class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
 
     @RestApiObjectField(
         description    = "When this revision happened",

@@ -13,7 +13,8 @@ import javax.imageio.ImageWriteParam
 import javax.imageio.ImageWriter
 import javax.imageio.stream.ImageOutputStream
 import org.apache.commons.codec.binary.Base64
-import org.textup.type.MediaType
+import org.textup.type.*
+import org.textup.*
 
 // [FUTURE] will need to extend this class to support audio. Currently only supports images
 
@@ -74,7 +75,7 @@ class UploadItem {
                 param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT)
                 param.setCompressionQuality(currentQuality)
                 // step 2: set up appropriate streams to collect the writer's output
-                currData = getDataFromImage(bImg, writer, param)
+                currData = getDataFromImage(currImage, writer, param)
                 currImage = getImageFromData(currData)
                 currentQuality -= qualityStep
             }
@@ -115,7 +116,7 @@ class UploadItem {
     }
 
     protected static BufferedImage getImageFromData(byte[] data) {
-        new ByteArrayInputStream(newData).withCloseable { ByteArrayInputStream bInStream ->
+        new ByteArrayInputStream(data).withStream { InputStream bInStream ->
             ImageIO.read(bInStream)
         }
     }
@@ -123,7 +124,7 @@ class UploadItem {
     protected static BufferedImage imageToBufferedImage(Image img) {
         // step 1: convert java.awt.Image to java.awt.image.BufferedImage
         // From https://stackoverflow.com/a/13605411
-        BufferedImge bImg = new BufferedImage(img.getWidth(null), img.getHeight(null),
+        BufferedImage bImg = new BufferedImage(img.getWidth(null), img.getHeight(null),
             BufferedImage.TYPE_INT_ARGB)
         // step 2: draw the Image onto the BufferedImage
         Graphics2D graphics = bImg.createGraphics()
@@ -136,13 +137,14 @@ class UploadItem {
     protected static byte[] getDataFromImage(BufferedImage bImg, ImageWriter writer,
         ImageWriteParam param) {
 
-        new ByteArrayOutputStream().withCloseable { ByteArrayOutputStream bOutStream ->
-            ImageIO.createImageOutputStream(bOutStream)
-                .withCloseable { ImageOutputStream iOutStream ->
-                    writer.setOutput(iOutStream)
-                    writer.write(null, new IIOImage(bImg, null, null), param)
-                }
-            bOutStream.toByteArray()
+        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream()
+        byteOutStream.withCloseable {
+            ImageOutputStream imgOutStream = ImageIO.createImageOutputStream(byteOutStream)
+            imgOutStream.withCloseable {
+                writer.setOutput(imgOutStream)
+                writer.write(null, new IIOImage(bImg, null, null), param)
+            }
+            byteOutStream.toByteArray()
         }
     }
 }

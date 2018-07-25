@@ -9,16 +9,18 @@ import org.textup.*
 abstract class Recipients<T, E> {
 
     // ids (and therefore recipients) can be empty
-    Collection<T> ids = Collections.emptyList()
-    Phone phone
+    protected Collection<T> ids = Collections.emptyList()
+    protected Phone phone
 
     static constraints = { // all nullable: false by default
     }
 
+    void setIds(Collection<T> newIds) { ids = newIds }
+    void setPhone(Phone p1) { phone = p1 }
+
     abstract List<E> getRecipients()
 
-    Recipients<T, E> merge(Recipients<T, E> toMergeIn) {
-        ids.addAll(toMergeIn.ids)
+    Recipients<T, E> mergeRecipients(Recipients<?, E> toMergeIn) {
         getRecipients().addAll(toMergeIn.getRecipients())
         this
     }

@@ -14,8 +14,11 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, Contactable c1 ->
 
-        ReadOnlyRecord rec1 = c1.readOnlyRecord
         Map json = [:]
+
+        Result<ReadOnlyRecord> res = c1.tryGetReadOnlyRecord().logFail("ContactableJsonMarshaller")
+        if (!res.success) { return json }
+        ReadOnlyRecord rec1 = res.payload
         // add general Contactable fields
         json.id = c1.contactId
         json.lastRecordActivity = rec1.lastRecordActivity

@@ -1,5 +1,6 @@
 package org.textup
 
+import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.textup.type.*
@@ -158,13 +159,19 @@ class PhoneService {
         Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
             .withDefault { [] as List<TempRecordReceipt> }
         Closure<Void> addReceipts = { Long contactId, TempRecordReceipt r1 ->
-            contactIdToReceipts[contactId]?.add(r1)
+            contactIdToReceipts[contactId]?.add(r1); return;
         }
         Closure<List<TempRecordReceipt>> getReceipts = contactIdToReceipts.&get
         // perform actions
-        outgoingMessageService.sendForContactables(phone, recipients, msg1, mInfo)
-            .then(outgoingMessageService.&storeForContactables.curry(msg1, mInfo, author1, addReceipts))
-            .then(outgoingMessageService.&storeForTags.curry(msg1, mInfo, author1, getReceipts))
+        Result<Map<Contactable, Result<List<TempRecordReceipt>>>> res = outgoingMessageService
+            .sendForContactables(phone, recipients, msg1, mInfo)
+        if (res.success) {
+            ResultGroup<RecordItem> resGroup = outgoingMessageService.storeForContactables(msg1,
+                mInfo, author1, addReceipts, res.payload)
+            outgoingMessageService.storeForTags(msg1, mInfo, author1, getReceipts, resGroup)
+            resGroup
+        }
+        else { res.toGroup() }
     }
     Result<RecordCall> startBridgeCall(Phone phone, Contactable c1, Staff staff) {
         outgoingMessageService.startBridgeCall(phone, c1, staff)
@@ -191,8 +198,8 @@ class PhoneService {
     Result<Closure> handleAnnouncementText(Phone phone, IncomingText text, IncomingSession session,
         MediaInfo mInfo = null) {
 
-        announcementService.handleAnnouncementCall(phone, text, session,
-            relayText.curry(phone, text, session, mInfo))
+        announcementService.handleAnnouncementText(phone, text, session,
+            { relayText(phone, text, session, mInfo) })
     }
 
     Result<Closure> relayCall(Phone phone, String apiId, IncomingSession session) {
@@ -202,7 +209,7 @@ class PhoneService {
         IncomingSession session) {
 
         announcementService.handleAnnouncementCall(phone, digits, session,
-            relayCall.curry(phone, apiId, session))
+            { relayCall(phone, apiId, session) })
     }
 
     Result<Closure> screenIncomingCall(Phone phone, IncomingSession session) {

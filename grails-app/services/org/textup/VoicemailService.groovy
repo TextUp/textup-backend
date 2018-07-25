@@ -1,5 +1,7 @@
 package org.textup
 
+import com.amazonaws.services.s3.model.PutObjectResult
+import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import java.nio.charset.Charset
@@ -23,10 +25,12 @@ class VoicemailService {
 
     Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
         try {
-            HttpClients.createDefault().withCloseable { CloseableHttpClient client ->
+            CloseableHttpClient client = HttpClients.createDefault()
+            client.withCloseable {
                 HttpGet req = new HttpGet(voicemailUrl + ".mp3")
                 req.setHeader(HttpHeaders.AUTHORIZATION, buildBasicAuth());
-                client.execute(req).withCloseable { HttpResponse resp ->
+                HttpResponse resp = client.execute(req)
+                resp.withCloseable {
                     int statusCode = resp.statusLine.statusCode
                     if (statusCode != ApacheHttpStatus.SC_OK) {
                         return resultFactory.failWithCodeAndStatus(
@@ -34,7 +38,7 @@ class VoicemailService {
                             ResultStatus.convert(statusCode),
                             [resp.statusLine.reasonPhrase])
                     }
-                    resp.entity.content.withCloseable { InputStream stream ->
+                    resp.entity.content.withStream { InputStream stream ->
                         storageService
                             .upload(callId, "audio/mpeg", stream)
                             .then({ PutObjectResult putRes ->
@@ -44,9 +48,9 @@ class VoicemailService {
                                 }
                                 resultFactory.success(putRes.getETag())
                             })
-                    }
-                }
-            }
+                    } as Result<String>
+                } as Result<String>
+            } as Result<String>
         }
         catch (Throwable e) {
             log.error("VoicemailService.moveVoicemail throwable: ${e.message}")

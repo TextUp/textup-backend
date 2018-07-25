@@ -1,6 +1,5 @@
 package org.textup
 
-import com.amazonaws.services.s3.model.PutObjectResult
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
@@ -118,14 +117,15 @@ class RecordService {
             }
         }
         if (resGroup.anyFailures) {
-            return resGroup
+            return resultFactory.failWithResultsAndStatus(resGroup.failures,
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
         // step 2: build outgoing msg
-        OutgoingMessage msg1 = new OutgoingMessage(message:body.contents as String,
+        OutgoingMessage msg1 = new OutgoingMessage(message: body.contents as String,
             media: mInfo,
-            contacts:contacts.merge(numToContacts),
-            sharedContacts:sharedContacts,
-            tags:tags)
+            contacts: contacts.mergeRecipients(numToContacts),
+            sharedContacts: sharedContacts,
+            tags: tags)
         if (msg1.validate()) {
             resultFactory.success(msg1)
         }
@@ -156,9 +156,13 @@ class RecordService {
 
     protected Result<RecordItem> createCall(Phone p1, Map body) {
         // step 1: create and validate recipients
-        Recipients<Long, ? extends Contactable> recips = body.callContact ?
-            new ContactRecipients(phone: p1, ids: [Helpers.to(Long, body.callContact)]) :
-            new SharedContactRecipients(phone: p1, ids: [Helpers.to(Long, body.callSharedContact)])
+        Recipients<Long, ? extends Contactable> recips
+        if (body.callContact) {
+            recips = new ContactRecipients(phone: p1, ids: [Helpers.to(Long, body.callContact)])
+        }
+        else { // body.callSharedContact
+            recips = new SharedContactRecipients(phone: p1, ids: [Helpers.to(Long, body.callSharedContact)])
+        }
         if (!recips.validate()) {
             return resultFactory.failWithValidationErrors(recips.errors)
         }
@@ -179,11 +183,16 @@ class RecordService {
 
     protected Result<RecordItem> createNote(Phone p1, Map body) {
         // step 1: create and validate recipients
-        Recipients<Long, ? extends WithRecord> recips = body.forSharedContact ?
-            new SharedContactRecipients(phone: p1, ids: [Helpers.to(Long, body.forSharedContact)]) :
-                body.forContact ?
-                    new ContactRecipients(phone: p1, ids: [Helpers.to(Long, body.forContact)]) :
-                        new ContactTagRecipients(phone: p1, ids: [Helpers.to(Long, body.forTag)])
+        Recipients<Long, ? extends WithRecord> recips
+        if (body.forSharedContact) {
+            recips = new SharedContactRecipients(phone: p1, ids: [Helpers.to(Long, body.forSharedContact)])
+        }
+        else if (body.forContact) {
+            recips = new ContactRecipients(phone: p1, ids: [Helpers.to(Long, body.forContact)])
+        }
+        else { // body.forTag
+            recips = new ContactTagRecipients(phone: p1, ids: [Helpers.to(Long, body.forTag)])
+        }
         if (!recips.validate()) {
             return resultFactory.failWithValidationErrors(recips.errors)
         }
@@ -195,6 +204,9 @@ class RecordService {
             return resultFactory.failWithCodeAndStatus("recordService.create.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
+        Result<Record> res = with1.tryGetRecord()
+        if (!res.success) { return res }
+        Record rec1 = res.payload
         // step 3: handle media actions
         Collection<UploadItem> itemsToUpload = []
         MediaInfo mInfo
@@ -204,11 +216,11 @@ class RecordService {
             if (mediaRes.success) {
                 mInfo = mediaRes.payload
             }
-            else { return mediaRes.toGroup() }
+            else { return mediaRes }
         }
         // step 4: create validator object for note
         TempRecordNote tempNote = new TempRecordNote(info: body,
-            note: new RecordNote(record:with1.record, media: mInfo),
+            note: new RecordNote(record: rec1, media: mInfo),
             after: body.after ? Helpers.toDateTimeWithZone(body.after) : null)
         tempNote.toNote(authService.loggedInAndActive.toAuthor())
             .then { RecordNote note1 ->
@@ -241,20 +253,20 @@ class RecordService {
         if (mediaService.hasMediaActions(body)) {
             Result<MediaInfo> mediaRes = mediaService.handleActions(note1.media,
                 itemsToUpload.&addAll, body)
-            if (!mediaRes.success) { return mediaRes.toGroup() }
+            if (!mediaRes.success) { return mediaRes }
         }
         // step 3: build validate object to update fields
         TempRecordNote tempNote = new TempRecordNote(note:note1, info:body,
             after:body.after ? Helpers.toDateTimeWithZone(body.after) : null)
         tempNote.toNote(authService.loggedInAndActive.toAuthor())
-            .then { RecordNote note1 ->
+            .then { RecordNote note2 ->
                 Collection<String> errorMsgs = []
                 storageService.uploadAsync(itemsToUpload)
                     .failures
                     .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
                 Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
                     .logFail("RecordService.update")
-                note1.tryCreateRevision()
+                note2.tryCreateRevision()
             }
     }
 

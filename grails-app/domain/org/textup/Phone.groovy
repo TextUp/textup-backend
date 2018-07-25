@@ -8,20 +8,8 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.textup.rest.TwimlBuilder
-import org.textup.type.CallResponse
-import org.textup.type.ContactStatus
-import org.textup.type.PhoneOwnershipType
-import org.textup.type.ReceiptStatus
-import org.textup.type.RecordItemType
-import org.textup.type.SharePermission
-import org.textup.type.TextResponse
-import org.textup.type.VoiceLanguage
-import org.textup.type.VoiceType
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingMessage
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes="owner")
@@ -503,7 +491,7 @@ class Phone {
         else { phoneService.sendMessage(this, msg, mInfo, staff) }
     }
     // start bridge call, confirmed (if staff picks up) by contact
-    Result<RecordCall> startBridgeCall(Recipients<Long, ? extends Contactable> c1, Staff staff) {
+    Result<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
         if (!this.isActive) {
             resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
         }

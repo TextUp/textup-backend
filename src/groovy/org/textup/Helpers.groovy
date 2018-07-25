@@ -14,9 +14,11 @@ import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 import org.apache.commons.lang3.ClassUtils
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.WebUtils
 import org.hibernate.FlushMode
 import org.hibernate.Session
 import org.joda.time.*
+import org.springframework.context.MessageSource
 import org.textup.validator.*
 
 @GrailsCompileStatic
@@ -111,13 +113,13 @@ class Helpers {
     // Async
     // -----
 
-    static <K, T> List<T> doAsyncInBatches(List<K> data, Closure<Promise<T>> doAction,
+    static <K, T> List<T> doAsyncInBatches(Collection<K> data, Closure<Promise<T>> doAction,
         int batchSize = Constants.CONCURRENT_SEND_BATCH_SIZE) {
         PromiseList<T> pList1 = new PromiseList<>()
-        data.collate(batchSize).collect { List<K> batch ->
+        new ArrayList<K>(data).collate(batchSize).collect { List<K> batch ->
             pList1 << doAction(batch)
         }
-        pList.get(1, TimeUnit.MINUTES) as List<T>
+        pList1.get(1, TimeUnit.MINUTES) as List<T>
     }
 
     // Lists

@@ -8,6 +8,7 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.VoiceLanguage
 import org.textup.validator.Author
+import org.textup.validator.IncomingText
 
 @GrailsTypeChecked
 @EqualsAndHashCode

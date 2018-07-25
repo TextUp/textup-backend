@@ -6,7 +6,6 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 
 @GrailsTypeChecked
@@ -16,12 +15,12 @@ class CallService {
     LinkGenerator grailsLinkGenerator
     ResultFactory resultFactory
 
-    Result<TempRecordReceipt> start(PhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup) {
+    Result<TempRecordReceipt> start(BasePhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup) {
         String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:[handle:Constants.CALLBACK_STATUS])
         doCall(fromNum, toNum, afterPickup, callback)
     }
-    Result<TempRecordReceipt> start(PhoneNumber fromNum,
+    Result<TempRecordReceipt> start(BasePhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, Map afterPickup) {
         // if one number we can just start without any retry logic
         if (toNums?.size() <= 1) {
@@ -69,7 +68,7 @@ class CallService {
                 ResultStatus.UNPROCESSABLE_ENTITY, null, false)
         }
     }
-    Result<TempRecordReceipt> retry(PhoneNumber fromNum,
+    Result<TempRecordReceipt> retry(BasePhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup) {
         this.start(fromNum, toNums, afterPickup).then({ TempRecordReceipt r1 ->
             List<RecordItem> items = RecordItem.findEveryByApiId(apiId)
@@ -81,7 +80,7 @@ class CallService {
         })
     }
 
-    protected Result<TempRecordReceipt> doCall(PhoneNumber fromNum, BasePhoneNumber toNum,
+    protected Result<TempRecordReceipt> doCall(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         Map afterPickup, String callback) {
         if (!fromNum || !toNum) {
             resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",

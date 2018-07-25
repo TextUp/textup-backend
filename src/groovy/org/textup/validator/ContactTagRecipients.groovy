@@ -8,7 +8,8 @@ import org.textup.*
 @Validateable
 class ContactTagRecipients extends Recipients<Long, ContactTag> {
 
-    private List<ContactTag> recipients = Collections.emptyList()
+    // not private to enable manual setting of contacts directly in `FutureMessage`
+    List<ContactTag> recipients = Collections.emptyList()
 
     static constraints = { // all nullable: false by default
         recipients validator: { Collection<ContactTag> recips, ContactTagRecipients obj ->
@@ -30,9 +31,4 @@ class ContactTagRecipients extends Recipients<Long, ContactTag> {
             recipients = ContactTag.getAll(ids)
         }
     }
-
-    // Property access
-    // ---------------
-
-    List<ContactTag> getRecipients() { this.recipients }
 }

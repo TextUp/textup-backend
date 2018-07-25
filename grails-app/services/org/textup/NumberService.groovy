@@ -2,6 +2,7 @@ package org.textup
 
 import com.twilio.base.ResourceSet
 import com.twilio.exception.TwilioException
+import com.twilio.http.HttpMethod
 import com.twilio.rest.api.v2010.account.availablephonenumbercountry.Local
 import com.twilio.rest.api.v2010.account.availablephonenumbercountry.LocalReader
 import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
@@ -11,6 +12,7 @@ import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.validator.AvailablePhoneNumber
 import org.textup.validator.BasePhoneNumber
+import org.textup.validator.PhoneNumber
 
 @GrailsTypeChecked
 @Transactional

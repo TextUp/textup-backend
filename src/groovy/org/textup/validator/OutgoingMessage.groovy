@@ -20,9 +20,9 @@ class OutgoingMessage {
 	RecordItemType type = RecordItemType.TEXT
 	VoiceLanguage language = VoiceLanguage.ENGLISH
 
-	ContactRecipients contacts
-	SharedContactRecipients sharedContacts
-	ContactTagRecipients tags
+	Recipients<Long, Contact> contacts
+	Recipients<Long, SharedContact> sharedContacts
+	Recipients<Long, ContactTag> tags
 
 	static constraints = {
 		message blank: true, nullable: true, shared: "textSqlType"
@@ -38,9 +38,9 @@ class OutgoingMessage {
 	HashSet<Contactable> toRecipients() {
 		HashSet<Contactable> recipients = new HashSet<>()
         // add all contactables to a hashset to avoid duplication
-        recipients.addAll(contacts?.recipients)
-        recipients.addAll(sharedContacts?.recipients)
-        tags?.recipients?.each { ContactTag ct1 -> recipients.addAll(ct1.members ?: []) }
+        recipients.addAll(contacts.recipients)
+        recipients.addAll(sharedContacts.recipients)
+        tags.recipients.each { ContactTag ct1 -> recipients.addAll(ct1.members ?: []) }
         recipients
 	}
 
@@ -48,19 +48,19 @@ class OutgoingMessage {
 	// ---------------
 
 	String getName() {
-		Long id = contacts?.recipients?.find { Contact c1 -> c1.id }?.id
+		Long id = contacts.recipients.find { Contact c1 -> c1.id }?.id
 		if (id) { // don't return contact name, instead id, for PHI
 			Helpers.messageSource.getMessage("outgoingMessage.getName.contactId",
             	[id] as Object[], LCH.getLocale()) ?: ""
 		}
-		else { tags?.recipients?.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
+		else { tags.recipients.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
     }
 
 	boolean getIsText() { type == RecordItemType.TEXT }
 
 	HashSet<Phone> getPhones() {
 		HashSet<Phone> phones = new HashSet<>()
-		phones.addAll(contact.recipients*.phones)
+		phones.addAll(contacts.recipients*.phone)
 		phones.addAll(sharedContacts.recipients*.sharedBy)
 		phones.addAll(sharedContacts.recipients*.sharedWith)
 		phones.addAll(tags.recipients*.phone)

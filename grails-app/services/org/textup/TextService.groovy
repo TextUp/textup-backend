@@ -6,6 +6,7 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.rest.TwimlBuilder
+import org.textup.type.MediaVersion
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -55,7 +56,7 @@ class TextService {
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), message)
                 .setStatusCallback(callback)
                 .setMediaUrl(media.collect { MediaElement e1 ->
-                    e1.versions[MediaVersion.SEND]?.link?.toURI()
+                    e1.sendVersion?.link?.toURI()
                 })
                 .create()
             resultFactory.success(msg1)

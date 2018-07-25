@@ -18,7 +18,7 @@ import org.quartz.TriggerKey
 import org.restapidoc.annotation.*
 import org.textup.type.FutureMessageType
 import org.textup.type.VoiceLanguage
-import org.textup.validator.OutgoingMessage
+import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
@@ -237,14 +237,22 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
 
     OutgoingMessage toOutgoingMessage() {
         Helpers.<OutgoingMessage>doWithoutFlush({
-            OutgoingMessage msg = new OutgoingMessage(message:this.message, language:this.language,
-                type:this.type?.toRecordItemType())
-            // set recipients (manual flush)
+            // step 1: initialize classes
+            ContactRecipients cRecip = new ContactRecipients()
+            ContactTagRecipients ctRecip = new ContactTagRecipients()
+            OutgoingMessage msg = new OutgoingMessage(
+                message:this.message,
+                language:this.language,
+                type:this.type?.toRecordItemType(),
+                sharedContacts: new SharedContactRecipients(),
+                contacts: cRecip,
+                tags: ctRecip)
+            // step 2: populate recipients
             ContactTag tag = ContactTag.findByRecord(this.record)
-            if (tag) { msg.tags << tag  }
+            if (tag) { ctRecip.recipients = [tag] }
             else {
                 Contact contact = Contact.findByRecord(this.record)
-                if (contact) { msg.contacts << contact }
+                if (contact) { cRecip.recipients = [contact] }
             }
             msg
         })

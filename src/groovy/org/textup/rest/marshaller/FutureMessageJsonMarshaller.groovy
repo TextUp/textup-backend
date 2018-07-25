@@ -18,7 +18,10 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
             .logFail("FutureMessageJsonMarshaller: no available request", LogLevel.DEBUG)
             .then { List<String> errors -> uploadErrors = errors }
 
-        Map json = uploadErrors ? [uploadErrors: uploadErrors] : [:]
+        Map json = [:]
+        if (uploadErrors) {
+            json.uploadErrors = uploadErrors
+        }
         json.with {
         	id = fMsg.id
         	whenCreated = fMsg.whenCreated

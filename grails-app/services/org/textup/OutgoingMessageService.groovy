@@ -1,5 +1,7 @@
 package org.textup
 
+import grails.async.Promise
+import grails.async.Promises
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import org.textup.type.*
@@ -22,13 +24,14 @@ class OutgoingMessageService {
             toNum = staff.personalPhoneNumber
         Map afterPickup = [contactId:c1.contactId, handle:CallResponse.FINISH_BRIDGE]
         callService.start(fromNum, toNum, afterPickup)
-            .then({ TempRecordReceipt receipt ->
-                c1.tryGetRecord().then { Record rec1 ->
-                    Result<RecordCall> storeRes = rec1.storeOutgoingCall(staff.toAuthor())
-                    storeRes.then { RecordCall rCall1 -> rCall1.addReceipt(receipt) }
-                    storeRes
-                }
-            })
+            .then { TempRecordReceipt receipt ->
+                c1.tryGetRecord()
+                    .then { Record rec1 -> rec1.storeOutgoingCall(staff.toAuthor()) }
+                    .then { RecordCall rCall1 ->
+                        rCall1.addReceipt(receipt)
+                        resultFactory.success(rCall1)
+                    }
+            }
     }
 
     Result<Map<Contactable, Result<List<TempRecordReceipt>>>> sendForContactables(Phone phone,
@@ -40,14 +43,14 @@ class OutgoingMessageService {
             // instead of a null value, then that means that we are sending out this message as a call
             // See `mediaService.sendWithMedia` to see how this is handled
             Token callToken = tokenService.tryBuildAndPersistCallToken(phone.name, msg1)
-            Helpers
+            List<Map<Contactable, Result<List<TempRecordReceipt>>>> resList = Helpers
                 .<Contactable, Map<Contactable, Result<List<TempRecordReceipt>>>>doAsyncInBatches(
                     recipients, { List<Contactable> batchSoFar ->
                         sendContactableBatch(phone, batchSoFar, msg1.message, mInfo, callToken)
                     })
-                .each { Map<Contactable, Result<List<TempRecordReceipt>>> batchMap ->
-                    resultMap << batchMap
-                }
+            resList.each { Map<Contactable, Result<List<TempRecordReceipt>>> batchMap ->
+                resultMap << batchMap
+            }
             resultFactory.success(resultMap)
         }
         catch (Throwable e) { // an async error and SHOULD rollback transaction
@@ -93,7 +96,7 @@ class OutgoingMessageService {
         Author author1, Closure<Void> doWhenAddingReceipt,
         Map<Contactable, Result<List<TempRecordReceipt>>> contactableToReceiptResults) {
 
-        ResultGroup<ResultItem> resGroup = new ResultGroup<>()
+        ResultGroup<RecordItem> resGroup = new ResultGroup<>()
         contactableToReceiptResults.each { Contactable c1, Result<List<TempRecordReceipt>> res ->
             resGroup << res.then { List<TempRecordReceipt> receipts ->
                 c1.tryGetRecord().then { Record rec1 ->
@@ -110,6 +113,7 @@ class OutgoingMessageService {
                 }
             }
         }
+        resGroup
     }
 
     // Note: MediaInfo may be null

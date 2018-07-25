@@ -9,10 +9,10 @@ enum MediaVersion {
     MEDIUM("medium", 640, 100000, SMALL),
     LARGE("large", 1280, 200000, MEDIUM)
 
-    private static final String displayName
-    private static final int maxWidthInPixels
-    private static final long maxSizeInBytes
-    private static final MediaVersion next
+    private final String displayName
+    private final int maxWidthInPixels
+    private final long maxSizeInBytes
+    private final MediaVersion next
 
     MediaVersion(String name, int width, long size, MediaVersion next) {
         this.displayName = name

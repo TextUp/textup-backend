@@ -18,6 +18,7 @@ class OrganizationJsonMarshaller extends JsonNamedMarshaller {
             name = org.name
             location = org.location
         }
+        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
         Staff s1 = authService.getLoggedInAndActive()
         // only show this private information if the logged-in user is (1) active and
         // (2) a member of this organization

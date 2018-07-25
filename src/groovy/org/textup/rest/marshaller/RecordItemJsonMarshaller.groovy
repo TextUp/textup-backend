@@ -20,7 +20,10 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
             .then { List<String> errors -> uploadErrors = errors }
 
-        Map json = uploadErrors ? [uploadErrors: uploadErrors] : [:]
+        Map json = [:]
+        if (uploadErrors) {
+            json.uploadErrors = uploadErrors
+        }
         json.with {
             id = item.id
             whenCreated = item.whenCreated
@@ -47,7 +50,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 contents = item.contents
                 type = RecordItemType.TEXT.toString()
             }
-            else if (item instanceof RecordNote) {
+            else if (item instanceof ReadOnlyRecordNote) {
                 whenChanged = item.whenChanged
                 isDeleted = item.isDeleted
                 isReadOnly = item.isReadOnly

@@ -4,13 +4,14 @@ import grails.compiler.GrailsCompileStatic
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 import org.textup.type.*
+import org.textup.validator.UploadItem
 
 @GrailsCompileStatic
 @EqualsAndHashCode
 @RestApiObject(
     name        = "MediaElement",
     description = "A media element contained within a media info object contains various versions optimized for sending or display")
-class MediaElement {
+class MediaElement implements ReadOnlyMediaElement {
 
     ResultFactory resultFactory
 
@@ -63,18 +64,18 @@ class MediaElement {
 
     static Result<MediaElement> create(String mimeType, List<UploadItem> uItems) {
         MediaElement e1 = new MediaElement(type: MediaType.convertMimeType(mimeType))
-        List<Result<MediaElement>> failRes = []
+        List<Result<MediaElementVersion>> failRes = []
         uItems.each { UploadItem uItem ->
             Result<MediaElementVersion> res = e1.addVersion(uItem)
             if (!res.success) { failRes << res }
         }
         if (failRes) {
-            resultFactory.failWithResultsAndStatus(failRes, ResultStatus.UNPROCESSABLE_ENTITY)
+            Helpers.resultFactory.failWithResultsAndStatus(failRes, ResultStatus.UNPROCESSABLE_ENTITY)
         }
         else if (e1.save()) {
-            resultFactory.success(e1)
+            Helpers.resultFactory.success(e1)
         }
-        else { resultFactory.failWithValidationErrors(e1.errors) }
+        else { Helpers.resultFactory.failWithValidationErrors(e1.errors) }
     }
 
     // Methods
@@ -88,18 +89,16 @@ class MediaElement {
         if (uItem.version == MediaVersion.SEND) {
             sendVersion = vers1
         }
-        else { addToVersions(vers1) }
+        else { addToDisplayVersions(vers1) }
         vers1.save() ? resultFactory.success(vers1) : resultFactory.failWithValidationErrors(vers1.errors)
     }
 
     // Property access
     // ---------------
 
-    long getSendVersionSizeInBytes() {
-        vMap[MediaVersion.SEND]?.sizeInBytes
-    }
-    Map<MediaVersion, MediaElementVersion> getDisplayVersions() {
-        displayVersions?.collectEntries { MediaElementVersion vers1 -> [(vers1.version): vers1] } ?:
-            [(MediaVersion.LARGE):sendVersion]
+    Map<MediaVersion, MediaElementVersion> getVersionsForDisplay() {
+        Map<MediaVersion, MediaElementVersion> vMap = [:]
+        displayVersions?.each { MediaElementVersion vers1 -> vMap[vers1.version] = vers1 }
+        vMap ?: [(MediaVersion.LARGE): sendVersion]
     }
 }

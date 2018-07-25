@@ -10,14 +10,10 @@ import org.textup.type.*
 @RestApiObject(
     name        = "MediaElementVersion",
     description = "A version of media optimized for either sending or displaying on a particular device size")
-class MediaElementVersion {
+class MediaElementVersion implements ReadOnlyMediaElementVersion {
 
     StorageService storageService
 
-    @RestApiObjectField(
-        description    = "unique id for this media element, used for deletion",
-        allowedType    =  "String",
-        useForCreation = false)
     MediaVersion version
     String key
     Long sizeInBytes
@@ -47,7 +43,7 @@ class MediaElementVersion {
     // using the "w" unit for inherent width as called for in the `srcset` attribute as defined
     // in the responsive image specification
     String getInherentWidth() {
-        Integer width1 = widthInPixels ?: version?.fallbackWidthInPixels
+        Integer width1 = widthInPixels ?: version?.maxWidthInPixels
         width1 ? "${width1}w" : ""
     }
 

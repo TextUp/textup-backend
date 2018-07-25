@@ -54,7 +54,7 @@ class MergeGroup {
 		this.possibleMerges.each { MergeGroupItem i1 ->
 			if (!i1.validate()) {
 				isAllSuccess = false
-				errorMessages += resultFactory.failWithValidationErrors(i1.errors).errorMessages
+				errorMessages += Helpers.resultFactory.failWithValidationErrors(i1.errors).errorMessages
 			}
 		}
 		if (errorMessages) {

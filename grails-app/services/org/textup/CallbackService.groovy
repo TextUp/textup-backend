@@ -11,6 +11,7 @@ import org.textup.rest.TwimlBuilder
 import org.textup.type.CallResponse
 import org.textup.type.ReceiptStatus
 import org.textup.util.OptimisticLockingRetry
+import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
 
@@ -18,9 +19,10 @@ import org.textup.validator.PhoneNumber
 @Transactional
 class CallbackService {
 
+    ResultFactory resultFactory
+    TwimlBuilder twimlBuilder
     GrailsApplication grailsApplication
-	ResultFactory resultFactory
-	TwimlBuilder twimlBuilder
+    MediaService mediaService
 
 	// Validate request
 	// ----------------
@@ -32,7 +34,7 @@ class CallbackService {
         String authHeader = request.getHeader("x-twilio-signature")
         if (!authHeader) { return invalidRes }
         // step 2: build browser url and extract Twilio params
-        String url = getBrowserURL()
+        String url = getBrowserURL(request)
         Map<String, String> twilioParams = extractTwilioParams(request, params)
         // step 3: build and run request validator
         String authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
@@ -88,25 +90,25 @@ class CallbackService {
         else { processForNumbers(params) }
     }
 
-    protected Result<Closure> processForNumbers(Map params) {
-        // check that both to and from numbers are valid US phone numbers
+    protected Result<Closure> processForNumbers(GrailsParameterMap params) {
+        // step 1: check that both to and from numbers are valid US phone numbers
         PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
             toNum = new PhoneNumber(number:params.To as String)
         if (!fromNum.validate() || !toNum.validate()) {
             return params.CallSid ? twimlBuilder.invalidNumberForCall() : twimlBuilder.invalidNumberForText()
         }
-        // get session
-        Result<IncomingSession> iRes = getOrCreateIncomingSession(fromNum, toNum, params)
-        IncomingSession is1
-        if (iRes.success) {is1 = iRes.payload }
-        else { return iRes }
-        // get phone
-        PhoneNumber pNum = getNumberForPhone(fromNum, toNum, params)
-        Phone p1 = Phone.findByNumberAsString(phoneNum.number)
+        // step 2: get phone
+        BasePhoneNumber pNum = getNumberForPhone(fromNum, toNum, params)
+        Phone p1 = Phone.findByNumberAsString(pNum.number)
         if (!p1) {
             return params.CallSid ? twimlBuilder.notFoundForCall() : twimlBuilder.notFoundForText()
         }
-        // process request
+        // step 3: get session
+        Result<IncomingSession> iRes = getOrCreateIncomingSession(p1, fromNum, toNum, params)
+        IncomingSession is1
+        if (iRes.success) {is1 = iRes.payload }
+        else { return iRes }
+        // step 4: process request
         String apiId = params.CallSid ?: params.MessageSid
         if (params.CallSid) {
             processCall(p1, is1, apiId, params)
@@ -120,11 +122,11 @@ class CallbackService {
         }
     }
 
-    protected Result<IncomingSession> getOrCreateIncomingSession(BasePhoneNumber fromNum,
-        BasePhoneNumber toNum, Map params) {
+    protected Result<IncomingSession> getOrCreateIncomingSession(Phone p1, BasePhoneNumber fromNum,
+        BasePhoneNumber toNum, GrailsParameterMap params) {
 
         //usually handle incoming from session (client) to phone (staff)
-        PhoneNumber sessionNum = fromNum
+        BasePhoneNumber sessionNum = fromNum
         // finish bridge is call from phone to personal phone
         // announcements are from phone to session (client)
         if (params.handle == CallResponse.FINISH_BRIDGE.toString() ||
@@ -137,18 +139,20 @@ class CallbackService {
         else if (params.handle == CallResponse.SCREEN_INCOMING.toString()) {
             sessionNum = new PhoneNumber(number:params.originalFrom as String)
         }
-        IncomingSession is1 = IncomingSession.findByPhoneAndNumberAsString(phone, sessionNum.number)
+        IncomingSession is1 = IncomingSession.findByPhoneAndNumberAsString(p1, sessionNum.number)
         // create session for this phone if one doesn't exist yet
         if (!is1) {
-            is1 = new IncomingSession(phone:phone, numberAsString:sessionNum.number)
+            is1 = new IncomingSession(phone:p1, numberAsString:sessionNum.number)
             if (!is1.save()) { return resultFactory.failWithValidationErrors(is1.errors) }
         }
         resultFactory.success(is1)
     }
 
-    protected PhoneNumber getNumberForPhone(BasePhoneNumber fromNum, BasePhoneNumber toNum, Map params) {
+    protected BasePhoneNumber getNumberForPhone(BasePhoneNumber fromNum, BasePhoneNumber toNum,
+        GrailsParameterMap params) {
+
         //usually handle incoming from session (client) to phone (staff)
-        PhoneNumber phoneNum = toNum
+        BasePhoneNumber phoneNum = toNum
         // finish bridge is call from phone to personal phone
         // announcements are from phone to session (client)
         if (params.handle == CallResponse.FINISH_BRIDGE.toString() ||
@@ -164,7 +168,9 @@ class CallbackService {
         phoneNum
     }
 
-    protected Result<Closure> processCall(Phone p1, IncomingSession is1, String apiId, Map params) {
+    protected Result<Closure> processCall(Phone p1, IncomingSession is1, String apiId,
+        GrailsParameterMap params) {
+
         String digits = params.Digits
         switch(params.handle) {
             case CallResponse.SCREEN_INCOMING.toString():
@@ -195,15 +201,19 @@ class CallbackService {
         }
     }
 
-    protected Result<Closure> processText(Phone p1, IncomingSession is1, String apiId, Map params) {
+    protected Result<Closure> processText(Phone p1, IncomingSession is1, String apiId,
+        GrailsParameterMap params) {
+
         // step 1: handle media, if applicable
         MediaInfo mInfo
         Set<String> mediaIdsToDelete = Collections.emptySet()
-        IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)
+        Integer numMedia = Helpers.to(Integer, params.NumMedia)
         if (numMedia > 0) {
             Map<String, String> urlToMimeType = [:]
             for (int i = 0; i < numMedia; ++i) {
-                urlToMimeType[params["MediaContentType${i}"]] = params["MediaUrl${i}"]
+                String contentUrl = params["MediaUrl${i}"],
+                    contentType = params["MediaContentType${i}"]
+                urlToMimeType[contentUrl] = contentType
             }
             Result<MediaInfo> mediaRes = mediaService
                 .buildFromIncomingMedia(urlToMimeType, mediaIdsToDelete.&add)
@@ -211,7 +221,7 @@ class CallbackService {
             if (mediaRes.success) {
                 mInfo = mediaRes.payload
             }
-            else { return errorForText() }
+            else { return mediaRes }
         }
         // step 2: relay text
         IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)

@@ -17,7 +17,7 @@ interface Contactable extends WithRecord {
     List<ContactNumber> getSortedNumbers()
     List<NotificationStatus> getNotificationStatuses()
 
-    Result<Record> tryGetRecord()
+    // see WithRecord for `tryGetRecord()`
     Result<ReadOnlyRecord> tryGetReadOnlyRecord()
 
     ContactStatus getStatus()

@@ -4,7 +4,6 @@ import grails.compiler.GrailsCompileStatic
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.MediaType
-import org.textup.validator.MediaInfo
 
 @GrailsCompileStatic
 class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
@@ -14,6 +13,6 @@ class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
     }
 
     MediaInfoJsonMarshaller() {
-        super(MediaInfo, marshalClosure)
+        super(ReadOnlyMediaInfo, marshalClosure)
     }
 }

@@ -31,7 +31,7 @@ class SharedContactRecipients extends Recipients<Long, SharedContact> {
 
     def beforeValidate() {
         if (ids && phone && !recipients) {
-            recipients = SharedContact.findEveryByContactIdsAndSharedWith(ids, phone)
+            recipients = SharedContact.findEveryByContactIdsAndSharedWith(ids as Collection<Long>, phone)
         }
     }
 

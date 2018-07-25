@@ -1,6 +1,8 @@
 package org.textup
 
 import grails.compiler.GrailsCompileStatic
+import org.textup.type.MediaType
+import org.textup.type.MediaVersion
 
 // The interfaces that define the contract for handling media
 
@@ -24,7 +26,7 @@ interface ReadOnlyMediaInfo {
 @GrailsCompileStatic
 interface ReadOnlyMediaElement {
     String getUid()
-    Map<MediaVersion, ? extends ReadOnlyMediaElementVersion> getDisplayVersions()
+    Map<MediaVersion, ? extends ReadOnlyMediaElementVersion> getVersionsForDisplay()
 }
 
 @GrailsCompileStatic

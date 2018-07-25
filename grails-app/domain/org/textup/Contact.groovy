@@ -357,11 +357,11 @@ class Contact implements Contactable {
     }
     @GrailsTypeChecked
     Result<Record> tryGetRecord() {
-        resultFactory.success(this.contact.record)
+        resultFactory.success(this.record)
     }
     @GrailsTypeChecked
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
-        resultFactory.success(this.contact.record)
+        resultFactory.success(this.record)
     }
 
     // Property Access
