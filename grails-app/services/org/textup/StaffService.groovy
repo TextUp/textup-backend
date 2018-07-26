@@ -8,9 +8,8 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.springframework.transaction.TransactionStatus
 import org.textup.type.OrgStatus
 import org.textup.type.StaffStatus
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.PhoneNumber
-
-import org.springframework.context.MessageSource
 
 @GrailsTypeChecked
 @Transactional
@@ -48,6 +47,7 @@ class StaffService {
         }
     }
 
+    @RollbackOnResultFailure
     Result<Staff> create(Map body, String timezone) {
         verifyCreateRequest(body)
             .then({ fillStaffInfo(new Staff(), body, timezone) })
@@ -194,6 +194,7 @@ class StaffService {
     // Update
     // ------
 
+    @RollbackOnResultFailure
     Result<Staff> update(Long staffId, Map body, String timezone) {
         findStaffForId(staffId)
             .then({ Staff s1 -> fillStaffInfo(s1, body, timezone) })

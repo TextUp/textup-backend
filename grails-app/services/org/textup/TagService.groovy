@@ -4,6 +4,7 @@ import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import org.hibernate.Session
 import org.textup.type.VoiceLanguage
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.ContactTagAction
 
@@ -24,6 +25,8 @@ class TagService {
     Result<ContactTag> createForStaff(Map body) {
         create(authService.loggedInAndActive?.phone, body)
     }
+
+    @RollbackOnResultFailure
     protected Result<ContactTag> create(Phone p1, Map body) {
         if (p1) {
             p1.createTag(body)
@@ -37,6 +40,7 @@ class TagService {
     // Update
     // ------
 
+    @RollbackOnResultFailure
     Result<ContactTag> update(Long tId, Map body) {
         findTagFromId(tId)
             .then({ ContactTag ct1 -> handleNotificationActions(ct1, body) })
@@ -102,6 +106,7 @@ class TagService {
     // Delete
     // ------
 
+    @RollbackOnResultFailure
     Result<Void> delete(Long tId) {
 		ContactTag t1 = ContactTag.get(tId)
     	if (t1) {

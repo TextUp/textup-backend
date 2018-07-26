@@ -61,7 +61,7 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
     // -------
 
     @GrailsTypeChecked
-    protected Result<RecordNote> tryCreateRevision() {
+    Result<RecordNote> tryCreateRevision() {
         List<String> dirtyProps = this.dirtyPropertyNames
         if (!dirtyProps.isEmpty() && (dirtyProps.size() > 1 || dirtyProps[0] != "isDeleted")) {
             // update whenChanged timestamp to keep it current for any revisions

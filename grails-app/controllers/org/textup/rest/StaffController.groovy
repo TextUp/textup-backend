@@ -19,6 +19,7 @@ class StaffController extends BaseController {
     static String namespace = "v1"
 
     AuthService authService
+    ResultFactory resultFactory
     StaffService staffService
 
     @Override
@@ -59,7 +60,7 @@ class StaffController extends BaseController {
     @Transactional(readOnly=true)
     def index() {
         if (params.timezone) { //for the json marshaller
-            request.setAttribute("timezone", params.timezone as String)
+            request.setAttribute(Constants.REQUEST_TIMEZONE, params.timezone as String)
         }
         if (params.search) {
             listSearch(params)
@@ -142,7 +143,7 @@ class StaffController extends BaseController {
     @Transactional(readOnly=true)
     def show() {
         if (params.timezone) { //for the json marshaller
-            request.setAttribute("timezone", params.timezone as String)
+            request.setAttribute(Constants.REQUEST_TIMEZONE, params.timezone as String)
         }
         Staff s1 = Staff.get(params.long("id"))
         if (s1) {
@@ -176,12 +177,11 @@ class StaffController extends BaseController {
         if (sInfo == null) { return }
         String tz = params.timezone as String
         if (tz) { //for the json marshaller
-            request.setAttribute("timezone", tz)
+            request.setAttribute(Constants.REQUEST_TIMEZONE, tz)
         }
         Result<Staff> res = staffService.create(sInfo, tz)
-        // need to add role after staff has been persisted
-        res.then { Staff s1 -> staffService.addRoleToStaff(s1.id) }
-        // use the original result because it has the correct CREATED status
+            .then { Staff s1 -> staffService.addRoleToStaff(s1.id) }
+            .then { Staff s1 -> resultFactory.success(s1, ResultStatus.CREATED) }
         respondWithResult(Staff, res)
     }
 
@@ -208,7 +208,7 @@ class StaffController extends BaseController {
         if (sInfo == null) { return }
         String tz = params.timezone as String
         if (params.timezone) { //for the json marshaller
-            request.setAttribute("timezone", tz)
+            request.setAttribute(Constants.REQUEST_TIMEZONE, tz)
         }
         Long id = params.long("id")
         if (authService.exists(Staff, id)) {

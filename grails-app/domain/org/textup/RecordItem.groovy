@@ -182,6 +182,9 @@ class RecordItem implements ReadOnlyRecordItem {
     }
 
     @GrailsTypeChecked
+    ReadOnlyMediaInfo getReadOnlyMedia() { media }
+
+    @GrailsTypeChecked
     void setAuthor(Author author) {
         if (author?.validate()) {
             this.with {

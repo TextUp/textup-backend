@@ -53,7 +53,7 @@ class OutgoingMessageService {
             }
             resultFactory.success(resultMap)
         }
-        catch (Throwable e) { // an async error and SHOULD rollback transaction
+        catch (Throwable e) {
             log.error("OutgoingMessageService.sendForContactables: ${e.class}, ${e.message}")
             e.printStackTrace()
             resultFactory.failWithThrowable(e)

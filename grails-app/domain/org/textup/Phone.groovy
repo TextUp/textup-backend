@@ -523,11 +523,6 @@ class Phone {
         List<IncomingSession> textSubs = IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true),
             callSubs = IncomingSession.findAllByPhoneAndIsSubscribedToCall(this, true)
         String identifier = this.name
-        // send announcements
-        Map<String, Result<TempRecordReceipt>> textRes = phoneService
-            .sendTextAnnouncement(this, message, identifier, textSubs, staff)
-        Map<String, Result<TempRecordReceipt>> callRes = phoneService
-            .startCallAnnouncement(this, message, identifier, callSubs, staff)
         // build announcements class
         FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:this,
             expiresAt:expiresAt, message:message)
@@ -535,6 +530,11 @@ class Phone {
         if (!announce.save()) {
             resultFactory.failWithValidationErrors(announce.errors)
         }
+        // send announcements
+        Map<String, Result<TempRecordReceipt>> textRes = phoneService
+            .sendTextAnnouncement(this, message, identifier, textSubs, staff)
+        Map<String, Result<TempRecordReceipt>> callRes = phoneService
+            .startCallAnnouncement(this, message, identifier, callSubs, staff)
         // collect sessions that we successfully reached
         Collection<IncomingSession> successTexts = textSubs.findAll {
             textRes[it.numberAsString]?.success

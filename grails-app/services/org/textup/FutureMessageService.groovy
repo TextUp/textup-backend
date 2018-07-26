@@ -16,6 +16,7 @@ import org.textup.job.FutureMessageJob
 import org.textup.type.FutureMessageType
 import org.textup.type.VoiceLanguage
 import org.textup.util.OptimisticLockingRetry
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.BasicNotification
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.UploadItem
@@ -38,7 +39,7 @@ class FutureMessageService {
 	// ---------
 
     @Transactional(readOnly=true)
-	Result<Void> schedule(FutureMessage fMsg) {
+	protected Result<Void> doSchedule(FutureMessage fMsg) {
         try {
             TriggerKey trigKey = fMsg.triggerKey
             Trigger trig = quartzScheduler.getTrigger(trigKey)
@@ -103,6 +104,8 @@ class FutureMessageService {
         }
         else { resultFactory.failWithValidationErrors(fMsg.errors) }
     }
+
+    @RollbackOnResultFailure
     ResultGroup<RecordItem> execute(String futureKey, Long staffId) {
         FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
         if (!fMsg) {
@@ -156,6 +159,8 @@ class FutureMessageService {
     Result<FutureMessage> createForTag(Long ctId, Map body, String timezone = null) {
         this.create(ContactTag.get(ctId)?.record, body, timezone)
     }
+
+    @RollbackOnResultFailure
     protected Result<FutureMessage> create(Record rec, Map body, String timezone = null) {
         if (!rec) {
             return resultFactory.failWithCodeAndStatus(
@@ -174,27 +179,27 @@ class FutureMessageService {
             else { return mediaRes }
         }
         // step 2: create future message
-        setFromBody(new SimpleFutureMessage(record: rec, media: mInfo), body, timezone)
-            .then({ FutureMessage fm1 ->
-                fm1.language = Helpers.withDefault(
-                    Helpers.convertEnum(VoiceLanguage, body.language),
-                    rec.language
-                )
-                // step 3: upload media, if needed
-                Collection<String> errorMsgs = []
-                storageService.uploadAsync(itemsToUpload)
-                    .failures
-                    .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-                Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
-                    .logFail("FutureMessageService.create")
-
-                resultFactory.success(fm1, ResultStatus.CREATED)
-            })
+        SimpleFutureMessage fm0 = new SimpleFutureMessage(record: rec, media: mInfo)
+        setFromBody(fm0, body, timezone).then { FutureMessage fm1 ->
+            fm1.language = Helpers.withDefault(
+                Helpers.convertEnum(VoiceLanguage, body.language),
+                rec.language
+            )
+            // step 3: upload media, if needed
+            Collection<String> errorMsgs = []
+            storageService.uploadAsync(itemsToUpload)
+                .failures
+                .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+            Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
+                .logFail("FutureMessageService.create")
+            resultFactory.success(fm1, ResultStatus.CREATED)
+        }
     }
 
     // Update
     // ------
 
+    @RollbackOnResultFailure
     Result<FutureMessage> update(Long fId, Map body, String timezone = null) {
         FutureMessage fMsg = FutureMessage.get(fId)
         if (!fMsg) {
@@ -212,32 +217,33 @@ class FutureMessageService {
             if (!mediaRes.success) { return mediaRes }
         }
         // step 2: update future message
-        setFromBody(fMsg, body, timezone)
-            .then({ FutureMessage fm1 ->
-                // step 3: upload media, if needed
-                Collection<String> errorMsgs = []
-                storageService.uploadAsync(itemsToUpload)
-                    .failures
-                    .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-                Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
-                    .logFail("FutureMessageService.update")
+        setFromBody(fMsg, body, timezone).then { FutureMessage fm1 ->
+            // step 3: upload media, if needed
+            Collection<String> errorMsgs = []
+            storageService.uploadAsync(itemsToUpload)
+                .failures
+                .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+            Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
+                .logFail("FutureMessageService.update")
 
-                resultFactory.success(fm1)
-            })
+            resultFactory.success(fm1)
+        }
     }
 
     // Delete
     // ------
 
+    @RollbackOnResultFailure
     Result<Void> delete(Long fId) {
         FutureMessage fMsg = FutureMessage.get(fId)
         if (fMsg) {
-            deleteHelper(fMsg).then({
-                if (fMsg.save()) {
-                    resultFactory.success()
+            deleteHelper(fMsg)
+                .then {
+                    if (fMsg.save()) {
+                        resultFactory.success()
+                    }
+                    else { resultFactory.failWithValidationErrors(fMsg.errors) }
                 }
-                else { resultFactory.failWithValidationErrors(fMsg.errors) }
-            })
         }
         else {
             resultFactory.failWithCodeAndStatus("futureMessageService.delete.notFound",
@@ -245,7 +251,7 @@ class FutureMessageService {
         }
     }
     // for mocking during testing
-    Result<Void> deleteHelper(FutureMessage fMsg) {
+    protected Result<Void> deleteHelper(FutureMessage fMsg) {
         fMsg.cancel()
     }
 
@@ -287,7 +293,7 @@ class FutureMessageService {
         if (fMsg.validate()) {
             boolean isNew = !fMsg.id // is new if no id yet
             if (isNew || fMsg.shouldReschedule) {
-                Result res = this.schedule(fMsg)
+                Result res = doSchedule(fMsg)
                 if (!res.success) {
                     return resultFactory.failWithResultsAndStatus([res], res.status)
                 }

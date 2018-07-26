@@ -7,10 +7,10 @@ import org.joda.time.DateTime
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.springframework.context.NoSuchMessageException
-import org.springframework.transaction.TransactionStatus
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
 import org.textup.type.VoiceLanguage
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.ContactNumberAction
 import org.textup.validator.action.MergeAction
@@ -37,6 +37,8 @@ class ContactService {
     Result<Contact> createForStaff(Map body) {
         create(authService.loggedInAndActive?.phone, body)
     }
+
+    @RollbackOnResultFailure
 	protected Result<Contact> create(Phone p1, Map body) {
     	if (!p1) {
             return resultFactory.failWithCodeAndStatus("contactService.create.noPhone",
@@ -65,6 +67,7 @@ class ContactService {
     // Update
     // ------
 
+    @RollbackOnResultFailure
 	Result<Contact> update(Long cId, Map body, Long scId = null) {
         Contact c1 = Contact.get(cId)
         SharedContact sc1
@@ -289,6 +292,7 @@ class ContactService {
     // Delete
     // ------
 
+    @RollbackOnResultFailure
     Result<Void> delete(Long cId) {
         Contact c1 = Contact.get(cId)
         if (c1) {

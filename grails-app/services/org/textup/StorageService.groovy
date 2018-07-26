@@ -19,7 +19,6 @@ class StorageService {
 
     AmazonS3Client s3Service
     GrailsApplication grailsApplication
-    MediaService mediaService
     ResultFactory resultFactory
     StorageService storageService
 
@@ -47,7 +46,7 @@ class StorageService {
         catch (Throwable e) {
             log.error("StorageService.generateAuthLink: ${e.message}")
             e.printStackTrace()
-            resultFactory.failWithThrowable(e, false)
+            resultFactory.failWithThrowable(e)
         }
     }
     protected URL getSignedLink(Protocol protocol, String root, File keyFile,
@@ -81,7 +80,7 @@ class StorageService {
                 upload(uItem.key, uItem.mimeType, bStream)
             }
         }
-        else { resultFactory.failWithValidationErrors(uItem.errors, false) }
+        else { resultFactory.failWithValidationErrors(uItem.errors) }
     }
     Result<PutObjectResult> upload(String identifier, String mimeType, InputStream stream) {
         String bucketName = grailsApplication.flatConfig["textup.media.bucketName"]
@@ -92,7 +91,7 @@ class StorageService {
             resultFactory.success(s3Service.putObject(bucketName, identifier, stream, metadata))
         }
         catch (Throwable e) {
-            resultFactory.failWithThrowable(e, false)
+            resultFactory.failWithThrowable(e)
         }
     }
 }

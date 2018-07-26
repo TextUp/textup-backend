@@ -40,7 +40,7 @@ interface ReadOnlyRecord {
 }
 
 @GrailsCompileStatic
-interface ReadOnlyFutureMessage {
+interface ReadOnlyFutureMessage extends ReadOnlyWithMedia {
     Long getId()
     ReadOnlyRecord getRecord()
     FutureMessageType getType()

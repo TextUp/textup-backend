@@ -14,7 +14,7 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
         LinkGenerator linkGenerator, ReadOnlyFutureMessage fMsg ->
 
         List<String> uploadErrors = Collections.emptyList()
-        Helpers.<List<String>>tryGetFromRequest(Constants.UPLOAD_ERRORS)
+        Helpers.<List<String>>tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
             .logFail("FutureMessageJsonMarshaller: no available request", LogLevel.DEBUG)
             .then { List<String> errors -> uploadErrors = errors }
 
@@ -32,6 +32,7 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
             isDone = fMsg.isReallyDone
             isRepeating = fMsg.isRepeating
             language = fMsg.language?.toString()
+            media = fMsg.readOnlyMedia
             if (fMsg.nextFireDate) nextFireDate = fMsg.nextFireDate
 			if (fMsg.isRepeating) {
 				if (fMsg.endDate) endDate = fMsg.endDate

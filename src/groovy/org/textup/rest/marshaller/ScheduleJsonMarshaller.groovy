@@ -12,7 +12,7 @@ import org.textup.validator.LocalInterval
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { Schedule sched ->
         String timezone = null
-        Helpers.<String>tryGetFromRequest("timezone")
+        Helpers.<String>tryGetFromRequest(Constants.REQUEST_TIMEZONE)
             .logFail("ScheduleJsonMarshaller: no available request", LogLevel.DEBUG)
             .then { String tz -> timezone = tz }
 

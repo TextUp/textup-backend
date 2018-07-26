@@ -14,7 +14,7 @@ class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
             whenChanged = rev.whenChanged
             noteContents = rev.noteContents
             location = rev.location
-            media = rev.media
+            media = rev.readOnlyMedia
 
             if (rev.authorName) authorName = rev.authorName
             if (rev.authorId) authorId = rev.authorId

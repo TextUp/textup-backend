@@ -8,6 +8,7 @@ import org.joda.time.DateTimeZone
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.OptimisticLockingRetry
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.*
 import org.textup.validator.action.*
 
@@ -65,15 +66,16 @@ class RecordService {
                 ResultStatus.UNPROCESSABLE_ENTITY).toGroup()
         }
         Result<Class<RecordItem>> res = determineClass(body)
-        if (!res.success) {
-            return res.toGroup()
-        }
+        if (!res.success) { return res.toGroup() }
         switch(res.payload) {
             case RecordText: createText(p1, body); break;
             case RecordCall: createCall(p1, body).toGroup(); break;
             default: createNote(p1, body).toGroup() // RecordNote
         }
     }
+
+    // Don't roll back because this creates a ResultGroup of many individual Results.
+    // We don't want to throw away the results that actually successfuly completed
     protected ResultGroup<RecordItem> createText(Phone p1, Map body) {
         // step 1: handle media upload, storing upload errors on request
         Collection<UploadItem> itemsToUpload = []
@@ -95,7 +97,7 @@ class RecordService {
         storageService.uploadAsync(itemsToUpload)
             .failures
             .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-        Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
+        Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
             .logFail("RecordService.createText")
         // step 4: actually send outgoing message
         createTextHelper(p1, msgRes.payload, authService.loggedInAndActive, mInfo)
@@ -154,6 +156,7 @@ class RecordService {
         p1.sendMessage(msg, mInfo, staff)
     }
 
+    @RollbackOnResultFailure
     protected Result<RecordItem> createCall(Phone p1, Map body) {
         // step 1: create and validate recipients
         Recipients<Long, ? extends Contactable> recips
@@ -181,6 +184,7 @@ class RecordService {
         p1.startBridgeCall(c1, staff)
     }
 
+    @RollbackOnResultFailure
     protected Result<RecordItem> createNote(Phone p1, Map body) {
         // step 1: create and validate recipients
         Recipients<Long, ? extends WithRecord> recips
@@ -228,7 +232,7 @@ class RecordService {
                 storageService.uploadAsync(itemsToUpload)
                     .failures
                     .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-                Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
+                Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
                     .logFail("RecordService.createNote")
                 resultFactory.success(note1, ResultStatus.CREATED)
             }
@@ -237,6 +241,7 @@ class RecordService {
     // Update note
     // -----------
 
+    @RollbackOnResultFailure
     Result<RecordItem> update(Long noteId, Map body) {
         // step 1: fetch and validate note
         RecordNote note1 = RecordNote.get(noteId)
@@ -259,20 +264,22 @@ class RecordService {
         TempRecordNote tempNote = new TempRecordNote(note:note1, info:body,
             after:body.after ? Helpers.toDateTimeWithZone(body.after) : null)
         tempNote.toNote(authService.loggedInAndActive.toAuthor())
+            .then { RecordNote note2 -> note2.tryCreateRevision() }
             .then { RecordNote note2 ->
                 Collection<String> errorMsgs = []
                 storageService.uploadAsync(itemsToUpload)
                     .failures
                     .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-                Helpers.trySetOnRequest(Constants.UPLOAD_ERRORS, errorMsgs)
+                Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
                     .logFail("RecordService.update")
-                note2.tryCreateRevision()
+                resultFactory.success(note2)
             }
     }
 
     // Delete note
     // -----------
 
+    @RollbackOnResultFailure
     Result<Void> delete(Long noteId) {
         RecordNote note1 = RecordNote.get(noteId)
         if (note1) {

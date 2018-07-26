@@ -38,11 +38,11 @@ class TextService {
         }
         if (!failResults.isEmpty) {
             resultFactory.failWithResultsAndStatus(failResults.failures,
-                failResults.failureStatus, false)
+                failResults.failureStatus)
         }
         else {
             resultFactory.failWithCodeAndStatus("textService.text.noNumbers",
-                ResultStatus.UNPROCESSABLE_ENTITY, null, false)
+                ResultStatus.UNPROCESSABLE_ENTITY, null)
         }
 	}
 
@@ -64,7 +64,7 @@ class TextService {
         catch (Throwable e) {
             log.error("TextService.tryText: ${e.class}, ${e.message}")
             // if an ApiException from Twilio, then would be a validation error
-            Result res = resultFactory.failWithThrowable(e, false)
+            Result res = resultFactory.failWithThrowable(e)
             if (e instanceof ApiException) {
                 res.status = ResultStatus.UNPROCESSABLE_ENTITY
             }

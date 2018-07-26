@@ -15,6 +15,7 @@ beans = {
 
 	xmlns aop:"http://www.springframework.org/schema/aop"
 	optimisticLockingRetryAspect(OptimisticLockingRetryAspect)
+	rollbackOnResultFailureAspect(RollbackOnResultFailureAspect)
 	aop.config("proxy-target-class":true)
 
 	// src/groovy Helpers

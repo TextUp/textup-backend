@@ -11,6 +11,7 @@ import org.textup.rest.TwimlBuilder
 import org.textup.type.CallResponse
 import org.textup.type.ReceiptStatus
 import org.textup.util.OptimisticLockingRetry
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
@@ -29,17 +30,20 @@ class CallbackService {
 
     Result<Void> validate(HttpServletRequest request, GrailsParameterMap params) {
         // step 1: try to extract auth header
-        Result invalidRes = resultFactory.failWithCodeAndStatus("callbackService.validate.invalid",
-            ResultStatus.BAD_REQUEST)
-        String authHeader = request.getHeader("x-twilio-signature")
-        if (!authHeader) { return invalidRes }
+        String errCode = "callbackService.validate.invalid",
+            authHeader = request.getHeader("x-twilio-signature")
+        if (!authHeader) {
+            return resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
+        }
         // step 2: build browser url and extract Twilio params
         String url = getBrowserURL(request)
         Map<String, String> twilioParams = extractTwilioParams(request, params)
         // step 3: build and run request validator
         String authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
         RequestValidator validator = new RequestValidator(authToken)
-        validator.validate(url, twilioParams, authHeader) ? resultFactory.success() : invalidRes
+        validator.validate(url, twilioParams, authHeader) ?
+            resultFactory.success() :
+            resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
     }
 
     protected String getBrowserURL(HttpServletRequest request) {
@@ -75,6 +79,7 @@ class CallbackService {
     // ---------------
 
     @OptimisticLockingRetry
+    @RollbackOnResultFailure
     Result<Closure> process(GrailsParameterMap params) {
         // if a call direct messaage or other direct actions that we do
         // not need to do further processing for, handle right here

@@ -16,7 +16,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
         LinkGenerator linkGenerator, ReadOnlyRecordItem item ->
 
         List<String> uploadErrors = Collections.emptyList()
-        Helpers.<List<String>>tryGetFromRequest(Constants.UPLOAD_ERRORS)
+        Helpers.<List<String>>tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
             .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
             .then { List<String> errors -> uploadErrors = errors }
 
@@ -31,7 +31,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             hasAwayMessage = item.hasAwayMessage
             isAnnouncement = item.isAnnouncement
             receipts = item.groupReceiptsByStatus()
-            media = item.media
+            media = item.readOnlyMedia
             if (item.authorName) { authorName = item.authorName }
             if (item.authorId) { authorId = item.authorId }
             if (item.authorType) { authorType = item.authorType.toString() }

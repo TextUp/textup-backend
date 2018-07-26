@@ -110,7 +110,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         //upload links
         HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
         List<String> errorMessages = ["error1", "error2"]
-        request.setAttribute(Constants.UPLOAD_ERRORS, errorMessages)
+        request.setAttribute(Constants.REQUEST_UPLOAD_ERRORS, errorMessages)
 
         when:
         Map json

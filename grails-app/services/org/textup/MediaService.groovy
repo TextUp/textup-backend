@@ -174,7 +174,7 @@ class MediaService {
         ResultGroup<Boolean> resGroup = new ResultGroup<>()
         resGroupList.each { ResultGroup<Boolean> i -> resGroup.merge(i) }
         if (resGroup.anyFailures) {
-            resultFactory.failWithResultsAndStatus(resGroup.failures, ResultStatus.INTERNAL_SERVER_ERROR, false)
+            resultFactory.failWithResultsAndStatus(resGroup.failures, ResultStatus.INTERNAL_SERVER_ERROR)
         }
         else { resultFactory.success() }
     }
@@ -188,7 +188,7 @@ class MediaService {
         catch (Throwable e) {
             log.error("MediaService.deleteMediaHelper: ${e.message}")
             e.printStackTrace()
-            resGroup << resultFactory.failWithThrowable(e, false)
+            resGroup << resultFactory.failWithThrowable(e)
         }
         resGroup
     }
@@ -205,7 +205,7 @@ class MediaService {
             sendWithMediaForCall(fromNum, toNums, callToken, mInfo)
         if (resGroup.anyFailures) {
             resultFactory.failWithResultsAndStatus(resGroup.failures,
-                resGroup.failureStatus, false)
+                resGroup.failureStatus)
         }
         else {
             resultFactory.success(resGroup.successes*.payload)

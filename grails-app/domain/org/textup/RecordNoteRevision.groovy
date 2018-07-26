@@ -1,5 +1,6 @@
 package org.textup
 
+import grails.compiler.GrailsCompileStatic
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
@@ -62,4 +63,7 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
     	whenChanged type:PersistentDateTime
         noteContents type: "text"
     }
+
+    @GrailsCompileStatic
+    ReadOnlyMediaInfo getReadOnlyMedia() { media }
 }

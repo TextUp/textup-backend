@@ -43,7 +43,7 @@ class UploadItem {
     // -------
 
     Result<UploadItem> tryResizeToWidth(int maxWidthInPixels) {
-        if (!validate()) { return Helpers.resultFactory.failWithValidationErrors(errors, false) }
+        if (!validate()) { return Helpers.resultFactory.failWithValidationErrors(errors) }
         ImageWriter writer
         try {
             writer = getWriter(mimeType)
@@ -55,12 +55,12 @@ class UploadItem {
         }
         catch (Throwable e) {
             log.debug("Uploaditem.tryResizeToWidth: maxWidthInPixels: ${maxWidthInPixels}: ${e.message}")
-            Helpers.resultFactory.failWithThrowable(e, false)
+            Helpers.resultFactory.failWithThrowable(e)
         }
         finally { writer?.dispose() }
     }
     Result<UploadItem> tryCompress(long maxSizeInBytes) {
-        if (!validate()) { return Helpers.resultFactory.failWithValidationErrors(errors, false) }
+        if (!validate()) { return Helpers.resultFactory.failWithValidationErrors(errors) }
         ImageWriter writer
         try {
             writer = getWriter(mimeType)
@@ -86,7 +86,7 @@ class UploadItem {
         }
         catch (Throwable e) {
             log.debug("Uploaditem.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
-            Helpers.resultFactory.failWithThrowable(e, false)
+            Helpers.resultFactory.failWithThrowable(e)
         }
         finally { writer?.dispose() }
     }

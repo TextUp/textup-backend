@@ -160,12 +160,12 @@ class MailService {
             if (ResultStatus.convert(resp1.statusCode).isSuccess) {
                 resultFactory.success(resp1)
             }
-            else { resultFactory.failForSendGrid(resp1, false) } // don't rollback on failure
+            else { resultFactory.failForSendGrid(resp1) }
         }
         catch (IOException e) {
             log.error("MailService.sendMail: ${e.message}")
             e.printStackTrace()
-            resultFactory.failWithThrowable(e, false) // don't rollback on failure
+            resultFactory.failWithThrowable(e)
         }
     }
 

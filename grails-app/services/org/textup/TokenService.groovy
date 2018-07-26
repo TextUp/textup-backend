@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Propagation
 import org.textup.type.CallResponse
 import org.textup.type.TokenType
 import org.textup.type.VoiceLanguage
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.BasicNotification
 import org.textup.validator.Notification
 import org.textup.validator.OutgoingMessage
@@ -30,6 +31,7 @@ class TokenService {
     // Initiate
     // -------
 
+    @RollbackOnResultFailure
 	Result<Void> requestReset(String username) {
         Staff s1 = Staff.findByUsername(username?.trim()?.toLowerCase())
         if (!s1) {
@@ -44,6 +46,8 @@ class TokenService {
             .then({ Token t1 -> mailService.notifyPasswordReset(s1, t1.token) })
             .then({ resultFactory.success() })
     }
+
+    @RollbackOnResultFailure
     Result<Void> requestVerify(PhoneNumber toNum) {
         // validate to number
         if (!toNum.validate()) {
@@ -72,6 +76,7 @@ class TokenService {
             })
             .then({ resultFactory.success() })
     }
+
     Result<Void> notifyStaff(BasicNotification bn1, Boolean outgoing, String contents, String instr) {
         Phone p1 = bn1.owner.phone
         Staff s1 = bn1.staff
@@ -129,6 +134,7 @@ class TokenService {
     // Complete
     // --------
 
+    @RollbackOnResultFailure
     Result<Staff> resetPassword(String token, String password) {
     	findToken(TokenType.PASSWORD_RESET, token).then({ Token resetToken ->
     		Staff s1 = Staff.get(Helpers.to(Long, resetToken.data.toBeResetId))
@@ -150,6 +156,8 @@ class TokenService {
 	        else { resultFactory.failWithValidationErrors(s1.errors) }
 		})
     }
+
+    @RollbackOnResultFailure
     Result<Void> verifyNumber(String token, PhoneNumber toVerify) {
     	findToken(TokenType.VERIFY_NUMBER, token).then({ Token tok ->
             PhoneNumber stored =
@@ -167,6 +175,8 @@ class TokenService {
                     ResultStatus.NOT_FOUND)
 		})
     }
+
+    @RollbackOnResultFailure
     Result<Notification> showNotification(String token) {
         findToken(TokenType.NOTIFY_STAFF, token).then({ Token tok ->
             Map data = tok.data

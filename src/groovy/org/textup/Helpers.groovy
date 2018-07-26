@@ -25,8 +25,6 @@ import org.textup.validator.*
 @Log4j
 class Helpers {
 
-    private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1"
-
     // Enum
     // ----
 

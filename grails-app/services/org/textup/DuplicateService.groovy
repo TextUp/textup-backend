@@ -5,6 +5,7 @@ import grails.transaction.Transactional
 import org.apache.commons.lang3.tuple.Pair
 import org.springframework.transaction.annotation.Propagation
 import org.textup.type.ContactStatus
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.MergeGroup
 import org.textup.validator.PhoneNumber
 
@@ -166,6 +167,7 @@ class DuplicateService {
     // behavior of the underlying Spring Transaction abstraction. See
     // http://www.tothenew.com/blog/grails-transactions-using-transactional-annotations-and-propagation-requires_new/
     @GrailsCompileStatic
+    @RollbackOnResultFailure
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     Result<Contact> merge(Contact targetContact, Collection<Contact> toMergeIn) {
     	if (!toMergeIn) {

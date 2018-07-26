@@ -8,7 +8,7 @@ import org.textup.type.MediaVersion
 
 @GrailsCompileStatic
 interface ReadOnlyWithMedia {
-    ReadOnlyMediaInfo getMedia()
+    ReadOnlyMediaInfo getReadOnlyMedia()
 }
 
 @GrailsCompileStatic

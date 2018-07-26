@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
+import org.textup.util.RollbackOnResultFailure
 
 @GrailsCompileStatic
 @Transactional
@@ -9,6 +10,7 @@ class OrganizationService {
 
 	ResultFactory resultFactory
 
+    @RollbackOnResultFailure
     Result<Organization> update(Long orgId, Map body) {
     	Organization org = Organization.get(orgId)
     	if (!org) {

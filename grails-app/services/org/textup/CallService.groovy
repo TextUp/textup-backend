@@ -65,7 +65,7 @@ class CallService {
                 }
             }
             resultFactory.failWithCodeAndStatus("callService.start.missingInfoOrAllFailed",
-                ResultStatus.UNPROCESSABLE_ENTITY, null, false)
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
     }
     Result<TempRecordReceipt> retry(BasePhoneNumber fromNum,
@@ -84,7 +84,7 @@ class CallService {
         Map afterPickup, String callback) {
         if (!fromNum || !toNum) {
             resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
-                ResultStatus.UNPROCESSABLE_ENTITY, null, false)
+                ResultStatus.UNPROCESSABLE_ENTITY, null)
         }
         String afterLink = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
             action:"save", absolute:true, params:afterPickup)
@@ -103,7 +103,7 @@ class CallService {
         catch (Throwable e) {
             log.error("CallService.doCall: ${e.class}, ${e.message}")
             // if an ApiException from Twilio, then would be a validation error
-            Result res = resultFactory.failWithThrowable(e, false)
+            Result res = resultFactory.failWithThrowable(e)
             if (e instanceof ApiException) {
                 res.status = ResultStatus.UNPROCESSABLE_ENTITY
             }

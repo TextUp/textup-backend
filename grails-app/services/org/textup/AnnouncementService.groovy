@@ -5,6 +5,7 @@ import grails.transaction.Transactional
 import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -27,6 +28,8 @@ class AnnouncementService {
 	Result<FeaturedAnnouncement> createForStaff(Map body) {
 		create(authService.loggedInAndActive?.phone, body)
 	}
+
+    @RollbackOnResultFailure
 	protected Result<FeaturedAnnouncement> create(Phone p1, Map body) {
 		if (!p1) {
 			return resultFactory.failWithCodeAndStatus("announcementService.create.noPhone",
@@ -36,12 +39,13 @@ class AnnouncementService {
         DateTime expires = Helpers.toUTCDateTime(body.expiresAt)
         Staff loggedIn = authService.loggedInAndActive
         p1.sendAnnouncement(msg, expires, loggedIn)
-            .then({ FeaturedAnnouncement fa1 -> resultFactory.success(fa1, ResultStatus.CREATED) })
+            .then { FeaturedAnnouncement fa1 -> resultFactory.success(fa1, ResultStatus.CREATED) }
 	}
 
     // Update
     // ------
 
+    @RollbackOnResultFailure
     Result<FeaturedAnnouncement> update(Long aId, Map body) {
     	FeaturedAnnouncement announce = FeaturedAnnouncement.get(aId)
     	if (!announce) {

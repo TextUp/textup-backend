@@ -235,6 +235,8 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
     // Property Access
     // ---------------
 
+    ReadOnlyMediaInfo getReadOnlyMedia() { media }
+
     OutgoingMessage toOutgoingMessage() {
         Helpers.<OutgoingMessage>doWithoutFlush({
             // step 1: initialize classes

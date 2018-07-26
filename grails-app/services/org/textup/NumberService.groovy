@@ -45,7 +45,7 @@ class NumberService {
     	}
     	catch (TwilioException e) {
             log.error("NumberService.listExistingNumbers: ${e.message}")
-            resultFactory.failWithThrowable(e, false) // don't rollback transaction
+            resultFactory.failWithThrowable(e)
         }
     }
 
@@ -114,7 +114,7 @@ class NumberService {
     	catch (TwilioException e) {
     		// don't log because we are validating numbers here and expect some to
     		// result in an exception when they are invalid
-    		resultFactory.failWithThrowable(e, false) // don't rollback transaction
+    		resultFactory.failWithThrowable(e)
     	}
     }
 

@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.PhoneNumber
 
 @GrailsCompileStatic
@@ -20,6 +21,8 @@ class SessionService {
 	Result<IncomingSession> createForStaff(Map body) {
 		create(authService.loggedInAndActive?.phone, body)
 	}
+
+	@RollbackOnResultFailure
 	protected Result<IncomingSession> create(Phone p1, Map body) {
 		if (!p1) {
 			return resultFactory.failWithCodeAndStatus("sessionService.create.noPhone",
@@ -41,6 +44,7 @@ class SessionService {
 	// Update
 	// ------
 
+	@RollbackOnResultFailure
 	Result<IncomingSession> update(Long sId, Map body) {
 		IncomingSession sess1 = IncomingSession.get(sId)
 		if (sess1) {

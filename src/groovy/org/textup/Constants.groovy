@@ -14,6 +14,12 @@ class Constants {
 	static final String AWAY_EMERGENCY_MESSAGE = " If this is an emergency, contact 9 1 1."
 	static final int DEFAULT_TOKEN_LENGTH = 25
 
+	// Storing info on HTTP Request keys
+	// ---------------------------------
+
+	static final String REQUEST_TIMEZONE = "timezone"
+	static final String REQUEST_UPLOAD_ERRORS = "uploadErrors"
+
 	// Contacts
 	// --------
 
@@ -47,7 +53,6 @@ class Constants {
 	// Media
 	// -----
 
-	static final String UPLOAD_ERRORS = "uploadErrors"
 	static final long MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES = 5000000
 	static final int MAX_NUM_MEDIA_PER_MESSAGE = 10
 

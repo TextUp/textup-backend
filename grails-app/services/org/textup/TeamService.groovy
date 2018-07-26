@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.TeamAction
 import org.textup.validator.PhoneNumber
@@ -17,6 +18,7 @@ class TeamService {
     // Create
     // ------
 
+    @RollbackOnResultFailure
     Result<Team> create(Map body, String timezone) {
         Organization o1 = Organization.get(Helpers.to(Long, body.org))
         if (!o1) {
@@ -52,6 +54,7 @@ class TeamService {
     // Update
     // ------
 
+    @RollbackOnResultFailure
     Result<Team> update(Long tId, Map body, String timezone) {
         findTeamFromId(tId)
             .then({ Team t1 -> handleTeamActions(t1, body) })
@@ -96,6 +99,7 @@ class TeamService {
     // Delete
     // ------
 
+    @RollbackOnResultFailure
     Result<Void> delete(Long tId) {
     	Team t1 = Team.get(tId)
     	if (t1) {
