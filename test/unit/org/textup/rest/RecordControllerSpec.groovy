@@ -20,7 +20,8 @@ import static javax.servlet.http.HttpServletResponse.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision, NotificationPolicy])
+    RecordNote, RecordNoteRevision, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class RecordControllerSpec extends CustomSpec {
 
@@ -31,6 +32,7 @@ class RecordControllerSpec extends CustomSpec {
         super.setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
         controller.recordService = [parseTypes:{ Collection<?> rawTypes -> [] }] as RecordService
+        controller.resultFactory = getResultFactory()
     }
     def cleanup() {
         super.cleanupData()
@@ -111,12 +113,13 @@ class RecordControllerSpec extends CustomSpec {
         given:
         sc1.permission = SharePermission.VIEW
         sc1.save(flush: true, failOnError: true)
+        sc1.resultFactory = getResultFactory()
 
         controller.authService = [
             hasPermissionsForContact:{ Long id -> false },
             getSharedContactIdForContact:{ Long cId -> sc1.id }
         ] as AuthService
-        List<Long> ids = Helpers.allTo(Long, sc1.readOnlyRecord.items*.id)
+        List<Long> ids = Helpers.allTo(Long, sc1.tryGetReadOnlyRecord().payload.items*.id)
 
         when:
         request.method = "GET"
@@ -210,23 +213,70 @@ class RecordControllerSpec extends CustomSpec {
     // Save
     // ----
 
-    protected void mockForSave() {
-        controller.recordService = [createForStaff:{ Map body ->
-            ResultGroup resGroup = new ResultGroup()
-            resGroup << new Result(status:ResultStatus.CREATED, payload:rText1)
-            resGroup << new Result(status:ResultStatus.CREATED, payload:rText2)
-            resGroup
-        }, createForTeam:{ Long tId, Map body ->
-            ResultGroup resGroup = new ResultGroup()
-            resGroup << new Result(status:ResultStatus.CREATED, payload:teTag1)
-            resGroup << new Result(status:ResultStatus.CREATED, payload:teTag2)
-            resGroup
-        }] as RecordService
+    void "test validating recipients in request body for save"() {
+        given:
+        addToMessageSource(["recordController.create.tooManyForCall", "recordController.create.tooManyForNote"])
+
+        expect: "no validation to happen for recipients for texts"
+        controller.validateCreateBody(RecordText, [:]) == true
+
+        and: "only one recipient allowed for calls"
+        controller.validateCreateBody(RecordCall, [:]) == false
+        controller.validateCreateBody(RecordCall, [callContact: 1]) == true
+        controller.validateCreateBody(RecordCall, [callSharedContact: 1]) == true
+        controller.validateCreateBody(RecordCall, [callContact: 1, callSharedContact: 1]) == false
+
+        and: "only one recipient allowed for notes"
+        controller.validateCreateBody(RecordNote, [:]) == false
+        controller.validateCreateBody(RecordNote, [forContact: 1]) == true
+        controller.validateCreateBody(RecordNote, [forSharedContact: 1]) == true
+        controller.validateCreateBody(RecordNote, [forTag: 1]) == true
+        controller.validateCreateBody(RecordNote, [forContact: 1, forSharedContact: 1]) == false
+        controller.validateCreateBody(RecordNote, [forContact: 1, forTag: 1]) == false
+        controller.validateCreateBody(RecordNote, [forSharedContact: 1, forTag: 1]) == false
+        controller.validateCreateBody(RecordNote, [forContact: 1, forSharedContact: 1, forTag: 1]) == false
     }
 
-    void "test save for no ids"() {
+    protected void mockForSave(Class requestClass, boolean doesExist, boolean hasTeamPermissions, Staff authUser) {
+        controller.recordService = [
+            determineClass: { Map body ->
+                new Result(status: ResultStatus.OK, payload:requestClass)
+            },
+            create:{ Long id, Map body ->
+                ResultGroup resGroup = new ResultGroup()
+                resGroup << new Result(status:ResultStatus.CREATED, payload:rText1)
+                resGroup << new Result(status:ResultStatus.CREATED, payload:rText2)
+                resGroup
+            }
+        ] as RecordService
+        controller.authService = [
+            exists: { Class clazz, Long id -> doesExist },
+            hasPermissionsForTeam: { Long id -> hasTeamPermissions },
+            getLoggedInAndActive: { -> authUser }
+        ] as AuthService
+    }
+
+    void "test save for team"() {
+        given:
+        mockForSave(RecordCall, true, true, s1)
+
         when:
-        mockForSave()
+        request.json = "{'record':{'callContact': 1}}"
+        params.teamId = t1.id
+        request.method = "POST"
+        controller.save()
+
+        then: "see mock"
+        response.status == SC_CREATED
+        response.json.size() == 2
+        response.json*.id.every { (it as Long) in [rText1, rText2]*.id }
+    }
+
+    void "test save for staff"() {
+        given:
+        mockForSave(RecordText, false, false, s1)
+
+        when:
         request.json = "{'record':{}}"
         request.method = "POST"
         controller.save()
@@ -235,20 +285,6 @@ class RecordControllerSpec extends CustomSpec {
         response.status == SC_CREATED
         response.json.size() == 2
         response.json*.id.every { (it as Long) in [rText1, rText2]*.id }
-    }
-
-    void "test save for team id"() {
-        when:
-        mockForSave()
-        request.json = "{'record':{}}"
-        params.teamId = t1.id
-        request.method = "POST"
-        controller.save()
-
-        then:
-        response.status == SC_CREATED
-        response.json.size() == 2
-        response.json*.id.every { (it as Long) in [teTag1, teTag2]*.id }
     }
 
     // Update

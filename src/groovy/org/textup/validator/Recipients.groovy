@@ -1,27 +1,51 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
-import org.textup.*
+import org.textup.Phone
 
-@GrailsCompileStatic
+// This class is nonabstract for testing + max flexibility. HOWEVER this class is not
+// intended to be used directly as subclasses implement the key piece of functionality
+// that relates the ids to the recipients
+
+@GrailsTypeChecked
 @Validateable
-abstract class Recipients<T, E> {
+class Recipients<T, E> {
 
     // ids (and therefore recipients) can be empty
-    protected Collection<T> ids = Collections.emptyList()
-    protected Phone phone
+    // should initialize actual ArrayLists rather than using `Collections.emptyList()` because we
+    // may want to directly add to these arrays. If we used the singleton static method, then
+    // it returns an instance of an AbstractList that will throw an error if we try to interact
+    // with it
+    List<T> ids = []
+    List<E> recipients = []
+    Phone phone
 
     static constraints = { // all nullable: false by default
     }
 
-    void setIds(Collection<T> newIds) { ids = newIds }
-    void setPhone(Phone p1) { phone = p1 }
-
-    abstract List<E> getRecipients()
+    // Methods
+    // -------
 
     Recipients<T, E> mergeRecipients(Recipients<?, E> toMergeIn) {
-        getRecipients().addAll(toMergeIn.getRecipients())
+        recipients.addAll(toMergeIn.getRecipients())
         this
+    }
+
+    // should be overriden in subclasses
+    protected List<E> buildRecipientsFromIds(List<T> ids) { Collections.emptyList() }
+
+    // Property access
+    // ---------------
+
+    void setIds(List<E> newIds) {
+        if (newIds) {
+            ids = newIds
+            recipients = buildRecipientsFromIds(newIds)
+        }
+        else {
+            ids = []
+            recipients = []
+        }
     }
 }

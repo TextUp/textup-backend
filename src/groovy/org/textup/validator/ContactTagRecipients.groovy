@@ -1,15 +1,12 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Validateable
 class ContactTagRecipients extends Recipients<Long, ContactTag> {
-
-    // not private to enable manual setting of contacts directly in `FutureMessage`
-    List<ContactTag> recipients = Collections.emptyList()
 
     static constraints = { // all nullable: false by default
         recipients validator: { Collection<ContactTag> recips, ContactTagRecipients obj ->
@@ -23,12 +20,8 @@ class ContactTagRecipients extends Recipients<Long, ContactTag> {
         }
     }
 
-    // Events
-    // ------
-
-    def beforeValidate() {
-        if (ids && !recipients) {
-            recipients = ContactTag.getAll(ids)
-        }
+    @Override
+    protected List<ContactTag> buildRecipientsFromIds(List<Long> ids) {
+        ContactTag.getAll(ids as Iterable<Serializable>)
     }
 }

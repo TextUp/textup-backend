@@ -30,6 +30,21 @@ class Location implements ReadOnlyLocation {
         }
     }
 
+    Location tryDuplicatePersistentState() {
+        Closure doGet = { String propName -> this.getPersistentValue(propName) }
+        Location dup = new Location(address: doGet("address"),
+            lat: doGet("lat"),
+            lon: doGet("lon"))
+        if (dup.validate()) {
+            dup
+        }
+        else { // if persistent state is not valid, then this obj has not been persisted yet
+            log.debug("Location.tryDuplicatePersistentState: could not duplicate: ${dup.errors}")
+            dup.discard()
+            null
+        }
+    }
+
     @Override
     String toString() { this.address }
 }

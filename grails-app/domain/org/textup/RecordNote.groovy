@@ -49,7 +49,7 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
         useForCreation = true)
 	static hasMany = [revisions:RecordNoteRevision]
     static constraints = {
-    	location nullable:true
+    	location cascade: true, nullable:true
     }
     static mapping = {
     	whenChanged type:PersistentDateTime
@@ -62,8 +62,7 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 
     @GrailsTypeChecked
     Result<RecordNote> tryCreateRevision() {
-        List<String> dirtyProps = this.dirtyPropertyNames
-        if (!dirtyProps.isEmpty() && (dirtyProps.size() > 1 || dirtyProps[0] != "isDeleted")) {
+        if (hasDirtyNonObjectFields() || location?.isDirty() || media?.isDirty()) {
             // update whenChanged timestamp to keep it current for any revisions
             this.whenChanged = DateTime.now(DateTimeZone.UTC)
             // create revision of persistent values
@@ -76,6 +75,12 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
     }
 
     @GrailsTypeChecked
+    protected boolean hasDirtyNonObjectFields() {
+        List<String> dirtyProps = this.dirtyPropertyNames
+        !dirtyProps.isEmpty() && (dirtyProps.size() > 1 || dirtyProps[0] != "isDeleted")
+    }
+
+    @GrailsTypeChecked
     protected RecordNoteRevision createRevision() {
         Closure doGet = { String propName -> this.getPersistentValue(propName) }
     	RecordNoteRevision rev1 = new RecordNoteRevision(authorName:doGet("authorName"),
@@ -83,9 +88,15 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
             authorType: doGet("authorType"),
             whenChanged: doGet("whenChanged"),
             noteContents: doGet("noteContents"),
-            location: doGet("location"),
-            media: media?.duplicatePersistentState())
+            location: location?.tryDuplicatePersistentState(),
+            media: media?.tryDuplicatePersistentState())
     	this.addToRevisions(rev1)
     	rev1
     }
+
+    // Property access
+    // ---------------
+
+    @GrailsTypeChecked
+    ReadOnlyLocation getReadOnlyLocation() { location }
 }

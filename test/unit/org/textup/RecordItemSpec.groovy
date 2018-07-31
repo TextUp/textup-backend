@@ -12,7 +12,8 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class RecordItemSpec extends Specification {
 
@@ -30,6 +31,13 @@ class RecordItemSpec extends Specification {
 
     	then:
     	rItem.validate() == true
+
+        when: "add a note contents that is too long"
+        rItem.noteContents = buildVeryLongString()
+
+        then: "shared contraint on the noteContents field is executed"
+        rItem.validate() == false
+        rItem.errors.getFieldErrorCount("noteContents") == 1
     }
 
     void "test adding author"() {
@@ -85,5 +93,14 @@ class RecordItemSpec extends Specification {
         then: "we are able to fetch these items back from the db"
         itemList.size() == 2
         itemList.every { it.id in targetIds }
+    }
+
+    // Helpers
+    // -------
+
+    protected String buildVeryLongString() {
+        StringBuilder sBuilder = new StringBuilder()
+        15000.times { it -> sBuilder << it }
+        sBuilder.toString()
     }
 }

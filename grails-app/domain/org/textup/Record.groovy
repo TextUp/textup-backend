@@ -41,10 +41,10 @@ class Record implements ReadOnlyRecord {
     // Add to record
     // -------------
 
-    Result<RecordText> storeOutgoingText(String message, Author author, MediaInfo mInfo = null) {
+    Result<RecordText> storeOutgoingText(String message, Author author = null, MediaInfo mInfo = null) {
         add(new RecordText(outgoing: true, contents: message, media: mInfo), author)
     }
-    Result<RecordCall> storeOutgoingCall(Author author, String message = null, MediaInfo mInfo = null) {
+    Result<RecordCall> storeOutgoingCall(Author author = null, String message = null, MediaInfo mInfo = null) {
         add(new RecordCall(outgoing: true, noteContents: message, media: mInfo), author)
     }
 
@@ -72,7 +72,7 @@ class Record implements ReadOnlyRecord {
     // No method to addNote because we handle adding in TempRecordNote
     // we don't do add notes here because we adding a note should not
     // trigger a record activity update like adding a text or a call should
-    protected Result<RecordItem> add(RecordItem item, Author author) {
+    protected Result<RecordItem> add(RecordItem item, Author author = null) {
         if (item) {
             item.author = author
             item.record = this
@@ -127,7 +127,6 @@ class Record implements ReadOnlyRecord {
             else { eq("voicemailInSeconds", 0) }
         }
     }
-
 
     List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
         getBetween(start, end, [], params)

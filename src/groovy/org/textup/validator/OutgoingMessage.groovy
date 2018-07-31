@@ -15,7 +15,7 @@ import org.textup.type.VoiceLanguage
 @Validateable
 class OutgoingMessage {
 
-	String message = ""
+	String message
 	MediaInfo media
 	RecordItemType type = RecordItemType.TEXT
 	VoiceLanguage language = VoiceLanguage.ENGLISH
@@ -25,7 +25,8 @@ class OutgoingMessage {
 	Recipients<Long, ContactTag> tags
 
 	static constraints = {
-		message blank: true, nullable: true, shared: "textSqlType"
+		// [SHARED maxSize] 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
+		message blank: true, nullable: true, maxSize:15000
 		media nullable: true, validator: { MediaInfo mInfo, OutgoingMessage obj ->
 			// message must have at least one of text and media
 			if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }
@@ -47,19 +48,26 @@ class OutgoingMessage {
 	// Property Access
 	// ---------------
 
+	// called during validation so needs to null-safe
 	String getName() {
-		Long id = contacts.recipients.find { Contact c1 -> c1.id }?.id
+		if (!contacts || !tags) {
+			return ""
+		}
+		Long id = contacts.recipients?.find { Contact c1 -> c1.id }?.id
 		if (id) { // don't return contact name, instead id, for PHI
 			Helpers.messageSource.getMessage("outgoingMessage.getName.contactId",
             	[id] as Object[], LCH.getLocale()) ?: ""
 		}
-		else { tags.recipients.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
+		else { tags.recipients?.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
     }
 
 	boolean getIsText() { type == RecordItemType.TEXT }
 
 	HashSet<Phone> getPhones() {
 		HashSet<Phone> phones = new HashSet<>()
+		if (!contacts || !sharedContacts || !tags) {
+			return phones
+		}
 		phones.addAll(contacts.recipients*.phone)
 		phones.addAll(sharedContacts.recipients*.sharedBy)
 		phones.addAll(sharedContacts.recipients*.sharedWith)

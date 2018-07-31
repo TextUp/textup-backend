@@ -211,7 +211,7 @@ class CallbackService {
 
         // step 1: handle media, if applicable
         MediaInfo mInfo
-        Set<String> mediaIdsToDelete = Collections.emptySet()
+        Set<String> mediaIdsToDelete = new HashSet<>()
         Integer numMedia = Helpers.to(Integer, params.NumMedia)
         if (numMedia > 0) {
             Map<String, String> urlToMimeType = [:]

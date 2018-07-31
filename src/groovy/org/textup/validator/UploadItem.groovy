@@ -1,9 +1,8 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import groovy.transform.ToString
 import java.awt.Graphics2D
 import java.awt.Image
 import java.awt.image.BufferedImage
@@ -18,13 +17,12 @@ import org.textup.*
 
 // [FUTURE] will need to extend this class to support audio. Currently only supports images
 
-@GrailsCompileStatic
 @EqualsAndHashCode
-@ToString
+@GrailsTypeChecked
 @Validateable
 class UploadItem {
 
-    MediaVersion version
+    MediaVersion mediaVersion
     String mimeType
     String key = UUID.randomUUID().toString()
     byte[] data
@@ -32,8 +30,8 @@ class UploadItem {
     private BufferedImage _image
 
     static constraints = { // default nullable: false
-        mimeType blank:false, validator: { String mimeType ->
-            if (!MediaType.isValidMimeType(mimeType)) {
+        mimeType validator: { String mType ->
+            if (!MediaType.isValidMimeType(mType)) {
                 ["invalidType"]
             }
         }
@@ -43,7 +41,13 @@ class UploadItem {
     // -------
 
     Result<UploadItem> tryResizeToWidth(int maxWidthInPixels) {
-        if (!validate()) { return Helpers.resultFactory.failWithValidationErrors(errors) }
+        if (!validate()) {
+            return Helpers.resultFactory.failWithValidationErrors(errors)
+        }
+        if (maxWidthInPixels <= 0) {
+            return Helpers.resultFactory.failWithCodeAndStatus(
+                "uploadItem.tryResizeToWidth.invalidWidth", ResultStatus.BAD_REQUEST)
+        }
         ImageWriter writer
         try {
             writer = getWriter(mimeType)
@@ -54,13 +58,24 @@ class UploadItem {
             Helpers.resultFactory.success(this)
         }
         catch (Throwable e) {
-            log.debug("Uploaditem.tryResizeToWidth: maxWidthInPixels: ${maxWidthInPixels}: ${e.message}")
+            log.debug("UploadItem.tryResizeToWidth: maxWidthInPixels: ${maxWidthInPixels}: ${e.message}")
             Helpers.resultFactory.failWithThrowable(e)
         }
         finally { writer?.dispose() }
     }
+
     Result<UploadItem> tryCompress(long maxSizeInBytes) {
-        if (!validate()) { return Helpers.resultFactory.failWithValidationErrors(errors) }
+        if (!validate()) {
+            return Helpers.resultFactory.failWithValidationErrors(errors)
+        }
+        if (maxSizeInBytes <= 0) {
+            return Helpers.resultFactory.failWithCodeAndStatus(
+                "uploadItem.tryCompress.invalidSize", ResultStatus.BAD_REQUEST)
+        }
+        // short circuit if incompressible or if requested size is smaller than current
+        if (!canCompress(mimeType) || getSizeInBytes() <= maxSizeInBytes) {
+            return Helpers.resultFactory.success(this)
+        }
         ImageWriter writer
         try {
             writer = getWriter(mimeType)
@@ -69,23 +84,21 @@ class UploadItem {
                 minQuality = 0.5
             byte[] currData = data
             BufferedImage currImage = _image
-            while (currData.length > maxSizeInBytes && currentQuality > minQuality) {
+            while (currImage && currData.length > maxSizeInBytes && currentQuality > minQuality) {
                 // step 1: set compression parameters
-                ImageWriteParam param = writer.defaultWriteParam
-                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT)
-                param.setCompressionQuality(currentQuality)
+                ImageWriteParam param = tryGetCompressionParamsForWriter(writer, currentQuality)
                 // step 2: set up appropriate streams to collect the writer's output
                 currData = getDataFromImage(currImage, writer, param)
-                currImage = getImageFromData(currData)
+                currImage = tryGetImageFromData(currData)
                 currentQuality -= qualityStep
             }
             // step 3: after breaking out of the loop, store the newly-compressed values and return
-            data = currData
+            data = currData // NOTE: this sets the property and doesn't trigger `setData`
             _image = currImage
             Helpers.resultFactory.success(this)
         }
         catch (Throwable e) {
-            log.debug("Uploaditem.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
+            log.debug("UploadItem.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
             Helpers.resultFactory.failWithThrowable(e)
         }
         finally { writer?.dispose() }
@@ -96,26 +109,44 @@ class UploadItem {
 
     MediaType getType() { MediaType.convertMimeType(this.mimeType) }
 
-    Integer getWidthInPixels() { _image?.width }
+    int getWidthInPixels() { _image?.width ?: 0 } // so not null
 
-    Long getSizeInBytes() { data?.length }
+    long getSizeInBytes() { data?.length ?: 0 } // so not null
 
     void setData(byte[] newData) {
         if (newData) {
             data = newData
-            _image = getImageFromData(newData)
+            _image = tryGetImageFromData(newData)
         }
     }
 
     // Helpers
     // -------
 
-    protected static ImageWriter getWriter(String mType) {
-        Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType(mType)
-        ImageWriter writer = writers.next()
+    protected static boolean canCompress(String mimeType) {
+        switch (mimeType) {
+            case Constants.MIME_TYPE_JPEG: return true
+            case Constants.MIME_TYPE_PNG: return false
+            case Constants.MIME_TYPE_GIF: return true
+            default: return false
+        }
     }
 
-    protected static BufferedImage getImageFromData(byte[] data) {
+    protected static ImageWriteParam tryGetCompressionParamsForWriter(ImageWriter writer, float quality) {
+        ImageWriteParam param = writer.defaultWriteParam
+        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT)
+        param.setCompressionType(param.compressionTypes[0])
+        param.setCompressionQuality(quality)
+        param
+    }
+
+    protected static ImageWriter getWriter(String mType) {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType(mType)
+        writers.hasNext() ? writers.next() : null
+    }
+
+    // Note: returns null if no image readers able to process the provided byte data
+    protected static BufferedImage tryGetImageFromData(byte[] data) {
         new ByteArrayInputStream(data).withStream { InputStream bInStream ->
             ImageIO.read(bInStream)
         }

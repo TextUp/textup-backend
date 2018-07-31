@@ -19,8 +19,8 @@ interface WithMedia extends ReadOnlyWithMedia {
 
 @GrailsCompileStatic
 interface ReadOnlyMediaInfo {
-    List<? extends ReadOnlyMediaElement> getElements()
-    List<? extends ReadOnlyMediaElement> getElements(Collection<MediaType> typesToRetrieve)
+    List<? extends ReadOnlyMediaElement> getMediaElementsByType()
+    List<? extends ReadOnlyMediaElement> getMediaElementsByType(Collection<MediaType> typesToRetrieve)
 }
 
 @GrailsCompileStatic

@@ -1,42 +1,38 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
 
-@GrailsCompileStatic
+// For shared contacts, ids are actually ids of the CONTACTS themselves
+// because the API only present contacts, never shared contacts. Therefore, when
+// we transform these ids to recipients, we need to account for transfering these contact
+// ids into shared contact domain objects
+
+@GrailsTypeChecked
 @Validateable
 class SharedContactRecipients extends Recipients<Long, SharedContact> {
 
-    // For shared contacts, ids are actually ids of the CONTACTS themselves
-    // because the API only present contacts, never shared contacts. Therefore, when
-    // we transform these ids to recipients, we need to account for transfering these contact
-    // ids into shared contact domain objects
-    private List<SharedContact> recipients = Collections.emptyList()
-
     static constraints = { // all nullable: false by default
         recipients validator: { Collection<SharedContact> recips, SharedContactRecipients obj ->
-            List<SharedContact> invalidShare = []
-            recips?.each { SharedContact sc1 ->
-                if (!sc1.canModify || sc1.sharedWith != obj.phone) { invalidShare << sc1 }
+            if (!recips) { return }
+            // static finder only returns valid shared contacts so we just compare the
+            // recipients that were returned by the static finder with the ids we have
+            // to find the ids that weren't valid
+            List<Long> invalidContactIds = []
+            HashSet<Long> validContactIds = new HashSet<Long>(recips*.contactId)
+            obj.ids?.each { Long cId ->
+                if (!validContactIds.contains(cId)) { invalidContactIds << cId }
             }
-            if (invalidShare) {
-                return ['notShared', invalidShare*.contactId]
+            if (invalidContactIds) {
+                return ['notShared', invalidContactIds]
             }
         }
     }
 
-    // Events
-    // ------
-
-    def beforeValidate() {
-        if (ids && phone && !recipients) {
-            recipients = SharedContact.findEveryByContactIdsAndSharedWith(ids as Collection<Long>, phone)
-        }
+    @Override
+    protected List<SharedContact> buildRecipientsFromIds(List<Long> ids) {
+        // this static finder only returns valid shared contacts
+        phone ? SharedContact.findEveryByContactIdsAndSharedWith(ids, phone) : []
     }
-
-    // Property access
-    // ---------------
-
-    List<SharedContact> getRecipients() { this.recipients }
 }

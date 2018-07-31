@@ -7,12 +7,13 @@ import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.springframework.context.support.StaticMessageSource
+import org.textup.validator.IncomingText
 import spock.lang.Shared
 import spock.lang.Specification
 
 // Need to mock Organization and Location to enable rolling back transaction on resultFactory failure
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
-    Organization, Location, RecordNote, RecordNoteRevision, Location])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, Organization, Location,
+    RecordNote, RecordNoteRevision, Location, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class RecordSpec extends Specification {
 
@@ -32,36 +33,16 @@ class RecordSpec extends Specification {
         grailsApplication.mainContext.getBean("resultFactory")
     }
 
-    void "test adding items to the record and deletion"() {
+    void "test adding items errors"() {
     	given: "a valid record"
     	Record rec = new Record()
     	rec.resultFactory = getResultFactory()
     	rec.save(flush:true, failOnError:true)
 
-    	when: "we have a record"
-    	assert rec.addText([contents:"hello"], null).success
-    	assert rec.addCall([durationInSeconds:60], null).success
-    	assert rec.add(new RecordText(contents:"hello2"), null).success
-    	rec.save(flush:true, failOnError:true) //flush new record items
-
-    	then:
-    	RecordItem.countByRecord(rec) == 3
-    	RecordText.countByRecord(rec) == 2
-    	RecordCall.countByRecord(rec) == 1
-
-    	when: "we add an invalid text item"
-    	Result res = rec.addText(null, null)
-
-    	then:
-    	res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    	res.errorMessages.size() == 1
-        res.errorMessages[0].contains("contents")
-
     	when: "we add a missing item"
         String missingCode = "record.noRecordItem"
         messageSource.addMessage(missingCode, Locale.default, missingCode)
-    	res = rec.add(null, null)
+    	Result res = rec.add(null, null)
 
     	then:
     	res.success == false
@@ -70,7 +51,7 @@ class RecordSpec extends Specification {
     	res.errorMessages[0] == missingCode
     }
 
-    void "test lastRecordActivity is kept up to date"() {
+    void "test adding items, keeping lastRecordActivity up-to-date"() {
         given: "a valid record"
         Record rec = new Record()
         rec.resultFactory = getResultFactory()
@@ -78,19 +59,51 @@ class RecordSpec extends Specification {
 
         DateTime currentTimestamp = rec.lastRecordActivity
 
-        when: "we add a text"
-        assert rec.addText([contents:"hello"], null).success
-
-        then: "lastRecordActivity is updated"
-        rec.lastRecordActivity.isAfter(currentTimestamp) ||
-            rec.lastRecordActivity.isEqual(currentTimestamp)
-
-        when: "we add a call"
-        currentTimestamp = rec.lastRecordActivity
-        assert rec.addCall([durationInSeconds:60], null).success
+        when: "add an outgoing text"
+        assert rec.storeOutgoingText("hello").success
+        rec.save(flush: true, failOnError: true)
 
         then: "lastRecordActivity is updated"
         !rec.lastRecordActivity.isBefore(currentTimestamp)
+        RecordItem.countByRecord(rec) == 1
+        RecordText.countByRecord(rec) == 1
+        RecordCall.countByRecord(rec) == 0
+
+        when: "add an outgoing call"
+        currentTimestamp = rec.lastRecordActivity
+        assert rec.storeOutgoingCall().success
+
+        then: "lastRecordActivity is updated"
+        !rec.lastRecordActivity.isBefore(currentTimestamp)
+        RecordItem.countByRecord(rec) == 2
+        RecordText.countByRecord(rec) == 1
+        RecordCall.countByRecord(rec) == 1
+
+        when: "add an incoming text"
+        currentTimestamp = rec.lastRecordActivity
+        IncomingText text = new IncomingText(apiId: "apiId", message: "hi")
+        IncomingSession session1 = new IncomingSession(phone: new Phone(), numberAsString: "6261231234")
+        Result<RecordText> textRes = rec.storeIncomingText(text, session1)
+
+        then: "lastRecordActivity is updated"
+        textRes.success == true
+        textRes.payload.receipts[0].contactNumberAsString == session1.numberAsString
+        !rec.lastRecordActivity.isBefore(currentTimestamp)
+        RecordItem.countByRecord(rec) == 3
+        RecordText.countByRecord(rec) == 2
+        RecordCall.countByRecord(rec) == 1
+
+        when: "add an incoming call"
+        currentTimestamp = rec.lastRecordActivity
+        Result<RecordCall> callRes = rec.storeIncomingCall("apiId", session1)
+
+        then: "lastRecordActivity is updated"
+        callRes.success == true
+        callRes.payload.receipts[0].contactNumberAsString == session1.numberAsString
+        !rec.lastRecordActivity.isBefore(currentTimestamp)
+        RecordItem.countByRecord(rec) == 4
+        RecordText.countByRecord(rec) == 2
+        RecordCall.countByRecord(rec) == 2
     }
 
     void "test retrieving items from the record"() {
@@ -137,9 +150,11 @@ class RecordSpec extends Specification {
         rec1.resultFactory = getResultFactory()
         rec1.save(flush:true, failOnError:true)
 
-        RecordText rText1 = rec1.addText([contents:"text"], null).payload
-        RecordCall rCall1 = rec1.addCall([:], null).payload,
-            rCall2 = rec1.addCall([voicemailInSeconds: 22, hasAwayMessage: true], null).payload
+        RecordText rText1 = rec1.storeOutgoingText("hello").payload
+        RecordCall rCall1 = rec1.storeOutgoingCall().payload,
+            rCall2 = rec1.storeOutgoingCall().payload
+        rCall2.voicemailInSeconds = 22
+        rCall2.hasAwayMessage = true
         RecordNote rNote1 = new RecordNote(record:rec1)
         [rText1, rCall1, rCall2, rNote1]*.save(flush:true, failOnError:true)
 

@@ -1,19 +1,17 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 import org.textup.type.*
 import org.textup.validator.UploadItem
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(
     name        = "MediaElement",
     description = "A media element contained within a media info object contains various versions optimized for sending or display")
 class MediaElement implements ReadOnlyMediaElement {
-
-    ResultFactory resultFactory
 
     @RestApiObjectField(
         description    = "unique id for this media element, used for deletion",
@@ -46,17 +44,18 @@ class MediaElement implements ReadOnlyMediaElement {
             allowedType    = "MediaElementVersion",
             useForCreation = false)
     ])
-    static transients = ["resultFactory"]
     static hasMany = [displayVersions: MediaElementVersion]
     static constraints = { // all nullable:false by default
-        sendVersion validator: { MediaElementVersion send1 ->
+        sendVersion cascade: true, validator: { MediaElementVersion send1 ->
             if (send1?.sizeInBytes > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
                 return ["sizeTooBig"]
             }
         }
+        displayVersions nullable: true, cascade: true
     }
     static mapping = {
-        versions lazy: false, cascade: "save-update"
+        sendVersion lazy: false, cascade: "save-update"
+        displayVersions lazy: false, cascade: "save-update"
     }
 
     // Static factory methods
@@ -82,15 +81,16 @@ class MediaElement implements ReadOnlyMediaElement {
     // -------
 
     Result<MediaElementVersion> addVersion(UploadItem uItem) {
-        MediaElementVersion vers1 = new MediaElementVersion(version: uItem.version,
+        MediaElementVersion vers1 = new MediaElementVersion(mediaVersion: uItem.mediaVersion,
             key: uItem.key,
             sizeInBytes: uItem.sizeInBytes,
             widthInPixels: uItem.widthInPixels)
-        if (uItem.version == MediaVersion.SEND) {
+        if (uItem.mediaVersion == MediaVersion.SEND) {
             sendVersion = vers1
         }
         else { addToDisplayVersions(vers1) }
-        vers1.save() ? resultFactory.success(vers1) : resultFactory.failWithValidationErrors(vers1.errors)
+        vers1.save() ? Helpers.resultFactory.success(vers1) :
+            Helpers.resultFactory.failWithValidationErrors(vers1.errors)
     }
 
     // Property access
@@ -98,7 +98,7 @@ class MediaElement implements ReadOnlyMediaElement {
 
     Map<MediaVersion, MediaElementVersion> getVersionsForDisplay() {
         Map<MediaVersion, MediaElementVersion> vMap = [:]
-        displayVersions?.each { MediaElementVersion vers1 -> vMap[vers1.version] = vers1 }
+        displayVersions?.each { MediaElementVersion vers1 -> vMap[vers1.mediaVersion] = vers1 }
         vMap ?: [(MediaVersion.LARGE): sendVersion]
     }
 }

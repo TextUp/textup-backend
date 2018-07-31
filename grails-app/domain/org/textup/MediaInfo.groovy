@@ -12,28 +12,58 @@ import org.textup.type.*
     description = "Contains all media elements for a message or batch of messages")
 class MediaInfo implements ReadOnlyMediaInfo {
 
+    private Set<MediaElement> _originalMediaElements = Collections.emptySet()
+
+    static transients = ['_originalMediaElements']
     @RestApiObjectField(
         apiFieldName   = "elements",
         description    = "Media of various types contained within this message",
         allowedType    = "Set<MediaElement>",
         useForCreation = false)
-    static hasMany = [elements: MediaElement]
+    static hasMany = [mediaElements: MediaElement]
     static constraints = { // all nullable:false by default
+        mediaElements cascade: true
     }
     static mapping = {
-        elements lazy: false, cascade: "save-update"
+        mediaElements lazy: false, cascade: "save-update"
+    }
+
+    // Events
+    // ------
+
+    void onLoad() { tryUpdateOriginalMediaElements() }
+    void afterInsert() { tryUpdateOriginalMediaElements() }
+    void afterUpdate() { tryUpdateOriginalMediaElements() }
+    protected void tryUpdateOriginalMediaElements() {
+        if (mediaElements) {
+            _originalMediaElements = new HashSet<MediaElement>(mediaElements)
+        }
+        else { _originalMediaElements = Collections.emptySet() }
     }
 
     // Methods
     // -------
+
+    // We want to refer to the persistent set of elements when creating a duplicate for the revision.
+    // It is OK if two media info objects point to the same media elements so we don't have to
+    // create many duplicate media element objects
+    MediaInfo tryDuplicatePersistentState() {
+        if (_originalMediaElements) {
+            new MediaInfo(mediaElements: new HashSet<MediaElement>(_originalMediaElements))
+        }
+        else {
+            log.debug("MediaInfo.tryDuplicatePersistentState: no elements")
+            null
+        }
+    }
 
     void forEachBatch(Closure<?> doAction, Collection<MediaType> typesToRetrieve = []) {
         int maxFileCount = Constants.MAX_NUM_MEDIA_PER_MESSAGE
         long maxFileSize = Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES,
             currentBatchSize = 0
         List<MediaElement> batchSoFar = []
-        getElements(typesToRetrieve).each { MediaElement element ->
-            Long elementSize = element.sendVersion?.sizeInBytes ?: 0
+        getMediaElementsByType(typesToRetrieve).each { MediaElement e1 ->
+            Long elementSize = e1.sendVersion?.sizeInBytes ?: 0
             // if adding the current element would exceed either the file size or file number
             // thresholds, then execute this batch first and then clear to start new batch
             if (currentBatchSize + elementSize > maxFileSize ||
@@ -42,7 +72,7 @@ class MediaInfo implements ReadOnlyMediaInfo {
                 batchSoFar.clear()
                 currentBatchSize = 0
             }
-            batchSoFar << element
+            batchSoFar << e1
             currentBatchSize += elementSize
         }
         // call doAction on any batch left to execute
@@ -51,31 +81,31 @@ class MediaInfo implements ReadOnlyMediaInfo {
         }
     }
 
-    // We want to refer to the persistent set of elements when creating a duplicate for the revision.
-    // It is OK if two media info objects point to the same media elements so we don't have to
-    // create many duplicate media element objects
-    MediaInfo duplicatePersistentState() {
-        new MediaInfo(elements: this.getPersistentValue("elements"))
-    }
-
     // Property access
     // ---------------
 
-    List<MediaElement> getElements(Collection<MediaType> typesToFind = []) {
-        Collection<MediaElement> elementCollection = typesToFind ?
-            elements.findAll { MediaElement e1 -> e1.type in typesToFind } : elements
-        new ArrayList<MediaElement>(elementCollection)
+    // Need to manually override the isDirty check because it only works when we add the first
+    // element and change the value from `null` to a Collection. For all subsequent modifications,
+    // the default `isDirty()` method will not check the state of the initialized Collection
+    boolean isDirty() {
+        (mediaElements ?: Collections.emptySet()) != _originalMediaElements
     }
 
-    MediaElement removeElement(String uid) {
-        MediaElement e1 = elements.find { MediaElement e1 -> e1.uid == uid }
+    List<MediaElement> getMediaElementsByType(Collection<MediaType> typesToFind = []) {
+        Collection<MediaElement> elementCollection = typesToFind ?
+            mediaElements?.findAll { MediaElement e1 -> e1.type in typesToFind } : mediaElements
+        elementCollection ? new ArrayList<MediaElement>(elementCollection) : []
+    }
+
+    MediaElement removeMediaElement(String uid) {
+        MediaElement e1 = mediaElements.find { MediaElement e1 -> e1.uid == uid }
         if (e1) {
-            elements.remove(e1)
+            removeFromMediaElements(e1)
         }
         e1
     }
 
     boolean isEmpty() {
-        elements.isEmpty()
+        mediaElements ? mediaElements.isEmpty() : true
     }
 }

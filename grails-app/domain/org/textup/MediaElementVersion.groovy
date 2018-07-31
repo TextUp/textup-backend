@@ -1,11 +1,11 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 import org.textup.type.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(
     name        = "MediaElementVersion",
@@ -14,7 +14,7 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
 
     StorageService storageService
 
-    MediaVersion version
+    MediaVersion mediaVersion
     String key
     Long sizeInBytes
     Integer widthInPixels
@@ -33,8 +33,9 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
     ])
     static transients = ["storageService"]
     static constraints = { // all nullable:false by default
+        sizeInBytes min: 1l
         // inherent width in pixels for responsive media, currently only supported for images
-        widthInPixels nullable:true
+        widthInPixels nullable:true, min: 1
     }
 
     // Property access
@@ -43,8 +44,8 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
     // using the "w" unit for inherent width as called for in the `srcset` attribute as defined
     // in the responsive image specification
     String getInherentWidth() {
-        Integer width1 = widthInPixels ?: version?.maxWidthInPixels
-        width1 ? "${width1}w" : ""
+        Integer width1 = widthInPixels ?: mediaVersion?.maxWidthInPixels
+        width1 ? "${width1}w" : null
     }
 
     URL getLink() {

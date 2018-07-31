@@ -11,7 +11,8 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
+	MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class RecordItemReceiptSpec extends Specification {
@@ -42,10 +43,12 @@ class RecordItemReceiptSpec extends Specification {
 		receipt.errors.errorCount == 1
 
 		when: "we set a valid phone number"
-		receipt.contactNumber = new PhoneNumber(number:"222 333 4444")
+		String numAsString = "2223334444"
+		receipt.contactNumber = new PhoneNumber(number:numAsString)
 
 		then:
 		receipt.validate() == true
+		receipt.contactNumberAsString == numAsString
 	}
 
 	private void addReceiptToItem(RecordItem rItem, ReceiptStatus status) {

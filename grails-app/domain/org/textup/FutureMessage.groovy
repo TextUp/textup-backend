@@ -239,9 +239,16 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
 
     OutgoingMessage toOutgoingMessage() {
         Helpers.<OutgoingMessage>doWithoutFlush({
-            // step 1: initialize classes
+            // step 1: populate recipients
             ContactRecipients cRecip = new ContactRecipients()
             ContactTagRecipients ctRecip = new ContactTagRecipients()
+            ContactTag tag = ContactTag.findByRecord(this.record)
+            if (tag) { ctRecip.recipients = [tag] }
+            else {
+                Contact contact = Contact.findByRecord(this.record)
+                if (contact) { cRecip.recipients = [contact] }
+            }
+            // step 2: initialize classes
             OutgoingMessage msg = new OutgoingMessage(
                 message:this.message,
                 language:this.language,
@@ -249,13 +256,6 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
                 sharedContacts: new SharedContactRecipients(),
                 contacts: cRecip,
                 tags: ctRecip)
-            // step 2: populate recipients
-            ContactTag tag = ContactTag.findByRecord(this.record)
-            if (tag) { ctRecip.recipients = [tag] }
-            else {
-                Contact contact = Contact.findByRecord(this.record)
-                if (contact) { cRecip.recipients = [contact] }
-            }
             msg
         })
     }

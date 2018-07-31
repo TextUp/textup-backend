@@ -8,7 +8,8 @@ import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, Organization, Location])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, Organization, Location,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class RecordCallSpec extends Specification {
 
@@ -18,9 +19,11 @@ class RecordCallSpec extends Specification {
         RecordCall.metaClass.constructor = { Map m ->
             RecordCall instance = new RecordCall()
             instance.properties = m
-            instance.storageService = [generateAuthLink:{ String k ->
-                new Result(status:ResultStatus.OK, payload:new URL("${urlRoot}${k}"))
-            }] as StorageService
+            instance.voicemailService = [
+                getVoicemailUrl:{ RecordItemReceipt k ->
+                    (k ? "${urlRoot}${k.apiId}" : "") as String
+                }
+            ] as VoicemailService
             instance
         }
     }
@@ -41,25 +44,6 @@ class RecordCallSpec extends Specification {
         rCall1.record = rec1
 
         then: "valid"
-        rCall1.validate() == true
-
-        when: "with too-long call contents"
-        rCall1.callContents = '''
-            Far far away, behind the word mountains, far from the countries Vokalia and
-            Consonantia, there live the blind texts. Separated they live in Bookmarksgrove
-            right at the coast of the Semantics, a large language ocean. A small river
-            named Duden flows by their place and supplies it with the necessary regelialia.
-            It is a paradisemati
-        '''
-
-        then:
-        rCall1.validate() == false
-        rCall1.errors.errorCount == 1
-
-        when: "with appropriate length call contents"
-        rCall1.callContents = "I am an appropriate length"
-
-        then:
         rCall1.validate() == true
     }
 
@@ -84,7 +68,7 @@ class RecordCallSpec extends Specification {
         call.voicemailUrl == ""
 
         when: "we do have voicemail AND no receipts"
-        call.hasVoicemail = true
+        call.hasAwayMessage = true
         call.voicemailInSeconds = 88
         assert call.save(flush:true, failOnError:true)
 
@@ -98,7 +82,7 @@ class RecordCallSpec extends Specification {
             status:ReceiptStatus.SUCCESS)
         assert call.save(flush:true, failOnError:true)
 
-        then: "can get url"
+        then: "can get url -- see mock"
         call.hasVoicemail == true
         call.voicemailUrl == "${urlRoot}${apiId}"
     }

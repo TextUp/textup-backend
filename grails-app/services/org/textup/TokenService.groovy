@@ -115,7 +115,7 @@ class TokenService {
         // send as a text message. HOWEVER, in the future, when we add in audio recording
         // capability, then we need to revisit this method because we will want to send the images
         // as a text message and the audio recordings over phone call
-        if (!msg1.isText && msg1.message) {
+        if (identifier && !msg1.isText && msg1.message) {
             Result<Token> res = generate(TokenType.CALL_DIRECT_MESSAGE, [
                 identifier: identifier,
                 message: msg1.message,

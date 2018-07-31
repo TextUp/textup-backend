@@ -172,7 +172,7 @@ class RecordService {
         // step 2: ensure that we have at least one contactable to send to.
         // That is, ensure that the provided id actually resolved to a contactable as the check
         // in the RecordController only checks for the form of the body
-        Contactable cont1 = recips.recipients[0]
+        Contactable cont1 = recips.recipients[0] as Contactable
         if (!cont1) {
             return resultFactory.failWithCodeAndStatus("recordService.create.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)

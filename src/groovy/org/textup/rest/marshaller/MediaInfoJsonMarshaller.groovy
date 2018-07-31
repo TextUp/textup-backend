@@ -9,7 +9,7 @@ import org.textup.type.MediaType
 class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
 
     static final Closure marshalClosure = { ReadOnlyMediaInfo mInfo ->
-        [images: mInfo.getElements([MediaType.IMAGE])]
+        [images: mInfo.getMediaElementsByType([MediaType.IMAGE])]
     }
 
     MediaInfoJsonMarshaller() {

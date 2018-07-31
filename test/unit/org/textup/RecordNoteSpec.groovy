@@ -9,7 +9,7 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
-import org.textup.type.ReceiptStatus
+import org.textup.type.*
 import org.textup.validator.PhoneNumber
 import org.textup.validator.UploadItem
 import spock.lang.Ignore
@@ -17,124 +17,59 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordNote,
-	RecordNoteRevision, RecordItemReceipt, Location])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordNote, RecordNoteRevision,
+    RecordItemReceipt, Location, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class RecordNoteSpec extends Specification {
 
-    Record _rec
-    UploadItem _uItem
-    String _urlRoot = "http://www.example.com/?key="
-    int _maxNumImages = 1
-    String _eTag = UUID.randomUUID().toString()
+    void "test validation + cascading to location"() {
+        given:
+        Record rec1 = new Record()
+        rec1.save(flush: true, failOnError: true)
 
-    void setup() {
-        _rec = new Record()
-        assert _rec.save(flush:true, failOnError:true)
-
-        String contentType = "image/png"
-        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
-        String checksum = DigestUtils.md5Hex(data)
-        _uItem = new UploadItem()
-        _uItem.mimeType = contentType
-        _uItem.data = data
-        _uItem.checksum = checksum
-        assert _uItem.validate()
-
-        RecordNote.metaClass.constructor = { Map props ->
-            RecordNote note1 = new RecordNote()
-            note1.properties = props
-            note1.grailsApplication = [getFlatConfig:{
-                ['textup.maxNumImages':_maxNumImages]
-            }] as GrailsApplication
-            note1.storageService = [
-                generateAuthLink:{ String k ->
-                    new Result(success:true, payload:new URL("${_urlRoot}${k}"))
-                },
-                upload: { String objectKey, UploadItem uItem ->
-                    new Result(success:true, payload:[getETag: { -> _eTag }] as PutObjectResult)
-                }
-            ] as StorageService
-            note1
-        }
-    }
-
-    void "test validation"() {
     	when: "empty note"
-        RecordNote note1 = new RecordNote(record:_rec)
+        RecordNote note1 = new RecordNote()
 
-    	then: "a completely empty note is valid"
-        note1.validate() == true
-
-    	when: "noteContents too long"
-        int maxLength = 1000
-        note1.noteContents = (0..(maxLength * 2))
-            .inject("") { String accum, Integer rangeCount -> accum + "a" }
-
-    	then:
+    	then: "invalid"
         note1.validate() == false
-        note1.errors.errorCount == 1
-        note1.errors.getFieldErrorCount("noteContents") == 1
+        note1.errors.getFieldErrorCount("record") == 1
 
-    	when: "too many images"
-        note1.noteContents = null
-        (_maxNumImages * 2).times {
-            note1.addImage(_uItem)
-        }
-
-    	then:
-        note1.validate() == false
-        note1.errors.errorCount == 1
-        note1.errors.getFieldErrorCount("imageKeysAsString") == 1
-        note1.errors
-            .getFieldError("imageKeysAsString")
-            .codes.contains("recordNote.imageKeysAsString.tooMany")
-
-        when: "duplicate image keys"
-        note1.setImageKeys(['same key', 'same key'])
+        when: "fill in a record"
+        note1.record = rec1
 
         then:
+        note1.validate() == true
+
+        when: "add a invalid location"
+        note1.location = new Location()
+
+        then: "parent is invalid"
         note1.validate() == false
-        note1.errors.errorCount == 1
-        note1.errors.getFieldErrorCount("imageKeysAsString") == 1
-        note1.errors
-            .getFieldError("imageKeysAsString")
-            .codes.contains("recordNote.imageKeysAsString.duplicates")
-    }
+        note1.errors.getFieldErrorCount("location.address") == 1
+        note1.errors.getFieldErrorCount("location.lat") == 1
+        note1.errors.getFieldErrorCount("location.lon") == 1
 
-    void "test images"() {
-    	given: "a valid note"
-        RecordNote note1 = new RecordNote(record:_rec)
-        assert note1.validate()
+        when: "fill in location"
+        note1.location.address = "hi"
+        note1.location.lat = 0G
+        note1.location.lon = 0G
 
-    	when: "add an image"
-        assert note1.addImage(_uItem).payload.getETag() == _eTag
-        assert note1.save(flush:true, failOnError:true)
-
-    	then:
-        note1.imageKeys.size() == 1
-        note1.images.size() == 1
-
-    	when: "remove an image that doesn't exist"
-        String imageKey = note1.imageKeys[0]
-        assert note1.removeImage("blah") == null
-
-    	then:
-        note1.imageKeys.size() == 1
-        note1.images.size() == 1
-
-    	when: "remove an image that does exist"
-        assert note1.removeImage(imageKey) == imageKey
-
-    	then:
-        note1.imageKeys.size() == 0
-        note1.images.size() == 0
+        then: "parent becomes valid again"
+        note1.validate() == true
     }
 
     void "test creating a revision"() {
     	given: "a valid note"
-        RecordNote note1 = new RecordNote(record:_rec)
+        Record rec = new Record()
+        rec.save(flush: true, failOnError: true)
+        RecordNote note1 = new RecordNote(record:rec)
+        note1.authorName = "hello"
+        note1.authorId = 88L
+        note1.authorType = AuthorType.STAFF
+        note1.noteContents = "hello there!"
+        note1.location = new Location(address: "hi", lat: 0G, lon: 0G)
+        note1.media = new MediaInfo()
         assert note1.validate()
 
     	when: "creating a revision for an unsaved note"
@@ -147,7 +82,7 @@ class RecordNoteSpec extends Specification {
         rev1.whenChanged == null
         rev1.noteContents == null
         rev1.location == null
-        rev1.imageKeysAsString == null
+        rev1.media == null
 
         when: "creating a revision for a saved note"
         note1.removeFromRevisions(rev1)
@@ -155,13 +90,152 @@ class RecordNoteSpec extends Specification {
         note1.save(flush:true, failOnError:true)
         rev1 = note1.createRevision()
 
-        then:
+        then: "revision created but no media because media is still empty"
         rev1.authorName == note1.authorName
         rev1.authorId == note1.authorId
         rev1.authorType == note1.authorType
         rev1.whenChanged == note1.whenChanged
         rev1.noteContents == note1.noteContents
-        rev1.location == note1.location
-        rev1.imageKeysAsString == note1.imageKeysAsString
+
+        note1.location.id != null
+        rev1.location instanceof Location
+        rev1.location.id == null // unsaved because just duplicated
+
+        note1.media.id != null
+        rev1.media == null
+
+        when: "add some media elements to the media"
+        MediaElement e1 = new MediaElement()
+        e1.type = MediaType.IMAGE
+        e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
+            key: UUID.randomUUID().toString(),
+            sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
+            widthInPixels: 888)
+        note1.media.addToMediaElements(e1)
+        note1.save(flush:true, failOnError:true)
+        rev1 = note1.createRevision()
+
+        then: "revision creatd this time has all fields, including media, populated"
+        rev1.authorName == note1.authorName
+        rev1.authorId == note1.authorId
+        rev1.authorType == note1.authorType
+        rev1.whenChanged == note1.whenChanged
+        rev1.noteContents == note1.noteContents
+
+        note1.location.id != null
+        rev1.location instanceof Location
+        rev1.location.id == null // unsaved because just duplicated
+
+        note1.media.id != null
+        rev1.media instanceof MediaInfo
+        rev1.media.id == null // unsaved because just duplicated
+    }
+
+    void "test determining if should create revision"() {
+        given: "a saved valid note"
+        Record rec = new Record()
+        rec.save(flush: true, failOnError: true)
+        RecordNote note1 = new RecordNote(record:rec)
+        note1.authorName = "hello"
+        note1.authorId = 88L
+        note1.authorType = AuthorType.STAFF
+        note1.noteContents = "hello there!"
+        note1.location = new Location(address: "hi", lat: 0G, lon: 0G)
+        note1.media = new MediaInfo()
+        assert note1.save(flush: true, failOnError: true)
+
+        note1.resultFactory = [
+            success: { Object obj -> new Result(status: ResultStatus.OK, payload: obj) }
+        ] as ResultFactory
+
+        int initialNumRevisions = note1.revisions?.size() ?: 0
+        DateTime initialWhenChanged = note1.whenChanged
+
+        when: "change isDeleted property"
+        note1.isDeleted = true
+        assert note1.hasDirtyNonObjectFields() == false
+        assert note1.tryCreateRevision().success == true
+        note1.save(flush: true, failOnError: true)
+
+        then: "no revision created"
+        (note1.revisions?.size() ?: 0) == initialNumRevisions
+        note1.whenChanged == initialWhenChanged
+
+        when: "change a non-object property"
+        note1.noteContents = "hi! what's up?"
+        assert note1.hasDirtyNonObjectFields() == true
+        assert note1.tryCreateRevision().success == true
+        note1.save(flush: true, failOnError: true)
+
+        then: "revision created"
+        note1.revisions?.size() == initialNumRevisions + 1
+        note1.whenChanged.isAfter(initialWhenChanged)
+
+        when: "change location"
+        note1.location.address = "hi! what's going on?"
+        initialNumRevisions = note1.revisions.size()
+        initialWhenChanged = note1.whenChanged
+
+        assert note1.hasDirtyNonObjectFields() == false
+        assert note1.tryCreateRevision().success == true
+        note1.save(flush: true, failOnError: true)
+
+        then: "revision created"
+        note1.revisions?.size() == initialNumRevisions + 1
+        note1.whenChanged.isAfter(initialWhenChanged)
+
+        when: "add to media media"
+        MediaElement e1 = new MediaElement()
+        e1.type = MediaType.IMAGE
+        e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
+            key: UUID.randomUUID().toString(),
+            sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
+            widthInPixels: 888)
+        note1.media.addToMediaElements(e1)
+
+        initialNumRevisions = note1.revisions.size()
+        initialWhenChanged = note1.whenChanged
+        assert note1.hasDirtyNonObjectFields() == false
+        assert note1.tryCreateRevision().success == true
+        note1.save(flush: true, failOnError: true)
+
+        then: "revision created"
+        note1.revisions?.size() == initialNumRevisions + 1
+        note1.whenChanged.isAfter(initialWhenChanged)
+
+        when: "make no changes after mediaElements in `media` child is initialized"
+        initialNumRevisions = note1.revisions.size()
+        initialWhenChanged = note1.whenChanged
+        assert note1.hasDirtyNonObjectFields() == false
+        assert note1.tryCreateRevision().success == true
+        note1.save(flush: true, failOnError: true)
+
+        then: "no revision created"
+        note1.revisions.size() == initialNumRevisions
+        note1.whenChanged == initialWhenChanged
+
+        when: "remove from media"
+        note1.media.removeMediaElement(e1.uid)
+
+        initialNumRevisions = note1.revisions.size()
+        initialWhenChanged = note1.whenChanged
+        assert note1.hasDirtyNonObjectFields() == false
+        assert note1.tryCreateRevision().success == true
+        note1.save(flush: true, failOnError: true)
+
+        then: "revision created"
+        note1.revisions?.size() == initialNumRevisions + 1
+        note1.whenChanged.isAfter(initialWhenChanged)
+
+        when: "make no changes after mediaElements in `media` child is initialized"
+        initialNumRevisions = note1.revisions.size()
+        initialWhenChanged = note1.whenChanged
+        assert note1.hasDirtyNonObjectFields() == false
+        assert note1.tryCreateRevision().success == true
+        note1.save(flush: true, failOnError: true)
+
+        then: "no revision created"
+        note1.revisions.size() == initialNumRevisions
+        note1.whenChanged == initialWhenChanged
     }
 }

@@ -169,7 +169,7 @@ class RecordController extends BaseController {
         Map rInfo = getJsonPayload(RecordItem, request)
         if (rInfo == null) { return }
         Long tId = params.long("teamId")
-        if (authService.exists(Team, tId)) {
+        if (tId && authService.exists(Team, tId)) {
             if (authService.hasPermissionsForTeam(tId)) {
                 createForPhone(Team.get(tId)?.phone?.id, rInfo)
             }
@@ -178,17 +178,17 @@ class RecordController extends BaseController {
         else { createForPhone(authService.loggedInAndActive?.phone?.id, rInfo) }
     }
     protected void createForPhone(Long phoneId, Map body) {
-        if (validateCreateBody(body)) {
-            respondWithResult(RecordItem, recordService.create(phoneId, body))
-        }
-    }
-    protected boolean validateCreateBody(Map body) {
         Result<Class<RecordItem>> res = recordService.determineClass(body)
         if (!res.success) {
             badRequest()
-            return false
+            return
         }
-        switch(res.payload) {
+        if (validateCreateBody(res.payload, body)) {
+            respondWithResult(RecordItem, recordService.create(phoneId, body))
+        }
+    }
+    protected boolean validateCreateBody(Class<RecordItem> clazz, Map body) {
+        switch(clazz) {
             case RecordCall:
                 if (!Helpers.exactly(1, ["callContact", "callSharedContact"], body)) {
                     respondWithResult(RecordItem, resultFactory.failWithCodeAndStatus(

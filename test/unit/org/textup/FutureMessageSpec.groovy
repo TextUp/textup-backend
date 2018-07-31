@@ -18,7 +18,8 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, FutureMessage, NotificationPolicy])
+	AnnouncementReceipt, Role, StaffRole, FutureMessage, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class FutureMessageSpec extends CustomSpec {
 
@@ -42,7 +43,8 @@ class FutureMessageSpec extends CustomSpec {
     	fMsg.validate() == false
     	fMsg.errors.errorCount == 3
     	fMsg.errors.getFieldErrorCount("record") == 1
-    	fMsg.errors.getFieldErrorCount("message") == 1
+    	fMsg.errors.getFieldErrorCount("media") == 1
+        fMsg.errors.getFieldError("media").codes.contains("noInfo")
     	fMsg.errors.getFieldErrorCount("type") == 1
 
     	when: "all required fields filled out"
@@ -50,7 +52,7 @@ class FutureMessageSpec extends CustomSpec {
     	fMsg.record = c1.record
     	fMsg.message = "hi"
 
-    	then: "ok"
+    	then: "ok -- requires either media or message or both"
     	fMsg.validate() == true
 
     	when: "message is too long"
@@ -78,7 +80,7 @@ class FutureMessageSpec extends CustomSpec {
     	fMsg.errors.getFieldErrorCount("endDate") == 1
     }
 
-    void "test converting to outgoing message for #type's record"() {
+    void "test converting to outgoing message for record"() {
     	given: "a valid future message"
     	def owner = (type == "contact") ? c1 : tag1
     	FutureMessage fMsg = new FutureMessage(
@@ -94,12 +96,12 @@ class FutureMessageSpec extends CustomSpec {
     	OutgoingMessage msg = fMsg.toOutgoingMessage()
     	Collection hasMembers, noMembers
     	if (type == "contact") {
-			hasMembers = msg.contacts
-			noMembers = msg.tags
+			hasMembers = msg.contacts.recipients
+			noMembers = msg.tags.recipients
     	}
     	else {
-    		hasMembers = msg.tags
-			noMembers = msg.contacts
+    		hasMembers = msg.tags.recipients
+			noMembers = msg.contacts.recipients
     	}
 
     	then: "make outgoing message without flushing"
@@ -115,12 +117,12 @@ class FutureMessageSpec extends CustomSpec {
         fMsg.language = VoiceLanguage.ITALIAN
     	msg = fMsg.toOutgoingMessage()
     	if (type == "contact") {
-			hasMembers = msg.contacts
-			noMembers = msg.tags
+			hasMembers = msg.contacts.recipients
+			noMembers = msg.tags.recipients
     	}
     	else {
-    		hasMembers = msg.tags
-			noMembers = msg.contacts
+    		hasMembers = msg.tags.recipients
+			noMembers = msg.contacts.recipients
     	}
 
     	then: "make outgoing message without flushing"

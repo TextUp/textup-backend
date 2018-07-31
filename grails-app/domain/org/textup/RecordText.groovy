@@ -55,7 +55,8 @@ class RecordText extends RecordItem implements ReadOnlyRecordText {
         // messages and we do not want to knowingly fail to deliver incoming messages
         // (2) removed the constraint the prohibited contents from being null because a text message
         // can now have media too so outgoing message can have either text only, media only, or both.
-    	contents blank: true, nullable: true, shared: "textSqlType"
+        // [SHARED maxSize] 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
+    	contents blank: true, nullable: true, maxSize:15000
     }
     static mapping = {
         contents type:"text"

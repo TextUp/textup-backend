@@ -15,7 +15,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, ReadOnlyRecordItem item ->
 
-        List<String> uploadErrors = Collections.emptyList()
+        List<String> uploadErrors = []
         Helpers.<List<String>>tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
             .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
             .then { List<String> errors -> uploadErrors = errors }
@@ -55,7 +55,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 isDeleted = item.isDeleted
                 isReadOnly = item.isReadOnly
                 revisions = item.revisions
-                location = item.location
+                location = item.readOnlyLocation
             }
         }
         // find owner, may be a contact or a tag

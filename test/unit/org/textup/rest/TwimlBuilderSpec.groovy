@@ -20,7 +20,8 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
+	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class TwimlBuilderSpec extends CustomSpec {
 
@@ -650,83 +651,25 @@ class TwimlBuilderSpec extends CustomSpec {
 
     void "test direct calls with parameters"() {
         given: "twiml builder"
+        int numTimesCalled = 0
         TwimlBuilder builder = new TwimlBuilder()
         builder.resultFactory = getResultFactory()
         builder.resultFactory.messageSource = mockMessageSource()
         builder.messageSource = mockMessageSource()
         builder.linkGenerator = mockLinkGenerator()
-        String message = "hi",
-            identifier = "myname"
+        builder.tokenService = [
+            buildCallDirectMessageBody: { Closure<String> getMessage, Closure<String> getLink,
+                String token = null, Integer repeatsSoFar = null ->
+                numTimesCalled++
+                null
+            }
+        ] as TokenService
 
         when: "direct message invalid"
-        Result<Closure> res = builder.build(CallResponse.DIRECT_MESSAGE)
+        builder.build(CallResponse.DIRECT_MESSAGE)
 
         then:
-        res.success == false
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "twimlBuilder.invalidCode"
-
-        when: "direct messsage only message, no identifier"
-        VoiceLanguage lang = VoiceLanguage.ENGLISH
-        Map linkParams = [
-            handle:CallResponse.DIRECT_MESSAGE,
-            message:message,
-            repeatCount:2,
-            language: lang.toString()
-        ]
-        res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
-        linkParams.repeatCount++
-
-        then:
-        res.success == true
-        buildXml(res.payload) == buildXml({
-            Response {
-                Say("twimlBuilder.call.anonymousMessageIntro")
-                Pause(length:"1")
-                Say(language:lang.toTwimlValue(), message)
-                Redirect(linkParams.toString())
-            }
-        })
-
-        when: "direct message both message and identifier"
-        linkParams = [
-            handle:CallResponse.DIRECT_MESSAGE,
-            message:message,
-            repeatCount:2,
-            language: "invalidbutstillpresent",
-            identifier:identifier
-        ]
-        res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
-        linkParams.repeatCount++
-
-        then: "language is just required to be present, if invalid then is omitted"
-        res.success == true
-        buildXml(res.payload) == buildXml({
-            Response {
-                Say("twimlBuilder.call.messageIntro")
-                Pause(length:"1")
-                Say(message)
-                Redirect(linkParams.toString())
-            }
-        })
-
-        when: "exceeded repeat maximum"
-        linkParams = [
-            handle:CallResponse.DIRECT_MESSAGE,
-            message:message,
-            repeatCount:Constants.MAX_REPEATS,
-            identifier:identifier,
-            language: VoiceLanguage.ENGLISH.toString()
-        ]
-        res = builder.build(CallResponse.DIRECT_MESSAGE, linkParams)
-
-        then:
-        res.success == true
-        buildXml(res.payload) == buildXml({
-            Response {
-                Hangup()
-            }
-        })
+        1 == numTimesCalled
     }
 
     void "test calls announcements with parameters"() {

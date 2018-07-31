@@ -7,28 +7,13 @@ import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import java.util.concurrent.atomic.AtomicInteger
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.hibernate.Session
 import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
-import org.textup.type.CallResponse
-import org.textup.type.ContactStatus
-import org.textup.type.PhoneOwnershipType
-import org.textup.type.ReceiptStatus
-import org.textup.type.RecordItemType
-import org.textup.type.SharePermission
-import org.textup.type.StaffStatus
-import org.textup.type.TextResponse
-import org.textup.type.VoiceLanguage
-import org.textup.type.VoiceType
+import org.textup.type.*
 import org.textup.util.CustomSpec
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.BasicNotification
-import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingMessage
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Unroll
+import org.textup.validator.*
+import spock.lang.*
 import static org.springframework.http.HttpStatus.*
 
 @TestFor(PhoneService)
@@ -1120,8 +1105,78 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload == CallResponse.CHECK_IF_VOICEMAIL
     }
 
+    // TODO finish
+    void "test handling incoming for text announcements"() {
+        when: "we don't have any announcements"
+        res = p1.receiveText(text, session)
+
+        then: "relay text"
+        res.success == true
+        res.status == ResultStatus.OK
+
+        when: "we have announcements and message isn't a valid keyword"
+        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
+            message:"Hello!", expiresAt:DateTime.now().plusDays(2))
+        announce.save(flush:true, failOnError:true)
+        text.message = "invalid keyword"
+        assert text.validate()
+        res = p1.receiveText(text, session)
+
+        then: "delegate to phoneService to handle announcements"
+        _numTimesHandleAnnouncementText == 1
+        res.success == true
+        res.status == ResultStatus.OK
+
+        when: "have announcements and see announcements"
+        text.message = Constants.TEXT_SEE_ANNOUNCEMENTS
+        assert text.validate()
+        res = p1.receiveText(text, session)
+        p1.merge(flush:true)
+
+        then: "delegate to phoneService to handle announcements"
+        _numTimesHandleAnnouncementText == 1
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload == TextResponse.SEE_ANNOUNCEMENTS
+
+        when: "multiple receipts are not added for same announcement and session"
+        res = p1.receiveText(text, session)
+
+        then: "delegate to phoneService to handle announcements"
+        _numTimesHandleAnnouncementText == 1
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload == TextResponse.SEE_ANNOUNCEMENTS
+
+        when: "have announcements, is NOT subscribed, toggle subscription"
+        session.isSubscribedToText = false
+        Phone.withSession { Session hibernateSession -> hibernateSession.flush() }
+        text.message = Constants.TEXT_TOGGLE_SUBSCRIBE
+        assert text.validate()
+        res = p1.receiveText(text, session)
+
+        then: "delegate to phoneService to handle announcements"
+        session.isSubscribedToText == true
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload == TextResponse.SUBSCRIBED
+
+        when: "have announcementsm, is subscribed, toggle subscription"
+        session.isSubscribedToText = true
+        Phone.withSession { Session hibernateSession -> hibernateSession.flush() }
+        text.message = Constants.TEXT_TOGGLE_SUBSCRIBE
+        assert text.validate()
+        res = p1.receiveText(text, session)
+
+        then: "delegate to phoneService to handle announcements"
+        session.isSubscribedToText == false
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload == TextResponse.UNSUBSCRIBED
+    }
+
     @FreshRuntime
-    void "test handling call announcements"() {
+    void "test handling incoming for call announcements"() {
         given: "no announcements and session"
         int cBaseline = Contact.count()
         int iBaseline = RecordCall.count()

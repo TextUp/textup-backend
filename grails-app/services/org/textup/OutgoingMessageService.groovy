@@ -1,9 +1,8 @@
 package org.textup
 
-import grails.async.Promise
-import grails.async.Promises
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
+import org.apache.commons.lang3.tuple.Pair
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -43,13 +42,14 @@ class OutgoingMessageService {
             // instead of a null value, then that means that we are sending out this message as a call
             // See `mediaService.sendWithMedia` to see how this is handled
             Token callToken = tokenService.tryBuildAndPersistCallToken(phone.name, msg1)
-            List<Map<Contactable, Result<List<TempRecordReceipt>>>> resList = Helpers
-                .<Contactable, Map<Contactable, Result<List<TempRecordReceipt>>>>doAsyncInBatches(
-                    recipients, { List<Contactable> batchSoFar ->
-                        sendContactableBatch(phone, batchSoFar, msg1.message, mInfo, callToken)
-                    })
-            resList.each { Map<Contactable, Result<List<TempRecordReceipt>>> batchMap ->
-                resultMap << batchMap
+            List<Pair<Contactable, Result<List<TempRecordReceipt>>>> resList = Helpers
+                .<Contactable>doAsyncInBatches(recipients, { Contactable c1 ->
+                    Pair.of(c1, mediaService.sendWithMedia(c1.fromNum, c1.sortedNumbers,
+                        msg1.message, mInfo, callToken))
+                })
+
+            resList.each { Pair<Contactable, Result<List<TempRecordReceipt>>> pair ->
+                resultMap[pair.left] = pair.right
             }
             resultFactory.success(resultMap)
         }
@@ -57,34 +57,6 @@ class OutgoingMessageService {
             log.error("OutgoingMessageService.sendForContactables: ${e.class}, ${e.message}")
             e.printStackTrace()
             resultFactory.failWithThrowable(e)
-        }
-    }
-
-    protected Promise<Map<Contactable, Result<List<TempRecordReceipt>>>> sendContactableBatch(
-        Phone phone, List<Contactable> batchSoFar, String contents1,
-        MediaInfo mInfo = null, Token callToken = null) {
-
-        // store needed data outside of the promise closure to prevent accidentally making
-        // any db calls inside of the closure and triggering a `no session` error
-        Map<Long, PhoneNumber> contactIdToFromNum = [:]
-        Map<Long, List<ContactNumber>> contactIdToNums = [:]
-        batchSoFar.each { Contactable c1 ->
-            Long cId = c1.contactId
-            contactIdToFromNum[cId] = c1.fromNum
-            contactIdToNums[cId] = c1.sortedNumbers
-        }
-        // NO HIBERNATE SESSION WITHIN NEW THREAD!!
-        // Any calls that will make a db call needs to be made outside of the task closure
-        Promises.task {
-            Map<Contactable, Result<List<TempRecordReceipt>>> contactableToRes = [:]
-            batchSoFar.each { Contactable c1 ->
-                Long cId = c1.contactId
-                PhoneNumber fromNum = contactIdToFromNum[cId]
-                List<ContactNumber> toNums = contactIdToNums[cId]
-                contactableToRes[c1] = mediaService.sendWithMedia(fromNum, toNums, contents1,
-                    mInfo, callToken)
-            }
-            contactableToRes
         }
     }
 

@@ -99,7 +99,7 @@ interface ReadOnlyBaseRecordNote extends Authorable {
     Long getId()
     DateTime getWhenChanged()
     String getNoteContents()
-    ReadOnlyLocation getLocation()
+    ReadOnlyLocation getReadOnlyLocation()
 }
 
 // Adds some additional properties that a RecordNote should have but child

@@ -25,7 +25,8 @@ class Token {
     static constraints = {
     	token unique:true
         maxNumAccess nullable:true
-    	stringData shared: "textSqlType", validator: { String data, Token obj ->
+        // [SHARED maxSize] 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
+    	stringData maxSize:15000, validator: { String data, Token obj ->
     		if (!obj.type?.requiredKeys.every { String key -> data.contains(key) }) {
     			["requiredKeys", obj.type, obj.type.requiredKeys]
     		}

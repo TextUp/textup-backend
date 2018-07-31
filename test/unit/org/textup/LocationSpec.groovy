@@ -51,4 +51,44 @@ class LocationSpec extends Specification {
     	then:
     	Location.count() == baseline - 1
     }
+
+    void "test duplicating persistent state"() {
+        given: "an unsaved obj"
+        Location loc = new Location(address: "hi", lat: 0G, lon: 0G)
+        assert loc.validate()
+
+        when: "try create duplicate"
+        Location dup = loc.tryDuplicatePersistentState()
+
+        then: "cannot do so because no persisted values to draw from"
+        dup == null
+
+        when: "save obj, then create duplicate"
+        loc.save(flush: true, failOnError:true)
+        dup = loc.tryDuplicatePersistentState()
+
+        then: "persisted values are NOT null"
+        dup instanceof Location
+        null != dup.address
+        dup.address == loc.address
+        null != dup.lat
+        dup.lat == loc.lat
+        null != dup.lon
+        dup.lon == loc.lon
+
+        when: "change some values on the Location"
+        loc.address = "something else"
+        loc.lat = 8G
+        assert loc.validate()
+        dup = loc.tryDuplicatePersistentState()
+
+        then: "duplicate still uses persisted values"
+        dup instanceof Location
+        null != dup.address
+        dup.address != loc.address
+        null != dup.lat
+        dup.lat != loc.lat
+        null != dup.lon
+        dup.lon == loc.lon
+    }
 }

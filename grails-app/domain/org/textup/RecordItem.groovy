@@ -95,11 +95,12 @@ class RecordItem implements ReadOnlyRecordItem {
     	authorId nullable:true
         authorType nullable:true
         media nullable:true // can be null for backwards compatibility for RecordItems that predate this
-        noteContents blank:true, nullable:true, shared: "textSqlType"
+        noteContents blank:true, nullable:true, maxSize:15000
     }
     static mapping = {
-        receipts lazy:false, cascade:"all-delete-orphan"
-        whenCreated type:PersistentDateTime
+        receipts lazy: false, cascade: "all-delete-orphan"
+        media lazy: false, cascade: "save-update"
+        whenCreated type: PersistentDateTime
         noteContents type: "text"
     }
     static namedQueries = {

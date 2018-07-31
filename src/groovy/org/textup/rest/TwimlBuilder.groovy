@@ -374,7 +374,7 @@ class TwimlBuilder {
                 }
                 break
             case CallResponse.DIRECT_MESSAGE:
-                callBody = tokenService.buildCallDirectMessageBody(getMessage, getLink,
+                callBody = tokenService.buildCallDirectMessageBody(this.&getMessage, this.&getLink,
                     Helpers.to(String, params.token),
                     Helpers.to(Integer, params.repeatCount))
                 break

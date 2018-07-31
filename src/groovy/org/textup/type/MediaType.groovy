@@ -1,10 +1,11 @@
 package org.textup.type
 
 import grails.compiler.GrailsCompileStatic
+import org.textup.Constants
 
 @GrailsCompileStatic
 enum MediaType {
-    IMAGE(["image/png", "image/jpeg", "image/gif"])
+    IMAGE([Constants.MIME_TYPE_JPEG, Constants.MIME_TYPE_PNG, Constants.MIME_TYPE_GIF])
 
     private final Collection<String> mimeTypes
 

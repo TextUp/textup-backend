@@ -13,7 +13,7 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 	static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, ReadOnlyFutureMessage fMsg ->
 
-        List<String> uploadErrors = Collections.emptyList()
+        List<String> uploadErrors = []
         Helpers.<List<String>>tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
             .logFail("FutureMessageJsonMarshaller: no available request", LogLevel.DEBUG)
             .then { List<String> errors -> uploadErrors = errors }

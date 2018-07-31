@@ -4,31 +4,20 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
-import org.hibernate.Session
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
-import org.textup.type.CallResponse
-import org.textup.type.ContactStatus
-import org.textup.type.PhoneOwnershipType
-import org.textup.type.ReceiptStatus
-import org.textup.type.SharePermission
-import org.textup.type.StaffStatus
-import org.textup.type.TextResponse
-import org.textup.type.VoiceType
-import org.textup.type.VoiceLanguage
+import org.textup.type.*
 import org.textup.util.CustomSpec
-import org.textup.validator.IncomingText
-import org.textup.validator.OutgoingMessage
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.validator.*
 import spock.lang.Ignore
 import spock.lang.Shared
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
+	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class PhoneSpec extends CustomSpec {
 
@@ -562,9 +551,12 @@ class PhoneSpec extends CustomSpec {
         addToMessageSource("phone.isInactive")
 
         when: "send text"
-        OutgoingMessage text = new OutgoingMessage(message:'hi')
-        text.contacts << c1
-        ResultGroup<RecordItem> resGroup = p1.sendMessage(text, s1)
+        OutgoingMessage text = new OutgoingMessage(message:'hi',
+            contacts: new ContactRecipients(),
+            sharedContacts: new SharedContactRecipients(),
+            tags: new ContactTagRecipients())
+        text.contacts.recipients << c1
+        ResultGroup<RecordItem> resGroup = p1.sendMessage(text, null, s1)
 
         then:
         resGroup.anySuccesses == false
@@ -590,10 +582,11 @@ class PhoneSpec extends CustomSpec {
         res2.status == ResultStatus.NOT_FOUND
         res2.errorMessages[0] == "phone.isInactive"
     }
+
     void "test sending text"() {
         given: "a phone"
-        p1.phoneService = [sendMessage:{ Phone phone, OutgoingMessage text, Staff staff ->
-            new ResultGroup<RecordItem>()
+        p1.phoneService = [sendMessage:{ Phone phone, OutgoingMessage text, MediaInfo mInfo, Staff staff ->
+            new ResultGroup<RecordItem>([new Result(status: ResultStatus.OK)])
         }] as PhoneService
         p1.resultFactory = getResultFactory()
         p1.resultFactory.messageSource = messageSource
@@ -602,21 +595,20 @@ class PhoneSpec extends CustomSpec {
 
         when: "we have an invalid outgoing text"
         OutgoingMessage text = new OutgoingMessage()
-        assert text.validateSetPhone(p1) == false
-        ResultGroup<RecordText> resGroup = p1.sendMessage(text, s1)
+        assert text.validate() == false
+        ResultGroup<RecordText> resGroup = p1.sendMessage(text, null, s1)
 
-        then:
-        resGroup.anySuccesses == false
-        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
-        resGroup.failures.size() == 1
-        resGroup.failures[0].success == false
-        resGroup.failures[0].status == ResultStatus.UNPROCESSABLE_ENTITY
-        resGroup.failures[0].errorMessages.isEmpty() == false
+        then: "we assume text is valid when passed in -- do not revalidate"
+        resGroup.anySuccesses == true
 
         when: "we pass in a staff that is not an owner"
-        text = new OutgoingMessage(message:"hello", contacts:[c1, c1_1])
-        assert text.validateSetPhone(p1) == true
-        resGroup = p1.sendMessage(text, otherS2)
+        text = new OutgoingMessage(message:'hi',
+            contacts: new ContactRecipients(),
+            sharedContacts: new SharedContactRecipients(),
+            tags: new ContactTagRecipients())
+        text.contacts.recipients = [c1, c1_1]
+        assert text.validate() == true
+        resGroup = p1.sendMessage(text, null, otherS2)
 
         then:
         resGroup.anySuccesses == false
@@ -628,10 +620,11 @@ class PhoneSpec extends CustomSpec {
         resGroup.failures[0].errorMessages[0] == "phone.notOwner"
 
         when: "we pass in a valid outgoing text and staff that is owner"
-        resGroup = p1.sendMessage(text, s1)
+        resGroup = p1.sendMessage(text, null, s1)
 
         then:
-        resGroup.isEmpty == true
+        resGroup.anySuccesses == true
+        resGroup.anyFailures == false
     }
 
     void "test starting and completing bridge call"() {
@@ -645,37 +638,28 @@ class PhoneSpec extends CustomSpec {
         s1.personalPhoneAsString = "1112223333"
         s1.save(flush:true, failOnError:true)
 
-        addToMessageSource(["phone.startBridgeCall.forbidden", "phone.notOwner",
-            "phone.startBridgeCall.noPersonalNumber", "outgoingMessage.noRecipients"])
+        addToMessageSource(["phone.notOwner", "phone.startBridgeCall.noPersonalNumber",
+            "outgoingMessage.noRecipients"])
 
         when: "try to call that does not belong to this phone"
         Result<RecordCall> res1 = p1.startBridgeCall(tC1, s1)
 
-        then:
-        res1.success == false
-        res1.payload == null
-        res1.status == ResultStatus.FORBIDDEN
-        res1.errorMessages[0] == "phone.startBridgeCall.forbidden"
+        then: "by the time we get here, Contactable should have already been validated"
+        res1.success == true
 
         when: "try to call shared contact that is not shared with this phone"
         res1 = p1.startBridgeCall(sc1, s1)
 
-        then:
-        res1.success == false
-        res1.payload == null
-        res1.status == ResultStatus.FORBIDDEN
-        res1.errorMessages[0] == "phone.startBridgeCall.forbidden"
+        then: "by the time we get here, Contactable should have already been validated"
+        res1.success == true
 
         when: "try to call shared contact that we don't have modify permissions for"
         sc2.permission = SharePermission.VIEW
         sc2.save(flush:true, failOnError:true)
         res1 = p1.startBridgeCall(sc2, s1)
 
-        then:
-        res1.success == false
-        res1.payload == null
-        res1.status == ResultStatus.FORBIDDEN
-        res1.errorMessages[0] == "phone.startBridgeCall.forbidden"
+        then: "by the time we get here, Contactable should have already been validated"
+        res1.success == true
 
         when: "pass in a staff that is not an owner of this phone"
         sc2.permission = SharePermission.DELEGATE
@@ -844,10 +828,16 @@ class PhoneSpec extends CustomSpec {
 
     void "test receiving text"() {
         given: "a phone"
-        p1.phoneService = [relayText:{ Phone phone, IncomingText text,
-            IncomingSession session ->
-            new Result(status:ResultStatus.OK, payload:null)
-        }] as PhoneService
+        int _numTimesHandleAnnouncementText = 0
+        p1.phoneService = [
+            relayText: { Phone phone, IncomingText text, IncomingSession session, MediaInfo mInfo ->
+                new Result(status:ResultStatus.OK, payload:null)
+            },
+            handleAnnouncementText: { Phone p1, IncomingText t1, IncomingSession s1, MediaInfo m1 ->
+                _numTimesHandleAnnouncementText++
+                new Result(status:ResultStatus.OK, payload:null)
+            }
+        ] as PhoneService
         p1.twimlBuilder = getTwimlBuilder()
         IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888"),
             otherSess = new IncomingSession(phone:p2, numberAsString:"5557778888")
@@ -860,10 +850,8 @@ class PhoneSpec extends CustomSpec {
         assert text.validate() == false
         Result<Closure> res = p1.receiveText(text, session)
 
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload == null
+        then: "assume that the incoming text has already been validated"
+        res.success == true
 
         when: "session does not belong to this phone"
         text = new IncomingText(apiId:"apiId", message:"hello")
@@ -879,6 +867,7 @@ class PhoneSpec extends CustomSpec {
         res = p1.receiveText(text, session)
 
         then: "relay text"
+        _numTimesHandleAnnouncementText == 0
         res.success == true
         res.status == ResultStatus.OK
 
@@ -890,57 +879,9 @@ class PhoneSpec extends CustomSpec {
         assert text.validate()
         res = p1.receiveText(text, session)
 
-        then: "relay text"
+        then: "delegate to phoneService to handle possible announcements response"
+        _numTimesHandleAnnouncementText == 1
         res.success == true
-        res.status == ResultStatus.OK
-
-        when: "have announcements and see announcements"
-        int aReceiptBaseline = AnnouncementReceipt.count()
-        text.message = Constants.TEXT_SEE_ANNOUNCEMENTS
-        assert text.validate()
-        res = p1.receiveText(text, session)
-        p1.merge(flush:true)
-
-        then:
-        AnnouncementReceipt.count() == aReceiptBaseline + 1
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == TextResponse.SEE_ANNOUNCEMENTS
-
-        when: "multiple receipts are not added for same announcement and session"
-        res = p1.receiveText(text, session)
-
-        then:
-        AnnouncementReceipt.count() == aReceiptBaseline + 1
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == TextResponse.SEE_ANNOUNCEMENTS
-
-        when: "have announcements, is NOT subscribed, toggle subscription"
-        session.isSubscribedToText = false
-        Phone.withSession { Session hibernateSession -> hibernateSession.flush() }
-        text.message = Constants.TEXT_TOGGLE_SUBSCRIBE
-        assert text.validate()
-        res = p1.receiveText(text, session)
-
-        then:
-        session.isSubscribedToText == true
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == TextResponse.SUBSCRIBED
-
-        when: "have announcementsm, is subscribed, toggle subscription"
-        session.isSubscribedToText = true
-        Phone.withSession { Session hibernateSession -> hibernateSession.flush() }
-        text.message = Constants.TEXT_TOGGLE_SUBSCRIBE
-        assert text.validate()
-        res = p1.receiveText(text, session)
-
-        then:
-        session.isSubscribedToText == false
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == TextResponse.UNSUBSCRIBED
     }
 
     void "test receiving call"() {

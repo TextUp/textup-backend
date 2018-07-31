@@ -7,25 +7,22 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
+import groovy.xml.MarkupBuilder
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.hibernate.Session
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.springframework.context.MessageSource
-import org.textup.type.OrgStatus
-import org.textup.type.StaffStatus
-import org.textup.type.TokenType
+import org.textup.type.*
 import org.textup.util.CustomSpec
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.BasicNotification
-import org.textup.validator.Notification
-import org.textup.validator.PhoneNumber
+import org.textup.validator.*
 import spock.lang.Shared
 
 @TestFor(TokenService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Token, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Token, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class TokenServiceSpec extends CustomSpec {
 
@@ -64,7 +61,7 @@ class TokenServiceSpec extends CustomSpec {
 
     void "test generating new token"() {
         when: "try to generate a password reset token"
-        Result<Token> res = service.generate(TokenType.PASSWORD_RESET, null, [toBeResetId:88L])
+        Result<Token> res = service.generate(TokenType.PASSWORD_RESET, [toBeResetId:88L])
 
         then:
         res.success == true
@@ -74,7 +71,7 @@ class TokenServiceSpec extends CustomSpec {
         when: "try to generate a verify number token"
         PhoneNumber pNum = new PhoneNumber(number:'1112223333')
         assert pNum.validate()
-        res = service.generate(TokenType.VERIFY_NUMBER, null, [toVerifyNumber:pNum.number])
+        res = service.generate(TokenType.VERIFY_NUMBER, [toVerifyNumber:pNum.number])
 
         then:
         res.success == true
@@ -82,7 +79,7 @@ class TokenServiceSpec extends CustomSpec {
         res.payload instanceof Token
 
         when: 'try to generate but invalid'
-        res = service.generate(TokenType.VERIFY_NUMBER, null, [randomStuff: 123])
+        res = service.generate(TokenType.VERIFY_NUMBER, [randomStuff: 123])
 
         then:
         res.success == false
@@ -90,7 +87,6 @@ class TokenServiceSpec extends CustomSpec {
         res.errorMessages.size() == 1
     }
 
-    @FreshRuntime
     void "test finding token"() {
         given: "saved reset and verify tokens"
         Token reset = new Token(type:TokenType.PASSWORD_RESET),
@@ -191,7 +187,6 @@ class TokenServiceSpec extends CustomSpec {
         res.payload == null
     }
 
-    @FreshRuntime
     void "test completing number verification"() {
         given: "valid verify token"
         PhoneNumber pNum = new PhoneNumber(number:"1112223333"),
@@ -223,7 +218,6 @@ class TokenServiceSpec extends CustomSpec {
     // Password reset
     // --------------
 
-    @FreshRuntime
     void "test requesting password reset"() {
         given:
         int tBaseline = Token.count()
@@ -245,7 +239,7 @@ class TokenServiceSpec extends CustomSpec {
         res.status == ResultStatus.NO_CONTENT
         res.payload == null
         Token.count() == tBaseline + 1
-        Token.list()[0].data.toBeResetId == s1.id
+        Token.list().last().data.toBeResetId == s1.id
     }
 
     void "test completing password reset"() {
@@ -300,7 +294,6 @@ class TokenServiceSpec extends CustomSpec {
     // Notify staff
     // ------------
 
-    @FreshRuntime
     void "test create notification"() {
         given: "no tokens"
         int tBaseline = Token.count()
@@ -332,7 +325,7 @@ class TokenServiceSpec extends CustomSpec {
 
         res = service.notifyStaff(bn1, isOutgoing, contents, instructions)
         assert Token.count() == tBaseline + 1
-        Token tok = Token.list()[0]
+        Token tok = Token.list().last()
 
         then: "notification created"
         res.success == true
@@ -394,5 +387,119 @@ class TokenServiceSpec extends CustomSpec {
         res.success == false
         res.status == ResultStatus.BAD_REQUEST
         res.errorMessages[0] == "tokenService.tokenExpired"
+    }
+
+    // Call direct message
+    // -------------------
+
+    void "test building call direct message token"() {
+        when: "no input data"
+        Token tok1 = service.tryBuildAndPersistCallToken(null, null)
+
+        then: "null result"
+        tok1 == null
+
+        when: "message is of text type"
+        OutgoingMessage msg1 = new OutgoingMessage(message: "hi",
+            type: RecordItemType.TEXT,
+            language: VoiceLanguage.ENGLISH)
+        tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
+
+        then: "no result because no need to build call token for text message"
+        tok1 == null
+
+        when: "valid call message"
+        msg1.type = RecordItemType.CALL
+        tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
+
+        then: "token generated"
+        tok1 instanceof Token
+        tok1.data.identifier == "hi"
+        tok1.data.message == msg1.message
+        tok1.data.language == msg1.language?.toString()
+    }
+
+    void "test building call closures"() {
+        when: "building call response"
+        Closure response = service.buildCallResponse("1", "2", VoiceLanguage.ENGLISH, "3")
+
+        then:
+        buildXml(response) == buildXml({
+            Say("1")
+            Pause(length:"1")
+            Say(language:VoiceLanguage.ENGLISH.toTwimlValue(), "2")
+            Redirect("3")
+        })
+
+        when: "building hangup"
+        response = service.buildCallEnd()
+
+        then:
+        buildXml(response) == buildXml({ Hangup() })
+    }
+
+    void "test building call direct message body from token"() {
+        given:
+        Collection<String> passedInArgs
+        Map passedInParams
+        Closure<String> getMessage = { String code, Collection<String> args = [] ->
+            passedInArgs = args
+            code
+        }
+        Closure<String> getLink = { Map params = [:] ->
+            passedInParams = params
+            "link"
+        }
+
+        Token tok1 = new Token(type:TokenType.CALL_DIRECT_MESSAGE)
+        tok1.data = [message: "hi", identifier: "Kiki", language: VoiceLanguage.ENGLISH.toString()]
+        tok1.save(flush: true, failOnError: true)
+
+        addToMessageSource(["tokenService.tokenNotFound"])
+
+        when: "null token"
+        Closure response = service.buildCallDirectMessageBody(getMessage, getLink, null, null)
+
+        then: "return null --> will trigger error in twimlBuilder"
+        null == response
+
+        when: "nonexistent token"
+        response = service.buildCallDirectMessageBody(getMessage, getLink, "i don't exist", null)
+
+        then: "return null --> will trigger error in twimlBuilder"
+        null == response
+
+        when: "existing token, but too many repeats"
+        response = service.buildCallDirectMessageBody(getMessage, getLink, tok1.token,
+            Constants.MAX_REPEATS * 2)
+
+        then:
+        buildXml(response) == buildXml({ Hangup() })
+        null == passedInArgs
+        null == passedInParams
+
+        when: "existing token, first time"
+        response = service.buildCallDirectMessageBody(getMessage, getLink, tok1.token, null)
+        Map<String, ?> tData = tok1.data
+
+        then: "repeat count initialized to 1"
+        buildXml(response) == buildXml({
+            Say("twimlBuilder.call.messageIntro")
+            Pause(length:"1")
+            Say(language:VoiceLanguage.ENGLISH.toTwimlValue(), tData.message)
+            Redirect("link")
+        })
+        passedInArgs == [tData.identifier]
+        passedInParams == [handle: CallResponse.DIRECT_MESSAGE, token: tok1.token, repeatCount: 1]
+    }
+
+    // Test helpers
+    // ------------
+
+    protected String buildXml(Closure data) {
+        StringWriter writer = new StringWriter()
+        MarkupBuilder xmlBuilder = new MarkupBuilder(writer)
+        xmlBuilder(data)
+        writer.toString()
     }
 }

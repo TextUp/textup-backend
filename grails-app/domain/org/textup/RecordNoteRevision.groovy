@@ -60,9 +60,14 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
     	importFrom RecordNote
     }
     static mapping = {
-    	whenChanged type:PersistentDateTime
+    	whenChanged type: PersistentDateTime
         noteContents type: "text"
+        location lazy: false, cascade: "save-update"
+        media lazy: false, cascade: "save-update"
     }
+
+    @GrailsCompileStatic
+    ReadOnlyLocation getReadOnlyLocation() { location }
 
     @GrailsCompileStatic
     ReadOnlyMediaInfo getReadOnlyMedia() { media }

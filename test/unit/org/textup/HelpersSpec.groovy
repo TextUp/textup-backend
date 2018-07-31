@@ -5,13 +5,13 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.type.CallResponse
-import org.textup.validator.ImageInfo
 import org.textup.validator.PhoneNumber
 import spock.lang.Specification
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class HelpersSpec extends Specification {
 
@@ -93,28 +93,6 @@ class HelpersSpec extends Specification {
         taken == [2, 3, 4]
     }
 
-    void "test building images from image keys"() {
-        given:
-        String url = "https://www.example.com"
-        StorageService mockServ = [
-            generateAuthLink: { String objectKey ->
-                new Result(status:ResultStatus.OK, payload:new URL(url))
-            }
-        ] as StorageService
-
-        when:
-        Long noteId = 88L
-        Collection<String> imageKeys = [UUID.randomUUID().toString()]
-        Collection<ImageInfo> imageInfoList = Helpers.buildImagesFromImageKeys(mockServ,
-            noteId, imageKeys)
-
-        then:
-        imageInfoList.size() == 1
-        imageInfoList[0] instanceof ImageInfo
-        imageInfoList[0].key == imageKeys[0]
-        imageInfoList[0].link == url
-    }
-
     void "test in list ignoring case"() {
         expect:
         Helpers.inListIgnoreCase("toBeFound", ["hello", "yes"]) == false
@@ -171,9 +149,13 @@ class HelpersSpec extends Specification {
         Helpers.to(long, 1231231231290.92) == 1231231231290
         Helpers.to(Long, 1231231231290.92) == 1231231231290
         Helpers.to(Long, "1231231231290.92") == 1231231231290
-        Helpers.to(PhoneNumber, "1231231231290.92") instanceof PhoneNumber
+
+        and: "no special behavior for PhoneNumber"
+        false == (Helpers.to(PhoneNumber, "1231231231290.92") instanceof PhoneNumber)
         Helpers.to(PhoneNumber, null) == null
-        Helpers.to(String, dt) == dt.toString() // string conversions fall back to toString()
+
+        and: "string conversions fall back to toString()"
+        Helpers.to(String, dt) == dt.toString()
     }
 
     void "test type conversion of all types in a collection"() {
@@ -218,5 +200,59 @@ class HelpersSpec extends Specification {
 
         and: "formatted for say when argument is a valid phone number"
         Helpers.formatForSayIfPhoneNumber("1---23asfas222asdf8888") == "1 2 3 2 2 2 8 8 8 8"
+    }
+
+    void "test json operations"() {
+        given:
+        Map seedData = [hello:[1, 2, 3], goodbye: "hello"]
+
+        when: "from object to json string"
+        String jsonString = Helpers.toJsonString(seedData)
+
+        then:
+        jsonString == '{"hello":[1,2,3],"goodbye":"hello"}'
+
+        when: "from json string to obj"
+        Object reconstructed = Helpers.toJson(jsonString)
+
+        then:
+        reconstructed == seedData
+    }
+
+    void "test do asynchronously processing list in batches"() {
+        given: "a list of items, an action to execute, and a batch size"
+        int _numTimesCalled = 0
+        int batchSize = 2
+        List<Integer> before = [1, 2, 3, 4]
+        Closure<Integer> action = { Integer beforeNum ->
+            _numTimesCalled++
+            beforeNum + 1
+        }
+
+        when: "calling async helper method"
+        List<Integer> after = Helpers.<Integer, Integer>doAsyncInBatches(before, action, batchSize)
+
+        then: "all items in the list are processed"
+        before.size() == _numTimesCalled
+        after.eachWithIndex { Integer afterNum, int index ->
+            assert before[index] + 1 == afterNum
+        }
+    }
+
+    void "test error handling on request operations"() {
+        given: "mocks"
+        Helpers.metaClass.'static'.getResultFactory = { ->
+            return [
+                failWithThrowable: { Throwable e ->
+                    new Result(status: ResultStatus.BAD_REQUEST, payload: e)
+                }
+            ] as ResultFactory
+        }
+
+        when: "no request"
+        Result<Void> res = Helpers.trySetOnRequest("hello", "world")
+
+        then: "IllegalStateException is caught and gracefully returned -- see mock"
+        res.payload instanceof IllegalStateException
     }
 }

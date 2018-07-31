@@ -62,17 +62,9 @@ class StorageService {
         if (!uItems) {
             return new ResultGroup<PutObjectResult>()
         }
-        List<ResultGroup<PutObjectResult>> resGroupList = Helpers
-            .<UploadItem, ResultGroup<PutObjectResult>>doAsyncInBatches(uItems,
-                { List<UploadItem> batch ->
-                    Promises.task {
-                        List<Result<PutObjectResult>> resList = batch.collect(storageService.&upload)
-                        new ResultGroup<PutObjectResult>(resList)
-                    }
-                }, Constants.CONCURRENT_UPLOAD_BATCH_SIZE)
-        ResultGroup<PutObjectResult> resGroup = new ResultGroup<>()
-        resGroupList.each { ResultGroup<PutObjectResult> group -> resGroup.merge(group) }
-        resGroup
+        List<Result<PutObjectResult>> resList = Helpers.<UploadItem>doAsyncInBatches(uItems,
+            storageService.&upload, Constants.CONCURRENT_UPLOAD_BATCH_SIZE)
+        new ResultGroup<PutObjectResult>(resList)
     }
     Result<PutObjectResult> upload(UploadItem uItem) {
         if (uItem.validate()) {

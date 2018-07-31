@@ -6,7 +6,7 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import java.util.UUID
 import org.springframework.context.MessageSource
-import org.textup.type.TokenType
+import org.textup.type.*
 import org.textup.validator.PhoneNumber
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -80,6 +80,20 @@ class TokenSpec extends Specification {
 
         when: "valid data for notification"
         token.data = [recordId:88L, phoneId:88L, contents:'hi', outgoing:true]
+
+        then:
+        token.validate() == true
+
+        when: "invalid data for call direct message"
+        token = new Token(type:TokenType.CALL_DIRECT_MESSAGE)
+        token.data = [randomThing: 123]
+
+        then:
+        token.validate() == false
+        token.errors.errorCount == 1
+
+        when: "valid data for call direct message"
+        token.data = [message: "hi", identifier: "Kiki", language: VoiceLanguage.ENGLISH.toString()]
 
         then:
         token.validate() == true

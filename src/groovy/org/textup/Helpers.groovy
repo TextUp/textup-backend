@@ -3,7 +3,7 @@ package org.textup
 import grails.async.Promise
 import grails.async.PromiseList
 import grails.async.Promises
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import groovy.json.JsonBuilder
 import groovy.json.JsonException
@@ -21,19 +21,19 @@ import org.joda.time.*
 import org.springframework.context.MessageSource
 import org.textup.validator.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Log4j
 class Helpers {
 
     // Enum
     // ----
 
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static <T extends Enum<T>> T convertEnum(Class<T> enumClass, def string) {
         String enumString = string?.toString()?.toUpperCase()
         enumClass?.values().find { it.toString() == enumString } ?: null
     }
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, def enumsOrStrings,
         List<T> fallbackList = []) {
         if (enumsOrStrings instanceof Collection) {
@@ -111,13 +111,24 @@ class Helpers {
     // Async
     // -----
 
-    static <K, T> List<T> doAsyncInBatches(Collection<K> data, Closure<Promise<T>> doAction,
+    static <K, T> List<T> doAsyncInBatches(Collection<K> data, Closure<T> doAction,
         int batchSize = Constants.CONCURRENT_SEND_BATCH_SIZE) {
+
+        // step 1: process in batches
         PromiseList<T> pList1 = new PromiseList<>()
-        new ArrayList<K>(data).collate(batchSize).collect { List<K> batch ->
-            pList1 << doAction(batch)
-        }
-        pList1.get(1, TimeUnit.MINUTES) as List<T>
+        new ArrayList<K>(data)
+            .collate(batchSize)
+            .collect { List<K> batch ->
+                // TODO if no session, then wrap in withNewSession closure
+                // NO HIBERNATE SESSION WITHIN NEW THREAD!!
+                // Any calls that will make a db call needs to be made outside of the task closure
+                pList1 << Promises.task { batch.collect(doAction) }
+            }
+        // step 2: flatten batched results array
+        List<T> results = []
+        List<List<T>> batchedResults = (pList1.get(1, TimeUnit.MINUTES) as List<List<T>>)
+        batchedResults.each(results.&addAll)
+        results
     }
 
     // Lists
@@ -183,7 +194,7 @@ class Helpers {
                 case String: return val?.toString() ?: fallbackVal
                 case Boolean: return (str == "true" || str == "false") ? str.toBoolean() : fallbackVal
                 case Number: return str.isBigDecimal() ? str.toBigDecimal().asType(wrappedClazz) : fallbackVal
-                default: return wrappedClazz.isAssignableFrom(val.class) ? val.asType(wrappedClazz) : fallbackVal
+                default: return wrappedClazz.isAssignableFrom(val.getClass()) ? val.asType(wrappedClazz) : fallbackVal
             }
         }
         catch (ClassCastException e) {
@@ -347,7 +358,7 @@ class Helpers {
     // Security
     // --------
 
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static String randomAlphanumericString(Integer l) {
         int length = (l != null) ? l : 22
         Collection<String> alphabet = ("a".."z") + (0..9)
