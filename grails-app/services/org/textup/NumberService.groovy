@@ -7,14 +7,16 @@ import com.twilio.rest.api.v2010.account.availablephonenumbercountry.Local
 import com.twilio.rest.api.v2010.account.availablephonenumbercountry.LocalReader
 import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import com.twilio.rest.lookups.v1.PhoneNumber as LookupPhoneNumber
-import grails.compiler.GrailsTypeChecked
+import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.validator.AvailablePhoneNumber
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 
-@GrailsTypeChecked
+// [UNTESTED] cannot mock for testing because all Twilio SDK methods are final
+
+@GrailsCompileStatic
 @Transactional
 class NumberService {
 
@@ -24,6 +26,7 @@ class NumberService {
     // Numbers utility methods
     // -----------------------
 
+    // [UNTESTED] due to mocking constraints
     Result<List<AvailablePhoneNumber>> listExistingNumbers() {
     	try {
     		String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
@@ -49,6 +52,7 @@ class NumberService {
         }
     }
 
+    // [UNTESTED] due to mocking constraints
     Result<List<AvailablePhoneNumber>> listNewNumbers(String toMatch, Location loc = null,
     	Integer searchRadius = 200) {
     	try {
@@ -98,6 +102,7 @@ class NumberService {
         }
     }
 
+    // [UNTESTED] due to mocking constraints
     Result<AvailablePhoneNumber> validateNumber(BasePhoneNumber pNum) {
     	try {
     		LookupPhoneNumber returnedNum = LookupPhoneNumber
@@ -126,6 +131,7 @@ class NumberService {
     // Operations on numbers
     // ---------------------
 
+    // [UNTESTED] due to mocking constraints
     Result<IncomingPhoneNumber> changeForNumber(PhoneNumber pNum) {
         try {
             String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
@@ -145,6 +151,7 @@ class NumberService {
         }
     }
 
+    // [UNTESTED] due to mocking constraints
     Result<IncomingPhoneNumber> changeForApiId(String newApiId) {
         try {
             String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
@@ -164,6 +171,7 @@ class NumberService {
         }
     }
 
+    // [UNTESTED] due to mocking constraints
     Result<Phone> updatePhoneWithNewNumber(IncomingPhoneNumber newNum, Phone p1) {
         String oldApiId = p1.apiId
         p1.apiId = newNum.sid
@@ -174,6 +182,7 @@ class NumberService {
         else { resultFactory.success(p1) }
     }
 
+    // [UNTESTED] due to mocking constraints
     Result<IncomingPhoneNumber> freeExistingNumber(String oldApiId) {
         try {
             String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]

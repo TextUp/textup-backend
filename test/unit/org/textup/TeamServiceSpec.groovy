@@ -7,7 +7,7 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.PhoneNumber
 import spock.lang.Shared
 import spock.lang.Specification
@@ -176,7 +176,7 @@ class TeamServiceSpec extends CustomSpec {
     void "test team actions edge cases"() {
         given: "an alternate mock for resultFactory's messageSource for extracting messages \
             from ValidationErrors"
-        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 
         when: "no team actions"
         Result<Team> res = service.handleTeamActions(t1, [:])

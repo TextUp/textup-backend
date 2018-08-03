@@ -15,7 +15,7 @@ import org.springframework.validation.FieldError
 @GrailsCompileStatic
 class CascadeValidationConstraint extends AbstractVetoingConstraint {
 
-    static final String NAME = "cascade"
+    static final String NAME = "cascadeValidation"
 
     @Override
     String getName() { NAME }

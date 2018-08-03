@@ -44,7 +44,4 @@ class Location implements ReadOnlyLocation {
             null
         }
     }
-
-    @Override
-    String toString() { this.address }
 }

@@ -3,11 +3,10 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
-import java.nio.file.Paths
-import org.apache.commons.io.IOUtils
 import org.joda.time.DateTime
 import org.springframework.validation.Errors
 import org.textup.type.*
+import org.textup.util.TestHelpers
 import org.textup.validator.UploadItem
 import spock.lang.*
 
@@ -46,7 +45,7 @@ class MediaElementSpec extends Specification {
         given: "empty obj"
         Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
         MediaElement e1 = new MediaElement()
-        byte[] inputData1 = getJpegSampleData512()
+        byte[] inputData1 = TestHelpers.getJpegSampleData512()
 
         when: "adding send version"
         e1.addVersion([
@@ -147,7 +146,7 @@ class MediaElementSpec extends Specification {
         res = MediaElement.create(Constants.MIME_TYPE_JPEG, [
             new UploadItem(mediaVersion: MediaVersion.SEND,
                 mimeType: Constants.MIME_TYPE_JPEG,
-                data: getJpegSampleData512())
+                data: TestHelpers.getJpegSampleData512())
         ])
 
         then: "valid -- see mocks"
@@ -168,12 +167,5 @@ class MediaElementSpec extends Specification {
                 new Result(status: ResultStatus.UNPROCESSABLE_ENTITY, payload: e)
             }
         ] as ResultFactory
-    }
-
-    protected byte[] getJpegSampleData512() {
-        String root = Paths.get(".").toAbsolutePath().normalize().toString()
-        new FileInputStream("${root}/test/assets/512x512.jpeg").withStream { InputStream iStream ->
-            IOUtils.toByteArray(iStream)
-        }
     }
 }

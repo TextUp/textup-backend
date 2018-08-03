@@ -11,7 +11,7 @@ import org.textup.type.ContactStatus
 import org.textup.type.FutureMessageType
 import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.MergeGroup
 import org.textup.validator.MergeGroupItem
 import spock.lang.Shared
@@ -48,9 +48,9 @@ class DuplicateServiceSpec extends CustomSpec {
         Collection<Contact> existingContacts = p1.contacts
         assert existingContacts.size() > 0
         Collection<Contact> deletedContacts = []
-        deletedContacts << p1.createContact([isDeleted:true], [randPhoneNumber()]).payload
-        deletedContacts << p1.createContact([isDeleted:true], [randPhoneNumber()]).payload
-        deletedContacts << p1.createContact([isDeleted:true], [randPhoneNumber()]).payload
+        deletedContacts << p1.createContact([isDeleted:true], [TestHelpers.randPhoneNumber()]).payload
+        deletedContacts << p1.createContact([isDeleted:true], [TestHelpers.randPhoneNumber()]).payload
+        deletedContacts << p1.createContact([isDeleted:true], [TestHelpers.randPhoneNumber()]).payload
 
         when: "getting contacts data"
         List<Object[]> data = service.getContactsData({ eq("phone", p1) })
@@ -77,17 +77,17 @@ class DuplicateServiceSpec extends CustomSpec {
 
     void "test go through merging process"() {
         given:
-        String strNum1 = randPhoneNumber()
-        String strNum2 = randPhoneNumber()
-        String strNum3 = randPhoneNumber()
-        String strNum4 = randPhoneNumber()
-        String strNum5 = randPhoneNumber()
-        Long c1Id = p1.createContact([:], [randPhoneNumber()]).payload.id
-        Long c2Id = p1.createContact([:], [randPhoneNumber()]).payload.id
-        Long c3Id = p1.createContact([:], [randPhoneNumber()]).payload.id
-        Long c4Id = p1.createContact([:], [randPhoneNumber()]).payload.id
-        Long c5Id = p1.createContact([:], [randPhoneNumber()]).payload.id
-        Long c6Id = p1.createContact([:], [randPhoneNumber()]).payload.id
+        String strNum1 = TestHelpers.randPhoneNumber()
+        String strNum2 = TestHelpers.randPhoneNumber()
+        String strNum3 = TestHelpers.randPhoneNumber()
+        String strNum4 = TestHelpers.randPhoneNumber()
+        String strNum5 = TestHelpers.randPhoneNumber()
+        Long c1Id = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload.id
+        Long c2Id = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload.id
+        Long c3Id = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload.id
+        Long c4Id = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload.id
+        Long c5Id = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload.id
+        Long c6Id = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload.id
         Contact.withSession { it.flush() }
 
         Map<String, HashSet<Long>> numToContactIds = [
@@ -151,17 +151,17 @@ class DuplicateServiceSpec extends CustomSpec {
 
     void "test building merge groups overall"() {
         given: "the same setup as the manual walk through in the previous method"
-        Phone phone1 = new Phone(numberAsString:randPhoneNumber())
+        Phone phone1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         phone1.resultFactory = getResultFactory()
         phone1.resultFactory.messageSource = messageSource
         phone1.updateOwner(s1)
         phone1.save(flush:true, failOnError:true)
 
-        String strNum1 = randPhoneNumber()
-        String strNum2 = randPhoneNumber()
-        String strNum3 = randPhoneNumber()
-        String strNum4 = randPhoneNumber()
-        String strNum5 = randPhoneNumber()
+        String strNum1 = TestHelpers.randPhoneNumber()
+        String strNum2 = TestHelpers.randPhoneNumber()
+        String strNum3 = TestHelpers.randPhoneNumber()
+        String strNum4 = TestHelpers.randPhoneNumber()
+        String strNum5 = TestHelpers.randPhoneNumber()
         Long c1Id = phone1.createContact([:], [strNum1, strNum2, strNum3]).payload.id
         Long c2Id = phone1.createContact([:], [strNum1]).payload.id
         Long c3Id = phone1.createContact([:], [strNum2]).payload.id
@@ -243,9 +243,9 @@ class DuplicateServiceSpec extends CustomSpec {
   	protected Collection<ContactTag> addTags(Contact contact1, Contact contact2) {
   		assert contact1.phone.id == contact2.phone.id
 
-  		ContactTag cTag1 = contact1.phone.createTag([name:randPhoneNumber()]).payload
-    	ContactTag cTag2 = contact1.phone.createTag([name:randPhoneNumber()]).payload
-    	ContactTag cTag3 = contact1.phone.createTag([name:randPhoneNumber()]).payload
+  		ContactTag cTag1 = contact1.phone.createTag([name:TestHelpers.randPhoneNumber()]).payload
+    	ContactTag cTag2 = contact1.phone.createTag([name:TestHelpers.randPhoneNumber()]).payload
+    	ContactTag cTag3 = contact1.phone.createTag([name:TestHelpers.randPhoneNumber()]).payload
 
     	Collection<ContactTag> cTags = [cTag1, cTag2, cTag3]
     	cTags*.save(flush:true, failOnError:true)
@@ -320,8 +320,8 @@ class DuplicateServiceSpec extends CustomSpec {
 
     void "test merging contact numbers"() {
     	given: "contact numbers belonging to another contact"
-    	Contact contact1 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
-    	Contact contact2 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
+    	Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
+    	Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
     	[contact1, contact2]*.save(flush:true, failOnError:true)
     	int cnBaseline = ContactNumber.count()
     	int recBaseline = Record.count()
@@ -353,8 +353,8 @@ class DuplicateServiceSpec extends CustomSpec {
 
     void "test merging tags"() {
     	given: "target contact and other contacts that are members of other tags"
-    	Contact contact1 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
-    	Contact contact2 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
+    	Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
+    	Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
     	[contact1, contact2]*.save(flush:true, failOnError:true)
 
     	Collection<ContactTag> cTags = addTags(contact1, contact2)
@@ -392,8 +392,8 @@ class DuplicateServiceSpec extends CustomSpec {
 
     void "test merging shared contacts"() {
     	given: "shared contacts for the contacts to be merged"
-    	Contact contact1 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
-    	Contact contact2 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
+    	Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
+    	Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
     	[contact1, contact2]*.save(flush:true, failOnError:true)
 
     	Collection<SharedContact> sharedContacts = addSharedContacts(contact1, contact2)
@@ -429,8 +429,8 @@ class DuplicateServiceSpec extends CustomSpec {
 
     void "test merging objects related to record"() {
     	given: "record items and future messages for the contacts to be merged"
-    	Contact contact1 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
-    	Contact contact2 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
+    	Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
+    	Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
     	[contact1, contact2]*.save(flush:true, failOnError:true)
 
     	Collection<RecordItem> rItems = addRecordItems(contact1, contact2)
@@ -477,8 +477,8 @@ class DuplicateServiceSpec extends CustomSpec {
 
     void "test merging overall with deletion"() {
     	given: "contacts to be merged with numbers, tags, shared contacts, record items, future messages"
-    	Contact contact1 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
-    	Contact contact2 = p1.createContact([:], [randPhoneNumber(), randPhoneNumber()]).payload
+    	Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
+    	Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber(), TestHelpers.randPhoneNumber()]).payload
     	[contact1, contact2]*.save(flush:true, failOnError:true)
 
     	Collection<ContactTag> cTags = addTags(contact1, contact2)

@@ -2,7 +2,7 @@ package org.textup.rest.marshaller
 
 import grails.converters.JSON
 import org.textup.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.AvailablePhoneNumber
 
 class AvailablePhoneNumberJsonMarshallerIntegrationSpec extends CustomSpec {
@@ -36,7 +36,7 @@ class AvailablePhoneNumberJsonMarshallerIntegrationSpec extends CustomSpec {
         when: "a number with a sid"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(sidNum as JSON) as Map
+            json = TestHelpers.jsonToMap(sidNum as JSON)
         }
 
         then:
@@ -45,7 +45,7 @@ class AvailablePhoneNumberJsonMarshallerIntegrationSpec extends CustomSpec {
 
         when: "a number with a region"
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(regionNum as JSON) as Map
+            json = TestHelpers.jsonToMap(regionNum as JSON)
         }
 
         then:

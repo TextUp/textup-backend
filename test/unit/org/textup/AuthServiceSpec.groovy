@@ -11,7 +11,7 @@ import org.springframework.context.MessageSource
 import org.textup.type.OrgStatus
 import org.textup.type.StaffStatus
 import org.textup.type.SharePermission
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -112,7 +112,7 @@ class AuthServiceSpec extends CustomSpec {
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
 
-        Contact deletedContact = s1.phone.createContact([isDeleted:true], [randPhoneNumber()]).payload
+        Contact deletedContact = s1.phone.createContact([isDeleted:true], [TestHelpers.randPhoneNumber()]).payload
         deletedContact.save(flush:true, failOnError:true)
 
         expect: "This is your contact"
@@ -282,7 +282,7 @@ class AuthServiceSpec extends CustomSpec {
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
 
-        ContactTag deletedTag = s1.phone.createTag([name:randPhoneNumber(), isDeleted:true]).payload
+        ContactTag deletedTag = s1.phone.createTag([name:TestHelpers.randPhoneNumber(), isDeleted:true]).payload
         deletedTag.save(flush:true, failOnError:true)
 
     	expect: "This tag belongs to you"

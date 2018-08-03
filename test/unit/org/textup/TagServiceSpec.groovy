@@ -9,7 +9,7 @@ import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.type.FutureMessageType
 import org.textup.type.VoiceLanguage
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 
 @TestFor(TagService)
@@ -153,7 +153,7 @@ class TagServiceSpec extends CustomSpec {
 
     void "test tag actions invalid"() {
         given:
-        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
         addToMessageSource("tagService.update.contactForbidden")
 
         when: "we try to update with tag actions that is not list"
@@ -191,7 +191,7 @@ class TagServiceSpec extends CustomSpec {
         res.status == ResultStatus.FORBIDDEN
 
         when: "we update with tag action with unspecified action"
-        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
         updateInfo = [doTagActions:[
             [id:c2.id, action:"invalid"]
         ]]

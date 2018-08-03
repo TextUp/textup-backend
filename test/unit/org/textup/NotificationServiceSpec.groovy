@@ -8,13 +8,14 @@ import grails.validation.ValidationErrors
 import org.textup.type.NotificationLevel
 import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.BasicNotification
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy])
+    AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @TestFor(NotificationService)
 class NotificationServiceSpec extends CustomSpec {
@@ -38,7 +39,7 @@ class NotificationServiceSpec extends CustomSpec {
     void "test notification action errors"() {
         given: "baselines"
         int pBaseline = NotificationPolicy.count()
-        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 
         when: "actions not a collection"
         Long recId = 8L
@@ -132,6 +133,76 @@ class NotificationServiceSpec extends CustomSpec {
         np1.isInBlacklist(recId) == true
     }
 
+    // Updating
+    // --------
+
+    void "test updating schedule at policy level"() {
+        given: "currently logged-in is a staff without policy for this phone"
+        String utcTimezone = "Etc/UTC"
+        Staff staff1 = new Staff(username: UUID.randomUUID().toString(),
+            name: "Name",
+            password: "password",
+            email: "hello@its.me",
+            org: org)
+        staff1.save(flush:true, failOnError:true)
+        NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(staff1.id)
+        np1.save(flush:true, failOnError:true)
+        int sBaseline = Schedule.count()
+        addToMessageSource("weeklySchedule.strIntsNotList")
+
+        when: "update with valid non-schedule info"
+        Result<NotificationPolicy> res = service.update(np1, [
+            useStaffAvailability: false,
+            manualSchedule: false,
+            isAvailable: false
+        ], utcTimezone)
+
+        then: "no schedule created"
+        res.success == true
+        res.payload instanceof NotificationPolicy
+        res.payload.useStaffAvailability == false
+        res.payload.manualSchedule == false
+        res.payload.isAvailable == false
+        Schedule.count() == sBaseline
+
+        when: "update with some invalid non-schedule info"
+        res = service.update(np1, [
+            useStaffAvailability: "invalid, not a boolean",
+            manualSchedule: "invalid, not a boolean",
+            isAvailable: true,
+        ], utcTimezone)
+
+        then: "invalid values ignored, valid values updated"
+        res.success == true
+        res.payload instanceof NotificationPolicy
+        res.payload.useStaffAvailability == false
+        res.payload.manualSchedule == false
+        res.payload.isAvailable == true
+        Schedule.count() == sBaseline
+
+        when: "handling schedule with valid schedule-related updates"
+        String mondayString = "0000:1230"
+        res = service.update(np1, [schedule:[monday:[mondayString]]], utcTimezone)
+
+        then: "a new schedule is created and all updates are made"
+        res.success == true
+        res.payload instanceof NotificationPolicy
+        Schedule.count() == sBaseline + 1
+        res.payload.useStaffAvailability == false
+        res.payload.manualSchedule == false
+        res.payload.isAvailable == true
+        res.payload.schedule.monday == mondayString.replaceAll(":", ",") // different delimiter when saved
+
+        when: "handling schedule with INVALID schedule-related updates"
+        res = service.update(np1, [schedule:[monday:"invalid time range"]], utcTimezone)
+
+        then: "error and no new schedule is created"
+        res.success == false
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "weeklySchedule.strIntsNotList"
+        Schedule.count() == sBaseline + 1
+    }
+
     // Collating notification recipients
     // ---------------------------------
 
@@ -146,6 +217,7 @@ class NotificationServiceSpec extends CustomSpec {
         tPh1.stopShare(tC1)
         SharedContact shared1 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
         shared1.save(flush:true, failOnError:true)
+        shared1.resultFactory = getResultFactory()
         // make all other staff members unavailable!
         t1.members.each { Staff otherStaff ->
             otherStaff.manualSchedule = true
@@ -182,6 +254,7 @@ class NotificationServiceSpec extends CustomSpec {
         when: "staff is shared again but is no longer member of team and \
             incoming text to the team number"
         SharedContact shared2 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
+        shared2.resultFactory = getResultFactory()
         shared2.save(flush:true, failOnError:true)
 
         t1.removeFromMembers(s1)
@@ -260,8 +333,9 @@ class NotificationServiceSpec extends CustomSpec {
         when: "has available, has contacts shared"
         assert s1 in t1.activeMembers
         assert s1.phone
-        Result res = phone1.share(contact1, s1.phone, SharePermission.DELEGATE)
+        Result<SharedContact> res = phone1.share(contact1, s1.phone, SharePermission.DELEGATE)
         assert res.success
+        res.payload.resultFactory = getResultFactory()
 
         phoneIdToRecord.clear()
         staffIdToPersonalPhoneId.clear()

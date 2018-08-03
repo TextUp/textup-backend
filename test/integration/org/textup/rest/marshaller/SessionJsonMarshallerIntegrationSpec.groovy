@@ -1,6 +1,6 @@
 package org.textup.rest.marshaller
 
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import grails.converters.JSON
 import org.textup.*
 
@@ -25,7 +25,7 @@ class SessionJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = jsonToObject(sess1 as JSON) as Map
+    		json = TestHelpers.jsonToMap(sess1 as JSON)
     	}
 
     	then:

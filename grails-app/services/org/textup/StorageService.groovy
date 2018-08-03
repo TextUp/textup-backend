@@ -20,7 +20,6 @@ class StorageService {
     AmazonS3Client s3Service
     GrailsApplication grailsApplication
     ResultFactory resultFactory
-    StorageService storageService
 
     // Auth link
     // ---------
@@ -58,12 +57,12 @@ class StorageService {
     // Uploading
     // ---------
 
-    ResultGroup<PutObjectResult> uploadAsync(List<UploadItem> uItems) {
+    ResultGroup<PutObjectResult> uploadAsync(Collection<UploadItem> uItems) {
         if (!uItems) {
             return new ResultGroup<PutObjectResult>()
         }
         List<Result<PutObjectResult>> resList = Helpers.<UploadItem>doAsyncInBatches(uItems,
-            storageService.&upload, Constants.CONCURRENT_UPLOAD_BATCH_SIZE)
+            this.&upload, Constants.CONCURRENT_UPLOAD_BATCH_SIZE)
         new ResultGroup<PutObjectResult>(resList)
     }
     Result<PutObjectResult> upload(UploadItem uItem) {

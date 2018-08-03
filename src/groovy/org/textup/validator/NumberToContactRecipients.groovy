@@ -8,15 +8,28 @@ import org.textup.*
 @Validateable
 class NumberToContactRecipients extends Recipients<String, Contact> {
 
+    private List<String> _errorMessages = Collections.emptyList()
+
+    static constraints = {
+        recipients validator: { List<Contact> recips, NumberToContactRecipients obj ->
+            if (obj._errorMessages) {
+                ["contactErrors", obj._errorMessages]
+            }
+        }
+    }
+
     @Override
     protected List<Contact> buildRecipientsFromIds(List<String> rawNums) {
         // validate to clear out old errors object, if present
-        if (!validate() || !phone) { return [] }
+        if (!phone) { return [] }
         List<String> msgs = []
         List<Contact> contacts = []
         for (String num in rawNums) {
+            // ignore null values
+            if (num == null) {
+                continue
+            }
             PhoneNumber pNum = new PhoneNumber(number:num)
-            // ignore invalid phone numbers
             if (!pNum.validate()) {
                 msgs += Helpers.resultFactory.failWithValidationErrors(pNum.errors).errorMessages
                 continue
@@ -32,10 +45,7 @@ class NumberToContactRecipients extends Recipients<String, Contact> {
                 else { msgs += res.errorMessages }
             }
         }
-        if (msgs) {
-            this.errors.rejectValue("recipients", "numberToContactRecipients.recipients.contactErrors",
-                msgs as Object[], "Something went wrong when looking up or creating contacts from phone numbers")
-        }
+        _errorMessages = msgs
         contacts
     }
 }

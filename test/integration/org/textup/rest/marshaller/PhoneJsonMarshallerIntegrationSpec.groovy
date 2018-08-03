@@ -3,7 +3,7 @@ package org.textup.rest.marshaller
 import grails.converters.JSON
 import org.textup.*
 import org.textup.type.StaffStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Unroll
 
 class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
@@ -56,7 +56,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(p1 as JSON) as Map
+            json = TestHelpers.jsonToMap(p1 as JSON)
         }
 
         then:
@@ -114,7 +114,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(p1 as JSON) as Map
+            json = TestHelpers.jsonToMap(p1 as JSON)
         }
 
         then: "default to staff availability and do not show policy-level availability info"

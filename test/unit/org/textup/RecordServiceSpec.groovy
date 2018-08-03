@@ -6,6 +6,7 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
+import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
@@ -14,94 +15,35 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
-import org.textup.type.ReceiptStatus
-import org.textup.util.CustomSpec
-import org.textup.validator.OutgoingMessage
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordNote
-import org.textup.validator.UploadItem
-import spock.lang.Shared
-import spock.lang.Specification
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
+import spock.lang.*
 
 @TestFor(RecordService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision, NotificationPolicy])
+    RecordNote, RecordNoteRevision, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class RecordServiceSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
+        twimlBuilder(TwimlBuilder)
     }
 
-    String _urlRoot = "http://www.example.com/?key="
-    int _maxNumImages = 2
-    boolean _uploadShouldSucceed = true
-    boolean _didUpdateRequest = false
-    RecordNote _note1
-    String _uploadFailureCode = "failCode"
-
     def setup() {
-        super.setupData()
-        service.resultFactory = getResultFactory()
-        service.twimlBuilder = [noResponse: { ->
-            new Result(status:ResultStatus.OK, payload:"noResponse")
-        }] as TwimlBuilder
-        service.authService = [getLoggedInAndActive: { -> s1 }] as AuthService
-        service.socketService = [sendItems:{ List<RecordItem> items, String eventName ->
-            new ResultGroup()
-        }] as SocketService
-        service.metaClass.getRequest = { ->
-            [
-                setAttribute: { String n, Object o ->
-                    _didUpdateRequest = true
-                }
-            ] as HttpServletRequest
-        }
-        service.metaClass.createTextHelper = { Phone p1, OutgoingMessage msg, Staff staff ->
-            new Result<RecordItem>(status:ResultStatus.CREATED, payload:"sendMessage").toGroup()
-        }
-        service.metaClass.createCallHelper = { Phone p1, Contactable c1, Staff staff ->
-            new Result<RecordCall>(status:ResultStatus.CREATED,
-                payload:[
-                    methodName:"startBridgeCall",
-                    contactable:c1
-                ])
-        }
-        RecordNote.metaClass.constructor = { Map props ->
-            RecordNote note1 = new RecordNote()
-            note1.properties = props
-            note1.grailsApplication = [getFlatConfig:{
-                ['textup.maxNumImages':_maxNumImages]
-            }] as GrailsApplication
-            note1.storageService = [
-                generateAuthLink:{ String k ->
-                    new Result(status:ResultStatus.OK, payload:new URL("${_urlRoot}${k}"))
-                },
-                upload: { String objectKey, UploadItem uItem ->
-                    if (_uploadShouldSucceed) {
-                        new Result(status:ResultStatus.OK,
-                            payload:[getETag: { -> _eTag }] as PutObjectResult)
-                    }
-                    else {
-                        getResultFactory().failWithCodeAndStatus(_uploadFailureCode, ResultStatus.BAD_REQUEST)
-                    }
-                }
-            ] as StorageService
-            note1
-        }
-
-        Record rec = new Record([:])
-        assert rec.validate()
-        _note1 = new RecordNote(record:rec)
-        assert _note1.validate()
-        _note1.record.save(flush:true, failOnError:true)
-        _note1.save(flush:true, failOnError:true)
+        setupData()
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+        Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj -> new Result() }
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.twimlBuilder = TestHelpers.getTwimlBuilder(grailsApplication)
     }
 
     def cleanup() {
-        super.cleanupData()
+        cleanupData()
     }
 
     // Status
@@ -114,78 +56,48 @@ class RecordServiceSpec extends CustomSpec {
             it.addToReceipts(apiId:apiId, contactNumberAsString:"1112223333")
             it.save(flush:true, failOnError:true)
         }
+        service.socketService = Mock(SocketService)
         addToMessageSource("recordService.updateStatus.receiptsNotFound")
 
         when: "nonexistent apiId"
         Result res = service.updateStatus(ReceiptStatus.SUCCESS, "nonexistentApiId")
 
         then:
+        0 * service.socketService.sendItems(*_)
         res.success == false
         res.status == ResultStatus.NOT_FOUND
         res.errorMessages[0] == "recordService.updateStatus.receiptsNotFound"
-
-        when: "existing with invalid status"
-        res = service.updateStatus(null, apiId)
-        // clear changes to avoid optimistic locking exception
-        RecordItemReceipt.withSession { it.clear() }
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
 
         when: "existing with valid status"
         res = service.updateStatus(ReceiptStatus.SUCCESS, apiId)
 
         then:
+        1 * service.socketService.sendItems(*_)
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == "noResponse"
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response {} }
+
+        when: "existing with invalid status"
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
+        res = service.updateStatus(null, apiId)
+
+        then:
+        0 * service.socketService.sendItems(*_)
+        res.success == false
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() == 1
     }
 
     // Create
     // ------
 
-    void "test determine class"() {
-        given:
-        addToMessageSource("recordService.create.unknownType")
-
-        when: "unknown entity"
-        Result res = service.determineClass([:])
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "recordService.create.unknownType"
-
-        when: "text"
-        res = service.determineClass([sendToContacts:[1]])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == RecordText
-
-        when: "note"
-        res = service.determineClass([forContact:1])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == RecordNote
-
-        when: "call"
-        res = service.determineClass([callContact:c1.id])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == RecordCall
-    }
-
     void "test create overall"() {
         given:
         addToMessageSource(["recordService.create.noPhone", "recordService.create.unknownType"])
+        String didCall
+        service.metaClass.createText = { Phone p1, Map body -> didCall = "text"; new ResultGroup() }
+        service.metaClass.createCall = { Phone p1, Map body -> didCall = "call"; new Result() }
+        service.metaClass.createNote = { Phone p1, Map body -> didCall = "note"; new Result() }
 
         when: "no phone"
         ResultGroup resGroup = service.create(null, [:])
@@ -195,336 +107,469 @@ class RecordServiceSpec extends CustomSpec {
         resGroup.failures.size() == 1
         resGroup.failures[0].errorMessages[0] == "recordService.create.noPhone"
         resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
+        null == didCall
 
         when: "invalid entity"
-        resGroup = service.create(t1.phone, [:])
+        resGroup = service.create(t1.phone.id, [:])
 
         then:
         resGroup.anySuccesses == false
         resGroup.failures.size() == 1
         resGroup.failures[0].errorMessages[0] == "recordService.create.unknownType"
         resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
+        null == didCall
 
         when: "text"
         Map itemInfo = [contents:"hi", sendToPhoneNumbers:["2223334444"],
             sendToContacts:[tC1.id]]
-        resGroup = service.create(t1.phone, itemInfo)
+        service.create(t1.phone.id, itemInfo)
 
         then:
-        resGroup.anySuccesses == true
-        resGroup.successStatus == ResultStatus.CREATED
-        resGroup.successes.size() == 1
-        resGroup.successes[0].payload == "sendMessage"
+        "text" == didCall
+
+        when: "call"
+        itemInfo = [callContact:8L]
+        service.create(t1.phone.id, itemInfo)
+
+        then:
+        "call" == didCall
+
+        when: "note"
+        itemInfo = [forContact:8L]
+        service.create(t1.phone.id, itemInfo)
+
+        then:
+        "note" == didCall
+    }
+
+    void "test check outgoing message recipients"() {
+        given:
+        int maxNumRecips = 1
+        service.grailsApplication = Mock(GrailsApplication)
+        service.grailsApplication.flatConfig >> ["textup.maxNumText": maxNumRecips]
+        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
+        addToMessageSource(["recordService.create.atLeastOneRecipient", "recordService.create.tooManyForText"])
+
+        when: "no recipients"
+        Result<OutgoingMessage> res = service.checkOutgoingMessageRecipients(msg1)
+
+        then:
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "recordService.create.atLeastOneRecipient"
+
+        when: "too many recipients"
+        msg1.contacts.recipients = [c1, c1_1, c2]
+        res = service.checkOutgoingMessageRecipients(msg1)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "recordService.create.tooManyForText"
+
+        when: "valid number of recipients"
+        msg1.contacts.recipients = [c1]
+        res = service.checkOutgoingMessageRecipients(msg1)
+
+        then:
+        res.status == ResultStatus.OK
+    }
+
+    void "test building outgoing message"() {
+        given:
+        int cBaseline = Contact.count()
+        int cnBaseline = ContactNumber.count()
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
+
+        when: "contacts not belonging to me"
+        Map body = [contents: "hi", sendToContacts: [c2.id]]
+        assert c2.phone != p1
+        Result<OutgoingMessage> res = service.buildOutgoingMessage(p1, body, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        Contact.count() == cBaseline
+        ContactNumber.count() == cnBaseline
+
+        when: "expired shared contacts"
+        assert sc2.sharedWith == p1
+        body = [contents: "hi", sendToSharedContacts: [sc2.contactId]]
+        sc2.stopSharing()
+        sc2.save(flush: true, failOnError: true)
+        res = service.buildOutgoingMessage(p1, body, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        Contact.count() == cBaseline
+        ContactNumber.count() == cnBaseline
+
+        when: "not my tags"
+        body = [contents: "hi", sendToTags: [tag2.id]]
+        assert tag2.phone != p1
+        res = service.buildOutgoingMessage(p1, body, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        Contact.count() == cBaseline
+        ContactNumber.count() == cnBaseline
+
+        when: "invalid phone numbers"
+        body = [contents: "hi", sendToPhoneNumbers: ["i am not a valid phone number"]]
+        res = service.buildOutgoingMessage(p1, body, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        Contact.count() == cBaseline
+        ContactNumber.count() == cnBaseline
+
+        when: "valid, no recipients"
+        service.resultFactory.messageSource = TestHelpers.mockMessageSource()
+        body = [contents: "hi"]
+        res = service.buildOutgoingMessage(p1, body, null)
+
+        then: "valid, checking for number of recipients happens in a later step"
+        res.status == ResultStatus.OK
+        Contact.count() == cBaseline
+        ContactNumber.count() == cnBaseline
+
+        when: "valid, with recipients"
+        addToMessageSource("outgoingMessage.getName.contactId")
+        sc2.startSharing(ContactStatus.ACTIVE, SharePermission.DELEGATE)
+        sc2.save(flush: true, failOnError: true)
+        body = [
+            contents: "hi",
+            sendToContacts: [c1.id],
+            sendToSharedContacts: [sc2.contactId],
+            sendToTags: [tag1.id],
+            sendToPhoneNumbers: [TestHelpers.randPhoneNumber()]
+        ]
+        res = service.buildOutgoingMessage(p1, body, null)
+        Contact.withSession { it.flush() }
+
+        then:
+        res.status == ResultStatus.OK
+        Contact.count() == cBaseline + 1
+        ContactNumber.count() == cnBaseline + 1
     }
 
     void "test create text"() {
         given:
-        int cBaseline = Contact.count()
+        service.mediaService = Mock(MediaService)
+        service.storageService = Mock(StorageService)
+        service.authService = Mock(AuthService)
+        Phone mockPhone = Mock(Phone)
+        service.metaClass.buildOutgoingMessage = { Phone p1, Map body, MediaInfo mInfo = null ->
+            OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
+            msg1.contacts.recipients = [c1]
+            new Result(payload: msg1)
+        }
+        addToMessageSource("outgoingMessage.getName.contactId")
 
         when: "no recipients"
-        Map itemInfo = [contents:"hi"]
-        ResultGroup resGroup = service.createText(t1.phone, itemInfo)
+        service.createText(mockPhone, null)
 
         then: "this class does not handle validation for number of recipients"
-        resGroup.anySuccesses == true
-        resGroup.successStatus == ResultStatus.CREATED
-        resGroup.successes.size() == 1
-        resGroup.successes[0].payload == "sendMessage"
-        Contact.count() == cBaseline
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        0 * service.mediaService.handleActions(*_)
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.authService.loggedInAndActive
+        1 * mockPhone.sendMessage(*_) >> new ResultGroup()
 
-        when: "send to a contact"
-        itemInfo.sendToContacts = [tC1.id]
-        resGroup = service.createText(t1.phone, itemInfo)
+        when: "with media actions"
+        service.createText(mockPhone, null)
 
         then:
-        resGroup.anySuccesses == true
-        resGroup.successStatus == ResultStatus.CREATED
-        resGroup.successes.size() == 1
-        resGroup.successes[0].payload == "sendMessage"
-        Contact.count() == cBaseline
-
-        when: "send to a phone number that belongs to a existing contact"
-        itemInfo.sendToPhoneNumbers = [tC1.numbers[0].number]
-        resGroup = service.createText(t1.phone, itemInfo)
-
-        then: "no new contact created"
-        resGroup.anySuccesses == true
-        resGroup.successStatus == ResultStatus.CREATED
-        resGroup.successes.size() == 1
-        resGroup.successes[0].payload == "sendMessage"
-        Contact.count() == cBaseline
-
-        when: "send to a phone number that you've never seen before"
-        PhoneNumber newNum = new PhoneNumber(number:"888 888 8888")
-        assert newNum.validate()
-        assert Contact.listForPhoneAndNum(t1.phone, newNum) == []
-        itemInfo.sendToPhoneNumbers = [newNum.number]
-        resGroup = service.createText(t1.phone, itemInfo)
-
-        then: "new contact created for novel number"
-        resGroup.anySuccesses == true
-        resGroup.successStatus == ResultStatus.CREATED
-        resGroup.successes.size() == 1
-        resGroup.successes[0].payload == "sendMessage"
-        Contact.count() == cBaseline + 1
+        1 * service.mediaService.hasMediaActions(*_) >> true
+        1 * service.mediaService.handleActions(*_) >> new Result(payload: new MediaInfo())
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.authService.loggedInAndActive
+        1 * mockPhone.sendMessage(*_) >> new ResultGroup()
     }
 
     void "test create call"() {
         given:
-        addToMessageSource("recordService.create.canCallOnlyOne")
+        service.authService = Mock(AuthService)
+        addToMessageSource("recordService.create.atLeastOneRecipient")
+        int numTimesCalled = 0
+        service.metaClass.createCallHelper = { Phone p1, Contactable c1, Staff staff ->
+            numTimesCalled++; new Result();
+        }
 
-        when: "try to call multiple"
-        Map itemInfo = [callSharedContact:sc2.id, callContact:c1.id]
+        when: "try to call none"
+        Map itemInfo = [:]
         Result<RecordItem> res = service.createCall(s1.phone, itemInfo)
 
         then:
         res.success == false
-        res.errorMessages[0] == "recordService.create.canCallOnlyOne"
+        res.errorMessages[0] == "recordService.create.atLeastOneRecipient"
         res.status == ResultStatus.BAD_REQUEST
+        0 * service.authService.loggedInAndActive
+        0 == numTimesCalled
+
+        when: "try to call multiple"
+        itemInfo = [callSharedContact: sc2.id, callContact: c1.id]
+        service.createCall(s1.phone, itemInfo)
+
+        then: "valid because checking for multiple has already happened in the controller"
+        1 * service.authService.loggedInAndActive
+        1 == numTimesCalled
 
         when: "call contact"
-        itemInfo = [callContact:c1.id]
-        res = service.createCall(s1.phone, itemInfo)
+        itemInfo = [callContact: c1.id]
+        service.createCall(s1.phone, itemInfo)
 
         then:
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.methodName == "startBridgeCall"
-        res.payload.contactable.contactId == c1.contactId
+        1 * service.authService.loggedInAndActive
+        2 == numTimesCalled
 
         when: "call shared contact"
-        itemInfo = [callSharedContact:sc2.contact.id]
-        res = service.createCall(s1.phone, itemInfo)
+        itemInfo = [callSharedContact: sc2.contact.id]
+        service.createCall(s1.phone, itemInfo)
 
         then:
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.methodName == "startBridgeCall"
-        res.payload.contactable.contactId == sc2.contactId
+        1 * service.authService.loggedInAndActive
+        3 == numTimesCalled
     }
 
-    void "test create note for various targets"() {
+    void "test checking note target"() {
         given:
-        int nBaseline = RecordNote.count()
+        [sc1, tC1, tag1].each { it.resultFactory = TestHelpers.getResultFactory(grailsApplication) }
+
+        when: "no recipients"
+        Map body = [:]
+        Result<RecordItem> res = service.checkNoteTarget(t1.phone, body)
+
+        then: "error"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages.contains("recordService.create.atLeastOneRecipient")
+
+        when: "multiple recipients"
+        body = [forContact: tC1.id, forSharedContact: sc1.contactId]
+        res = service.checkNoteTarget(sc1.sharedWith, body)
+        RecordNote.withSession { it.flush() }
+
+        then: "arbitrarily choose one first, still valid, multiple recipients check happens in controller"
+        res.status == ResultStatus.OK
+        res.payload instanceof Record
 
         when: "creating for a contact"
-        Map body = [
-            forContact:tC1.id,
-            noteContents:"hi"
-        ]
-        Result<RecordItem> res = service.createNote(t1.phone, body)
+        body = [forContact: tC1.id]
+        res = service.checkNoteTarget(t1.phone, body)
+        RecordNote.withSession { it.flush() }
 
         then:
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.record == tC1.record
-        RecordNote.count() == nBaseline + 1
+        res.status == ResultStatus.OK
+        res.payload == tC1.record
 
         when: "creating for a shared contact"
-        body = [
-            forSharedContact:sc1.contact.id,
-            noteContents:"hi"
-        ]
-        res = service.createNote(sc1.sharedWith, body)
+        body = [forSharedContact: sc1.contactId]
+        res = service.checkNoteTarget(sc1.sharedWith, body)
+        RecordNote.withSession { it.flush() }
 
         then:
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.record == sc1.contact.record
-        RecordNote.count() == nBaseline + 2
+        res.status == ResultStatus.OK
+        res.payload == sc1.contact.record
 
         when: "creating for a tag"
-        body = [
-            forTag:tag1.id,
-            noteContents:"hi"
-        ]
-        res = service.createNote(tag1.phone, body)
+        body = [forTag: tag1.id]
+        res = service.checkNoteTarget(tag1.phone, body)
+        RecordNote.withSession { it.flush() }
 
         then:
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.record == tag1.record
-        RecordNote.count() == nBaseline + 3
-    }
-
-    void "test creating note for various info"() {
-        given:
-        int nBaseline = RecordNote.count()
-        int lBaseline = Location.count()
-
-        String contentType = "image/png"
-        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
-        String checksum = DigestUtils.md5Hex(data)
-
-        addToMessageSource(_uploadFailureCode)
-
-        when: "creating a note after a certain time"
-        Map body = [
-            forContact:tC1.id,
-            noteContents:"hi",
-            after:DateTime.now().minusDays(2)
-        ]
-        Result<RecordItem> res = service.createNote(t1.phone, body)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.record == tC1.record
-        res.payload.whenCreated.isBeforeNow()
-        RecordNote.count() == nBaseline + 1
-
-        when: "creating a note with location"
-        body = [
-            forContact:tC1.id,
-            noteContents:"hi",
-            location:[
-                address:"123 Main Street",
-                lat:22G,
-                lon:22G
-            ]
-        ]
-        res = service.createNote(t1.phone, body)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.record == tC1.record
-        res.payload.location != null
-        RecordNote.count() == nBaseline + 2
-        Location.count() == lBaseline + 1
-
-        when: "creating a note with image requests, all success"
-        body = [
-            forContact:tC1.id,
-            noteContents:"hi",
-            doImageActions:[
-                [
-                    action:Constants.MEDIA_ACTION_REMOVE,
-                    key:"i am a valid key"
-                ],
-                [ // valid add image action
-                    action:Constants.MEDIA_ACTION_ADD,
-                    mimeType:contentType,
-                    data:data,
-                    checksum:checksum
-                ]
-            ]
-        ]
-        _uploadShouldSucceed = true
-        _didUpdateRequest = false
-        res = service.createNote(t1.phone, body)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.record == tC1.record
-        res.payload.imageKeys.size() == 1
-        _didUpdateRequest == false // do not set error messages on request object
-        RecordNote.count() == nBaseline + 3
-
-        when: "some upload requests fail"
-        _uploadShouldSucceed = false
-        _didUpdateRequest = false
-        res = service.createNote(t1.phone, body)
-
-        then: "image not added and error messages set on request object"
-        res.success == true
-        res.status == ResultStatus.CREATED
-        res.payload.record == tC1.record
-        res.payload.imageKeys.size() == 0
-        _didUpdateRequest == true // set error messages on request object
-        RecordNote.count() == nBaseline + 4
-    }
-
-    void "test updating note"() {
-        given: "baselines and an existing note"
-        RecordNote note1 = new RecordNote(record:c1.record)
-        note1.save(flush:true, failOnError:true)
-        int rBaseline = RecordNoteRevision.count()
-        int nBaseline = RecordNote.count()
-
-        addToMessageSource(["recordService.update.notFound", "recordService.update.readOnly"])
-
-        when: "updating a nonexistent note"
-        Map body = [
-            noteContents: "hello!"
-        ]
-        Result<RecordItem> res = service.update(-88L, body)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "recordService.update.notFound"
-        RecordNoteRevision.count() == rBaseline
-        RecordNote.count() == nBaseline
-
-        when: "updating a readonly note"
-        note1.isReadOnly = true
-        note1.save(flush:true, failOnError:true)
-        res = service.update(note1.id, body)
-
-        then: "forbidden"
-        res.success == false
-        res.status == ResultStatus.FORBIDDEN
-        res.errorMessages[0] == "recordService.update.readOnly"
-        RecordNoteRevision.count() == rBaseline
-        RecordNote.count() == nBaseline
-
-        when: "updating an existing note"
-        note1.isReadOnly = false
-        note1.save(flush:true, failOnError:true)
-
-        DateTime originalWhenChanged = note1.whenChanged
-        res = service.update(note1.id, body)
-        res.payload.save(flush:true)
-
-        then: "updated and created a revision"
-        res.success == true
         res.status == ResultStatus.OK
-        res.payload instanceof RecordNote
-        res.payload.id == note1.id
-        res.payload.whenChanged.isAfter(originalWhenChanged)
-        res.payload.noteContents == body.noteContents
-        res.payload.revisions.size() == 1
-        RecordNoteRevision.count() == rBaseline + 1
-        RecordNote.count() == nBaseline
+        res.payload == tag1.record
+    }
 
-        when: "toggling isDeleted flag via update"
-        originalWhenChanged = res.payload.whenChanged
-        body = [
+    void "test merging note for non-object fields"() {
+        given:
+        Record rec = new Record()
+        rec.save(flush: true, failOnError: true)
+        RecordNote note1 = new RecordNote(record: rec)
+        assert note1.validate()
+        service.mediaService = Mock(MediaService)
+        service.authService = Mock(AuthService)
+        service.storageService = Mock(StorageService)
+
+        when:
+        Map body = [
+            after:DateTime.now().minusDays(2),
+            noteContents: UUID.randomUUID().toString(),
             isDeleted: true
         ]
-        res = service.update(note1.id, body)
-        res.payload.save(flush:true)
+        Result<RecordNote> res = service.mergeNote(note1, body)
 
-        then: "whenChanged unchanged and no additional revisions"
-        res.success == true
+        then:
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.authService.loggedInAndActive >> s1
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.status == ResultStatus.OK
-        res.payload instanceof RecordNote
-        res.payload.id == note1.id
-        res.payload.whenChanged.isEqual(originalWhenChanged)
-        res.payload.isDeleted == true
-        res.payload.revisions.size() == 1
-        RecordNoteRevision.count() == rBaseline + 1
-        RecordNote.count() == nBaseline
+        res.payload == note1
+        res.payload.whenCreated.isBeforeNow()
+        res.payload.noteContents == body.noteContents
+        res.payload.isDeleted == body.isDeleted
+        res.payload.revisions == null // no revisions for new notes!
+    }
 
-        when: "toggling isDeleted flag via update"
-        body = [
-            isDeleted: false
+    void "test merging note for object fields"() {
+        given:
+        Record rec = new Record()
+        assert rec.save(flush: true, failOnError: true)
+        RecordNote note1 = new RecordNote(record: rec)
+        assert note1.save(flush: true, failOnError: true)
+        service.mediaService = Mock(MediaService)
+        service.authService = Mock(AuthService)
+        service.storageService = Mock(StorageService)
+        int lBaseline = Location.count()
+        int mBaseline = MediaInfo.count()
+
+        when: "with location"
+        Map body = [location: [address:"123 Main Street", lat:22G, lon:22G]]
+        Result<RecordNote> res = service.mergeNote(note1, body)
+        RecordNote.withSession { it.flush() }
+
+        then:
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        0 * service.mediaService.handleActions(*_)
+        1 * service.authService.loggedInAndActive >> s1
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        res.status == ResultStatus.OK
+        res.payload == note1
+        res.payload.location instanceof Location
+        res.payload.revisions instanceof Collection // existing note creates revisions
+        res.payload.revisions.size() == 1
+        Location.count() == lBaseline + 1
+        MediaInfo.count() == mBaseline
+
+        when: "with media"
+        res = service.mergeNote(note1, [:])
+        RecordNote.withSession { it.flush() }
+
+        then:
+        1 * service.mediaService.hasMediaActions(*_) >> true
+        1 * service.mediaService.handleActions(*_) >> { mInfo1, closure1, body1 ->
+            mInfo1.addToMediaElements(TestHelpers.buildMediaElement())
+            assert mInfo1.save()
+            new Result(payload: mInfo1)
+        }
+        1 * service.authService.loggedInAndActive >> s1
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        res.status == ResultStatus.OK
+        res.payload == note1
+        res.payload.location instanceof Location
+        res.payload.revisions instanceof Collection // existing note creates revisions
+        res.payload.revisions.size() == 2
+        Location.count() == lBaseline + 2 // each revision creates its own duplicate location
+        MediaInfo.count() == mBaseline + 1
+    }
+
+    void "test creating note overall"() {
+        given:
+        service.mediaService   = Mock(MediaService)
+        service.authService    = Mock(AuthService)
+        service.storageService = Mock(StorageService)
+        int lBaseline          = Location.count()
+        int mBaseline          = MediaInfo.count()
+        int nBaseline          = RecordNote.count()
+        int revBaseline        = RecordNoteRevision.count()
+        c1.resultFactory       = TestHelpers.getResultFactory(grailsApplication)
+
+        when:
+        Map body = [
+            forContact: c1.id,
+            noteContents: UUID.randomUUID().toString(),
+            location: [address:"123 Main Street", lat:22G, lon:22G]
+            // mock having media actions
         ]
-        res = service.update(note1.id, body)
-        res.payload.save(flush:true)
+        Result<RecordItem> res = service.createNote(p1, body)
 
-        then: "whenChanged unchanged and no additional revisions"
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof RecordNote
-        res.payload.id == note1.id
-        res.payload.whenChanged.isEqual(originalWhenChanged)
-        res.payload.isDeleted == false
-        res.payload.revisions.size() == 1
-        RecordNoteRevision.count() == rBaseline + 1
-        RecordNote.count() == nBaseline
+        then:
+        1 * service.mediaService.hasMediaActions(*_) >> true
+        1 * service.mediaService.handleActions(*_) >> { mInfo1, closure1, body1 ->
+            mInfo1.addToMediaElements(TestHelpers.buildMediaElement())
+            assert mInfo1.save()
+            new Result(payload: mInfo1)
+        }
+        1 * service.authService.loggedInAndActive >> s1
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        Location.count()           == lBaseline + 1
+        MediaInfo.count()          == mBaseline + 1
+        RecordNote.count()         == nBaseline + 1
+        RecordNoteRevision.count() == revBaseline
+    }
+
+    void "test updating note overall"() {
+        given:
+        service.mediaService                        = Mock(MediaService)
+        service.authService                         = Mock(AuthService)
+        service.storageService                      = Mock(StorageService)
+        Record rec                                  = new Record()
+        assert rec.save(flush: true, failOnError: true)
+        RecordNote note1 = new RecordNote(record:rec,
+            noteContents: "hi",
+            location: new Location(address: "hi", lat: 0G, lon: 0G),
+            author: s1.toAuthor())
+        assert note1.save(flush: true, failOnError: true)
+        int lBaseline   = Location.count()
+        int mBaseline   = MediaInfo.count()
+        int nBaseline   = RecordNote.count()
+        int revBaseline = RecordNoteRevision.count()
+
+        when: "nonexistent note"
+        Result<RecordItem> res = service.update(-88L, null)
+
+        then:
+        res.status                 == ResultStatus.NOT_FOUND
+        res.errorMessages[0]       == "recordService.update.notFound"
+        Location.count()           == lBaseline
+        MediaInfo.count()          == mBaseline
+        RecordNote.count()         == nBaseline
+        RecordNoteRevision.count() == revBaseline
+
+        when: "note is read only"
+        note1.isReadOnly = true
+        note1.save(flush:true, failOnError:true)
+        res = service.update(note1.id, [:])
+
+        then:
+        res.status                 == ResultStatus.FORBIDDEN
+        res.errorMessages[0]       == "recordService.update.readOnly"
+        Location.count()           == lBaseline
+        MediaInfo.count()          == mBaseline
+        RecordNote.count()         == nBaseline
+        RecordNoteRevision.count() == revBaseline
+
+        when: "no longer read only, toggle deleted flag"
+        note1.isReadOnly = false
+        note1.save(flush:true, failOnError:true)
+        Map body = [isDeleted: true]
+        res      = service.update(note1.id, body)
+
+        then: "updated but no revisions"
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.authService.loggedInAndActive >> s1
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        res.status                 == ResultStatus.OK
+        res.payload                == note1
+        res.payload.isDeleted      == true
+        Location.count()           == lBaseline
+        MediaInfo.count()          == mBaseline
+        RecordNote.count()         == nBaseline
+        RecordNoteRevision.count() == revBaseline
+
+
+        when: "update contents"
+        body = [noteContents: UUID.randomUUID().toString()]
+        res  = service.update(note1.id, body)
+
+        then:
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.authService.loggedInAndActive >> s1
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        res.status                 == ResultStatus.OK
+        res.payload                == note1
+        res.payload.noteContents   == body.noteContents
+        Location.count()           == lBaseline + 1
+        MediaInfo.count()          == mBaseline
+        RecordNote.count()         == nBaseline
+        RecordNoteRevision.count() == revBaseline + 1
     }
 
     void "test deleting note"() {
@@ -572,147 +617,44 @@ class RecordServiceSpec extends CustomSpec {
         RecordNote.get(note1.id).isDeleted == true
     }
 
-    void "validating image actions"() {
-        given: "a possible image to upload and a valid temp note for the other fields"
-        String contentType = "image/png"
-        String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
-        String checksum = DigestUtils.md5Hex(data)
+    // Identification
+    // --------------
 
-        Map info = [noteContents:"hi"]
-        TempRecordNote temp1 = new TempRecordNote(info:info, note:_note1)
-        assert temp1.validate() == true
+    void "test determine class"() {
+        given:
+        addToMessageSource("recordService.create.unknownType")
 
-        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
-
-        when: "images actions is not a list"
-        Object imageActions = [i:"am not a list"]
-        Result res = service.createOrUpdateNote(temp1, imageActions)
+        when: "unknown entity"
+        Result res = service.determineClass([:])
 
         then:
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload == null
-        res.errorMessages.size() == 1
-        res.errorMessages.any { it.contains("emptyOrNotACollection") }
+        res.errorMessages[0] == "recordService.create.unknownType"
 
-        when: "an action is not a map"
-        imageActions = [
-            ["i am not a map"] // not a map
-        ]
-        res = service.createOrUpdateNote(temp1, imageActions)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload == null
-        res.errorMessages.size() == 1
-        res.errorMessages.any { it.contains("emptyOrNotAMap") }
-
-        when: "an action trying to add an image"
-        imageActions = [
-            [ // uploading image without a checksum
-                action:Constants.MEDIA_ACTION_ADD,
-                mimeType:contentType,
-                data:data
-            ]
-        ]
-        res = service.createOrUpdateNote(temp1, imageActions)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload == null
-        res.errorMessages.size() == 1
-        res.errorMessages.any { it.contains("actionContainer.invalidActions") }
-
-        when: "an action trying to add an image"
-        imageActions = [
-            [ // uploading an image with an invalid content type
-                action:Constants.MEDIA_ACTION_ADD,
-                mimeType:"invalid",
-                data:data,
-                checksum: checksum
-            ]
-        ]
-        res = service.createOrUpdateNote(temp1, imageActions)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload == null
-        res.errorMessages.size() == 1
-        res.errorMessages.any { it.contains("actionContainer.invalidActions") }
-
-        when: "an action trying to add an image"
-        imageActions = [
-            [ // uploading an image with invalidly encoded data
-                action:Constants.MEDIA_ACTION_ADD,
-                mimeType:contentType,
-                data:"invalid data that is not base64 encoded",
-                checksum: checksum
-            ]
-        ]
-        res = service.createOrUpdateNote(temp1, imageActions)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload == null
-        res.errorMessages.size() == 1
-        res.errorMessages.any { it.contains("actionContainer.invalidActions") }
-
-        when: "an action trying to remove without key"
-        imageActions = [
-            [ // removing image with specifying an image key
-                action:Constants.MEDIA_ACTION_REMOVE,
-            ]
-        ]
-        res = service.createOrUpdateNote(temp1, imageActions)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload == null
-        res.errorMessages.size() == 1
-        res.errorMessages.any { it.contains("actionContainer.invalidActions") }
-
-        when: "an action of an invalid type"
-        imageActions = [
-            [ // action of invalid type
-                action:"i am an invalid action",
-            ]
-        ]
-        res = service.createOrUpdateNote(temp1, imageActions)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload == null
-        res.errorMessages.size() == 1
-        res.errorMessages.any { it.contains("actionContainer.invalidActions") }
-
-        when: "valid image actions"
-        int nBaseline = RecordNote.count()
-        assert _note1.imageKeys.size() == 0
-        imageActions = [
-            [ // valid remove action
-                action:Constants.MEDIA_ACTION_REMOVE,
-                key:"valid image key"
-            ],
-            [ // valid add image action
-                action:Constants.MEDIA_ACTION_ADD,
-                mimeType:contentType,
-                data:data,
-                checksum:checksum
-            ]
-        ]
-        res = service.createOrUpdateNote(temp1, imageActions)
+        when: "text"
+        res = service.determineClass([sendToContacts:[1]])
 
         then:
         res.success == true
         res.status == ResultStatus.OK
-        nBaseline == RecordNote.count() // updating an existing note
-        _note1.imageKeys.size() == 1
+        res.payload == RecordText
+
+        when: "note"
+        res = service.determineClass([forContact:1])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload == RecordNote
+
+        when: "call"
+        res = service.determineClass([callContact:c1.id])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload == RecordCall
     }
 
     void "test parsing types"() {
@@ -721,9 +663,9 @@ class RecordServiceSpec extends CustomSpec {
         rec1.resultFactory = getResultFactory()
         rec1.save(flush:true, failOnError:true)
 
-        RecordText rText1 = rec1.addText([contents:"text"], null).payload
-        RecordCall rCall1 = rec1.addCall([:], null).payload
-        RecordNote rNote1 = new RecordNote(record:rec1)
+        RecordText rText1 = rec1.storeOutgoingText("hi").payload
+        RecordCall rCall1 = rec1.storeOutgoingCall().payload
+        RecordNote rNote1 = new RecordNote(record: rec1)
         [rText1, rCall1, rNote1]*.save(flush:true, failOnError:true)
 
         when:

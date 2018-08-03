@@ -141,6 +141,7 @@ class Constants {
 	// -----------------
 
 	static final String TEST_DEFAULT_AREA_CODE = "626"
+	static final String TEST_STATUS_ENDPOINT = "http://httpstat.us"
 
 	// Twilio test API numbers
 	// -----------------------

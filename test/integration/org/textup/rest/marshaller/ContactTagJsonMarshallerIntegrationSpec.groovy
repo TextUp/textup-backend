@@ -2,7 +2,7 @@ package org.textup.rest.marshaller
 
 import grails.converters.JSON
 import org.textup.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 
 class ContactTagJsonMarshallerIntegrationSpec extends CustomSpec {
 
@@ -20,7 +20,7 @@ class ContactTagJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = jsonToObject(tag1 as JSON) as Map
+    		json = TestHelpers.jsonToMap(tag1 as JSON)
     	}
 
     	then:

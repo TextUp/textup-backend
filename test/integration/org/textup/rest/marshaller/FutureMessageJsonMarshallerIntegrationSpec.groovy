@@ -5,18 +5,17 @@ import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.FutureMessageType
 import org.textup.type.VoiceLanguage
-import org.textup.util.CustomSpec
+import org.textup.util.TestHelpers
+import spock.lang.*
 
-class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
+class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
 
     def grailsApplication
+    Record rec
 
     def setup() {
-    	setupIntegrationData()
-    }
-
-    def cleanup() {
-    	cleanupIntegrationData()
+    	rec = new Record()
+        rec.save(flush: true, failOnError: true)
     }
 
     protected boolean validate(Map json, FutureMessage fMsg) {
@@ -29,16 +28,13 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         assert json.isDone == fMsg.isReallyDone
         assert json.isRepeating == fMsg.isRepeating
         assert json.language == fMsg.language.toString()
+        assert json.media instanceof Map
         // always will be null because we aren't actually scheduling
         assert json.timesTriggered == null
         assert json.nextFireDate == null
-        assert json.contact != null || json.tag != null
-        if (json.contact) {
-            assert Contact.exists(json.contact)
-        }
-        else if (json.tag) {
-            assert ContactTag.exists(json.tag)
-        }
+        // didn't mock up contacts or tags
+        assert json.contact == null
+        assert json.tag == null
         true
     }
 
@@ -47,15 +43,16 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         FutureMessage fMsg = new FutureMessage(
             type:FutureMessageType.CALL,
             message:"hi",
-            record:c1.record,
-            language: VoiceLanguage.PORTUGUESE
+            record:rec,
+            language: VoiceLanguage.PORTUGUESE,
+            media: new MediaInfo()
         )
         fMsg.save(flush:true, failOnError:true)
 
         when: "we marshal this message"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(fMsg as JSON) as Map
+            json = TestHelpers.jsonToMap(fMsg as JSON)
         }
 
         then:
@@ -70,8 +67,9 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         SimpleFutureMessage sMsg = new SimpleFutureMessage(
             type:FutureMessageType.CALL,
             message:"hi",
-            record:c1.record,
-            language: VoiceLanguage.ITALIAN
+            record:rec,
+            language: VoiceLanguage.ITALIAN,
+            media: new MediaInfo()
         )
         sMsg.save(flush:true, failOnError:true)
 
@@ -80,7 +78,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         sMsg.save(flush:true, failOnError:true)
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(sMsg as JSON) as Map
+            json = TestHelpers.jsonToMap(sMsg as JSON)
         }
 
         then:
@@ -89,13 +87,15 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         json.endDate == null
         json.hasEndDate == false
         json.repeatCount == sMsg.repeatCount
+        json.uploadErrors == null
 
         when: "we make this message repeating via endDate then marshal"
         sMsg.repeatCount = null
         sMsg.endDate = DateTime.now().plusDays(1)
         sMsg.save(flush:true, failOnError:true)
+        Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, ["errors1", "errors2"])
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(sMsg as JSON) as Map
+            json = TestHelpers.jsonToMap(sMsg as JSON)
         }
 
         then:
@@ -104,5 +104,6 @@ class FutureMessageJsonMarshallerIntegrationSpec extends CustomSpec {
         json.endDate == sMsg.endDate.toString()
         json.hasEndDate == true
         json.repeatCount == null
+        json.uploadErrors instanceof List
     }
 }

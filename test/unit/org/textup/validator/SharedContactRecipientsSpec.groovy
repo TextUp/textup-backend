@@ -46,29 +46,35 @@ class SharedContactRecipientsSpec extends CustomSpec {
 
     void "test constraints"() {
         when: "empty obj with no recipients"
-        SharedContactRecipients recip = new SharedContactRecipients()
+        SharedContactRecipients recips = new SharedContactRecipients()
 
         then: "superclass constraints execute"
-        recip.validate() == false
-        recip.errors.getFieldErrorCount("phone") == 1
+        recips.validate() == false
+        recips.errors.getFieldErrorCount("phone") == 1
 
         when: "with phone"
-        recip.phone = p1
+        recips.phone = p1
 
         then: "valid"
-        recip.validate() == true
+        recips.validate() == true
+
+        when: "array of null ids"
+        recips.ids = [null, null]
+
+        then: "null values are ignored"
+        recips.validate() == true
 
         when: "set ids with one not shared contact id + setter populates recipients"
-        recip.ids = [sc1.contactId, sc2.contactId]
+        recips.ids = [sc1.contactId, sc2.contactId]
 
         then: "invalid not shared id"
-        recip.validate() == false
-        recip.errors.getFieldErrorCount("recipients") == 1
+        recips.validate() == false
+        recips.errors.getFieldErrorCount("recipients") == 1
 
         when: "setting new ids + setter populates recipients"
-        recip.ids = [sc2.contactId]
+        recips.ids = [sc2.contactId]
 
         then: "all valid"
-        recip.validate() == true
+        recips.validate() == true
     }
 }

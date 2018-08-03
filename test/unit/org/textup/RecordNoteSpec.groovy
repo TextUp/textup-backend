@@ -10,18 +10,23 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.type.*
-import org.textup.validator.PhoneNumber
-import org.textup.validator.UploadItem
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
+import org.textup.util.*
+import org.textup.validator.*
+import spock.lang.*
 
 @Domain([Record, RecordItem, RecordText, RecordCall, RecordNote, RecordNoteRevision,
     RecordItemReceipt, Location, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class RecordNoteSpec extends Specification {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+    }
 
     void "test validation + cascading to location"() {
         given:
@@ -88,7 +93,10 @@ class RecordNoteSpec extends Specification {
         note1.removeFromRevisions(rev1)
         rev1.discard()
         note1.save(flush:true, failOnError:true)
+        int lBaseline = Location.count()
+        int mBaseline = MediaInfo.count()
         rev1 = note1.createRevision()
+        RecordNote.withSession { it.flush() }
 
         then: "revision created but no media because media is still empty"
         rev1.authorName == note1.authorName
@@ -96,13 +104,12 @@ class RecordNoteSpec extends Specification {
         rev1.authorType == note1.authorType
         rev1.whenChanged == note1.whenChanged
         rev1.noteContents == note1.noteContents
-
-        note1.location.id != null
         rev1.location instanceof Location
-        rev1.location.id == null // unsaved because just duplicated
-
+        rev1.location.id != note1.location.id
         note1.media.id != null
         rev1.media == null
+        Location.count() == lBaseline + 1
+        MediaInfo.count() == mBaseline
 
         when: "add some media elements to the media"
         MediaElement e1 = new MediaElement()
@@ -114,24 +121,52 @@ class RecordNoteSpec extends Specification {
         note1.media.addToMediaElements(e1)
         note1.save(flush:true, failOnError:true)
         rev1 = note1.createRevision()
+        RecordNote.withSession { it.flush() }
 
-        then: "revision creatd this time has all fields, including media, populated"
+        then: "revision created this time has all fields, including media, populated"
         rev1.authorName == note1.authorName
         rev1.authorId == note1.authorId
         rev1.authorType == note1.authorType
         rev1.whenChanged == note1.whenChanged
         rev1.noteContents == note1.noteContents
-
-        note1.location.id != null
         rev1.location instanceof Location
-        rev1.location.id == null // unsaved because just duplicated
-
-        note1.media.id != null
+        rev1.location.id != note1.location.id
         rev1.media instanceof MediaInfo
-        rev1.media.id == null // unsaved because just duplicated
+        rev1.media.id != note1.media.id
+        Location.count() == lBaseline + 2
+        MediaInfo.count() == mBaseline + 1
     }
 
-    void "test determining if should create revision"() {
+    void "test do not create revision for newly-created note"() {
+        given:
+        Record rec = new Record()
+        rec.save(flush: true, failOnError: true)
+        int lBaseline = Location.count()
+        int mBaseline = MediaInfo.count()
+
+        when: "an unsaved record note"
+        RecordNote note1 = new RecordNote(record:rec)
+        Result<RecordNote> res = note1.tryCreateRevision()
+        RecordNote.withSession { it.flush() }
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == note1
+        note1.revisions == null
+        Location.count() == lBaseline
+        MediaInfo.count() == mBaseline
+
+        when: "a valid, saved but not flushed record note"
+        note1.save()
+        res = note1.tryCreateRevision()
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == note1
+        note1.revisions == null
+    }
+
+    void "test determining if should create revision for an existing note"() {
         given: "a saved valid note"
         Record rec = new Record()
         rec.save(flush: true, failOnError: true)
@@ -143,11 +178,6 @@ class RecordNoteSpec extends Specification {
         note1.location = new Location(address: "hi", lat: 0G, lon: 0G)
         note1.media = new MediaInfo()
         assert note1.save(flush: true, failOnError: true)
-
-        note1.resultFactory = [
-            success: { Object obj -> new Result(status: ResultStatus.OK, payload: obj) }
-        ] as ResultFactory
-
         int initialNumRevisions = note1.revisions?.size() ?: 0
         DateTime initialWhenChanged = note1.whenChanged
 

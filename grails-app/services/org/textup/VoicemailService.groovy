@@ -23,6 +23,7 @@ class VoicemailService {
     SocketService socketService
     StorageService storageService
 
+    // [UNTESTED] due to mocking constraints
     Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
         try {
             CloseableHttpClient client = HttpClients.createDefault()
@@ -103,7 +104,7 @@ class VoicemailService {
             pwd = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
         // build basic authentication header string. If we used a CredentialProvider instead
         // we would need to configure pre-emptive basic authentication or else we
-        // wcould make two requests each time
+        // could make two requests each time
         // http://www.baeldung.com/httpclient-4-basic-authentication
         String auth = un + ":" + pwd;
         byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("ISO-8859-1")));

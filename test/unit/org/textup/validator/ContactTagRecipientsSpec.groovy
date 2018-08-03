@@ -53,6 +53,12 @@ class ContactTagRecipientsSpec extends CustomSpec {
         then:
         recips.validate() == true
 
+        when: "array of null ids"
+        recips.ids = [null, null]
+
+        then: "null values are ignored"
+        recips.validate() == true
+
         when: "set ids with one foreign id + setter populates recipients"
         recips.ids = [tag1.id, tag1_1.id, tag2.id]
 

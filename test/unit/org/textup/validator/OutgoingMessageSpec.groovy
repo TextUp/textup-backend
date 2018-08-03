@@ -5,7 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -101,11 +101,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test getting name"() {
 		when: "empty outgoing message"
-		OutgoingMessage msg1 = new OutgoingMessage(message: "hello",
-			contacts: new ContactRecipients(),
-			sharedContacts: new SharedContactRecipients(),
-			tags: new ContactTagRecipients())
-		assert msg1.validate()
+		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
 
 		then:
 		msg1.name == ""
@@ -131,11 +127,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test getting phones"() {
 		when: "empty outgoing message"
-		OutgoingMessage msg1 = new OutgoingMessage(message: "hello",
-			contacts: new ContactRecipients(),
-			sharedContacts: new SharedContactRecipients(),
-			tags: new ContactTagRecipients())
-		assert msg1.validate()
+		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
 
 		then:
 		msg1.phones.isEmpty() == true
@@ -164,11 +156,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test generating recipients"() {
 		when: "an empty outgoing msg"
-		OutgoingMessage msg1 = new OutgoingMessage(message: "hello",
-			contacts: new ContactRecipients(),
-			sharedContacts: new SharedContactRecipients(),
-			tags: new ContactTagRecipients())
-		assert msg1.validate()
+		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
 
 		then: "no recipients"
 		msg1.toRecipients().isEmpty() == true

@@ -3,7 +3,7 @@ package org.textup.rest.marshaller
 import grails.converters.JSON
 import org.textup.*
 import org.textup.type.StaffStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 
 class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
 
@@ -37,7 +37,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = jsonToObject(org as JSON) as Map
+    		json = TestHelpers.jsonToMap(org as JSON)
     	}
 
     	then:
@@ -65,7 +65,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(org as JSON) as Map
+            json = TestHelpers.jsonToMap(org as JSON)
         }
 
         then:
@@ -90,7 +90,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(org as JSON) as Map
+            json = TestHelpers.jsonToMap(org as JSON)
         }
 
         then:

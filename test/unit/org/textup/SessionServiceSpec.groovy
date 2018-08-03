@@ -6,7 +6,7 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 
 @TestFor(SessionService)
@@ -47,7 +47,7 @@ class SessionServiceSpec extends CustomSpec {
     	res.errorMessages[0] == "sessionService.create.noPhone"
 
     	when: "invalid number"
-        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 		res = service.create(p1, [number:"invalid"])
 
     	then:
@@ -97,7 +97,7 @@ class SessionServiceSpec extends CustomSpec {
     	res.errorMessages[0] == "sessionService.update.notFound"
 
     	when: "existing id, invalid"
-        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
     	res = service.update(sess1.id, [isSubscribedToText:"hello"])
 
     	then:

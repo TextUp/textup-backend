@@ -14,6 +14,7 @@ import org.textup.type.TextResponse
 import org.textup.type.VoiceLanguage
 import org.textup.type.VoiceType
 import org.textup.util.CustomSpec
+import org.textup.util.TestHelpers
 import spock.lang.Ignore
 import spock.lang.Shared
 
@@ -27,45 +28,27 @@ class TwimlBuilderSpec extends CustomSpec {
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
+        twimlBuilder(TwimlBuilder)
 	}
+
+    TwimlBuilder builder
 
     def setup() {
     	setupData()
+        builder = TestHelpers.getTwimlBuilder(grailsApplication)
     }
 
     def cleanup() {
     	cleanupData()
     }
 
-    protected MessageSource mockMessageSource() {
-        [getMessage: { String c, Object[] p, Locale l -> c }] as MessageSource
-    }
-    protected LinkGenerator mockLinkGenerator() {
-        [link: { Map m ->
-            (m.params ?: [:]).toString()
-        }] as LinkGenerator
-    }
-    protected String buildXml(Closure data) {
-        StringWriter writer = new StringWriter()
-        MarkupBuilder xmlBuilder = new MarkupBuilder(writer)
-        xmlBuilder(data)
-        writer.toString()
-    }
-
     void "test invalid number responses"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "invalid number for call"
         Result<Closure> res = builder.invalidNumberForCall()
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Say("twimlBuilder.invalidNumber")
                 Hangup()
@@ -77,25 +60,18 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.invalidNumber") }
         })
     }
 
     void "test not found responses"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "not found for call"
         Result<Closure> res = builder.notFoundForCall()
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Say("twimlBuilder.notFound")
                 Hangup()
@@ -107,25 +83,18 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.notFound") }
         })
     }
 
     void "test error responses"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "error for call"
         Result<Closure> res = builder.errorForCall()
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Say("twimlBuilder.error")
                 Hangup()
@@ -137,44 +106,30 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.error") }
         })
     }
 
     void "test no response"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when:
         Result<Closure> res = builder.noResponse()
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({ Response { } })
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({ Response { } })
     }
 
     // Texts
     // -----
 
     void "test texts"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "instructions unsubscribed"
         Result<Closure> res = builder.build(TextResponse.INSTRUCTIONS_UNSUBSCRIBED)
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.text.instructionsUnsubscribed") }
         })
 
@@ -183,7 +138,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.text.instructionsSubscribed") }
         })
 
@@ -208,7 +163,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.noAnnouncements") }
         })
 
@@ -226,7 +181,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Message("twimlBuilder.announcement")
                 Message("twimlBuilder.announcement")
@@ -238,7 +193,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.text.subscribed") }
         })
 
@@ -247,7 +202,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.text.unsubscribed") }
         })
 
@@ -256,19 +211,12 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Message("twimlBuilder.text.blocked") }
         })
     }
 
     void "test building text announcement"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "invalid"
         Result res = builder.build(TextResponse.ANNOUNCEMENT, [:])
 
@@ -283,7 +231,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Message("${info.identifier}: ${info.message}. twimlBuilder.text.announcementUnsubscribe")
             }
@@ -291,13 +239,6 @@ class TwimlBuilderSpec extends CustomSpec {
     }
 
     void "test building text strings"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when:
         String msg1 = "hello"
         String msg2 = "there"
@@ -305,7 +246,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Message(msg2)
                 Message(msg1)
@@ -317,19 +258,12 @@ class TwimlBuilderSpec extends CustomSpec {
     // -----
 
     void "test call utility responses"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when:
         Result<Closure> res = builder.build(CallResponse.END_CALL)
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Hangup() }
         })
 
@@ -338,7 +272,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { }
         })
 
@@ -347,25 +281,18 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response { Reject(reason:"rejected") }
         })
     }
 
     void "test calls without parameters"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "self greeting"
         Result<Closure> res = builder.build(CallResponse.SELF_GREETING)
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Gather(numDigits:10) {
                     Say("twimlBuilder.call.selfGreeting")
@@ -379,7 +306,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Say("twimlBuilder.call.unsubscribed")
                 Say("twimlBuilder.call.goodbye")
@@ -392,7 +319,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Say("twimlBuilder.call.subscribed")
                 Say("twimlBuilder.call.goodbye")
@@ -405,7 +332,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Reject(reason:"rejected")
             }
@@ -413,13 +340,6 @@ class TwimlBuilderSpec extends CustomSpec {
     }
 
     void "test calls for self with parameters"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "self connecting invalid"
         Result<Closure> res = builder.build(CallResponse.SELF_CONNECTING)
 
@@ -436,7 +356,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Say("twimlBuilder.call.selfConnecting")
                 Dial(callerId:displayNum) { Number(num) }
@@ -459,7 +379,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Say("twimlBuilder.call.selfInvalidDigits")
                 Redirect("[:]")
@@ -468,13 +388,6 @@ class TwimlBuilderSpec extends CustomSpec {
     }
 
     void "test calls connect incoming with parameters"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "voicemail invalid"
         Result<Closure> res = builder.build(CallResponse.CHECK_IF_VOICEMAIL)
 
@@ -492,7 +405,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Pause(length:"1")
                 Say(voice:voiceType.toTwimlValue(), awayMsg)
@@ -509,7 +422,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({ Response {} })
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({ Response {} })
 
         when: "connect incoming invalid"
         res = builder.build(CallResponse.CONNECT_INCOMING)
@@ -528,7 +441,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Dial(callerId:dispNum, timeout:"15", answerOnBridge:true,
                     action:linkParams.toString()) {
@@ -552,7 +465,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Gather(numDigits:"1", action:linkParams.toString()) {
                     Pause(length:"1")
@@ -566,13 +479,6 @@ class TwimlBuilderSpec extends CustomSpec {
     }
 
     void "test calls bridge with parameters"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "finish bridge invalid"
         Result res = builder.build(CallResponse.FINISH_BRIDGE)
 
@@ -592,7 +498,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Pause(length:"1")
                 Say("twimlBuilder.call.bridgeNoNumbers")
@@ -607,7 +513,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Pause(length:"1")
                 Say("twimlBuilder.call.bridgeNumberStart")
@@ -628,7 +534,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Pause(length:"1")
                 Say("twimlBuilder.call.bridgeNumberStart")
@@ -650,36 +556,17 @@ class TwimlBuilderSpec extends CustomSpec {
     }
 
     void "test direct calls with parameters"() {
-        given: "twiml builder"
-        int numTimesCalled = 0
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-        builder.tokenService = [
-            buildCallDirectMessageBody: { Closure<String> getMessage, Closure<String> getLink,
-                String token = null, Integer repeatsSoFar = null ->
-                numTimesCalled++
-                null
-            }
-        ] as TokenService
+        given:
+        builder.tokenService = Mock(TokenService)
 
         when: "direct message invalid"
         builder.build(CallResponse.DIRECT_MESSAGE)
 
         then:
-        1 == numTimesCalled
+        1 * builder.tokenService.buildCallDirectMessageBody(*_)
     }
 
     void "test calls announcements with parameters"() {
-        given: "twiml builder"
-        TwimlBuilder builder = new TwimlBuilder()
-        builder.resultFactory = getResultFactory()
-        builder.resultFactory.messageSource = mockMessageSource()
-        builder.messageSource = mockMessageSource()
-        builder.linkGenerator = mockLinkGenerator()
-
         when: "announcement greeting invalid"
         Result<Closure> res = builder.build(CallResponse.ANNOUNCEMENT_GREETING)
 
@@ -694,7 +581,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Gather(numDigits:1) {
                     Say("twimlBuilder.call.announcementGreetingWelcome")
@@ -711,7 +598,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Gather(numDigits:1) {
                     Say("twimlBuilder.call.announcementGreetingWelcome")
@@ -745,7 +632,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Gather(numDigits:1) {
                     Say("twimlBuilder.announcement")
@@ -763,7 +650,7 @@ class TwimlBuilderSpec extends CustomSpec {
 
         then:
         res.success == true
-        buildXml(res.payload) == buildXml({
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Gather(numDigits:1) {
                     Say("twimlBuilder.announcement")
@@ -792,20 +679,18 @@ class TwimlBuilderSpec extends CustomSpec {
         Map params = [identifier:"kiki", message:"hello"]
         res = builder.build(CallResponse.ANNOUNCEMENT_AND_DIGITS, params)
 
-        String bodyString = buildXml({
+        then:
+        res.success == true
+        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
             Say("twimlBuilder.call.announcementIntro")
             Gather(numDigits:1) {
                 Say("twimlBuilder.announcement")
                 Pause(length:"1")
                 Say("twimlBuilder.call.announcementUnsubscribe")
             }
-        }).replaceAll(/<call>|<\/call>/, "").replaceAll(/\s+/, "")
-
-        then:
-        res.success == true
-        buildXml(res.payload).replaceAll(/\s+/, "").contains(bodyString)
-        buildXml(res.payload).contains(params.identifier)
-        buildXml(res.payload).contains(params.message)
-        buildXml(res.payload).contains(CallResponse.ANNOUNCEMENT_AND_DIGITS.toString())
+        })
+        TestHelpers.buildXml(res.payload).contains(params.identifier)
+        TestHelpers.buildXml(res.payload).contains(params.message)
+        TestHelpers.buildXml(res.payload).contains(CallResponse.ANNOUNCEMENT_AND_DIGITS.toString())
     }
 }

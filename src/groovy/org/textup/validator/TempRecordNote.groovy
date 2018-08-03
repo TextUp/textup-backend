@@ -22,9 +22,12 @@ class TempRecordNote {
 		// ensures that note will have at least one of text, location or media
 		// leaves text and location validation to respective domain objects
 		info nullable: false, validator:{ Map noteInfo, TempRecordNote obj ->
-			if (noteInfo == null) { return } // short circuit, handled by nullable error
-			if (!noteInfo.noteContents && !noteInfo.location &&
-				(!obj.note?.media || obj.note.media.isEmpty())) {
+			// short circuit, handled by nullable error
+			if (noteInfo == null) { return }
+			// For existing notes, it's okay if the passed-in info doesn't have so much info as
+			// long as the existing note has enough info
+			if (!noteInfo.noteContents && !noteInfo.location && !obj.note?.noteContents &&
+				!obj.note?.location && (!obj.note?.media || obj.note.media.isEmpty())) {
 				["noInfo"]
 			}
 		}
@@ -47,8 +50,8 @@ class TempRecordNote {
 		// time to artificially insert this note into the appropriate position
 		// in the record. Otherwise, we will preserve the default value
 		tryModifyWhenCreated(note1, this.after)
-        // cascades validation and saving to location -- see `cascade: true` in constraints
-        if (note1.save()) {
+        // cascades validation and saving to location -- see `cascadeValidation: true` in constraints
+        if (note1.save() && (!note1.location || note1.location.save())) {
             Helpers.resultFactory.success(note1)
         }
         else { Helpers.resultFactory.failWithValidationErrors(note1.errors) }

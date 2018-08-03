@@ -2,7 +2,7 @@ package org.textup.rest.marshaller
 
 import grails.converters.JSON
 import org.joda.time.DateTime
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.*
 
 class AnnouncementJsonMarshallerIntegrationSpec extends CustomSpec {
@@ -26,7 +26,7 @@ class AnnouncementJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = jsonToObject(announce as JSON) as Map
+    		json = TestHelpers.jsonToMap(announce as JSON)
     	}
 
     	then:

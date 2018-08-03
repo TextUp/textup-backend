@@ -97,10 +97,10 @@ class UploadItem {
             _image = currImage
             Helpers.resultFactory.success(this)
         }
-        catch (Throwable e) {
-            log.debug("UploadItem.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
-            Helpers.resultFactory.failWithThrowable(e)
-        }
+        // catch (Throwable e) {
+        //     log.debug("UploadItem.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
+        //     Helpers.resultFactory.failWithThrowable(e)
+        // }
         finally { writer?.dispose() }
     }
 
@@ -155,8 +155,11 @@ class UploadItem {
     protected static BufferedImage imageToBufferedImage(Image img) {
         // step 1: convert java.awt.Image to java.awt.image.BufferedImage
         // From https://stackoverflow.com/a/13605411
+        // NOTE that OpenJDK does not have a native JPEG encoder changing the type to
+        // BufferedImage.TYPE_3BYTE_BGR seems to avoid the exception.
+        // See https://stackoverflow.com/a/17845696
         BufferedImage bImg = new BufferedImage(img.getWidth(null), img.getHeight(null),
-            BufferedImage.TYPE_INT_ARGB)
+            BufferedImage.TYPE_3BYTE_BGR)
         // step 2: draw the Image onto the BufferedImage
         Graphics2D graphics = bImg.createGraphics()
         graphics.drawImage(img, 0, 0, null)
@@ -167,7 +170,6 @@ class UploadItem {
 
     protected static byte[] getDataFromImage(BufferedImage bImg, ImageWriter writer,
         ImageWriteParam param) {
-
         ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream()
         byteOutStream.withCloseable {
             ImageOutputStream imgOutStream = ImageIO.createImageOutputStream(byteOutStream)

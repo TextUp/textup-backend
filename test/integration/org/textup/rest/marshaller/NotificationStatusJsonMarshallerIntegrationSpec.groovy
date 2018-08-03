@@ -3,7 +3,7 @@ package org.textup.rest.marshaller
 import grails.converters.JSON
 import org.textup.*
 import org.textup.rest.NotificationStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 
 class NotificationStatusJsonMarshallerIntegrationSpec extends CustomSpec {
 
@@ -25,7 +25,7 @@ class NotificationStatusJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = jsonToObject(stat1 as JSON) as Map
+    		json = TestHelpers.jsonToMap(stat1 as JSON)
     	}
 
     	then:

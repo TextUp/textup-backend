@@ -8,16 +8,11 @@ import java.util.concurrent.TimeUnit
 import java.util.UUID
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.quartz.Scheduler
 import org.quartz.SimpleTrigger
-import org.textup.type.FutureMessageType
-import org.textup.type.RecordItemType
-import org.textup.type.SharePermission
-import org.textup.type.VoiceLanguage
-import org.textup.util.CustomSpec
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.BasicNotification
-import org.textup.validator.OutgoingMessage
-import org.textup.validator.TempRecordReceipt
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.Ignore
 import spock.lang.Shared
 import static org.springframework.http.HttpStatus.*
@@ -25,7 +20,8 @@ import static org.springframework.http.HttpStatus.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy])
+	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @TestFor(FutureMessageService)
 class FutureMessageServiceSpec extends CustomSpec {
@@ -40,6 +36,7 @@ class FutureMessageServiceSpec extends CustomSpec {
     def setup() {
         _numTextsSent = 0
     	setupData()
+        Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj -> new Result() }
     	service.resultFactory = getResultFactory()
         service.messageSource = messageSource
         service.notificationService = [
@@ -69,10 +66,10 @@ class FutureMessageServiceSpec extends CustomSpec {
         SimpleFutureMessage.metaClass.constructor = { Map m->
             def instance = new SimpleFutureMessage()
             instance.properties = m
-            instance.quartzScheduler = mockScheduler()
+            instance.quartzScheduler = TestHelpers.mockScheduler()
             instance
         }
-        OutgoingMessage.metaClass.getMessageSource = { -> mockMessageSource() }
+        OutgoingMessage.metaClass.getMessageSource = { -> TestHelpers.mockMessageSource() }
 
     	fMsg1 = new FutureMessage(record:c1.record, type:FutureMessageType.CALL,
     		message:"hi")
@@ -106,10 +103,11 @@ class FutureMessageServiceSpec extends CustomSpec {
     	res.payload.keyName == fMsg1.keyName
     	res.payload.isDone == true
     }
+
     void "test execute"() {
         given: "overrides and baselines"
-        Phone.metaClass.sendMessage = { OutgoingMessage msg, Staff staff = null,
-            boolean skipCheck = false ->
+        Phone.metaClass.sendMessage = { OutgoingMessage msg, MediaInfo mInfo = null,
+            Staff staff = null, boolean skipOwnerCheck = false ->
             new Result(status:ResultStatus.OK).toGroup()
         }
         addToMessageSource(["futureMessageService.execute.messageNotFound",
@@ -140,7 +138,7 @@ class FutureMessageServiceSpec extends CustomSpec {
     boolean _didSchedule = false
     boolean _didUnschedule = false
     protected void mockForCRUD() {
-        service.metaClass.schedule = { FutureMessage fMsg ->
+        service.metaClass.doSchedule = { FutureMessage fMsg ->
             _didSchedule = true
             new Result(status:ResultStatus.NO_CONTENT, payload:null)
         }
@@ -149,6 +147,7 @@ class FutureMessageServiceSpec extends CustomSpec {
             new Result(status:ResultStatus.NO_CONTENT, payload:null)
         }
     }
+
     void "test set from body for future message"() {
     	given: "an unsaved (new) future message with record"
         mockForCRUD()
@@ -403,9 +402,10 @@ class FutureMessageServiceSpec extends CustomSpec {
     void "test handling language for creation versus updating"() {
         given:
         mockForCRUD()
-
         c1.phone.language = VoiceLanguage.ENGLISH
         c1.phone.save(flush:true, failOnError:true)
+        service.mediaService = Mock(MediaService)
+        service.storageService = Mock(StorageService)
 
         when: "creating withOUT specified language"
         Map info = [
@@ -416,6 +416,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         Result<FutureMessage> res = service.create(c1.record, info)
 
         then: "use phone default"
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload.language == c1.phone.language
@@ -425,6 +427,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.create(c1.record, info)
 
         then: "use specified language"
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload.language != c1.phone.language
@@ -436,6 +440,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.update(res.payload.id, info)
 
         then: "do not change the language"
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.success == true
         res.status == ResultStatus.OK
         res.payload.message == info.message
@@ -446,6 +452,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.update(res.payload.id, info)
 
         then: "update the language"
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.success == true
         res.status == ResultStatus.OK
         res.payload.message == info.message
@@ -457,6 +465,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         given:
         mockForCRUD()
         int fBaseline = FutureMessage.count()
+        service.mediaService = Mock(MediaService)
+        service.storageService = Mock(StorageService)
 
         when: "creating"
         Result<FutureMessage> res = service.createForContact(c1.id,
@@ -464,6 +474,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         FutureMessage.withSession { it.flush() }
 
         then:
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload instanceof FutureMessage
@@ -475,6 +487,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.update(id, [message:msg])
 
         then:
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
@@ -494,6 +508,25 @@ class FutureMessageServiceSpec extends CustomSpec {
         FutureMessage.count() == fBaseline + 1
     }
 
+    void "test uploading media"() {
+        given:
+        Collection<String> errorMsgs
+        Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj ->
+            errorMsgs = obj; new Result();
+        }
+        service.storageService = Mock(StorageService)
+        String uniqueMsg = UUID.randomUUID().toString()
+
+        when:
+        service.tryUploadMedia(null)
+
+        then:
+        1 * service.storageService.uploadAsync(*_) >>
+            new ResultGroup([new Result(status: ResultStatus.BAD_REQUEST, errorMessages: [uniqueMsg])])
+        errorMsgs != null
+        errorMsgs[0] == uniqueMsg
+    }
+
     void "test create errors"() {
     	when: "no record"
         addToMessageSource("futureMessageService.create.noRecordOrInsufficientPermissions")
@@ -505,15 +538,16 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.errorMessages[0] == "futureMessageService.create.noRecordOrInsufficientPermissions"
 
         when: "attempting to create for a view-only shared contact"
+        addToMessageSource("sharedContact.insufficientPermission")
         sc1.permission = SharePermission.VIEW
         sc1.save(flush:true, failOnError:true)
-
+        sc1.resultFactory = getResultFactory()
         res = service.createForSharedContact(sc1.id, [:])
 
         then: "unprocessable entity"
         res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "futureMessageService.create.noRecordOrInsufficientPermissions"
+        res.status == ResultStatus.FORBIDDEN
+        res.errorMessages[0] == "sharedContact.insufficientPermission"
     }
 
     void "test update errors"() {

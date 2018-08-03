@@ -6,7 +6,7 @@ import grails.test.mixin.TestMixin
 import org.springframework.context.MessageSource
 import org.springframework.context.MessageSourceResolvable
 import org.textup.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 
 @Domain([Organization, Location])
 @TestMixin(HibernateTestMixin)
@@ -19,7 +19,7 @@ class ActionContainerSpec extends CustomSpec {
 	// extend CustomSpec solely for access to helper methods, not for setting up test data
 	def setup() {
 		ResultFactory resultFactory = grailsApplication.mainContext.getBean("resultFactory")
-		resultFactory.messageSource = mockMessageSourceWithResolvable()
+		resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 	}
 
 	void "test constraints"() {

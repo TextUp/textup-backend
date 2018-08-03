@@ -119,9 +119,6 @@ class Helpers {
         new ArrayList<K>(data)
             .collate(batchSize)
             .collect { List<K> batch ->
-                // TODO if no session, then wrap in withNewSession closure
-                // NO HIBERNATE SESSION WITHIN NEW THREAD!!
-                // Any calls that will make a db call needs to be made outside of the task closure
                 pList1 << Promises.task { batch.collect(doAction) }
             }
         // step 2: flatten batched results array

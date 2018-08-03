@@ -15,27 +15,55 @@ class OutgoingMessageService {
     ResultFactory resultFactory
     TokenService tokenService
 
-    // Sending
-    // -------
+    // Outgoing calls
+    // --------------
 
-    Result<RecordCall> startBridgeCall(Phone phone, Contactable c1, Staff staff) {
-        PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : phone.number,
-            toNum = staff.personalPhoneNumber
+    Result<RecordCall> startBridgeCall(Phone p1, Contactable c1, Staff s1) {
+        PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : p1.number,
+            toNum = s1.personalPhoneNumber
         Map afterPickup = [contactId:c1.contactId, handle:CallResponse.FINISH_BRIDGE]
         callService.start(fromNum, toNum, afterPickup)
-            .then { TempRecordReceipt receipt ->
-                c1.tryGetRecord()
-                    .then { Record rec1 -> rec1.storeOutgoingCall(staff.toAuthor()) }
-                    .then { RecordCall rCall1 ->
-                        rCall1.addReceipt(receipt)
-                        resultFactory.success(rCall1)
-                    }
+            .then(this.&afterBridgeCall.curry(c1, s1))
+    }
+
+    protected Result<RecordCall> afterBridgeCall(Contactable c1, Staff s1, TempRecordReceipt rpt) {
+        c1.tryGetRecord()
+            .then { Record rec1 -> rec1.storeOutgoingCall(s1.toAuthor()) }
+            .then { RecordCall rCall1 ->
+                rCall1.addReceipt(rpt)
+                resultFactory.success(rCall1, ResultStatus.CREATED)
             }
     }
 
-    Result<Map<Contactable, Result<List<TempRecordReceipt>>>> sendForContactables(Phone phone,
-        List<Contactable> recipients, OutgoingMessage msg1, MediaInfo mInfo = null) {
+    // Outgoing message
+    // ----------------
 
+    ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg1, MediaInfo mInfo = null,
+        Staff staff = null) {
+        // step 1: initialize variables
+        List<Contactable> recipients = msg1.toRecipients().toList()
+        Author author1 = staff?.toAuthor()
+        Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
+            .withDefault { [] as List<TempRecordReceipt> }
+        Closure<List<TempRecordReceipt>> getReceipts = contactIdToReceipts.&get
+        Closure<Void> addReceipts = { Long contactId, TempRecordReceipt r1 ->
+            contactIdToReceipts[contactId]?.add(r1)
+            return
+        }
+        // step 2: perform actions
+        Result<Map<Contactable, Result<List<TempRecordReceipt>>>> res = sendForContactables(phone,
+            recipients, msg1, mInfo)
+        if (res.success) {
+            ResultGroup<RecordItem> resGroup = storeForContactables(msg1, mInfo, author1,
+                addReceipts, res.payload)
+            storeForTags(msg1, mInfo, author1, getReceipts, resGroup)
+            resGroup
+        }
+        else { res.toGroup() }
+    }
+
+    protected Result<Map<Contactable, Result<List<TempRecordReceipt>>>> sendForContactables(Phone phone,
+        List<Contactable> recipients, OutgoingMessage msg1, MediaInfo mInfo = null) {
         try {
             Map<Contactable, Result<List<TempRecordReceipt>>> resultMap = [:]
             // this returns a call token that has ALREADY BEEN SAVED. If a call token is returned
@@ -47,7 +75,6 @@ class OutgoingMessageService {
                     Pair.of(c1, mediaService.sendWithMedia(c1.fromNum, c1.sortedNumbers,
                         msg1.message, mInfo, callToken))
                 })
-
             resList.each { Pair<Contactable, Result<List<TempRecordReceipt>>> pair ->
                 resultMap[pair.left] = pair.right
             }
@@ -60,53 +87,64 @@ class OutgoingMessageService {
         }
     }
 
-    // Storing
-    // -------
-
     // Note: MediaInfo may be null
-    ResultGroup<RecordItem> storeForContactables(OutgoingMessage msg1, MediaInfo mInfo,
+    protected ResultGroup<RecordItem> storeForContactables(OutgoingMessage msg1, MediaInfo mInfo,
         Author author1, Closure<Void> doWhenAddingReceipt,
         Map<Contactable, Result<List<TempRecordReceipt>>> contactableToReceiptResults) {
 
         ResultGroup<RecordItem> resGroup = new ResultGroup<>()
         contactableToReceiptResults.each { Contactable c1, Result<List<TempRecordReceipt>> res ->
             resGroup << res.then { List<TempRecordReceipt> receipts ->
-                c1.tryGetRecord().then { Record rec1 ->
-                    Result<? extends RecordItem> storeRes = msg1.isText ?
-                        rec1.storeOutgoingText(msg1.message, author1, mInfo) :
-                        rec1.storeOutgoingCall(author1, msg1.message, mInfo)
-                    storeRes.then { RecordItem item1 ->
-                        receipts.each { TempRecordReceipt receipt ->
-                            item1.addReceipt(receipt)
-                            doWhenAddingReceipt(c1.contactId, receipt)
-                        }
-                        resultFactory.success(item1, ResultStatus.CREATED)
-                    }
-                }
+                // do not curry for mocking during testing
+                storeForSingleContactable(msg1, mInfo, author1, doWhenAddingReceipt, c1, receipts)
             }
         }
         resGroup
     }
+    protected Result<RecordItem> storeForSingleContactable(OutgoingMessage msg1, MediaInfo mInfo,
+        Author author1, Closure<Void> doWhenAddingReceipt, Contactable c1,
+        List<TempRecordReceipt> receipts) {
+
+        Result<Record> res = c1.tryGetRecord()
+        if (!res.success) { return res }
+        Record rec1 = res.payload
+        Result<? extends RecordItem> storeRes = msg1.isText ?
+            rec1.storeOutgoingText(msg1.message, author1, mInfo) :
+            rec1.storeOutgoingCall(author1, msg1.message, mInfo)
+        storeRes.then { RecordItem item1 ->
+            receipts.each { TempRecordReceipt rpt ->
+                item1.addReceipt(rpt)
+                doWhenAddingReceipt(c1.contactId, rpt)
+            }
+            resultFactory.success(item1, ResultStatus.CREATED)
+        }
+    }
 
     // Note: MediaInfo may be null
-    ResultGroup<RecordItem> storeForTags(OutgoingMessage msg1, MediaInfo mInfo, Author author1,
+    protected ResultGroup<RecordItem> storeForTags(OutgoingMessage msg1, MediaInfo mInfo, Author author1,
         Closure<List<TempRecordReceipt>> getReceiptsFromContactId, ResultGroup<RecordItem> resGroup) {
         if (resGroup.anySuccesses) {
-            msg1.tags.each { ContactTag ct1 ->
-                Result<? extends RecordItem> storeRes = msg1.isText ?
-                    ct1.record.storeOutgoingText(msg1.message, author1, mInfo) :
-                    ct1.record.storeOutgoingCall(author1, msg1.message, mInfo)
-                resGroup << storeRes.then { RecordItem tagItem ->
-                    ct1.members.each { Contact c1 ->
-                        // add contact msg's receipts to tag's msg
-                        getReceiptsFromContactId(c1.id)?.each { TempRecordReceipt r ->
-                            tagItem.addReceipt(r)
-                        }
-                    }
-                    resultFactory.success(tagItem, ResultStatus.CREATED)
-                }
+            msg1.tags?.recipients?.each { ContactTag ct1 ->
+                // do not curry for mocking during testing
+                resGroup << storeForSingleTag(msg1, mInfo, author1, getReceiptsFromContactId, ct1)
             }
         }
         resGroup
+    }
+    protected Result<RecordItem> storeForSingleTag(OutgoingMessage msg1, MediaInfo mInfo, Author author1,
+        Closure<List<TempRecordReceipt>> getReceiptsFromContactId, ContactTag ct1) {
+
+        Result<? extends RecordItem> storeRes = msg1.isText ?
+            ct1.record.storeOutgoingText(msg1.message, author1, mInfo) :
+            ct1.record.storeOutgoingCall(author1, msg1.message, mInfo)
+        storeRes.then { RecordItem tagItem ->
+            ct1.members.each { Contact c1 ->
+                // add contact msg's receipts to tag's msg
+                getReceiptsFromContactId(c1.id)?.each { TempRecordReceipt rpt ->
+                    tagItem.addReceipt(rpt)
+                }
+            }
+            resultFactory.success(tagItem, ResultStatus.CREATED)
+        }
     }
 }

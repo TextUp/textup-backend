@@ -162,6 +162,9 @@ class FutureMessageService {
 
     @RollbackOnResultFailure
     protected Result<FutureMessage> create(Record rec, Map body, String timezone = null) {
+
+        println "create"
+
         if (!rec) {
             return resultFactory.failWithCodeAndStatus(
                 "futureMessageService.create.noRecordOrInsufficientPermissions",
@@ -178,22 +181,33 @@ class FutureMessageService {
             }
             else { return mediaRes }
         }
+
+        println "\t itemsToUpload: $itemsToUpload"
+
         // step 2: create future message
         SimpleFutureMessage fm0 = new SimpleFutureMessage(record: rec, media: mInfo)
         setFromBody(fm0, body, timezone).then { FutureMessage fm1 ->
-            fm1.language = Helpers.withDefault(
-                Helpers.convertEnum(VoiceLanguage, body.language),
-                rec.language
-            )
+
+            println "\t fm1: $fm1"
+
+            fm1.language = Helpers.withDefault(Helpers.convertEnum(VoiceLanguage, body.language),
+                rec.language)
             // step 3: upload media, if needed
-            Collection<String> errorMsgs = []
-            storageService.uploadAsync(itemsToUpload)
-                .failures
-                .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-            Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
-                .logFail("FutureMessageService.create")
+            tryUploadMedia(itemsToUpload)
             resultFactory.success(fm1, ResultStatus.CREATED)
         }
+    }
+
+    protected void tryUploadMedia(Collection<UploadItem> itemsToUpload) {
+
+        println "tryUploadMedia"
+
+        Collection<String> errorMsgs = []
+        storageService.uploadAsync(itemsToUpload)
+            .failures
+            .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+        Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
+            .logFail("FutureMessageService.tryUploadMedia")
     }
 
     // Update
@@ -209,23 +223,16 @@ class FutureMessageService {
         // step 1: handle media upload, storing upload errors on request
         Collection<UploadItem> itemsToUpload = []
         if (mediaService.hasMediaActions(body)) {
-            if (!fMsg.media) {
-                fMsg.media = new MediaInfo()
-            }
-            Result<MediaInfo> mediaRes = mediaService.handleActions(fMsg.media,
+            Result<MediaInfo> mediaRes = mediaService.handleActions(fMsg.media ?: new MediaInfo(),
                 itemsToUpload.&addAll, body)
-            if (!mediaRes.success) { return mediaRes }
+            if (mediaRes.success) {
+                fMsg.media = mediaRes.payload
+            }
+            else { return mediaRes }
         }
         // step 2: update future message
         setFromBody(fMsg, body, timezone).then { FutureMessage fm1 ->
-            // step 3: upload media, if needed
-            Collection<String> errorMsgs = []
-            storageService.uploadAsync(itemsToUpload)
-                .failures
-                .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-            Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
-                .logFail("FutureMessageService.update")
-
+            tryUploadMedia(itemsToUpload)
             resultFactory.success(fm1)
         }
     }

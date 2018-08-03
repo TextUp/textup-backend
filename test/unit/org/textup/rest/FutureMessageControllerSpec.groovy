@@ -10,7 +10,7 @@ import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.FutureMessageType
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
@@ -33,7 +33,7 @@ class FutureMessageControllerSpec extends CustomSpec {
         JodaConverters.registerJsonAndXmlMarshallers()
         fMsg1 = new FutureMessage(record: c1.record, type:FutureMessageType.CALL,
         	message:"hi")
-        fMsg1.quartzScheduler = mockScheduler()
+        fMsg1.quartzScheduler = TestHelpers.mockScheduler()
         fMsg1.save(flush:true, failOnError:true)
     }
     def cleanup() {

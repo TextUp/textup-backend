@@ -41,6 +41,26 @@ class NotificationService {
         resultFactory.success()
 	}
 
+    Result<NotificationPolicy> update(NotificationPolicy np1, Map body, String timezone) {
+        if (Helpers.to(Boolean, body.useStaffAvailability) != null) {
+            np1.useStaffAvailability = Helpers.to(Boolean, body.useStaffAvailability)
+        }
+        if (Helpers.to(Boolean, body.manualSchedule) != null) {
+            np1.manualSchedule = Helpers.to(Boolean, body.manualSchedule)
+        }
+        if (Helpers.to(Boolean, body.isAvailable) != null) {
+            np1.isAvailable = Helpers.to(Boolean, body.isAvailable)
+        }
+        if (body.schedule instanceof Map) {
+            Result<Schedule> res = np1.updateSchedule(body.schedule as Map, timezone)
+            if (!res.success) { return res }
+        }
+        if (np1.save()) {
+            resultFactory.success(np1)
+        }
+        else { resultFactory.failWithValidationErrors(np1.errors) }
+    }
+
 	// Building notifications
 	// ----------------------
 
@@ -86,7 +106,7 @@ class NotificationService {
         // respect the gated getRecord method on the SharedContact, then those with view-only
         // permissions will not receive notifications or incoming calls
 		sharedContacts.each { SharedContact sc1 ->
-            sc1.tryGetRecord().then { Record rec1 ->
+            sc1.tryGetRecord().thenEnd { Record rec1 ->
                 phoneIdToRecord[sc1.sharedWith.id] = rec1
                 allPhones << sc1.sharedWith
                 recordIds << rec1.id

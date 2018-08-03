@@ -7,106 +7,136 @@ import org.textup.*
 import org.textup.type.AuthorType
 import org.textup.type.ReceiptStatus
 import org.textup.type.RecordItemType
-import org.textup.util.CustomSpec
+import org.textup.util.TestHelpers
 import org.textup.validator.Author
 import org.textup.validator.TempRecordReceipt
+import spock.lang.*
 
-class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
+class RecordItemJsonMarshallerIntegrationSpec extends Specification {
 
     def grailsApplication
+    Record rec
 
     def setup() {
-    	setupIntegrationData()
-    }
-
-    def cleanup() {
-    	cleanupIntegrationData()
+    	rec = new Record()
+        rec.save(flush: true, failOnError: true)
     }
 
     protected boolean validate(Map json, RecordItem item) {
         assert json.id == item.id
         assert json.whenCreated == item.whenCreated.toString()
         assert json.outgoing == item.outgoing
-        assert json.contact == Contact.findByRecord(item.record).id
         assert json.hasAwayMessage == item.hasAwayMessage
         assert json.isAnnouncement == item.isAnnouncement
-        assert json.contact != null || json.tag != null
-        if (json.contact) {
-            assert Contact.exists(json.contact)
-        }
-        else if (json.tag) {
-            assert ContactTag.exists(json.tag)
-        }
+        assert json.receipts instanceof Map
+        assert json.media instanceof Map
+        assert json.authorName == item.authorName
+        assert json.authorId == item.authorId
+        assert json.authorType == item.authorType.toString()
+        assert json.noteContents == item.noteContents
+        // did not mock up contacts or tags so these both should be null
+        assert json.contact == null
+        assert json.tag == null
         true
     }
 
-    void "test marshalling call with author and receipts"() {
+    void "test marshalling voicemail"() {
         given: "call"
-        Author author = new Author(id:s1.id, name:s1.name, type:AuthorType.STAFF)
-        RecordCall rCall1 = c1.record.addCall([:], author).payload
-        TempRecordReceipt r1 = new TempRecordReceipt(status:ReceiptStatus.BUSY,
-            apiId:"apiId", contactNumberAsString:"1112223333")
-        assert r1.validate()
-        rCall1.addReceipt(r1)
+        RecordCall rCall1 = new RecordCall(record: rec,
+            durationInSeconds: 88,
+            voicemailInSeconds: 12,
+            hasAwayMessage: true,
+            noteContets: "hello",
+            authorName: "yes",
+            authorId: 88L,
+            authorType: AuthorType.STAFF,
+            media: new MediaInfo())
+        rCall1.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.BUSY))
         rCall1.save(flush:true, failOnError:true)
 
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = jsonToObject(rCall1 as JSON) as Map
+    		json = TestHelpers.jsonToMap(rCall1 as JSON)
     	}
 
     	then:
     	validate(json, rCall1)
-        json.type == RecordItemType.CALL.toString()
         json.durationInSeconds == rCall1.durationInSeconds
-        json.hasVoicemail == rCall1.hasVoicemail
-        json.authorName == rCall1.authorName
-        json.authorId == rCall1.authorId
-        json.authorType == rCall1.authorType.toString()
-        json.receipts instanceof List
-        json.receipts.size() == rCall1.receipts.size()
-        json.receipts[0].id != null
-        json.receipts[0].status == r1.status.toString()
-        json.receipts[0].contactNumber == r1.contactNumber.e164PhoneNumber
+        json.hasVoicemail == true
+        json.voicemailUrl == json.voicemailUrl
+        json.voicemailInSeconds == json.voicemailInSeconds
+        json.type == RecordItemType.CALL.toString()
     }
 
-    void "test marshalling text without author or receipts"() {
-        given: "text without author or receipts"
-        assert rText1.receipts == null
-        assert rText1.authorName == null
-        assert rText1.authorId == null
-        assert rText1.authorType == null
+    void "test marshalling call without voicemail"() {
+        given: "call"
+        RecordCall rCall1 = new RecordCall(record: rec,
+            durationInSeconds: 88,
+            voicemailInSeconds: 0,
+            hasAwayMessage: false,
+            noteContets: "hello",
+            authorName: "yes",
+            authorId: 88L,
+            authorType: AuthorType.STAFF,
+            media: new MediaInfo())
+        rCall1.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.BUSY))
+        rCall1.save(flush:true, failOnError:true)
 
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(rText1 as JSON) as Map
+            json = TestHelpers.jsonToMap(rCall1 as JSON)
+        }
+
+        then:
+        validate(json, rCall1)
+        json.durationInSeconds == rCall1.durationInSeconds
+        json.hasVoicemail == false
+        json.voicemailUrl == null
+        json.voicemailInSeconds == null
+        json.type == RecordItemType.CALL.toString()
+    }
+
+    void "test marshalling text"() {
+        given:
+        RecordText rText1 = new RecordText(record: rec,
+            contents: "hope you're having a great day today!",
+            noteContets: "hello",
+            authorName: "yes",
+            authorId: 88L,
+            authorType: AuthorType.STAFF,
+            media: new MediaInfo())
+        rText1.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.BUSY))
+        rText1.save(flush:true, failOnError:true)
+
+        when:
+        Map json
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = TestHelpers.jsonToMap(rText1 as JSON)
         }
 
         then:
         validate(json, rText1)
-        json.type == RecordItemType.TEXT.toString()
         json.contents == rText1.contents
-        json.authorName == null
-        json.authorId == null
-        json.authorType == null
-        json.receipts == null
+        json.type == RecordItemType.TEXT.toString()
     }
 
     void "test marshalling note with revisions, location, images, upload links"() {
         given: "note with revisions, location, images, upload links"
-        RecordNote note1 = new RecordNote(record:c1.record, noteContents:"i am note contents")
-        //images
-        Collection<String> imageKeys = ["key1", "key2"]
-        note1.setImageKeys(imageKeys)
+        RecordNote note1 = new RecordNote(record: rec,
+            noteContets: "i am note contents",
+            authorName: "yes",
+            authorId: 88L,
+            authorType: AuthorType.STAFF,
+            media: new MediaInfo(),
+            location: new Location(address: "hi", lat: 0G, lon: 0G))
         note1.save(flush:true, failOnError:true)
         //revision
-        RecordNoteRevision rev1 = note1.createRevision()
-        rev1.save(flush:true, failOnError:true)
-        //location
-        note1.location = new Location(address:"hi", lat:8G, lon:8G)
-        note1.location.save(flush:true, failOnError:true)
+        note1.authorName = "Kiki"
+        note1.tryCreateRevision()
+        note1.save(flush: true, failOnError: true)
+        assert note1.revisions?.size() == 1
         //upload links
         HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
         List<String> errorMessages = ["error1", "error2"]
@@ -115,21 +145,19 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(note1 as JSON) as Map
+            json = TestHelpers.jsonToMap(note1 as JSON)
         }
 
         then:
         validate(json, note1)
         json.whenChanged == note1.whenChanged.toString()
         json.isDeleted == note1.isDeleted
+        json.isReadOnly == note1.isReadOnly
         json.revisions instanceof List
         json.revisions.size() == 1
-        json.noteContents == note1.noteContents
         json.location instanceof Map
         json.location.id == note1.location.id
-        json.images instanceof List
-        json.images.size() == imageKeys.size()
-        imageKeys.every { String key -> json.images.find { it.key.contains(key) } }
+
         json.uploadErrors instanceof List
         json.uploadErrors.size() == errorMessages.size()
         errorMessages.every { String msg -> json.uploadErrors.find { it.contains(msg) } }

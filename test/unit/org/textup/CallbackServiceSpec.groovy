@@ -1,5 +1,6 @@
 package org.textup
 
+import com.twilio.security.RequestValidator
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -10,24 +11,18 @@ import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
-import org.textup.type.CallResponse
-import org.textup.type.PhoneOwnershipType
-import org.textup.type.ReceiptStatus
-import org.textup.type.RecordItemType
-import org.textup.type.StaffStatus
-import org.textup.type.TextResponse
-import org.textup.util.CustomSpec
-import org.textup.validator.IncomingText
-import org.textup.validator.PhoneNumber
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.Ignore
 import spock.lang.Shared
-import static org.springframework.http.HttpStatus.*
 
 @TestFor(CallbackService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
+	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class CallbackServiceSpec extends CustomSpec {
 
@@ -111,27 +106,66 @@ class CallbackServiceSpec extends CustomSpec {
     	params.test3 == null
     }
 
-    void "test validating request from twilio"() {
-    	when:
-    	String url = "https://www.example.com"
-    	String queryString = "test3=bye&"
-    	String toMatch = Helpers.getBase64HmacSHA1(
-    		"${url}?${queryString}test1hellotest2bye", _authToken)
-    	HttpServletRequest request = [
-    		getParameterMap: { [test1:"hello", test2:"bye"] },
-    		getQueryString: { queryString },
-    		getRequestURL: { new StringBuffer(url) },
-			getRequestURI: { "" },
-			getAttribute: { String n -> "" },
-			getHeader: { String n -> toMatch }
-    	] as HttpServletRequest
-        request.metaClass.forwardURI = ""
-    	GrailsParameterMap allParams = new GrailsParameterMap([test1:"hello",
-    		test2:"bye", test3:"kiki"], request)
-    	Result res = service.validate(request, allParams)
+    void "test getting browser URL"() {
+        given:
+        HttpServletRequest mockRequest = GroovyMock(HttpServletRequest) // to mock forwardURI
 
-    	then:
-    	res.success == true
+        when:
+        String result = service.getBrowserURL(mockRequest)
+
+        then:
+        1 * mockRequest.requestURL >> new StringBuffer("https://www.example.com/a.html")
+        1 * mockRequest.requestURI >> "/a.html"
+        1 * mockRequest.forwardURI >> "/b.html"
+        2 * mockRequest.queryString >> "test3=bye&"
+        result == "https://www.example.com/b.html?test3=bye&"
+    }
+
+    void "test validating request from twilio"() {
+        given:
+        HttpServletRequest mockRequest = GroovyMock(HttpServletRequest) // to mock forwardURI
+        RequestValidator allValidators = GroovySpy(RequestValidator,
+            constructorArgs: ["valid auth token"], global: true)
+        service.grailsApplication = Mock(GrailsApplication)
+        GrailsParameterMap allParams = new GrailsParameterMap([:], mockRequest)
+        addToMessageSource("callbackService.validate.invalid")
+
+        when: "missing auth header"
+        Result<Void> res = service.validate(mockRequest, allParams)
+
+        then:
+        1 * mockRequest.getHeader(*_) >> null
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "callbackService.validate.invalid"
+
+        when: "invalid"
+        res = service.validate(mockRequest, allParams)
+
+        then:
+        1 * mockRequest.getHeader("x-twilio-signature") >> "a valid auth header"
+        1 * mockRequest.requestURL >> new StringBuffer("https://www.example.com/a.html")
+        1 * mockRequest.requestURI
+        1 * mockRequest.forwardURI
+        (1.._) * mockRequest.queryString
+        1 * mockRequest.parameterMap >> [:]
+        1 * service.grailsApplication.flatConfig >> ["textup.apiKeys.twilio.authToken": "token"]
+        1 * allValidators.validate(*_) >> false
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "callbackService.validate.invalid"
+
+        when: "valid"
+        res = service.validate(mockRequest, allParams)
+
+        then:
+        1 * mockRequest.getHeader("x-twilio-signature") >> "a valid auth header"
+        1 * mockRequest.requestURL >> new StringBuffer("https://www.example.com/a.html")
+        1 * mockRequest.requestURI
+        1 * mockRequest.forwardURI
+        (1.._) * mockRequest.queryString
+        1 * mockRequest.parameterMap >> [:]
+        1 * service.grailsApplication.flatConfig >> ["textup.apiKeys.twilio.authToken": "token"]
+        1 * allValidators.validate(*_) >> true
+        res.status == ResultStatus.NO_CONTENT
     }
 
     // Process
@@ -160,7 +194,7 @@ class CallbackServiceSpec extends CustomSpec {
     	res.errorMessages[0] == "callbackService.process.invalid"
     }
 
-    void "test process for invalid (non-US) numbers"() {
+    void "test process for non-US numbers"() {
         when: "incoming is non-US number for text"
         HttpServletRequest request = [:] as HttpServletRequest
         GrailsParameterMap params = new GrailsParameterMap([To:"blah", From:"invalid", MessageSid:"ok"], request)
@@ -207,31 +241,137 @@ class CallbackServiceSpec extends CustomSpec {
         res.payload == CallResponse.END_CALL
     }
 
-    void "test process for texts"() {
-    	given:
-    	int iBaseline = IncomingSession.count()
+        void "test handling sessions"() {
+            given:
+            PhoneNumber originalFromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+            PhoneNumber fromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+            PhoneNumber toNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+            [originalFromNumber, fromNumber, toNumber].each { assert it.validate() }
+            HttpServletRequest mockRequest = Mock(HttpServletRequest)
+            GrailsParameterMap params = new GrailsParameterMap(
+                [originalFrom: originalFromNumber.number], mockRequest)
+            int iBaseline = IncomingSession.count()
 
-    	when: "receive text for nonexistent session"
-    	HttpServletRequest request = [:] as HttpServletRequest
-    	String fromNum = "1233834920"
-    	GrailsParameterMap params = new GrailsParameterMap([To:p1.numberAsString,
-    		From:fromNum, MessageSid:"iamasid!!", Body:"u r awsum"], request)
-    	assert IncomingSession.findByNumberAsString(fromNum) == null
-    	Result<Closure> res = service.process(params)
+            when: "CallResponse.FINISH_BRIDGE + new phone number"
+            params.handle = CallResponse.FINISH_BRIDGE.toString()
+            Result<IncomingSession> res = service.getOrCreateIncomingSession(p1, fromNumber,
+                toNumber, params)
 
-    	then: "new session is created"
-		IncomingSession.count() == iBaseline + 1
-		res.success == true
-		res.payload == "receiveText"
+            then:
+            IncomingSession.count() == iBaseline + 1
+            res.status == ResultStatus.OK
+            res.payload.numberAsString == toNumber.number
 
-   		when: "receive for existing session"
-   		res = service.process(params)
+            when: "CallResponse.ANNOUNCEMENT_AND_DIGITS + existing phone number"
+            params.handle = CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()
+            res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
 
-   		then: "no duplicate session is created"
-   		IncomingSession.count() == iBaseline + 1
-		res.success == true
+            then:
+            IncomingSession.count() == iBaseline + 1
+            res.status == ResultStatus.OK
+            res.payload.numberAsString == toNumber.number
+
+            when: "CallResponse.SCREEN_INCOMING + new phone number"
+            params.handle = CallResponse.SCREEN_INCOMING.toString()
+            res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
+
+            then:
+            IncomingSession.count() == iBaseline + 2
+            res.status == ResultStatus.OK
+            res.payload.numberAsString == originalFromNumber.number
+
+            when: "another valid call response + new phone number"
+            params.handle = "another valid call response"
+            res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
+
+            then:
+            IncomingSession.count() == iBaseline + 3
+            res.status == ResultStatus.OK
+            res.payload.numberAsString == fromNumber.number
+        }
+
+    void "test handling incoming media"() {
+        given: "this method assumes numMedia > 0"
+        service.mediaService = Mock(MediaService)
+        HttpServletRequest mockRequest = Mock(HttpServletRequest)
+        GrailsParameterMap params = new GrailsParameterMap([:], mockRequest)
+        List<String> urls = []
+        int numMedia = 2
+        numMedia.times {
+            String mockUrl = UUID.randomUUID().toString()
+            urls << mockUrl
+            params["MediaUrl${it}"] = mockUrl
+            params["MediaContentType${it}"] = Constants.MIME_TYPE_JPEG
+        }
+        Map<String, String> urlToMimeType
+
+        when:
+        Result res = service.handleMedia(numMedia, { a1 -> }, { a1 -> }, params)
+
+        then:
+        1 * service.mediaService.buildFromIncomingMedia(*_) >> { builtMap, a1, a2 ->
+            urlToMimeType = builtMap; new Result();
+        }
         res.status == ResultStatus.OK
-		res.payload == "receiveText"
+        urlToMimeType != null
+        urls.every { it in urlToMimeType.keySet() }
+        urlToMimeType.values().every { it == Constants.MIME_TYPE_JPEG }
+    }
+
+    void "test uploading and delete media after relaying text"() {
+        given:
+        service.storageService = Mock(StorageService)
+        service.mediaService = Mock(MediaService)
+
+        when: "missing items to upload"
+        service.uploadAndDeleteMedia(null, null, null)
+
+        then:
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        0 * service.mediaService.deleteMedia(*_)
+
+        when: "has items, but has some upload errors"
+        service.uploadAndDeleteMedia(null, [new UploadItem()], null)
+
+        then:
+        1 * service.storageService.uploadAsync(*_) >>
+            new ResultGroup([new Result(status: ResultStatus.BAD_REQUEST)])
+        0 * service.mediaService.deleteMedia(*_)
+
+        when: "has items and all uploads successful"
+        service.uploadAndDeleteMedia(null, [new UploadItem()], null)
+
+        then:
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.mediaService.deleteMedia(*_) >> new Result()
+    }
+
+    void "test processing text overall"() {
+        given:
+        service.mediaService = Mock(MediaService)
+        service.storageService = Mock(StorageService)
+        Phone mockPhone = Mock(Phone)
+        HttpServletRequest mockRequest = Mock(HttpServletRequest)
+        GrailsParameterMap params = new GrailsParameterMap([Body: "hello"], mockRequest)
+
+        when: "no media"
+        params.NumMedia = 0
+        Result res = service.processText(mockPhone, null, "apiId", params)
+
+        then:
+        1 * mockPhone.receiveText(*_) >> new Result()
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        0 * service.mediaService._
+
+        when: "with media"
+        params.NumMedia = 5
+        res = service.processText(mockPhone, null, "apiId", params)
+
+        then:
+        1 * service.mediaService.buildFromIncomingMedia(*_) >> new Result()
+        1 * mockPhone.receiveText(*_) >> new Result()
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        0 * service.mediaService.deleteMedia(*_)
     }
 
     void "test process for incoming calls and voicemail"() {

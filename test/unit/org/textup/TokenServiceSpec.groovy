@@ -7,14 +7,13 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
-import groovy.xml.MarkupBuilder
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.hibernate.Session
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.springframework.context.MessageSource
 import org.textup.type.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Shared
 
@@ -424,7 +423,7 @@ class TokenServiceSpec extends CustomSpec {
         Closure response = service.buildCallResponse("1", "2", VoiceLanguage.ENGLISH, "3")
 
         then:
-        buildXml(response) == buildXml({
+        TestHelpers.buildXml(response) == TestHelpers.buildXml({
             Say("1")
             Pause(length:"1")
             Say(language:VoiceLanguage.ENGLISH.toTwimlValue(), "2")
@@ -435,7 +434,7 @@ class TokenServiceSpec extends CustomSpec {
         response = service.buildCallEnd()
 
         then:
-        buildXml(response) == buildXml({ Hangup() })
+        TestHelpers.buildXml(response) == TestHelpers.buildXml({ Hangup() })
     }
 
     void "test building call direct message body from token"() {
@@ -474,7 +473,7 @@ class TokenServiceSpec extends CustomSpec {
             Constants.MAX_REPEATS * 2)
 
         then:
-        buildXml(response) == buildXml({ Hangup() })
+        TestHelpers.buildXml(response) == TestHelpers.buildXml({ Hangup() })
         null == passedInArgs
         null == passedInParams
 
@@ -483,7 +482,7 @@ class TokenServiceSpec extends CustomSpec {
         Map<String, ?> tData = tok1.data
 
         then: "repeat count initialized to 1"
-        buildXml(response) == buildXml({
+        TestHelpers.buildXml(response) == TestHelpers.buildXml({
             Say("twimlBuilder.call.messageIntro")
             Pause(length:"1")
             Say(language:VoiceLanguage.ENGLISH.toTwimlValue(), tData.message)
@@ -491,15 +490,5 @@ class TokenServiceSpec extends CustomSpec {
         })
         passedInArgs == [tData.identifier]
         passedInParams == [handle: CallResponse.DIRECT_MESSAGE, token: tok1.token, repeatCount: 1]
-    }
-
-    // Test helpers
-    // ------------
-
-    protected String buildXml(Closure data) {
-        StringWriter writer = new StringWriter()
-        MarkupBuilder xmlBuilder = new MarkupBuilder(writer)
-        xmlBuilder(data)
-        writer.toString()
     }
 }

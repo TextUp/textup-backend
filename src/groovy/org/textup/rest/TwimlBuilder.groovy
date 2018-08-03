@@ -1,11 +1,10 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.TypeCheckingMode
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
 import org.ocpsoft.prettytime.PrettyTime
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
 import org.textup.*
@@ -16,13 +15,10 @@ import org.textup.type.VoiceType
 
 class TwimlBuilder {
 
-    @Autowired
+    // manually wired by reference in `resources.groovy` to enable mocking during testing
     LinkGenerator linkGenerator
-    @Autowired
     MessageSource messageSource
-    @Autowired
     ResultFactory resultFactory
-    @Autowired
     TokenService tokenService
 
     // Errors
@@ -109,16 +105,16 @@ class TwimlBuilder {
     // Utility methods
     // ---------------
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected String getMessage(String code, Collection<String> args=[]) {
         messageSource.getMessage(code, args as Object[], LCH.getLocale())
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected String getLink(Map linkParams=[:]) {
         linkGenerator.link(namespace:"v1", resource:"publicRecord", action:"save",
             params:linkParams, absolute:true)
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected List<String> formatAnnouncements(List<FeaturedAnnouncement> announces) {
         if (announces) {
             announces.collect { FeaturedAnnouncement announce ->
@@ -128,7 +124,7 @@ class TwimlBuilder {
         }
         else { [getMessage("twimlBuilder.noAnnouncements")] }
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected String formatAnnouncement(DateTime dt, String identifier, String msg) {
         String timeAgo = new PrettyTime(LCH.getLocale()).format(dt.toDate())
         getMessage("twimlBuilder.announcement", [timeAgo, identifier, msg])

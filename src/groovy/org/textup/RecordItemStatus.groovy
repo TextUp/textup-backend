@@ -10,7 +10,7 @@ class RecordItemStatus {
 
     RecordItemStatus() {}
     RecordItemStatus(Collection<RecordItemReceipt> rpts) {
-        rpts?.each(add)
+        rpts?.each(this.&add)
     }
 
     void add(RecordItemReceipt rpt1) {

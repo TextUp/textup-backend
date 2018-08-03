@@ -13,7 +13,7 @@ class CascadeValidationConstraintSpec extends Specification {
         when: "a single association"
         InvalidSingle invalidSingle = new InvalidSingle(address: "hi")
 
-        then: "`cascade: true` ignored because `supports` returns false"
+        then: "`cascadeValidation: true` ignored because `supports` returns false"
         invalidSingle.validate()
 
         when: "a collection"
@@ -98,7 +98,7 @@ class CascadeValidationConstraintSpec extends Specification {
         String address
 
         static constraints = {
-            address cascade: true
+            address cascadeValidation: true
         }
     }
 
@@ -107,7 +107,7 @@ class CascadeValidationConstraintSpec extends Specification {
         List<String> address
 
         static constraints = {
-            address cascade: true
+            address cascadeValidation: true
         }
     }
 
@@ -116,7 +116,7 @@ class CascadeValidationConstraintSpec extends Specification {
         List<String> address
 
         static constraints = {
-            address cascade: "not a boolean but needs to be one"
+            address cascadeValidation: "not a boolean but needs to be one"
         }
     }
 
@@ -126,8 +126,8 @@ class CascadeValidationConstraintSpec extends Specification {
         List<ValidateableChild> childList
 
         static constraints = { // default nullable: false
-            child cascade: true, nullable: true
-            childList cascade: true, nullable: true
+            child cascadeValidation: true, nullable: true
+            childList cascadeValidation: true, nullable: true
         }
     }
 

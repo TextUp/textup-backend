@@ -4,7 +4,7 @@ import grails.converters.JSON
 import org.textup.*
 import org.textup.rest.StaffPolicyAvailability
 import org.textup.Schedule
-import org.textup.util.CustomSpec
+import org.textup.util.*
 
 class StaffPolicyAvailabilityJsonMarshallerIntegrationSpec extends CustomSpec {
 
@@ -34,7 +34,7 @@ class StaffPolicyAvailabilityJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(spa1 as JSON) as Map
+            json = TestHelpers.jsonToMap(spa1 as JSON)
         }
 
         then:

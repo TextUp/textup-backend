@@ -1,6 +1,6 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.commons.GrailsApplication
@@ -9,21 +9,18 @@ import org.textup.*
 import org.textup.rest.*
 import org.textup.type.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Log4j
 class RecordItemJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, ReadOnlyRecordItem item ->
 
-        List<String> uploadErrors = []
-        Helpers.<List<String>>tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
-            .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
-            .then { List<String> errors -> uploadErrors = errors }
-
         Map json = [:]
-        if (uploadErrors) {
-            json.uploadErrors = uploadErrors
-        }
+
+        Result<?> res = Helpers.tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
+            .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
+        if (res.success) { json.uploadErrors = res.payload }
+
         json.with {
             id = item.id
             whenCreated = item.whenCreated

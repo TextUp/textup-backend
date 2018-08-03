@@ -8,7 +8,7 @@ import org.textup.type.AuthorType
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
 import org.textup.type.VoiceLanguage
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.Author
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
@@ -226,8 +226,8 @@ class ContactSpec extends CustomSpec {
 
     void "test static finders"() {
         given: "a phone with contacts"
-        Phone phone1 = new Phone(numberAsString:randPhoneNumber()),
-            phone2 = new Phone(numberAsString:randPhoneNumber())
+        Phone phone1 = new Phone(numberAsString:TestHelpers.randPhoneNumber()),
+            phone2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         phone1.updateOwner(s1)
         phone2.updateOwner(s2)
         phone1.save(failOnError:true)
@@ -237,8 +237,8 @@ class ContactSpec extends CustomSpec {
         Map<ContactStatus,String> statusToContactNum = [:]
         Map<ContactStatus,String> statusToSharedContactNum = [:]
         ContactStatus.values().each { ContactStatus cStatus ->
-            String strNum1 = randPhoneNumber()
-            String strNum2 = randPhoneNumber()
+            String strNum1 = TestHelpers.randPhoneNumber()
+            String strNum2 = TestHelpers.randPhoneNumber()
             // creating contacts
             statusToContactNum[cStatus] = strNum1
             contacts << phone1.createContact([status:cStatus], [strNum1]).payload
@@ -265,7 +265,7 @@ class ContactSpec extends CustomSpec {
                 assert otherContact.sharedContacts.isEmpty() == true
             }
         }
-        String otherNum = randPhoneNumber()
+        String otherNum = TestHelpers.randPhoneNumber()
 
         expect:
         Contact.countForPhoneAndSearch(phone1, otherNum) == 0

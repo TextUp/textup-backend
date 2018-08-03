@@ -8,7 +8,7 @@ import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -551,10 +551,7 @@ class PhoneSpec extends CustomSpec {
         addToMessageSource("phone.isInactive")
 
         when: "send text"
-        OutgoingMessage text = new OutgoingMessage(message:'hi',
-            contacts: new ContactRecipients(),
-            sharedContacts: new SharedContactRecipients(),
-            tags: new ContactTagRecipients())
+        OutgoingMessage text = TestHelpers.buildOutgoingMessage("hi")
         text.contacts.recipients << c1
         ResultGroup<RecordItem> resGroup = p1.sendMessage(text, null, s1)
 
@@ -602,10 +599,7 @@ class PhoneSpec extends CustomSpec {
         resGroup.anySuccesses == true
 
         when: "we pass in a staff that is not an owner"
-        text = new OutgoingMessage(message:'hi',
-            contacts: new ContactRecipients(),
-            sharedContacts: new SharedContactRecipients(),
-            tags: new ContactTagRecipients())
+        text = TestHelpers.buildOutgoingMessage("hi")
         text.contacts.recipients = [c1, c1_1]
         assert text.validate() == true
         resGroup = p1.sendMessage(text, null, otherS2)

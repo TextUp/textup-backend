@@ -11,21 +11,22 @@ import org.textup.validator.LocalInterval
 @GrailsCompileStatic
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { Schedule sched ->
-        String timezone = null
-        Helpers.<String>tryGetFromRequest(Constants.REQUEST_TIMEZONE)
-            .logFail("ScheduleJsonMarshaller: no available request", LogLevel.DEBUG)
-            .then { String tz -> timezone = tz }
-
         Map json = [:]
+
+        Result<String> res = Helpers.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
+            .logFail("ScheduleJsonMarshaller: no available request", LogLevel.DEBUG)
+        String tz = res.success ? res.payload : null
+
         json.with {
             id = sched.id
             isAvailableNow = sched.isAvailableNow()
+            timezone = tz
         }
-        sched.nextAvailable(timezone).thenEnd({ DateTime dt -> json.nextAvailable = dt })
-        sched.nextUnavailable(timezone).thenEnd({ DateTime dt -> json.nextUnavailable = dt })
+        sched.nextAvailable(tz).thenEnd({ DateTime dt -> json.nextAvailable = dt })
+        sched.nextUnavailable(tz).thenEnd({ DateTime dt -> json.nextUnavailable = dt })
         // also return local intervals if a weekly schedule
         if (sched.instanceOf(WeeklySchedule)) {
-            WeeklySchedule.get(sched.id)?.getAllAsLocalIntervals(timezone).each {
+            WeeklySchedule.get(sched.id)?.getAllAsLocalIntervals(tz).each {
                 String day, List<LocalInterval> intervals ->
                 json["${day}"] = intervals.collect(Helpers.&printLocalInterval)
             }

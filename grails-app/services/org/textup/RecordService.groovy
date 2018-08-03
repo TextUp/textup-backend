@@ -100,7 +100,7 @@ class RecordService {
         Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
             .logFail("RecordService.createText")
         // step 4: actually send outgoing message
-        createTextHelper(p1, msgRes.payload, authService.loggedInAndActive, mInfo)
+        p1.sendMessage(msgRes.payload, mInfo, authService.loggedInAndActive)
     }
     protected Result<OutgoingMessage> buildOutgoingMessage(Phone p1, Map body, MediaInfo mInfo = null) {
         // step 1: create each type of recipient
@@ -147,14 +147,6 @@ class RecordService {
         }
         resultFactory.success(msg1)
     }
-    // For some unknown reason, overriding methods in the Phone metaClass is very inconsistent.
-    // As a result, created this helper method so that we could do an instance level override on
-    // the service under test to avoid calling the actual startBridgeCall method since we are
-    // focusing on testing this service in isolation in the unit test
-    protected ResultGroup<RecordItem> createTextHelper(Phone p1, OutgoingMessage msg,
-        Staff staff, MediaInfo mInfo = null) {
-        p1.sendMessage(msg, mInfo, staff)
-    }
 
     @RollbackOnResultFailure
     protected Result<RecordItem> createCall(Phone p1, Map body) {
@@ -186,6 +178,11 @@ class RecordService {
 
     @RollbackOnResultFailure
     protected Result<RecordItem> createNote(Phone p1, Map body) {
+        checkNoteTarget(p1, body)
+            .then { Record rec1 -> mergeNote(new RecordNote(record: rec1), body) }
+            .then { RecordNote note1 -> resultFactory.success(note1, ResultStatus.CREATED) }
+    }
+    protected Result<Record> checkNoteTarget(Phone p1, Map body) {
         // step 1: create and validate recipients
         Recipients<Long, ? extends WithRecord> recips
         if (body.forSharedContact) {
@@ -208,33 +205,34 @@ class RecordService {
             return resultFactory.failWithCodeAndStatus("recordService.create.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
-        Result<Record> res = with1.tryGetRecord()
-        if (!res.success) { return res }
-        Record rec1 = res.payload
-        // step 3: handle media actions
+        with1.tryGetRecord()
+    }
+    protected Result<RecordNote> mergeNote(RecordNote note1, Map body) {
+        // step 1: handle media actions
         Collection<UploadItem> itemsToUpload = []
-        MediaInfo mInfo
         if (mediaService.hasMediaActions(body)) {
-            Result<MediaInfo> mediaRes = mediaService.handleActions(new MediaInfo(),
+            Result<MediaInfo> mediaRes = mediaService.handleActions(
+                note1.media ?: new MediaInfo(),
                 itemsToUpload.&addAll, body)
             if (mediaRes.success) {
-                mInfo = mediaRes.payload
+                note1.media = mediaRes.payload
             }
             else { return mediaRes }
         }
-        // step 4: create validator object for note
+        // step 2: create validator object for note
         TempRecordNote tempNote = new TempRecordNote(info: body,
-            note: new RecordNote(record: rec1, media: mInfo),
+            note: note1,
             after: body.after ? Helpers.toDateTimeWithZone(body.after) : null)
         tempNote.toNote(authService.loggedInAndActive.toAuthor())
-            .then { RecordNote note1 ->
+            .then { RecordNote note2 -> note2.tryCreateRevision() }
+            .then { RecordNote note2 ->
                 Collection<String> errorMsgs = []
                 storageService.uploadAsync(itemsToUpload)
                     .failures
                     .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
                 Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
-                    .logFail("RecordService.createNote")
-                resultFactory.success(note1, ResultStatus.CREATED)
+                    .logFail("RecordService.mergeNote")
+                resultFactory.success(note2)
             }
     }
 
@@ -243,7 +241,6 @@ class RecordService {
 
     @RollbackOnResultFailure
     Result<RecordItem> update(Long noteId, Map body) {
-        // step 1: fetch and validate note
         RecordNote note1 = RecordNote.get(noteId)
         if (!note1) {
             return resultFactory.failWithCodeAndStatus("recordService.update.notFound",
@@ -253,27 +250,7 @@ class RecordService {
             return resultFactory.failWithCodeAndStatus("recordService.update.readOnly",
                 ResultStatus.FORBIDDEN, [noteId])
         }
-        // step 2: handle media actions
-        Collection<UploadItem> itemsToUpload = []
-        if (mediaService.hasMediaActions(body)) {
-            Result<MediaInfo> mediaRes = mediaService.handleActions(note1.media,
-                itemsToUpload.&addAll, body)
-            if (!mediaRes.success) { return mediaRes }
-        }
-        // step 3: build validate object to update fields
-        TempRecordNote tempNote = new TempRecordNote(note:note1, info:body,
-            after:body.after ? Helpers.toDateTimeWithZone(body.after) : null)
-        tempNote.toNote(authService.loggedInAndActive.toAuthor())
-            .then { RecordNote note2 -> note2.tryCreateRevision() }
-            .then { RecordNote note2 ->
-                Collection<String> errorMsgs = []
-                storageService.uploadAsync(itemsToUpload)
-                    .failures
-                    .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-                Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
-                    .logFail("RecordService.update")
-                resultFactory.success(note2)
-            }
+        mergeNote(note1, body)
     }
 
     // Delete note

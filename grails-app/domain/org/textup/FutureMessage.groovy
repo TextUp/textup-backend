@@ -151,6 +151,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
         endDate type:PersistentDateTime
         whenAdjustDaylightSavings type:PersistentDateTime
         daylightSavingsZone type:PersistentDateTimeZoneAsString
+        media lazy: false, cascade: "save-update"
     }
 
     // Events

@@ -7,13 +7,11 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.context.MessageSource
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
-import spock.lang.Shared
-import spock.lang.Specification
+import org.textup.util.TestHelpers
+import org.textup.validator.*
+import spock.lang.*
 
-@Domain([Organization, Location])
+@Domain([Organization, Location, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @TestFor(TextService)
 class TextServiceSpec extends Specification {
@@ -71,5 +69,41 @@ class TextServiceSpec extends Specification {
     	res.payload instanceof TempRecordReceipt
     	res.payload.contactNumberAsString == toNum1.number
         res.payload.apiId != null
+    }
+
+    void "test send with media"() {
+        given: "info for outgoing text"
+        PhoneNumber fromNum = new PhoneNumber(number:Constants.TEST_SMS_FROM_VALID)
+        assert fromNum.validate()
+        PhoneNumber toNum1 = new PhoneNumber(number:"+16268943239"),
+            toNum2 = new PhoneNumber(number:"+16260943239")
+        assert toNum1.validate() && toNum2.validate()
+        String msg = "hello there!!"
+
+        and: "list of media elements"
+        int _numTimesCalledGetLink = 0
+        StorageService mockStorageService = [
+            generateAuthLink: { String key ->
+                _numTimesCalledGetLink++
+                new Result(status: ResultStatus.OK, payload: new URL("http://www.example.com"))
+            }
+        ] as StorageService
+        List<MediaElement> mElements = []
+        8.times {
+            MediaElement e1 = TestHelpers.buildMediaElement(10)
+            e1.sendVersion.storageService = mockStorageService
+            mElements << e1
+        }
+
+        when:
+        Result res = service.send(fromNum, [toNum1, toNum2], msg, mElements)
+
+        then: "stop on first number + handle media normally"
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof TempRecordReceipt
+        res.payload.contactNumberAsString == toNum1.number
+        res.payload.apiId != null
+        mElements.size() == _numTimesCalledGetLink
     }
 }

@@ -15,15 +15,17 @@ import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.IncomingText
 import org.textup.validator.PhoneNumber
+import org.textup.validator.UploadItem
 
 @GrailsTypeChecked
 @Transactional
 class CallbackService {
 
-    ResultFactory resultFactory
-    TwimlBuilder twimlBuilder
     GrailsApplication grailsApplication
     MediaService mediaService
+    ResultFactory resultFactory
+    StorageService storageService
+    TwimlBuilder twimlBuilder
 
 	// Validate request
 	// ----------------
@@ -129,7 +131,6 @@ class CallbackService {
 
     protected Result<IncomingSession> getOrCreateIncomingSession(Phone p1, BasePhoneNumber fromNum,
         BasePhoneNumber toNum, GrailsParameterMap params) {
-
         //usually handle incoming from session (client) to phone (staff)
         BasePhoneNumber sessionNum = fromNum
         // finish bridge is call from phone to personal phone
@@ -211,18 +212,12 @@ class CallbackService {
 
         // step 1: handle media, if applicable
         MediaInfo mInfo
+        Collection<UploadItem> itemsToUpload = []
         Set<String> mediaIdsToDelete = new HashSet<>()
         Integer numMedia = Helpers.to(Integer, params.NumMedia)
         if (numMedia > 0) {
-            Map<String, String> urlToMimeType = [:]
-            for (int i = 0; i < numMedia; ++i) {
-                String contentUrl = params["MediaUrl${i}"],
-                    contentType = params["MediaContentType${i}"]
-                urlToMimeType[contentUrl] = contentType
-            }
-            Result<MediaInfo> mediaRes = mediaService
-                .buildFromIncomingMedia(urlToMimeType, mediaIdsToDelete.&add)
-                .logFail("CallbackService.process: building incoming media")
+            Result<MediaInfo> mediaRes = handleMedia(numMedia, itemsToUpload.&addAll,
+                mediaIdsToDelete.&add, params)
             if (mediaRes.success) {
                 mInfo = mediaRes.payload
             }
@@ -232,12 +227,34 @@ class CallbackService {
         IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)
         if (text.validate()) { //validate text
             Result<Closure> res = p1.receiveText(text, is1, mInfo)
-            if (res.success && mediaIdsToDelete) {
-                mediaService.deleteMedia(apiId, mediaIdsToDelete)
-                    .logFail("CallbackService.processText: deleting media")
-            }
+            if (res.success) { uploadAndDeleteMedia(apiId, itemsToUpload, mediaIdsToDelete) }
             res
         }
         else { resultFactory.failWithValidationErrors(text.errors) }
+    }
+    protected Result<MediaInfo> handleMedia(int numMedia, Closure<Void> collectUploads,
+        Closure<Void> collectMediaIds, GrailsParameterMap params) {
+
+        Map<String, String> urlToMimeType = [:]
+        for (int i = 0; i < numMedia; ++i) {
+            String contentUrl = params["MediaUrl${i}"],
+                contentType = params["MediaContentType${i}"]
+            urlToMimeType[contentUrl] = contentType
+        }
+        mediaService
+            .buildFromIncomingMedia(urlToMimeType, collectUploads, collectMediaIds)
+            .logFail("CallbackService.process: building incoming media")
+    }
+    protected void uploadAndDeleteMedia(String apiId, Collection<UploadItem> itemsToUpload,
+        Set<String> mediaIdsToDelete) {
+
+        // step 1: upload our processed copies
+        ResultGroup<?> resGroup = storageService.uploadAsync(itemsToUpload)
+            .logFail("CallbackService.processText: uploading processed media")
+        // step 2: delete media only if no upload errors
+        if (itemsToUpload && !resGroup.anyFailures) {
+            mediaService.deleteMedia(apiId, mediaIdsToDelete)
+                .logFail("CallbackService.processText: deleting media")
+        }
     }
 }

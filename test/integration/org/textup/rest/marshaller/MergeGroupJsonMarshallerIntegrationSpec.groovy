@@ -2,7 +2,7 @@ package org.textup.rest.marshaller
 
 import grails.converters.JSON
 import org.textup.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.MergeGroup
 import org.textup.validator.MergeGroupItem
 
@@ -28,7 +28,7 @@ class MergeGroupJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(mGroup as JSON) as Map
+            json = TestHelpers.jsonToMap(mGroup as JSON)
         }
 
         then:

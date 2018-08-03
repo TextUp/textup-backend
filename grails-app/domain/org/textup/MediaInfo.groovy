@@ -1,11 +1,11 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 import org.textup.type.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(
     name        = "MediaInfo",
@@ -22,7 +22,7 @@ class MediaInfo implements ReadOnlyMediaInfo {
         useForCreation = false)
     static hasMany = [mediaElements: MediaElement]
     static constraints = { // all nullable:false by default
-        mediaElements cascade: true
+        mediaElements cascadeValidation: true
     }
     static mapping = {
         mediaElements lazy: false, cascade: "save-update"

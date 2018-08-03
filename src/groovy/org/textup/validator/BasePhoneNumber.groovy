@@ -30,7 +30,7 @@ abstract class BasePhoneNumber {
         else { n }
     }
 
-    private TwilioPhoneNumber toApiPhoneNumber() {
+    TwilioPhoneNumber toApiPhoneNumber() {
         new TwilioPhoneNumber(this.number)
     }
 

@@ -42,29 +42,35 @@ class ContactRecipientsSpec extends CustomSpec {
 
     void "test constraints"() {
         when: "empty obj with no recipients"
-        ContactRecipients recip = new ContactRecipients()
+        ContactRecipients recips = new ContactRecipients()
 
         then: "superclass constraints execute"
-        recip.validate() == false
-        recip.errors.getFieldErrorCount("phone") == 1
+        recips.validate() == false
+        recips.errors.getFieldErrorCount("phone") == 1
 
         when: "set phone"
-        recip.phone = c1.phone
+        recips.phone = c1.phone
 
         then: "valid"
-        recip.validate() == true
+        recips.validate() == true
+
+        when: "array of null ids"
+        recips.ids = [null, null]
+
+        then: "null values are ignored"
+        recips.validate() == true
 
         when: "set ids with one foreign contact id + setter populates recipients"
-        recip.ids = [c1.id, c2.id]
+        recips.ids = [c1.id, c2.id]
 
         then: "invalid foreign id"
-        recip.validate() == false
-        recip.errors.getFieldErrorCount("recipients") == 1
+        recips.validate() == false
+        recips.errors.getFieldErrorCount("recipients") == 1
 
         when: "setting new ids + setter populates recipients"
-        recip.ids = [c1.id, c1_1.id]
+        recips.ids = [c1.id, c1_1.id]
 
         then: "all valid"
-        recip.validate() == true
+        recips.validate() == true
     }
 }

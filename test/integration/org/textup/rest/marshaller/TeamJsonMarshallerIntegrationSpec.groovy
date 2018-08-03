@@ -1,6 +1,6 @@
 package org.textup.rest.marshaller
 
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import grails.converters.JSON
 import org.textup.*
 
@@ -20,7 +20,7 @@ class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = jsonToObject(t1 as JSON) as Map
+    		json = TestHelpers.jsonToMap(t1 as JSON)
     	}
 
     	then:
@@ -42,7 +42,7 @@ class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(t1 as JSON) as Map
+            json = TestHelpers.jsonToMap(t1 as JSON)
         }
 
         then:
@@ -65,7 +65,7 @@ class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(team1 as JSON) as Map
+            json = TestHelpers.jsonToMap(team1 as JSON)
         }
 
         then:

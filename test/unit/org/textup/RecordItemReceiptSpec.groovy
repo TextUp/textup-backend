@@ -5,11 +5,9 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.type.ReceiptStatus
+import org.textup.util.TestHelpers
 import org.textup.validator.PhoneNumber
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
+import spock.lang.*
 
 @Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
 	MediaInfo, MediaElement, MediaElementVersion])
@@ -51,23 +49,20 @@ class RecordItemReceiptSpec extends Specification {
 		receipt.contactNumberAsString == numAsString
 	}
 
-	private void addReceiptToItem(RecordItem rItem, ReceiptStatus status) {
-		RecordItemReceipt receipt = new RecordItemReceipt(apiId:"test",
-			status:status, contactNumberAsString:"2223334444")
-		rItem.addToReceipts(receipt)
-		receipt.save(flush:true)
-	}
     void "test named queries for status and deletion"() {
     	when: "we have a record item with several RecordItemReceipts"
 		Record rec = new Record()
-		rec.save(flush:true)
+		rec.save(flush: true, failOnError: true)
 		RecordItem rItem = new RecordItem(record:rec)
-		rItem.save(flush:true)
+		rItem.save(flush: true, failOnError: true)
 		int baseline = RecordItemReceipt.count(),
-			numFailed = 3, numPending = 4, numSuccess = 5
-		numFailed.times { addReceiptToItem(rItem, ReceiptStatus.FAILED) }
-		numPending.times { addReceiptToItem(rItem, ReceiptStatus.PENDING) }
-		numSuccess.times { addReceiptToItem(rItem, ReceiptStatus.SUCCESS) }
+			numFailed = 3,
+			numPending = 4,
+			numSuccess = 5
+		numFailed.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.FAILED)) }
+        numPending.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.SUCCESS)) }
+        numSuccess.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.SUCCESS)) }
+        rItem.save(flush: true, failOnError: true)
 
 		then:
 		RecordItemReceipt.countByItem(rItem) == numFailed + numPending + numSuccess
@@ -80,7 +75,7 @@ class RecordItemReceiptSpec extends Specification {
 		//must first clear the receipts hasMany relationship in the RecordItem
 		rItem.receipts.clear()
 		RecordItemReceipt.findAllByItem(rItem)*.delete()
-		rItem.save(flush:true)
+		rItem.save(flush: true, failOnError: true)
 
 		then:
 		RecordItemReceipt.countByItem(rItem) == baseline

@@ -10,7 +10,7 @@ import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.ContactStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.MergeGroup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -31,8 +31,8 @@ class ContactControllerSpec extends CustomSpec {
         JodaConverters.registerJsonAndXmlMarshallers()
 
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        Contact cont1 = loggedIn.phone.createContact([:], [randPhoneNumber()]).payload
-        Contact cont2 = loggedIn.phone.createContact([:], [randPhoneNumber()]).payload
+        Contact cont1 = loggedIn.phone.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+        Contact cont2 = loggedIn.phone.createContact([:], [TestHelpers.randPhoneNumber()]).payload
         [cont1, cont2]*.save(flush:true, failOnError:true)
         assert loggedIn.phone.countContacts() > 0
     }

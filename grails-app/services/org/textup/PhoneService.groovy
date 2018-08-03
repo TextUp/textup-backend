@@ -14,19 +14,18 @@ class PhoneService {
     AnnouncementService announcementService
     AuthService authService
     IncomingMessageService incomingMessageService
+    NotificationService notificationService
     NumberService numberService
     OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
     VoicemailService voicemailService
 
-    // Update
-    // ------
-
     Result<Staff> mergePhone(Staff s1, Map body, String timezone) {
         if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = s1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(s1)
-            update(p1, body.phone as Map, timezone).then({ resultFactory.success(s1) })
+            mergeHelper(p1, body.phone as Map, timezone)
+                .then({ resultFactory.success(s1) })
         }
         else { resultFactory.success(s1) }
     }
@@ -34,16 +33,22 @@ class PhoneService {
         if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = t1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(t1)
-            update(p1, body.phone as Map, timezone).then({ resultFactory.success(t1) })
+            mergeHelper(p1, body.phone as Map, timezone)
+                .then({ resultFactory.success(t1) })
         }
         else { resultFactory.success(t1) }
     }
-    protected Result<Phone> update(Phone p1, Map body, String timezone) {
-        // handle any availability-related modifications pertaining to this logged-in user and this phone
-        if (body.availability instanceof Map) {
-            Result<NotificationPolicy> res = handleAvailability(p1, body.availability as Map, timezone)
-            if (!res.success) { return res }
-        }
+
+    // Updating helpers
+    // ----------------
+
+    protected Result<Phone> mergeHelper(Phone p1, Map body, String timezone) {
+        handlePhoneActions(p1, body)
+            .then { Phone p2 -> handleAvailability(p2, body, timezone) }
+            .then { Phone p2 -> updateFields(p2, body) }
+    }
+
+    protected Result<Phone> updateFields(Phone p1, Map body) {
         if (body.awayMessage) {
             p1.awayMessage = body.awayMessage
         }
@@ -53,6 +58,25 @@ class PhoneService {
         if (body.language) {
             p1.language = Helpers.convertEnum(VoiceLanguage, body.language)
         }
+        if (p1.save()) {
+            resultFactory.success(p1)
+        }
+        else { resultFactory.failWithValidationErrors(p1.errors) }
+    }
+
+    protected Result<Phone> handleAvailability(Phone p1, Map body, String timezone) {
+        if (body.availability instanceof Map) {
+            NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authService.loggedIn.id)
+            Result<?> res = notificationService.update(np1, body.availability as Map, timezone)
+            if (!res.success) { return res }
+        }
+        resultFactory.success(p1)
+    }
+
+    // Phone actions
+    // -------------
+
+    protected Result<Phone> handlePhoneActions(Phone p1, Map body) {
         if (body.doPhoneActions) {
             ActionContainer ac1 = new ActionContainer(body.doPhoneActions)
             List<PhoneAction> actions = ac1.validateAndBuildActions(PhoneAction)
@@ -81,33 +105,9 @@ class PhoneService {
                 return resultFactory.failWithResultsAndStatus(failResults, ResultStatus.BAD_REQUEST)
             }
         }
-        if (p1.save()) {
-            resultFactory.success(p1)
-        }
-        else { resultFactory.failWithValidationErrors(p1.errors) }
+        resultFactory.success(p1)
     }
-    protected Result<NotificationPolicy> handleAvailability(Phone p1, Map aBody, String timezone) {
-        NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authService.loggedIn.id)
-        if (Helpers.to(Boolean, aBody.useStaffAvailability) != null) {
-            np1.useStaffAvailability = Helpers.to(Boolean, aBody.useStaffAvailability)
-        }
-        if (Helpers.to(Boolean, aBody.manualSchedule) != null) {
-            np1.manualSchedule = Helpers.to(Boolean, aBody.manualSchedule)
-        }
-        if (Helpers.to(Boolean, aBody.isAvailable) != null) {
-            np1.isAvailable = Helpers.to(Boolean, aBody.isAvailable)
-        }
-        if (aBody.schedule instanceof Map) {
-            Result<Schedule> res = np1.updateSchedule(aBody.schedule as Map, timezone)
-            if (!res.success) {
-                return res
-            }
-        }
-        if (np1.save()) {
-            resultFactory.success(np1)
-        }
-        else { resultFactory.failWithValidationErrors(np1.errors) }
-    }
+
     protected Result<Phone> deactivatePhone(Phone p1) {
         String oldApiId = p1.apiId
         p1.deactivate()
@@ -119,9 +119,11 @@ class PhoneService {
         }
         else { resultFactory.success(p1) }
     }
+
     protected Result<Phone> transferPhone(Phone p1, Long id, PhoneOwnershipType type) {
         p1.transferTo(id, type).then({ resultFactory.success(p1) })
     }
+
     protected Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {
         if (!pNum.validate()) {
             return resultFactory.failWithValidationErrors(pNum.errors)
@@ -136,12 +138,13 @@ class PhoneService {
         numberService.changeForNumber(pNum)
             .then({ IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) })
     }
+
     protected Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
         if (apiId == p1.apiId) {
             return resultFactory.success(p1)
         }
         if (Helpers.<Boolean>doWithoutFlush({ Phone.countByApiId(apiId) > 0 })) {
-            return resultFactory.<Phone>failWithCodeAndStatus("phoneService.changeNumber.duplicate",
+            return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         numberService.changeForApiId(apiId)
@@ -153,29 +156,14 @@ class PhoneService {
 
     ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg1, MediaInfo mInfo = null,
         Staff staff = null) {
-        // initialize variables
-        List<Contactable> recipients = msg1.toRecipients().toList()
-        Author author1 = staff?.toAuthor()
-        Map<Long, List<TempRecordReceipt>> contactIdToReceipts = [:]
-            .withDefault { [] as List<TempRecordReceipt> }
-        Closure<Void> addReceipts = { Long contactId, TempRecordReceipt r1 ->
-            contactIdToReceipts[contactId]?.add(r1); return;
-        }
-        Closure<List<TempRecordReceipt>> getReceipts = contactIdToReceipts.&get
-        // perform actions
-        Result<Map<Contactable, Result<List<TempRecordReceipt>>>> res = outgoingMessageService
-            .sendForContactables(phone, recipients, msg1, mInfo)
-        if (res.success) {
-            ResultGroup<RecordItem> resGroup = outgoingMessageService.storeForContactables(msg1,
-                mInfo, author1, addReceipts, res.payload)
-            outgoingMessageService.storeForTags(msg1, mInfo, author1, getReceipts, resGroup)
-            resGroup
-        }
-        else { res.toGroup() }
+
+        outgoingMessageService.sendMessage(phone, msg1, mInfo, staff)
     }
+
     Result<RecordCall> startBridgeCall(Phone phone, Contactable c1, Staff staff) {
         outgoingMessageService.startBridgeCall(phone, c1, staff)
     }
+
     Map<String, Result<TempRecordReceipt>> sendTextAnnouncement(Phone phone, String message,
         String identifier, List<IncomingSession> sessions, Staff staff) {
 

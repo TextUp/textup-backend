@@ -62,12 +62,18 @@ class TempRecordNoteSpec extends CustomSpec {
 
 		then: "temp record note is valid, but record note itself is missing a record reference"
 		temp1.validate() == true
-		temp1.toNote().status == ResultStatus.UNPROCESSABLE_ENTITY
+
+		when: "note info is empty but the existing note already has info on it"
+		temp1.info = [:]
+		temp1.note.noteContents = "hello!"
+
+		then: "is valid to enable updating other non-info fields (e.g., readOnly or isDeleted)t"
+		temp1.validate() == true
 
 		when: "add record reference to note"
 		temp1.note.record = new Record().save(flush:true, failOnError: true)
 
-		then:
+		then: "can call `toNote` when the note is valid"
 		temp1.toNote().status == ResultStatus.OK
 	}
 

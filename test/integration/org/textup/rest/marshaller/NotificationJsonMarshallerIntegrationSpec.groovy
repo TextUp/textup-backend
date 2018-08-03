@@ -3,7 +3,7 @@ package org.textup.rest.marshaller
 import grails.converters.JSON
 import org.textup.*
 import org.textup.type.PhoneOwnershipType
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.Notification
 
 class NotificationJsonMarshallerIntegrationSpec extends CustomSpec {
@@ -29,7 +29,7 @@ class NotificationJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = jsonToObject(notif as JSON) as Map
+    		json = TestHelpers.jsonToMap(notif as JSON)
     	}
 
     	then:

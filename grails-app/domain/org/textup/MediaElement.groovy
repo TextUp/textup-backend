@@ -46,12 +46,12 @@ class MediaElement implements ReadOnlyMediaElement {
     ])
     static hasMany = [displayVersions: MediaElementVersion]
     static constraints = { // all nullable:false by default
-        sendVersion cascade: true, validator: { MediaElementVersion send1 ->
+        sendVersion cascadeValidation: true, validator: { MediaElementVersion send1 ->
             if (send1?.sizeInBytes > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
                 return ["sizeTooBig"]
             }
         }
-        displayVersions nullable: true, cascade: true
+        displayVersions nullable: true, cascadeValidation: true
     }
     static mapping = {
         sendVersion lazy: false, cascade: "save-update"

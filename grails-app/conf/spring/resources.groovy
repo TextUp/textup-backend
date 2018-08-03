@@ -36,7 +36,10 @@ beans = {
 		bean.autowire = true
 	}
 	twimlBuilder(TwimlBuilder) { bean ->
-		bean.autowire = true
+		linkGenerator = ref("grailsLinkGenerator")
+		messageSource = ref("messageSource")
+		resultFactory = ref("resultFactory")
+		tokenService = ref("tokenService")
 	}
 	accessTokenJsonRenderer(CustomTokenJsonRenderer) {
 		usernamePropertyName = restConfig.rendering.usernamePropertyName

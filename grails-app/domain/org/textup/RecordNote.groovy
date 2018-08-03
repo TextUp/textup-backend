@@ -11,8 +11,6 @@ import org.restapidoc.annotation.*
 @RestApiObject(name="RecordNote", description="Notes that are part of the record.")
 class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 
-    ResultFactory resultFactory
-
 	// whenCreated is used for making notes show up in the correct
 	// position in the chronological record, this 'whenChanged' field
 	// is when this note actually was created
@@ -41,7 +39,6 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
         useForCreation = true)
 	Location location
 
-    static transients = ["resultFactory"]
     @RestApiObjectField(
         apiFieldName   = "revisions",
         description    = "Previous revisions of this note.",
@@ -49,12 +46,12 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
         useForCreation = true)
 	static hasMany = [revisions:RecordNoteRevision]
     static constraints = {
-    	location cascade: true, nullable:true
+    	location cascadeValidation: true, nullable: true
     }
     static mapping = {
-    	whenChanged type:PersistentDateTime
-        location lazy:false, cascade:"all-delete-orphan"
-        revisions lazy:false, cascade:"all-delete-orphan"
+    	whenChanged type: PersistentDateTime
+        location lazy: false, cascade: "all-delete-orphan"
+        revisions lazy: false, cascade: "all-delete-orphan"
     }
 
     // Methods
@@ -68,10 +65,10 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
             // create revision of persistent values
             RecordNoteRevision rev = this.createRevision()
             if (!rev.save()) {
-                return resultFactory.failWithValidationErrors(rev.errors)
+                return Helpers.resultFactory.failWithValidationErrors(rev.errors)
             }
         }
-        resultFactory.success(this)
+        Helpers.resultFactory.success(this)
     }
 
     @GrailsTypeChecked
@@ -87,9 +84,15 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
             authorId: doGet("authorId"),
             authorType: doGet("authorType"),
             whenChanged: doGet("whenChanged"),
-            noteContents: doGet("noteContents"),
-            location: location?.tryDuplicatePersistentState(),
-            media: media?.tryDuplicatePersistentState())
+            noteContents: doGet("noteContents"))
+        Object originalLoc = doGet('location')
+        if (originalLoc instanceof Location) {
+            rev1.location = originalLoc.tryDuplicatePersistentState()
+        }
+        Object originalMedia = doGet('media')
+        if (originalMedia instanceof MediaInfo) {
+            rev1.media = originalMedia.tryDuplicatePersistentState()
+        }
     	this.addToRevisions(rev1)
     	rev1
     }

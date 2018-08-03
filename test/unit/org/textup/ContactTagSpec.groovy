@@ -6,7 +6,7 @@ import grails.test.mixin.TestMixin
 import org.textup.type.AuthorType
 import org.textup.type.ContactStatus
 import org.textup.type.VoiceLanguage
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -137,11 +137,11 @@ class ContactTagSpec extends CustomSpec {
 
     void "test static finders"() {
         when: "tags and contacts all not deleted"
-        Contact contact1 = p1.createContact([:], [randPhoneNumber()]).payload
-        Contact contact2 = p1.createContact([:], [randPhoneNumber()]).payload
-        Contact contact3 = p1.createContact([:], [randPhoneNumber()]).payload
-        ContactTag tag1 = p1.createTag([name:randPhoneNumber()]).payload
-        ContactTag tag2 = p1.createTag([name:randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+        Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+        Contact contact3 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+        ContactTag tag1 = p1.createTag([name:TestHelpers.randPhoneNumber()]).payload
+        ContactTag tag2 = p1.createTag([name:TestHelpers.randPhoneNumber()]).payload
 
         tag1.addToMembers(contact1)
         tag1.addToMembers(contact2)

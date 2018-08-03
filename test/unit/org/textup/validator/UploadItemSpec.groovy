@@ -13,6 +13,7 @@ import org.apache.commons.io.IOUtils
 import org.springframework.validation.Errors
 import org.textup.*
 import org.textup.type.*
+import org.textup.util.TestHelpers
 import spock.lang.*
 
 @TestMixin(GrailsUnitTestMixin)
@@ -51,8 +52,8 @@ class UploadItemSpec extends Specification {
 
     void "test converting byte data to a BufferedImage WITHOUT exception catching"() {
         given:
-        byte[] jpegTest = getJpegSampleData512()
-        byte[] pngTest = getPngSampleData()
+        byte[] jpegTest = TestHelpers.getJpegSampleData512()
+        byte[] pngTest = TestHelpers.getPngSampleData()
         assert jpegTest != null
         assert pngTest != null
 
@@ -86,7 +87,7 @@ class UploadItemSpec extends Specification {
     void "test repeated encoding + decoding jpeg WITHOUT exception catching"() {
         given: "encode our initial jpeg image from byte data"
         ImageWriter writer = UploadItem.getWriter(Constants.MIME_TYPE_JPEG)
-        byte[] initialData = getJpegSampleData512()
+        byte[] initialData = TestHelpers.getJpegSampleData512()
         BufferedImage jpgImg = UploadItem.tryGetImageFromData(initialData)
         assert jpgImg != null
         ImageWriteParam param1 = writer.defaultWriteParam
@@ -118,7 +119,7 @@ class UploadItemSpec extends Specification {
     void "test decoding jpeg with compression"() {
         given: "encode our initial jpeg image from byte data"
         ImageWriter writer = UploadItem.getWriter(Constants.MIME_TYPE_JPEG)
-        byte[] initialData = getJpegSampleData512()
+        byte[] initialData = TestHelpers.getJpegSampleData512()
         BufferedImage jpgImg = UploadItem.tryGetImageFromData(initialData)
         assert jpgImg != null
 
@@ -144,7 +145,7 @@ class UploadItemSpec extends Specification {
     void "test trying to compress png results in exception"() {
         given: "encode our initial jpeg image from byte data"
         ImageWriter writer = UploadItem.getWriter("image/png")
-        byte[] initialData = getPngSampleData()
+        byte[] initialData = TestHelpers.getPngSampleData()
         BufferedImage pngImg = UploadItem.tryGetImageFromData(initialData)
         assert pngImg != null
 
@@ -167,7 +168,7 @@ class UploadItemSpec extends Specification {
     void "test trying to compress gif requires setting compression type"() {
         given: "encode our initial jpeg image from byte data"
         ImageWriter writer = UploadItem.getWriter("image/gif")
-        byte[] initialData = getGifSampleData()
+        byte[] initialData = TestHelpers.getGifSampleData()
         BufferedImage gifImg = UploadItem.tryGetImageFromData(initialData)
         assert gifImg != null
 
@@ -189,7 +190,7 @@ class UploadItemSpec extends Specification {
 
     void "test custom getters"() {
         when: "obj with valid mime type"
-        byte[] inputData1 = getJpegSampleData512()
+        byte[] inputData1 = TestHelpers.getJpegSampleData512()
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
             mimeType: Constants.MIME_TYPE_JPEG,
             data: inputData1)
@@ -202,7 +203,7 @@ class UploadItemSpec extends Specification {
 
         when: "setting data"
         Long width1 = uItem.widthInPixels
-        byte[] inputData2 = getJpegSampleData256()
+        byte[] inputData2 = TestHelpers.getJpegSampleData256()
         assert inputData1.size() != inputData2.size()
         uItem.data = inputData2
 
@@ -211,12 +212,13 @@ class UploadItemSpec extends Specification {
         uItem.widthInPixels == 256
     }
 
-    void "test resizing width"() {
+    @Unroll
+    void "test resizing width for #mimeType"() {
         given: "obj with data"
         Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
-        byte[] inputData1 = getPngSampleData()
+        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(mimeType)
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            mimeType: Constants.MIME_TYPE_PNG,
+            mimeType: mimeType,
             data: inputData1)
         assert uItem.validate()
 
@@ -240,12 +242,18 @@ class UploadItemSpec extends Specification {
         then: "successfully do so while preserving the aspect ratio"
         res.payload instanceof UploadItem
         targetWidth == res.payload.widthInPixels
+
+        where:
+        mimeType                 | _
+        Constants.MIME_TYPE_PNG  | _
+        Constants.MIME_TYPE_JPEG | _
+        Constants.MIME_TYPE_GIF  | _
     }
 
     void "test compression short circuiting"() {
         given: "obj representing a PNG image (not compressible)"
         Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
-        byte[] inputData1 = getPngSampleData()
+        byte[] inputData1 = TestHelpers.getPngSampleData()
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
             mimeType: Constants.MIME_TYPE_PNG,
             data: inputData1)
@@ -264,12 +272,13 @@ class UploadItemSpec extends Specification {
         res.payload == "uploadItem.tryCompress.invalidSize"
     }
 
-    void "test compression"() {
+    @Unroll
+    void "test compression for #mimeType"() {
         given: "obj with compressible data"
         Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
-        byte[] inputData1 = getJpegSampleData512()
+        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(mimeType)
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            mimeType: Constants.MIME_TYPE_JPEG,
+            mimeType: mimeType,
             data: inputData1)
         assert uItem.validate()
 
@@ -280,8 +289,11 @@ class UploadItemSpec extends Specification {
         then: "short circuit before hitting file size b/c of min quality standards"
         res.success == true
         res.payload instanceof UploadItem
-        res.payload.sizeInBytes < inputData1.length
-        res.payload.sizeInBytes > targetSize // impossibly small threshold
+        if (UploadItem.canCompress(mimeType)) {
+            assert res.payload.sizeInBytes < inputData1.length
+            assert res.payload.sizeInBytes > targetSize // impossibly small threshold
+        }
+        else { assert res.payload.sizeInBytes == inputData1.length }
 
         when: "compress to more reasonable size"
         uItem.data = inputData1
@@ -291,8 +303,17 @@ class UploadItemSpec extends Specification {
         then: "successfully compress to be smaller than the max size threshold"
         res.success == true
         res.payload instanceof UploadItem
-        res.payload.sizeInBytes < inputData1.length
-        res.payload.sizeInBytes <= targetSize
+        if (UploadItem.canCompress(mimeType)) {
+            assert res.payload.sizeInBytes < inputData1.length
+            assert res.payload.sizeInBytes <= targetSize
+        }
+        else { assert res.payload.sizeInBytes == inputData1.length }
+
+        where:
+        mimeType                 | _
+        Constants.MIME_TYPE_PNG  | _
+        Constants.MIME_TYPE_JPEG | _
+        Constants.MIME_TYPE_GIF  | _
     }
 
     // Helpers
@@ -310,28 +331,5 @@ class UploadItemSpec extends Specification {
                 new Result(payload: obj)
             }
         ] as ResultFactory
-    }
-
-    protected byte[] getJpegSampleData512() {
-        getSampleData("512x512.jpeg")
-    }
-
-    protected byte[] getJpegSampleData256() {
-        getSampleData("256x256.jpeg")
-    }
-
-    protected byte[] getPngSampleData() {
-        getSampleData("800x600.png")
-    }
-
-    protected byte[] getGifSampleData() {
-        getSampleData("400x400.gif")
-    }
-
-    protected byte[] getSampleData(String fileName) {
-        String root = Paths.get(".").toAbsolutePath().normalize().toString()
-        new FileInputStream("${root}/test/assets/${fileName}").withStream { InputStream iStream ->
-            IOUtils.toByteArray(iStream)
-        }
     }
 }

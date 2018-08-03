@@ -7,7 +7,7 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -43,7 +43,7 @@ class OrganizationServiceSpec extends CustomSpec {
         res.errorMessages[0] == "organizationService.update.notFound"
 
     	when: "we update location with invalid fields"
-        service.resultFactory.messageSource = mockMessageSourceWithResolvable()
+        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
         updateInfo = [location:[
             lat:-1000G,
             lon:-888G

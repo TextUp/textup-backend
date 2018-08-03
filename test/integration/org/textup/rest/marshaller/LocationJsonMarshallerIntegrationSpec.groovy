@@ -2,7 +2,7 @@ package org.textup.rest.marshaller
 
 import grails.converters.JSON
 import org.textup.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 
 class LocationJsonMarshallerIntegrationSpec extends CustomSpec {
 
@@ -23,7 +23,7 @@ class LocationJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = jsonToObject(loc as JSON) as Map
+            json = TestHelpers.jsonToMap(loc as JSON)
         }
 
         then:

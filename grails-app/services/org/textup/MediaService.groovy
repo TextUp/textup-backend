@@ -31,7 +31,7 @@ class MediaService {
     boolean hasMediaActions(Map body) { !!body?.doMediaActions }
     protected Object getMediaActions(Map body) { body?.doMediaActions }
 
-    Result<MediaInfo> handleActions(MediaInfo mInfo, Closure<Void> collectUploadItems, Map body) {
+    Result<MediaInfo> handleActions(MediaInfo mInfo, Closure<Void> collectUploads, Map body) {
         // validate actions
         ActionContainer ac1 = new ActionContainer(getMediaActions(body))
         List<MediaAction> actions = ac1.validateAndBuildActions(MediaAction)
@@ -43,7 +43,7 @@ class MediaService {
         actions.each { MediaAction a1 ->
             switch (a1) {
                 case Constants.MEDIA_ACTION_ADD:
-                    Result<MediaInfo> res = doAddMedia(mInfo, a1.mimeType, a1.byteData)
+                    Result<MediaInfo> res = doAddMedia(mInfo, collectUploads, a1.mimeType, a1.byteData)
                     if (!res.success) { failRes << res }
                     break
                 default: // Constants.MEDIA_ACTION_REMOVE
@@ -58,9 +58,12 @@ class MediaService {
         }
     }
 
-    protected Result<MediaInfo> doAddMedia(MediaInfo mInfo, String mimeType, byte[] data) {
+    protected Result<MediaInfo> doAddMedia(MediaInfo mInfo, Closure<Void> collectUploads,
+        String mimeType, byte[] data) {
+
         createUploads(mimeType, data)
             .then { List<UploadItem> uItems ->
+                collectUploads(uItems) // called with `addAll` so accepts a collection as argument
                 MediaElement.create(mimeType, uItems)
             }
             .then { MediaElement e1 ->
@@ -104,6 +107,7 @@ class MediaService {
             if (currentItem.validate()) {
                 uItems << currentItem
                 nextVersion = currentItem.mediaVersion.next
+                currentItem = null // keep iteration dependent on `nextVersion`
             }
             else { return resultFactory.failWithValidationErrors(currentItem.errors) }
         }
@@ -114,11 +118,11 @@ class MediaService {
     // ---------------
 
     Result<MediaInfo> buildFromIncomingMedia(Map<String, String> urlToMimeType,
-        Closure<Void> collectMediaIds) {
+        Closure<Void> collectUploads, Closure<Void> collectMediaIds) {
 
         try {
             MediaInfo mInfo = new MediaInfo()
-            List<Result<MediaInfo>> failRes = []
+            ResultGroup<MediaInfo> failGroup = new ResultGroup<>()
             urlToMimeType.each { String url, String mimeType ->
                 CloseableHttpClient client = HttpClients.createDefault()
                 client.withCloseable {
@@ -128,15 +132,15 @@ class MediaService {
                         if (statusCode == ApacheHttpStatus.SC_OK) {
                             resp.entity.content.withStream { InputStream stream ->
                                 byte[] data = IOUtils.toByteArray(stream)
-                                Result<MediaInfo> res = doAddMedia(mInfo, mimeType, data)
+                                Result<?> res = doAddMedia(mInfo, collectUploads, mimeType, data)
                                 if (res.success) {
                                     collectMediaIds(extractMediaIdFromUrl(url))
                                 }
-                                else { failRes << res  }
+                                else { failGroup << res  }
                             }
                         }
                         else {
-                            return resultFactory.failWithCodeAndStatus(
+                            failGroup << resultFactory.failWithCodeAndStatus(
                                 "mediaService.buildFromIncomingMedia.couldNotRetrieveMedia",
                                 ResultStatus.convert(statusCode),
                                 [resp.statusLine.reasonPhrase])
@@ -144,8 +148,8 @@ class MediaService {
                     }
                 }
             }
-            if (failRes) {
-                resultFactory.failWithResultsAndStatus(failRes, ResultStatus.INTERNAL_SERVER_ERROR)
+            if (failGroup.anyFailures) {
+                resultFactory.failWithResultsAndStatus(failGroup.failures, failGroup.failureStatus)
             }
             else {
                 mInfo.save() ? resultFactory.success(mInfo) :
@@ -164,13 +168,16 @@ class MediaService {
 
     Result<Void> deleteMedia(String messageId, Collection<String> mediaIds) {
         List<Result<Boolean>> resList = Helpers.<String>doAsyncInBatches(mediaIds,
-            this.&deleteMediaHelper.curry(messageId))
+            // do not curry to enable mocking during testing
+            { String mediaId -> this.deleteMediaHelper(messageId, mediaId) })
         ResultGroup<Boolean> resGroup = new ResultGroup<Boolean>(resList)
         if (resGroup.anyFailures) {
             resultFactory.failWithResultsAndStatus(resGroup.failures, ResultStatus.INTERNAL_SERVER_ERROR)
         }
         else { resultFactory.success() }
     }
+
+    // [UNTESTED] because of limitations in mocking
     protected Result<Boolean> deleteMediaHelper(String messageId, String mediaId) {
         try {
             resultFactory.success(Media.deleter(messageId, mediaId).delete())
@@ -190,8 +197,8 @@ class MediaService {
         MediaInfo mInfo = null, Token callToken = null) {
 
         ResultGroup<TempRecordReceipt> resGroup = callToken ?
-            sendWithMediaForText(fromNum, toNums, msg1, mInfo) :
-            sendWithMediaForCall(fromNum, toNums, callToken, mInfo)
+            sendWithMediaForCall(fromNum, toNums, callToken, mInfo) :
+            sendWithMediaForText(fromNum, toNums, msg1, mInfo)
         if (resGroup.anyFailures) {
             resultFactory.failWithResultsAndStatus(resGroup.failures,
                 resGroup.failureStatus)

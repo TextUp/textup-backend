@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.UUID
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.type.RecordItemType
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
@@ -87,7 +87,7 @@ class PhoneServiceIntegrationSpec extends CustomSpec {
         _phone.number = new PhoneNumber(number:fromNum)
         // create contacts
         numContacts.times {
-            Contact c1 = _phone.createContact([:], [randPhoneNumber()]).payload
+            Contact c1 = _phone.createContact([:], [TestHelpers.randPhoneNumber()]).payload
             _receipientNumbers.addAll(c1.numbers*.e164PhoneNumber)
             _contacts << c1
         }

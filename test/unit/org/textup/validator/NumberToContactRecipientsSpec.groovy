@@ -7,7 +7,7 @@ import org.springframework.context.MessageSource
 import org.springframework.validation.Errors
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Ignore
 import spock.lang.Shared
 
@@ -33,13 +33,7 @@ class NumberToContactRecipientsSpec extends CustomSpec {
 
     void "test building recipients from string phone number"() {
         given: "empty obj"
-        Helpers.metaClass.'static'.getResultFactory = { ->
-            [
-                failWithValidationErrors: { Errors errors ->
-                    new Result(status: ResultStatus.UNPROCESSABLE_ENTITY, errorMessages:["not valid!"])
-                }
-            ] as ResultFactory
-        }
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         NumberToContactRecipients recips = new NumberToContactRecipients()
 
         when: "without phone or invalid"
@@ -54,8 +48,7 @@ class NumberToContactRecipientsSpec extends CustomSpec {
 
         then: "obj has errors"
         recipList.size() == 1 // only build the one valid number
-        recips.hasErrors() == true
-        recips.errors.getFieldErrorCount("recipients") == 1
+        recips.hasErrors() == false // save the error building for when we call validate
 
         when: "with phone and all valid numbers"
         recipList = recips.buildRecipientsFromIds(["626 123 1234", "626 349 2910"])
@@ -63,7 +56,6 @@ class NumberToContactRecipientsSpec extends CustomSpec {
         then: "obj is valid"
         recipList.size() == 2
         recips.hasErrors() == false
-        recips.errors.getFieldErrorCount("recipients") == 0
     }
 
     void "test constraints"() {
@@ -79,6 +71,19 @@ class NumberToContactRecipientsSpec extends CustomSpec {
 
         then: "valid"
         recips.validate() == true
+
+        when: "array of null ids"
+        recips.ids = [null, null]
+
+        then: "null values are ignored"
+        recips.validate() == true
+
+        when: "some invalid numbers"
+        recips.ids = ["626 123 1234", "i am not a real phone number"]
+
+        then:
+        recips.validate() == false
+        recips.errors.getFieldErrorCount("recipients") == 1
 
         when: "with some ids"
         recips.ids = ["626 123 1234", "626 349 2910"]

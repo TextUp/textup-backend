@@ -1,12 +1,14 @@
 package org.textup.util
 
 import grails.converters.JSON
+import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.quartz.Scheduler
 import org.quartz.TriggerKey
 import org.springframework.context.MessageSource
 import org.springframework.context.MessageSourceResolvable
 import org.springframework.context.support.StaticMessageSource
 import org.textup.*
+import org.textup.rest.TwimlBuilder
 import org.textup.type.OrgStatus
 import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
@@ -92,14 +94,6 @@ class CustomSpec extends Specification {
     // Helpers
     // -------
 
-    protected Object jsonToObject(JSON data) {
-        Helpers.toJson(data.toString())
-    }
-    protected String randPhoneNumber(Random randGen = null) {
-        Random thisRand = randGen ?: randomGenerator
-        int randString = thisRand.nextInt(Math.pow(10, 10) as Integer)
-        "${Constants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
-    }
     protected int randIntegerUpTo(Integer max, Random randGen = null) {
         Random thisRand = randGen ?: randomGenerator
         thisRand.nextInt(max)
@@ -118,17 +112,9 @@ class CustomSpec extends Specification {
         grailsApplication.mainContext.getBean(beanName)
     }
     protected ResultFactory getResultFactory() {
-        ResultFactory resultFactory = getBean("resultFactory")
+        ResultFactory resultFactory = TestHelpers.getResultFactory(grailsApplication)
         resultFactory.messageSource = messageSource
         resultFactory
-    }
-    protected Scheduler mockScheduler() {
-        [getTrigger: { TriggerKey key -> null }] as Scheduler
-    }
-    protected MessageSource mockMessageSourceWithResolvable() {
-        [getMessage: { MessageSourceResolvable resolvable, Locale l ->
-            resolvable.codes.last()
-        }] as MessageSource
     }
 
     // Setup data
@@ -198,10 +184,10 @@ class CustomSpec extends Specification {
         t2.save(flush:true, failOnError:true)
 
         //add team phones
-        tPh1 = new Phone(numberAsString:randPhoneNumber(randGen))
+        tPh1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         tPh1.updateOwner(t1)
         tPh1.save(flush:true, failOnError:true)
-        tPh2 = new Phone(numberAsString:randPhoneNumber(randGen))
+        tPh2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         tPh2.updateOwner(t2)
         tPh2.save(flush:true, failOnError:true)
 
@@ -213,10 +199,10 @@ class CustomSpec extends Specification {
         otherT1.save(flush:true, failOnError:true)
         otherT2.save(flush:true, failOnError:true)
         //add a team phone
-        otherTPh1 = new Phone(numberAsString:randPhoneNumber(randGen))
+        otherTPh1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         otherTPh1.updateOwner(otherT1)
         otherTPh1.save(flush:true, failOnError:true)
-        otherTPh2 = new Phone(numberAsString:randPhoneNumber(randGen))
+        otherTPh2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         otherTPh2.updateOwner(otherT2)
         otherTPh2.save(flush:true, failOnError:true)
     }
@@ -241,13 +227,13 @@ class CustomSpec extends Specification {
         s3.save(flush:true, failOnError:true)
 
         //phone numbers for staff at our org
-        p1 = new Phone(numberAsString:randPhoneNumber(randGen))
+        p1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         p1.updateOwner(s1)
         p1.save(flush:true, failOnError:true)
-        p2 = new Phone(numberAsString:randPhoneNumber(randGen))
+        p2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         p2.updateOwner(s2)
         p2.save(flush:true, failOnError:true)
-        p3 = new Phone(numberAsString:randPhoneNumber(randGen))
+        p3 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         p3.updateOwner(s3)
         p3.save(flush:true, failOnError:true)
 
@@ -268,13 +254,13 @@ class CustomSpec extends Specification {
         otherS2.save(flush:true, failOnError:true)
         otherS3.save(flush:true, failOnError:true)
         //phone numbers for staff at our org
-        otherP1 = new Phone(numberAsString:randPhoneNumber(randGen))
+        otherP1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         otherP1.updateOwner(otherS1)
         otherP1.save(flush:true, failOnError:true)
-        otherP2 = new Phone(numberAsString:randPhoneNumber(randGen))
+        otherP2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         otherP2.updateOwner(otherS2)
         otherP2.save(flush:true, failOnError:true)
-        otherP3 = new Phone(numberAsString:randPhoneNumber(randGen))
+        otherP3 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         otherP3.updateOwner(otherS3)
         otherP3.save(flush:true, failOnError:true)
         // staff roles

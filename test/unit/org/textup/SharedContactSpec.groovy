@@ -12,7 +12,7 @@ import org.textup.type.ContactStatus
 import org.textup.type.NotificationLevel
 import org.textup.type.SharePermission
 import org.textup.type.VoiceLanguage
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Unroll
@@ -314,12 +314,12 @@ class SharedContactSpec extends CustomSpec {
 
     void "test static finders for contact deletion"() {
         given: "two valid phones"
-        Phone phone1 = new Phone(numberAsString:randPhoneNumber())
+        Phone phone1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         phone1.resultFactory = getResultFactory()
         phone1.resultFactory.messageSource = messageSource
         phone1.updateOwner(s1)
         phone1.save(flush:true, failOnError:true)
-        Phone phone2 = new Phone(numberAsString:randPhoneNumber())
+        Phone phone2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
         phone2.resultFactory = getResultFactory()
         phone2.resultFactory.messageSource = messageSource
         phone2.updateOwner(s2)
@@ -327,7 +327,7 @@ class SharedContactSpec extends CustomSpec {
         assert phone1.canShare(phone2) == true
 
         when: "valid contacts and shared contacts"
-        Contact contact1 = phone1.createContact([:], [randPhoneNumber()]).payload
+        Contact contact1 = phone1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
         SharedContact sc1 = phone1.share(contact1, phone2, SharePermission.DELEGATE).payload
         SharedContact.withSession { it.flush() }
 
@@ -396,8 +396,8 @@ class SharedContactSpec extends CustomSpec {
 
     void "test building detached criteria for records"() {
         given: "valid contacts and shared contacts"
-        Contact contact1 = p1.createContact([:], [randPhoneNumber()]).payload
-        Contact contact2 = p1.createContact([:], [randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+        Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
 
         SharedContact sc1 = p1.share(contact1, p2, SharePermission.DELEGATE).payload
         SharedContact sc2 = p1.share(contact2, p2, SharePermission.DELEGATE).payload
