@@ -14,12 +14,9 @@ import org.textup.validator.IncomingText
 @EqualsAndHashCode
 class Record implements ReadOnlyRecord {
 
-    ResultFactory resultFactory
-
     DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
     VoiceLanguage language = VoiceLanguage.ENGLISH
 
-    static transients = ["resultFactory"]
     static constraints = {
     }
     static mapping = {
@@ -54,8 +51,8 @@ class Record implements ReadOnlyRecord {
             RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId)
             receipt.contactNumber = session1.number
             rText1.addToReceipts(receipt)
-            rText1.save() ? resultFactory.success(rText1) :
-                resultFactory.failWithValidationErrors(rText1.errors)
+            rText1.save() ? Helpers.resultFactory.success(rText1) :
+                Helpers.resultFactory.failWithValidationErrors(rText1.errors)
         }
     }
     Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session1) {
@@ -64,8 +61,8 @@ class Record implements ReadOnlyRecord {
             RecordItemReceipt receipt = new RecordItemReceipt(apiId: apiId)
             receipt.contactNumber = session1.number
             rCall1.addToReceipts(receipt)
-            rCall1.save() ? resultFactory.success(rCall1) :
-                resultFactory.failWithValidationErrors(rCall1.errors)
+            rCall1.save() ? Helpers.resultFactory.success(rCall1) :
+                Helpers.resultFactory.failWithValidationErrors(rCall1.errors)
         }
     }
 
@@ -78,11 +75,11 @@ class Record implements ReadOnlyRecord {
             item.record = this
             if (item.save()) {
                 this.updateLastRecordActivity()
-                resultFactory.success(item, ResultStatus.CREATED)
+                Helpers.resultFactory.success(item, ResultStatus.CREATED)
             }
-            else { resultFactory.failWithValidationErrors(item.errors) }
+            else { Helpers.resultFactory.failWithValidationErrors(item.errors) }
         }
-        else { resultFactory.failWithCodeAndStatus("record.noRecordItem", ResultStatus.BAD_REQUEST) }
+        else { Helpers.resultFactory.failWithCodeAndStatus("record.noRecordItem", ResultStatus.BAD_REQUEST) }
     }
 
     // Property Access

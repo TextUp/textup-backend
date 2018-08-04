@@ -21,7 +21,8 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(SuperController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, StaffRole, Role, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, StaffRole, Role, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class SuperControllerSpec extends CustomSpec {
 

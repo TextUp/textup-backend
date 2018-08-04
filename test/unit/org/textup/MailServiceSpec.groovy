@@ -17,7 +17,8 @@ import org.textup.validator.EmailEntity
 @TestFor(MailService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-	Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+	Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class MailServiceSpec extends CustomSpec {
 
@@ -90,10 +91,6 @@ class MailServiceSpec extends CustomSpec {
 
     void "testing notifying of pending staff"() {
         when: "no admins"
-        // result factory messageSource is the StaticMessageSource managed by
-        // CustomSpec. This is a distinct implementation from the mock used
-        // to represent the service's MessageSource
-        addToMessageSource("mailService.notifyAboutPendingStaff.noAdmins")
         Result res = service.notifyAboutPendingStaff(s3, [])
 
         then:

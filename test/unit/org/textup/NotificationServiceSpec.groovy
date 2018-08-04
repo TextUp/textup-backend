@@ -26,7 +26,7 @@ class NotificationServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = getResultFactory()
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -39,7 +39,6 @@ class NotificationServiceSpec extends CustomSpec {
     void "test notification action errors"() {
         given: "baselines"
         int pBaseline = NotificationPolicy.count()
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 
         when: "actions not a collection"
         Long recId = 8L
@@ -148,7 +147,6 @@ class NotificationServiceSpec extends CustomSpec {
         NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(staff1.id)
         np1.save(flush:true, failOnError:true)
         int sBaseline = Schedule.count()
-        addToMessageSource("weeklySchedule.strIntsNotList")
 
         when: "update with valid non-schedule info"
         Result<NotificationPolicy> res = service.update(np1, [
@@ -217,7 +215,6 @@ class NotificationServiceSpec extends CustomSpec {
         tPh1.stopShare(tC1)
         SharedContact shared1 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
         shared1.save(flush:true, failOnError:true)
-        shared1.resultFactory = getResultFactory()
         // make all other staff members unavailable!
         t1.members.each { Staff otherStaff ->
             otherStaff.manualSchedule = true
@@ -254,7 +251,6 @@ class NotificationServiceSpec extends CustomSpec {
         when: "staff is shared again but is no longer member of team and \
             incoming text to the team number"
         SharedContact shared2 = tPh1.share(tC1, p1, SharePermission.DELEGATE).payload
-        shared2.resultFactory = getResultFactory()
         shared2.save(flush:true, failOnError:true)
 
         t1.removeFromMembers(s1)
@@ -273,7 +269,6 @@ class NotificationServiceSpec extends CustomSpec {
     void "test getting phones to available now for contact ids"() {
         given: "phone with one unshared contact"
         Phone phone1 = new Phone(numberAsString:"3921920392")
-        phone1.resultFactory = getResultFactory()
         phone1.updateOwner(t1)
         phone1.save(flush:true, failOnError:true)
         Contact contact1 = phone1.createContact([:], ["12223334447"]).payload
@@ -335,7 +330,6 @@ class NotificationServiceSpec extends CustomSpec {
         assert s1.phone
         Result<SharedContact> res = phone1.share(contact1, s1.phone, SharePermission.DELEGATE)
         assert res.success
-        res.payload.resultFactory = getResultFactory()
 
         phoneIdToRecord.clear()
         staffIdToPersonalPhoneId.clear()

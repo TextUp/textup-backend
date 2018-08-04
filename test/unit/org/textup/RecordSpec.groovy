@@ -5,8 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.springframework.context.MessageSource
-import org.springframework.context.support.StaticMessageSource
+import org.textup.util.TestHelpers
 import org.textup.validator.IncomingText
 import spock.lang.Shared
 import spock.lang.Specification
@@ -17,44 +16,32 @@ import spock.lang.Specification
 @TestMixin(HibernateTestMixin)
 class RecordSpec extends Specification {
 
-    @Shared
-    MessageSource messageSource = new StaticMessageSource()
-
 	static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
 	def setup() {
-		ResultFactory fac = getResultFactory()
-		fac.messageSource = messageSource
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
 	}
-
-    ResultFactory getResultFactory() {
-        grailsApplication.mainContext.getBean("resultFactory")
-    }
 
     void "test adding items errors"() {
     	given: "a valid record"
     	Record rec = new Record()
-    	rec.resultFactory = getResultFactory()
     	rec.save(flush:true, failOnError:true)
 
     	when: "we add a missing item"
-        String missingCode = "record.noRecordItem"
-        messageSource.addMessage(missingCode, Locale.default, missingCode)
     	Result res = rec.add(null, null)
 
     	then:
     	res.success == false
         res.status == ResultStatus.BAD_REQUEST
         res.errorMessages.size() == 1
-    	res.errorMessages[0] == missingCode
+    	res.errorMessages[0] == "record.noRecordItem"
     }
 
     void "test adding items, keeping lastRecordActivity up-to-date"() {
         given: "a valid record"
         Record rec = new Record()
-        rec.resultFactory = getResultFactory()
         rec.save(flush:true, failOnError:true)
 
         DateTime currentTimestamp = rec.lastRecordActivity
@@ -109,7 +96,6 @@ class RecordSpec extends Specification {
     void "test retrieving items from the record"() {
     	given: "a record with items of various ages"
     	Record rec = new Record()
-    	rec.resultFactory = getResultFactory()
     	rec.save(flush:true, failOnError:true)
     	RecordItem nowItem = rec.add(new RecordItem(), null).payload,
     		lWkItem = rec.add(new RecordItem(), null).payload,
@@ -147,7 +133,6 @@ class RecordSpec extends Specification {
     void "test getting items from record by type"() {
         given: "record with items of all types"
         Record rec1 = new Record()
-        rec1.resultFactory = getResultFactory()
         rec1.save(flush:true, failOnError:true)
 
         RecordText rText1 = rec1.storeOutgoingText("hello").payload

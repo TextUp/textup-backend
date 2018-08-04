@@ -4,22 +4,25 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
+import org.quartz.Scheduler
 import org.textup.*
 import org.textup.type.FutureMessageType
+import org.textup.util.TestHelpers
 import spock.lang.Specification
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class FutureMessageCleanupJobSpec extends Specification {
 
     void "test cleaning up completed messages not marked as such"() {
         given: "a future message not properly marked as done"
+        Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
         Record rec1 = new Record()
         rec1.save(flush:true, failOnError:true)
         // started today or earlier and is NOT done
         FutureMessage fm1 = new FutureMessage(type:FutureMessageType.TEXT, message:"hi",
             record:rec1, startDate: DateTime.now().minusDays(10), isDone:false)
-        fm1.metaClass.refreshTrigger = { -> }
         fm1.save(flush:true, failOnError:true)
 
         when: "executing this job"

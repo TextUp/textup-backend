@@ -14,6 +14,10 @@ import spock.lang.*
 @TestMixin(HibernateTestMixin)
 class MediaElementSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
     void "test constraints"() {
         when: "empty obj"
         MediaElement e1 = new MediaElement()
@@ -43,7 +47,7 @@ class MediaElementSpec extends Specification {
 
     void "test adding and retrieving versions"() {
         given: "empty obj"
-        Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         MediaElement e1 = new MediaElement()
         byte[] inputData1 = TestHelpers.getJpegSampleData512()
 
@@ -130,17 +134,14 @@ class MediaElementSpec extends Specification {
 
     void "test static creation method"() {
         given:
-        Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
 
         when: "create with no items"
         Result<MediaElement> res = MediaElement.create(Constants.MIME_TYPE_PNG, [])
 
         then: "invalid -- see mocks"
-        res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.payload instanceof Errors
-        res.payload.errorCount == 1
-        res.payload.getFieldErrorCount("sendVersion") == 1
+        res.errorMessages[0] == "nullable"
 
         when: "create with valid content type and a send version"
         res = MediaElement.create(Constants.MIME_TYPE_JPEG, [
@@ -153,19 +154,5 @@ class MediaElementSpec extends Specification {
         res.success == true
         res.payload instanceof MediaElement
         res.payload.validate()
-    }
-
-    // Helpers
-    // -------
-
-    protected ResultFactory mockResultFactory() {
-        [
-            success: { Object obj ->
-                new Result(payload: obj)
-            },
-            failWithValidationErrors: { Errors e ->
-                new Result(status: ResultStatus.UNPROCESSABLE_ENTITY, payload: e)
-            }
-        ] as ResultFactory
     }
 }

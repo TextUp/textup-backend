@@ -12,7 +12,7 @@ import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.ReceiptStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import spock.lang.Shared
@@ -23,7 +23,8 @@ import static org.springframework.http.HttpStatus.*
 @TestFor(PublicRecordController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class PublicRecordControllerSpec extends CustomSpec {
 
@@ -73,16 +74,14 @@ class PublicRecordControllerSpec extends CustomSpec {
     }
 
     void "test updating status for not found receipt"() {
-        given:
-        addToMessageSource("recordService.updateStatus.receiptsNotFound")
-
         when:
         mockValidate()
         request.method = "POST"
         controller.recordService = [updateStatus:{ ReceiptStatus status, String apiId,
             Integer duration ->
-            getResultFactory().failWithCodeAndStatus("recordService.updateStatus.receiptsNotFound",
-                ResultStatus.NOT_FOUND, [apiId])
+            TestHelpers.getResultFactory(grailsApplication).
+                failWithCodeAndStatus("recordService.updateStatus.receiptsNotFound",
+                    ResultStatus.NOT_FOUND, [apiId])
         }] as RecordService
         controller.twimlBuilder = [noResponse: { ->
             new Result(status:ResultStatus.OK, payload:_closure)

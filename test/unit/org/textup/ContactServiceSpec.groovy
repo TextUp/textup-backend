@@ -7,11 +7,12 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
+import org.springframework.context.support.StaticMessageSource
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
 import org.textup.type.StaffStatus
 import org.textup.type.VoiceLanguage
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -19,17 +20,22 @@ import spock.lang.Specification
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
   RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
   Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-  RecordNote, RecordNoteRevision, FutureMessage, SimpleFutureMessage])
+  RecordNote, RecordNoteRevision, FutureMessage, SimpleFutureMessage,
+  MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class ContactServiceSpec extends CustomSpec {
+
+    @Shared
+    MessageSource staticMessageSource = new StaticMessageSource()
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
         super.setupData()
-        service.resultFactory = getResultFactory()
-        service.messageSource = messageSource
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.messageSource = TestHelpers.mockMessageSource()
         service.authService = [
             getLoggedInAndActive: { -> s1 }
         ] as AuthService
@@ -39,6 +45,7 @@ class ContactServiceSpec extends CustomSpec {
             }
         ] as SocketService
     }
+
     def cleanup() {
         super.cleanupData()
     }
@@ -54,10 +61,9 @@ class ContactServiceSpec extends CustomSpec {
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         res.errorMessages.size() == 1
-        res.errorMessages[0].contains("custom validation")
+        res.errorMessages[0] == "emptyOrNotACollection"
 
         when: "we create with number actions that defines an unspecified action"
-        addToMessageSource("actionContainer.invalidActions")
         List doNumberActions = [[number:"12223334444", preference:0, action:"invalid"]]
         res = service.create(p1, [doNumberActions:doNumberActions])
 
@@ -76,7 +82,6 @@ class ContactServiceSpec extends CustomSpec {
         }
 
     	when: "we create with a null phone"
-        addToMessageSource("contactService.create.noPhone")
     	Result<Contact> res = service.create(null, [:])
 
     	then:
@@ -113,7 +118,6 @@ class ContactServiceSpec extends CustomSpec {
         int nBaseline = ContactNumber.count()
 
         when: "we try to update a nonexistent contact"
-        addToMessageSource("contactService.update.notFound")
         Result res = service.update(-88L, [:])
 
         then:
@@ -301,7 +305,6 @@ class ContactServiceSpec extends CustomSpec {
         int nBaseline = ContactNumber.count()
 
         when: "we try to delete nonexistent number"
-        addToMessageSource("contact.numberNotFound")
         Map numActions = [doNumberActions:[
             [number:"2223334443", action:Constants.NUMBER_ACTION_DELETE]
         ]]
@@ -387,13 +390,12 @@ class ContactServiceSpec extends CustomSpec {
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         res.errorMessages.size() == 1
-        res.errorMessages[0].contains("custom validation") // "emptyOrNotACollection"
+        res.errorMessages[0] == "emptyOrNotACollection"
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
         SharedContact.count() == sBaseline
 
         when: "we try to update with unspecified share actions"
-        addToMessageSource("actionContainer.invalidActions")
         updateInfo = [doShareActions:[
             [id:s2.phone.id, action:"invalid", permission:SharePermission.DELEGATE]
         ]]
@@ -424,7 +426,6 @@ class ContactServiceSpec extends CustomSpec {
         SharedContact.count() == sBaseline
 
         when: "we try to share with staff member we can't share with (on a different team)"
-        addToMessageSource("phone.share.cannotShare")
         updateInfo = [doShareActions:[
             [id:s3.phone.id, action:Constants.SHARE_ACTION_MERGE,
                 permission:SharePermission.DELEGATE]
@@ -444,8 +445,9 @@ class ContactServiceSpec extends CustomSpec {
     void "test building sharing messages"() {
         given:
         String code = "note.sharing.stop"
-        addToMessageSource(code)
         int nBaseline = RecordNote.count()
+        service.messageSource = staticMessageSource
+        staticMessageSource.addMessage(code, Locale.default, code)
 
         when: "missing some information"
         HashSet<String> names = new HashSet<>(["name1", "name2", "name3"])
@@ -478,7 +480,6 @@ class ContactServiceSpec extends CustomSpec {
     void "test recording sharing changes"() {
         given:
         int nBaseline = RecordNote.count()
-        addToMessageSource(["note.sharing.stop", "note.sharing.view", "note.sharing.delegate"])
 
         when: "no changes to record"
         ResultGroup<RecordNote> resGroup = service.recordSharingChanges(c1.record, [:], [])
@@ -507,7 +508,6 @@ class ContactServiceSpec extends CustomSpec {
         int nBaseline = ContactNumber.count()
         int sBaseline = SharedContact.count()
         int noteBaseline = RecordNote.count()
-        addToMessageSource(["note.sharing.stop", "note.sharing.view", "note.sharing.delegate"])
 
         when: "we try to share a team's contacts"
         Map updateInfo = [doShareActions:[
@@ -716,7 +716,6 @@ class ContactServiceSpec extends CustomSpec {
 
     void "test delete"() {
         when: "deleting nonexistent contact"
-        addToMessageSource("contactService.delete.notFound")
         Result<Void> res = service.delete(-88L)
 
         then:

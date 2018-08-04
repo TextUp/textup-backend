@@ -15,6 +15,10 @@ import spock.lang.Specification
 @TestMixin(HibernateTestMixin)
 class HelpersSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
     void "test converting enums"() {
         expect: "an invalid enum returns null"
         Helpers.<CallResponse>convertEnum(CallResponse, "invalid") == null
@@ -240,19 +244,11 @@ class HelpersSpec extends Specification {
     }
 
     void "test error handling on request operations"() {
-        given: "mocks"
-        Helpers.metaClass.'static'.getResultFactory = { ->
-            return [
-                failWithThrowable: { Throwable e ->
-                    new Result(status: ResultStatus.BAD_REQUEST, payload: e)
-                }
-            ] as ResultFactory
-        }
-
         when: "no request"
         Result<Void> res = Helpers.trySetOnRequest("hello", "world")
 
         then: "IllegalStateException is caught and gracefully returned -- see mock"
-        res.payload instanceof IllegalStateException
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages[0].contains("No thread-bound request found")
     }
 }

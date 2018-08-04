@@ -37,7 +37,7 @@ class StorageServiceSpec extends Specification {
 	}
 
 	void setup() {
-		service.resultFactory = grailsApplication.mainContext.getBean("resultFactory")
+		service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
 		service.s3Service = [
             putObject: { String bucket, String key, InputStream stream, ObjectMetadata meta ->
                 [getETag: { -> _eTag }] as PutObjectResult

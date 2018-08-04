@@ -8,6 +8,7 @@ import grails.test.runtime.FreshRuntime
 import java.util.UUID
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.context.MessageSource
+import org.textup.util.TestHelpers
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
@@ -21,7 +22,8 @@ import static org.springframework.http.HttpStatus.*
 // To test error checking, for making calls initially, see
 // `CallServiceNoMockSpec.groovy`
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @TestFor(CallService)
 class CallServiceSpec extends Specification {
@@ -31,13 +33,8 @@ class CallServiceSpec extends Specification {
     }
 
     def setup() {
-    	service.resultFactory = grailsApplication.mainContext.getBean("resultFactory")
-    	service.resultFactory.messageSource = [getMessage:{ String c, Object[] p, Locale l ->
-            c
-        }] as MessageSource
-        service.grailsLinkGenerator = [link: { Map m ->
-        	(m.params ?: [:]).toString()
-    	}] as LinkGenerator
+    	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.grailsLinkGenerator = TestHelpers.mockLinkGenerator()
     	service.metaClass.doCall = { PhoneNumber fromNum, BasePhoneNumber toNum,
             Map afterPickup, String callback ->
 	        new Result(status:ResultStatus.OK, payload:[afterPickup:afterPickup, callback:callback])

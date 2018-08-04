@@ -22,8 +22,6 @@ import org.textup.validator.TempRecordReceipt
 @RestApiObject(name="Contact", description="A contact")
 class Contact implements Contactable {
 
-    ResultFactory resultFactory
-
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     Phone phone //phone that owns this contact
@@ -137,7 +135,7 @@ class Contact implements Contactable {
             allowedType    = "UnreadInfo",
             useForCreation = false)
     ])
-    static transients = ["resultFactory", "language"]
+    static transients = ["language"]
     static constraints = {
     	name blank:true, nullable:true
     	note blank:true, nullable:true, size:1..1000
@@ -287,9 +285,9 @@ class Contact implements Contactable {
             thisNum.properties = params
             thisNum.number = num
             if (thisNum.save()) {
-                resultFactory.success(thisNum)
+                Helpers.resultFactory.success(thisNum)
             }
-            else { resultFactory.failWithValidationErrors(thisNum.errors) }
+            else { Helpers.resultFactory.failWithValidationErrors(thisNum.errors) }
         }
         else {
             thisNum = new ContactNumber()
@@ -298,9 +296,9 @@ class Contact implements Contactable {
             this.addToNumbers(thisNum)
             handleNumberPreferences()
             if (thisNum.save()) {
-                resultFactory.success(thisNum)
+                Helpers.resultFactory.success(thisNum)
             }
-            else { resultFactory.failWithValidationErrors(thisNum.errors) }
+            else { Helpers.resultFactory.failWithValidationErrors(thisNum.errors) }
         }
     }
     @GrailsTypeChecked
@@ -328,10 +326,10 @@ class Contact implements Contactable {
         if (number) {
             this.removeFromNumbers(number)
             number.delete()
-            resultFactory.success()
+            Helpers.resultFactory.success()
         }
         else {
-            resultFactory.failWithCodeAndStatus("contact.numberNotFound",
+            Helpers.resultFactory.failWithCodeAndStatus("contact.numberNotFound",
                 ResultStatus.NOT_FOUND, [number])
         }
     }
@@ -357,11 +355,11 @@ class Contact implements Contactable {
     }
     @GrailsTypeChecked
     Result<Record> tryGetRecord() {
-        resultFactory.success(this.record)
+        Helpers.resultFactory.success(this.record)
     }
     @GrailsTypeChecked
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
-        resultFactory.success(this.record)
+        Helpers.resultFactory.success(this.record)
     }
 
     // Property Access

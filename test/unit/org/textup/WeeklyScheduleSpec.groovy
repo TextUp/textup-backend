@@ -8,9 +8,8 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeConstants
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalTime
-import org.springframework.context.MessageSource
-import org.springframework.context.support.StaticMessageSource
 import org.textup.type.ScheduleStatus
+import org.textup.util.*
 import org.textup.validator.LocalInterval
 import org.textup.validator.ScheduleChange
 import spock.lang.Ignore
@@ -25,18 +24,12 @@ import spock.lang.Unroll
 @Unroll
 class WeeklyScheduleSpec extends Specification {
 
-    @Shared
-    MessageSource messageSource = new StaticMessageSource()
-
 	static doWithSpring = {
 		resultFactory(ResultFactory)
 	}
+
 	def setup() {
-		ResultFactory fac = getResultFactory()
-		fac.messageSource = [getMessage:{ String c, Object[] p, Locale l -> c }] as MessageSource
-	}
-	private ResultFactory getResultFactory() {
-		grailsApplication.mainContext.getBean("resultFactory")
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
 	}
 
     void "test constraints and deletion"() {
@@ -50,7 +43,6 @@ class WeeklyScheduleSpec extends Specification {
 
     	when: "we have an empty schedule"
     	WeeklySchedule s = new WeeklySchedule()
-    	s.resultFactory = getResultFactory()
 
     	then:
     	s.validate() == true
@@ -103,8 +95,6 @@ class WeeklyScheduleSpec extends Specification {
     	res.payload.friday == "0000,0100;0559,0759"
 
     	when: "update with some invalid local intervals"
-        MessageSource originalMessageSource = s.resultFactory.messageSource
-        s.resultFactory.messageSource = messageSource
 		res = s.update(tuesday:[new LocalInterval(t2, t1), new LocalInterval(midnight, t2)])
 
     	then:
@@ -114,7 +104,6 @@ class WeeklyScheduleSpec extends Specification {
     	res.errorMessages.size() == 1
 
     	when: "update string field directly with valid string"
-        s.resultFactory.messageSource = originalMessageSource
     	String wedString = "0100,0500;0759,2359"
 	    s.wednesday = wedString
 
@@ -149,7 +138,6 @@ class WeeklyScheduleSpec extends Specification {
     void "test updating with interval strings"() {
         given: "a weekly schedule"
         WeeklySchedule s = new WeeklySchedule()
-        s.resultFactory = getResultFactory()
         s.save(flush:true, failOnError:true)
 
         when: "for a certain day, the strings are not in a list"
@@ -239,7 +227,6 @@ class WeeklyScheduleSpec extends Specification {
     void "test updating across different time zones"() {
     	given: "a weekly schedule"
         WeeklySchedule s = new WeeklySchedule()
-        s.resultFactory = getResultFactory()
         s.save(flush:true, failOnError:true)
         String tz = "America/Phoenix" // use this one to avoid daylight savings complications
 
@@ -298,7 +285,6 @@ class WeeklyScheduleSpec extends Specification {
     	LocalTime t3 = new LocalTime(5, 59)
     	LocalTime t4 = new LocalTime(7, 59)
     	WeeklySchedule s = new WeeklySchedule()
-    	s.resultFactory = getResultFactory()
 
     	when: "we ask an empty schedule"
     	Result res = s.nextChange()

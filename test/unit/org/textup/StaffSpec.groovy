@@ -21,7 +21,8 @@ import spock.lang.Unroll
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class StaffSpec extends CustomSpec {
@@ -197,7 +198,6 @@ class StaffSpec extends CustomSpec {
     		name:"Staff", email:"staff@textup.org", org:org,
     		personalPhoneAsString:"1112223333", lockCode:Constants.DEFAULT_LOCK_CODE)
     	staff1.save(flush:true, failOnError:true)
-        addToMessageSource("staff.scheduleInfoUnavailable")
 
     	when: "manual schedule is off"
     	staff1.manualSchedule = false

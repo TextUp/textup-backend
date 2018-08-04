@@ -16,14 +16,12 @@ import org.textup.type.ScheduleStatus
 import org.textup.validator.LocalInterval
 import org.textup.validator.ScheduleChange
 
+// [NOTE] All times are stored in UTC!
+
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="Schedule", description="Schedule that repeats weekly.")
 class WeeklySchedule extends Schedule {
-
-    ResultFactory resultFactory
-
-    // All times are stored in UTC!
 
     @RestApiObjectField(
         description    = "Available times on Sunday. Strings must be in format \
@@ -106,7 +104,6 @@ class WeeklySchedule extends Schedule {
             allowedType    = "Boolean",
             useForCreation = false),
     ])
-    static transients=["resultFactory"]
     static constraints = {
         sunday validator:{ String val, WeeklySchedule obj ->
             if (!obj.validateIntervalsString(val)) { ["invalid"] }
@@ -151,17 +148,17 @@ class WeeklySchedule extends Schedule {
     Result<DateTime> nextAvailable(String timezone=null) {
         Result<ScheduleChange> res = nextChangeForType(ScheduleStatus.AVAILABLE, timezone)
         if (res.success) {
-            resultFactory.success(res.payload.when)
+            Helpers.resultFactory.success(res.payload.when)
         }
-        else { resultFactory.failWithResultsAndStatus([res], res.status) }
+        else { Helpers.resultFactory.failWithResultsAndStatus([res], res.status) }
     }
     @Override
     Result<DateTime> nextUnavailable(String timezone=null) {
         Result<ScheduleChange> res = nextChangeForType(ScheduleStatus.UNAVAILABLE, timezone)
         if (res.success) {
-            resultFactory.success(res.payload.when)
+            Helpers.resultFactory.success(res.payload.when)
         }
-        else { resultFactory.failWithResultsAndStatus([res], res.status) }
+        else { Helpers.resultFactory.failWithResultsAndStatus([res], res.status) }
     }
     @Override
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -173,19 +170,19 @@ class WeeklySchedule extends Schedule {
                 if (!li.validate()) { errors = li.errors; break; }
             }
             if (errors) {
-                resultFactory.failWithValidationErrors(errors)
+                Helpers.resultFactory.failWithValidationErrors(errors)
             }
             else {
                 params.each { String key, List<LocalInterval> intervals ->
                     this."$key" = intervals.isEmpty() ? "" :
                         dehydrateLocalIntervals(cleanLocalIntervals(intervals))
                 }
-                resultFactory.success(this)
+                Helpers.resultFactory.success(this)
             }
         }
         catch (Throwable e) {
             log.debug("WeeklySchedule.update: ${e.message}")
-            resultFactory.failWithThrowable(e)
+            Helpers.resultFactory.failWithThrowable(e)
         }
     }
     Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params, String timezone="UTC") {
@@ -208,7 +205,7 @@ class WeeklySchedule extends Schedule {
                     else { return res }
                 }
                 else {
-                    return resultFactory.failWithCodeAndStatus("weeklySchedule.strIntsNotList",
+                    return Helpers.resultFactory.failWithCodeAndStatus("weeklySchedule.strIntsNotList",
                         ResultStatus.UNPROCESSABLE_ENTITY, [intStrings])
                 }
             }
@@ -341,10 +338,10 @@ class WeeklySchedule extends Schedule {
             }
         }
         //If sChange is not null, then we found an interval that contains initialDt
-        if (sChange) { resultFactory.success(sChange) }
+        if (sChange) { Helpers.resultFactory.success(sChange) }
         //Otherwise, we need to find the nearest upcoming interval
         else if (closestUpcoming && !intervals.isEmpty()) {
-            resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
+            Helpers.resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
                 when:closestUpcoming, timezone:timezone))
         }
         //If no upcoming intervals on this day, check the next day
@@ -354,7 +351,7 @@ class WeeklySchedule extends Schedule {
                 nextChangeForDateTime(dt.plusDays(1), initialDt, timezone)
             }
             else {
-                resultFactory.failWithCodeAndStatus("weeklySchedule.nextChangeNotFound",
+                Helpers.resultFactory.failWithCodeAndStatus("weeklySchedule.nextChangeNotFound",
                     ResultStatus.NOT_FOUND)
             }
         }
@@ -425,17 +422,17 @@ class WeeklySchedule extends Schedule {
                     result << new Interval(start, end)
                 }
                 else {
-                    return resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
+                    return Helpers.resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
                         ResultStatus.UNPROCESSABLE_ENTITY, [str])
                 }
             }
             catch (e) {
                 log.debug("WeeklyScheduleSpec.parseIntervalStrings: ${e.message}")
-                return resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
+                return Helpers.resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
                     ResultStatus.UNPROCESSABLE_ENTITY, [str])
             }
         }
-        resultFactory.success(result)
+        Helpers.resultFactory.success(result)
     }
 
     // Dehydrate, rehydrate and validate intervals

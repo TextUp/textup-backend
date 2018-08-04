@@ -11,9 +11,6 @@ import grails.compiler.GrailsCompileStatic
 @EqualsAndHashCode
 class Schedule {
 
-    ResultFactory resultFactory
-
-    static transients = ["resultFactory"]
     static constraints = {
     }
 
@@ -21,7 +18,7 @@ class Schedule {
     // ------------
 
     boolean isAvailableAt(DateTime dt) {
-        resultFactory.success(false)
+        Helpers.resultFactory.success(false)
     }
     boolean isAvailableNow() {
         isAvailableAt(DateTime.now(DateTimeZone.UTC))
@@ -31,20 +28,20 @@ class Schedule {
     // --------------
 
     Result<ScheduleChange> nextChange(String timezone=null) {
-        resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
+        Helpers.resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
             when:DateTime.now(DateTimeZone.UTC).minusDays(1)))
     }
     Result<DateTime> nextAvailable(String timezone=null) {
-        resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
+        Helpers.resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
     }
     Result<DateTime> nextUnavailable(String timezone=null) {
-        resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
+        Helpers.resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
     }
 
     // Modify the Schedule
     // -------------------
 
     Result<Schedule> update(Map params) {
-        resultFactory.success(this)
+        Helpers.resultFactory.success(this)
     }
 }

@@ -19,6 +19,10 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class UploadItemSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
     void "test constraints"() {
         when: "empty upload item"
         UploadItem uItem = new UploadItem()
@@ -215,7 +219,7 @@ class UploadItemSpec extends Specification {
     @Unroll
     void "test resizing width for #mimeType"() {
         given: "obj with data"
-        Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         byte[] inputData1 = TestHelpers.getSampleDataForMimeType(mimeType)
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
             mimeType: mimeType,
@@ -226,13 +230,15 @@ class UploadItemSpec extends Specification {
         Result<UploadItem> res = uItem.tryResizeToWidth(0)
 
         then: "short circuit -- see mock"
-        res.payload == "uploadItem.tryResizeToWidth.invalidWidth"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "uploadItem.tryResizeToWidth.invalidWidth"
 
         when: "resize to a negative width"
         res = uItem.tryResizeToWidth(-1)
 
         then: "short circuit -- see mock"
-        res.payload == "uploadItem.tryResizeToWidth.invalidWidth"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "uploadItem.tryResizeToWidth.invalidWidth"
 
         when: "resize to a positive width"
         float aspectRatio = 0.8
@@ -252,7 +258,7 @@ class UploadItemSpec extends Specification {
 
     void "test compression short circuiting"() {
         given: "obj representing a PNG image (not compressible)"
-        Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         byte[] inputData1 = TestHelpers.getPngSampleData()
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
             mimeType: Constants.MIME_TYPE_PNG,
@@ -263,19 +269,21 @@ class UploadItemSpec extends Specification {
         Result<UploadItem> res = uItem.tryCompress(0)
 
         then: "short circuit without infinite loop"
-        res.payload == "uploadItem.tryCompress.invalidSize"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "uploadItem.tryCompress.invalidSize"
 
         when: "compress to a negative size"
         res = uItem.tryCompress(-1)
 
         then: "short circuit without infinite loop"
-        res.payload == "uploadItem.tryCompress.invalidSize"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "uploadItem.tryCompress.invalidSize"
     }
 
     @Unroll
     void "test compression for #mimeType"() {
         given: "obj with compressible data"
-        Helpers.metaClass.'static'.getResultFactory = { -> mockResultFactory() }
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         byte[] inputData1 = TestHelpers.getSampleDataForMimeType(mimeType)
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
             mimeType: mimeType,
@@ -314,22 +322,5 @@ class UploadItemSpec extends Specification {
         Constants.MIME_TYPE_PNG  | _
         Constants.MIME_TYPE_JPEG | _
         Constants.MIME_TYPE_GIF  | _
-    }
-
-    // Helpers
-    // -------
-
-    protected ResultFactory mockResultFactory() {
-        [
-            failWithValidationErrors: { Errors errors ->
-                new Result(status: ResultStatus.UNPROCESSABLE_ENTITY, payload: errors)
-            },
-            failWithCodeAndStatus: { String code, ResultStatus stat1 ->
-                new Result(status: stat1, payload: code)
-            },
-            success: { Object obj ->
-                new Result(payload: obj)
-            }
-        ] as ResultFactory
     }
 }

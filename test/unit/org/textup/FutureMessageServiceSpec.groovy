@@ -37,8 +37,9 @@ class FutureMessageServiceSpec extends CustomSpec {
         _numTextsSent = 0
     	setupData()
         Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj -> new Result() }
-    	service.resultFactory = getResultFactory()
-        service.messageSource = messageSource
+        Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
+    	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.messageSource = TestHelpers.mockMessageSource()
         service.notificationService = [
             build: { Phone targetPhone, List<Contact> contacts, List<ContactTag> tags ->
                 [new BasicNotification()]
@@ -61,14 +62,6 @@ class FutureMessageServiceSpec extends CustomSpec {
                 new Result(status:ResultStatus.OK).toGroup()
             }
         ] as SocketService
-
-        FutureMessage.metaClass.refreshTrigger = { -> null }
-        SimpleFutureMessage.metaClass.constructor = { Map m->
-            def instance = new SimpleFutureMessage()
-            instance.properties = m
-            instance.quartzScheduler = TestHelpers.mockScheduler()
-            instance
-        }
         OutgoingMessage.metaClass.getMessageSource = { -> TestHelpers.mockMessageSource() }
 
     	fMsg1 = new FutureMessage(record:c1.record, type:FutureMessageType.CALL,
@@ -85,7 +78,6 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     void "test mark done"() {
     	when: "passed in a nonexistent keyName"
-        addToMessageSource("futureMessageService.markDone.messageNotFound")
     	Result<FutureMessage> res = service.markDone("nonexistent")
 
     	then: "not found"
@@ -110,8 +102,6 @@ class FutureMessageServiceSpec extends CustomSpec {
             Staff staff = null, boolean skipOwnerCheck = false ->
             new Result(status:ResultStatus.OK).toGroup()
         }
-        addToMessageSource(["futureMessageService.execute.messageNotFound",
-            "futureMessageService.notifyStaff.notification"])
 
     	when: "nonexistent keyName"
         _numTextsSent = 0
@@ -529,7 +519,6 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     void "test create errors"() {
     	when: "no record"
-        addToMessageSource("futureMessageService.create.noRecordOrInsufficientPermissions")
         Result res = service.create(null, [:])
 
     	then: "unprocessable entity"
@@ -538,10 +527,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.errorMessages[0] == "futureMessageService.create.noRecordOrInsufficientPermissions"
 
         when: "attempting to create for a view-only shared contact"
-        addToMessageSource("sharedContact.insufficientPermission")
         sc1.permission = SharePermission.VIEW
         sc1.save(flush:true, failOnError:true)
-        sc1.resultFactory = getResultFactory()
         res = service.createForSharedContact(sc1.id, [:])
 
         then: "unprocessable entity"
@@ -552,7 +539,6 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     void "test update errors"() {
         when: "nonexistent future message id"
-        addToMessageSource("futureMessageService.update.notFound")
         Result res = service.update(-88L, [:])
 
         then: "not found"
@@ -563,7 +549,6 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     void "test delete errors"() {
         when: "nonexistent future message id"
-        addToMessageSource("futureMessageService.delete.notFound")
         Result res = service.delete(-88L)
 
         then: "not found"

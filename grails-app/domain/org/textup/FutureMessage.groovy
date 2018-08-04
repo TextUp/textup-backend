@@ -11,7 +11,6 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTimeZoneAsString
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.quartz.ScheduleBuilder
-import org.quartz.Scheduler
 import org.quartz.SimpleScheduleBuilder
 import org.quartz.Trigger
 import org.quartz.TriggerKey
@@ -26,7 +25,6 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
 
     Trigger trigger
     FutureMessageService futureMessageService
-    Scheduler quartzScheduler
 
     String keyName = UUID.randomUUID().toString()
     Record record
@@ -128,7 +126,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
             useForCreation    = false,
             presentInResponse = false)
     ])
-	static transients = ["trigger", "futureMessageService", "quartzScheduler"]
+	static transients = ["trigger", "futureMessageService"]
     static constraints = {
         // removed the constraint the prohibited message from being null because a future message
         // can now have media so outgoing message can have either text only, media only, or both.
@@ -220,7 +218,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
         futureMessageService.unschedule(this).logFail("FutureMessage.cancel")
     }
     protected void refreshTrigger() {
-        this.trigger = quartzScheduler.getTrigger(this.triggerKey)
+        this.trigger = Helpers.quartzScheduler.getTrigger(this.triggerKey)
     }
     protected TriggerKey getTriggerKey() {
         String recordId = this.record?.id?.toString()

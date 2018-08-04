@@ -18,8 +18,6 @@ import org.textup.validator.Author
 @RestApiObject(name="Tag", description="A tag for grouping contacts")
 class ContactTag implements WithRecord {
 
-    ResultFactory resultFactory
-
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
 	Phone phone
@@ -68,7 +66,7 @@ class ContactTag implements WithRecord {
             allowedType    = "List<notificationStatus>",
             useForCreation = false)
     ])
-    static transients = ["language", "resultFactory"]
+    static transients = ["language"]
     static hasMany = [members:Contact]
     static constraints = {
         name blank:false, nullable:false, validator:{ String val, ContactTag obj ->
@@ -122,7 +120,7 @@ class ContactTag implements WithRecord {
     // ---------------
 
     Result<Record> tryGetRecord() {
-        resultFactory.success(this.record)
+        Helpers.resultFactory.success(this.record)
     }
 
     void setRecord(Record r) {

@@ -60,7 +60,7 @@ class RecordItemReceiptSpec extends Specification {
 			numPending = 4,
 			numSuccess = 5
 		numFailed.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.FAILED)) }
-        numPending.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.SUCCESS)) }
+        numPending.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.PENDING)) }
         numSuccess.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.SUCCESS)) }
         rItem.save(flush: true, failOnError: true)
 

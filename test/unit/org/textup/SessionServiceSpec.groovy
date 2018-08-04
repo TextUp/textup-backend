@@ -13,7 +13,8 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy])
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class SessionServiceSpec extends CustomSpec {
 
@@ -23,7 +24,7 @@ class SessionServiceSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        service.resultFactory = getResultFactory()
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.authService = [getLoggedInAndActive:{
 			s1
     	}] as AuthService
@@ -36,7 +37,6 @@ class SessionServiceSpec extends CustomSpec {
     void "test create"() {
     	given: "baselines"
     	int sBaseline = IncomingSession.count()
-        addToMessageSource("sessionService.create.noPhone")
 
     	when: "without phone"
     	Result res = service.create(null, [:])
@@ -47,7 +47,6 @@ class SessionServiceSpec extends CustomSpec {
     	res.errorMessages[0] == "sessionService.create.noPhone"
 
     	when: "invalid number"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 		res = service.create(p1, [number:"invalid"])
 
     	then:
@@ -56,7 +55,6 @@ class SessionServiceSpec extends CustomSpec {
     	res.errorMessages.size() == 1
 
     	when: "all valid"
-        service.resultFactory.messageSource = messageSource
     	Map body = [number:"1112223333"]
     	assert IncomingSession.findByNumberAsStringAndPhone(body.number, p1) == null
     	res = service.create(p1, body)
@@ -86,7 +84,6 @@ class SessionServiceSpec extends CustomSpec {
     	IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString:num)
     	sess1.save(flush:true, failOnError:true)
     	int sBaseline = IncomingSession.count()
-        addToMessageSource("sessionService.update.notFound")
 
     	when: "nonexistent id"
     	Result res = service.update(-88L, [:])
@@ -97,7 +94,6 @@ class SessionServiceSpec extends CustomSpec {
     	res.errorMessages[0] == "sessionService.update.notFound"
 
     	when: "existing id, invalid"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
     	res = service.update(sess1.id, [isSubscribedToText:"hello"])
 
     	then:
@@ -106,7 +102,6 @@ class SessionServiceSpec extends CustomSpec {
     	res.errorMessages.size() == 1
 
     	when: "existing id, valid"
-        service.resultFactory.messageSource = messageSource
     	res = service.update(sess1.id, [isSubscribedToText:true])
 
     	then:

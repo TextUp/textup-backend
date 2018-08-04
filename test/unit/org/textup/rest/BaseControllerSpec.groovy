@@ -14,9 +14,8 @@ import org.springframework.context.MessageSource
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.userdetails.UserDetails
 import org.textup.*
-import org.textup.type.OrgStatus
-import org.textup.util.CustomSpec
-import org.textup.util.PusherTester
+import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
@@ -24,7 +23,8 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(BaseController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class BaseControllerSpec extends CustomSpec {
 
@@ -86,12 +86,11 @@ class BaseControllerSpec extends CustomSpec {
 
     void "test building errors"() {
         given: "error results"
-        ResultFactory fac = getResultFactory()
+        ResultFactory fac = TestHelpers.getResultFactory(grailsApplication)
         String errorCode = "I am an a valid error code"
         Collection<Result<?>> manyErrorRes = []
         Location loc1 = new Location()
         assert loc1.validate() == false
-        addToMessageSource(errorCode)
         manyErrorRes << fac.failWithCodeAndStatus(errorCode, ResultStatus.BAD_REQUEST)
         manyErrorRes << fac.failWithValidationErrors(loc1.errors)
 
@@ -107,9 +106,9 @@ class BaseControllerSpec extends CustomSpec {
     void "test resolving class as string"() {
         when: "we have classes that are resolvable"
         Collection<Class> resolvableClasses = [AvailablePhoneNumber, Contactable, ContactTag,
-            FeaturedAnnouncement, FutureMessage, ImageInfo, IncomingSession, Location, MergeGroup,
-            Notification, NotificationStatus, Organization, Phone, RecordItem, RecordItemReceipt,
-            RecordNoteRevision, Schedule, Staff, Team]
+            FeaturedAnnouncement, FutureMessage, IncomingSession, Location, MediaElement, MediaInfo,
+            MergeGroup, Notification, NotificationStatus, Organization, Phone, RecordItem,
+            RecordItemStatus, RecordNoteRevision, Schedule, Staff, Team]
 
         then:
         resolvableClasses.each { Class clazz ->

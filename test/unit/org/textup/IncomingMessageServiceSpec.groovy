@@ -30,8 +30,8 @@ class IncomingMessageServiceSpec extends CustomSpec {
     def setup() {
         setupData()
         service.twimlBuilder = TestHelpers.getTwimlBuilder(grailsApplication)
-        service.resultFactory = getResultFactory()
-        service.messageSource = messageSource
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.messageSource = TestHelpers.mockMessageSource()
     }
 
     def cleanup() {
@@ -230,7 +230,6 @@ class IncomingMessageServiceSpec extends CustomSpec {
     @FreshRuntime
     void "test handling notifications for incoming text"() {
         given:
-        addToMessageSource("incomingMessageService.notifyStaff.notification")
         int numTimesNotifiedStaff = 0
         service.metaClass.buildIncomingTextResponse = { Phone p1, IncomingSession sess1,
             List<RecordText> rTexts, List<String> responses = [] ->

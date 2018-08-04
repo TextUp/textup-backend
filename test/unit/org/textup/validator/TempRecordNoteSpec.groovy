@@ -30,7 +30,6 @@ class TempRecordNoteSpec extends CustomSpec {
 	}
 	def setup() {
 		setupData()
-		Helpers.metaClass.'static'.getResultFactory = { -> getResultFactory() }
 	}
 	def cleanup() {
 		cleanupData()

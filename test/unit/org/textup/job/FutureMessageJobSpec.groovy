@@ -6,6 +6,7 @@ import org.quartz.JobDataMap
 import org.quartz.JobExecutionContext
 import org.quartz.Trigger
 import org.textup.*
+import org.textup.util.*
 import spock.lang.Specification
 
 @TestMixin(GrailsUnitTestMixin)
@@ -25,7 +26,7 @@ class FutureMessageJobSpec extends Specification {
 
     def setup() {
     	job = new FutureMessageJob()
-    	job.resultFactory = grailsApplication.mainContext.getBean("resultFactory")
+    	job.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     	job.futureMessageService = [
     		execute: { String futureKey, Long staffId ->
     			if (_shouldExecuteSuccessfully) {

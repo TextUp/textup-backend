@@ -16,7 +16,6 @@ import org.textup.validator.*
 @RestApiObject(name="Phone", description="A TextUp phone.")
 class Phone {
 
-    ResultFactory resultFactory
     PhoneService phoneService
     TwimlBuilder twimlBuilder
 
@@ -84,7 +83,7 @@ class Phone {
             allowedType    = "List<StaffPolicyAvailability>",
             useForCreation = false)
     ])
-    static transients = ["number", "resultFactory", "phoneService", "twimlBuilder"]
+    static transients = ["number", "phoneService", "twimlBuilder"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
         voice blank:false, nullable:false
@@ -182,16 +181,16 @@ class Phone {
             otherOwn.type = own.type
             otherOwn.ownerId = own.ownerId
             if (!otherOwn.save()) {
-                return resultFactory.failWithValidationErrors(otherOwn.errors)
+                return Helpers.resultFactory.failWithValidationErrors(otherOwn.errors)
             }
         }
         // then associate this phone with new owner
         own.type = type
         own.ownerId = id
         if (own.save()) {
-            resultFactory.success(own)
+            Helpers.resultFactory.success(own)
         }
-        else { resultFactory.failWithValidationErrors(own.errors) }
+        else { Helpers.resultFactory.failWithValidationErrors(own.errors) }
     }
 
     // Tags
@@ -213,10 +212,10 @@ class Phone {
                 this.language
             )
             if (tag.save()) {
-                return resultFactory.success(tag, ResultStatus.CREATED)
+                return Helpers.resultFactory.success(tag, ResultStatus.CREATED)
             }
         }
-        resultFactory.failWithValidationErrors(tag.errors)
+        Helpers.resultFactory.failWithValidationErrors(tag.errors)
     }
 
     // Contacts
@@ -239,7 +238,7 @@ class Phone {
         else { contact.record.language = lang }
         // need to save once language is modified so record will be persisted at the end of transaction
         if (!contact.record.save()) {
-            return resultFactory.failWithValidationErrors(contact.record.errors)
+            return Helpers.resultFactory.failWithValidationErrors(contact.record.errors)
         }
         // need to save contact before adding numbers so that the contact domain is assigned an
         // ID to be associated with the ContactNumbers to avoid a TransientObjectException
@@ -253,9 +252,9 @@ class Phone {
                     return res
                 }
             }
-            return resultFactory.success(contact, ResultStatus.CREATED)
+            return Helpers.resultFactory.success(contact, ResultStatus.CREATED)
         }
-        resultFactory.failWithValidationErrors(contact.errors)
+        Helpers.resultFactory.failWithValidationErrors(contact.errors)
     }
 
     // Sharing
@@ -270,11 +269,11 @@ class Phone {
     }
     Result<SharedContact> share(Contact c1, Phone sWith, SharePermission perm) {
         if (c1?.phone?.id != this.id) {
-            return resultFactory.failWithCodeAndStatus("phone.contactNotMine",
+            return Helpers.resultFactory.failWithCodeAndStatus("phone.contactNotMine",
                 ResultStatus.BAD_REQUEST, [c1?.name])
         }
         if (!canShare(sWith)) {
-            return resultFactory.failWithCodeAndStatus("phone.share.cannotShare",
+            return Helpers.resultFactory.failWithCodeAndStatus("phone.share.cannotShare",
                 ResultStatus.FORBIDDEN, [sWith?.name])
         }
         //check to see that there isn't already an active shared contact
@@ -286,33 +285,33 @@ class Phone {
             sc = new SharedContact(contact:c1, sharedBy:this, sharedWith:sWith, permission:perm)
         }
         if (sc.save()) {
-            resultFactory.success(sc)
+            Helpers.resultFactory.success(sc)
         }
-        else { resultFactory.failWithValidationErrors(sc.errors) }
+        else { Helpers.resultFactory.failWithValidationErrors(sc.errors) }
     }
     Result<Void> stopShare(Phone sWith) {
         List<SharedContact> shareds = SharedContact.listForSharedByAndSharedWith(this, sWith)
         shareds.each { SharedContact sc -> sc.stopSharing() }
-        resultFactory.success()
+        Helpers.resultFactory.success()
     }
     Result<Void> stopShare(Contact c1, Phone sWith) {
         SharedContact sc1 = SharedContact.listForContactAndSharedWith(c1, sWith, [max:1])[0]
         if (sc1) {
             sc1.stopSharing()
         }
-        resultFactory.success()
+        Helpers.resultFactory.success()
     }
     Result<Void> stopShare(Contact contact) {
         // Hibernate proxying magic sometimes results in either contact,phone or this phone being
         // a proxy and therefore not equal to each other when they should be. We get around this
         // problem by comparing the ids of the two objects to ascertain identity
         if (contact?.phone?.id != this.id) {
-            return resultFactory.failWithCodeAndStatus("phone.contactNotMine",
+            return Helpers.resultFactory.failWithCodeAndStatus("phone.contactNotMine",
                 ResultStatus.BAD_REQUEST, [contact?.getNameOrNumber()])
         }
         List<SharedContact> shareds = SharedContact.listForContact(contact)
         shareds?.each { SharedContact sc -> sc.stopSharing() }
-        resultFactory.success()
+        Helpers.resultFactory.success()
     }
 
     // Property Access
@@ -467,9 +466,9 @@ class Phone {
         own.phone = this
         this.owner = own
         if (own.save()) {
-            resultFactory.success(own)
+            Helpers.resultFactory.success(own)
         }
-        else { resultFactory.failWithValidationErrors(own.errors) }
+        else { Helpers.resultFactory.failWithValidationErrors(own.errors) }
     }
 
     // Outgoing
@@ -479,27 +478,27 @@ class Phone {
         boolean skipOwnerCheck = false) {
 
         if (!this.isActive) {
-            resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND).toGroup()
+            Helpers.resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND).toGroup()
         }
         // skip owner check on the phone because we may be sending through a shared contact
         // OR in the future the contact may not longer be shared with this staff member
         // but any scheduled messages that this staff member initiated should still fire
         // regardless of present sharing status
         else if (!skipOwnerCheck && !this.owner.all.any { Staff s1 -> s1.id == staff.id }) { // validate staff
-            resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
+            Helpers.resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
         }
         else { phoneService.sendMessage(this, msg, mInfo, staff) }
     }
     // start bridge call, confirmed (if staff picks up) by contact
     Result<RecordCall> startBridgeCall(Contactable c1, Staff staff) {
         if (!this.isActive) {
-            resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
+            Helpers.resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
         }
         else if (!this.owner.all.any { Staff s1 -> s1.id == staff.id }) { // validate staff
-            resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
+            Helpers.resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
         }
         else if (!staff.personalPhoneAsString) {
-            resultFactory.failWithCodeAndStatus("phone.startBridgeCall.noPersonalNumber",
+            Helpers.resultFactory.failWithCodeAndStatus("phone.startBridgeCall.noPersonalNumber",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         else {
@@ -508,16 +507,16 @@ class Phone {
     }
     Result<FeaturedAnnouncement> sendAnnouncement(String message, DateTime expiresAt, Staff staff) {
         if (!this.isActive) {
-            return resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
+            return Helpers.resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
         }
         // validate expiration
         if (!expiresAt || expiresAt.isBeforeNow()) {
-            return resultFactory.failWithCodeAndStatus("phone.sendAnnouncement.expiresInPast",
+            return Helpers.resultFactory.failWithCodeAndStatus("phone.sendAnnouncement.expiresInPast",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         // validate staff
         if (!this.owner.all.contains(staff)) {
-            return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
+            return Helpers.resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
         }
         // collect relevant classes
         List<IncomingSession> textSubs = IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true),
@@ -528,7 +527,7 @@ class Phone {
             expiresAt:expiresAt, message:message)
         //mark as to-be-saved to avoid TransientObjectExceptions
         if (!announce.save()) {
-            resultFactory.failWithValidationErrors(announce.errors)
+            Helpers.resultFactory.failWithValidationErrors(announce.errors)
         }
         // send announcements
         Map<String, Result<TempRecordReceipt>> textRes = phoneService
@@ -552,13 +551,13 @@ class Phone {
             anySuccessWithSubscribers = (textResGroup.anySuccesses || callResGroup.anySuccesses) && (textSubs || callSubs)
         if (noSubscribers || anySuccessWithSubscribers) {
             if (announce.save()) {
-                resultFactory.success(announce)
+                Helpers.resultFactory.success(announce)
             }
-            else { resultFactory.failWithValidationErrors(announce.errors) }
+            else { Helpers.resultFactory.failWithValidationErrors(announce.errors) }
         }
         // return error if all subscribers failed to receive announcement
         else {
-            resultFactory.failWithResultsAndStatus(textRes.values() + callRes.values(),
+            Helpers.resultFactory.failWithResultsAndStatus(textRes.values() + callRes.values(),
                 ResultStatus.INTERNAL_SERVER_ERROR)
         }
     }
@@ -568,7 +567,7 @@ class Phone {
 
     Result<Closure> receiveText(IncomingText text, IncomingSession session, MediaInfo mInfo = null) {
         if (session.phone?.id != this.id) { //validate session
-            resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
+            Helpers.resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
         }
         else if (this.getAnnouncements()) {
             phoneService.handleAnnouncementText(this, text, session, mInfo)
@@ -577,7 +576,7 @@ class Phone {
     }
     Result<Closure> receiveCall(String apiId, String digits, IncomingSession session) {
         if (session.phone != this) { //validate session
-            resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
+            Helpers.resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
         }
         //if staff member is calling from personal phone to TextUp phone
         else if (this.owner.all.any { it.personalPhoneAsString == session.numberAsString }) {
@@ -595,7 +594,7 @@ class Phone {
     }
     Result<Closure> screenIncomingCall(IncomingSession session) {
         if (session.phone?.id != this?.id) { //validate session
-            resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
+            Helpers.resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
         }
         else {
             phoneService.screenIncomingCall(this, session)

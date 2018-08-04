@@ -16,7 +16,8 @@ import spock.lang.Specification
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
+    AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class TeamServiceSpec extends CustomSpec {
 
@@ -26,7 +27,7 @@ class TeamServiceSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        service.resultFactory = getResultFactory()
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.phoneService = [
             mergePhone: { Team t1, Map body, String timezone ->
                 new Result(success:ResultStatus.OK, payload:t1)
@@ -113,7 +114,6 @@ class TeamServiceSpec extends CustomSpec {
         given: "baselines"
         int baseline = Team.count()
         int lBaseline = Location.count()
-        addToMessageSource("teamService.create.orgNotFound")
 
     	when: "creation of a team with a nonexistent organization"
         Map createInfo = [:]
@@ -152,9 +152,6 @@ class TeamServiceSpec extends CustomSpec {
     // ------
 
     void "test find team from id"() {
-        given:
-        addToMessageSource("teamService.update.notFound")
-
         when: "nonexistent id"
         Result<Team> res = service.findTeamFromId(-88L)
 
@@ -174,10 +171,6 @@ class TeamServiceSpec extends CustomSpec {
     }
 
     void "test team actions edge cases"() {
-        given: "an alternate mock for resultFactory's messageSource for extracting messages \
-            from ValidationErrors"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
-
         when: "no team actions"
         Result<Team> res = service.handleTeamActions(t1, [:])
 
@@ -225,9 +218,6 @@ class TeamServiceSpec extends CustomSpec {
         res.errorMessages.contains("actionContainer.invalidActions")
 
         when: "we try to update team action with forbidden staff member"
-        // need to restore original messageSource
-        service.resultFactory.messageSource = messageSource
-        addToMessageSource("teamService.update.staffForbidden")
         service.authService = [hasPermissionsForStaff: { Long sId ->
             false
         }] as AuthService
@@ -307,9 +297,6 @@ class TeamServiceSpec extends CustomSpec {
     // ------
 
     void "test delete"() {
-        given:
-        addToMessageSource("teamService.delete.notFound")
-
     	when: "we delete a nonexistent team"
         Result res = service.delete(-88L)
 

@@ -7,19 +7,14 @@ import org.textup.*
 import org.textup.type.PhoneOwnershipType
 import org.textup.util.*
 import org.textup.validator.PhoneNumber
+import spock.lang.*
 
 @Domain([Organization, Location])
 @TestMixin(HibernateTestMixin)
-class PhoneActionSpec extends CustomSpec {
+class PhoneActionSpec extends Specification {
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
-	}
-
-	// extend CustomSpec solely for access to helper methods, not for setting up test data
-	def setup() {
-		ResultFactory resultFactory = grailsApplication.mainContext.getBean("resultFactory")
-		resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 	}
 
 	void "test constraints for empty"() {

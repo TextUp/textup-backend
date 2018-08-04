@@ -663,11 +663,6 @@ class TwimlBuilderSpec extends CustomSpec {
         })
 
         when: "announcement and digits invalid"
-        // the resultfactory's messageSource regresses back to the StaticMessageSource
-        // default by this method call instead of our mocked message source. Can't
-        // figure out why so we use just add this errorCode to the StaticMessageSource
-        // so that the built result will have the appropriate error messages
-        addToMessageSource("twimlBuilder.invalidCode")
         res = builder.build(CallResponse.ANNOUNCEMENT_AND_DIGITS)
 
         then:

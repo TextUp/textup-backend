@@ -18,6 +18,7 @@ import org.codehaus.groovy.grails.web.util.WebUtils
 import org.hibernate.FlushMode
 import org.hibernate.Session
 import org.joda.time.*
+import org.quartz.Scheduler
 import org.springframework.context.MessageSource
 import org.textup.validator.*
 
@@ -57,6 +58,11 @@ class Helpers {
         Holders
             .applicationContext
             .getBean(MessageSource) as MessageSource
+    }
+    static Scheduler getQuartzScheduler() {
+        Holders
+            .applicationContext
+            .getBean(Scheduler) as Scheduler
     }
 
     // Request

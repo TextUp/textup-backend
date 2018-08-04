@@ -33,7 +33,6 @@ class NumberToContactRecipientsSpec extends CustomSpec {
 
     void "test building recipients from string phone number"() {
         given: "empty obj"
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         NumberToContactRecipients recips = new NumberToContactRecipients()
 
         when: "without phone or invalid"

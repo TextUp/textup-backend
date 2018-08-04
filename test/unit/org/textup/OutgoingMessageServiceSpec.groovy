@@ -112,8 +112,6 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         when: "cannot get record"
         sc1.stopSharing()
         sc1.save(flush: true, failOnError: true)
-        addToMessageSource("sharedContact.insufficientPermission")
-        sc1.resultFactory = getResultFactory()
         Result<RecordItem> res = service.storeForSingleContactable(msg1, null, s1.toAuthor(),
             doWhenAddingReceipt, sc1, receipts)
 
@@ -253,11 +251,9 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         msg.type = type
         msg.contacts.recipients = [c1, c1_1, c1_2]
         msg.sharedContacts.recipients = [sc2]
-        msg.sharedContacts.recipients.each { it.resultFactory = getResultFactory() }
         msg.tags.recipients = [tag1, tag1_1]
         int iBaseline = RecordItem.count()
         int rBaseline = RecordItemReceipt.count()
-        addToMessageSource("outgoingMessage.getName.contactId")
 
         when: "we send to contacts, shared contacts and tags"
         ResultGroup<RecordItem> resGroup = service.sendMessage(p1, msg, null, s1)

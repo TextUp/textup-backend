@@ -19,15 +19,17 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(ContactController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class ContactControllerSpec extends CustomSpec {
 
 	static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
-        super.setupData()
+        setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
 
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
@@ -36,8 +38,9 @@ class ContactControllerSpec extends CustomSpec {
         [cont1, cont2]*.save(flush:true, failOnError:true)
         assert loggedIn.phone.countContacts() > 0
     }
+
     def cleanup() {
-        super.cleanupData()
+        cleanupData()
     }
 
     // List

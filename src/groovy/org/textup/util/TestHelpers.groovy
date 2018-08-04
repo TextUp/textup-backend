@@ -11,7 +11,6 @@ import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.quartz.Scheduler
 import org.quartz.TriggerKey
 import org.springframework.context.MessageSource
-import org.springframework.context.MessageSourceResolvable
 import org.textup.*
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
@@ -21,6 +20,7 @@ import org.textup.validator.*
 class TestHelpers {
 
     private static final Random RANDOM = new Random()
+    private static final MockMessageSource MESSAGE_SOURCE = new MockMessageSource()
 
     // Display
     // -------
@@ -41,8 +41,12 @@ class TestHelpers {
     // ---------
 
     static String randPhoneNumber() {
-        int randString = RANDOM.nextInt(Math.pow(10, 10) as Integer)
+        int randString = TestHelpers.randIntegerUpTo(Math.pow(10, 10) as Integer)
         "${Constants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
+    }
+
+    static int randIntegerUpTo(Integer max) {
+        RANDOM.nextInt(max)
     }
 
     // Image samples
@@ -109,15 +113,7 @@ class TestHelpers {
         [getTrigger: { TriggerKey key -> null }] as Scheduler
     }
 
-    static MessageSource mockMessageSource() {
-        [getMessage: { String c, Object[] p, Locale l -> c }] as MessageSource
-    }
-
-    static MessageSource mockMessageSourceWithResolvable() {
-        [
-            getMessage: { MessageSourceResolvable resolvable, Locale l -> resolvable.codes.last() }
-        ] as MessageSource
-    }
+    static MessageSource mockMessageSource() { MESSAGE_SOURCE }
 
     // Object generators
     // -----------------

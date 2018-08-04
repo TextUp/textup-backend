@@ -20,8 +20,6 @@ import org.textup.validator.TempRecordReceipt
     description="Information on how you've shared a contact with another staff member")
 class SharedContact implements Contactable {
 
-    ResultFactory resultFactory
-
     Phone sharedBy
     // Should not access contact object directly
     Contact contact
@@ -62,7 +60,7 @@ class SharedContact implements Contactable {
             allowedType    = "DateTime",
             useForCreation = false)
     ])
-    static transients = ["resultFactory", "language"]
+    static transients = ["language"]
     static constraints = {
     	dateExpired nullable:true
         contact validator:{ Contact val, SharedContact obj ->
@@ -187,9 +185,6 @@ class SharedContact implements Contactable {
             order("whenCreated", "desc")
         }
     }
-    static SharedContact findByContactIdAndSharedBy(Long cId, Phone sBy) {
-        findEveryByContactIdsAndSharedBy([cId], sBy)[0]
-    }
     static List<SharedContact> findEveryByContactIdsAndSharedBy(Collection<Long> cIds,
         Phone sBy) {
         if (!cIds || cIds.isEmpty() || !sBy) {
@@ -312,15 +307,15 @@ class SharedContact implements Contactable {
     @GrailsCompileStatic
     Result<Record> tryGetRecord() {
         this.canModify ?
-            resultFactory.success(this.contact.record) :
-            resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
+            Helpers.resultFactory.success(this.contact.record) :
+            Helpers.resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
                 ResultStatus.FORBIDDEN)
     }
     @GrailsCompileStatic
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
         this.isActive ?
-            resultFactory.success(this.contact.record) :
-            resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
+            Helpers.resultFactory.success(this.contact.record) :
+            Helpers.resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
                 ResultStatus.FORBIDDEN)
     }
 }

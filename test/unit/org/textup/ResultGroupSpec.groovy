@@ -5,7 +5,6 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
-import org.springframework.context.support.StaticMessageSource
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
@@ -14,20 +13,6 @@ import spock.lang.Specification
 @TestMixin(HibernateTestMixin)
 class ResultGroupSpec extends Specification {
 
-	@Shared
-	MessageSource messageSource = new StaticMessageSource()
-
-	static doWithSpring = {
-        resultFactory(ResultFactory)
-    }
-    def setup() {
-        ResultFactory fac = getResultFactory()
-        fac.messageSource = messageSource
-    }
-
-    protected ResultFactory getResultFactory() {
-        grailsApplication.mainContext.getBean("resultFactory")
-    }
     protected Location buildLocation() {
         Location loc1 = new Location(address:"Testing Address", lat:0G, lon:0G)
         loc1.save(flush:true, failOnError:true)

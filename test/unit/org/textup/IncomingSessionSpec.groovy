@@ -16,7 +16,8 @@ import spock.lang.Shared
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, NotificationPolicy,
-	Schedule, Location, WeeklySchedule, PhoneOwnership, IncomingSession, Role, StaffRole])
+	Schedule, Location, WeeklySchedule, PhoneOwnership, IncomingSession, Role, StaffRole,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class IncomingSessionSpec extends CustomSpec {
 

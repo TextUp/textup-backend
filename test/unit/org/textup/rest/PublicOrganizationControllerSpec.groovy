@@ -18,19 +18,22 @@ import static javax.servlet.http.HttpServletResponse.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
+    AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class PublicOrganizationControllerSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
-        super.setupData()
+        setupData()
         controller.authService = [getIsActive:{ -> false }] as AuthService
     }
+
     def cleanup() {
-        super.cleanupData()
+        cleanupData()
     }
 
     // List

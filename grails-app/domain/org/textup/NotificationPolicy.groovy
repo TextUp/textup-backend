@@ -8,8 +8,6 @@ import org.textup.type.NotificationLevel
 @EqualsAndHashCode
 class NotificationPolicy implements Schedulable {
 
-    ResultFactory resultFactory
-
 	private HashSet<Long> _blacklist // transient
 	private HashSet<Long> _whitelist // transient
     private Staff _staff // transient
@@ -27,7 +25,7 @@ class NotificationPolicy implements Schedulable {
 	String blacklistData = ""
 	String whitelistData = ""
 
-	static transients = ["resultFactory", "_blacklist", "_whitelist", "_staff"]
+	static transients = ["_blacklist", "_whitelist", "_staff"]
     // we chose not to implement an existence check for staff id
     // because we know that we will pass in a staff id into this
     // constructor. Since we don't update notification policies
@@ -67,7 +65,7 @@ class NotificationPolicy implements Schedulable {
         if (!schedule) {
             schedule = new WeeklySchedule([:])
             if (!schedule.save()) {
-                return resultFactory.failWithValidationErrors(schedule.errors)
+                return Helpers.resultFactory.failWithValidationErrors(schedule.errors)
             }
         }
         if (schedule.instanceOf(WeeklySchedule)) {

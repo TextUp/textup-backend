@@ -3,23 +3,16 @@ package org.textup.validator.action
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
-import org.springframework.context.MessageSource
-import org.springframework.context.MessageSourceResolvable
 import org.textup.*
 import org.textup.util.*
+import spock.lang.*
 
 @Domain([Organization, Location])
 @TestMixin(HibernateTestMixin)
-class ActionContainerSpec extends CustomSpec {
+class ActionContainerSpec extends Specification {
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
-	}
-
-	// extend CustomSpec solely for access to helper methods, not for setting up test data
-	def setup() {
-		ResultFactory resultFactory = grailsApplication.mainContext.getBean("resultFactory")
-		resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 	}
 
 	void "test constraints"() {

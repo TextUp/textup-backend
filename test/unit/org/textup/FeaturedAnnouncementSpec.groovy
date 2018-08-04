@@ -16,7 +16,8 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
+    AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class FeaturedAnnouncementSpec extends CustomSpec {
 
@@ -32,14 +33,9 @@ class FeaturedAnnouncementSpec extends CustomSpec {
     	cleanupData()
     }
 
-    protected ResultFactory getResultFactory() {
-   		grailsApplication.mainContext.getBean("resultFactory")
-    }
-
     void "test constraints"() {
     	when: "is empty"
     	FeaturedAnnouncement announce = new FeaturedAnnouncement()
-    	announce.resultFactory = getResultFactory()
 
     	then:
     	announce.validate() == false
@@ -48,7 +44,6 @@ class FeaturedAnnouncementSpec extends CustomSpec {
     	when: "all fields are filled out"
     	announce = new FeaturedAnnouncement(owner:p1, message:"Hello!",
 			expiresAt:DateTime.now().plusDays(2))
-    	announce.resultFactory = getResultFactory()
 
     	then:
     	announce.validate() == true
@@ -65,7 +60,6 @@ class FeaturedAnnouncementSpec extends CustomSpec {
     	when: "we have a valid announcement"
     	FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
     		message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-    	announce.resultFactory = getResultFactory()
     	announce.save(flush:true, failOnError:true)
 
     	then:

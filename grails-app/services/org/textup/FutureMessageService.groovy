@@ -162,9 +162,6 @@ class FutureMessageService {
 
     @RollbackOnResultFailure
     protected Result<FutureMessage> create(Record rec, Map body, String timezone = null) {
-
-        println "create"
-
         if (!rec) {
             return resultFactory.failWithCodeAndStatus(
                 "futureMessageService.create.noRecordOrInsufficientPermissions",
@@ -181,15 +178,9 @@ class FutureMessageService {
             }
             else { return mediaRes }
         }
-
-        println "\t itemsToUpload: $itemsToUpload"
-
         // step 2: create future message
         SimpleFutureMessage fm0 = new SimpleFutureMessage(record: rec, media: mInfo)
         setFromBody(fm0, body, timezone).then { FutureMessage fm1 ->
-
-            println "\t fm1: $fm1"
-
             fm1.language = Helpers.withDefault(Helpers.convertEnum(VoiceLanguage, body.language),
                 rec.language)
             // step 3: upload media, if needed
@@ -199,9 +190,6 @@ class FutureMessageService {
     }
 
     protected void tryUploadMedia(Collection<UploadItem> itemsToUpload) {
-
-        println "tryUploadMedia"
-
         Collection<String> errorMsgs = []
         storageService.uploadAsync(itemsToUpload)
             .failures

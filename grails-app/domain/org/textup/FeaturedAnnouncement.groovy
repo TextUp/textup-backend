@@ -12,7 +12,6 @@ import org.textup.type.RecordItemType
 @EqualsAndHashCode
 class FeaturedAnnouncement {
 
-    ResultFactory resultFactory
     Phone owner
 
     @RestApiObjectField(
@@ -66,7 +65,7 @@ class FeaturedAnnouncement {
             allowedType =  "Number",
             useForCreation = false)
     ])
-    static transients = ["resultFactory", "_receiptsToBeSaved"]
+    static transients = ["_receiptsToBeSaved"]
     static constraints = {
     	expiresAt validator:{ DateTime val, FeaturedAnnouncement obj ->
     		if (!val?.isAfter(obj.whenCreated)) { ["expiresBeforeCreation"] }
@@ -143,10 +142,10 @@ class FeaturedAnnouncement {
                     _receiptsToBeSaved = _receiptsToBeSaved ?:
                         new ArrayList<AnnouncementReceipt>()
                     _receiptsToBeSaved << receipt
-                    resGroup << resultFactory.success(receipt)
+                    resGroup << Helpers.resultFactory.success(receipt)
                 }
                 else {
-                    resGroup << resultFactory.failWithValidationErrors(receipt.errors)
+                    resGroup << Helpers.resultFactory.failWithValidationErrors(receipt.errors)
                 }
             }
         }

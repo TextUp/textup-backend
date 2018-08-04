@@ -6,7 +6,6 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.springframework.context.MessageSource
 import org.textup.type.FutureMessageType
 import org.textup.type.VoiceLanguage
 import org.textup.util.*
@@ -16,7 +15,8 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    FutureMessage, SimpleFutureMessage, NotificationPolicy])
+    FutureMessage, SimpleFutureMessage, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class TagServiceSpec extends CustomSpec {
 
@@ -28,7 +28,7 @@ class TagServiceSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        service.resultFactory = getResultFactory()
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.notificationService = [
             handleNotificationActions: { Phone p1, Long recordId, Object rawActions ->
                 new Result(status:ResultStatus.NO_CONTENT, payload:null)
@@ -53,7 +53,6 @@ class TagServiceSpec extends CustomSpec {
         given: "baselines"
         int tBaseline = ContactTag.count()
         int rBaseline = Record.count()
-        addToMessageSource("tagService.create.noPhone")
 
     	when: "we create for a nonexistent Team"
         Map createInfo = [name:"Tag 1"]
@@ -68,7 +67,6 @@ class TagServiceSpec extends CustomSpec {
 
     	when: "we create tag with a unique name"
         createInfo.language = VoiceLanguage.KOREAN.toString()
-        t1.phone.resultFactory = service.resultFactory
         res = service.create(t1.phone, createInfo)
 
     	then:
@@ -85,9 +83,6 @@ class TagServiceSpec extends CustomSpec {
     // ------
 
     void "test find tag from id"() {
-        given:
-        addToMessageSource("tagService.update.notFound")
-
         when: "nonexistent tag"
         Result res = service.findTagFromId(-88L)
 
@@ -152,10 +147,6 @@ class TagServiceSpec extends CustomSpec {
     }
 
     void "test tag actions invalid"() {
-        given:
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
-        addToMessageSource("tagService.update.contactForbidden")
-
         when: "we try to update with tag actions that is not list"
         Map updateInfo = [doTagActions:"I am not a list"]
         Result res = service.doTagActions(tag1, updateInfo)
@@ -179,7 +170,6 @@ class TagServiceSpec extends CustomSpec {
         res.errorMessages.contains("actionContainer.invalidActions")
 
         when: "we try to update tag action with forbidden contact"
-        service.resultFactory.messageSource = messageSource
         updateInfo = [doTagActions:[
             [id:tC1.id, action:Constants.TAG_ACTION_ADD]
         ]]
@@ -191,7 +181,6 @@ class TagServiceSpec extends CustomSpec {
         res.status == ResultStatus.FORBIDDEN
 
         when: "we update with tag action with unspecified action"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
         updateInfo = [doTagActions:[
             [id:c2.id, action:"invalid"]
         ]]
@@ -270,9 +259,6 @@ class TagServiceSpec extends CustomSpec {
     // ------
 
     void "test delete"() {
-        given:
-        addToMessageSource("tagService.delete.notFound")
-
     	when: "we delete a nonexistent tag"
         Result res = service.delete(-88L)
 

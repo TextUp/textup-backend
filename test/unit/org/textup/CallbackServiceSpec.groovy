@@ -34,7 +34,7 @@ class CallbackServiceSpec extends CustomSpec {
 
     def setup() {
     	setupData()
-    	service.resultFactory = getResultFactory()
+    	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     	service.twimlBuilder = getTwimlBuilder()
     	service.grailsApplication = [getFlatConfig:{
     		["textup.apiKeys.twilio.authToken":_authToken]
@@ -89,7 +89,6 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test extracting twilio params"() {
     	when:
-        addToMessageSource("callbackService.validate.invalid")
     	HttpServletRequest request = [
     		getParameterMap: { [test1:"hello", test2:"bye"] },
     		getQueryString: { "test3=bye&" }
@@ -128,7 +127,6 @@ class CallbackServiceSpec extends CustomSpec {
             constructorArgs: ["valid auth token"], global: true)
         service.grailsApplication = Mock(GrailsApplication)
         GrailsParameterMap allParams = new GrailsParameterMap([:], mockRequest)
-        addToMessageSource("callbackService.validate.invalid")
 
         when: "missing auth header"
         Result<Void> res = service.validate(mockRequest, allParams)
@@ -184,7 +182,6 @@ class CallbackServiceSpec extends CustomSpec {
     	res.payload == "notFoundForText"
 
     	when: "neither messageSid nor callSid specified"
-        addToMessageSource("callbackService.process.invalid")
     	params = new GrailsParameterMap([To:p1.numberAsString, From:"1112223333"], request)
 		res = service.process(params)
 

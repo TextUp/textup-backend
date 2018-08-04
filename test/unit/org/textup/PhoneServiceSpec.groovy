@@ -66,10 +66,9 @@ class PhoneServiceSpec extends CustomSpec {
     void "test updating phone number given a phone number error conditions"() {
         given: "baseline"
         int baseline = Phone.count()
-        String oldApiId = "kikiIsCute"
+        String oldApiId = UUID.randomUUID().toString()
         s1.phone.apiId = oldApiId
         s1.phone.save(flush:true, failOnError:true)
-        addToMessageSource("phoneService.changeNumber.duplicate")
 
         when: "invalid number"
         PhoneNumber pNum = new PhoneNumber(number:"invalid123")
@@ -104,12 +103,11 @@ class PhoneServiceSpec extends CustomSpec {
     void "test updating phone number given an api id error conditions"() {
         given: "baseline"
         int baseline = Phone.count()
-        String oldApiId = "kikiIsCute",
-            anotherApiId = "tingtingIsAwesome"
+        String oldApiId = UUID.randomUUID().toString(),
+            anotherApiId = UUID.randomUUID().toString()
         s1.phone.apiId = oldApiId
         s2.phone.apiId = anotherApiId
         [s1, s2]*.save(flush:true, failOnError:true)
-        addToMessageSource("phoneService.changeNumber.duplicate")
 
         when: "with same phone number apiId"
         Result<Phone> res = service.updatePhoneForApiId(s1.phone, oldApiId)
@@ -131,10 +129,6 @@ class PhoneServiceSpec extends CustomSpec {
 
     @DirtiesRuntime
     void "test phone action errors"() {
-        given: "an alternate mock for extracting messages from ValidationErrors"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
-        addToMessageSource("actionContainer.invalidActions")
-
         when: "not a list"
         Result<Phone> res = service.handlePhoneActions(p1, [doPhoneActions: [
             hello:"i am not a list"
@@ -264,7 +258,7 @@ class PhoneServiceSpec extends CustomSpec {
         then:
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0].contains("voice")
+        res.errorMessages[0] == "nullable"
 
         when: "valid voice type"
         res = service.updateFields(s1.phone, [voice:VoiceType.FEMALE.toString()])
@@ -283,7 +277,7 @@ class PhoneServiceSpec extends CustomSpec {
         then:
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0].contains("language")
+        res.errorMessages[0] == "nullable"
 
         when: "valid voice language"
         res = service.updateFields(s1.phone, [language:VoiceLanguage.RUSSIAN.toString()])

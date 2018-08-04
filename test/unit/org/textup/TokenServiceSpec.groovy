@@ -40,8 +40,8 @@ class TokenServiceSpec extends CustomSpec {
                 "textup.numTimesAccessNotification":_numTimesAccessNotification
             ]
         }] as GrailsApplication
-        service.resultFactory = getResultFactory()
-        service.messageSource = messageSource
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.messageSource = TestHelpers.mockMessageSource()
         service.mailService = [notifyPasswordReset: { Staff s1, String token ->
             new Result(status:ResultStatus.OK, payload:token)
         }] as MailService
@@ -94,7 +94,6 @@ class TokenServiceSpec extends CustomSpec {
         verify.data = [toVerifyNumber:'1112223333']
         assert reset.save(failOnError:true)
         assert verify.save(failOnError:true, flush:true)
-        addToMessageSource(["tokenService.tokenNotFound", "tokenService.tokenExpired"])
 
         when: "looking for an existing password reset token"
         Result<Token> res = service.findToken(TokenType.PASSWORD_RESET, reset.token)
@@ -142,7 +141,6 @@ class TokenServiceSpec extends CustomSpec {
             invalidNum = new PhoneNumber(number:"123901")
         assert validNum.validate()
         assert invalidNum.validate() == false
-        addToMessageSource(["tokenService.requestVerify.notificationNumberMissing", "tokenService.requestVerify.message"])
 
         when: "invalid number to validate"
         Result<Staff> res = service.requestVerify(invalidNum)
@@ -195,7 +193,6 @@ class TokenServiceSpec extends CustomSpec {
         Token token = new Token(type:TokenType.VERIFY_NUMBER)
         token.data = [toVerifyNumber:pNum.number]
         token.save(flush:true, failOnError:true)
-        addToMessageSource("tokenService.verifyNumber.numbersNoMatch")
 
         when: "number does not match number associated with token"
         Result res = service.verifyNumber(token.token, pNum2)
@@ -220,7 +217,6 @@ class TokenServiceSpec extends CustomSpec {
     void "test requesting password reset"() {
         given:
         int tBaseline = Token.count()
-        addToMessageSource("tokenService.staffNotFound")
 
         when: "nonexisting username"
         Result res = service.requestReset("invalid")
@@ -251,7 +247,6 @@ class TokenServiceSpec extends CustomSpec {
         tok1.data = [toBeResetId:s1.id]
         expiredTok.data = [toBeResetId:s1.id]
         [tok1, expiredTok]*.save(flush:true, failOnError:true)
-        addToMessageSource(["tokenService.tokenNotFound", "tokenService.tokenExpired"])
 
         when: "request with invalid token"
         Result<Staff> res = service.resetPassword("whatisthis", "password")
@@ -347,7 +342,6 @@ class TokenServiceSpec extends CustomSpec {
         tok.data = data
         expiredTok.data = data
         [tok, expiredTok]*.save(flush:true, failOnError:true)
-        addToMessageSource(["tokenService.tokenNotFound", "tokenService.tokenExpired"])
 
         when: "nonexistent token"
         Result<Notification> res = service.showNotification("nonexistent")
@@ -449,12 +443,9 @@ class TokenServiceSpec extends CustomSpec {
             passedInParams = params
             "link"
         }
-
         Token tok1 = new Token(type:TokenType.CALL_DIRECT_MESSAGE)
         tok1.data = [message: "hi", identifier: "Kiki", language: VoiceLanguage.ENGLISH.toString()]
         tok1.save(flush: true, failOnError: true)
-
-        addToMessageSource(["tokenService.tokenNotFound"])
 
         when: "null token"
         Closure response = service.buildCallDirectMessageBody(getMessage, getLink, null, null)

@@ -21,7 +21,8 @@ import spock.lang.Specification
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
   RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
   Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-  RecordNote, RecordNoteRevision, FutureMessage, SimpleFutureMessage])
+  RecordNote, RecordNoteRevision, FutureMessage, SimpleFutureMessage,
+  MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class DuplicateServiceSpec extends CustomSpec {
 
@@ -31,7 +32,7 @@ class DuplicateServiceSpec extends CustomSpec {
 
     def setup() {
     	setupData()
-    	service.resultFactory = getResultFactory()
+    	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
 
     	FutureMessage.metaClass.refreshTrigger = { -> null }
     }
@@ -152,8 +153,6 @@ class DuplicateServiceSpec extends CustomSpec {
     void "test building merge groups overall"() {
         given: "the same setup as the manual walk through in the previous method"
         Phone phone1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
-        phone1.resultFactory = getResultFactory()
-        phone1.resultFactory.messageSource = messageSource
         phone1.updateOwner(s1)
         phone1.save(flush:true, failOnError:true)
 
@@ -213,9 +212,6 @@ class DuplicateServiceSpec extends CustomSpec {
     }
 
     void "test building merge groups overall error conditions"() {
-        given:
-        addToMessageSource("duplicateService.findDuplicates.missingContactIds")
-
         when: "no contact ids provided"
         Result<List<MergeGroup>> res1 = service.findDuplicates([])
 
@@ -276,11 +272,11 @@ class DuplicateServiceSpec extends CustomSpec {
   		assert contact1.phone.id == contact2.phone.id
 
   		Collection<RecordItem> rItems = []
-		rItems << contact1.record.addText([contents:"hello"], null).payload
-		rItems << contact1.record.addCall([:], null).payload
-		rItems << contact1.record.addText([contents:"hello"], null).payload
-		rItems << contact2.record.addText([contents:"hello"], null).payload
-		rItems << contact2.record.addCall([:], null).payload
+		rItems << contact1.record.storeOutgoingText("hi").payload
+		rItems << contact1.record.storeOutgoingCall().payload
+		rItems << contact1.record.storeOutgoingText("hi").payload
+		rItems << contact2.record.storeOutgoingText("hi").payload
+		rItems << contact2.record.storeOutgoingCall().payload
 		rItems << new RecordNote(record:contact1.record)
 		rItems*.save(flush:true, failOnError:true)
   	}
@@ -547,7 +543,6 @@ class DuplicateServiceSpec extends CustomSpec {
     	}
 
     	when: "try merging without any contacts to be merged"
-    	addToMessageSource("duplicateService.merge.missingMergeContacts")
     	Result<Contact> res = service.merge(c1, [])
 
     	then: "bad request"

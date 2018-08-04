@@ -19,7 +19,8 @@ import spock.lang.Specification
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy])
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class AuthServiceSpec extends CustomSpec {
 
@@ -139,8 +140,6 @@ class AuthServiceSpec extends CustomSpec {
         s1.org.status = OrgStatus.APPROVED
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
-
-        addToMessageSource("phone.share.cannotShare")
 
         when: "Get shared contact id for a contact that is shared with us"
         Long scId = service.getSharedContactIdForContact(c2.id)

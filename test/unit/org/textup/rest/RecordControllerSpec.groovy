@@ -11,7 +11,7 @@ import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.SharePermission
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
@@ -32,7 +32,7 @@ class RecordControllerSpec extends CustomSpec {
         super.setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
         controller.recordService = [parseTypes:{ Collection<?> rawTypes -> [] }] as RecordService
-        controller.resultFactory = getResultFactory()
+        controller.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
     def cleanup() {
         super.cleanupData()
@@ -113,7 +113,6 @@ class RecordControllerSpec extends CustomSpec {
         given:
         sc1.permission = SharePermission.VIEW
         sc1.save(flush: true, failOnError: true)
-        sc1.resultFactory = getResultFactory()
 
         controller.authService = [
             hasPermissionsForContact:{ Long id -> false },
@@ -214,9 +213,6 @@ class RecordControllerSpec extends CustomSpec {
     // ----
 
     void "test validating recipients in request body for save"() {
-        given:
-        addToMessageSource(["recordController.create.tooManyForCall", "recordController.create.tooManyForNote"])
-
         expect: "no validation to happen for recipients for texts"
         controller.validateCreateBody(RecordText, [:]) == true
 

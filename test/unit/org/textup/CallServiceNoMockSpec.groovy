@@ -8,6 +8,7 @@ import grails.test.mixin.TestMixin
 import grails.test.runtime.FreshRuntime
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.context.MessageSource
+import org.textup.util.*
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
@@ -19,7 +20,8 @@ import static org.springframework.http.HttpStatus.*
 // how callback maps are handled. For tests on callback handling behavior
 // see `CallServiceSpec.groovy`
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt])
+@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @TestFor(CallService)
 class CallServiceNoMockSpec extends Specification {
@@ -32,10 +34,7 @@ class CallServiceNoMockSpec extends Specification {
         def twilioTestConfig = grailsApplication.config.textup.apiKeys.twilio
         Twilio.init(twilioTestConfig.sid, twilioTestConfig.authToken)
 
-        service.resultFactory = grailsApplication.mainContext.getBean("resultFactory")
-        service.resultFactory.messageSource = [getMessage:{ String c, Object[] p, Locale l ->
-            c
-        }] as MessageSource
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.grailsLinkGenerator = [link: { Map m ->
             "http://www.example.com"
         }] as LinkGenerator

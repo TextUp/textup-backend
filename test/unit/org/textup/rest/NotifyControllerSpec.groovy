@@ -15,14 +15,15 @@ import org.springframework.context.MessageSource
 import org.springframework.http.HttpStatus
 import org.textup.*
 import org.textup.type.ReceiptStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(NotifyController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class NotifyControllerSpec extends CustomSpec {
 
@@ -53,9 +54,8 @@ class NotifyControllerSpec extends CustomSpec {
         String code = "testing123"
         ResultStatus stat = ResultStatus.BAD_REQUEST
     	controller.tokenService = [showNotification:{ String token ->
-            getResultFactory().failWithCodeAndStatus(code, stat)
+            TestHelpers.getResultFactory(grailsApplication).failWithCodeAndStatus(code, stat)
 		}] as TokenService
-        addToMessageSource(code)
 
     	when:
     	request.method = "GET"

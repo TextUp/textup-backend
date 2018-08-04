@@ -12,7 +12,7 @@ import org.joda.time.DateTime
 import org.joda.time.LocalTime
 import org.textup.type.OrgStatus
 import org.textup.type.StaffStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.LocalInterval
 import org.textup.validator.PhoneNumber
 import spock.lang.Shared
@@ -21,7 +21,8 @@ import spock.lang.Specification
 @TestFor(StaffService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, StaffRole, Role, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, StaffRole, Role, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class StaffServiceSpec extends CustomSpec {
 
@@ -31,7 +32,7 @@ class StaffServiceSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        service.resultFactory = getResultFactory()
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.mailService = [
             notifyAboutPendingStaff: { Staff s1, List<Staff> admins ->
                 new Result(status:ResultStatus.OK, payload:null)
@@ -76,8 +77,6 @@ class StaffServiceSpec extends CustomSpec {
         int oBaseline = Organization.count()
         int lBaseline = Location.count()
         int rBaseline = StaffRole.count()
-
-        addToMessageSource(["staffService.create.mustSpecifyOrg", "staffService.create.orgNotFound"])
 
     	when: "we create a staff member with invalid fields"
         Map createInfo = [:]
@@ -283,7 +282,6 @@ class StaffServiceSpec extends CustomSpec {
         service.authService = {
             getIsActive: { false }
         } as AuthService
-        addToMessageSource("staffService.create.couldNotVerifyCaptcha")
 
         when: "missing captcha response"
         Result res = service.verifyCreateRequest([captcha:null])
@@ -359,9 +357,6 @@ class StaffServiceSpec extends CustomSpec {
     }
 
     void "test find staff for id"() {
-        given: "appropriate messages in message source"
-        addToMessageSource("staffService.update.notFound")
-
         when: "nonexistent id"
         Result<Staff> res = service.findStaffForId(-88L)
 
@@ -486,7 +481,6 @@ class StaffServiceSpec extends CustomSpec {
         given: "a valid staff"
         assert s1.validate() == true
         String defaultLock = Constants.DEFAULT_LOCK_CODE
-        addToMessageSource("staffService.lockCodeFormat")
 
         when: "blank lock code"
         Map updateInfo = [lockCode:""]

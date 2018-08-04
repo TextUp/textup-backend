@@ -36,8 +36,8 @@ class RecordServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj -> new Result() }
+        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.twimlBuilder = TestHelpers.getTwimlBuilder(grailsApplication)
     }
@@ -57,7 +57,6 @@ class RecordServiceSpec extends CustomSpec {
             it.save(flush:true, failOnError:true)
         }
         service.socketService = Mock(SocketService)
-        addToMessageSource("recordService.updateStatus.receiptsNotFound")
 
         when: "nonexistent apiId"
         Result res = service.updateStatus(ReceiptStatus.SUCCESS, "nonexistentApiId")
@@ -78,7 +77,6 @@ class RecordServiceSpec extends CustomSpec {
         TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response {} }
 
         when: "existing with invalid status"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
         res = service.updateStatus(null, apiId)
 
         then:
@@ -93,7 +91,6 @@ class RecordServiceSpec extends CustomSpec {
 
     void "test create overall"() {
         given:
-        addToMessageSource(["recordService.create.noPhone", "recordService.create.unknownType"])
         String didCall
         service.metaClass.createText = { Phone p1, Map body -> didCall = "text"; new ResultGroup() }
         service.metaClass.createCall = { Phone p1, Map body -> didCall = "call"; new Result() }
@@ -148,7 +145,6 @@ class RecordServiceSpec extends CustomSpec {
         service.grailsApplication = Mock(GrailsApplication)
         service.grailsApplication.flatConfig >> ["textup.maxNumText": maxNumRecips]
         OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
-        addToMessageSource(["recordService.create.atLeastOneRecipient", "recordService.create.tooManyForText"])
 
         when: "no recipients"
         Result<OutgoingMessage> res = service.checkOutgoingMessageRecipients(msg1)
@@ -177,7 +173,6 @@ class RecordServiceSpec extends CustomSpec {
         given:
         int cBaseline = Contact.count()
         int cnBaseline = ContactNumber.count()
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 
         when: "contacts not belonging to me"
         Map body = [contents: "hi", sendToContacts: [c2.id]]
@@ -231,7 +226,6 @@ class RecordServiceSpec extends CustomSpec {
         ContactNumber.count() == cnBaseline
 
         when: "valid, with recipients"
-        addToMessageSource("outgoingMessage.getName.contactId")
         sc2.startSharing(ContactStatus.ACTIVE, SharePermission.DELEGATE)
         sc2.save(flush: true, failOnError: true)
         body = [
@@ -261,7 +255,6 @@ class RecordServiceSpec extends CustomSpec {
             msg1.contacts.recipients = [c1]
             new Result(payload: msg1)
         }
-        addToMessageSource("outgoingMessage.getName.contactId")
 
         when: "no recipients"
         service.createText(mockPhone, null)
@@ -287,7 +280,6 @@ class RecordServiceSpec extends CustomSpec {
     void "test create call"() {
         given:
         service.authService = Mock(AuthService)
-        addToMessageSource("recordService.create.atLeastOneRecipient")
         int numTimesCalled = 0
         service.metaClass.createCallHelper = { Phone p1, Contactable c1, Staff staff ->
             numTimesCalled++; new Result();
@@ -330,9 +322,6 @@ class RecordServiceSpec extends CustomSpec {
     }
 
     void "test checking note target"() {
-        given:
-        [sc1, tC1, tag1].each { it.resultFactory = TestHelpers.getResultFactory(grailsApplication) }
-
         when: "no recipients"
         Map body = [:]
         Result<RecordItem> res = service.checkNoteTarget(t1.phone, body)
@@ -469,7 +458,6 @@ class RecordServiceSpec extends CustomSpec {
         int mBaseline          = MediaInfo.count()
         int nBaseline          = RecordNote.count()
         int revBaseline        = RecordNoteRevision.count()
-        c1.resultFactory       = TestHelpers.getResultFactory(grailsApplication)
 
         when:
         Map body = [
@@ -579,8 +567,6 @@ class RecordServiceSpec extends CustomSpec {
         int rBaseline = RecordNoteRevision.count()
         int nBaseline = RecordNote.count()
 
-        addToMessageSource(["recordService.delete.notFound", "recordService.delete.readOnly"])
-
         when: "deleting a nonexistent note"
         Result res = service.delete(-88L)
 
@@ -621,9 +607,6 @@ class RecordServiceSpec extends CustomSpec {
     // --------------
 
     void "test determine class"() {
-        given:
-        addToMessageSource("recordService.create.unknownType")
-
         when: "unknown entity"
         Result res = service.determineClass([:])
 
@@ -660,7 +643,6 @@ class RecordServiceSpec extends CustomSpec {
     void "test parsing types"() {
         given: "a record with one of each type"
         Record rec1 = new Record()
-        rec1.resultFactory = getResultFactory()
         rec1.save(flush:true, failOnError:true)
 
         RecordText rText1 = rec1.storeOutgoingText("hi").payload

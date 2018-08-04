@@ -21,7 +21,6 @@ import org.textup.validator.ScheduleChange
 @RestApiObject(name="Staff", description="A staff member at an organization.")
 class Staff implements Schedulable {
 
-    ResultFactory resultFactory
 	SpringSecurityService springSecurityService
     PasswordEncoder passwordEncoder
 
@@ -115,8 +114,7 @@ class Staff implements Schedulable {
             useForCreation    = true,
             presentInResponse = false)
     ])
-    static transients = ["personalPhoneNumber", "phone", "resultFactory",
-        "springSecurityService", "passwordEncoder"]
+    static transients = ["personalPhoneNumber", "phone", "springSecurityService", "passwordEncoder"]
 	static constraints = {
 		username blank:false, unique:true, validator: { String un, Staff s1 ->
             if (!(un ==~ /^[-_=@.,;A-Za-z0-9]+$/)) { ["format"] } // for Pusher channel
@@ -202,10 +200,10 @@ class Staff implements Schedulable {
     @GrailsTypeChecked
     Result<Boolean> isAvailableAt(DateTime dt) {
         if (!manualSchedule) {
-            resultFactory.success(schedule.isAvailableAt(dt))
+            Helpers.resultFactory.success(schedule.isAvailableAt(dt))
         }
         else {
-            resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+            Helpers.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -215,7 +213,7 @@ class Staff implements Schedulable {
             schedule.nextChange(timezone)
         }
         else {
-            resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+            Helpers.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -225,7 +223,7 @@ class Staff implements Schedulable {
             schedule.nextAvailable(timezone)
         }
         else {
-            resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+            Helpers.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -235,7 +233,7 @@ class Staff implements Schedulable {
             schedule.nextUnavailable(timezone)
         }
         else {
-            resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+            Helpers.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
                 ResultStatus.BAD_REQUEST)
         }
     }

@@ -16,7 +16,8 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy])
+	AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class SimpleFutureMessageSpec extends CustomSpec {
 
@@ -40,7 +41,7 @@ class SimpleFutureMessageSpec extends CustomSpec {
     	sMsg.validate() == false
     	sMsg.errors.errorCount == 3
     	sMsg.errors.getFieldErrorCount("record") == 1
-    	sMsg.errors.getFieldErrorCount("message") == 1
+    	sMsg.errors.getFieldErrorCount("media") == 1
     	sMsg.errors.getFieldErrorCount("type") == 1
 
     	when: "all required fields filled out"

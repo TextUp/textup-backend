@@ -8,19 +8,14 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.textup.*
 import org.textup.util.*
+import spock.lang.*
 
 @Domain([Organization, Location])
 @TestMixin(HibernateTestMixin)
-class MediaActionSpec extends CustomSpec {
+class MediaActionSpec extends Specification {
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
-	}
-
-	// extend CustomSpec solely for access to helper methods, not for setting up test data
-	def setup() {
-		ResultFactory resultFactory = grailsApplication.mainContext.getBean("resultFactory")
-		resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
 	}
 
 	void "test constraints when empty"() {

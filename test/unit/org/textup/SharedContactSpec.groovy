@@ -19,7 +19,8 @@ import spock.lang.Unroll
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class SharedContactSpec extends CustomSpec {
 
@@ -102,8 +103,8 @@ class SharedContactSpec extends CustomSpec {
         assert sc1.validate() == true
 
         expect:
-        !!sc1.record == canGetRecord
-        !!sc1.readOnlyRecord == canGetReadOnlyRecord
+        !!sc1.tryGetRecord().success == canGetRecord
+        !!sc1.tryGetReadOnlyRecord().success == canGetReadOnlyRecord
 
         where:
         status     | canGetRecord | canGetReadOnlyRecord
@@ -203,33 +204,27 @@ class SharedContactSpec extends CustomSpec {
     @FreshRuntime
     void "test finding by contact id and shared with for expiration"() {
     	when: "none are expired"
-    	SharedContact sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
 		List<SharedContact> scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
     	then: "both show up"
-    	sCont == sc2
 		scList.size() == 1
 		scList[0] == sc2
 
     	when: "one is expired"
     	sc2.stopSharing()
     	sc2.save(flush:true, failOnError:true)
-    	sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
 		scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
     	then: "does not show up anymore"
-    	sCont == null
 		scList.isEmpty() == true
     }
 
     @FreshRuntime
     void "test finding by contact id and shared with for deactivation"() {
         when: "none are expired"
-        SharedContact sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
         List<SharedContact> scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
         then: "both show up"
-        sCont == sc2
         scList.size() == 1
         scList[0] == sc2
 
@@ -237,11 +232,9 @@ class SharedContactSpec extends CustomSpec {
         p1.deactivate()
         p1.save(flush:true, failOnError:true)
         assert !p1.isActive
-        sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
         scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
         then: "both show up"
-        sCont == sc2
         scList.size() == 1
         scList[0] == sc2
 
@@ -249,79 +242,63 @@ class SharedContactSpec extends CustomSpec {
         p2.deactivate()
         p2.save(flush:true, failOnError:true)
         assert !p2.isActive
-        sCont = SharedContact.findByContactIdAndSharedWith(c2.id, p1)
         scList = SharedContact.findEveryByContactIdsAndSharedWith([c2.id], p1)
 
         then: "does not show up anymore"
-        sCont == null
         scList.isEmpty() == true
     }
 
     @FreshRuntime
     void "test finding by contact ids and shared by for expiration"() {
         when: "none are expired"
-        SharedContact sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
         List<SharedContact> scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "both show up"
-        sCont == sc2
         scList.size() == 1
         scList[0] == sc2
 
         when: "one is expired"
         sc2.stopSharing()
         sc2.save(flush:true, failOnError:true)
-        sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
         scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "does not show up anymore"
-        sCont == null
         scList.isEmpty() == true
     }
 
     @FreshRuntime
     void "test finding by contact ids and shared by for deactivation"() {
         when: "none are expired"
-        SharedContact sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
         List<SharedContact> scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "both show up"
-        sCont == sc2
         scList.size() == 1
         scList[0] == sc2
 
         when: "phone shared with is deactivated"
         p1.deactivate()
         p1.save(flush:true, failOnError:true)
-        sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
         scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "both still show up"
-        sCont == sc2
         scList.size() == 1
         scList[0] == sc2
 
         when: "phone doing the sharing (sharedBy) is deactivated"
         p2.deactivate()
         p2.save(flush:true, failOnError:true)
-        sCont = SharedContact.findByContactIdAndSharedBy(c2.id, p2)
         scList = SharedContact.findEveryByContactIdsAndSharedBy([c2.id], p2)
 
         then: "does not show up anymore"
-        sCont == null
         scList.isEmpty() == true
     }
 
     void "test static finders for contact deletion"() {
         given: "two valid phones"
         Phone phone1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
-        phone1.resultFactory = getResultFactory()
-        phone1.resultFactory.messageSource = messageSource
         phone1.updateOwner(s1)
         phone1.save(flush:true, failOnError:true)
         Phone phone2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
-        phone2.resultFactory = getResultFactory()
-        phone2.resultFactory.messageSource = messageSource
         phone2.updateOwner(s2)
         phone2.save(flush:true, failOnError:true)
         assert phone1.canShare(phone2) == true
@@ -339,9 +316,7 @@ class SharedContactSpec extends CustomSpec {
         SharedContact.listSharedWithMe(phone2)[0]?.id == sc1.id
         SharedContact.countSharedByMe(phone1) == 1
         SharedContact.listSharedByMe(phone1)[0]?.id == sc1.contactId
-        SharedContact.findByContactIdAndSharedWith(contact1.id, phone2)?.id == sc1.id
         SharedContact.findEveryByContactIdsAndSharedWith([contact1.id], phone2)[0]?.id == sc1.id
-        SharedContact.findByContactIdAndSharedBy(contact1.id, phone1)?.id == sc1.id
         SharedContact.findEveryByContactIdsAndSharedBy([contact1.id], phone1)[0]?.id == sc1.id
 
         when: "contact marked as deleted"
@@ -356,9 +331,7 @@ class SharedContactSpec extends CustomSpec {
         SharedContact.listSharedWithMe(phone2).isEmpty() == true
         SharedContact.countSharedByMe(phone1) == 0
         SharedContact.listSharedByMe(phone1).isEmpty() == true
-        SharedContact.findByContactIdAndSharedWith(contact1.id, phone2) == null
         SharedContact.findEveryByContactIdsAndSharedWith([contact1.id], phone2).isEmpty() == true
-        SharedContact.findByContactIdAndSharedBy(contact1.id, phone1) == null
         SharedContact.findEveryByContactIdsAndSharedBy([contact1.id], phone1).isEmpty() == true
     }
 

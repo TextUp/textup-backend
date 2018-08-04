@@ -23,14 +23,8 @@ class TextServiceSpec extends Specification {
     def setup() {
         def twilioTestConfig = grailsApplication.config.textup.apiKeys.twilio
         Twilio.init(twilioTestConfig.sid, twilioTestConfig.authToken)
-
-    	service.resultFactory = grailsApplication.mainContext.getBean("resultFactory")
-    	service.resultFactory.messageSource = [getMessage:{ String c, Object[] p, Locale l ->
-            c
-        }] as MessageSource
-        service.grailsLinkGenerator = [
-            link: { Map params -> "http://www.example.com" }
-        ] as LinkGenerator
+    	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.grailsLinkGenerator = TestHelpers.mockLinkGenerator()
     }
 
     void "test send"() {

@@ -13,7 +13,7 @@ import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.ReceiptStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import org.textup.validator.AvailablePhoneNumber
 import org.textup.validator.PhoneNumber
 import spock.lang.Shared
@@ -22,7 +22,8 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(NumberController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class NumberControllerSpec extends CustomSpec {
 
@@ -84,7 +85,7 @@ class NumberControllerSpec extends CustomSpec {
                 new Result(payload:[aNum], status:ResultStatus.OK)
             }
         ] as NumberService
-        controller.resultFactory = getResultFactory()
+        controller.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         request.method = "GET"
         controller.index()
 

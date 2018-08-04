@@ -28,7 +28,7 @@ class AnnouncementServiceSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        service.resultFactory = getResultFactory()
+        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.authService = [getLoggedInAndActive:{ s1 }] as AuthService
     	Phone.metaClass.sendAnnouncement = { String message,
         	DateTime expiresAt, Staff staff ->
@@ -44,9 +44,6 @@ class AnnouncementServiceSpec extends CustomSpec {
     // ----
 
     void "test create"() {
-        given:
-        addToMessageSource("announcementService.create.noPhone")
-
     	when: "no phone"
     	Result<FeaturedAnnouncement> res = service.create(null, [:])
 
@@ -69,7 +66,6 @@ class AnnouncementServiceSpec extends CustomSpec {
     		message:"hello there bud!", expiresAt:DateTime.now().plusDays(2))
     	announce.save(flush:true, failOnError:true)
     	int aBaseline = FeaturedAnnouncement.count()
-        addToMessageSource("announcementService.update.notFound")
 
     	when: "nonexistent id"
     	Result<FeaturedAnnouncement> res = service.update(-88L, [:])
@@ -80,7 +76,6 @@ class AnnouncementServiceSpec extends CustomSpec {
     	res.errorMessages[0] == "announcementService.update.notFound"
 
     	when: "invalid expires at"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
     	res = service.update(announce.id, [expiresAt:"invalid"])
 
     	then:

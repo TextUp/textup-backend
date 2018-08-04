@@ -15,16 +15,19 @@ import static javax.servlet.http.HttpServletResponse.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy])
+    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class AnnouncementControllerSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
         setupData()
     }
+
     def cleanup() {
         cleanupData()
     }

@@ -6,8 +6,8 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import java.util.UUID
 import org.springframework.context.MessageSource
-import org.springframework.context.support.StaticMessageSource
 import org.textup.type.OrgStatus
+import org.textup.util.*
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
@@ -15,29 +15,23 @@ import spock.lang.Unroll
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class OrganizationSpec extends Specification {
 
-    @Shared
-    MessageSource messageSource = new StaticMessageSource()
-
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
-        ResultFactory fac = getResultFactory()
-        fac.messageSource = [getMessage:{ String c, Object[] p, Locale l -> c }] as MessageSource
-    }
-    private ResultFactory getResultFactory() {
-        grailsApplication.mainContext.getBean("resultFactory")
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
 
     void "test constraints"() {
         when:
         Organization org = new Organization()
-        org.resultFactory = getResultFactory()
         int baseline = Organization.count()
 
         then:
@@ -71,7 +65,6 @@ class OrganizationSpec extends Specification {
         assert org.save(flush:true, failOnError:true)
 
         Organization org2 = new Organization(name:orgName)
-        org2.resultFactory = getResultFactory()
         org2.location = new Location(address:"testing", lat:0G, lon:0G)
 
         then:
@@ -98,7 +91,6 @@ class OrganizationSpec extends Specification {
     void "test operations on staff"() {
         given: "an organization"
         Organization org = new Organization(name:"OrgSpec2")
-        org.resultFactory = getResultFactory()
         org.location = new Location(address:"testing", lat:0G, lon:0G)
         org.save(flush:true, failOnError:true)
         int baseline = Staff.count()
@@ -116,7 +108,6 @@ class OrganizationSpec extends Specification {
 
         when: "we add an invalid staff"
         res.payload.save(flush:true, failOnError:true)
-        org.resultFactory.messageSource = messageSource
         res = org.addStaff(username:"orgstaff2", password:"password",
             name:"Staff", lockCode:Constants.DEFAULT_LOCK_CODE)
 
@@ -137,7 +128,6 @@ class OrganizationSpec extends Specification {
     void "test operations on teams"() {
         given: "an organization"
         Organization org = new Organization(name:"OrgSpec3")
-        org.resultFactory = getResultFactory()
         org.location = new Location(address:"testing", lat:0G, lon:0G)
         org.save(flush:true, failOnError:true)
 
@@ -152,9 +142,6 @@ class OrganizationSpec extends Specification {
 
         when: "we try to add a duplicate team"
         res.payload.save(flush:true, failOnError:true)
-
-        MessageSource originalMessageSource = org.resultFactory.messageSource
-        org.resultFactory.messageSource = messageSource
         res = org.addTeam(name:"Team 1",
             location:new Location(address:"testing", lat:0G, lon:0G))
 
@@ -165,7 +152,6 @@ class OrganizationSpec extends Specification {
         res.errorMessages.size() == 1
 
         when: "we switch to a unique name"
-        org.resultFactory.messageSource = originalMessageSource
         res = org.addTeam(name:"team 1", //team names CASE SENSITIVE!
             location:new Location(address:"testing", lat:0G, lon:0G))
 

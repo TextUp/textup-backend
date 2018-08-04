@@ -21,8 +21,7 @@ class OutgoingMessageSpec extends CustomSpec {
 	}
 	def setup() {
 		setupData()
-		addToMessageSource("outgoingMessage.getName.contactId")
-		Helpers.metaClass.'static'.getMessageSource = { -> messageSource }
+		Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
 	}
 	def cleanup() {
 		cleanupData()

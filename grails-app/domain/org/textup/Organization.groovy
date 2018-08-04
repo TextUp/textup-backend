@@ -13,8 +13,6 @@ import org.textup.type.StaffStatus
 @RestApiObject(name="Organization", description="An organization of staff members and teams.")
 class Organization {
 
-    ResultFactory resultFactory
-
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     @RestApiObjectField(
@@ -47,7 +45,6 @@ class Organization {
         description    = "Number of admins this organization has",
         useForCreation = false,
         allowedType    = "Number")
-    static transients = ["resultFactory"]
     static constraints = {
     	name blank:false, validator:{ String val, Organization obj ->
     		//must have unique (name, location) combination
@@ -123,8 +120,8 @@ class Organization {
         s.properties = params
         s.personalPhoneAsString = params.personalPhoneAsString
         s.org = this
-        if (s.save()) { resultFactory.success(s) }
-        else { resultFactory.failWithValidationErrors(s.errors) }
+        if (s.save()) { Helpers.resultFactory.success(s) }
+        else { Helpers.resultFactory.failWithValidationErrors(s.errors) }
     }
 
     // Teams
@@ -135,8 +132,8 @@ class Organization {
         Team t = new Team()
         t.properties = params
         t.org = this
-        if (t.save()) { resultFactory.success(t) }
-        else { resultFactory.failWithValidationErrors(t.errors) }
+        if (t.save()) { Helpers.resultFactory.success(t) }
+        else { Helpers.resultFactory.failWithValidationErrors(t.errors) }
     }
 
     // Property Access

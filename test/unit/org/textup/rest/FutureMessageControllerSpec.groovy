@@ -18,7 +18,8 @@ import static javax.servlet.http.HttpServletResponse.*
 @TestFor(FutureMessageController)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, NotificationPolicy,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, FutureMessage])
+    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, FutureMessage,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class FutureMessageControllerSpec extends CustomSpec {
 
@@ -31,9 +32,8 @@ class FutureMessageControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
-        fMsg1 = new FutureMessage(record: c1.record, type:FutureMessageType.CALL,
-        	message:"hi")
-        fMsg1.quartzScheduler = TestHelpers.mockScheduler()
+        Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
+        fMsg1 = new FutureMessage(record: c1.record, type:FutureMessageType.CALL, message:"hi")
         fMsg1.save(flush:true, failOnError:true)
     }
     def cleanup() {

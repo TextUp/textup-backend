@@ -27,7 +27,7 @@ class PhoneSpec extends CustomSpec {
 
     def setup() {
     	setupData()
-        OutgoingMessage.metaClass.getMessageSource = { -> messageSource }
+        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
     }
 
     def cleanup() {
@@ -45,8 +45,6 @@ class PhoneSpec extends CustomSpec {
     void "test constraints"() {
     	when: "we have a phone without a number"
     	Phone p1 = new Phone()
-        p1.resultFactory = getResultFactory()
-        p1.resultFactory.messageSource = messageSource
 
     	then: // no owner
     	p1.validate() == false
@@ -74,8 +72,6 @@ class PhoneSpec extends CustomSpec {
     	when: "we try to add a phone with a duplicate number"
     	p1.save(flush:true, failOnError:true)
     	p1 = new Phone(numberAsString:num)
-        p1.resultFactory = getResultFactory()
-        p1.resultFactory.messageSource = messageSource
         p1.updateOwner(s1)
 
     	then:
@@ -137,9 +133,7 @@ class PhoneSpec extends CustomSpec {
 
     void "test owner and availability"() {
         given: "a phone belonging to a team with no policies"
-        Phone p1 = new Phone(numberAsString:"1233348934")
-        p1.resultFactory = getResultFactory()
-        p1.resultFactory.messageSource = messageSource
+        Phone p1 = new Phone(numberAsString: TestHelpers.randPhoneNumber())
         p1.updateOwner(t1)
         p1.save(flush:true, failOnError:true)
         assert p1.owner.policies == null
@@ -191,7 +185,6 @@ class PhoneSpec extends CustomSpec {
             targetPhone = null
         def initialOwner = s1,
             targetOwner = noPhoneStaff
-        myPhone.resultFactory = getResultFactory()
         res = myPhone.transferTo(targetOwner.id, PhoneOwnershipType.INDIVIDUAL)
         myPhone.save(flush:true, failOnError:true)
 
@@ -251,9 +244,6 @@ class PhoneSpec extends CustomSpec {
     }
 
     void "test sharing contact operations"() {
-        given:
-        addToMessageSource(["phone.share.cannotShare", "phone.contactNotMine"])
-
     	when: "we start sharing one of our contacts with someone on a different team"
     	Result res = p1.share(c1, p3, SharePermission.DELEGATE)
 
@@ -548,8 +538,6 @@ class PhoneSpec extends CustomSpec {
         p1.save(flush:true, failOnError:true)
         assert !p1.isActive
 
-        addToMessageSource("phone.isInactive")
-
         when: "send text"
         OutgoingMessage text = TestHelpers.buildOutgoingMessage("hi")
         text.contacts.recipients << c1
@@ -585,10 +573,6 @@ class PhoneSpec extends CustomSpec {
         p1.phoneService = [sendMessage:{ Phone phone, OutgoingMessage text, MediaInfo mInfo, Staff staff ->
             new ResultGroup<RecordItem>([new Result(status: ResultStatus.OK)])
         }] as PhoneService
-        p1.resultFactory = getResultFactory()
-        p1.resultFactory.messageSource = messageSource
-
-        addToMessageSource(["phone.notOwner", "outgoingMessage.getName.contactId", "outgoingMessage.noRecipients"])
 
         when: "we have an invalid outgoing text"
         OutgoingMessage text = new OutgoingMessage()
@@ -627,13 +611,8 @@ class PhoneSpec extends CustomSpec {
             new Result(status:ResultStatus.CREATED, payload:null)
         }] as PhoneService
         p1.twimlBuilder = getTwimlBuilder()
-        p1.resultFactory = getResultFactory()
-        p1.resultFactory.messageSource = messageSource
         s1.personalPhoneAsString = "1112223333"
         s1.save(flush:true, failOnError:true)
-
-        addToMessageSource(["phone.notOwner", "phone.startBridgeCall.noPersonalNumber",
-            "outgoingMessage.noRecipients"])
 
         when: "try to call that does not belong to this phone"
         Result<RecordCall> res1 = p1.startBridgeCall(tC1, s1)
@@ -701,8 +680,6 @@ class PhoneSpec extends CustomSpec {
     void "test announcement success"() {
         given: "phone and incoming sessions, some coinciding with contacts"
         p1.twimlBuilder = getTwimlBuilder()
-        p1.resultFactory = getResultFactory()
-        p1.resultFactory.messageSource = messageSource
         // subscriber
         String subNum = "1223334445"
         IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
@@ -760,10 +737,6 @@ class PhoneSpec extends CustomSpec {
     void "test announcement error conditions"() {
         given: "phone and incoming sessions, some coinciding with contacts"
         p1.twimlBuilder = getTwimlBuilder()
-        p1.resultFactory = getResultFactory()
-        p1.resultFactory.messageSource = messageSource
-
-        addToMessageSource(["phone.sendAnnouncement.expiresInPast", "phone.notOwner"])
 
         when: "expires in the past"
         Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",
@@ -837,8 +810,6 @@ class PhoneSpec extends CustomSpec {
             otherSess = new IncomingSession(phone:p2, numberAsString:"5557778888")
         session.save(flush:true, failOnError:true)
 
-        addToMessageSource("phone.receive.notMine")
-
         when: "invalid incoming text"
         IncomingText text = new IncomingText()
         assert text.validate() == false
@@ -895,8 +866,6 @@ class PhoneSpec extends CustomSpec {
             otherSess = new IncomingSession(phone:p2, numberAsString:"5557778888")
         [session, personalSess, otherSess]*.save(flush:true, failOnError:true)
 
-        addToMessageSource(["phone.receive.notMine"])
-
         when: "session does not belong to this phone"
         Result<Closure> res = p1.receiveCall("apiId", "digits", otherSess)
 
@@ -942,8 +911,6 @@ class PhoneSpec extends CustomSpec {
         IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888"),
             otherSess = new IncomingSession(phone:p2, numberAsString:"5557778888")
         [session, otherSess]*.save(flush:true, failOnError:true)
-
-        addToMessageSource(["phone.receive.notMine"])
 
         when: "session does not belong to this phone"
         Result<Closure> res = p1.screenIncomingCall(otherSess)

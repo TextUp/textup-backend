@@ -48,7 +48,6 @@ class MediaServiceSpec extends Specification {
         byte[] data = TestHelpers.getSampleDataForMimeType(mimeType)
 
         when: "invalid content type"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
         Result<UploadItem> res = service.createSendVersion("invalid content type", data)
 
         then:
@@ -56,7 +55,6 @@ class MediaServiceSpec extends Specification {
         res.errorMessages.contains("invalidType")
 
         when: "pass in content type and data"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSource()
         res = service.createSendVersion(mimeType, data)
 
         then: "create send version with appropriate width and file size"
@@ -145,7 +143,6 @@ class MediaServiceSpec extends Specification {
 
     void "test handling media actions errors"() {
         given:
-        service.resultFactory.messageSource = TestHelpers.mockMessageSourceWithResolvable()
         String rawData = "I am some data*~~~~|||"
         String encodedData = Base64.encodeBase64String(rawData.getBytes(StandardCharsets.UTF_8))
         String checksum = DigestUtils.md5Hex(encodedData)

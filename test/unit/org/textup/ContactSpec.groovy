@@ -19,7 +19,8 @@ import spock.lang.Shared
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, NotificationPolicy])
+	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
+    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class ContactSpec extends CustomSpec {
 
@@ -38,7 +39,6 @@ class ContactSpec extends CustomSpec {
     void "test constraints"() {
     	when: "we have a contact with only a phone defined"
     	Contact c1 = new Contact(phone:p1)
-    	c1.resultFactory = getResultFactory()
 
     	then: "an empty record is automatically added"
     	c1.validate() == true
@@ -158,70 +158,6 @@ class ContactSpec extends CustomSpec {
             assert contactSorted[i].number == n
         }
     	ContactNumber.count() == numBaseline + 2
-    }
-
-    void "test store record items"() {
-    	given:
-    	int textBaseline = RecordText.count()
-    	int callBaseline = RecordCall.count()
-    	int receiptBaseline = RecordItemReceipt.count()
-
-    	when: "we store outgoing text"
-    	TempRecordReceipt receipt = new TempRecordReceipt(apiId:"testing",
-    		contactNumberAsString:"1112223333")
-    	RecordText outText = c1.storeOutgoingText("hello", receipt, s1).payload
-    	c1.save(flush:true, failOnError:true)
-
-    	then:
-    	RecordText.count() == textBaseline  + 1
-    	RecordItemReceipt.count() == receiptBaseline  + 1
-    	outText.authorType == AuthorType.STAFF
-    	outText.authorId == s1.id
-    	outText.authorName == s1.name
-    	outText.receipts.any { it.contactNumberAsString == receipt.contactNumberAsString }
-    	outText.outgoing == true
-
-    	when: "store outgoing call"
-    	receipt = new TempRecordReceipt(apiId:"testing",
-    		contactNumberAsString:"1112223333")
-    	RecordCall outCall = c1.storeOutgoingCall(receipt, s1).payload
-    	c1.save(flush:true, failOnError:true)
-
-    	then:
-    	RecordCall.count() == callBaseline  + 1
-    	RecordItemReceipt.count() == receiptBaseline  + 2
-    	outCall.authorType == AuthorType.STAFF
-    	outCall.authorId == s1.id
-    	outCall.authorName == s1.name
-    	outText.receipts.any { it.contactNumberAsString == receipt.contactNumberAsString }
-    	outCall.outgoing == true
-
-    	when: "store incoming text"
-    	IncomingText textValidator = new IncomingText(apiId:"testing", message:"hello")
-    	IncomingSession session = new IncomingSession(phone:p1, numberAsString:"1112223333")
-        session.save(flush:true, failOnError:true)
-    	RecordText inText = c1.storeIncomingText(textValidator, session).payload
-    	c1.save(flush:true, failOnError:true)
-
-    	then:
-    	RecordText.count() == textBaseline  + 2
-    	RecordItemReceipt.count() == receiptBaseline  + 3
-    	inText.authorType == AuthorType.SESSION
-    	inText.authorId == session.id
-    	inText.authorName == session.numberAsString
-    	inText.outgoing == false
-
-    	when: "store incoming call"
-    	RecordCall inCall = c1.storeIncomingCall("apiId", session).payload
-    	c1.save(flush:true, failOnError:true)
-
-    	then:
-    	RecordCall.count() == callBaseline  + 2
-    	RecordItemReceipt.count() == receiptBaseline  + 4
-    	inCall.authorType == AuthorType.SESSION
-    	inCall.authorId == session.id
-    	inCall.authorName == session.numberAsString
-    	inCall.outgoing == false
     }
 
     void "test static finders"() {
