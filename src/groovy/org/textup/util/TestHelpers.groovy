@@ -87,18 +87,18 @@ class TestHelpers {
     // --------------------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Object getBean(GrailsApplication grailsApplication, String beanName) {
+    protected static <T> T getBean(GrailsApplication grailsApplication, Class<T> beanName) {
         grailsApplication.mainContext.getBean(beanName)
     }
 
     static ResultFactory getResultFactory(GrailsApplication grailsApplication) {
-        ResultFactory resultFactory = TestHelpers.getBean(grailsApplication, "resultFactory") as ResultFactory
+        ResultFactory resultFactory = TestHelpers.getBean(grailsApplication, ResultFactory)
         resultFactory.messageSource = TestHelpers.mockMessageSource()
         resultFactory
     }
 
     static TwimlBuilder getTwimlBuilder(GrailsApplication grailsApplication) {
-        TwimlBuilder twimlBuilder = TestHelpers.getBean(grailsApplication, "twimlBuilder") as TwimlBuilder
+        TwimlBuilder twimlBuilder = TestHelpers.getBean(grailsApplication, TwimlBuilder)
         twimlBuilder.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         twimlBuilder.messageSource = TestHelpers.mockMessageSource()
         twimlBuilder.linkGenerator = TestHelpers.mockLinkGenerator()

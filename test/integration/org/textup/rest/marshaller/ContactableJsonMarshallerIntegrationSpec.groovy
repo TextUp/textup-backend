@@ -20,18 +20,18 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
 
     protected boolean validate(Map json, Contactable c1) {
         assert json.id == c1.contactId
-        assert json.lastRecordActivity == c1.record.lastRecordActivity.toString()
+        assert json.lastRecordActivity == c1.tryGetRecord().payload.lastRecordActivity.toString()
         assert json.name == c1.name
         assert json.note == c1.note
         assert json.numbers instanceof List
-        assert json.language == c1.record.language.toString()
+        assert json.language == c1.tryGetRecord().payload.language.toString()
         assert json.numbers.size() == (c1.numbers ? c1.numbers.size() : 0)
         c1.numbers?.each { ContactNumber num ->
             assert json.numbers.find { it.number == num.prettyPhoneNumber }
         }
         assert json.futureMessages instanceof List
-        assert json.futureMessages.size() == (c1.record.futureMessages ? c1.record.futureMessages.size() : 0)
-        c1.record.futureMessages?.each { FutureMessage fMsg ->
+        assert json.futureMessages.size() == (c1.tryGetRecord().payload.futureMessages?.size() ?: 0)
+        c1.tryGetRecord().payload.futureMessages?.each { FutureMessage fMsg ->
             assert json.futureMessages.find { it.id == fMsg.id }
         }
         true
@@ -94,8 +94,9 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         c1.lastTouched = DateTime.now()
         c1.status = ContactStatus.ACTIVE
         DateTime dtInFuture = DateTime.now().plusDays(2)
-        RecordText rText1 = c1.record.addText([whenCreated: dtInFuture, contents: "text"], null).payload
-        RecordCall rCall1 = c1.record.addCall([whenCreated: dtInFuture], null).payload
+        RecordText rText1 = c1.record.storeOutgoingText("text").payload
+        RecordCall rCall1 = c1.record.storeOutgoingCall().payload
+        rCall1.whenCreated = dtInFuture
         [c1, rText1, rCall1]*.save(flush: true, failOnError: true)
 
         when: "we marshal this contactable"

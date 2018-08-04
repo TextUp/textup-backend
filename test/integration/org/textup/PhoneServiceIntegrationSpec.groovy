@@ -95,7 +95,7 @@ class PhoneServiceIntegrationSpec extends CustomSpec {
         // create tags and add some contacts to each tag
         NUM_TAGS.times {
             ContactTag ct1 = _phone.createTag(name:UUID.randomUUID().toString()).payload
-            _contacts[0..(randIntegerUpTo(numContacts - 1))].each { Contact c1 ->
+            _contacts[0..(TestHelpers.randIntegerUpTo(numContacts - 1))].each { Contact c1 ->
                 ct1.addToMembers(c1)
                 _receipientNumbers.addAll(c1.numbers*.e164PhoneNumber)
             }
@@ -114,9 +114,12 @@ class PhoneServiceIntegrationSpec extends CustomSpec {
         mockForOutgoing(isText ? Constants.TEST_SMS_FROM_VALID : Constants.TEST_CALL_FROM_VALID)
 
         when: "an outgoing message as text"
-        OutgoingMessage msg1 = new OutgoingMessage(message:"hello world",
-            type:enumType, contacts:_contacts, tags:_tags)
-        assert msg1.validateSetPhone(_phone)
+        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
+        msg1.message = "hello world"
+        msg1.type = enumType
+        msg1.contacts.recipients = _contacts
+        msg1.tags.recipients = _tags
+        assert msg1.validate()
         HashSet<Contactable> recips = msg1.toRecipients()
 
         then: "each contactable is distinct (based on contactId)"

@@ -51,9 +51,9 @@ abstract class RestSpec extends Specification {
     // Setup data
     // ----------
 
-    Closure doSetup = { int iterationCount, Random randGen ->
+    Closure doSetup = { int iterationCount ->
         CustomSpec spec = new CustomSpec()
-        spec.setupIntegrationData(iterationCount, randGen)
+        spec.setupIntegrationData(iterationCount)
         [loggedInUsername:spec.loggedInUsername, loggedInPassword:spec.loggedInPassword]
     }
 
@@ -65,7 +65,7 @@ abstract class RestSpec extends Specification {
         // Pass these into the integration data setup because when we are using
         // the RemoteControl plugin to populate the remote server with test data,
         // we cannot access any of the Shared fields and must supply our own values
-        Map data = remote.exec(doSetup.curry(iterationCount, randomGenerator))
+        Map data = remote.exec(doSetup.curry(iterationCount))
         loggedInUsername = data.loggedInUsername
         loggedInPassword = data.loggedInPassword
     }

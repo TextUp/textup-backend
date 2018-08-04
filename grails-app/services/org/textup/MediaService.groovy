@@ -1,7 +1,7 @@
 package org.textup
 
 import com.twilio.rest.api.v2010.account.message.Media
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.commons.io.IOUtils
 import org.apache.http.client.methods.HttpGet
@@ -17,7 +17,7 @@ import org.textup.validator.BasePhoneNumber
 import org.textup.validator.TempRecordReceipt
 import org.textup.validator.UploadItem
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Transactional
 class MediaService {
 
@@ -195,7 +195,6 @@ class MediaService {
     Result<List<TempRecordReceipt>> sendWithMedia(BasePhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String msg1 = "",
         MediaInfo mInfo = null, Token callToken = null) {
-
         ResultGroup<TempRecordReceipt> resGroup = callToken ?
             sendWithMediaForCall(fromNum, toNums, callToken, mInfo) :
             sendWithMediaForText(fromNum, toNums, msg1, mInfo)
@@ -210,7 +209,6 @@ class MediaService {
 
     protected ResultGroup<TempRecordReceipt> sendWithMediaForText(BasePhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String msg1, MediaInfo mInfo = null) {
-
         ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
         // if no media, then just send message as a text
         if (!mInfo || mInfo.isEmpty()) {
@@ -226,7 +224,6 @@ class MediaService {
 
     protected ResultGroup<TempRecordReceipt> sendWithMediaForCall(BasePhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, Token callToken, MediaInfo mInfo = null) {
-
         ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
         // if this call has media (currently only images), send only media as a text
         if (mInfo && !mInfo.isEmpty()) {

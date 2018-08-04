@@ -156,7 +156,6 @@ class PhoneService {
 
     ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg1, MediaInfo mInfo = null,
         Staff staff = null) {
-
         outgoingMessageService.sendMessage(phone, msg1, mInfo, staff)
     }
 
