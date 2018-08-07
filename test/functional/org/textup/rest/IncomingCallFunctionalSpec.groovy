@@ -19,7 +19,7 @@ class IncomingCallFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()
-        remote.exec {
+        remote.exec({
             // ensure that callbackService validates all requests
             ctx.callbackService.metaClass.validate = { HttpServletRequest request,
                 GrailsParameterMap params ->
@@ -33,7 +33,7 @@ class IncomingCallFunctionalSpec extends RestSpec {
                 ctx.resultFactory.success()
             }
             return
-        }
+        })
     }
 
     def cleanup() {

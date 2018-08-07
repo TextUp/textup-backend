@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import groovy.transform.TypeCheckingMode
 import org.codehaus.groovy.grails.commons.GrailsApplication
@@ -18,7 +18,7 @@ import org.textup.validator.Notification
 import org.textup.validator.OutgoingMessage
 import org.textup.validator.PhoneNumber
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Transactional
 class TokenService {
 
@@ -217,7 +217,7 @@ class TokenService {
         }
         else { buildCallEnd() }
     }
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected Closure buildCallResponse(String intro, String message, VoiceLanguage lang,
         String repeatWebhook) {
 
@@ -231,7 +231,7 @@ class TokenService {
             Redirect(repeatWebhook)
         }
     }
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected Closure buildCallEnd() { return { Hangup() } }
 
     // Helpers

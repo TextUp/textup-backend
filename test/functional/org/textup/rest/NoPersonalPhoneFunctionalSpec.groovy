@@ -15,9 +15,7 @@ import org.textup.type.CallResponse
 import org.textup.type.FutureMessageType
 import org.textup.type.ReceiptStatus
 import org.textup.util.*
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.validator.*
 import static org.springframework.http.HttpStatus.*
 
 class NoPersonalPhoneFunctionalSpec extends RestSpec {
@@ -31,13 +29,19 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
             // ensure that callbackService validates all requests
             ctx.callbackService.metaClass.validate = { HttpServletRequest request,
                 GrailsParameterMap params ->
+
                 ctx.resultFactory.success()
             }
-            ctx.phoneService.metaClass.moveVoicemail = { String apiId ->
+            ctx.phoneService.metaClass.moveVoicemail = { String callId, String recordingId,
+                String voicemailUrl ->
+
                 ctx.resultFactory.success()
             }
-            ctx.phoneService.metaClass.storeVoicemail = { String apiId, int dur ->
-                ctx.resultFactory.success()
+            ctx.phoneService.metaClass.storeVoicemail = { String callId, int voicemailDuration ->
+                ctx.resultFactory.success().toGroup()
+            }
+            ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
+                new ResultGroup()
             }
             // return TextUp phone number of the logged-in
             Staff s1 = Staff.findByUsername(un)
@@ -143,7 +147,7 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 	// Text
 	// ----
 
-	void "test incoming text"() {
+	void "test incoming text when no personal phone associated"() {
 		given:
 		String sid = "iAmAValidSid"
         String fromNum = "+16262027548"
@@ -160,9 +164,9 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
             body(form)
         }
 
-		then: "do not respond with away message, just silent does not deliver notification"
+		then: "no personal phone implicitly means we cannot notify -> respond with away message"
 		response.status == OK.value()
-        response.body == "<Response></Response>"
+        response.body.contains(Constants.AWAY_EMERGENCY_MESSAGE)
 	}
 
 	// for outgoing text test see OutgoingTextFunctionalSpec

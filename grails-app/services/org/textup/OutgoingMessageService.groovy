@@ -1,12 +1,12 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.commons.lang3.tuple.Pair
 import org.textup.type.*
 import org.textup.validator.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Transactional
 class OutgoingMessageService {
 

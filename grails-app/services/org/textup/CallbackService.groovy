@@ -176,7 +176,6 @@ class CallbackService {
 
     protected Result<Closure> processCall(Phone p1, IncomingSession is1, String apiId,
         GrailsParameterMap params) {
-
         String digits = params.Digits
         switch(params.handle) {
             case CallResponse.SCREEN_INCOMING.toString():

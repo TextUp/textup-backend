@@ -15,6 +15,8 @@ import org.textup.*
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.validator.*
+import org.apache.commons.codec.binary.Base64
+import org.apache.commons.codec.digest.DigestUtils
 
 @GrailsTypeChecked
 class TestHelpers {
@@ -47,6 +49,18 @@ class TestHelpers {
 
     static int randIntegerUpTo(Integer max) {
         RANDOM.nextInt(max)
+    }
+
+    static String randString() {
+        UUID.randomUUID().toString()
+    }
+
+    static String encodeBase64String(byte[] rawData) {
+        Base64.encodeBase64String(rawData)
+    }
+
+    static String getChecksum(String encodedData) {
+        DigestUtils.md5Hex(encodedData)
     }
 
     // Image samples

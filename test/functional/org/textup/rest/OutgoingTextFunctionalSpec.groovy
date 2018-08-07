@@ -24,8 +24,8 @@ class OutgoingTextFunctionalSpec extends RestSpec {
         setupData()
         (_apiId, prevPersonalNumber) = remote.exec({ un ->
             String apiId = "iamsosospecial!"
-            ctx.textService.metaClass.send = { BasePhoneNumber fromNum,
-                List<? extends BasePhoneNumber> toNums, String message ->
+            ctx.textService.metaClass.send = { BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
+                String message, List<MediaElement> media = [] ->
                 assert toNums.isEmpty() == false
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
                 temp.contactNumber = toNums[0]

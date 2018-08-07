@@ -7,11 +7,8 @@ import org.joda.time.DateTime
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
-import org.textup.type.OrgStatus
-import org.textup.type.StaffStatus
-import org.textup.validator.PhoneNumber
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.type.*
+import org.textup.validator.*
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 
@@ -21,23 +18,34 @@ class IncomingTextFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()
-        remote.exec {
+        remote.exec({
             // ensure that callbackService validates all requests
             ctx.callbackService.metaClass.validate = { HttpServletRequest request,
                 GrailsParameterMap params ->
                 ctx.resultFactory.success()
             }
             String apiId = "iamsosospecial!"
-            ctx.textService.metaClass.send = { BasePhoneNumber fromNum,
-                List<? extends BasePhoneNumber> toNums, String message ->
+            ctx.textService.metaClass.send = { BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
+                String message, List<MediaElement> media = [] ->
+
                 assert toNums.isEmpty() == false
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
                 temp.contactNumber = toNums[0]
                 assert temp.validate()
                 ctx.resultFactory.success(temp)
             }
+            ctx.mediaService.metaClass.buildFromIncomingMedia = { Map<String, String> urlToMimeType,
+                Closure<Void> collectUploads, Closure<Void> collectMediaIds ->
+
+                MediaInfo mInfo = new MediaInfo()
+                mInfo.save(failOnError: true)
+                ctx.resultFactory.success(mInfo)
+            }
+            ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
+                new ResultGroup()
+            }
             return
-        }
+        })
     }
 
     def cleanup() {
@@ -187,5 +195,62 @@ class IncomingTextFunctionalSpec extends RestSpec {
         response.xml.Message.size() == 1
         response.xml.Message[0].toString().contains(Constants.TEXT_TOGGLE_SUBSCRIBE)
         response.xml.Message[0].toString().contains("stop receiving")
+    }
+
+    void "test incoming media via text message"() {
+        given: "new phone number + media item + staff is available"
+        String encodedData = TestHelpers.encodeBase64String(TestHelpers.getJpegSampleData512())
+        String checksum = TestHelpers.getChecksum(encodedData)
+        PhoneNumber fromNum = new PhoneNumber(number:TestHelpers.randPhoneNumber())
+        String sid = TestHelpers.randString()
+        String sampleUrl = "http://www.example.com"
+        String toNum = remote.exec({ un ->
+            Staff s1 = Staff.findByUsername(un)
+            s1.manualSchedule = true
+            s1.isAvailable = true
+            s1.save(failOnError: true)
+            s1.phone.number.e164PhoneNumber
+        }.curry(loggedInUsername))
+
+        when: "incoming message from a new phone number with media"
+        Map beforeCounts = remote.exec({
+            [
+                contacts: Contact.count(),
+                contactNumbers: ContactNumber.count(),
+                mediaInfo: MediaInfo.count(),
+                sessions: IncomingSession.count(),
+            ]
+        })
+        MultiValueMap<String,String> form = new LinkedMultiValueMap<>()
+        form.add("MessageSid", sid)
+        form.add("From", fromNum.number)
+        form.add("To", toNum)
+        form.add("Body", "hi!")
+        form.add("NumMedia", "2")
+        form.add("MediaUrl0", sampleUrl)
+        form.add("MediaContentType0", Constants.MIME_TYPE_JPEG)
+        form.add("MediaUrl1", sampleUrl)
+        form.add("MediaContentType1", Constants.MIME_TYPE_JPEG)
+        RestResponse response = rest.post(requestUrl) {
+            contentType("application/x-www-form-urlencoded")
+            body(form)
+        }
+        Map afterCounts = remote.exec({
+            [
+                contacts: Contact.count(),
+                contactNumbers: ContactNumber.count(),
+                mediaInfo: MediaInfo.count(),
+                sessions: IncomingSession.count(),
+            ]
+        })
+
+        then: "session created, contact w/ number and media info created"
+        afterCounts.contacts == beforeCounts.contacts + 1
+        afterCounts.contactNumbers == beforeCounts.contactNumbers + 1
+        afterCounts.mediaInfo == beforeCounts.mediaInfo + 1
+        afterCounts.sessions == beforeCounts.sessions + 1
+        response.status == OK.value()
+        response.xml.Message.size() == 0
+        response.xml.text() == ""
     }
 }

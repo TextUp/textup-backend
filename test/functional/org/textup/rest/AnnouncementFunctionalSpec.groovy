@@ -12,22 +12,20 @@ import org.textup.type.CallResponse
 import org.textup.type.OrgStatus
 import org.textup.type.StaffStatus
 import org.textup.util.*
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.validator.*
 import static org.springframework.http.HttpStatus.*
 
 class AnnouncementFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()
-        remote.exec {
+        remote.exec({
             app.config.callParamsList = []
             app.config.textRecipientList = []
 
             String apiId = "iamsosospecial!"
-            ctx.textService.metaClass.send = { BasePhoneNumber fromNum,
-                List<? extends BasePhoneNumber> toNums, String message ->
+            ctx.textService.metaClass.send = { BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
+                String message, List<MediaElement> media = [] ->
                 assert toNums.isEmpty() == false
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
                 temp.contactNumber = toNums[0]
@@ -57,8 +55,11 @@ class AnnouncementFunctionalSpec extends RestSpec {
             ctx.phoneService.metaClass.storeVoicemail = { String sid, int dur ->
                 ctx.resultFactory.success()
             }
+            ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
+                new ResultGroup()
+            }
             return
-        }
+        })
     }
 
     def cleanup() {

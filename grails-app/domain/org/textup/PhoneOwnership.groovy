@@ -31,12 +31,17 @@ class PhoneOwnership {
     // Property access
     // ---------------
 
-    // Staff member can be notified if they are available and have a permissive notification policy
+    // Staff member can be notified if they (1) are available, (2) have a permissive notification policy,
+    // and (3) have a personal phone number linked to receive notifications at
     List<Staff> getCanNotifyAndAvailable(Collection<Long> recordIds) {
         List<Staff> canNotify = []
         getNotificationStatusesForRecords(recordIds).each { NotificationStatus status ->
             if (status.validate()) {
-                if (status.canNotify && status.isAvailableNow) { canNotify << status.staff }
+                if (status.canNotify && status.isAvailableNow &&
+                    status.staff?.personalPhoneAsString) {
+
+                    canNotify << status.staff
+                }
             }
             else {
                 log.error("PhoneOwnership.getCanNotifyAndAvailable: invalid notification: ${status.errors}")

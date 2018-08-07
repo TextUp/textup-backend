@@ -2,7 +2,7 @@ package org.textup
 
 import com.amazonaws.services.s3.model.PutObjectResult
 import com.twilio.rest.api.v2010.account.Recording
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.nio.charset.Charset
 import org.apache.commons.codec.binary.Base64
@@ -14,7 +14,7 @@ import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
 import org.codehaus.groovy.grails.commons.GrailsApplication
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Transactional
 class VoicemailService {
 

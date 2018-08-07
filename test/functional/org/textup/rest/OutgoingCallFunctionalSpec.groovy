@@ -11,7 +11,7 @@ import org.textup.type.CallResponse
 import org.textup.type.OrgStatus
 import org.textup.type.StaffStatus
 import org.textup.util.*
-import org.textup.validator.PhoneNumber
+import org.textup.validator.BasePhoneNumber
 import org.textup.validator.TempRecordReceipt
 import static org.springframework.http.HttpStatus.*
 
@@ -21,14 +21,14 @@ class OutgoingCallFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()
-        _apiId = remote.exec {
+        _apiId = remote.exec({
             // ensure that callbackService validates all requests
             ctx.callbackService.metaClass.validate = { HttpServletRequest request,
                 GrailsParameterMap params ->
                 ctx.resultFactory.success()
             }
             String apiId = "iamsosospecial!"
-            ctx.callService.metaClass.start = { PhoneNumber fromNum, PhoneNumber toNum,
+            ctx.callService.metaClass.start = { BasePhoneNumber fromNum, BasePhoneNumber toNum,
                 Map afterPickup ->
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
                 temp.contactNumber = toNum
@@ -39,7 +39,7 @@ class OutgoingCallFunctionalSpec extends RestSpec {
                 ctx.resultFactory.success(temp)
             }
             return apiId
-        }
+        })
     }
 
     def cleanup() {

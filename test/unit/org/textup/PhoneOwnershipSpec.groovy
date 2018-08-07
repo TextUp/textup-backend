@@ -162,5 +162,30 @@ class PhoneOwnershipSpec extends CustomSpec {
 
         // policy is permissive, but the staff-level is NOT available
         staffList.size() == 0
+
+        when: "the staff member is available but does not have a personal phone"
+        s1.with {
+            manualSchedule = true
+            isAvailable = true
+            personalPhoneAsString = ""
+        }
+        s1.save(flush:true, failOnError:true)
+        statuses = p1.owner.getNotificationStatusesForStaffsAndRecords([s1], [recId])
+        statuses2 = p1.owner.getNotificationStatusesForRecords([recId])
+        staffList = p1.owner.getCanNotifyAndAvailable([recId])
+
+        then: "all statuses are available, but this person cannot be notified"
+        statuses.size() == 1
+        statuses[0].staff.id == s1.id
+        statuses[0].canNotify == true
+        statuses[0].isAvailableNow == true
+        // if not specify statuses, then use getAll()
+        statuses2.size() == 1
+        statuses2[0].staff.id == s1.id
+        statuses2[0].canNotify == true
+        statuses[0].isAvailableNow == true
+
+        // policy is permissive, but the staff-level is NOT available
+        staffList.size() == 0
     }
 }
