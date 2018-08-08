@@ -98,7 +98,7 @@ class OutgoingCallFunctionalSpec extends RestSpec {
 
         when: "finish bridge"
         // getting finish bridge url parameters
-        Map webhookParams = remote.exec({ app.config.callParams })
+        Map webhookParams = remote.exec({ app.config.callParams ?: [:] })
         assert webhookParams.contactId != null
         assert webhookParams.handle != null
         String cId = webhookParams.contactId,

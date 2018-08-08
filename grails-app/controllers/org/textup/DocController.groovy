@@ -16,7 +16,9 @@ class DocController {
     	InputStream input
         try {
             input = servletContext.getResourceAsStream(outputFile)
-            Helpers.toJson(input.text)
+            // when running functional tests on CI server, this file isn't generated until deployment
+            // therefore, just return an empty JSON string if no output file yet
+            Helpers.toJson(input ? input.text : [:])
         }
         finally {
             input?.close()
