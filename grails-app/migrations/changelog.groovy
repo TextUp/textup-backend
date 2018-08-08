@@ -929,4 +929,10 @@ databaseChangeLog = {
 	include file: 'policy-specific-availability.groovy'
 
 	include file: 'detailed-unread-info.groovy'
+
+	include file: 'consolidated-media.groovy'
+
+	include file: 'normalize-existing-columns.groovy'
+
+	include file: 'migrate-existing-media.groovy'
 }
