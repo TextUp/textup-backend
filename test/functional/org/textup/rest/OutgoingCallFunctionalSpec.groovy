@@ -30,11 +30,10 @@ class OutgoingCallFunctionalSpec extends RestSpec {
             String apiId = "iamsosospecial!"
             ctx.callService.metaClass.start = { BasePhoneNumber fromNum, BasePhoneNumber toNum,
                 Map afterPickup ->
+
                 TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
                 temp.contactNumber = toNum
                 assert temp.validate()
-                // store params in config for later retrieval
-                app.config.callParams = afterPickup
                 // return temp
                 ctx.resultFactory.success(temp)
             }
@@ -97,12 +96,8 @@ class OutgoingCallFunctionalSpec extends RestSpec {
         afterData.numReceipts == beforeData.numReceipts + 1
 
         when: "finish bridge"
-        // getting finish bridge url parameters
-        Map webhookParams = remote.exec({ app.config.callParams ?: [:] })
-        assert webhookParams.contactId != null
-        assert webhookParams.handle != null
-        String cId = webhookParams.contactId,
-            hand = webhookParams.handle
+        String cId = contactId,
+            hand = CallResponse.FINISH_BRIDGE.toString()
         // getting from and to numbers
         Map numData = remote.exec({ un ->
             Staff s1 = Staff.findByUsername(un)

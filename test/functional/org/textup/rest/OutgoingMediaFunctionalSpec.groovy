@@ -45,8 +45,6 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
                 TempRecordReceipt temp = new TempRecordReceipt(apiId: TestHelpers.randString())
                 temp.contactNumber = toNum
                 assert temp.validate()
-                // store params in config for later retrieval
-                app.config.callParams = afterPickup
                 // return temp
                 ctx.resultFactory.success(temp)
             }
