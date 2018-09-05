@@ -113,7 +113,7 @@ class RecordNoteSpec extends Specification {
 
         when: "add some media elements to the media"
         MediaElement e1 = new MediaElement()
-        e1.type = MediaType.IMAGE
+        e1.type = MediaType.IMAGE_PNG
         e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
             key: UUID.randomUUID().toString(),
             sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
@@ -216,7 +216,7 @@ class RecordNoteSpec extends Specification {
 
         when: "add to media media"
         MediaElement e1 = new MediaElement()
-        e1.type = MediaType.IMAGE
+        e1.type = MediaType.IMAGE_PNG
         e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
             key: UUID.randomUUID().toString(),
             sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,

@@ -23,18 +23,13 @@ import org.textup.*
 class UploadItem {
 
     MediaVersion mediaVersion
-    String mimeType
+    MediaType type
     String key = UUID.randomUUID().toString()
     byte[] data
 
     private BufferedImage _image
 
     static constraints = { // default nullable: false
-        mimeType validator: { String mType ->
-            if (!MediaType.isValidMimeType(mType)) {
-                ["invalidType"]
-            }
-        }
     }
 
     // Methods
@@ -50,11 +45,11 @@ class UploadItem {
         }
         ImageWriter writer
         try {
-            writer = getWriter(mimeType)
+            writer = UploadItem.getWriter(type)
             // set height to -1 to keep aspect ratio
             Image resizedImg = _image.getScaledInstance(maxWidthInPixels, -1, Image.SCALE_DEFAULT)
-            _image = imageToBufferedImage(resizedImg)
-            data = getDataFromImage(_image, writer, writer.defaultWriteParam)
+            _image = UploadItem.imageToBufferedImage(resizedImg)
+            data = UploadItem.getDataFromImage(_image, writer, writer.defaultWriteParam)
             Helpers.resultFactory.success(this)
         }
         catch (Throwable e) {
@@ -73,12 +68,12 @@ class UploadItem {
                 "uploadItem.tryCompress.invalidSize", ResultStatus.BAD_REQUEST)
         }
         // short circuit if incompressible or if requested size is smaller than current
-        if (!canCompress(mimeType) || getSizeInBytes() <= maxSizeInBytes) {
+        if (!UploadItem.canCompress(type) || getSizeInBytes() <= maxSizeInBytes) {
             return Helpers.resultFactory.success(this)
         }
         ImageWriter writer
         try {
-            writer = getWriter(mimeType)
+            writer = UploadItem.getWriter(type)
             float currentQuality = 0.9,
                 qualityStep = 0.1,
                 minQuality = 0.5
@@ -86,10 +81,10 @@ class UploadItem {
             BufferedImage currImage = _image
             while (currImage && currData.length > maxSizeInBytes && currentQuality > minQuality) {
                 // step 1: set compression parameters
-                ImageWriteParam param = tryGetCompressionParamsForWriter(writer, currentQuality)
+                ImageWriteParam param = UploadItem.tryGetCompressionParamsForWriter(writer, currentQuality)
                 // step 2: set up appropriate streams to collect the writer's output
-                currData = getDataFromImage(currImage, writer, param)
-                currImage = tryGetImageFromData(currData)
+                currData = UploadItem.getDataFromImage(currImage, writer, param)
+                currImage = UploadItem.tryGetImageFromData(currData)
                 currentQuality -= qualityStep
             }
             // step 3: after breaking out of the loop, store the newly-compressed values and return
@@ -97,37 +92,37 @@ class UploadItem {
             _image = currImage
             Helpers.resultFactory.success(this)
         }
-        // catch (Throwable e) {
-        //     log.debug("UploadItem.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
-        //     Helpers.resultFactory.failWithThrowable(e)
-        // }
+        catch (Throwable e) {
+            log.debug("UploadItem.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
+            Helpers.resultFactory.failWithThrowable(e)
+        }
         finally { writer?.dispose() }
     }
 
     // Property access
     // ---------------
 
-    MediaType getType() { MediaType.convertMimeType(this.mimeType) }
-
     int getWidthInPixels() { _image?.width ?: 0 } // so not null
+
+    int getHeightInPixels() { _image?.height ?: 0 } // so not null
 
     long getSizeInBytes() { data?.length ?: 0 } // so not null
 
     void setData(byte[] newData) {
         if (newData) {
             data = newData
-            _image = tryGetImageFromData(newData)
+            _image = UploadItem.tryGetImageFromData(newData)
         }
     }
 
     // Helpers
     // -------
 
-    protected static boolean canCompress(String mimeType) {
-        switch (mimeType) {
-            case Constants.MIME_TYPE_JPEG: return true
-            case Constants.MIME_TYPE_PNG: return false
-            case Constants.MIME_TYPE_GIF: return true
+    protected static boolean canCompress(MediaType type) {
+        switch (type) {
+            case MediaType.IMAGE_JPEG: return true
+            case MediaType.IMAGE_PNG: return false
+            case MediaType.IMAGE_GIF: return true
             default: return false
         }
     }
@@ -140,8 +135,8 @@ class UploadItem {
         param
     }
 
-    protected static ImageWriter getWriter(String mType) {
-        Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType(mType)
+    protected static ImageWriter getWriter(MediaType type) {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType(type?.mimeType)
         writers.hasNext() ? writers.next() : null
     }
 

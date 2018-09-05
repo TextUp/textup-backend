@@ -98,12 +98,12 @@ class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
             json = TestHelpers.jsonToMap(sMsg as JSON)
         }
 
-        then:
+        then: "no upload errors here -- see MediaInfo json marshaller"
         validate(json, sMsg)
         json.repeatIntervalInDays == sMsg.repeatIntervalInDays
         json.endDate == sMsg.endDate.toString()
         json.hasEndDate == true
         json.repeatCount == null
-        json.uploadErrors instanceof List
+        json.uploadErrors == null
     }
 }

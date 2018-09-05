@@ -26,7 +26,7 @@ class MediaElementSpec extends Specification {
         e1.validate() == false
 
         when: "filled in"
-        e1.type = MediaType.IMAGE
+        e1.type = MediaType.IMAGE_JPEG
         e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
             key: UUID.randomUUID().toString(),
             sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
@@ -54,7 +54,7 @@ class MediaElementSpec extends Specification {
         when: "adding send version"
         e1.addVersion([
             new UploadItem(mediaVersion: MediaVersion.SEND,
-                mimeType: Constants.MIME_TYPE_JPEG,
+                type: MediaType.IMAGE_JPEG,
                 data: inputData1)
         ])
 
@@ -68,7 +68,7 @@ class MediaElementSpec extends Specification {
         when: "adding display version"
         e1.addVersion([
             new UploadItem(mediaVersion: MediaVersion.MEDIUM,
-                mimeType: Constants.MIME_TYPE_JPEG,
+                type: MediaType.IMAGE_JPEG,
                 data: inputData1)
         ])
 
@@ -84,7 +84,7 @@ class MediaElementSpec extends Specification {
             key: UUID.randomUUID().toString(),
             sizeInBytes: 888)
         assert mVers.validate()
-        MediaElement e1 = new MediaElement(type: MediaType.IMAGE, sendVersion: mVers)
+        MediaElement e1 = new MediaElement(type: MediaType.IMAGE_JPEG, sendVersion: mVers)
 
         when: "we make the version invalid"
         mVers.mediaVersion = null
@@ -113,7 +113,7 @@ class MediaElementSpec extends Specification {
             sizeInBytes: 888)
         assert sVers.validate()
         assert dVers.validate()
-        MediaElement e1 = new MediaElement(type: MediaType.IMAGE, sendVersion: sVers)
+        MediaElement e1 = new MediaElement(type: MediaType.IMAGE_JPEG, sendVersion: sVers)
         e1.addToDisplayVersions(dVers)
 
         when: "we make the version invalid"
@@ -135,24 +135,27 @@ class MediaElementSpec extends Specification {
     void "test static creation method"() {
         given:
         Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+        UploadItem mockUploadItem = Mock(UploadItem)
 
         when: "create with no items"
-        Result<MediaElement> res = MediaElement.create(Constants.MIME_TYPE_PNG, [])
+        Result<MediaElement> res = MediaElement.create(MediaType.IMAGE_PNG, [])
 
         then: "invalid -- see mocks"
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         res.errorMessages[0] == "nullable"
 
         when: "create with valid content type and a send version"
-        res = MediaElement.create(Constants.MIME_TYPE_JPEG, [
-            new UploadItem(mediaVersion: MediaVersion.SEND,
-                mimeType: Constants.MIME_TYPE_JPEG,
-                data: TestHelpers.getJpegSampleData512())
-        ])
+        res = MediaElement.create(MediaType.IMAGE_JPEG, [mockUploadItem])
 
         then: "valid -- see mocks"
+        (1.._) * mockUploadItem.getMediaVersion() >> MediaVersion.SEND
+        1 * mockUploadItem.getKey() >> "key"
+        1 * mockUploadItem.getSizeInBytes() >> 88
+        1 * mockUploadItem.getWidthInPixels() >> 88
+        1 * mockUploadItem.getHeightInPixels() >> 88
         res.success == true
         res.payload instanceof MediaElement
         res.payload.validate()
+        res.payload.sendVersion != null
     }
 }

@@ -78,4 +78,8 @@ class MediaAction extends BaseAction {
             Base64.decodeBase64(data)
         }
 	}
+
+	MediaType getType() {
+		MediaType.convertMimeType(this.mimeType)
+	}
 }

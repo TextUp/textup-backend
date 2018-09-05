@@ -56,10 +56,6 @@ class Constants {
 	static final long MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES = 5000000
 	static final int MAX_NUM_MEDIA_PER_MESSAGE = 10
 
-	static final String MIME_TYPE_JPEG = "image/jpeg"
-	static final String MIME_TYPE_PNG = "image/png"
-	static final String MIME_TYPE_GIF = "image/gif"
-
 	// Schedule
 	// --------
 

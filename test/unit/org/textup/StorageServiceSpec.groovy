@@ -92,7 +92,7 @@ class StorageServiceSpec extends Specification {
 
         byte[] inputData1 = TestHelpers.getPngSampleData()
         UploadItem validItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            mimeType: Constants.MIME_TYPE_PNG,
+            type: MediaType.IMAGE_PNG,
             data: inputData1)
         assert validItem.validate() == true
 
@@ -114,7 +114,7 @@ class StorageServiceSpec extends Specification {
         res.payload.getETag() == _eTag
 
         when: "try to upload by supplying each required piece of info"
-        res = service.upload(validItem.key, validItem.mimeType,
+        res = service.upload(validItem.key, validItem.type.mimeType,
             new ByteArrayInputStream(validItem.data))
 
         then:
@@ -132,7 +132,7 @@ class StorageServiceSpec extends Specification {
         byte[] inputData1 = TestHelpers.getPngSampleData()
         numSuccesses.times {
             uItems << new UploadItem(mediaVersion: MediaVersion.SEND,
-                mimeType: Constants.MIME_TYPE_PNG,
+                type: MediaType.IMAGE_PNG,
                 data: inputData1)
         }
         numFailures.times { uItems << new UploadItem() }

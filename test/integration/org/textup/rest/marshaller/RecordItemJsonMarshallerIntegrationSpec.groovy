@@ -139,8 +139,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         assert note1.revisions?.size() == 1
         //upload links
         HttpServletRequest request = WebUtils.retrieveGrailsWebRequest().currentRequest
-        List<String> errorMessages = ["error1", "error2"]
-        request.setAttribute(Constants.REQUEST_UPLOAD_ERRORS, errorMessages)
+        request.setAttribute(Constants.REQUEST_UPLOAD_ERRORS, ["error1", "error2"])
 
         when:
         Map json
@@ -148,7 +147,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
             json = TestHelpers.jsonToMap(note1 as JSON)
         }
 
-        then:
+        then: "no upload errors shown here -- see MediaInfo json marshaller"
         validate(json, note1)
         json.whenChanged == note1.whenChanged.toString()
         json.isDeleted == note1.isDeleted
@@ -157,9 +156,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         json.revisions.size() == 1
         json.location instanceof Map
         json.location.id == note1.location.id
-
-        json.uploadErrors instanceof List
-        json.uploadErrors.size() == errorMessages.size()
-        errorMessages.every { String msg -> json.uploadErrors.find { it.contains(msg) } }
+        json.uploadErrors == null
+        json.type == "NOTE"
     }
 }

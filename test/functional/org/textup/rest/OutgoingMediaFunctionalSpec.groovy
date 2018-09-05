@@ -70,7 +70,7 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         2.times {
             mediaActions << [
                 action: Constants.MEDIA_ACTION_ADD,
-                mimeType: Constants.MIME_TYPE_JPEG,
+                mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: thisData,
                 checksum: thisChecksum
             ]
@@ -138,7 +138,7 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
             mediaActions << [
                 action: Constants.MEDIA_ACTION_ADD,
-                mimeType: Constants.MIME_TYPE_JPEG,
+                mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: thisData,
                 checksum: thisChecksum
             ]
@@ -215,7 +215,7 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         2.times {
             mediaActions << [
                 action: Constants.MEDIA_ACTION_ADD,
-                mimeType: Constants.MIME_TYPE_JPEG,
+                mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: thisData,
                 checksum: thisChecksum
             ]
@@ -253,11 +253,11 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         response.json.records instanceof List
         response.json.records.size() == 1
         response.json.records[0].contents == thisMessage
-        response.json.records[0].uploadErrors instanceof List
-        response.json.records[0].uploadErrors.contains(errorMsg)
-        response.json.records[0].media?.images instanceof List
-        response.json.records[0].media?.images.size() == mediaActions.size()
-        response.json.records[0].media?.images.each {
+        response.json.records[0].media.uploadErrors instanceof List
+        response.json.records[0].media.uploadErrors.contains(errorMsg)
+        response.json.records[0].media.images instanceof List
+        response.json.records[0].media.images.size() == mediaActions.size()
+        response.json.records[0].media.images.each {
             assert it.small.link instanceof String
             assert it.medium.link instanceof String
             assert it.large.link instanceof String

@@ -18,6 +18,7 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
     String key
     Long sizeInBytes
     Integer widthInPixels
+    Integer heightInPixels
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -27,25 +28,32 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName   = "width",
-            description    = "Inherent with the in `w` units as defined in the responsive image spec",
-            allowedType    = "String",
+            description    = "Inherent width the in `w` units as defined in the responsive image spec",
+            allowedType    = "Integer",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "height",
+            description    = "Height of the image in pixels, if available",
+            allowedType    = "Integer",
             useForCreation = false)
     ])
     static transients = ["storageService"]
     static constraints = { // all nullable:false by default
         sizeInBytes min: 1l
-        // inherent width in pixels for responsive media, currently only supported for images
+        // inherent width in pixels for responsive media, currently only intended for images
         widthInPixels nullable:true, min: 1
+        // for pre-loading images in gallery on frontend, currently only intended for images
+        heightInPixels nullable:true, min: 1
     }
 
     // Property access
     // ---------------
 
-    // using the "w" unit for inherent width as called for in the `srcset` attribute as defined
-    // in the responsive image specification
-    String getInherentWidth() {
-        Integer width1 = widthInPixels ?: mediaVersion?.maxWidthInPixels
-        width1 ? "${width1}w" : null
+    // DON'T prepend the "w" unit for inherent width as called for in the `srcset` attribute
+    // becuase we want to give the frontend the flexibility to do number comparisons
+    // on these widths without having to manually strip the unit
+    Integer getInherentWidth() {
+        widthInPixels ?: mediaVersion?.maxWidthInPixels
     }
 
     URL getLink() {

@@ -55,7 +55,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 		when: "add media element to media so no longer empty"
 		MediaElement e1 = new MediaElement()
-        e1.type = MediaType.IMAGE
+        e1.type = MediaType.IMAGE_JPEG
         e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
             key: UUID.randomUUID().toString(),
             sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,

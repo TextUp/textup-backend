@@ -20,7 +20,7 @@ class MediaElement implements ReadOnlyMediaElement {
     String uid = UUID.randomUUID().toString()
 
     @RestApiObjectField(
-        description    = "Type of media this element represents. Currently only IMAGE",
+        description    = "MIME type, if available. Currently: `image/jpeg`, `image/png` and `image/gif`",
         allowedType    = "String",
         useForCreation = false)
     MediaType type
@@ -61,8 +61,8 @@ class MediaElement implements ReadOnlyMediaElement {
     // Static factory methods
     // ----------------------
 
-    static Result<MediaElement> create(String mimeType, List<UploadItem> uItems) {
-        MediaElement e1 = new MediaElement(type: MediaType.convertMimeType(mimeType))
+    static Result<MediaElement> create(MediaType mimeType, List<UploadItem> uItems) {
+        MediaElement e1 = new MediaElement(type: mimeType)
         List<Result<MediaElementVersion>> failRes = []
         uItems.each { UploadItem uItem ->
             Result<MediaElementVersion> res = e1.addVersion(uItem)
@@ -84,7 +84,8 @@ class MediaElement implements ReadOnlyMediaElement {
         MediaElementVersion vers1 = new MediaElementVersion(mediaVersion: uItem.mediaVersion,
             key: uItem.key,
             sizeInBytes: uItem.sizeInBytes,
-            widthInPixels: uItem.widthInPixels)
+            widthInPixels: uItem.widthInPixels,
+            heightInPixels: uItem.heightInPixels)
         if (uItem.mediaVersion == MediaVersion.SEND) {
             sendVersion = vers1
         }

@@ -36,7 +36,7 @@ class MediaInfoSpec extends Specification {
 
         then: "can retrieve to see additions + hasMany set has enforced uniqueness among elements"
         mInfo.mediaElements.size() == 2
-        mInfo.getMediaElementsByType([MediaType.IMAGE]).size() == 2
+        mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES).size() == 2
 
         when: "remove elements by uid"
         assert mInfo.removeMediaElement("nonexistent") == null
@@ -44,7 +44,7 @@ class MediaInfoSpec extends Specification {
 
         then: "can retrieve to see removals"
         mInfo.mediaElements.size() == 1
-        mInfo.getMediaElementsByType([MediaType.IMAGE]).size() == 1
+        mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES).size() == 1
     }
 
     void "test iterating over elements in batches by file size"() {
@@ -59,7 +59,7 @@ class MediaInfoSpec extends Specification {
 
         when: "looping over batches"
         int numBatches = 0
-        mInfo.forEachBatch({ numBatches++ }, [MediaType.IMAGE])
+        mInfo.forEachBatch({ numBatches++ }, MediaType.IMAGE_TYPES)
 
         then: "iteration to happen in batches according to max file size and number of files"
         numBatches == 3
@@ -73,7 +73,7 @@ class MediaInfoSpec extends Specification {
 
         when: "looping over batches"
         int numBatches = 0
-        mInfo.forEachBatch({ numBatches++ }, [MediaType.IMAGE])
+        mInfo.forEachBatch({ numBatches++ }, MediaType.IMAGE_TYPES)
 
         then: "iteration to happen in batches according to max file size and number of files"
         numBatches == 5 // up to 10 items per batch
@@ -101,7 +101,7 @@ class MediaInfoSpec extends Specification {
         mInfo.errors.getFieldErrorCount("mediaElements.0.type") == 1
 
         when: "invalid version is fixed"
-        e1.type = MediaType.IMAGE
+        e1.type = MediaType.IMAGE_PNG
 
         then: "parent validates"
         mInfo.validate() == true

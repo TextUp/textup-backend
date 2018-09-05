@@ -238,54 +238,54 @@ class CallbackServiceSpec extends CustomSpec {
         res.payload == CallResponse.END_CALL
     }
 
-        void "test handling sessions"() {
-            given:
-            PhoneNumber originalFromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-            PhoneNumber fromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-            PhoneNumber toNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-            [originalFromNumber, fromNumber, toNumber].each { assert it.validate() }
-            HttpServletRequest mockRequest = Mock(HttpServletRequest)
-            GrailsParameterMap params = new GrailsParameterMap(
-                [originalFrom: originalFromNumber.number], mockRequest)
-            int iBaseline = IncomingSession.count()
+    void "test handling sessions"() {
+        given:
+        PhoneNumber originalFromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber fromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber toNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        [originalFromNumber, fromNumber, toNumber].each { assert it.validate() }
+        HttpServletRequest mockRequest = Mock(HttpServletRequest)
+        GrailsParameterMap params = new GrailsParameterMap(
+            [originalFrom: originalFromNumber.number], mockRequest)
+        int iBaseline = IncomingSession.count()
 
-            when: "CallResponse.FINISH_BRIDGE + new phone number"
-            params.handle = CallResponse.FINISH_BRIDGE.toString()
-            Result<IncomingSession> res = service.getOrCreateIncomingSession(p1, fromNumber,
-                toNumber, params)
+        when: "CallResponse.FINISH_BRIDGE + new phone number"
+        params.handle = CallResponse.FINISH_BRIDGE.toString()
+        Result<IncomingSession> res = service.getOrCreateIncomingSession(p1, fromNumber,
+            toNumber, params)
 
-            then:
-            IncomingSession.count() == iBaseline + 1
-            res.status == ResultStatus.OK
-            res.payload.numberAsString == toNumber.number
+        then:
+        IncomingSession.count() == iBaseline + 1
+        res.status == ResultStatus.OK
+        res.payload.numberAsString == toNumber.number
 
-            when: "CallResponse.ANNOUNCEMENT_AND_DIGITS + existing phone number"
-            params.handle = CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()
-            res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
+        when: "CallResponse.ANNOUNCEMENT_AND_DIGITS + existing phone number"
+        params.handle = CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()
+        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
 
-            then:
-            IncomingSession.count() == iBaseline + 1
-            res.status == ResultStatus.OK
-            res.payload.numberAsString == toNumber.number
+        then:
+        IncomingSession.count() == iBaseline + 1
+        res.status == ResultStatus.OK
+        res.payload.numberAsString == toNumber.number
 
-            when: "CallResponse.SCREEN_INCOMING + new phone number"
-            params.handle = CallResponse.SCREEN_INCOMING.toString()
-            res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
+        when: "CallResponse.SCREEN_INCOMING + new phone number"
+        params.handle = CallResponse.SCREEN_INCOMING.toString()
+        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
 
-            then:
-            IncomingSession.count() == iBaseline + 2
-            res.status == ResultStatus.OK
-            res.payload.numberAsString == originalFromNumber.number
+        then:
+        IncomingSession.count() == iBaseline + 2
+        res.status == ResultStatus.OK
+        res.payload.numberAsString == originalFromNumber.number
 
-            when: "another valid call response + new phone number"
-            params.handle = "another valid call response"
-            res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
+        when: "another valid call response + new phone number"
+        params.handle = "another valid call response"
+        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
 
-            then:
-            IncomingSession.count() == iBaseline + 3
-            res.status == ResultStatus.OK
-            res.payload.numberAsString == fromNumber.number
-        }
+        then:
+        IncomingSession.count() == iBaseline + 3
+        res.status == ResultStatus.OK
+        res.payload.numberAsString == fromNumber.number
+    }
 
     void "test handling incoming media"() {
         given: "this method assumes numMedia > 0"
@@ -298,7 +298,7 @@ class CallbackServiceSpec extends CustomSpec {
             String mockUrl = UUID.randomUUID().toString()
             urls << mockUrl
             params["MediaUrl${it}"] = mockUrl
-            params["MediaContentType${it}"] = Constants.MIME_TYPE_JPEG
+            params["MediaContentType${it}"] = MediaType.IMAGE_JPEG.mimeType
         }
         Map<String, String> urlToMimeType
 
@@ -312,7 +312,7 @@ class CallbackServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         urlToMimeType != null
         urls.every { it in urlToMimeType.keySet() }
-        urlToMimeType.values().every { it == Constants.MIME_TYPE_JPEG }
+        urlToMimeType.values().every { it == MediaType.IMAGE_JPEG.mimeType }
     }
 
     void "test uploading and delete media after relaying text"() {

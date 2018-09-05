@@ -16,11 +16,6 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
         LinkGenerator linkGenerator, ReadOnlyRecordItem item ->
 
         Map json = [:]
-
-        Result<?> res = Helpers.tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
-            .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
-        if (res.success) { json.uploadErrors = res.payload }
-
         json.with {
             id = item.id
             whenCreated = item.whenCreated
@@ -53,6 +48,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 isReadOnly = item.isReadOnly
                 revisions = item.revisions
                 location = item.readOnlyLocation
+                type = "NOTE"
             }
         }
         // find owner, may be a contact or a tag

@@ -8,6 +8,7 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.textup.*
 import org.textup.util.*
+import org.textup.type.*
 import spock.lang.*
 
 @Domain([Organization, Location])
@@ -60,11 +61,12 @@ class MediaActionSpec extends Specification {
 		then: "ok + can't get byte data"
 		act1.validate() == true
 		act1.byteData == null
+		act1.type == null
 	}
 
 	void "test constraints for adding"() {
 		when: "a valid action to add"
-		String mimeType = Constants.MIME_TYPE_PNG
+		String mimeType = MediaType.IMAGE_PNG.mimeType
 		String rawData = "I am some data*~~~~|||"
 		String encodedData = Base64.encodeBase64String(rawData.getBytes(StandardCharsets.UTF_8))
 		String checksum = DigestUtils.md5Hex(encodedData)
@@ -74,6 +76,7 @@ class MediaActionSpec extends Specification {
 		then: "can get byte data"
 		act1.validate() == true
 		act1.byteData instanceof byte[]
+		act1.type == MediaType.IMAGE_PNG
 
 		when: "invalid mime type"
 		act1.mimeType = "invalid"
@@ -83,6 +86,7 @@ class MediaActionSpec extends Specification {
 		act1.errors.errorCount == 1
 		act1.errors.getFieldErrorCount("mimeType") == 1
 		act1.errors.getFieldError("mimeType").code == "invalidType"
+		act1.type == null
 
 		when: "incorrectly encoded data"
 		act1.mimeType = mimeType
@@ -98,6 +102,7 @@ class MediaActionSpec extends Specification {
 		act1.errors.getFieldErrorCount("checksum") == 1
 		act1.errors.getFieldError("checksum").code == "compromisedIntegrity"
 		act1.byteData == null
+		act1.type == MediaType.IMAGE_PNG
 
 		when: "checksum that does not match data"
 		act1.data = encodedData
@@ -111,5 +116,6 @@ class MediaActionSpec extends Specification {
 		act1.errors.getFieldErrorCount("checksum") == 1
 		act1.errors.getFieldError("checksum").code == "compromisedIntegrity"
 		act1.byteData instanceof byte[]
+		act1.type == MediaType.IMAGE_PNG
 	}
 }

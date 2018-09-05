@@ -13,6 +13,8 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
     void "test marshalling media info"() {
         given:
         MediaInfo mInfo = new MediaInfo()
+        mInfo.save(flush: true, failOnError: true)
+        assert mInfo.id != null
 
         when: "empty"
         Map json
@@ -21,8 +23,10 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
         }
 
         then:
+        json.id == mInfo.id
         json.images instanceof Collection
         json.images.isEmpty()
+        json.uploadErrors == null
 
         when: "some media elements"
         List<MediaElement> elements = []
@@ -32,14 +36,20 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
             mInfo.addToMediaElements(e1)
             elements << e1
         }
+        Collection<String> errorMessages = ["errors1", "errors2"]
+        Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMessages)
 
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
             json = TestHelpers.jsonToMap(mInfo as JSON)
         }
 
         then:
+        json.id == mInfo.id
         json.images instanceof Collection
         json.images.size() == numElements
         elements.every { e1 -> json.images.find { it.uid == e1.uid } }
+        json.uploadErrors instanceof List
+        json.uploadErrors.size() == errorMessages.size()
+        errorMessages.every { String msg -> json.uploadErrors.find { it.contains(msg) } }
     }
 }

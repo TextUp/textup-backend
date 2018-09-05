@@ -11,7 +11,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.*
-import org.textup.type.SharePermission
+import org.textup.type.*
 import org.textup.util.CustomSpec
 import org.textup.validator.UploadItem
 import spock.lang.Shared
@@ -141,7 +141,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		int lBaseline = Location.count()
 
 		when: "try to add media"
-		String contentType = Constants.MIME_TYPE_PNG
+		String contentType = MediaType.IMAGE_PNG.mimeType
         String data = Base64.encodeBase64String("hello".getBytes(StandardCharsets.UTF_8))
         String checksum = DigestUtils.md5Hex(data)
 		temp1.info.doMediaActions = [

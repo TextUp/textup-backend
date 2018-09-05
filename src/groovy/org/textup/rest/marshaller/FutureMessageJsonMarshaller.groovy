@@ -1,24 +1,19 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.LogLevel
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 
 	static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, ReadOnlyFutureMessage fMsg ->
 
         Map json = [:]
-
-        Result<?> res = Helpers.tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
-            .logFail("FutureMessageJsonMarshaller: no available request", LogLevel.DEBUG)
-        if (res.success) { json.uploadErrors = res.payload }
-
         json.with {
         	id = fMsg.id
         	whenCreated = fMsg.whenCreated

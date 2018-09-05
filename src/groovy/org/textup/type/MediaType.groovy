@@ -5,20 +5,24 @@ import org.textup.Constants
 
 @GrailsCompileStatic
 enum MediaType {
-    IMAGE([Constants.MIME_TYPE_JPEG, Constants.MIME_TYPE_PNG, Constants.MIME_TYPE_GIF])
+    IMAGE_UNKNOWN(null),
+    IMAGE_JPEG("image/jpeg"),
+    IMAGE_PNG("image/png"),
+    IMAGE_GIF("image/gif")
 
-    private final Collection<String> mimeTypes
+    private final String mimeType
+    MediaType(String type) { this.mimeType = type }
+    String mimeType() { this.mimeType }
 
-    MediaType(Collection<String> allowedMimeTypes) {
-        this.mimeTypes = allowedMimeTypes
+    static Collection<MediaType> IMAGE_TYPES = [IMAGE_UNKNOWN, IMAGE_JPEG, IMAGE_PNG, IMAGE_GIF]
+
+    static MediaType convertMimeType(String inputType) {
+        String lowerCased = inputType?.toLowerCase()
+        if (lowerCased) {
+            MediaType.values().find { MediaType mType -> mType.mimeType == lowerCased }
+        }
     }
-
-    Collection<String> getMimeTypes() { this.mimeTypes }
-
-    static MediaType convertMimeType(String mimeType) {
-        MediaType.values().find { MediaType type -> type.mimeTypes.contains(mimeType) }
-    }
-    static boolean isValidMimeType(String mimeType) {
-        MediaType.convertMimeType(mimeType) != null
+    static boolean isValidMimeType(String inputType) {
+        MediaType.convertMimeType(inputType) != null
     }
 }

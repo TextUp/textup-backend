@@ -66,11 +66,11 @@ class TestHelpers {
     // Image samples
     // -------------
 
-    static byte[] getSampleDataForMimeType(String mimeType) {
-        switch (mimeType) {
-            case Constants.MIME_TYPE_PNG: return TestHelpers.getPngSampleData()
-            case Constants.MIME_TYPE_JPEG: return TestHelpers.getJpegSampleData512()
-            default: return TestHelpers.getGifSampleData()
+    static byte[] getSampleDataForMimeType(MediaType type) {
+        switch (type) {
+            case MediaType.IMAGE_PNG: return TestHelpers.getPngSampleData()
+            case MediaType.IMAGE_JPEG: return TestHelpers.getJpegSampleData512()
+            case MediaType.IMAGE_GIF: return TestHelpers.getGifSampleData()
         }
     }
 
@@ -133,7 +133,7 @@ class TestHelpers {
     // -----------------
 
     static MediaElement buildMediaElement(BigDecimal sendSize = 88) {
-        MediaElement e1 = new MediaElement(type: MediaType.IMAGE,
+        MediaElement e1 = new MediaElement(type: MediaType.IMAGE_JPEG,
             sendVersion: new MediaElementVersion(mediaVersion: MediaVersion.SEND,
                 key: UUID.randomUUID().toString(),
                 sizeInBytes: sendSize.longValue(),

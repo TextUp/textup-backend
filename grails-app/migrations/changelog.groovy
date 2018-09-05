@@ -935,4 +935,6 @@ databaseChangeLog = {
 	include file: 'normalize-existing-columns.groovy'
 
 	include file: 'migrate-existing-media.groovy'
+
+	include file: 'images-height-mime-type.groovy'
 }

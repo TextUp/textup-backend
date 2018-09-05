@@ -43,39 +43,39 @@ class MediaServiceSpec extends Specification {
         true == service.hasMediaActions([doMediaActions:"blah"])
     }
 
-    void "test creating send version for #mimeType"() {
+    void "test creating send version for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(mimeType)
+        byte[] data = TestHelpers.getSampleDataForMimeType(type)
 
         when: "invalid content type"
-        Result<UploadItem> res = service.createSendVersion("invalid content type", data)
+        Result<UploadItem> res = service.createSendVersion(null, data)
 
         then:
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("invalidType")
+        res.errorMessages.contains("nullable")
 
         when: "pass in content type and data"
-        res = service.createSendVersion(mimeType, data)
+        res = service.createSendVersion(type, data)
 
         then: "create send version with appropriate width and file size"
         res.status == ResultStatus.OK
         res.payload instanceof UploadItem
-        res.payload.mimeType == mimeType
+        res.payload.type == type
         res.payload.mediaVersion == MediaVersion.SEND
 
         where:
-        mimeType                 | _
-        Constants.MIME_TYPE_PNG  | _
-        Constants.MIME_TYPE_JPEG | _
-        Constants.MIME_TYPE_GIF  | _
+        type                 | _
+        MediaType.IMAGE_PNG  | _
+        MediaType.IMAGE_JPEG | _
+        MediaType.IMAGE_GIF  | _
     }
 
-    void "test creating display versions for #mimeType"() {
+    void "test creating display versions for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(mimeType)
+        byte[] data = TestHelpers.getSampleDataForMimeType(type)
 
         when: "pass in image that is larger than the `large` max size"
-        Result<List<UploadItem>> res = service.createDisplayVersions(mimeType, data)
+        Result<List<UploadItem>> res = service.createDisplayVersions(type, data)
 
         then:
         res.status == ResultStatus.OK
@@ -83,47 +83,47 @@ class MediaServiceSpec extends Specification {
         [MediaVersion.LARGE, MediaVersion.MEDIUM, MediaVersion.SMALL].every { mVers ->
             res.payload.find { it.mediaVersion == mVers }
         }
-        res.payload.every { it.mimeType == mimeType }
+        res.payload.every { it.type == type }
 
         where:
-        mimeType                 | _
-        Constants.MIME_TYPE_PNG  | _
-        Constants.MIME_TYPE_JPEG | _
-        Constants.MIME_TYPE_GIF  | _
+        type                 | _
+        MediaType.IMAGE_PNG  | _
+        MediaType.IMAGE_JPEG | _
+        MediaType.IMAGE_GIF  | _
     }
 
-    void "test creating versions overall for #mimeType"() {
+    void "test creating versions overall for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(mimeType)
+        byte[] data = TestHelpers.getSampleDataForMimeType(type)
 
         when: "pass in data"
-        Result<List<UploadItem>> res = service.createUploads(mimeType, data)
+        Result<List<UploadItem>> res = service.createUploads(type, data)
 
         then: "get back both send and display versions"
         res.status == ResultStatus.OK
         res.payload.size() == 4
         MediaVersion.values().every { mVers -> res.payload.find { it.mediaVersion == mVers } }
-        res.payload.every { it.mimeType == mimeType }
+        res.payload.every { it.type == type }
 
         where:
-        mimeType                 | _
-        Constants.MIME_TYPE_PNG  | _
-        Constants.MIME_TYPE_JPEG | _
-        Constants.MIME_TYPE_GIF  | _
+        type                 | _
+        MediaType.IMAGE_PNG  | _
+        MediaType.IMAGE_JPEG | _
+        MediaType.IMAGE_GIF  | _
     }
 
-    void "test adding media overall #mimeType"() {
+    void "test adding media overall #type"() {
         given:
         MediaInfo mInfo = new MediaInfo()
         mInfo.save(flush: true, failOnError: true)
         List<UploadItem> uItems = []
-        byte[] data = TestHelpers.getSampleDataForMimeType(mimeType)
+        byte[] data = TestHelpers.getSampleDataForMimeType(type)
         int iBaseline = MediaInfo.count()
         int eBaseline = MediaElement.count()
         int vBaseline = MediaElementVersion.count()
 
         when: "pass in data"
-        Result<MediaInfo> res = service.doAddMedia(mInfo, uItems.&addAll, mimeType, data)
+        Result<MediaInfo> res = service.doAddMedia(mInfo, uItems.&addAll, type, data)
         MediaInfo.withSession { it.flush() }
 
         then: "media info has a new media element added to it"
@@ -135,10 +135,10 @@ class MediaServiceSpec extends Specification {
         MediaElementVersion.count() == vBaseline + 4
 
         where:
-        mimeType                 | _
-        Constants.MIME_TYPE_PNG  | _
-        Constants.MIME_TYPE_JPEG | _
-        Constants.MIME_TYPE_GIF  | _
+        type                 | _
+        MediaType.IMAGE_PNG  | _
+        MediaType.IMAGE_JPEG | _
+        MediaType.IMAGE_GIF  | _
     }
 
     void "test handling media actions errors"() {
@@ -165,7 +165,7 @@ class MediaServiceSpec extends Specification {
         res = service.handleActions(null, null, [doMediaActions:[
             [
                 action: Constants.MEDIA_ACTION_ADD,
-                mimeType: Constants.MIME_TYPE_JPEG,
+                mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: rawData,
                 checksum: checksum
             ]
@@ -179,7 +179,7 @@ class MediaServiceSpec extends Specification {
         res = service.handleActions(null, null, [doMediaActions:[
             [
                 action: Constants.MEDIA_ACTION_ADD,
-                mimeType: Constants.MIME_TYPE_JPEG,
+                mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: encodedData
             ]
         ]])
@@ -223,7 +223,7 @@ class MediaServiceSpec extends Specification {
         List<UploadItem> uItems = []
         Boolean hasAdded
         service.metaClass.doAddMedia = { MediaInfo mInfo, Closure<Void> collectUploads,
-            String mimeType, byte[] data ->
+            MediaType type, byte[] data ->
             hasAdded = true; new Result();
         }
         MediaInfo mInfo = Mock(MediaInfo)
@@ -235,7 +235,7 @@ class MediaServiceSpec extends Specification {
         Result<MediaInfo> res = service.handleActions(mInfo, uItems.&addAll, [doMediaActions:[
             [
                 action: Constants.MEDIA_ACTION_ADD,
-                mimeType: Constants.MIME_TYPE_JPEG,
+                mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: encodedData,
                 checksum: checksum
             ]
@@ -283,17 +283,26 @@ class MediaServiceSpec extends Specification {
         given:
         int numTimesCalled = 0
         service.metaClass.doAddMedia = { MediaInfo mInfo, Closure<Void> collectUploads,
-            String mimeType, byte[] data ->
+            MediaType type, byte[] data ->
             numTimesCalled++; new Result();
         }
         int okCode = ApacheHttpStatus.SC_OK
         int failCode = ApacheHttpStatus.SC_REQUEST_TIMEOUT
         String root = Constants.TEST_STATUS_ENDPOINT
-        Map<String, String> okInfo = ["${root}/${okCode}": Constants.MIME_TYPE_JPEG]
-        Map<String, String> failInfo = ["${root}/${failCode}": Constants.MIME_TYPE_JPEG]
+        Map<String, String> invalidInfo = ["valid url here": "invalid mime type"]
+        Map<String, String> failInfo = ["${root}/${failCode}": MediaType.IMAGE_JPEG.mimeType]
+        Map<String, String> okInfo = ["${root}/${okCode}": MediaType.IMAGE_JPEG.mimeType]
+
+        when: "the response has an invalid mime type"
+        Result<MediaInfo> res = service.buildFromIncomingMedia(invalidInfo, { u1 -> }, { id -> })
+
+        then: "asset with invalid mime type is ignored"
+        0 == numTimesCalled
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.contains("mediaService.buildFromIncomingMedia.invalidMimeType")
 
         when: "response has a error status"
-        Result<MediaInfo> res = service.buildFromIncomingMedia(failInfo, { u1 -> }, { id -> })
+        res = service.buildFromIncomingMedia(failInfo, { u1 -> }, { id -> })
 
         then:
         0 == numTimesCalled

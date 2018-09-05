@@ -228,9 +228,9 @@ class IncomingTextFunctionalSpec extends RestSpec {
         form.add("Body", "hi!")
         form.add("NumMedia", "2")
         form.add("MediaUrl0", sampleUrl)
-        form.add("MediaContentType0", Constants.MIME_TYPE_JPEG)
+        form.add("MediaContentType0", MediaType.IMAGE_JPEG.mimeType)
         form.add("MediaUrl1", sampleUrl)
-        form.add("MediaContentType1", Constants.MIME_TYPE_JPEG)
+        form.add("MediaContentType1", MediaType.IMAGE_JPEG.mimeType)
         RestResponse response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)

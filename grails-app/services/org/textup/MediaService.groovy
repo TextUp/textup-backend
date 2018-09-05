@@ -9,13 +9,9 @@ import org.apache.http.HttpResponse
 import org.apache.http.HttpStatus as ApacheHttpStatus
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
-import org.textup.type.CallResponse
-import org.textup.type.MediaVersion
-import org.textup.validator.action.ActionContainer
-import org.textup.validator.action.MediaAction
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.TempRecordReceipt
-import org.textup.validator.UploadItem
+import org.textup.type.*
+import org.textup.validator.*
+import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
@@ -43,7 +39,7 @@ class MediaService {
         actions.each { MediaAction a1 ->
             switch (a1) {
                 case Constants.MEDIA_ACTION_ADD:
-                    Result<MediaInfo> res = doAddMedia(mInfo, collectUploads, a1.mimeType, a1.byteData)
+                    Result<MediaInfo> res = doAddMedia(mInfo, collectUploads, a1.type, a1.byteData)
                     if (!res.success) { failRes << res }
                     break
                 default: // Constants.MEDIA_ACTION_REMOVE
@@ -59,32 +55,32 @@ class MediaService {
     }
 
     protected Result<MediaInfo> doAddMedia(MediaInfo mInfo, Closure<Void> collectUploads,
-        String mimeType, byte[] data) {
+        MediaType type, byte[] data) {
 
-        createUploads(mimeType, data)
+        createUploads(type, data)
             .then { List<UploadItem> uItems ->
                 collectUploads(uItems) // called with `addAll` so accepts a collection as argument
-                MediaElement.create(mimeType, uItems)
+                MediaElement.create(type, uItems)
             }
             .then { MediaElement e1 ->
                 mInfo.addToMediaElements(e1)
                 resultFactory.success(mInfo)
             }
     }
-    protected Result<List<UploadItem>> createUploads(String mimeType, byte[] data) {
+    protected Result<List<UploadItem>> createUploads(MediaType type, byte[] data) {
         List<UploadItem> toUpload = []
-        createSendVersion(mimeType, data)
+        createSendVersion(type, data)
             .then { UploadItem uItem ->
                 toUpload << uItem
-                createDisplayVersions(mimeType, data)
+                createDisplayVersions(type, data)
             }
             .then { List<UploadItem> displayVersions ->
                 toUpload += displayVersions
                 resultFactory.success(toUpload)
             }
     }
-    protected Result<UploadItem> createSendVersion(String mimeType, byte[] data) {
-        UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND, mimeType: mimeType, data: data)
+    protected Result<UploadItem> createSendVersion(MediaType type, byte[] data) {
+        UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND, type: type, data: data)
         uItem.tryResizeToWidth(MediaVersion.SEND.maxWidthInPixels)
             .logFail("MediaService.createSendVersion: resizing")
         uItem.tryCompress(MediaVersion.SEND.maxSizeInBytes)
@@ -94,12 +90,12 @@ class MediaService {
         }
         else { resultFactory.failWithValidationErrors(uItem.errors) }
     }
-    protected Result<List<UploadItem>> createDisplayVersions(String mimeType, byte[] data) {
+    protected Result<List<UploadItem>> createDisplayVersions(MediaType type, byte[] data) {
         MediaVersion nextVersion = MediaVersion.LARGE
         List<UploadItem> uItems = []
         UploadItem currentItem
         while (currentItem == null && nextVersion != null) {
-            currentItem = new UploadItem(mediaVersion: nextVersion, mimeType: mimeType, data: data)
+            currentItem = new UploadItem(mediaVersion: nextVersion, type: type, data: data)
             currentItem.tryResizeToWidth(nextVersion.maxWidthInPixels)
                 .logFail("MediaService.createDisplayVersions: resizing for ${nextVersion}")
             currentItem.tryCompress(nextVersion.maxSizeInBytes)
@@ -124,6 +120,14 @@ class MediaService {
             MediaInfo mInfo = new MediaInfo()
             ResultGroup<MediaInfo> failGroup = new ResultGroup<>()
             urlToMimeType.each { String url, String mimeType ->
+                MediaType type = MediaType.convertMimeType(mimeType)
+                if (!type) {
+                    failGroup << resultFactory.failWithCodeAndStatus(
+                        "mediaService.buildFromIncomingMedia.invalidMimeType",
+                        ResultStatus.UNPROCESSABLE_ENTITY,
+                        [mimeType])
+                    return
+                }
                 CloseableHttpClient client = HttpClients.createDefault()
                 client.withCloseable {
                     HttpResponse resp = client.execute(new HttpGet(url))
@@ -132,7 +136,7 @@ class MediaService {
                         if (statusCode == ApacheHttpStatus.SC_OK) {
                             resp.entity.content.withStream { InputStream stream ->
                                 byte[] data = IOUtils.toByteArray(stream)
-                                Result<?> res = doAddMedia(mInfo, collectUploads, mimeType, data)
+                                Result<?> res = doAddMedia(mInfo, collectUploads, type, data)
                                 if (res.success) {
                                     collectMediaIds(extractMediaIdFromUrl(url))
                                 }

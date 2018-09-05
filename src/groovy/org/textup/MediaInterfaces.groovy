@@ -19,6 +19,7 @@ interface WithMedia extends ReadOnlyWithMedia {
 
 @GrailsCompileStatic
 interface ReadOnlyMediaInfo {
+    Long getId()
     List<? extends ReadOnlyMediaElement> getMediaElementsByType()
     List<? extends ReadOnlyMediaElement> getMediaElementsByType(Collection<MediaType> typesToRetrieve)
 }
@@ -26,11 +27,13 @@ interface ReadOnlyMediaInfo {
 @GrailsCompileStatic
 interface ReadOnlyMediaElement {
     String getUid()
+    MediaType type
     Map<MediaVersion, ? extends ReadOnlyMediaElementVersion> getVersionsForDisplay()
 }
 
 @GrailsCompileStatic
 interface ReadOnlyMediaElementVersion {
     URL getLink()
-    String getInherentWidth()
+    Integer getInherentWidth()
+    Integer getHeightInPixels()
 }

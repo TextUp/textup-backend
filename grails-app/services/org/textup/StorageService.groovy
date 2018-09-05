@@ -68,7 +68,7 @@ class StorageService {
     Result<PutObjectResult> upload(UploadItem uItem) {
         if (uItem.validate()) {
             new ByteArrayInputStream(uItem.data).withStream { InputStream bStream ->
-                upload(uItem.key, uItem.mimeType, bStream)
+                upload(uItem.key, uItem.type?.mimeType, bStream)
             }
         }
         else { resultFactory.failWithValidationErrors(uItem.errors) }

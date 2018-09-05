@@ -29,29 +29,28 @@ class UploadItemSpec extends Specification {
 
         then:
         uItem.validate() == false
-        uItem.errors.errorCount == 4 // 3 actual props + `type` custom getter
-
-        when: "invalid mimeType"
-        uItem.mimeType = "invalid MIME type"
-
-        then:
-        uItem.validate() == false
-        uItem.errors.getFieldErrorCount("mimeType") == 1
-        uItem.errors.errorCount == 4
+        uItem.errors.errorCount == 3 // 3 props = mediaVersion, type, data
 
         when: "invalidly encoded data"
         uItem.mediaVersion = MediaVersion.SEND
-        uItem.mimeType = Constants.MIME_TYPE_JPEG
+        uItem.type = MediaType.IMAGE_JPEG
         uItem.data = "not actually an image".bytes
 
         then: "valid, assume data is valid, even if it isn't a valid image"
         uItem.validate() == true
         uItem.widthInPixels == 0 // 0, not actually an image so can't process into image to find width
+        uItem.heightInPixels == 0 // 0, not actually an image so can't process into image to find width
     }
 
-    void "test getting writers for various mime types WITHOUT exception catching"() {
+    void "test getting writers for valid image types WITHOUT exception catching"() {
         expect:
-        MediaType.IMAGE.mimeTypes.every { String mType -> UploadItem.getWriter(mType) != null }
+        UploadItem.getWriter(type) != null
+
+        where:
+        type                 | _
+        MediaType.IMAGE_JPEG | _
+        MediaType.IMAGE_PNG  | _
+        MediaType.IMAGE_GIF  | _
     }
 
     void "test converting byte data to a BufferedImage WITHOUT exception catching"() {
@@ -79,10 +78,10 @@ class UploadItemSpec extends Specification {
 
     void "test ability to compress various mime types"() {
         expect:
-        UploadItem.canCompress(Constants.MIME_TYPE_JPEG) == true
-        UploadItem.canCompress(Constants.MIME_TYPE_PNG) == false
-        UploadItem.canCompress(Constants.MIME_TYPE_GIF) == true
-        UploadItem.canCompress("something else") == false
+        UploadItem.canCompress(MediaType.IMAGE_JPEG) == true
+        UploadItem.canCompress(MediaType.IMAGE_PNG) == false
+        UploadItem.canCompress(MediaType.IMAGE_GIF) == true
+        UploadItem.canCompress(null) == false
     }
 
     // jpeg size fluctuates on decoding + encoding due to stripping of metadata and rounding errors
@@ -90,7 +89,7 @@ class UploadItemSpec extends Specification {
     // The only want to ensure the exact same byte data is to copy byte by byte
     void "test repeated encoding + decoding jpeg WITHOUT exception catching"() {
         given: "encode our initial jpeg image from byte data"
-        ImageWriter writer = UploadItem.getWriter(Constants.MIME_TYPE_JPEG)
+        ImageWriter writer = UploadItem.getWriter(MediaType.IMAGE_JPEG)
         byte[] initialData = TestHelpers.getJpegSampleData512()
         BufferedImage jpgImg = UploadItem.tryGetImageFromData(initialData)
         assert jpgImg != null
@@ -122,7 +121,7 @@ class UploadItemSpec extends Specification {
 
     void "test decoding jpeg with compression"() {
         given: "encode our initial jpeg image from byte data"
-        ImageWriter writer = UploadItem.getWriter(Constants.MIME_TYPE_JPEG)
+        ImageWriter writer = UploadItem.getWriter(MediaType.IMAGE_JPEG)
         byte[] initialData = TestHelpers.getJpegSampleData512()
         BufferedImage jpgImg = UploadItem.tryGetImageFromData(initialData)
         assert jpgImg != null
@@ -148,7 +147,7 @@ class UploadItemSpec extends Specification {
 
     void "test trying to compress png results in exception"() {
         given: "encode our initial jpeg image from byte data"
-        ImageWriter writer = UploadItem.getWriter("image/png")
+        ImageWriter writer = UploadItem.getWriter(MediaType.IMAGE_PNG)
         byte[] initialData = TestHelpers.getPngSampleData()
         BufferedImage pngImg = UploadItem.tryGetImageFromData(initialData)
         assert pngImg != null
@@ -171,7 +170,7 @@ class UploadItemSpec extends Specification {
 
     void "test trying to compress gif requires setting compression type"() {
         given: "encode our initial jpeg image from byte data"
-        ImageWriter writer = UploadItem.getWriter("image/gif")
+        ImageWriter writer = UploadItem.getWriter(MediaType.IMAGE_GIF)
         byte[] initialData = TestHelpers.getGifSampleData()
         BufferedImage gifImg = UploadItem.tryGetImageFromData(initialData)
         assert gifImg != null
@@ -196,13 +195,14 @@ class UploadItemSpec extends Specification {
         when: "obj with valid mime type"
         byte[] inputData1 = TestHelpers.getJpegSampleData512()
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            mimeType: Constants.MIME_TYPE_JPEG,
+            type: MediaType.IMAGE_JPEG,
             data: inputData1)
         assert uItem.validate()
 
         then: "can get MediaType enum"
-        uItem.type == MediaType.IMAGE
+        uItem.type == MediaType.IMAGE_JPEG
         uItem.widthInPixels == 512
+        uItem.heightInPixels == 512
         uItem.sizeInBytes == inputData1.size()
 
         when: "setting data"
@@ -213,16 +213,18 @@ class UploadItemSpec extends Specification {
 
         then: "image private property is also implicitly set + can get file size and image width"
         uItem.sizeInBytes == inputData2.size()
+        uItem.widthInPixels != width1
         uItem.widthInPixels == 256
+        uItem.heightInPixels == 256
     }
 
     @Unroll
-    void "test resizing width for #mimeType"() {
+    void "test resizing width for #type"() {
         given: "obj with data"
         Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(mimeType)
+        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(type)
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            mimeType: mimeType,
+            type: type,
             data: inputData1)
         assert uItem.validate()
 
@@ -243,17 +245,19 @@ class UploadItemSpec extends Specification {
         when: "resize to a positive width"
         float aspectRatio = 0.8
         int targetWidth = Math.floor(uItem.widthInPixels * aspectRatio)
+        int originalHeight = uItem.heightInPixels
         res = uItem.tryResizeToWidth(targetWidth)
 
         then: "successfully do so while preserving the aspect ratio"
         res.payload instanceof UploadItem
         targetWidth == res.payload.widthInPixels
+        Math.floor(originalHeight * aspectRatio) == res.payload.heightInPixels
 
         where:
-        mimeType                 | _
-        Constants.MIME_TYPE_PNG  | _
-        Constants.MIME_TYPE_JPEG | _
-        Constants.MIME_TYPE_GIF  | _
+        type                 | _
+        MediaType.IMAGE_PNG  | _
+        MediaType.IMAGE_JPEG | _
+        MediaType.IMAGE_GIF  | _
     }
 
     void "test compression short circuiting"() {
@@ -261,7 +265,7 @@ class UploadItemSpec extends Specification {
         Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         byte[] inputData1 = TestHelpers.getPngSampleData()
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            mimeType: Constants.MIME_TYPE_PNG,
+            type: MediaType.IMAGE_PNG,
             data: inputData1)
         assert uItem.validate()
 
@@ -281,12 +285,12 @@ class UploadItemSpec extends Specification {
     }
 
     @Unroll
-    void "test compression for #mimeType"() {
+    void "test compression for #type"() {
         given: "obj with compressible data"
         Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(mimeType)
+        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(type)
         UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            mimeType: mimeType,
+            type: type,
             data: inputData1)
         assert uItem.validate()
 
@@ -297,7 +301,7 @@ class UploadItemSpec extends Specification {
         then: "short circuit before hitting file size b/c of min quality standards"
         res.success == true
         res.payload instanceof UploadItem
-        if (UploadItem.canCompress(mimeType)) {
+        if (UploadItem.canCompress(type)) {
             assert res.payload.sizeInBytes < inputData1.length
             assert res.payload.sizeInBytes > targetSize // impossibly small threshold
         }
@@ -311,16 +315,16 @@ class UploadItemSpec extends Specification {
         then: "successfully compress to be smaller than the max size threshold"
         res.success == true
         res.payload instanceof UploadItem
-        if (UploadItem.canCompress(mimeType)) {
+        if (UploadItem.canCompress(type)) {
             assert res.payload.sizeInBytes < inputData1.length
             assert res.payload.sizeInBytes <= targetSize
         }
         else { assert res.payload.sizeInBytes == inputData1.length }
 
         where:
-        mimeType                 | _
-        Constants.MIME_TYPE_PNG  | _
-        Constants.MIME_TYPE_JPEG | _
-        Constants.MIME_TYPE_GIF  | _
+        type                 | _
+        MediaType.IMAGE_PNG  | _
+        MediaType.IMAGE_JPEG | _
+        MediaType.IMAGE_GIF  | _
     }
 }

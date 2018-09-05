@@ -34,14 +34,14 @@ class MediaElementVersionSpec extends Specification {
 
         then: "valid, width is not mandatory"
         mVers.validate() == true
-        mVers.inherentWidth == "${MediaVersion.SEND.maxWidthInPixels}w"
+        mVers.inherentWidth == MediaVersion.SEND.maxWidthInPixels
         mVers.link?.toString() == "https://www.example.com"
 
         when: "width is set"
         mVers.widthInPixels = 12345
 
         then: "user custom set width instead of fallback MediaVersion width"
-        mVers.inherentWidth == "12345w"
+        mVers.inherentWidth == 12345
     }
 
     void "test constraint errors"() {
@@ -79,9 +79,24 @@ class MediaElementVersionSpec extends Specification {
         mVers.validate() == false
         mVers.errors.errorCount == 2
 
+        when: "negative height"
+        mVers.heightInPixels = -88
+
+        then:
+        mVers.validate() == false
+        mVers.errors.errorCount == 3
+
+        when: "zero height"
+        mVers.heightInPixels = 0
+
+        then:
+        mVers.validate() == false
+        mVers.errors.errorCount == 3
+
         when: "restore to positive values"
         mVers.sizeInBytes = 888
         mVers.widthInPixels = 888
+        mVers.heightInPixels = 888
 
         then:
         mVers.validate()

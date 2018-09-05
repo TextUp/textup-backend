@@ -124,7 +124,10 @@ class BootStrap {
 		        	.storeOutgoingText("Hi! Hope you're doing well today.", null).payload
 		        RecordText rTeText1 = tC1.record
 		        	.storeOutgoingText("Hi! Hope you're doing well today.", null).payload
-				[rText1, rText2, rTeText1]*.save(flush:true, failOnError:true)
+				[rText1, rText2, rTeText1].each {
+					it.media = new MediaInfo()
+					it.save(flush:true, failOnError:true)
+				}
 
 				//share contacts
 				SharedContact sc1 = p1.share(c1, p2, SharePermission.DELEGATE).payload
