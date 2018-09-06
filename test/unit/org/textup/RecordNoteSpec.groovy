@@ -115,7 +115,7 @@ class RecordNoteSpec extends Specification {
         MediaElement e1 = new MediaElement()
         e1.type = MediaType.IMAGE_PNG
         e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
             widthInPixels: 888)
         note1.media.addToMediaElements(e1)
@@ -218,7 +218,7 @@ class RecordNoteSpec extends Specification {
         MediaElement e1 = new MediaElement()
         e1.type = MediaType.IMAGE_PNG
         e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
             widthInPixels: 888)
         note1.media.addToMediaElements(e1)

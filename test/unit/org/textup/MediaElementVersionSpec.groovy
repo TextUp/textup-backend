@@ -29,7 +29,7 @@ class MediaElementVersionSpec extends Specification {
 
         when: "filled in obj"
         mVers.mediaVersion = MediaVersion.SEND
-        mVers.key = UUID.randomUUID().toString()
+        mVers.versionId = UUID.randomUUID().toString()
         mVers.sizeInBytes = 888
 
         then: "valid, width is not mandatory"
@@ -47,7 +47,7 @@ class MediaElementVersionSpec extends Specification {
     void "test constraint errors"() {
         given: "a valid obj"
         MediaElementVersion mVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888)
         assert mVers.validate()
 

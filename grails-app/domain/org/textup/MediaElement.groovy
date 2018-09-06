@@ -82,7 +82,7 @@ class MediaElement implements ReadOnlyMediaElement {
 
     Result<MediaElementVersion> addVersion(UploadItem uItem) {
         MediaElementVersion vers1 = new MediaElementVersion(mediaVersion: uItem.mediaVersion,
-            key: uItem.key,
+            versionId: uItem.key,
             sizeInBytes: uItem.sizeInBytes,
             widthInPixels: uItem.widthInPixels,
             heightInPixels: uItem.heightInPixels)

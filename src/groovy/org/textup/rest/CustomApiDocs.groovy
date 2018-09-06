@@ -339,8 +339,8 @@ class CustomResponseDoc {
             mandatory      = true,
             useForCreation = true),
         @RestApiObjectField(
-            apiFieldName   = "key",
-            description    = "REMOVE: key of the image to remove",
+            apiFieldName   = "uid",
+            description    = "REMOVE: uid of the image to remove",
             allowedType    = "String",
             mandatory      = false,
             useForCreation = true)

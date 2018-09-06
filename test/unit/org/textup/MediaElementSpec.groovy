@@ -28,7 +28,7 @@ class MediaElementSpec extends Specification {
         when: "filled in"
         e1.type = MediaType.IMAGE_JPEG
         e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
             widthInPixels: 888)
         assert e1.sendVersion.validate()
@@ -81,7 +81,7 @@ class MediaElementSpec extends Specification {
     void "test cascading validation for single association"() {
         given: "obj with some versions"
         MediaElementVersion mVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888)
         assert mVers.validate()
         MediaElement e1 = new MediaElement(type: MediaType.IMAGE_JPEG, sendVersion: mVers)
@@ -106,10 +106,10 @@ class MediaElementSpec extends Specification {
     void "test cascading validation for hasMany association"() {
         given: "obj with some versions"
         MediaElementVersion sVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888)
         MediaElementVersion dVers = new MediaElementVersion(mediaVersion: MediaVersion.MEDIUM,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888)
         assert sVers.validate()
         assert dVers.validate()

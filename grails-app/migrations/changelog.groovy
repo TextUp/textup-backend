@@ -937,4 +937,6 @@ databaseChangeLog = {
 	include file: 'migrate-existing-media.groovy'
 
 	include file: 'images-height-mime-type.groovy'
+
+	include file: 'media-element-version-rename-reserved-column.groovy'
 }

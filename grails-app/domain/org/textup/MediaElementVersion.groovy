@@ -15,7 +15,7 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
     StorageService storageService
 
     MediaVersion mediaVersion
-    String key
+    String versionId
     Long sizeInBytes
     Integer widthInPixels
     Integer heightInPixels
@@ -58,7 +58,7 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
 
     URL getLink() {
         Result<URL> res = storageService
-            .generateAuthLink(key)
+            .generateAuthLink(versionId)
             .logFail('MediaElementVersion.getLink')
         res.success ? res.payload : null
     }

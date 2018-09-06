@@ -135,7 +135,7 @@ class TestHelpers {
     static MediaElement buildMediaElement(BigDecimal sendSize = 88) {
         MediaElement e1 = new MediaElement(type: MediaType.IMAGE_JPEG,
             sendVersion: new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-                key: UUID.randomUUID().toString(),
+                versionId: UUID.randomUUID().toString(),
                 sizeInBytes: sendSize.longValue(),
                 widthInPixels: 888))
         assert e1.validate()
