@@ -13,7 +13,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
     void "test marshalling element"() {
         given:
         MediaElementVersion mVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888,
             widthInPixels: 12345,
             heightInPixels: 34567)
@@ -39,7 +39,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
 
         when: "element with array of display versions"
         MediaElementVersion dVers = new MediaElementVersion(mediaVersion: MediaVersion.MEDIUM,
-            key: UUID.randomUUID().toString(),
+            versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888,
             widthInPixels: 12345,
             heightInPixels: 34567)
