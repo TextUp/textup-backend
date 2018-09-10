@@ -1,11 +1,11 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.joda.time.DateTime
 import org.textup.type.VoiceLanguage
 import org.textup.type.FutureMessageType
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyRecord {
     DateTime getLastRecordActivity()
     VoiceLanguage getLanguage()
@@ -39,7 +39,7 @@ interface ReadOnlyRecord {
     List<? extends ReadOnlyFutureMessage> getFutureMessages(Map params)
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyFutureMessage extends ReadOnlyWithMedia {
     Long getId()
     ReadOnlyRecord getRecord()
@@ -58,19 +58,19 @@ interface ReadOnlyFutureMessage extends ReadOnlyWithMedia {
     VoiceLanguage getLanguage()
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlySimpleFutureMessage extends ReadOnlyFutureMessage {
     Integer getRepeatCount()
     long getRepeatIntervalInDays()
     Integer getTimesTriggered()
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyRecordText {
     String getContents()
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyRecordCall {
     int getDurationInSeconds()
     boolean getHasVoicemail()
@@ -78,7 +78,7 @@ interface ReadOnlyRecordCall {
     int getVoicemailInSeconds()
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyRecordItem extends Authorable, WithMedia {
     Long getId()
     ReadOnlyRecord getRecord()
@@ -94,7 +94,7 @@ interface ReadOnlyRecordItem extends Authorable, WithMedia {
 
 // An interface that delineates the basic properties that a note or a revision
 // of a note should have
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyBaseRecordNote extends Authorable {
     Long getId()
     DateTime getWhenChanged()
@@ -104,13 +104,13 @@ interface ReadOnlyBaseRecordNote extends Authorable {
 
 // Adds some additional properties that a RecordNote should have but child
 // RecordNoteRevisions should not have
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyRecordNote extends ReadOnlyBaseRecordNote {
     boolean getIsDeleted()
     boolean getIsReadOnly()
     Set<? extends ReadOnlyRecordNoteRevision> getRevisions()
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyRecordNoteRevision extends ReadOnlyBaseRecordNote, ReadOnlyWithMedia {
 }

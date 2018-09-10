@@ -68,7 +68,7 @@ class ContactService {
     // ------
 
     @RollbackOnResultFailure
-	Result<Contact> update(Long cId, Map body, Long scId = null) {
+	Result<Contactable> update(Long cId, Map body, Long scId = null) {
         Contact c1 = Contact.get(cId)
         SharedContact sc1
         if (scId) { sc1 = SharedContact.get(scId) }
@@ -82,6 +82,10 @@ class ContactService {
             .then({ Contact cont1 -> handleShareActions(cont1, body, sc1) }) // no for collaborators
             .then({ Contact cont1 -> handleMergeActions(cont1, body, sc1) }) // no for collaborators
             .then({ Contact cont1 -> updateContactInfo(cont1, body, sc1) }) // all collaborators
+            // if passing in a shared contact to update, we want to return the shared contact
+            // to the json marshaller so we don't accidentally return the original contact's status
+            // when we mean to return the shared contact's status, for example
+            .then({ Contact cont1 -> resultFactory.success(sc1 ?: cont1) })
 	}
     protected Result<Contact> updateContactInfo(Contact c1, Map body, SharedContact sc1 = null) {
         if (!sc1 || sc1.canModify) {

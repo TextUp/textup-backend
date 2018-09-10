@@ -31,7 +31,7 @@ class MediaInfo implements ReadOnlyMediaInfo {
     // Events
     // ------
 
-    void onLoad() { tryUpdateOriginalMediaElements() }
+    void afterLoad() { tryUpdateOriginalMediaElements() }
     void afterInsert() { tryUpdateOriginalMediaElements() }
     void afterUpdate() { tryUpdateOriginalMediaElements() }
     protected void tryUpdateOriginalMediaElements() {

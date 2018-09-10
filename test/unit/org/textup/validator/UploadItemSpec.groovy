@@ -242,6 +242,13 @@ class UploadItemSpec extends Specification {
         res.status == ResultStatus.BAD_REQUEST
         res.errorMessages[0] == "uploadItem.tryResizeToWidth.invalidWidth"
 
+        when: "resize to a width larger than current width"
+        res = uItem.tryResizeToWidth(uItem.widthInPixels * 2)
+
+        then: "short circuit without changing width"
+        res.payload instanceof UploadItem
+        res.payload.widthInPixels == uItem.widthInPixels
+
         when: "resize to a positive width"
         float aspectRatio = 0.8
         int targetWidth = Math.floor(uItem.widthInPixels * aspectRatio)

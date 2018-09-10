@@ -43,6 +43,10 @@ class UploadItem {
             return Helpers.resultFactory.failWithCodeAndStatus(
                 "uploadItem.tryResizeToWidth.invalidWidth", ResultStatus.BAD_REQUEST)
         }
+        // short circuit if present width is already smaller than target width
+        if (getWidthInPixels() < maxWidthInPixels) {
+            return Helpers.resultFactory.success(this)
+        }
         ImageWriter writer
         try {
             writer = UploadItem.getWriter(type)

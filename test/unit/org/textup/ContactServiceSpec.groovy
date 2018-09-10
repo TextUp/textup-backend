@@ -129,7 +129,7 @@ class ContactServiceSpec extends CustomSpec {
 
         when: "we try to update with a valid contact id but a nonexistent shared id"
         String name = "kiki bai"
-        res = service.update(c1.id, [name:name], -88L)
+        res = service.update(c1.id, [name: name], -88L)
 
         then:
         res.success == false
@@ -137,13 +137,26 @@ class ContactServiceSpec extends CustomSpec {
         res.status == ResultStatus.NOT_FOUND
 
         when: "we successfully update a contact"
-        res = service.update(c1.id, [name:name])
+        res = service.update(c1.id, [name: name])
 
         then:
         res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof Contact
         res.payload.name == name
+        Contact.count() == cBaseline
+        ContactNumber.count() == nBaseline
+
+        when: "we successfully update a shared contact"
+        assert sc1.canModify
+        String name2 = TestHelpers.randString()
+        res = service.update(sc1.contactId, [name: name2], sc1.id)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload instanceof SharedContact
+        res.payload.id == sc1.id
+        res.payload.name == name2
         Contact.count() == cBaseline
         ContactNumber.count() == nBaseline
     }

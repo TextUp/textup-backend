@@ -1,37 +1,37 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.type.MediaType
 import org.textup.type.MediaVersion
 
 // The interfaces that define the contract for handling media
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyWithMedia {
     ReadOnlyMediaInfo getReadOnlyMedia()
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface WithMedia extends ReadOnlyWithMedia {
     void setMedia(MediaInfo mInfo)
     MediaInfo getMedia()
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyMediaInfo {
     Long getId()
     List<? extends ReadOnlyMediaElement> getMediaElementsByType()
     List<? extends ReadOnlyMediaElement> getMediaElementsByType(Collection<MediaType> typesToRetrieve)
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyMediaElement {
     String getUid()
     MediaType type
     Map<MediaVersion, ? extends ReadOnlyMediaElementVersion> getVersionsForDisplay()
 }
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface ReadOnlyMediaElementVersion {
     URL getLink()
     Integer getInherentWidth()
