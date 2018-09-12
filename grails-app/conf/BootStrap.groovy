@@ -1,5 +1,7 @@
 import com.twilio.Twilio
 import grails.util.GrailsUtil
+import java.security.Security
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.*
@@ -15,6 +17,11 @@ class BootStrap {
     	//marshaller and renderer customization from
     	//http://groovyc.net/non-trivial-restful-apis-in-grails-part-1/
     	marshallerInitializerService.initialize()
+    	// set appropriate security providers so we can call HTTPS urls (such as in MediaService)
+    	// add BouncyCastle as the preferred security provider and remove SunEC because SunEC
+    	// is not present in the OpenJDKs in our Ubuntu-based production environments
+    	Security.insertProviderAt(new BouncyCastleProvider(), 1)
+    	Security.removeProvider("SunEC")
     	// builder pattern in Twilio needs to be initialized
     	def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
     	Twilio.init(twilioConfig.sid, twilioConfig.authToken)

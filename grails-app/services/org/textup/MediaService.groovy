@@ -5,11 +5,9 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.commons.io.IOUtils
 import org.apache.http.client.methods.HttpGet
-import org.apache.http.HttpHeaders
 import org.apache.http.HttpResponse
 import org.apache.http.HttpStatus as ApacheHttpStatus
 import org.apache.http.impl.client.CloseableHttpClient
-import org.apache.http.impl.client.HttpClients
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.type.*
 import org.textup.validator.*
@@ -131,14 +129,11 @@ class MediaService {
                         [mimeType])
                     return
                 }
-                String un = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
-                    pwd = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
-                    authHeader = Helpers.buildBasicAuthHeader(un, pwd)
-                CloseableHttpClient client = HttpClients.createDefault()
+                String sid = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
+                    authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
+                CloseableHttpClient client = Helpers.buildBasicAuthHttpClient(sid, authToken)
                 client.withCloseable {
-                    HttpGet req = new HttpGet(url)
-                    req.setHeader(HttpHeaders.AUTHORIZATION, authHeader)
-                    HttpResponse resp = client.execute(req)
+                    HttpResponse resp = client.execute(new HttpGet(url))
                     resp.withCloseable {
                         int statusCode = resp.statusLine.statusCode
                         if (statusCode == ApacheHttpStatus.SC_OK) {

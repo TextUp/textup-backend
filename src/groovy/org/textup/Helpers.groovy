@@ -10,11 +10,15 @@ import groovy.json.JsonException
 import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
-import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
-import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang3.ClassUtils
+import org.apache.http.auth.AuthScope
+import org.apache.http.auth.UsernamePasswordCredentials
+import org.apache.http.client.CredentialsProvider
+import org.apache.http.impl.client.BasicCredentialsProvider
+import org.apache.http.impl.client.CloseableHttpClient
+import org.apache.http.impl.client.HttpClients
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.hibernate.FlushMode
@@ -377,14 +381,15 @@ class Helpers {
     }
 
     // From http://www.baeldung.com/httpclient-4-basic-authentication
-    // build basic authentication header string. If we used a CredentialProvider instead
-    // we would need to configure pre-emptive basic authentication or else we
-    // could make two requests each time. ALSO, if we use a CredentialProvider, this results in
-    // a java.security.NoSuchProviderException because OpenJDK does not come with the SunEC
-    // provider, which is only included in Oracle JDKs
-    static String buildBasicAuthHeader(String un, String pwd) {
-        String auth = un + ":" + pwd;
-        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("ISO-8859-1")));
-        "Basic " + new String(encodedAuth)
+    // Twilio has inconsistent behavior with a basic authentication header string.
+    // Therefore, use Credential Provider
+    static CloseableHttpClient buildBasicAuthHttpClient(String un, String pwd) {
+        UsernamePasswordCredentials authValues = new UsernamePasswordCredentials(un, pwd)
+        // See https://hc.apache.org/httpcomponents-client-ga/httpclient/examples/org/apache/http/examples/client/ClientAuthentication.java
+        CredentialsProvider credentials = new BasicCredentialsProvider()
+        credentials.setCredentials(AuthScope.ANY, authValues)
+        CloseableHttpClient client = HttpClients.custom()
+            .setDefaultCredentialsProvider(credentials)
+            .build()
     }
 }

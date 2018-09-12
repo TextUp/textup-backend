@@ -5,11 +5,9 @@ import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.http.client.methods.HttpGet
-import org.apache.http.HttpHeaders
 import org.apache.http.HttpResponse
 import org.apache.http.HttpStatus as ApacheHttpStatus
 import org.apache.http.impl.client.CloseableHttpClient
-import org.apache.http.impl.client.HttpClients
 import org.codehaus.groovy.grails.commons.GrailsApplication
 
 @GrailsTypeChecked
@@ -24,14 +22,11 @@ class VoicemailService {
     // [UNTESTED] due to mocking constraints
     Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
         try {
-            String un = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
-                pwd = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
-                authHeader = Helpers.buildBasicAuthHeader(un, pwd)
-            CloseableHttpClient client = HttpClients.createDefault()
+            String sid = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
+                authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
+            CloseableHttpClient client = Helpers.buildBasicAuthHttpClient(sid, authToken)
             client.withCloseable {
-                HttpGet req = new HttpGet(voicemailUrl + ".mp3")
-                req.setHeader(HttpHeaders.AUTHORIZATION, authHeader)
-                HttpResponse resp = client.execute(req)
+                HttpResponse resp = client.execute(new HttpGet(voicemailUrl))
                 resp.withCloseable {
                     int statusCode = resp.statusLine.statusCode
                     if (statusCode != ApacheHttpStatus.SC_OK) {
