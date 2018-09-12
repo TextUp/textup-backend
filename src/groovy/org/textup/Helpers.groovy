@@ -10,8 +10,10 @@ import groovy.json.JsonException
 import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
+import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
+import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang3.ClassUtils
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.codehaus.groovy.grails.web.util.WebUtils
@@ -372,5 +374,17 @@ class Helpers {
             result << alphabet[randIndex]
         }
         result.toString()
+    }
+
+    // From http://www.baeldung.com/httpclient-4-basic-authentication
+    // build basic authentication header string. If we used a CredentialProvider instead
+    // we would need to configure pre-emptive basic authentication or else we
+    // could make two requests each time. ALSO, if we use a CredentialProvider, this results in
+    // a java.security.NoSuchProviderException because OpenJDK does not come with the SunEC
+    // provider, which is only included in Oracle JDKs
+    static String buildBasicAuthHeader(String un, String pwd) {
+        String auth = un + ":" + pwd;
+        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("ISO-8859-1")));
+        "Basic " + new String(encodedAuth)
     }
 }

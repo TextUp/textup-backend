@@ -4,13 +4,10 @@ import com.twilio.rest.api.v2010.account.message.Media
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.commons.io.IOUtils
-import org.apache.http.auth.AuthScope
-import org.apache.http.auth.UsernamePasswordCredentials
-import org.apache.http.client.CredentialsProvider
 import org.apache.http.client.methods.HttpGet
+import org.apache.http.HttpHeaders
 import org.apache.http.HttpResponse
 import org.apache.http.HttpStatus as ApacheHttpStatus
-import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
 import org.codehaus.groovy.grails.commons.GrailsApplication
@@ -134,17 +131,14 @@ class MediaService {
                         [mimeType])
                     return
                 }
-                String sid = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
-                    authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
-                UsernamePasswordCredentials authValues = new UsernamePasswordCredentials(sid, authToken)
-                // See https://hc.apache.org/httpcomponents-client-ga/httpclient/examples/org/apache/http/examples/client/ClientAuthentication.java
-                CredentialsProvider credentials = new BasicCredentialsProvider()
-                credentials.setCredentials(AuthScope.ANY, authValues)
-                CloseableHttpClient client = HttpClients.custom()
-                    .setDefaultCredentialsProvider(credentials)
-                    .build()
+                String un = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
+                    pwd = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
+                    authHeader = Helpers.buildBasicAuthHeader(un, pwd)
+                CloseableHttpClient client = HttpClients.createDefault()
                 client.withCloseable {
-                    HttpResponse resp = client.execute(new HttpGet(url))
+                    HttpGet req = new HttpGet(url)
+                    req.setHeader(HttpHeaders.AUTHORIZATION, authHeader)
+                    HttpResponse resp = client.execute(req)
                     resp.withCloseable {
                         int statusCode = resp.statusLine.statusCode
                         if (statusCode == ApacheHttpStatus.SC_OK) {

@@ -4,8 +4,6 @@ import com.amazonaws.services.s3.model.PutObjectResult
 import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import java.nio.charset.Charset
-import org.apache.commons.codec.binary.Base64
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.HttpHeaders
 import org.apache.http.HttpResponse
@@ -26,10 +24,13 @@ class VoicemailService {
     // [UNTESTED] due to mocking constraints
     Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
         try {
+            String un = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
+                pwd = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"],
+                authHeader = Helpers.buildBasicAuthHeader(un, pwd)
             CloseableHttpClient client = HttpClients.createDefault()
             client.withCloseable {
                 HttpGet req = new HttpGet(voicemailUrl + ".mp3")
-                req.setHeader(HttpHeaders.AUTHORIZATION, buildBasicAuth());
+                req.setHeader(HttpHeaders.AUTHORIZATION, authHeader)
                 HttpResponse resp = client.execute(req)
                 resp.withCloseable {
                     int statusCode = resp.statusLine.statusCode
@@ -94,20 +95,5 @@ class VoicemailService {
             res.success ? res.payload.toString() : ""
         }
         else { "" }
-    }
-
-    // Helpers
-    // -------
-
-    protected String buildBasicAuth() {
-        String un = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
-            pwd = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
-        // build basic authentication header string. If we used a CredentialProvider instead
-        // we would need to configure pre-emptive basic authentication or else we
-        // could make two requests each time
-        // http://www.baeldung.com/httpclient-4-basic-authentication
-        String auth = un + ":" + pwd;
-        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("ISO-8859-1")));
-        "Basic " + new String(encodedAuth)
     }
 }
