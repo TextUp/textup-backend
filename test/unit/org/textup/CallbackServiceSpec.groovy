@@ -6,6 +6,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import javax.servlet.http.HttpServletRequest
+import org.apache.commons.lang3.tuple.Pair
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
@@ -319,34 +320,48 @@ class CallbackServiceSpec extends CustomSpec {
         given:
         service.storageService = Mock(StorageService)
         service.mediaService = Mock(MediaService)
+        service.socketService = Mock(SocketService)
 
         when: "missing items to upload"
-        service.uploadAndDeleteMedia(null, null, null)
+        service.handleMediaAndSocket(null, null, null, null)
 
-        then:
+        then: "upload items"
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+
+        then: "handle socket and delete if needed afterwards"
+        1 * service.socketService.sendItems(*_)
         0 * service.mediaService.deleteMedia(*_)
 
         when: "has items, but has some upload errors"
-        service.uploadAndDeleteMedia(null, [new UploadItem()], null)
+        service.handleMediaAndSocket(null, [new UploadItem()], [], null)
 
-        then:
+        then: "upload items"
         1 * service.storageService.uploadAsync(*_) >>
             new ResultGroup([new Result(status: ResultStatus.BAD_REQUEST)])
+
+        then: "handle socket and delete if needed afterwards"
+        1 * service.socketService.sendItems(*_)
         0 * service.mediaService.deleteMedia(*_)
 
         when: "has items and all uploads successful"
-        service.uploadAndDeleteMedia(null, [new UploadItem()], null)
+        long timeStart = System.currentTimeMillis()
+        service.handleMediaAndSocket(null, [new UploadItem()], [], null)
+        long timeFinish = System.currentTimeMillis()
 
-        then:
+        then: "upload items"
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+
+        then: "handle socket and delete if needed afterwards"
+        1 * service.socketService.sendItems(*_)
         1 * service.mediaService.deleteMedia(*_) >> new Result()
+        // wait 20 seconds before deleting media to avoid "not delivered yet" error
+        (timeFinish - timeStart) > 20000
     }
 
     void "test processing text overall"() {
         given:
         service.mediaService = Mock(MediaService)
-        service.storageService = Mock(StorageService)
+        service.threadService = Mock(ThreadService)
         Phone mockPhone = Mock(Phone)
         HttpServletRequest mockRequest = Mock(HttpServletRequest)
         GrailsParameterMap params = new GrailsParameterMap([Body: "hello"], mockRequest)
@@ -356,9 +371,11 @@ class CallbackServiceSpec extends CustomSpec {
         Result res = service.processText(mockPhone, null, "apiId", params)
 
         then:
-        1 * mockPhone.receiveText(*_) >> new Result()
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
-        0 * service.mediaService._
+        0 * service.mediaService.buildFromIncomingMedia(*_)
+        1 * mockPhone.receiveText(*_) >> new Result(payload: Pair.of({ -> }, []))
+        1 * service.threadService.submit(*_)
+        res.status == ResultStatus.OK
+        res.payload instanceof Closure
 
         when: "with media"
         params.NumMedia = 5
@@ -366,9 +383,10 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         1 * service.mediaService.buildFromIncomingMedia(*_) >> new Result()
-        1 * mockPhone.receiveText(*_) >> new Result()
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
-        0 * service.mediaService.deleteMedia(*_)
+        1 * mockPhone.receiveText(*_) >> new Result(payload: Pair.of({ -> }, []))
+        1 * service.threadService.submit(*_)
+        res.status == ResultStatus.OK
+        res.payload instanceof Closure
     }
 
     void "test process for incoming calls and voicemail"() {

@@ -3,6 +3,7 @@ package org.textup
 import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.apache.commons.lang3.tuple.Pair
 import org.textup.type.*
 import org.textup.validator.*
 import org.textup.validator.action.*
@@ -177,13 +178,13 @@ class PhoneService {
 	// Incoming
 	// --------
 
-    Result<Closure> relayText(Phone phone, IncomingText text, IncomingSession session,
-        MediaInfo mInfo = null) {
+    Result<Pair<Closure, List<RecordText>>> relayText(Phone phone, IncomingText text,
+        IncomingSession session, MediaInfo mInfo = null) {
 
         incomingMessageService.relayText(phone, text, session, mInfo)
     }
-    Result<Closure> handleAnnouncementText(Phone phone, IncomingText text, IncomingSession session,
-        MediaInfo mInfo = null) {
+    Result<Pair<Closure, List<RecordText>>> handleAnnouncementText(Phone phone, IncomingText text,
+        IncomingSession session, MediaInfo mInfo = null) {
 
         announcementService.handleAnnouncementText(phone, text, session,
             { relayText(phone, text, session, mInfo) })

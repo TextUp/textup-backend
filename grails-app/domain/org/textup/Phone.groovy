@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
+import org.apache.commons.lang3.tuple.Pair
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -565,7 +566,9 @@ class Phone {
     // Incoming
     // --------
 
-    Result<Closure> receiveText(IncomingText text, IncomingSession session, MediaInfo mInfo = null) {
+    Result<Pair<Closure, List<RecordText>>> receiveText(IncomingText text, IncomingSession session,
+        MediaInfo mInfo = null) {
+
         if (session.phone?.id != this.id) { //validate session
             Helpers.resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
         }

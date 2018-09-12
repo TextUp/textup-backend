@@ -4,18 +4,15 @@ import com.twilio.security.RequestValidator
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import groovy.transform.TypeCheckingMode
+import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
+import org.apache.commons.lang3.tuple.Pair
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.textup.rest.TwimlBuilder
-import org.textup.type.CallResponse
-import org.textup.type.ReceiptStatus
-import org.textup.util.OptimisticLockingRetry
-import org.textup.util.RollbackOnResultFailure
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.IncomingText
-import org.textup.validator.PhoneNumber
-import org.textup.validator.UploadItem
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
@@ -24,7 +21,9 @@ class CallbackService {
     GrailsApplication grailsApplication
     MediaService mediaService
     ResultFactory resultFactory
+    SocketService socketService
     StorageService storageService
+    ThreadService threadService
     TwimlBuilder twimlBuilder
 
 	// Validate request
@@ -43,6 +42,7 @@ class CallbackService {
         // step 3: build and run request validator
         String authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
         RequestValidator validator = new RequestValidator(authToken)
+
         validator.validate(url, twilioParams, authHeader) ?
             resultFactory.success() :
             resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
@@ -59,6 +59,7 @@ class CallbackService {
 
     protected Map<String,String> extractTwilioParams(HttpServletRequest request,
     	GrailsParameterMap allParams) {
+
         // step 1: build list of what to ignore. Params that should be ignored are query params
         // that we append to the callback functions that should be factored into the validation
         Collection<String> requestParamKeys = request.parameterMap.keySet(),
@@ -225,9 +226,16 @@ class CallbackService {
         // step 2: relay text
         IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)
         if (text.validate()) { //validate text
-            Result<Closure> res = p1.receiveText(text, is1, mInfo)
-            if (res.success) { uploadAndDeleteMedia(apiId, itemsToUpload, mediaIdsToDelete) }
-            res
+            p1
+                .receiveText(text, is1, mInfo)
+                .then { Pair<Closure, List<RecordText>> payload ->
+                    // don't want the twilio request to time out so we first return a response
+                    // to twilio and then deal with remaining more time-intensive tasks
+                    threadService.submit {
+                        handleMediaAndSocket(apiId, itemsToUpload, payload.right, mediaIdsToDelete)
+                    }
+                    resultFactory.success(payload.left)
+                }
         }
         else { resultFactory.failWithValidationErrors(text.errors) }
     }
@@ -244,14 +252,25 @@ class CallbackService {
             .buildFromIncomingMedia(urlToMimeType, collectUploads, collectMediaIds)
             .logFail("CallbackService.process: building incoming media")
     }
-    protected void uploadAndDeleteMedia(String apiId, Collection<UploadItem> itemsToUpload,
-        Set<String> mediaIdsToDelete) {
+    protected void handleMediaAndSocket(String apiId, Collection<UploadItem> itemsToUpload,
+        List<RecordText> textsToSendThroughSocket, Set<String> mediaIdsToDelete) {
 
         // step 1: upload our processed copies
         ResultGroup<?> resGroup = storageService.uploadAsync(itemsToUpload)
             .logFail("CallbackService.processText: uploading processed media")
-        // step 2: delete media only if no upload errors
+
+        // step 2: after uploading, send texts to frontend
+        // For outgoing messages and all calls, we rely on status callbacks
+        // to push record items to the frontend. However, for incoming texts
+        // no status callback happens so we need to push the item here
+        socketService.sendItems(textsToSendThroughSocket)
+
+        // step 3: delete media only if no upload errors after a delay
+        // need a delay here because try to delete immediately results in an error saying
+        // that the incoming message hasn't finished delivering yet. For incoming message
+        // no status callbacks so we have to wait a fixed period of time then attempt to delete
         if (itemsToUpload && !resGroup.anyFailures) {
+            TimeUnit.SECONDS.sleep(20)
             mediaService.deleteMedia(apiId, mediaIdsToDelete)
                 .logFail("CallbackService.processText: deleting media")
         }

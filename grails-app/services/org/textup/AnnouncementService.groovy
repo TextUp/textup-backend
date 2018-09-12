@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.apache.commons.lang3.tuple.Pair
 import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
@@ -152,8 +153,8 @@ class AnnouncementService {
     // Incoming
     // --------
 
-    Result<Closure> handleAnnouncementText(Phone phone, IncomingText text, IncomingSession session,
-        Closure<Result<Closure>> fallbackAction) {
+    Result<Pair<Closure, List<RecordText>>> handleAnnouncementText(Phone phone, IncomingText text,
+        IncomingSession session, Closure<Result<Pair<Closure, List<RecordText>>>> fallbackAction) {
 
         switch (text.message) {
             case Constants.TEXT_SEE_ANNOUNCEMENTS:
@@ -163,17 +164,22 @@ class AnnouncementService {
                         .addToReceipts(RecordItemType.TEXT, session)
                         .logFail("AnnouncementService.handleAnnouncementText: add announce receipt")
                 }
-                twimlBuilder.build(TextResponse.SEE_ANNOUNCEMENTS,
-                    [announcements:announces])
+                twimlBuilder
+                    .build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:announces])
+                    .then { Closure response -> resultFactory.success(Pair.of(response, [])) }
                 break
             case Constants.TEXT_TOGGLE_SUBSCRIBE:
                 if (session.isSubscribedToText) {
                     session.isSubscribedToText = false
-                    twimlBuilder.build(TextResponse.UNSUBSCRIBED)
+                    twimlBuilder
+                        .build(TextResponse.UNSUBSCRIBED)
+                        .then { Closure response -> resultFactory.success(Pair.of(response, [])) }
                 }
                 else {
                     session.isSubscribedToText = true
-                    twimlBuilder.build(TextResponse.SUBSCRIBED)
+                    twimlBuilder
+                        .build(TextResponse.SUBSCRIBED)
+                        .then { Closure response -> resultFactory.success(Pair.of(response, [])) }
                 }
                 break
             default:

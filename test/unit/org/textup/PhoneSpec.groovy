@@ -813,7 +813,7 @@ class PhoneSpec extends CustomSpec {
         when: "invalid incoming text"
         IncomingText text = new IncomingText()
         assert text.validate() == false
-        Result<Closure> res = p1.receiveText(text, session)
+        Result res = p1.receiveText(text, session)
 
         then: "assume that the incoming text has already been validated"
         res.success == true

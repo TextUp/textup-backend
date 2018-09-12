@@ -1,9 +1,9 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.type.ContactStatus
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class Constants {
 
 	static final int MAX_REPEATS = 20
@@ -137,7 +137,7 @@ class Constants {
 	// -----------------
 
 	static final String TEST_DEFAULT_AREA_CODE = "626"
-	static final String TEST_STATUS_ENDPOINT = "http://httpstat.us"
+	static final String TEST_STATUS_ENDPOINT = "https://httpbin.org"
 
 	// Twilio test API numbers
 	// -----------------------

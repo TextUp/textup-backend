@@ -82,6 +82,7 @@ class StorageService {
             resultFactory.success(s3Service.putObject(bucketName, identifier, stream, metadata))
         }
         catch (Throwable e) {
+            log.error("StorageService.upload: could not upload: ${e.message}")
             resultFactory.failWithThrowable(e)
         }
     }

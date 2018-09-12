@@ -286,12 +286,22 @@ class MediaServiceSpec extends Specification {
             MediaType type, byte[] data ->
             numTimesCalled++; new Result();
         }
-        int okCode = ApacheHttpStatus.SC_OK
+        String root = Constants.TEST_STATUS_ENDPOINT,
+            un = TestHelpers.randString(),
+            pwd = TestHelpers.randString()
+        service.grailsApplication = [
+            getFlatConfig: { ->
+                [
+                    ("textup.apiKeys.twilio.sid"): un,
+                    ("textup.apiKeys.twilio.authToken"): pwd
+                ]
+            }
+        ] as GrailsApplication
         int failCode = ApacheHttpStatus.SC_REQUEST_TIMEOUT
-        String root = Constants.TEST_STATUS_ENDPOINT
-        Map<String, String> invalidInfo = ["valid url here": "invalid mime type"]
-        Map<String, String> failInfo = ["${root}/${failCode}": MediaType.IMAGE_JPEG.mimeType]
-        Map<String, String> okInfo = ["${root}/${okCode}": MediaType.IMAGE_JPEG.mimeType]
+
+        Map<String, String> invalidInfo = ["valid url here": "invalid mime type"],
+            failInfo = ["${root}/status/${failCode}": MediaType.IMAGE_JPEG.mimeType],
+            okInfo = ["${root}/basic-auth/${un}/${pwd}": MediaType.IMAGE_JPEG.mimeType]
 
         when: "the response has an invalid mime type"
         Result<MediaInfo> res = service.buildFromIncomingMedia(invalidInfo, { u1 -> }, { id -> })
@@ -314,7 +324,7 @@ class MediaServiceSpec extends Specification {
 
         then: "add function is called + media ids are extracted and collected"
         1 == numTimesCalled
-        res.status == ResultStatus.convert(okCode)
+        res.status == ResultStatus.OK
     }
 
     @DirtiesRuntime

@@ -24,7 +24,7 @@ class IncomingMessageService {
     // Texts
     // -----
 
-    Result<Closure> relayText(Phone p1, IncomingText text, IncomingSession sess1,
+    Result<Pair<Closure, List<RecordText>>> relayText(Phone p1, IncomingText text, IncomingSession sess1,
         MediaInfo mInfo = null) {
 
         List<RecordText> rTexts = []
@@ -44,13 +44,14 @@ class IncomingMessageService {
         }
     }
 
-    protected Result<Closure> afterStoreForText(Phone p1, IncomingText text, IncomingSession sess1,
-        List<RecordText> rTexts, List<Contact> notBlockedContacts) {
+    protected Result<Pair<Closure, List<RecordText>>> afterStoreForText(Phone p1, IncomingText text,
+        IncomingSession sess1, List<RecordText> rTexts, List<Contact> notBlockedContacts) {
 
         // if contacts is empty, then return a message notifying the texter
         // that he or she has been blocked by the user
         if (notBlockedContacts.isEmpty()) {
             return twimlBuilder.build(TextResponse.BLOCKED)
+                .then { Closure response -> resultFactory.success(Pair.of(response, rTexts)) }
         }
         // try notify available staff members
         List<BasicNotification> notifs = notificationService.build(p1, notBlockedContacts)
@@ -60,8 +61,8 @@ class IncomingMessageService {
         else { handleAwayForIncomingText(p1, sess1, rTexts) }
     }
 
-    protected Result<Closure> handleNotificationsForIncomingText(Phone p1, IncomingText text,
-        IncomingSession sess1, List<RecordText> rTexts, List<BasicNotification> notifs) {
+    protected Result<Pair<Closure, List<RecordText>>> handleNotificationsForIncomingText(Phone p1,
+        IncomingText text, IncomingSession sess1, List<RecordText> rTexts, List<BasicNotification> notifs) {
 
         String instructions = messageSource.getMessage(
             "incomingMessageService.notifyStaff.notification",
@@ -75,25 +76,20 @@ class IncomingMessageService {
         buildIncomingTextResponse(p1, sess1, rTexts)
     }
 
-    protected Result<Closure> handleAwayForIncomingText(Phone p1, IncomingSession sess1,
-        List<RecordText> rTexts) {
+    protected Result<Pair<Closure, List<RecordText>>> handleAwayForIncomingText(Phone p1,
+        IncomingSession sess1, List<RecordText> rTexts) {
 
         rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
         buildIncomingTextResponse(p1, sess1, rTexts, [p1.awayMessage])
     }
 
-    protected Result<Closure> buildIncomingTextResponse(Phone p1, IncomingSession sess1,
-        List<RecordText> rTexts, List<String> responses = []) {
+    protected Result<Pair<Closure, List<RecordText>>> buildIncomingTextResponse(Phone p1,
+        IncomingSession sess1, List<RecordText> rTexts, List<String> responses = []) {
         // remind about instructions if phone has announcements enabled
         announcementService
             .tryBuildTextInstructions(p1, sess1)
-            .then { List<String> instructions ->
-                // For outgoing messages and all calls, we rely on status callbacks
-                // to push record items to the frontend. However, for incoming texts
-                // no status callback happens so we need to push the item here
-                socketService.sendItems(rTexts)
-                twimlBuilder.buildTexts(responses + instructions)
-            }
+            .then { List<String> instructions -> twimlBuilder.buildTexts(responses + instructions) }
+            .then { Closure response -> resultFactory.success(Pair.of(response, rTexts)) }
     }
 
     // Calls

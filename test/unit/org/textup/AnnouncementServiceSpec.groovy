@@ -6,6 +6,7 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
+import org.apache.commons.lang3.tuple.Pair
 import org.joda.time.DateTime
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
@@ -202,7 +203,7 @@ class AnnouncementServiceSpec extends CustomSpec {
             message:"Hello!", expiresAt:DateTime.now().plusDays(2))
         announce.save(flush:true, failOnError:true)
         service.twimlBuilder = [
-            build: { code, params = [:] -> new Result(status:ResultStatus.OK, payload:code) }
+            build: { code, params = [:] -> new Result(status:ResultStatus.OK, payload:{ -> code }) }
         ] as TwimlBuilder
 
         when: "message is not a valid keyword"
@@ -222,7 +223,10 @@ class AnnouncementServiceSpec extends CustomSpec {
         then:
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == TextResponse.SEE_ANNOUNCEMENTS
+        res.payload instanceof Pair
+        res.payload.left instanceof Closure
+        res.payload.left.call() == TextResponse.SEE_ANNOUNCEMENTS
+        res.payload.right == []
         false == didCallFallback
 
         when: "duplicate receipts are not added for same announcement and session"
@@ -232,7 +236,10 @@ class AnnouncementServiceSpec extends CustomSpec {
         then:
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == TextResponse.SEE_ANNOUNCEMENTS
+        res.payload instanceof Pair
+        res.payload.left instanceof Closure
+        res.payload.left.call() == TextResponse.SEE_ANNOUNCEMENTS
+        res.payload.right == []
         AnnouncementReceipt.count() == arBaseline
         false == didCallFallback
 
@@ -247,7 +254,10 @@ class AnnouncementServiceSpec extends CustomSpec {
         session.isSubscribedToText == true
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == TextResponse.SUBSCRIBED
+        res.payload instanceof Pair
+        res.payload.left instanceof Closure
+        res.payload.left.call() == TextResponse.SUBSCRIBED
+        res.payload.right == []
         false == didCallFallback
 
         when: "have announcementsm, is subscribed, toggle subscription"
@@ -261,7 +271,10 @@ class AnnouncementServiceSpec extends CustomSpec {
         session.isSubscribedToText == false
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == TextResponse.UNSUBSCRIBED
+        res.payload instanceof Pair
+        res.payload.left instanceof Closure
+        res.payload.left.call() == TextResponse.UNSUBSCRIBED
+        res.payload.right == []
         false == didCallFallback
     }
 

@@ -181,12 +181,15 @@ class IncomingMessageServiceSpec extends CustomSpec {
         service.notificationService = Mock(NotificationService)
 
         when: "all contacts are blocked"
-        Result<Closure> res = service.afterStoreForText(null, null, null, null, [])
+        Result<Pair> res = service.afterStoreForText(null, null, null, [rText1], [])
 
         then:
         hasNotifications == null
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        res.payload instanceof Pair
+        res.payload.left instanceof Closure
+        res.payload.right == [rText1]
+        TestHelpers.buildXml(res.payload.left) == TestHelpers.buildXml {
             Response { Message("twimlBuilder.text.blocked") }
         }
 
@@ -213,13 +216,16 @@ class IncomingMessageServiceSpec extends CustomSpec {
         service.socketService = Mock(SocketService)
 
         when:
-        Result<Closure> res = service.buildIncomingTextResponse(null, null, [], [randMsg2])
+        Result<Pair> res = service.buildIncomingTextResponse(null, null, [rText1], [randMsg2])
 
-        then:
+        then: "moved calling socket service over to callbackService to allow uploads to finish first"
         1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload:[randMsg1])
-        1 * service.socketService.sendItems(*_) >> new ResultGroup()
+        0 * service.socketService.sendItems(*_)
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        res.payload instanceof Pair
+        res.payload.left instanceof Closure
+        res.payload.right == [rText1]
+        TestHelpers.buildXml(res.payload.left) == TestHelpers.buildXml {
             Response {
                 Message(randMsg2)
                 Message(randMsg1)
