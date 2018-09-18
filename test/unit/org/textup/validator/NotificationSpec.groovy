@@ -48,5 +48,6 @@ class NotificationSpec extends CustomSpec {
 		notif.otherType == "contact"
 		notif.otherId == c1.id.toString()
 		notif.otherName == c1.nameOrNumber
+		notif.id == notif.tokenId // alias tokenId as id for link generation in BaseController.getId
 	}
 }

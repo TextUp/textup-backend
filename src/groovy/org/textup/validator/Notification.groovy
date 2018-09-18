@@ -55,6 +55,11 @@ class Notification extends BasicNotification {
 	String getOtherName() {
 		this.contact?.getNameOrNumber() ?: this.tag?.name
 	}
+	// alias tokenId to id so that the `getId` method in BaseController can find an ID when
+	// generating a link to return with the JSON payload
+	Long getId() {
+		this.tokenId
+	}
 
 	// Methods
 	// -------
