@@ -931,11 +931,7 @@ class PhoneSpec extends CustomSpec {
 
     void "test receiving voicemail"() {
         given: "a phone"
-        p1.phoneService = [moveVoicemail:{ String apiId ->
-            new Result(status:ResultStatus.OK, payload:null)
-        }, storeVoicemail: { String apiId, int voicemailDuration ->
-            new Result(status:ResultStatus.OK, payload:null).toGroup()
-        }] as PhoneService
+        p1.phoneService = Mock(PhoneService)
         p1.twimlBuilder = getTwimlBuilder()
         IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888")
         session.save(flush:true, failOnError:true)
@@ -948,6 +944,7 @@ class PhoneSpec extends CustomSpec {
         Result<Closure> res = p1.tryStartVoicemail(fromNum, toNum, ReceiptStatus.SUCCESS)
 
         then: "don't need to connect to voicemail"
+        0 * p1.phoneService._
         res.success == true
         res.status == ResultStatus.OK
         res.payload == "noResponse"
@@ -956,24 +953,17 @@ class PhoneSpec extends CustomSpec {
         res = p1.tryStartVoicemail(fromNum, toNum, ReceiptStatus.PENDING)
 
         then: "will connect to voicemail"
+        0 * p1.phoneService._
         res.success == true
         res.status == ResultStatus.OK
         res.payload == CallResponse.CHECK_IF_VOICEMAIL
 
         when: "completing voicemail when recording is done processing"
-        p1.phoneService = [
-            moveVoicemail: { String callId, String recordingId, String voicemailUrl ->
-                new Result(status:ResultStatus.OK, payload:callId)
-            },
-            storeVoicemail: { String callId, int voicemailDuration ->
-                new ResultGroup<RecordItemReceipt>()
-            }
-        ] as PhoneService
-        res = p1.completeVoicemail("callId", "recordingId", "http://www.example.com", 88)
+        ResultGroup<RecordItemReceipt> resGroup = p1
+            .completeVoicemail("callId", "recordingId", "http://www.example.com", 88)
 
         then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == CallResponse.VOICEMAIL_DONE
+        1 * p1.phoneService.moveVoicemail(*_) >> new Result(status:ResultStatus.OK)
+        1 * p1.phoneService.storeVoicemail(*_) >> new ResultGroup()
     }
 }

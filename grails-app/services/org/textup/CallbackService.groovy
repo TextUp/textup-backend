@@ -191,7 +191,18 @@ class CallbackService {
                 String callId = Helpers.to(String, params.CallSid),
                     recordingId = Helpers.to(String, params.RecordingSid),
                     voicemailUrl = Helpers.to(String, params.RecordingUrl)
-                p1.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
+                // in about 5% of cases, when the RecordingStatusCallback is called, the recording
+                // at the provided url still isn't ready and a request to that url returns a
+                // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
+                // is completely done being stored before attempting to fetch it.
+                threadService.submit {
+                    TimeUnit.SECONDS.sleep(5)
+                    RecordCall.withNewTransaction {
+                        p1.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
+                            .logFail("CallbackService.processCall: VOICEMAIL_DONE voicemailUrl: ${voicemailUrl}")
+                    }
+                }
+                twimlBuilder.build(CallResponse.VOICEMAIL_DONE)
                 break
             case CallResponse.FINISH_BRIDGE.toString():
                 Contact c1 = Contact.get(params.long("contactId"))

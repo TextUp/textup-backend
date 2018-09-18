@@ -52,10 +52,6 @@ class CallbackServiceSpec extends CustomSpec {
 		Phone.metaClass.tryStartVoicemail = { PhoneNumber fromNum, PhoneNumber toNum, ReceiptStatus status ->
 			new Result(status:ResultStatus.OK, payload:"tryStartVoicemail")
 		}
-        Phone.metaClass.completeVoicemail = { String callId, String recordingId, String voicemailUrl,
-            Integer voicemailDuration ->
-            new Result(status:ResultStatus.OK, payload:"completeVoicemail")
-        }
 		Phone.metaClass.finishBridgeCall = { Contact c1 ->
 			new Result(status:ResultStatus.OK, payload:"finishBridgeCall")
 		}
@@ -390,6 +386,9 @@ class CallbackServiceSpec extends CustomSpec {
     }
 
     void "test process for incoming calls and voicemail"() {
+        given:
+        service.threadService = Mock(ThreadService)
+
         when: "starting voicemail"
         HttpServletRequest request = [:] as HttpServletRequest
         String clientNum = "1233834920"
@@ -406,6 +405,7 @@ class CallbackServiceSpec extends CustomSpec {
         Result<Closure> res = service.process(params)
 
         then:
+        0 * service.threadService._
         res.success == true
         res.status == ResultStatus.OK
         res.payload == "screenIncomingCall"
@@ -418,6 +418,7 @@ class CallbackServiceSpec extends CustomSpec {
         res = service.process(params)
 
         then:
+        0 * service.threadService._
         res.success == true
         res.status == ResultStatus.OK
         res.payload == "tryStartVoicemail"
@@ -430,9 +431,9 @@ class CallbackServiceSpec extends CustomSpec {
         res = service.process(params)
 
         then:
-        res.success == true
+        1 * service.threadService.submit(*_)
         res.status == ResultStatus.OK
-        res.payload == "completeVoicemail"
+        res.payload == CallResponse.VOICEMAIL_DONE
 
         when: "unspecified or invalid"
         params.handle = "blahblahinvalid"

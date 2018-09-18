@@ -621,17 +621,17 @@ class Phone {
                 ])
         }
     }
-    Result<Closure> completeVoicemail(String callId, String recordingId, String voicemailUrl,
-        Integer voicemailDuration) {
+    ResultGroup<RecordItemReceipt> completeVoicemail(String callId, String recordingId,
+        String voicemailUrl, Integer voicemailDuration) {
         // move the encrypted voicemail to s3 and delete recording at Twilio
-        phoneService.moveVoicemail(callId, recordingId, voicemailUrl)
+        Result<String> res = phoneService.moveVoicemail(callId, recordingId, voicemailUrl)
             .logFail("Phone.moveVoicemail: call: ${callId}, recording: ${recordingId}")
-            .then({
-                phoneService
-                    .storeVoicemail(callId, voicemailDuration)
-                    .logFail("Phone.storeVoicemail: call: ${callId}, recording: ${recordingId}")
-                twimlBuilder.build(CallResponse.VOICEMAIL_DONE)
-            })
+        if (!res.success) {
+            return res.toGroup()
+        }
+        phoneService
+            .storeVoicemail(callId, voicemailDuration)
+            .logFail("Phone.storeVoicemail: call: ${callId}, recording: ${recordingId}")
     }
     Result<Closure> finishBridgeCall(Contact c1) {
         twimlBuilder.build(CallResponse.FINISH_BRIDGE, [contact:c1])
