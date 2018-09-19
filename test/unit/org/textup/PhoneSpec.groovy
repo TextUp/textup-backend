@@ -819,7 +819,7 @@ class PhoneSpec extends CustomSpec {
         res.success == true
 
         when: "session does not belong to this phone"
-        text = new IncomingText(apiId:"apiId", message:"hello")
+        text = new IncomingText(apiId:"apiId", message:"hello", numSegments: 88)
         assert text.validate()
         res = p1.receiveText(text, otherSess)
 
