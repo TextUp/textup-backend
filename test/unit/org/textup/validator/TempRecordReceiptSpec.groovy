@@ -35,5 +35,18 @@ class TempRecordReceiptSpec extends Specification {
 
 		then:
 		receipt.validate() == true
+
+		when: "negative number of segments"
+		receipt.numSegments = -88
+
+		then: "invalid"
+		receipt.validate() == false
+		receipt.errors.getFieldErrorCount("numSegments") == 1
+
+		when: "null number of segments"
+		receipt.numSegments = null
+
+		then: "valid again"
+		receipt.validate() == true
 	}
 }

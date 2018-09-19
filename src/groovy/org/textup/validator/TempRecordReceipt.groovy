@@ -1,6 +1,6 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
@@ -9,7 +9,7 @@ import org.textup.type.ReceiptStatus
 // Receipt validator object for outgoing receipts
 // Received by is the client number that is the recipient of the outgoing message
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
 class TempRecordReceipt {
@@ -19,6 +19,7 @@ class TempRecordReceipt {
     String apiId
     String contactNumberAsString
 	ReceiptStatus status = ReceiptStatus.PENDING
+    Integer numSegments // only for text message receipts
 
 	static constraints = {
         apiId blank:false, nullable:false
@@ -26,6 +27,7 @@ class TempRecordReceipt {
 		contactNumberAsString nullable:false, validator:{ String val, TempRecordReceipt obj ->
             if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
+        numSegments nullable: true, min: 0
 	}
 
 	// Property Access

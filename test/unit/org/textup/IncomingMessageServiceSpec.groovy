@@ -147,7 +147,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test storing incoming text"() {
         given:
-        IncomingText text = new IncomingText(apiId: "testing", message: "hello")
+        IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
         assert text.validate()
         IncomingSession session = new IncomingSession(phone:p1, numberAsString: "1112223333")
         assert session.save(flush: true, failOnError: true)
@@ -247,10 +247,12 @@ class IncomingMessageServiceSpec extends CustomSpec {
         10.times { notifs << new BasicNotification() }
 
         when:
-        service.handleNotificationsForIncomingText(null, text, null, null, notifs)
+        rText1.numNotified = 0
+        service.handleNotificationsForIncomingText(null, text, null, [rText1], notifs)
 
         then: "tokenService called for all notifications"
         notifs.size() * service.tokenService.notifyStaff(*_) >> new Result()
+        rText1.numNotified == notifs.size()
     }
 
     @DirtiesRuntime
@@ -276,7 +278,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
     void "test relaying incoming text overall"() {
         given:
         String numAsString = TestHelpers.randPhoneNumber()
-        IncomingText text = new IncomingText(apiId: "testing", message: "hello")
+        IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
         assert text.validate()
         IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: numAsString)
         assert sess1.save(flush: true, failOnError: true)

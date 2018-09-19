@@ -73,6 +73,8 @@ class IncomingMessageService {
                 .notifyStaff(bn1, false, text.message, instructions)
                 .logFail("IncomingMessageService.notifyStaffAboutMessage: calling notifyStaff")
         }
+        int numNotified = notifs.size()
+        rTexts.each { RecordText rText -> rText.numNotified = numNotified }
         buildIncomingTextResponse(p1, sess1, rTexts)
     }
 

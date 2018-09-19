@@ -3,10 +3,9 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
+import org.textup.util.*
+import org.textup.validator.*
+import spock.lang.*
 
 @Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
     MediaInfo, MediaElement, MediaElementVersion])
@@ -47,6 +46,35 @@ class RecordTextSpec extends Specification {
         then: "shared contraint on the noteContents field is executed"
         rText.validate() == false
         rText.errors.getFieldErrorCount("noteContents") == 1
+    }
+
+    void "test calculating number of segments"() {
+        when: "no receipts"
+        Record rec = new Record()
+        RecordText rText = new RecordText(record:rec, contents:"hi")
+        assert rText.validate()
+
+        then: "no segments"
+        rText.receipts == null
+        rText.numSegments == 0
+
+        when: "some receipts all without segments"
+        TempRecordReceipt temp1 = TestHelpers.buildTempReceipt()
+        temp1.numSegments = null
+        rText.addReceipt(temp1)
+
+        then: "no segments"
+        rText.receipts.size() == 1
+        rText.numSegments == 0
+
+        when: "some receipts with segments"
+        TempRecordReceipt temp2 = TestHelpers.buildTempReceipt()
+        temp2.numSegments = 88
+        rText.addReceipt(temp2)
+
+        then: "has number of segments greater than 0"
+        rText.receipts.size() == 2
+        rText.numSegments > 0
     }
 
     // Helpers

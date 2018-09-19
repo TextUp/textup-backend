@@ -1,20 +1,22 @@
 package org.textup.validator
 
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import grails.compiler.GrailsCompileStatic
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
 class IncomingText {
 
 	String apiId
 	String message
+    Integer numSegments
 
 	static constraints = {
 		apiId nullable: false
 		message nullable: false
+        numSegments nullable: false, min: 0
 	}
 
 	void setMessage(String msg) {

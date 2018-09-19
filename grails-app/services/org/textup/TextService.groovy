@@ -25,7 +25,9 @@ class TextService {
             res = this.tryText(fromNum, toNum, message, media)
             //record receipt and return on first success
             if (res.success) {
-                TempRecordReceipt receipt = new TempRecordReceipt(apiId:res.payload.sid)
+                Message tMessage = res.payload
+                TempRecordReceipt receipt = new TempRecordReceipt(apiId:tMessage.sid,
+                    numSegments: Helpers.to(Integer, tMessage.numSegments))
                 receipt.contactNumber = toNum
                 if (receipt.validate()) {
                     return resultFactory.success(receipt)

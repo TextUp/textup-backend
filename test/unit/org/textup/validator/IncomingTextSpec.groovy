@@ -16,18 +16,25 @@ class IncomingTextSpec extends Specification {
 
 		then: "is invalid"
 		text.validate() == false
-		text.errors.errorCount == 2
+		text.errors.errorCount == 3
 
 		when: "we save an text with all fields"
-		text = new IncomingText(apiId:"id", message:"hello")
+		text = new IncomingText(apiId:"id", message:"hello", numSegments: 88)
 
 		then: "is valid"
 		text.validate() == true
+
+		when: "negative number of segments"
+		text.numSegments = -88
+
+		then: "invalid"
+		text.validate() == false
+		text.errors.getFieldErrorCount("numSegments") == 1
 	}
 
 	void "test message cleaning"() {
 		when: "we have a valid text"
-		IncomingText text = new IncomingText(apiId:"id", message:"      hELLo  ")
+		IncomingText text = new IncomingText(apiId:"id", message:"      hELLo  ", numSegments: 88)
 
 		then: "no formatting except for trimming whitespace"
 		text.validate() == true

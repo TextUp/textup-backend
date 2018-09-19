@@ -63,6 +63,7 @@ class TextServiceSpec extends Specification {
     	res.payload instanceof TempRecordReceipt
     	res.payload.contactNumberAsString == toNum1.number
         res.payload.apiId != null
+        res.payload.numSegments > 0
     }
 
     void "test send with media"() {
@@ -98,6 +99,7 @@ class TextServiceSpec extends Specification {
         res.payload instanceof TempRecordReceipt
         res.payload.contactNumberAsString == toNum1.number
         res.payload.apiId != null
+        res.payload.numSegments > 0
         mElements.size() == _numTimesCalledGetLink
     }
 }

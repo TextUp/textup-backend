@@ -939,4 +939,6 @@ databaseChangeLog = {
 	include file: 'images-height-mime-type.groovy'
 
 	include file: 'media-element-version-rename-reserved-column.groovy'
+
+	include file: 'cost-calculation-metrics.groovy'
 }

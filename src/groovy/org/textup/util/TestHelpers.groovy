@@ -152,7 +152,8 @@ class TestHelpers {
     static TempRecordReceipt buildTempReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
         TempRecordReceipt rpt = new TempRecordReceipt(status: status,
             contactNumberAsString: TestHelpers.randPhoneNumber(),
-            apiId: UUID.randomUUID().toString())
+            apiId: UUID.randomUUID().toString(),
+            numSegments: TestHelpers.randIntegerUpTo(10))
         assert rpt.validate()
         rpt
     }

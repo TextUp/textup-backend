@@ -48,7 +48,8 @@ class Record implements ReadOnlyRecord {
     Result<RecordText> storeIncomingText(IncomingText text, IncomingSession session1, MediaInfo mInfo = null) {
         RecordText rText1 = new RecordText(outgoing: false, contents: text.message, media: mInfo)
         add(rText1, session1.toAuthor()).then {
-            RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId)
+            RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId,
+                numSegments: text.numSegments)
             receipt.contactNumber = session1.number
             rText1.addToReceipts(receipt)
             rText1.save() ? Helpers.resultFactory.success(rText1) :

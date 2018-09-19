@@ -31,27 +31,13 @@ class FutureMessageServiceSpec extends CustomSpec {
 	}
 
 	FutureMessage fMsg1
-    int _numTextsSent
 
     def setup() {
-        _numTextsSent = 0
     	setupData()
         Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj -> new Result() }
         Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
     	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.messageSource = TestHelpers.mockMessageSource()
-        service.notificationService = [
-            build: { Phone targetPhone, List<Contact> contacts, List<ContactTag> tags ->
-                [new BasicNotification()]
-            }
-        ] as NotificationService
-        service.tokenService = [
-            notifyStaff:{ BasicNotification bn1, Boolean outgoing, String msg,
-                String instructions ->
-                _numTextsSent++
-                new Result(status:ResultStatus.NO_CONTENT, payload:null)
-            }
-        ]  as TokenService
         service.socketService = [
             sendItems:{ List<RecordItem> items,
                 String eventName=Constants.SOCKET_EVENT_RECORDS ->
@@ -98,19 +84,25 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     void "test execute"() {
         given: "overrides and baselines"
+        service.tokenService = Mock(TokenService)
+        service.notificationService = Mock(NotificationService)
+        Record rec = new Record()
+        RecordItem rItem1 = new RecordItem(record: rec)
+        assert rItem1.validate()
         Phone.metaClass.sendMessage = { OutgoingMessage msg, MediaInfo mInfo = null,
             Staff staff = null, boolean skipOwnerCheck = false ->
-            new Result(status:ResultStatus.OK).toGroup()
+            new Result(status:ResultStatus.OK, payload: rItem1).toGroup()
         }
 
     	when: "nonexistent keyName"
-        _numTextsSent = 0
         ResultGroup resGroup = service.execute("nonexistent", s1.id)
 
     	then: "not found"
+        0 * service.notificationService._
+        0 * service.tokenService._
+        rItem1.numNotified == 0
         resGroup.anySuccesses == false
         resGroup.failures[0].errorMessages[0] == "futureMessageService.execute.messageNotFound"
-        _numTextsSent == 0
 
     	when: "existing message with notify staff"
         fMsg1.notifySelf = true
@@ -118,8 +110,10 @@ class FutureMessageServiceSpec extends CustomSpec {
         resGroup = service.execute(fMsg1.keyName, s1.id)
 
     	then:
-        _numTextsSent == 1
+        1 * service.notificationService.build(*_) >> [new BasicNotification()]
+        1 * service.tokenService.notifyStaff(*_) >> new Result(status:ResultStatus.NO_CONTENT)
         resGroup.anySuccesses == true
+        rItem1.numNotified == 1 // because one basic notification
     }
 
     // Test CRUD

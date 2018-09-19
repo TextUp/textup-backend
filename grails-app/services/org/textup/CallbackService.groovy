@@ -235,7 +235,8 @@ class CallbackService {
             else { return mediaRes }
         }
         // step 2: relay text
-        IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String)
+        IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String,
+            numSegments: Helpers.to(Integer, params.NumSegments))
         if (text.validate()) { //validate text
             p1
                 .receiveText(text, is1, mInfo)
@@ -261,14 +262,14 @@ class CallbackService {
         }
         mediaService
             .buildFromIncomingMedia(urlToMimeType, collectUploads, collectMediaIds)
-            .logFail("CallbackService.process: building incoming media")
+            .logFail("CallbackService.handleMedia: building incoming media")
     }
     protected void handleMediaAndSocket(String apiId, Collection<UploadItem> itemsToUpload,
         List<RecordText> textsToSendThroughSocket, Set<String> mediaIdsToDelete) {
 
         // step 1: upload our processed copies
         ResultGroup<?> resGroup = storageService.uploadAsync(itemsToUpload)
-            .logFail("CallbackService.processText: uploading processed media")
+            .logFail("CallbackService.handleMediaAndSocket: uploading processed media")
 
         // step 2: after uploading, send texts to frontend
         // For outgoing messages and all calls, we rely on status callbacks
@@ -283,7 +284,7 @@ class CallbackService {
         if (itemsToUpload && !resGroup.anyFailures) {
             TimeUnit.SECONDS.sleep(20)
             mediaService.deleteMedia(apiId, mediaIdsToDelete)
-                .logFail("CallbackService.processText: deleting media")
+                .logFail("CallbackService.handleMediaAndSocket: deleting media")
         }
     }
 }

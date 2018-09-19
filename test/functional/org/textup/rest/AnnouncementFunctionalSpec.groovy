@@ -164,6 +164,7 @@ class AnnouncementFunctionalSpec extends RestSpec {
         textForm.add("MessageSid", sid)
         textForm.add("From", num)
         textForm.add("To", toNum)
+        textForm.add("NumSegments", "8")
         textForm.add("Body", Constants.TEXT_TOGGLE_SUBSCRIBE)
         response = rest.post("${baseUrl}/v1/public/records") {
             contentType("application/x-www-form-urlencoded")

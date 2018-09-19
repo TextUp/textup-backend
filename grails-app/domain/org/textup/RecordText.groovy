@@ -61,4 +61,17 @@ class RecordText extends RecordItem implements ReadOnlyRecordText {
     static mapping = {
         contents type:"text"
     }
+
+    // Properties
+    // ----------
+
+    int getNumSegments() {
+        int totalNumSegments = 0
+        this.receipts?.each { RecordItemReceipt rpt1 ->
+            if (rpt1.numSegments) {
+                totalNumSegments += rpt1.numSegments
+            }
+        }
+        totalNumSegments
+    }
 }

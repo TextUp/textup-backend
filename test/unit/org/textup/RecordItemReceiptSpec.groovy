@@ -47,6 +47,19 @@ class RecordItemReceiptSpec extends Specification {
 		then:
 		receipt.validate() == true
 		receipt.contactNumberAsString == numAsString
+
+		when: "negative number of segments"
+		receipt.numSegments = -88
+
+		then: "invalid"
+		receipt.validate() == false
+		receipt.errors.getFieldErrorCount("numSegments") == 1
+
+		when: "null number of segments"
+		receipt.numSegments = null
+
+		then: "valid again"
+		receipt.validate() == true
 	}
 
     void "test named queries for status and deletion"() {

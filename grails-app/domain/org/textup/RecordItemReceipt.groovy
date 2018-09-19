@@ -1,13 +1,13 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 import org.textup.type.ReceiptStatus
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(name="Receipt", description="A receipt indicating the status \
     of a communication sent to a phone number.")
@@ -17,6 +17,7 @@ class RecordItemReceipt {
     //used for finding the RecordItem in a StatusCallback
     String apiId
     String contactNumberAsString
+    Integer numSegments // only for text message receipts
 
     @RestApiObjectField(
         description="Status of communication. Allowed: FAILED, PENDING, BUSY, SUCCESS",
@@ -37,6 +38,7 @@ class RecordItemReceipt {
         contactNumberAsString validator:{ String val, RecordItemReceipt obj ->
             if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
+        numSegments nullable: true, min: 0
     }
 
     // Property Access

@@ -73,6 +73,7 @@ class IncomingTextFunctionalSpec extends RestSpec {
         form.add("From", fromNum)
         form.add("To", toNum)
         form.add("Body", "hi!")
+        form.add("NumSegments", "3")
         RestResponse response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)
@@ -134,6 +135,7 @@ class IncomingTextFunctionalSpec extends RestSpec {
         form.add("From", fromNum)
         form.add("To", toNum)
         form.add("Body", "hi!")
+        form.add("NumSegments", "8")
         RestResponse response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)
@@ -227,6 +229,7 @@ class IncomingTextFunctionalSpec extends RestSpec {
         form.add("To", toNum)
         form.add("Body", "hi!")
         form.add("NumMedia", "2")
+        form.add("NumSegments", "8")
         form.add("MediaUrl0", sampleUrl)
         form.add("MediaContentType0", MediaType.IMAGE_JPEG.mimeType)
         form.add("MediaUrl1", sampleUrl)

@@ -51,6 +51,10 @@ class RecordItem implements ReadOnlyRecordItem {
         useForCreation = false)
     boolean hasAwayMessage = false
 
+    // Outgoing texts: # staff members who received notifications for this message
+    // Outgoing future message: # staff who received "notify-me" notifications
+    Integer numNotified = 0
+
     @RestApiObjectField(
         description    = "If this was part of an announcement",
         allowedType    = "Boolean",
@@ -96,6 +100,7 @@ class RecordItem implements ReadOnlyRecordItem {
         authorType nullable:true
         media nullable:true // can be null for backwards compatibility for RecordItems that predate this
         noteContents blank:true, nullable:true, maxSize:15000
+        numNotified min: 0
     }
     static mapping = {
         receipts lazy: false, cascade: "all-delete-orphan"
@@ -163,8 +168,8 @@ class RecordItem implements ReadOnlyRecordItem {
 
     @GrailsTypeChecked
     RecordItem addReceipt(TempRecordReceipt r1) {
-        RecordItemReceipt receipt = new RecordItemReceipt(status:r1.status,
-            apiId:r1.apiId, contactNumberAsString:r1.contactNumberAsString)
+        RecordItemReceipt receipt = new RecordItemReceipt(status: r1.status, apiId: r1.apiId,
+            contactNumberAsString: r1.contactNumberAsString, numSegments: r1.numSegments)
         addToReceipts(receipt)
         this
     }

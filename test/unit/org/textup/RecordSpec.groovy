@@ -68,13 +68,15 @@ class RecordSpec extends Specification {
 
         when: "add an incoming text"
         currentTimestamp = rec.lastRecordActivity
-        IncomingText text = new IncomingText(apiId: "apiId", message: "hi")
+        IncomingText text = new IncomingText(apiId: "apiId", message: "hi", numSegments: 88)
         IncomingSession session1 = new IncomingSession(phone: new Phone(), numberAsString: "6261231234")
         Result<RecordText> textRes = rec.storeIncomingText(text, session1)
 
         then: "lastRecordActivity is updated"
         textRes.success == true
+        textRes.payload.receipts.size() == 1
         textRes.payload.receipts[0].contactNumberAsString == session1.numberAsString
+        textRes.payload.numSegments == text.numSegments
         !rec.lastRecordActivity.isBefore(currentTimestamp)
         RecordItem.countByRecord(rec) == 3
         RecordText.countByRecord(rec) == 2

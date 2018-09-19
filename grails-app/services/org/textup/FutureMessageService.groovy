@@ -131,12 +131,15 @@ class FutureMessageService {
         if (fMsg.notifySelf && resGroup.anySuccesses) {
             String instructions = messageSource.getMessage(
                 "futureMessageService.notifyStaff.notification", null, LCH.getLocale())
-            notificationService.build(p1, msg.contacts.recipients, msg.tags.recipients)
-                .each { BasicNotification bn1 ->
-                    tokenService
-                        .notifyStaff(bn1, true, fMsg.message, instructions)
-                        .logFail("FutureMessageService.execute: calling notifyStaff")
-                }
+            List<BasicNotification> notifs = notificationService.build(p1, msg.contacts.recipients,
+                msg.tags.recipients)
+            notifs.each { BasicNotification bn1 ->
+                tokenService
+                    .notifyStaff(bn1, true, fMsg.message, instructions)
+                    .logFail("FutureMessageService.execute: calling notifyStaff")
+            }
+            int numNotified = notifs.size()
+            resGroup.payload.each { RecordItem rItem -> rItem.numNotified = numNotified }
         }
         resGroup
     }

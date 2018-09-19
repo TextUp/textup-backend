@@ -360,7 +360,10 @@ class CallbackServiceSpec extends CustomSpec {
         service.threadService = Mock(ThreadService)
         Phone mockPhone = Mock(Phone)
         HttpServletRequest mockRequest = Mock(HttpServletRequest)
-        GrailsParameterMap params = new GrailsParameterMap([Body: "hello"], mockRequest)
+        GrailsParameterMap params = new GrailsParameterMap([
+            Body: "hello",
+            NumSegments: 88
+        ], mockRequest)
 
         when: "no media"
         params.NumMedia = 0
@@ -368,7 +371,11 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         0 * service.mediaService.buildFromIncomingMedia(*_)
-        1 * mockPhone.receiveText(*_) >> new Result(payload: Pair.of({ -> }, []))
+        1 * mockPhone.receiveText(*_) >> { args ->
+            assert args[0] instanceof IncomingText
+            assert args[0].numSegments == params.NumSegments
+            new Result(payload: Pair.of({ -> }, []))
+        }
         1 * service.threadService.submit(*_)
         res.status == ResultStatus.OK
         res.payload instanceof Closure
@@ -379,7 +386,11 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         1 * service.mediaService.buildFromIncomingMedia(*_) >> new Result()
-        1 * mockPhone.receiveText(*_) >> new Result(payload: Pair.of({ -> }, []))
+        1 * mockPhone.receiveText(*_) >> { args ->
+            assert args[0] instanceof IncomingText
+            assert args[0].numSegments == params.NumSegments
+            new Result(payload: Pair.of({ -> }, []))
+        }
         1 * service.threadService.submit(*_)
         res.status == ResultStatus.OK
         res.payload instanceof Closure

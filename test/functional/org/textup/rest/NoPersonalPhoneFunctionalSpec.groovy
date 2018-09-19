@@ -159,6 +159,7 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
         form.add("From", fromNum)
         form.add("To", targetPhoneNumber)
         form.add("Body", "hi!")
+        form.add("NumSegments", "8")
         RestResponse response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)

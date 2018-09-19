@@ -5,9 +5,9 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import java.util.UUID
-import org.textup.type.AuthorType
-import org.textup.type.ReceiptStatus
-import org.textup.validator.Author
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -38,6 +38,36 @@ class RecordItemSpec extends Specification {
         then: "shared contraint on the noteContents field is executed"
         rItem.validate() == false
         rItem.errors.getFieldErrorCount("noteContents") == 1
+
+        when: "number notified is negative"
+        rItem.noteContents = "acceptable length string"
+        rItem.numNotified = -88
+
+        then: "shared contraint on the noteContents field is executed"
+        rItem.validate() == false
+        rItem.errors.getFieldErrorCount("numNotified") == 1
+    }
+
+    void "test adding receipt"() {
+        given: "a valid record item"
+        Record rec = new Record()
+        RecordItem rItem = new RecordItem(record:rec)
+        assert rItem.validate()
+        TempRecordReceipt temp1 = TestHelpers.buildTempReceipt()
+
+        when:
+        rItem.addReceipt(temp1)
+
+        then:
+        rItem.receipts.size() == 1
+        rItem.receipts[0].status != null
+        rItem.receipts[0].apiId != null
+        rItem.receipts[0].contactNumberAsString != null
+        rItem.receipts[0].numSegments != null
+        rItem.receipts[0].status == temp1.status
+        rItem.receipts[0].apiId == temp1.apiId
+        rItem.receipts[0].contactNumberAsString == temp1.contactNumberAsString
+        rItem.receipts[0].numSegments == temp1.numSegments
     }
 
     void "test adding author"() {
