@@ -207,7 +207,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         ] as TwimlBuilder
 
         when: "message is not a valid keyword"
-        IncomingText text = new IncomingText(apiId:"apiId")
+        IncomingText text = new IncomingText(apiId:"apiId", numSegments: 88)
         Result<Closure> res = service.handleAnnouncementText(p1, text, session, fallbackAction)
 
         then: "relay text"
