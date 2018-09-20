@@ -112,7 +112,8 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
             else { numSkipped++ }
         }
         // remove longest duration, if possible
-        if (rpts.size() > 0 && longestReceiptIndex != null) {
+        if (rpts.size() > 0 && longestReceiptIndex != null &&
+            longestReceiptIndex - numSkipped >= 0) {
             rpts.remove(longestReceiptIndex - numSkipped)
         }
         rpts
