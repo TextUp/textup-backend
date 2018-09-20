@@ -80,7 +80,7 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
     RecordItemStatus groupReceiptsByStatus() {
         // for outgoing calls, exclude the receipt with the longest duration because this is the
         // parent bridge call from TextUp to the staff member’s personal phone
-        new RecordItemStatus(this.outgoing ? receiptsExcludeLongest() : this.receipts)
+        new RecordItemStatus(this.outgoing ? showOnlyContactReceipts() : this.receipts)
     }
 
     boolean getHasVoicemail() {
@@ -96,18 +96,25 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
     // Helpers
     // -------
 
-    protected Collection<RecordItemReceipt> receiptsExcludeLongest() {
+    protected Collection<RecordItemReceipt> showOnlyContactReceipts() {
         List<RecordItemReceipt> rpts = []
         Integer longestReceiptIndex
-        int longestDurationSoFar = 0
+        int longestDurationSoFar = 0, numSkipped = 0
         this.receipts?.eachWithIndex { RecordItemReceipt rpt1, int thisIndex ->
-            if (rpt1.numBillable && rpt1.numBillable > longestDurationSoFar) {
-                longestReceiptIndex = thisIndex
-                longestDurationSoFar = rpt1.numBillable
+            if (rpt1.numBillable) {
+                if (rpt1.numBillable > longestDurationSoFar) {
+                    longestReceiptIndex = thisIndex
+                    longestDurationSoFar = rpt1.numBillable
+                }
+                rpts << rpt1
             }
-            rpts << rpt1
+            // exclude receipts with null durations
+            else { numSkipped++ }
         }
-        if (rpts.size() > 0 && longestReceiptIndex != null) { rpts.remove(longestReceiptIndex) }
+        // remove longest duration, if possible
+        if (rpts.size() > 0 && longestReceiptIndex != null) {
+            rpts.remove(longestReceiptIndex - numSkipped)
+        }
         rpts
     }
 }

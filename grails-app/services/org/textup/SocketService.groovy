@@ -39,7 +39,8 @@ class SocketService {
         }
         // refresh trigger so we get the most up-to-date job detail info
         fMsgs.each({ FutureMessage fMsg -> fMsg.refreshTrigger() })
-        send(fMsgs*.record, fMsgs, eventName)
+        Collection<Record> recs = fMsgs.collect { FutureMessage fMsg -> fMsg.getRecord() }
+        send(recs, fMsgs, eventName)
     }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected ResultGroup<Staff> send(Collection<Record> recs, Collection toBeSent,

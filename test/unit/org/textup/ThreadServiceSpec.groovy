@@ -10,6 +10,10 @@ import spock.lang.Specification
 // NOTE: Services under test are NOT singletons. This tests creates its own instance
 // that is DIFFERENT than the one that has its init/destroy methods automatically called.
 // Therefore, we need to manually create and destroy in this test
+// [FUTURE] figure out how to test transactional code executed within a new session.
+// After trying to test the transactional behavior of threadService in a non-transactional
+// integration test, we were not able to get the changes in the new session to become visible
+// to the test class
 
 @TestFor(ThreadService)
 @Domain([Organization, Location])

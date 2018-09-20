@@ -59,7 +59,7 @@ class VoicemailService {
     ResultGroup<RecordCall> storeVoicemail(String callId, int voicemailDuration) {
         ResultGroup<RecordCall> resGroup = new ResultGroup<>()
         List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(callId)
-        Collection<RecordItem> rItems = receipts*.item.unique()
+        Collection<RecordItem> rItems = receipts*.item.unique { RecordItem rItem -> rItem.id }
         for (RecordItem item in rItems) {
             if (item.instanceOf(RecordCall)) {
                 RecordCall call = item as RecordCall

@@ -81,16 +81,16 @@ class RecordCallSpec extends Specification {
 
         then:
         call.durationInSeconds == 0
-        call.receiptsExcludeLongest() == []
+        call.showOnlyContactReceipts() == []
 
         when: "one receipt without numBillable"
         RecordItemReceipt rpt1 = TestHelpers.buildReceipt()
         rpt1.numBillable = null
         call.addToReceipts(rpt1)
 
-        then:
+        then: "show only contact receipts excludes null"
         call.durationInSeconds == 0
-        call.receiptsExcludeLongest() == [rpt1]
+        call.showOnlyContactReceipts() == []
 
         when: "multiple receipts with varying numBillable"
         RecordItemReceipt rpt2 = TestHelpers.buildReceipt()
@@ -101,8 +101,8 @@ class RecordCallSpec extends Specification {
 
         then:
         call.durationInSeconds == 88
-        call.receiptsExcludeLongest().size() == 2
-        call.receiptsExcludeLongest().every { it in [rpt1, rpt2] }
+        call.showOnlyContactReceipts().size() == 1
+        call.showOnlyContactReceipts().every { it in [rpt2] }
     }
 
     void "test grouping receipts by status for incoming versus outgoing"() {
@@ -127,7 +127,7 @@ class RecordCallSpec extends Specification {
         when: "call is outgoing"
         call.outgoing = true
 
-        then: "exclude receipt with the longest duration"
-        call.groupReceiptsByStatus().pending.size() == 2 // exclude rpt3
+        then: "exclude receipt with the longest or null durations"
+        call.groupReceiptsByStatus().pending.size() == 1 // exclude rp1 and rpt3
     }
 }

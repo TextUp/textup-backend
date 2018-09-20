@@ -54,7 +54,11 @@ class ThreadService {
         return { ->
             try {
                 // doesn't matter which domain class we call this on
-                Organization.withNewSession { action() }
+                Organization.withNewSession {
+                    Organization.withTransaction {
+                        action()
+                    }
+                }
             } catch(Throwable e) {
                 log.error("ThreadService.wrapAction: uncaught exception: ${e.message}")
                 e.printStackTrace()

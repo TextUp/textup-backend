@@ -30,7 +30,6 @@ class CallbackStatusService {
     }
 
     @OptimisticLockingRetry
-    @RollbackOnResultFailure
     protected void processHelper(GrailsParameterMap params) {
         if (params.CallSid) {
             ReceiptStatus status = ReceiptStatus.translate(params.CallStatus as String)
@@ -75,7 +74,6 @@ class CallbackStatusService {
     // From statusCallback attribute on the Number verb
     protected Result<Void> handleUpdateForChildCall(String parentId, String childId,
         PhoneNumber childNumber, ReceiptStatus status, Integer duration) {
-
         createNewReceiptsWithStatus(parentId, childId, childNumber, status)
             .then { List<RecordItemReceipt> rpts -> updateDurationForCall(rpts, duration) }
             .then { List<RecordItemReceipt> rpts ->
@@ -87,10 +85,10 @@ class CallbackStatusService {
     // From the statusCallback attribute on the original POST request to the Call resource
     protected Result<Void> handleUpdateForParentCall(String callId, ReceiptStatus status,
         Integer duration, GrailsParameterMap params) {
-
         updateExistingReceiptsWithStatus(callId, status)
             .then { List<RecordItemReceipt> rpts -> updateDurationForCall(rpts, duration) }
             .then { List<RecordItemReceipt> rpts ->
+                // try to retry parent call if failed
                 if (status == ReceiptStatus.FAILED) { tryRetryParentCall(callId, params) }
                 sendItemsThroughSocket(rpts)
                 resultFactory.success()
@@ -158,13 +156,23 @@ class CallbackStatusService {
     }
 
     protected void sendItemsThroughSocket(List<RecordItemReceipt> receipts) {
-        Collection<RecordItem> items = receipts
-            ?.collect { RecordItemReceipt rpt -> rpt.item }
+        // Collect item id and refetch in new thread to avoid LazyInitializationExceptions
+        // caused by trying to interact with detached Hibernate objects
+        Collection<Long> itemIds = receipts
+            ?.collect { RecordItemReceipt rpt -> rpt.item.id }
             ?.unique()
-        if (items) {
-            //send items with updated status through socket
-            socketService.sendItems(items, Constants.SOCKET_EVENT_RECORD_STATUSES)
-                .logFail("CallbackStatusService.sendItemsThroughSocket: receipts: $receipts")
+        if (itemIds) {
+            // send items after a delay because we need this current transaction to commit before
+            // attempting to send the items because, in the JSON marshaller, the receipts
+            // sent are the PERSISTENT values. If the receipts in the current transaction haven't
+            // saved yet, then we won't be sending any of the latest updates
+            threadService.submit {
+                TimeUnit.SECONDS.sleep(5)
+                //send items with updated status through socket
+                Collection<RecordItem> items = RecordItem.getAll(itemIds as Iterable<Serializable>)
+                socketService.sendItems(items, Constants.SOCKET_EVENT_RECORD_STATUSES)
+                    .logFail("CallbackStatusService.sendItemsThroughSocket: receipts: $receipts")
+            }
         }
     }
 

@@ -1,7 +1,9 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import org.textup.type.ReceiptStatus
 
+@GrailsTypeChecked
 class RecordItemStatus {
     private final List<RecordItemReceipt> success = []
     private final List<RecordItemReceipt> pending = []
@@ -15,9 +17,12 @@ class RecordItemStatus {
 
     void add(RecordItemReceipt rpt1) {
         switch (rpt1.status) {
-            case ReceiptStatus.SUCCESS: success << rpt1; break;
-            case ReceiptStatus.PENDING: pending << rpt1; break;
-            case ReceiptStatus.BUSY: busy << rpt1; break;
+            case ReceiptStatus.SUCCESS:
+                success << rpt1; break;
+            case ReceiptStatus.PENDING:
+                pending << rpt1; break;
+            case ReceiptStatus.BUSY:
+                busy << rpt1; break;
             default: // ReceiptStatus.FAILED
                 failed << rpt1
         }

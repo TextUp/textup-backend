@@ -89,6 +89,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
     void "test sending items through socket"() {
         given: "list of valid receipts all belonging to the same item"
         service.socketService = Mock(SocketService)
+        service.threadService = Mock(ThreadService)
         List<RecordItemReceipt> validRpts = []
         8.times {
             RecordItemReceipt validRpt = TestHelpers.buildReceipt()
@@ -102,12 +103,14 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.sendItemsThroughSocket(null)
 
         then:
+        0 * service.threadService._
         0 * service.socketService._
 
         when:
         service.sendItemsThroughSocket(validRpts)
 
         then: "only one item passed to socket service"
+        1 * service.threadService.submit(*_) >> { args -> args[0](); return null; }
         1 * service.socketService.sendItems(*_) >> { args ->
             assert args[0].size() == 1 // only 1 unique record item
             assert args[0][0] == rText1
@@ -181,11 +184,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
     }
 
     // Three types of entities to update
-    // ---------------------------------
+    // // ---------------------------------
 
     void "test handling update for text, child calls, and parent calls"() {
         given:
-        service.socketService = Mock(SocketService)
+        service.threadService = Mock(ThreadService)
         RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
         rText1.addToReceipts(validRpt)
         [validRpt, rText1]*.save(flush: true, failOnError: true)
@@ -196,7 +199,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         Result<Void> res = service.handleUpdateForText(validRpt.apiId, status)
 
         then:
-        1 * service.socketService.sendItems(*_) >> new Result().toGroup()
+        1 * service.threadService.submit(*_)
         res.status == ResultStatus.NO_CONTENT
         RecordItemReceipt.get(validRpt.id).status == status
         RecordItemReceipt.count() == rptBaseline
@@ -204,7 +207,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
     void "test handling update for child calls"() {
         given:
-        service.socketService = Mock(SocketService)
+        service.threadService = Mock(ThreadService)
         RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
         rText1.addToReceipts(validRpt)
         [validRpt, rText1]*.save(flush: true, failOnError: true)
@@ -221,7 +224,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             status, duration)
 
         then:
-        1 * service.socketService.sendItems(*_) >> new Result().toGroup()
+        1 * service.threadService.submit(*_)
         res.status == ResultStatus.NO_CONTENT
         RecordItemReceipt.count() == rptBaseline + 1
         rText1.receipts.size() == originalNumReceipts + 1
@@ -236,7 +239,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
     void "test handling update for parent calls"() {
         given:
-        service.socketService = Mock(SocketService)
+        service.threadService = Mock(ThreadService)
         service.callService = Mock(CallService)
         RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
         rText1.addToReceipts(validRpt)
@@ -254,7 +257,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             duration, params)
 
         then:
-        1 * service.socketService.sendItems(*_) >> new Result().toGroup()
+        1 * service.threadService.submit(*_)
         0 * service.callService._
         res.status == ResultStatus.NO_CONTENT
         RecordItemReceipt.count() == rptBaseline
@@ -266,7 +269,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         res = service.handleUpdateForParentCall(validRpt.apiId, status, duration, params)
 
         then:
-        1 * service.socketService.sendItems(*_) >> new Result().toGroup()
+        1 * service.threadService.submit(*_)
         1 * service.callService.retry(*_) >> new Result()
         res.status == ResultStatus.NO_CONTENT
         RecordItemReceipt.count() == rptBaseline

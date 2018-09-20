@@ -197,10 +197,8 @@ class CallbackService {
                 // is completely done being stored before attempting to fetch it.
                 threadService.submit {
                     TimeUnit.SECONDS.sleep(5)
-                    RecordCall.withNewTransaction {
-                        p1.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
-                            .logFail("CallbackService.processCall: VOICEMAIL_DONE voicemailUrl: ${voicemailUrl}")
-                    }
+                    p1.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
+                        .logFail("CallbackService.processCall: VOICEMAIL_DONE voicemailUrl: ${voicemailUrl}")
                 }
                 twimlBuilder.build(CallResponse.VOICEMAIL_DONE)
                 break

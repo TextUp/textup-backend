@@ -5,9 +5,9 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 enum ReceiptStatus {
 	FAILED(["failed", "undelivered"]),
-	PENDING(["in-progress", "ringing", "queued", "accepted", "sending", "receiving"]),
+	PENDING(["in-progress", "ringing", "queued", "accepted", "sending", "receiving", "sent"]),
 	BUSY(["busy", "no-answer"]),
-	SUCCESS(["completed", "canceled", "sent", "delivered"])
+	SUCCESS(["completed", "canceled", "delivered"])
 
 	private final Collection<String> statuses
 	ReceiptStatus(Collection<String> thisStatuses) { this.statuses = thisStatuses }
