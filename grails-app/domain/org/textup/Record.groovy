@@ -6,9 +6,8 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.type.VoiceLanguage
-import org.textup.validator.Author
-import org.textup.validator.IncomingText
+import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
@@ -48,8 +47,9 @@ class Record implements ReadOnlyRecord {
     Result<RecordText> storeIncomingText(IncomingText text, IncomingSession session1, MediaInfo mInfo = null) {
         RecordText rText1 = new RecordText(outgoing: false, contents: text.message, media: mInfo)
         add(rText1, session1.toAuthor()).then {
-            RecordItemReceipt receipt = new RecordItemReceipt(apiId:text.apiId,
-                numSegments: text.numSegments)
+            RecordItemReceipt receipt = new RecordItemReceipt(status: ReceiptStatus.SUCCESS,
+                apiId:text.apiId,
+                numBillable: text.numSegments)
             receipt.contactNumber = session1.number
             rText1.addToReceipts(receipt)
             rText1.save() ? Helpers.resultFactory.success(rText1) :
@@ -59,7 +59,8 @@ class Record implements ReadOnlyRecord {
     Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session1) {
         RecordCall rCall1 = new RecordCall(outgoing: false)
         add(rCall1, session1.toAuthor()).then {
-            RecordItemReceipt receipt = new RecordItemReceipt(apiId: apiId)
+            RecordItemReceipt receipt = new RecordItemReceipt(status: ReceiptStatus.SUCCESS,
+                apiId: apiId)
             receipt.contactNumber = session1.number
             rCall1.addToReceipts(receipt)
             rCall1.save() ? Helpers.resultFactory.success(rCall1) :

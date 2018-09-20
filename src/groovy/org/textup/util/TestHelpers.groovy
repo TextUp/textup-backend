@@ -23,6 +23,7 @@ class TestHelpers {
 
     private static final Random RANDOM = new Random()
     private static final MockMessageSource MESSAGE_SOURCE = new MockMessageSource()
+    private static final HashSet<String> _generatedPhoneNumbers = new HashSet<>()
 
     // Display
     // -------
@@ -43,6 +44,14 @@ class TestHelpers {
     // ---------
 
     static String randPhoneNumber() {
+        String randNumber = generatePhoneNumber()
+        while (_generatedPhoneNumbers.contains(randNumber)) {
+            randNumber = generatePhoneNumber()
+        }
+        _generatedPhoneNumbers.add(randNumber)
+        randNumber
+    }
+    private static String generatePhoneNumber() {
         int randString = TestHelpers.randIntegerUpTo(Math.pow(10, 10) as Integer)
         "${Constants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
     }

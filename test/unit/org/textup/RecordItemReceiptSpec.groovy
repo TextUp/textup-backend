@@ -49,14 +49,14 @@ class RecordItemReceiptSpec extends Specification {
 		receipt.contactNumberAsString == numAsString
 
 		when: "negative number of segments"
-		receipt.numSegments = -88
+		receipt.numBillable = -88
 
 		then: "invalid"
 		receipt.validate() == false
-		receipt.errors.getFieldErrorCount("numSegments") == 1
+		receipt.errors.getFieldErrorCount("numBillable") == 1
 
 		when: "null number of segments"
-		receipt.numSegments = null
+		receipt.numBillable = null
 
 		then: "valid again"
 		receipt.validate() == true

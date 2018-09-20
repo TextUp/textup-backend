@@ -19,7 +19,11 @@ class TempRecordReceipt {
     String apiId
     String contactNumberAsString
 	ReceiptStatus status = ReceiptStatus.PENDING
-    Integer numSegments // only for text message receipts
+    // TempRecordReceipts are created at the time a call or text is initially sent out. Only text
+    // messages have the billable units (segments) known at the time of sending. For calls, we only
+    // know how long a call has lasted AFTER a call has finished. Therefore, we handle billable units
+    // for calls in status callback webhooks on the Number tags for the child calls.
+    Integer numSegments
 
 	static constraints = {
         apiId blank:false, nullable:false

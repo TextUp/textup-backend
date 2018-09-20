@@ -210,7 +210,7 @@ class PhoneService {
     Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
         voicemailService.moveVoicemail(callId, recordingId, voicemailUrl)
     }
-    ResultGroup<RecordItemReceipt> storeVoicemail(String callId, int voicemailDuration) {
+    ResultGroup<RecordCall> storeVoicemail(String callId, int voicemailDuration) {
         voicemailService.storeVoicemail(callId, voicemailDuration)
     }
 }

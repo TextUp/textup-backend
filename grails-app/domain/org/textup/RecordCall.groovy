@@ -15,11 +15,8 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
 
     VoicemailService voicemailService
 
-    @RestApiObjectField(
-        description    = "Duration of the call",
-        allowedType    = "Number",
-        useForCreation = false)
-	int durationInSeconds = 0
+    // explicitly store the value of the key the voicemail is stored under
+    String voicemailKey
 
     @RestApiObjectField(
         description    = "Duration of the voicemail",
@@ -43,6 +40,11 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
             useForCreation    = true,
             presentInResponse = false),
         @RestApiObjectField(
+            apiFieldName   = "durationInSeconds",
+            description    = "Duration of the call",
+            allowedType    = "Number",
+            useForCreation = false),
+        @RestApiObjectField(
             apiFieldName   = "hasVoicemail",
             description    = "Whether or not this call has a voicemail",
             allowedType    = "Boolean",
@@ -57,20 +59,55 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
     ])
     static transients = ["voicemailService"]
     static constraints = {
-        durationInSeconds minSize:0
+        voicemailKey nullable: true, blank: true
         voicemailInSeconds minSize:0
     }
 
     // Property Access
     // ---------------
 
+    int getDurationInSeconds() {
+        int duration = 0
+        this.receipts?.each { RecordItemReceipt rpt1 ->
+            if (rpt1.numBillable && rpt1.numBillable > duration) {
+                duration = rpt1.numBillable
+            }
+        }
+        duration
+    }
+
+    @Override
+    RecordItemStatus groupReceiptsByStatus() {
+        // for outgoing calls, exclude the receipt with the longest duration because this is the
+        // parent bridge call from TextUp to the staff member’s personal phone
+        new RecordItemStatus(this.outgoing ? receiptsExcludeLongest() : this.receipts)
+    }
+
     boolean getHasVoicemail() {
-        this.hasAwayMessage && this.voicemailInSeconds > 0
+        this.hasAwayMessage && this.voicemailInSeconds > 0 && this.voicemailKey
     }
     String getVoicemailUrl() {
         if (!this.hasVoicemail) {
             return ""
         }
-        voicemailService.getVoicemailUrl(getReceiptsByStatus(ReceiptStatus.SUCCESS)[0])
+        voicemailService.getVoicemailUrl(this.voicemailKey)
+    }
+
+    // Helpers
+    // -------
+
+    protected Collection<RecordItemReceipt> receiptsExcludeLongest() {
+        List<RecordItemReceipt> rpts = []
+        Integer longestReceiptIndex
+        int longestDurationSoFar = 0
+        this.receipts?.eachWithIndex { RecordItemReceipt rpt1, int thisIndex ->
+            if (rpt1.numBillable && rpt1.numBillable > longestDurationSoFar) {
+                longestReceiptIndex = thisIndex
+                longestDurationSoFar = rpt1.numBillable
+            }
+            rpts << rpt1
+        }
+        if (rpts.size() > 0 && longestReceiptIndex != null) { rpts.remove(longestReceiptIndex) }
+        rpts
     }
 }

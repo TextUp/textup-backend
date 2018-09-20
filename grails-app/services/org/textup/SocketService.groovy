@@ -18,21 +18,21 @@ class SocketService {
     Pusher pusherService
     ResultFactory resultFactory
 
-    ResultGroup<Staff> sendItems(List<? extends RecordItem> items,
+    ResultGroup<Staff> sendItems(Collection<? extends RecordItem> items,
         String eventName = Constants.SOCKET_EVENT_RECORDS) {
         if (!items) {
             return new ResultGroup<Staff>()
         }
         send(items*.record, items, eventName)
     }
-    ResultGroup<Staff> sendContacts(List<Contact> contacts,
+    ResultGroup<Staff> sendContacts(Collection<Contact> contacts,
         String eventName = Constants.SOCKET_EVENT_CONTACTS) {
         if (!contacts) {
             return new ResultGroup<Staff>()
         }
         send(contacts*.record, contacts, eventName)
     }
-    ResultGroup<Staff> sendFutureMessages(List<FutureMessage> fMsgs,
+    ResultGroup<Staff> sendFutureMessages(Collection<FutureMessage> fMsgs,
         String eventName = Constants.SOCKET_EVENT_FUTURE_MESSAGES) {
         if (!fMsgs) {
             return new ResultGroup<Staff>()
@@ -42,13 +42,15 @@ class SocketService {
         send(fMsgs*.record, fMsgs, eventName)
     }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected ResultGroup<Staff> send(List<Record> recs, List toBeSent, String eventName) {
+    protected ResultGroup<Staff> send(Collection<Record> recs, Collection toBeSent,
+        String eventName) {
+
         ResultGroup<Staff> resGroup = new ResultGroup<>()
         if (!toBeSent) {
             return resGroup
         }
         HashSet<Staff> staffList = getStaffsForRecords(recs)
-        List serialized
+        Collection serialized
         JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
             serialized = new JsonSlurper().parseText((toBeSent as JSON).toString())
         }
@@ -61,7 +63,7 @@ class SocketService {
     // Helper methods
     // --------------
 
-    protected HashSet<Staff> getStaffsForRecords(List<Record> recs) {
+    protected HashSet<Staff> getStaffsForRecords(Collection<Record> recs) {
         HashSet<Phone> phones = Phone.getPhonesForRecords(recs)
         HashSet<Staff> staffs = new HashSet<Staff>()
         phones.each { staffs.addAll(it.owner.all) }

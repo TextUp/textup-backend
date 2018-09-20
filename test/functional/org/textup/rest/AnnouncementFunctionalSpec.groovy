@@ -53,7 +53,7 @@ class AnnouncementFunctionalSpec extends RestSpec {
                 ctx.resultFactory.success()
             }
             ctx.phoneService.metaClass.storeVoicemail = { String sid, int dur ->
-                ctx.resultFactory.success()
+                ctx.resultFactory.success().toGroup()
             }
             ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
                 new ResultGroup()

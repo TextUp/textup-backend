@@ -7,9 +7,7 @@ import org.joda.time.DateTime
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
-import org.textup.type.OrgStatus
-import org.textup.type.CallResponse
-import org.textup.type.StaffStatus
+import org.textup.type.*
 import org.textup.util.*
 import static org.springframework.http.HttpStatus.*
 
@@ -30,7 +28,7 @@ class IncomingCallFunctionalSpec extends RestSpec {
                 ctx.resultFactory.success()
             }
             ctx.phoneService.metaClass.storeVoicemail = { String callId, int voicemailDuration ->
-                ctx.resultFactory.success()
+                ctx.resultFactory.success().toGroup()
             }
             return
         })
@@ -149,6 +147,8 @@ class IncomingCallFunctionalSpec extends RestSpec {
         // for the client, calls continues ringing even if redirected internally
         response.xml.Dial.@answerOnBridge.toString() == "true"
         response.xml.Dial.@action.toString().contains("handle=${CallResponse.CHECK_IF_VOICEMAIL.toString()}")
+        response.xml.Dial.Number[0].@statusCallback.toString().contains("handle=${Constants.CALLBACK_STATUS}")
+        response.xml.Dial.Number[0].@statusCallback.toString().contains(Constants.CALLBACK_CHILD_CALL_NUMBER_KEY)
         response.xml.Dial.Number[0].@url.toString().contains("handle=${CallResponse.SCREEN_INCOMING.toString()}")
         response.xml.Dial.Number[0].@url.toString().contains("originalFrom=")
         response.xml.Dial.Number[0].@url.toString().contains(URLEncoder.encode(fromNum, "UTF-8"))
@@ -182,7 +182,7 @@ class IncomingCallFunctionalSpec extends RestSpec {
         form.set("From", fromNum)
         form.set("To", toNum)
         // voicemail only started when the call has NOT connected
-        form.set("DialCallStatus", Constants.PENDING_STATUSES[0])
+        form.set("DialCallStatus", ReceiptStatus.PENDING.statuses[0])
 
         response = rest.post(voicemailUrl) {
             contentType("application/x-www-form-urlencoded")
@@ -251,6 +251,8 @@ class IncomingCallFunctionalSpec extends RestSpec {
         then:
         response.status == OK.value()
         response.xml != null
+        response.xml.Dial.Number[0].@statusCallback.toString().contains(Constants.CALLBACK_STATUS)
+        response.xml.Dial.Number[0].@statusCallback.toString().contains(Constants.CALLBACK_CHILD_CALL_NUMBER_KEY)
         response.xml.Dial.Number[0].text() == validNums
     }
 
@@ -379,6 +381,8 @@ class IncomingCallFunctionalSpec extends RestSpec {
         // for the client, calls continues ringing even if redirected internally
         response.xml.Dial.@answerOnBridge.toString() == "true"
         response.xml.Dial.@action.toString().contains("handle=${CallResponse.CHECK_IF_VOICEMAIL.toString()}")
+        response.xml.Dial.Number[0].@statusCallback.toString().contains("handle=${Constants.CALLBACK_STATUS}")
+        response.xml.Dial.Number[0].@statusCallback.toString().contains(Constants.CALLBACK_CHILD_CALL_NUMBER_KEY)
         response.xml.Dial.Number[0].@url.toString().contains("handle=${CallResponse.SCREEN_INCOMING.toString()}")
         response.xml.Dial.Number[0].@url.toString().contains("originalFrom=")
         response.xml.Dial.Number[0].@url.toString().contains(URLEncoder.encode(fromNum, "UTF-8"))

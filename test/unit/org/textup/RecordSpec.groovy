@@ -5,6 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
+import org.textup.type.*
 import org.textup.util.TestHelpers
 import org.textup.validator.IncomingText
 import spock.lang.Shared
@@ -76,6 +77,7 @@ class RecordSpec extends Specification {
         textRes.success == true
         textRes.payload.receipts.size() == 1
         textRes.payload.receipts[0].contactNumberAsString == session1.numberAsString
+        textRes.payload.receipts[0].status == ReceiptStatus.SUCCESS
         textRes.payload.numSegments == text.numSegments
         !rec.lastRecordActivity.isBefore(currentTimestamp)
         RecordItem.countByRecord(rec) == 3
@@ -89,6 +91,7 @@ class RecordSpec extends Specification {
         then: "lastRecordActivity is updated"
         callRes.success == true
         callRes.payload.receipts[0].contactNumberAsString == session1.numberAsString
+        callRes.payload.receipts[0].status == ReceiptStatus.SUCCESS
         !rec.lastRecordActivity.isBefore(currentTimestamp)
         RecordItem.countByRecord(rec) == 4
         RecordText.countByRecord(rec) == 2

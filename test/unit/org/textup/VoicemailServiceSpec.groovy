@@ -5,8 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
-import org.joda.time.DateTime
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Specification
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -45,8 +44,8 @@ class VoicemailServiceSpec extends CustomSpec {
         url == ""
 
         when: "present receipt"
-        String uid = UUID.randomUUID().toString()
-        url = service.getVoicemailUrl([apiId: uid] as RecordItemReceipt)
+        String uid = TestHelpers.randString()
+        url = service.getVoicemailUrl(uid)
 
         then:
         url instanceof String
@@ -63,7 +62,7 @@ class VoicemailServiceSpec extends CustomSpec {
         ] as SocketService
 
         when: "none voicemails found for apiId"
-        ResultGroup<RecordItemReceipt> resGroup = service.storeVoicemail("nonexistent", 12)
+        ResultGroup<RecordCall> resGroup = service.storeVoicemail("nonexistent", 12)
 
         then: "empty result list"
         resGroup.isEmpty == true
@@ -72,7 +71,7 @@ class VoicemailServiceSpec extends CustomSpec {
         RecordItemReceipt.count() == rBaseline
 
         when: "apiId corresponds to NOT RecordCall"
-        String apiId = "thisoneisunique!!!"
+        String apiId = TestHelpers.randString()
         rText1.addToReceipts(apiId:apiId, contactNumberAsString:"1234449309")
         rText1.save(flush:true, failOnError:true)
         iBaseline = RecordCall.count()
@@ -86,7 +85,7 @@ class VoicemailServiceSpec extends CustomSpec {
         RecordItemReceipt.count() == rBaseline
 
         when: "apiId corresponds to multiple RecordCalls"
-        apiId = "thisisthe?!best!!!"
+        apiId = TestHelpers.randString()
         RecordCall rCall1 = c1.record.storeOutgoingCall().payload,
             rCall2 = c1.record.storeOutgoingCall().payload
         [rCall1, rCall2].each {
@@ -101,14 +100,13 @@ class VoicemailServiceSpec extends CustomSpec {
 
         then:
         resGroup.anySuccesses == true
-        resGroup.payload.size() == 2
         resGroup.successes.size() == 2
-        resGroup.payload[0].item.hasVoicemail == true
-        resGroup.payload[0].item.voicemailInSeconds == dur
-        resGroup.payload[0].item.record.lastRecordActivity.isAfter(recAct)
-        resGroup.payload[1].item.hasVoicemail == true
-        resGroup.payload[1].item.voicemailInSeconds == dur
-        resGroup.payload[1].item.record.lastRecordActivity.isAfter(recAct)
+        resGroup.payload.size() == 2
+        resGroup.payload.every { it instanceof RecordCall }
+        resGroup.payload.every { it.voicemailKey == apiId }
+        resGroup.payload.every { it.hasVoicemail }
+        resGroup.payload.every { it.voicemailInSeconds == dur }
+        resGroup.payload.every { it.record.lastRecordActivity.isAfter(recAct) }
         Contact.count() == cBaseline
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline

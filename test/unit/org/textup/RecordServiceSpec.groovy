@@ -14,7 +14,6 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -31,7 +30,6 @@ class RecordServiceSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
-        twimlBuilder(TwimlBuilder)
     }
 
     def setup() {
@@ -39,51 +37,10 @@ class RecordServiceSpec extends CustomSpec {
         Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj -> new Result() }
         Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.twimlBuilder = TestHelpers.getTwimlBuilder(grailsApplication)
     }
 
     def cleanup() {
         cleanupData()
-    }
-
-    // Status
-    // ------
-
-    void "test update status"() {
-        given: "an existing receipt"
-        String apiId = "iamsosecretApiId"
-        [rText1, rText2, rTeText1, rTeText2].each {
-            it.addToReceipts(apiId:apiId, contactNumberAsString:"1112223333")
-            it.save(flush:true, failOnError:true)
-        }
-        service.socketService = Mock(SocketService)
-
-        when: "nonexistent apiId"
-        Result res = service.updateStatus(ReceiptStatus.SUCCESS, "nonexistentApiId")
-
-        then:
-        0 * service.socketService.sendItems(*_)
-        res.success == false
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "recordService.updateStatus.receiptsNotFound"
-
-        when: "existing with valid status"
-        res = service.updateStatus(ReceiptStatus.SUCCESS, apiId)
-
-        then:
-        1 * service.socketService.sendItems(*_)
-        res.success == true
-        res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response {} }
-
-        when: "existing with invalid status"
-        res = service.updateStatus(null, apiId)
-
-        then:
-        0 * service.socketService.sendItems(*_)
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
     }
 
     // Create

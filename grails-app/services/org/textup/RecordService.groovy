@@ -5,9 +5,7 @@ import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
-import org.textup.util.OptimisticLockingRetry
 import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.*
 import org.textup.validator.action.*
@@ -20,41 +18,7 @@ class RecordService {
     GrailsApplication grailsApplication
     MediaService mediaService
     ResultFactory resultFactory
-    SocketService socketService
     StorageService storageService
-    TwimlBuilder twimlBuilder
-
-    // Status
-    // ------
-
-    @OptimisticLockingRetry
-    Result<Closure> updateStatus(ReceiptStatus status, String apiId, Integer duration=null) {
-        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
-        if (receipts) {
-            List<RecordItem> items = []
-            for (receipt in receipts) {
-                RecordItem item = receipt.item
-                receipt.status = status
-                if (duration && item.instanceOf(RecordCall)) {
-                    (item as RecordCall).durationInSeconds = duration
-                }
-                if (!receipt.save()) {
-                    return resultFactory.failWithValidationErrors(receipt.errors)
-                }
-                if (!item.save()) {
-                    return resultFactory.failWithValidationErrors(item.errors)
-                }
-                items << item
-            }
-            //send items with updated status through socket
-            socketService.sendItems(items, Constants.SOCKET_EVENT_RECORD_STATUSES)
-            twimlBuilder.noResponse()
-        }
-        else {
-            resultFactory.failWithCodeAndStatus("recordService.updateStatus.receiptsNotFound",
-                ResultStatus.NOT_FOUND, [apiId])
-        }
-    }
 
     // Create
     // ------

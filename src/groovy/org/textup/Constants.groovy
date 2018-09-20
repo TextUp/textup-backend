@@ -62,18 +62,11 @@ class Constants {
 	static final List<String> DAYS_OF_WEEK = ["sunday", "monday", "tuesday",
 		"wednesday", "thursday", "friday", "saturday"]
 
-	// Receipt statuses
-	// ----------------
-
-    static final List<String> FAILED_STATUSES = ["failed", "undelivered"]
-    static final List<String> PENDING_STATUSES = ["in-progress", "ringing",
-    	"queued", "accepted", "sending", "receiving"]
-    static final List<String> BUSY_STATUSES = ["busy", "no-answer"]
-
     // Calls and texts
     // ---------------
 
 	static final String CALLBACK_STATUS = "status"
+	static final String CALLBACK_CHILD_CALL_NUMBER_KEY = "childStatusNumber"
 
 	static final String TEXT_SEE_ANNOUNCEMENTS = "0"
 	static final String TEXT_TOGGLE_SUBSCRIBE = "1"

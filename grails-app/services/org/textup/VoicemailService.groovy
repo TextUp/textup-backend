@@ -56,18 +56,19 @@ class VoicemailService {
         }
     }
 
-    ResultGroup<RecordItemReceipt> storeVoicemail(String callId, int voicemailDuration) {
-        ResultGroup<RecordItemReceipt> resGroup = new ResultGroup<>()
+    ResultGroup<RecordCall> storeVoicemail(String callId, int voicemailDuration) {
+        ResultGroup<RecordCall> resGroup = new ResultGroup<>()
         List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(callId)
-        for (receipt in receipts) {
-            RecordItem item = receipt.item
+        Collection<RecordItem> rItems = receipts*.item.unique()
+        for (RecordItem item in rItems) {
             if (item.instanceOf(RecordCall)) {
                 RecordCall call = item as RecordCall
                 call.hasAwayMessage = true // proxied to hasVoicemail in RecordCall
                 call.voicemailInSeconds = voicemailDuration
+                call.voicemailKey = callId
                 call.record.updateLastRecordActivity()
                 if (call.save() && call.record.save()) {
-                    resGroup << resultFactory.success(receipt)
+                    resGroup << resultFactory.success(call)
                 }
                 else if (!call.save()) {
                     resGroup << resultFactory.failWithValidationErrors(call.errors)
@@ -78,14 +79,14 @@ class VoicemailService {
             }
         }
         // send updated items with receipts through socket
-        socketService.sendItems(resGroup.payload*.item)
+        socketService.sendItems(resGroup.payload)
         resGroup
     }
 
-    String getVoicemailUrl(RecordItemReceipt receipt) {
-        if (receipt) {
+    String getVoicemailUrl(String voicemailKey) {
+        if (voicemailKey) {
             Result<URL> res = storageService
-                .generateAuthLink(receipt.apiId)
+                .generateAuthLink(voicemailKey)
                 .logFail("VoicemailService.getVoicemailUrl")
             res.success ? res.payload.toString() : ""
         }

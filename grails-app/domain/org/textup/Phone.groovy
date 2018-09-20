@@ -133,9 +133,9 @@ class Phone {
     // --------------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static HashSet<Phone> getPhonesForRecords(List<Record> recs) {
+    static HashSet<Phone> getPhonesForRecords(Collection<Record> recs) {
         if (!recs) { return new HashSet<Phone>() }
-        List<Phone> cPhones = Contact.createCriteria().list {
+        Collection<Phone> cPhones = Contact.createCriteria().list {
                 projections { property("phone") }
                 "in"("record", recs)
                 eq("isDeleted", false)
@@ -621,7 +621,7 @@ class Phone {
                 ])
         }
     }
-    ResultGroup<RecordItemReceipt> completeVoicemail(String callId, String recordingId,
+    ResultGroup<RecordCall> completeVoicemail(String callId, String recordingId,
         String voicemailUrl, Integer voicemailDuration) {
         // move the encrypted voicemail to s3 and delete recording at Twilio
         Result<String> res = phoneService.moveVoicemail(callId, recordingId, voicemailUrl)

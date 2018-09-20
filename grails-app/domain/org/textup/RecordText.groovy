@@ -68,8 +68,8 @@ class RecordText extends RecordItem implements ReadOnlyRecordText {
     int getNumSegments() {
         int totalNumSegments = 0
         this.receipts?.each { RecordItemReceipt rpt1 ->
-            if (rpt1.numSegments) {
-                totalNumSegments += rpt1.numSegments
+            if (rpt1.numBillable) {
+                totalNumSegments += rpt1.numBillable
             }
         }
         totalNumSegments

@@ -941,4 +941,8 @@ databaseChangeLog = {
 	include file: 'media-element-version-rename-reserved-column.groovy'
 
 	include file: 'cost-calculation-metrics.groovy'
+
+	include file: 'generalize-receipt-cost-tracking.groovy'
+
+	include file: 'migrate-existing-call-cost-tracking.groovy'
 }

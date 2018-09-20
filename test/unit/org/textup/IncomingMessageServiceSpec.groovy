@@ -385,15 +385,20 @@ class IncomingMessageServiceSpec extends CustomSpec {
         Result<Closure> res = service.handleNotificationsForIncomingCall(p1, sess1, notifs)
         Map numParams = [handle:CallResponse.SCREEN_INCOMING, originalFrom: sess1.number.e164PhoneNumber]
 
+        String firstNum = notifs[0].staff.personalPhoneNumber.e164PhoneNumber,
+            secondNum = notifs[1].staff.personalPhoneNumber.e164PhoneNumber
+
         then: "response includes unique set of all numbers to call"
         res.status == ResultStatus.OK
         // need to test presence of number elements separately because we pass in a set, which
         // does not guaranteee iteration order
         TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
-            Number(url:numParams.toString(), notifs[0].staff.personalPhoneNumber.e164PhoneNumber)
+            Number(statusCallback: service.twimlBuilder.buildChildCallStatus(firstNum),
+                url: numParams.toString(), firstNum)
         })
         TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
-            Number(url:numParams.toString(), notifs[1].staff.personalPhoneNumber.e164PhoneNumber)
+            Number(statusCallback: service.twimlBuilder.buildChildCallStatus(secondNum),
+                url:numParams.toString(), secondNum)
         })
     }
 
@@ -551,7 +556,9 @@ class IncomingMessageServiceSpec extends CustomSpec {
         TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
             Response {
                 Say("twimlBuilder.call.selfConnecting")
-                Dial(callerId:p1.number.e164PhoneNumber) { Number(numAsString) }
+                Dial(callerId:p1.number.e164PhoneNumber) {
+                    Number(statusCallback: service.twimlBuilder.buildChildCallStatus(numAsString), numAsString)
+                }
                 Say("twimlBuilder.call.goodbye")
                 Hangup()
             }

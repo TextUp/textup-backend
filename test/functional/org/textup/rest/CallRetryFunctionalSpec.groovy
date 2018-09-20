@@ -11,8 +11,7 @@ import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
 import org.textup.job.FutureMessageJob
-import org.textup.type.FutureMessageType
-import org.textup.type.ReceiptStatus
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
@@ -58,6 +57,8 @@ class CallRetryFunctionalSpec extends RestSpec {
                 }
                 ctx.resultFactory.success(tempReceipt)
             }
+            // make threadService execute within this same thread synchronously for testing
+            ctx.threadService.metaClass.submit = { Closure action -> action(); return null; }
             return
         }.curry(_numbers, _firstApiId, _retryApiId))
     }
@@ -127,7 +128,8 @@ class CallRetryFunctionalSpec extends RestSpec {
         form.add("CallSid", _firstApiId)
         form.add("From", "1112223333")
         form.add("To", _numbers[0])
-        form.add("CallStatus", Constants.FAILED_STATUSES[0])
+        form.add("CallStatus", ReceiptStatus.FAILED.statuses[0])
+        form.add("CallDuration", "88")
         String requestUrl = "${baseUrl}/v1/public/records?"
         requestUrl += "handle=${Constants.CALLBACK_STATUS}"
         requestUrl += "&remaining=+1${_numbers[1..-1]}"

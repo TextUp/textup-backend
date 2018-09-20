@@ -63,11 +63,11 @@ class RecordItemSpec extends Specification {
         rItem.receipts[0].status != null
         rItem.receipts[0].apiId != null
         rItem.receipts[0].contactNumberAsString != null
-        rItem.receipts[0].numSegments != null
+        rItem.receipts[0].numBillable != null
         rItem.receipts[0].status == temp1.status
         rItem.receipts[0].apiId == temp1.apiId
         rItem.receipts[0].contactNumberAsString == temp1.contactNumberAsString
-        rItem.receipts[0].numSegments == temp1.numSegments
+        rItem.receipts[0].numBillable == temp1.numSegments
     }
 
     void "test adding author"() {

@@ -120,6 +120,18 @@ class TwimlBuilderSpec extends CustomSpec {
         TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({ Response { } })
     }
 
+    void "test building child call status callback"() {
+        when:
+        String randString = TestHelpers.randString()
+        String link = builder.buildChildCallStatus(randString)
+
+        then:
+        link.contains('handle')
+        link.contains(Constants.CALLBACK_STATUS)
+        link.contains(Constants.CALLBACK_CHILD_CALL_NUMBER_KEY)
+        link.contains(randString)
+    }
+
     // Texts
     // -----
 
@@ -359,7 +371,9 @@ class TwimlBuilderSpec extends CustomSpec {
         TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
                 Say("twimlBuilder.call.selfConnecting")
-                Dial(callerId:displayNum) { Number(num) }
+                Dial(callerId:displayNum) {
+                    Number(statusCallback: builder.buildChildCallStatus(num), num)
+                }
                 Say("twimlBuilder.call.goodbye")
                 Hangup()
             }
@@ -445,7 +459,8 @@ class TwimlBuilderSpec extends CustomSpec {
             Response {
                 Dial(callerId:dispNum, timeout:"15", answerOnBridge:true,
                     action:linkParams.toString()) {
-                    Number(url:linkParams.toString(), num)
+                    Number(statusCallback: builder.buildChildCallStatus(num),
+                        url:linkParams.toString(), num)
                 }
             }
         })
@@ -518,7 +533,8 @@ class TwimlBuilderSpec extends CustomSpec {
                 Pause(length:"1")
                 Say("twimlBuilder.call.bridgeNumberStart")
                 Dial(timeout:"60", hangupOnStar:"true") {
-                    Number(cNum1.e164PhoneNumber)
+                    Number(statusCallback: builder.buildChildCallStatus(cNum1.e164PhoneNumber),
+                        cNum1.e164PhoneNumber)
                 }
                 Say("twimlBuilder.call.bridgeNumberFinish")
                 Pause(length:"5")
@@ -540,12 +556,14 @@ class TwimlBuilderSpec extends CustomSpec {
                 Say("twimlBuilder.call.bridgeNumberStart")
                 Say("twimlBuilder.call.bridgeNumberSkip")
                 Dial(timeout:"60", hangupOnStar:"true") {
-                    Number(cNum1.e164PhoneNumber)
+                    Number(statusCallback: builder.buildChildCallStatus(cNum1.e164PhoneNumber),
+                        cNum1.e164PhoneNumber)
                 }
                 Say("twimlBuilder.call.bridgeNumberFinish")
                 Say("twimlBuilder.call.bridgeNumberStart")
                 Dial(timeout:"60", hangupOnStar:"true") {
-                    Number(cNum2.e164PhoneNumber)
+                    Number(statusCallback: builder.buildChildCallStatus(cNum2.e164PhoneNumber),
+                        cNum2.e164PhoneNumber)
                 }
                 Say("twimlBuilder.call.bridgeNumberFinish")
                 Pause(length:"5")

@@ -71,7 +71,7 @@ class OutgoingCallFunctionalSpec extends RestSpec {
                 numReceipts:RecordItemReceipt.count()
             ]
         })
-        // send text
+        // send call
         response = rest.post("${baseUrl}/v1/records") {
             contentType("application/json")
             header("Authorization", "Bearer $authToken")
@@ -121,5 +121,9 @@ class OutgoingCallFunctionalSpec extends RestSpec {
         then:
         response.status == OK.value()
         response.xml.Dial.size() > 0
+        response.xml.Dial.Number.every {
+            it.@statusCallback.toString().contains(Constants.CALLBACK_STATUS) &&
+                it.@statusCallback.toString().contains(Constants.CALLBACK_CHILD_CALL_NUMBER_KEY)
+        }
     }
 }

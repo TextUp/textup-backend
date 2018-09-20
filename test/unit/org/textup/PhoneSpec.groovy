@@ -959,7 +959,7 @@ class PhoneSpec extends CustomSpec {
         res.payload == CallResponse.CHECK_IF_VOICEMAIL
 
         when: "completing voicemail when recording is done processing"
-        ResultGroup<RecordItemReceipt> resGroup = p1
+        ResultGroup<RecordCall> resGroup = p1
             .completeVoicemail("callId", "recordingId", "http://www.example.com", 88)
 
         then:

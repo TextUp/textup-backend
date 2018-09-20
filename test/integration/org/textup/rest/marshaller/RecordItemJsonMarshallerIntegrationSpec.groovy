@@ -43,15 +43,17 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
     void "test marshalling voicemail"() {
         given: "call"
         RecordCall rCall1 = new RecordCall(record: rec,
-            durationInSeconds: 88,
             voicemailInSeconds: 12,
+            voicemailKey: "key",
             hasAwayMessage: true,
             noteContets: "hello",
             authorName: "yes",
             authorId: 88L,
             authorType: AuthorType.STAFF,
             media: new MediaInfo())
-        rCall1.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.BUSY))
+        RecordItemReceipt rpt1 = TestHelpers.buildReceipt(ReceiptStatus.BUSY)
+        rpt1.numBillable = 88
+        rCall1.addToReceipts(rpt1)
         rCall1.save(flush:true, failOnError:true)
 
     	when:
@@ -72,7 +74,6 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
     void "test marshalling call without voicemail"() {
         given: "call"
         RecordCall rCall1 = new RecordCall(record: rec,
-            durationInSeconds: 88,
             voicemailInSeconds: 0,
             hasAwayMessage: false,
             noteContets: "hello",
@@ -80,7 +81,9 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
             authorId: 88L,
             authorType: AuthorType.STAFF,
             media: new MediaInfo())
-        rCall1.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.BUSY))
+        RecordItemReceipt rpt1 = TestHelpers.buildReceipt(ReceiptStatus.BUSY)
+        rpt1.numBillable = 88
+        rCall1.addToReceipts(rpt1)
         rCall1.save(flush:true, failOnError:true)
 
         when:
@@ -125,7 +128,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
     void "test marshalling note with revisions, location, images, upload links"() {
         given: "note with revisions, location, images, upload links"
         RecordNote note1 = new RecordNote(record: rec,
-            noteContets: "i am note contents",
+            noteContents: "i am note contents",
             authorName: "yes",
             authorId: 88L,
             authorType: AuthorType.STAFF,

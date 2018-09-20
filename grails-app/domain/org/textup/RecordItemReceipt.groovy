@@ -17,7 +17,7 @@ class RecordItemReceipt {
     //used for finding the RecordItem in a StatusCallback
     String apiId
     String contactNumberAsString
-    Integer numSegments // only for text message receipts
+    Integer numBillable // text messages = segments, calls = duration in seconds
 
     @RestApiObjectField(
         description="Status of communication. Allowed: FAILED, PENDING, BUSY, SUCCESS",
@@ -38,7 +38,7 @@ class RecordItemReceipt {
         contactNumberAsString validator:{ String val, RecordItemReceipt obj ->
             if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
-        numSegments nullable: true, min: 0
+        numBillable nullable: true, min: 0
     }
 
     // Property Access

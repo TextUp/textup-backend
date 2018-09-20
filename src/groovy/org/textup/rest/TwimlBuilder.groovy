@@ -115,6 +115,13 @@ class TwimlBuilder {
             params:linkParams, absolute:true)
     }
     @GrailsTypeChecked
+    protected String buildChildCallStatus(String number) {
+        getLink([
+            handle:Constants.CALLBACK_STATUS,
+            (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): number
+        ])
+    }
+    @GrailsTypeChecked
     protected List<String> formatAnnouncements(List<FeaturedAnnouncement> announces) {
         if (announces) {
             announces.collect { FeaturedAnnouncement announce ->
@@ -195,7 +202,10 @@ class TwimlBuilder {
                         goodbye = getMessage("twimlBuilder.call.goodbye")
                     callBody = {
                         Say(connecting)
-                        Dial(callerId:params.displayedNumber) { Number(params.numAsString) }
+                        Dial(callerId:params.displayedNumber) {
+                            Number(statusCallback: buildChildCallStatus(params.numAsString),
+                                params.numAsString)
+                        }
                         Say(goodbye)
                         Hangup()
                     }
@@ -224,7 +234,8 @@ class TwimlBuilder {
                         Dial(callerId:params.displayedNumber, timeout:"15", answerOnBridge:true,
                             action:checkVoicemailWebhook) {
                             for (num in params.numsToCall) {
-                                Number(url:getLink(params.screenParams), num)
+                                Number(statusCallback: buildChildCallStatus(num),
+                                    url:getLink(params.screenParams), num)
                             }
                         }
                     }
@@ -292,7 +303,8 @@ class TwimlBuilder {
                                 // increase the timeout a bit to allow a longer window
                                 // for the called party's voicemail to answer
                                 Dial(timeout:"60", hangupOnStar:"true") {
-                                    Number(num.e164PhoneNumber)
+                                    Number(statusCallback: buildChildCallStatus(num.e164PhoneNumber),
+                                        num.e164PhoneNumber)
                                 }
                                 Say(getMessage("twimlBuilder.call.bridgeNumberFinish", [numForSay]))
                             }

@@ -1,27 +1,34 @@
 package org.textup.type
 
-import org.textup.Constants
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 enum ReceiptStatus {
-	FAILED,
-	PENDING,
-	BUSY,
-	SUCCESS
+	FAILED(["failed", "undelivered"]),
+	PENDING(["in-progress", "ringing", "queued", "accepted", "sending", "receiving"]),
+	BUSY(["busy", "no-answer"]),
+	SUCCESS(["completed", "canceled", "sent", "delivered"])
 
-	static String translate(String status) {
-		if (status in Constants.FAILED_STATUSES) {
-			FAILED
+	private final Collection<String> statuses
+	ReceiptStatus(Collection<String> thisStatuses) { this.statuses = thisStatuses }
+	Collection<String> getStatuses() { Collections.unmodifiableCollection(this.statuses) }
+
+	static ReceiptStatus translate(String status) {
+		if (!status) {
+			return
 		}
-		else if (status in Constants.PENDING_STATUSES) {
-			PENDING
+		String cleanedStatus = status.toLowerCase()
+		if (cleanedStatus in FAILED.statuses) {
+			return FAILED
 		}
-		else if (status in Constants.BUSY_STATUSES) {
-			BUSY
+		else if (cleanedStatus in PENDING.statuses) {
+			return PENDING
 		}
-		else {
-			SUCCESS
+		else if (cleanedStatus in BUSY.statuses) {
+			return BUSY
+		}
+		else if (cleanedStatus in SUCCESS.statuses) {
+			return SUCCESS
 		}
 	}
 }
