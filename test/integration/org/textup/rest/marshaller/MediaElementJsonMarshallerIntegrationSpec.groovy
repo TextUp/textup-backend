@@ -13,7 +13,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
     void "test marshalling element"() {
         given:
         MediaElementVersion mVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            versionId: UUID.randomUUID().toString(),
+            versionId: TestHelpers.randString(),
             sizeInBytes: 888,
             widthInPixels: 12345,
             heightInPixels: 34567)
@@ -30,7 +30,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
         json.uid == e1.uid
         json.type == e1.type.mimeType
         json[MediaVersion.LARGE.displayName] instanceof Map
-        json[MediaVersion.LARGE.displayName].link == mVers.getLink().toString()
+        json[MediaVersion.LARGE.displayName].link.contains(mVers.versionId)
         json[MediaVersion.LARGE.displayName].width == mVers.inherentWidth
         json[MediaVersion.LARGE.displayName].width == mVers.widthInPixels
         json[MediaVersion.LARGE.displayName].height == mVers.heightInPixels
@@ -39,7 +39,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
 
         when: "element with array of display versions"
         MediaElementVersion dVers = new MediaElementVersion(mediaVersion: MediaVersion.MEDIUM,
-            versionId: UUID.randomUUID().toString(),
+            versionId: TestHelpers.randString(),
             sizeInBytes: 888,
             widthInPixels: 12345,
             heightInPixels: 34567)
@@ -54,7 +54,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
         json.type == e1.type.mimeType
         json[MediaVersion.LARGE.displayName] == null
         json[MediaVersion.MEDIUM.displayName] instanceof Map
-        json[MediaVersion.MEDIUM.displayName].link == dVers.getLink().toString()
+        json[MediaVersion.MEDIUM.displayName].link.contains(dVers.versionId)
         json[MediaVersion.MEDIUM.displayName].width == dVers.inherentWidth
         json[MediaVersion.MEDIUM.displayName].width == dVers.widthInPixels
         json[MediaVersion.MEDIUM.displayName].height == dVers.heightInPixels
