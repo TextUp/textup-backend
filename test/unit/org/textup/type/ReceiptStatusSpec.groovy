@@ -11,5 +11,6 @@ class ReceiptStatusSpec extends Specification {
         ReceiptStatus.translate("ComPLETED") == ReceiptStatus.SUCCESS
         ReceiptStatus.translate("NO-ANSWER") == ReceiptStatus.BUSY
         ReceiptStatus.translate("in-progreSS") == ReceiptStatus.PENDING
+        ReceiptStatus.translate("SENT") == ReceiptStatus.SUCCESS
     }
 }

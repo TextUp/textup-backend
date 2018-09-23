@@ -5,9 +5,12 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 enum ReceiptStatus {
 	FAILED(["failed", "undelivered"]),
-	PENDING(["in-progress", "ringing", "queued", "accepted", "sending", "receiving", "sent"]),
+	PENDING(["in-progress", "ringing", "queued", "accepted", "sending", "receiving"]),
 	BUSY(["busy", "no-answer"]),
-	SUCCESS(["completed", "canceled", "delivered"])
+	// the 'sent' status is for when Twilio doesn't receive an additional confirmation from the
+	// carrier that the message has sent. However, this 'sent' status should still represent
+	// a successful status
+	SUCCESS(["sent", "completed", "canceled", "delivered"])
 
 	private final Collection<String> statuses
 	ReceiptStatus(Collection<String> thisStatuses) { this.statuses = thisStatuses }
