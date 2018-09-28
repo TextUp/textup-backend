@@ -44,7 +44,6 @@ grails.project.dependency.resolution = {
         //mavenRepo "http://repository.codehaus.org"
         //mavenRepo "http://download.java.net/maven/2/"
         //mavenRepo "http://repository.jboss.com/maven2/"
-
         //for springsecurity rest
         mavenRepo "http://repo.spring.io/milestone"
     }
@@ -83,6 +82,7 @@ grails.project.dependency.resolution = {
 
         // for spring security rest 1.5.3
         compile "xml-apis:xml-apis:1.4.01"
+
         // for encrypted jwts, exclude outdated dependencies to prevent conflict
         // see Token Storage section of spring-security-rest docs for 1.5.3
         // build("com.lowagie:itext:2.0.8") {

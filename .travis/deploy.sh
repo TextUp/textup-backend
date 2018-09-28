@@ -2,12 +2,17 @@
 #
 # Deploy Grails app
 
-user=$1
-host=$2
-identity=$3
-war_directory=$4
-war_name=$5
-remote_script=$6
+set -e
 
-scp -oStrictHostKeyChecking=no -i ${identity} ${war_directory}/${war_name} ${user}@${host}:~
-ssh -oStrictHostKeyChecking=no -i ${identity} ${user}@${host} 'bash -s' -- < ${remote_script} ${war_name}
+REMOTE_USER=$1
+REMOTE_HOST=$2
+REMOTE_KEY=$3
+WAR_DIRECTORY=$4
+WAR_NAME=$5
+
+REMOTE_SCRIPT="./travis/remote/deploy.sh"
+
+chmod +x "$REMOTE_SCRIPT"
+
+scp -oStrictHostKeyChecking=no -i "${REMOTE_KEY}" "${WAR_DIRECTORY}/${WAR_NAME}" "${REMOTE_USER}@${REMOTE_HOST}":~
+ssh -oStrictHostKeyChecking=no -i "${REMOTE_KEY}" "${REMOTE_USER}@${REMOTE_HOST}" "bash -s" -- < "$REMOTE_SCRIPT" "${WAR_NAME}"

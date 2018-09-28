@@ -51,9 +51,9 @@ grails {
             encoding = 'UTF-8'
             htmlcodec = 'xml' // use xml escaping instead of HTML4 escaping
             codecs {
-                expression = 'html' // escapes values inside ${}
-                scriptlet = 'html' // escapes output from scriptlets in GSPs
-                taglib = 'none' // escapes output from taglibs
+                expression  = 'html' // escapes values inside ${}
+                scriptlet   = 'html' // escapes output from scriptlets in GSPs
+                taglib      = 'none' // escapes output from taglibs
                 staticparts = 'none' // escapes output from static template parts
             }
         }
@@ -89,14 +89,14 @@ grails.hibernate.osiv.readonly = false
 
 environments {
     development {
-        grails.logging.jul.usebridge = true
+        grails.logging.jul.usebridge                  = true
         grails.plugin.databasemigration.updateOnStart = false
-        grails.plugin.console.baseUrl="http://localhost:8080/console"
+        grails.plugin.console.baseUrl                 ="http://localhost:8080/console"
     }
     production {
-        grails.logging.jul.usebridge = false
-        grails.serverURL = System.getenv("TEXTUP_BACKEND_SERVER_URL") ?: System.getProperty("TEXTUP_BACKEND_SERVER_URL")
-        grails.plugin.databasemigration.updateOnStart = true
+        grails.logging.jul.usebridge                           = false
+        grails.serverURL                                       = System.getenv("TEXTUP_BACKEND_SERVER_URL") ?: System.getProperty("TEXTUP_BACKEND_SERVER_URL")
+        grails.plugin.databasemigration.updateOnStart          = true
         grails.plugin.databasemigration.updateOnStartFileNames = ['changelog.groovy']
         // ignore all of the Quartz scheduler tables created via direct SQL execution
         grails.plugin.databasemigration.ignoredObjects = [
@@ -200,10 +200,10 @@ grails.plugins.restapidoc.customClassName="org.textup.rest.CustomResponseDoc"
 grails.plugins.restapidoc.outputFileGeneration="web-app/restapidoc.json"
 grails.plugins.restapidoc.outputFileReading="restapidoc.json"
 //General developer documentation
-grails.doc.title = "TextUp"
+grails.doc.title    = "TextUp"
 grails.doc.subtitle = "A getting started guide to the backend and frontend codebases that make up the TextUp application"
-grails.doc.authors = "Eric Bai"
-grails.doc.license = "MIT"
+grails.doc.authors  = "Eric Bai"
+grails.doc.license  = "MIT"
 
 // Custom constraints
 ConstrainedProperty.registerNewConstraint(
@@ -224,18 +224,18 @@ textup {
     media {
         bucketName = System.getenv("TEXTUP_BACKEND_STORAGE_BUCKET_NAME") ?: System.getProperty("TEXTUP_BACKEND_STORAGE_BUCKET_NAME")
         cdn {
-            root = System.getenv("TEXTUP_BACKEND_CDN_ROOT") ?: System.getProperty("TEXTUP_BACKEND_CDN_ROOT")
-            keyId = System.getenv("TEXTUP_BACKEND_CDN_KEY_ID") ?: System.getProperty("TEXTUP_BACKEND_CDN_KEY_ID")
+            root           = System.getenv("TEXTUP_BACKEND_CDN_ROOT") ?: System.getProperty("TEXTUP_BACKEND_CDN_ROOT")
+            keyId          = System.getenv("TEXTUP_BACKEND_CDN_KEY_ID") ?: System.getProperty("TEXTUP_BACKEND_CDN_KEY_ID")
             privateKeyPath = System.getenv("TEXTUP_BACKEND_CDN_PRIVATE_KEY_PATH") ?: System.getProperty("TEXTUP_BACKEND_CDN_PRIVATE_KEY_PATH")
         }
     }
     mail {
         standard {
-            name = "TextUp Notification"
+            name  = "TextUp Notification"
             email = "no-reply@textup.org"
         }
         self {
-            name = "TextUp"
+            name  = "TextUp"
             email = "connect@textup.org"
         }
     }
@@ -246,9 +246,6 @@ textup {
         passwordReset  = System.getenv("TEXTUP_BACKEND_URL_PASSWORD_RESET") ?: System.getProperty("TEXTUP_BACKEND_URL_PASSWORD_RESET")
         notifyMessage  = System.getenv("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE") ?: System.getProperty("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE")
     }
-
-    //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
-    //in the format: JAVA_OPTS="${JAVA_OPTS} -Dkey=value"
     apiKeys {
         twilio {
             appId              = System.getenv("TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID")

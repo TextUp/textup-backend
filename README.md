@@ -8,6 +8,10 @@ TextUp Grails backend
 
 ## Installation
 
+### Git Large File Storage
+
+We version control static compiled binaries in the `vendor/` folder using [Git LFS](https://git-lfs.github.com/). See the Git LFS website for instructions on how to install.
+
 ### Using Grails wrapper
 
 * Make sure the `grailsw` is executable: `chmod +x grailsw`
@@ -17,6 +21,12 @@ TextUp Grails backend
 
 * [Install SDKMAN!](http://sdkman.io/install.html)
 * `sdk install grails 2.4.4`
+
+## Adding Let's Encrypt certificates
+
+Depending on which version of the Java SDK you are using, you may need to manually add the certificates for the Let's Encrypt certificate authority to the keystore. Some of the external Maven repos we pull dependencies from may use certificates from Let's Encrypt and we need to be able to successfully resolve the SSH connections in order to install key dependencies.
+
+If needed, a script to automatically pull and install the Let's Encrypt certificates is located at `.install/add-lets-encrypt-certs.sh`. Before running the script, make sure that the `$JAVA_HOME` environment variable is set and that `wget` is installed. Afterwards, this script can be run as such: `.install/add-lets-encrypt-certs.sh $JAVA_HOME`
 
 ## Databases
 
@@ -38,92 +48,27 @@ Storage directory must be hardcoded in `grails-app/conf/GrailsMelodyConfig.groov
 
 Make sure user and group for this folder are both `tomcat7`: `sudo chown -R tomcat7:tomcat7 /grails-monitoring`
 
-### Development (local)
+### Shared environment variables
 
-* `AWS_ACCESS_KEY`: secure token
-* `AWS_SECRET_KEY`: secure token
-* `CDN_KEY_ID`: secure token
-* `CDN_PRIVATE_KEY_PATH`: usually `/cloudfront-2017-private.der`
-* `CDN_ROOT`: usually `staging-media.textup.org`
-* **`ENABLE_QUARTZ`: should be `false`**
-* `PUSHER_API_KEY`: secure token
-* `PUSHER_API_SECRET`: secure token
-* `RECAPTCHA_SECRET`: secure token
-* `SENDGRID_API_KEY`: secure token
-* `STORAGE_BUCKET_NAME`: usually `staging-media-textup-org`
-* `TWILIO_AUTH`: secure token, should be **test credential**
-* `TWILIO_NOTIFICATIONS_NUMBER`: usually `+14012878632`
-* `TWILIO_NUMBER_APP_ID`: secure token
-* `TWILIO_SID`: secure token, should be **test credential**
-* `TWILIO_TEST_AUTH`: secure token, should be **test credential**
-* `TWILIO_TEST_SID`: secure token, should be **test credential**
-* `URL_ADMIN_DASHBOARD`: usually `http://demo.textup.org/#/admin`
-* `URL_NOTIFY_MESSAGE`: usually `http://demo.textup.org/#/notify?token=`
-* `URL_PASSWORD_RESET`: usually `http://demo.textup.org/#/reset?token=`
-* `URL_SETUP_ACCOUNT`: usually `http://demo.textup.org/#/setup`
-* `URL_SUPER_DASHBOARD`: usually `https://dev.textup.org/super`
+See any of the files in `.travis/env-variables/` for a comprehensive list of environment variables. These environment variables used in [staging](https://dev.textup.org) and [production](https://v2.textup.org) are common to all environments with the following exceptions grouped by environment:
 
-### [Travis CI](https://travis-ci.org/TextUp/textup-backend) (testing and deployment)
+#### Development (local)
 
-Travis uses the same values as the development environment except for the following additions and modifications:
+* Do not need `TEXTUP_BACKEND_SERVER_URL`
 
-* `CDN_PRIVATE_KEY_PATH`: should be `$TRAVIS_BUILD_DIR/.travis/test.pem`
-* `HOSTNAME_PRODUCTION`: should be `https://v2.textup.org`
-* `HOSTNAME_STAGING`: should be `https://dev.textup.org`
-* `USER_PRODUCTION`: username of production machine
-* `USER_STAGING`: username of staging machine
+#### [Testing](https://travis-ci.org/TextUp/textup-backend)
 
-### [Staging](https://dev.textup.org)
+* Do not need `TEXTUP_BACKEND_SERVER_URL`
+* `TEXTUP_BACKEND_CDN_PRIVATE_KEY_PATH`: should be `$TRAVIS_BUILD_DIR/.travis/test.pem`
 
-* `AWS_ACCESS_KEY`: secure token
-* `AWS_SECRET_KEY`: secure token
-* `CDN_KEY_ID`: secure token
-* `CDN_PRIVATE_KEY_PATH`: usually `/cloudfront-2017-private.der`
-* `CDN_ROOT`: usually `staging-media.textup.org`
-* **`DB_PASSWORD`: secure value**
-* **`DB_USERNAME`: secure value**
-* **`ENABLE_QUARTZ`: should be `true`**
-* `PUSHER_API_KEY`: secure token
-* `PUSHER_API_SECRET`: secure token
-* `RECAPTCHA_SECRET`: secure token
-* `SENDGRID_API_KEY`: secure token
-* **`SERVER_URL`: usually `https://dev.textup.org`**
-* `STORAGE_BUCKET_NAME`: usually `staging-media-textup-org`
-* `TWILIO_AUTH`: secure token, can be either test or production credentials
-* `TWILIO_NOTIFICATIONS_NUMBER`: usually `+14012878632`
-* `TWILIO_NUMBER_APP_ID`: secure token
-* `TWILIO_SID`: secure token, can be either test or production credentials
-* `URL_ADMIN_DASHBOARD`: usually `http://demo.textup.org/#/admin`
-* `URL_NOTIFY_MESSAGE`: usually `http://demo.textup.org/#/notify?token=`
-* `URL_PASSWORD_RESET`: usually `http://demo.textup.org/#/reset?token=`
-* `URL_SETUP_ACCOUNT`: usually `http://demo.textup.org/#/setup`
-* `URL_SUPER_DASHBOARD`: usually `https://dev.textup.org/super`
+#### Deployment
 
-### [Production](https://v2.textup.org)
+These environment variables are used for deployment by [Travis CI](https://travis-ci.org/TextUp/textup-backend).
 
-* `AWS_ACCESS_KEY`: secure token
-* `AWS_SECRET_KEY`: secure token
-* `CDN_KEY_ID`: secure token
-* `CDN_PRIVATE_KEY_PATH`: usually `/cloudfront-2017-private.der`
-* `CDN_ROOT`: usually `media.textup.org`
-* **`DB_PASSWORD`: secure value**
-* **`DB_USERNAME`: secure value**
-* **`ENABLE_QUARTZ`: should be `true`**
-* `PUSHER_API_KEY`: secure token
-* `PUSHER_API_SECRET`: secure token
-* `RECAPTCHA_SECRET`: secure token
-* `SENDGRID_API_KEY`: secure token
-* **`SERVER_URL`: usually `https://v2.textup.org`**
-* `STORAGE_BUCKET_NAME`: usually `media-textup-org`
-* `TWILIO_AUTH`: secure token, should be **production credential**
-* `TWILIO_NOTIFICATIONS_NUMBER`: usually `+14012878632`
-* `TWILIO_NUMBER_APP_ID`: secure token
-* `TWILIO_SID`: secure token, should be **production credential**
-* `URL_ADMIN_DASHBOARD`: usually `https://app.textup.org/#/admin`
-* `URL_NOTIFY_MESSAGE`: usually `https://app.textup.org/#/notify?token=`
-* `URL_PASSWORD_RESET`: usually `https://app.textup.org/#/reset?token=`
-* `URL_SETUP_ACCOUNT`: usually `https://app.textup.org/#/setup`
-* `URL_SUPER_DASHBOARD`: usually `https://v2.textup.org/super`
+* `DEPLOY_HOSTNAME_PRODUCTION`: should be an ip address
+* `DEPLOY_HOSTNAME_STAGING`: should be an ip address
+* `DEPLOY_USER_PRODUCTION`: username of production machine
+* `DEPLOY_USER_STAGING`: username of staging machine
 
 ## Running / Development
 
@@ -174,3 +119,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+---
+
+This project also uses static builds of FFmpeg as libraries for audio processing. FFmpeg is licensed under LGPLv3, but the statically compiled version we use is licensed under GPLv3 because of included optional codecs. See [the FFmpeg website](http://ffmpeg.org/legal.html) for more details on FFmpeg licensing. See the license documents in `vendor/ffmpeg-4.0.2/` for additional information on licensing for the FFmpeg static builds we use.
