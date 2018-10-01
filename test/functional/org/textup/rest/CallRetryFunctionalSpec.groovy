@@ -1,6 +1,7 @@
 package org.textup.rest
 
 import grails.plugins.rest.client.RestResponse
+import java.util.concurrent.TimeUnit
 import java.util.UUID
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
@@ -58,7 +59,9 @@ class CallRetryFunctionalSpec extends RestSpec {
                 ctx.resultFactory.success(tempReceipt)
             }
             // make threadService execute within this same thread synchronously for testing
-            ctx.threadService.metaClass.submit = { Closure action -> action(); return null; }
+            ctx.threadService.metaClass.submit = { long delay, TimeUnit unit, Closure action ->
+                action(); return null;
+            }
             return
         }.curry(_numbers, _firstApiId, _retryApiId))
     }
