@@ -42,6 +42,21 @@ class ThreadServiceSpec extends Specification {
         future.isDone() == true
     }
 
+    void "test wrapping action in new session with delayed execution"() {
+        when:
+        ScheduledFuture<Boolean> schedFuture = service.submit(2, TimeUnit.SECONDS) {
+            Boolean hasSession
+            Organization.withSession { hasSession = !!it }
+            hasSession
+        }
+
+        then:
+        schedFuture.getDelay(TimeUnit.MILLISECONDS) > 0 // returns the remaining delay left
+        schedFuture.get() == true
+        schedFuture.isCancelled() == false
+        schedFuture.isDone() == true
+    }
+
     void "test catching uncaught exceptions"() {
         when:
         Future<Boolean> future = service.submit { throw new NullPointerException("testing") }

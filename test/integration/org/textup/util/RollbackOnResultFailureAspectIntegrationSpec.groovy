@@ -24,7 +24,6 @@ class RollbackOnResultFailureAspectIntegrationSpec extends Specification {
         GenericBeanDefinition beanDef = new GenericBeanDefinition(beanClass: RollbackTestClass,
             autowireMode: AbstractBeanDefinition.AUTOWIRE_BY_NAME)
         grailsApplication.mainContext.registerBeanDefinition('rollbackTestClass', beanDef)
-        grailsApplication.mainContext.getBean(RollbackTestClass)
     }
 
     @FreshRuntime

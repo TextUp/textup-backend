@@ -89,26 +89,13 @@ grails.hibernate.osiv.readonly = false
 
 environments {
     development {
-        textup.apiKeys.twilio.sid = System.getenv("TWILIO_SID") ?: System.getProperty("TWILIO_SID")
-        textup.apiKeys.twilio.authToken = System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
-        textup.apiKeys.twilio.appId="AP762342f6263b687fdc60c12dc9fbded8"
-
         grails.logging.jul.usebridge = true
         grails.plugin.databasemigration.updateOnStart = false
-        grails.serverURL = System.getenv("SERVER_URL") ?: System.getProperty("SERVER_URL")
         grails.plugin.console.baseUrl="http://localhost:8080/console"
     }
-    test {
-        textup.apiKeys.twilio.sid = System.getenv("TWILIO_TEST_SID") ?: System.getProperty("TWILIO_TEST_SID")
-        textup.apiKeys.twilio.authToken = System.getenv("TWILIO_TEST_AUTH") ?: System.getProperty("TWILIO_TEST_AUTH")
-    }
     production {
-        textup.apiKeys.twilio.sid = System.getenv("TWILIO_SID") ?: System.getProperty("TWILIO_SID")
-        textup.apiKeys.twilio.authToken = System.getenv("TWILIO_AUTH") ?: System.getProperty("TWILIO_AUTH")
-        textup.apiKeys.twilio.appId=System.getenv("TWILIO_NUMBER_APP_ID") ?: (System.getProperty("TWILIO_NUMBER_APP_ID") ?: "APe80c7d1e8a78963cde8c95785fdd8c9d")
-
         grails.logging.jul.usebridge = false
-        grails.serverURL = System.getenv("SERVER_URL") ?: (System.getProperty("SERVER_URL") ?: "https://dev.textup.org")
+        grails.serverURL = System.getenv("TEXTUP_BACKEND_SERVER_URL") ?: System.getProperty("TEXTUP_BACKEND_SERVER_URL")
         grails.plugin.databasemigration.updateOnStart = true
         grails.plugin.databasemigration.updateOnStartFileNames = ['changelog.groovy']
         // ignore all of the Quartz scheduler tables created via direct SQL execution
@@ -235,11 +222,11 @@ textup {
     numTimesAccessNotification = 3 // number of times a notification is allowed to be accessed
 
     media {
-        bucketName = System.getenv("STORAGE_BUCKET_NAME") ?: (System.getProperty("STORAGE_BUCKET_NAME") ?: "staging-media-textup-org")
+        bucketName = System.getenv("TEXTUP_BACKEND_STORAGE_BUCKET_NAME") ?: System.getProperty("TEXTUP_BACKEND_STORAGE_BUCKET_NAME")
         cdn {
-            root = System.getenv("CDN_ROOT") ?: (System.getProperty("CDN_ROOT") ?: "staging-media.textup.org")
-            keyId = System.getenv("CDN_KEY_ID") ?: (System.getProperty("CDN_KEY_ID") ?: "APKAJQNKTKVCOMQFPVTA")
-            privateKeyPath = System.getenv("CDN_PRIVATE_KEY_PATH") ?: (System.getProperty("CDN_PRIVATE_KEY_PATH") ?: "/cloudfront-2017-private.der")
+            root = System.getenv("TEXTUP_BACKEND_CDN_ROOT") ?: System.getProperty("TEXTUP_BACKEND_CDN_ROOT")
+            keyId = System.getenv("TEXTUP_BACKEND_CDN_KEY_ID") ?: System.getProperty("TEXTUP_BACKEND_CDN_KEY_ID")
+            privateKeyPath = System.getenv("TEXTUP_BACKEND_CDN_PRIVATE_KEY_PATH") ?: System.getProperty("TEXTUP_BACKEND_CDN_PRIVATE_KEY_PATH")
         }
     }
     mail {
@@ -253,74 +240,77 @@ textup {
         }
     }
     links {
-        adminDashboard = System.getenv("URL_ADMIN_DASHBOARD") ?: (System.getProperty("URL_ADMIN_DASHBOARD") ?: "https://app.textup.org/#/admin")
-        setupAccount = System.getenv("URL_SETUP_ACCOUNT") ?: (System.getProperty("URL_SETUP_ACCOUNT") ?: "https://app.textup.org/#/setup")
-        superDashboard = System.getenv("URL_SUPER_DASHBOARD") ?: (System.getProperty("URL_SUPER_DASHBOARD") ?: "https://v2.textup.org/super")
-        passwordReset = System.getenv("URL_PASSWORD_RESET") ?: (System.getProperty("URL_PASSWORD_RESET") ?: "https://app.textup.org/#/reset?token=")
-        notifyMessage = System.getenv("URL_NOTIFY_MESSAGE") ?: (System.getProperty("URL_NOTIFY_MESSAGE") ?: "https://app.textup.org/#/notify?token=")
+        adminDashboard = System.getenv("TEXTUP_BACKEND_URL_ADMIN_DASHBOARD") ?: System.getProperty("TEXTUP_BACKEND_URL_ADMIN_DASHBOARD")
+        setupAccount   = System.getenv("TEXTUP_BACKEND_URL_SETUP_ACCOUNT") ?: System.getProperty("TEXTUP_BACKEND_URL_SETUP_ACCOUNT")
+        superDashboard = System.getenv("TEXTUP_BACKEND_URL_SUPER_DASHBOARD") ?: System.getProperty("TEXTUP_BACKEND_URL_SUPER_DASHBOARD")
+        passwordReset  = System.getenv("TEXTUP_BACKEND_URL_PASSWORD_RESET") ?: System.getProperty("TEXTUP_BACKEND_URL_PASSWORD_RESET")
+        notifyMessage  = System.getenv("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE") ?: System.getProperty("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE")
     }
 
     //On Tomcat7 on EC2, these are set in /etc/tomcat7/tomcat7.conf
     //in the format: JAVA_OPTS="${JAVA_OPTS} -Dkey=value"
     apiKeys {
         twilio {
-            unavailable="assigned"
-            available="unassigned"
-            notificationNumber = System.getenv("TWILIO_NOTIFICATIONS_NUMBER") ?: System.getProperty("TWILIO_NOTIFICATIONS_NUMBER")
+            appId              = System.getenv("TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID")
+            authToken          = System.getenv("TEXTUP_BACKEND_TWILIO_AUTH") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_AUTH")
+            available          ="unassigned"
+            notificationNumber = System.getenv("TEXTUP_BACKEND_TWILIO_NOTIFICATIONS_NUMBER") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_NOTIFICATIONS_NUMBER")
+            sid                = System.getenv("TEXTUP_BACKEND_TWILIO_SID") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_SID")
+            unavailable        ="assigned"
         }
         aws {
-            accessKey = System.getenv("AWS_ACCESS_KEY") ?: System.getProperty("AWS_ACCESS_KEY")
-            secretKey = System.getenv("AWS_SECRET_KEY") ?: System.getProperty("AWS_SECRET_KEY")
+            accessKey = System.getenv("TEXTUP_BACKEND_AWS_ACCESS_KEY") ?: System.getProperty("TEXTUP_BACKEND_AWS_ACCESS_KEY")
+            secretKey = System.getenv("TEXTUP_BACKEND_AWS_SECRET_KEY") ?: System.getProperty("TEXTUP_BACKEND_AWS_SECRET_KEY")
         }
         sendGrid {
-            apiKey = System.getenv("SENDGRID_API_KEY") ?: System.getProperty("SENDGRID_API_KEY")
+            apiKey = System.getenv("TEXTUP_BACKEND_SENDGRID_API_KEY") ?: System.getProperty("TEXTUP_BACKEND_SENDGRID_API_KEY")
             templateIds {
-                invited = "87c36daa-c4a8-4f33-8539-22005cd252a8"
-                approved = "7346d586-4466-4982-abfe-7a891e51c0a1"
-                pendingOrg = "0f13e96f-e673-481f-95a0-8d1044b5afe9"
-                pendingStaff = "9bb56ba3-902f-4207-8e75-3b2ebf347a51"
+                invited       = "87c36daa-c4a8-4f33-8539-22005cd252a8"
+                approved      = "7346d586-4466-4982-abfe-7a891e51c0a1"
+                pendingOrg    = "0f13e96f-e673-481f-95a0-8d1044b5afe9"
+                pendingStaff  = "9bb56ba3-902f-4207-8e75-3b2ebf347a51"
                 passwordReset = "b4e228a7-2b1e-4f80-a4dc-42eb3205c538"
-                rejected = "d3287be3-b427-4010-9591-71d7aaf5f040"
+                rejected      = "d3287be3-b427-4010-9591-71d7aaf5f040"
             }
             groupIds {
                 account = 8717
             }
         }
         pusher {
-            appId = "159936"
-            apiKey = System.getenv("PUSHER_API_KEY") ?: System.getProperty("PUSHER_API_KEY")
-            apiSecret = System.getenv("PUSHER_API_SECRET") ?: System.getProperty("PUSHER_API_SECRET")
+            appId     = "159936"
+            apiKey    = System.getenv("TEXTUP_BACKEND_PUSHER_API_KEY") ?: System.getProperty("TEXTUP_BACKEND_PUSHER_API_KEY")
+            apiSecret = System.getenv("TEXTUP_BACKEND_PUSHER_API_SECRET") ?: System.getProperty("TEXTUP_BACKEND_PUSHER_API_SECRET")
         }
         reCaptcha {
             verifyEndpoint = "https://www.google.com/recaptcha/api/siteverify"
-            secret = System.getenv("RECAPTCHA_SECRET") ?: System.getProperty("RECAPTCHA_SECRET")
+            secret         = System.getenv("TEXTUP_BACKEND_RECAPTCHA_SECRET") ?: System.getProperty("TEXTUP_BACKEND_RECAPTCHA_SECRET")
         }
     }
     rest {
         defaultLabel = "default" //default is to link to relationships
         v1 {
-            announcement = [singular:"announcement", plural:"announcements"]
-            availableNumber = [singular:"number", plural:"numbers"]
-            contact = [singular:"contact", plural:"contacts"]
-            futureMessage = [singular:"future-message", plural:"future-messages"]
-            location = [singular:"location", plural:"locations"]
-            mediaElement = [singular:"mediaElement", plural: "mediaElements"]
-            mediaInfo = [singular:"medium", plural: "media"]
-            mergeGroup = [singular:"contact", plural: "contacts"]
-            notification = [singular:"notification", plural:"notifications"]
-            notificationStatus = [singular:"notification-status", plural:"notification-statuses"]
-            organization = [singular:"organization", plural:"organizations"]
-            phone = [singular:"phone", plural:"phones"]
-            record = [singular:"record", plural:"records"]
-            recordItemStatus = [singular:"record-status", plural:"record-statuses"]
-            result = [singular:"result", plural:"results"]
-            revision = [singular:"revision", plural:"revisions"]
-            schedule = [singular:"schedule", plural:"schedules"]
-            session = [singular:"session", plural:"sessions"]
-            staff = [singular:"staff", plural:"staff"]
+            announcement            = [singular:"announcement", plural:"announcements"]
+            availableNumber         = [singular:"number", plural:"numbers"]
+            contact                 = [singular:"contact", plural:"contacts"]
+            futureMessage           = [singular:"future-message", plural:"future-messages"]
+            location                = [singular:"location", plural:"locations"]
+            mediaElement            = [singular:"mediaElement", plural: "mediaElements"]
+            mediaInfo               = [singular:"medium", plural: "media"]
+            mergeGroup              = [singular:"contact", plural: "contacts"]
+            notification            = [singular:"notification", plural:"notifications"]
+            notificationStatus      = [singular:"notification-status", plural:"notification-statuses"]
+            organization            = [singular:"organization", plural:"organizations"]
+            phone                   = [singular:"phone", plural:"phones"]
+            record                  = [singular:"record", plural:"records"]
+            recordItemStatus        = [singular:"record-status", plural:"record-statuses"]
+            result                  = [singular:"result", plural:"results"]
+            revision                = [singular:"revision", plural:"revisions"]
+            schedule                = [singular:"schedule", plural:"schedules"]
+            session                 = [singular:"session", plural:"sessions"]
+            staff                   = [singular:"staff", plural:"staff"]
             staffPolicyAvailability = [singular:"availability", plural:"availabilities"]
-            tag = [singular:"tag", plural:"tags"]
-            team = [singular:"team", plural:"teams"]
+            tag                     = [singular:"tag", plural:"tags"]
+            team                    = [singular:"team", plural:"teams"]
         }
     }
 }

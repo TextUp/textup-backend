@@ -5,6 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.test.runtime.DirtiesRuntime
+import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.textup.rest.TwimlBuilder
@@ -110,7 +111,9 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.sendItemsThroughSocket(validRpts)
 
         then: "only one item passed to socket service"
-        1 * service.threadService.submit(*_) >> { args -> args[0](); return null; }
+        1 * service.threadService.submit(_ as Long, _ as TimeUnit, _ as Closure) >> { args ->
+            args[2](); return null;
+        }
         1 * service.socketService.sendItems(*_) >> { args ->
             assert args[0].size() == 1 // only 1 unique record item
             assert args[0][0] == rText1
@@ -299,7 +302,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
         when: "empty input"
         GrailsParameterMap params = new GrailsParameterMap([:], mockRequest)
-        service.processHelper(params)
+        service.process(params)
 
         then: "no method called"
         0 == numText
@@ -312,7 +315,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             CallStatus: "no",
             CallDuration: "no"
         ], mockRequest)
-        service.processHelper(params)
+        service.process(params)
 
         then: "no method called"
         0 == numText
@@ -327,7 +330,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             ParentCallSid: "yes",
             (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): "not a valid phone number"
         ], mockRequest)
-        service.processHelper(params)
+        service.process(params)
 
         then: "no method called"
         0 == numText
@@ -339,7 +342,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             MessageSid: "hi",
             MessageStatus: "no"
         ], mockRequest)
-        service.processHelper(params)
+        service.process(params)
 
         then: "no method called"
         0 == numText
@@ -352,7 +355,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             CallStatus: ReceiptStatus.PENDING.statuses[0],
             CallDuration: "88",
         ], mockRequest)
-        service.processHelper(params)
+        service.process(params)
 
         then: "parent call"
         0 == numText
@@ -367,7 +370,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             ParentCallSid: "yes",
             (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): TestHelpers.randPhoneNumber()
         ], mockRequest)
-        service.processHelper(params)
+        service.process(params)
 
         then: "child call"
         0 == numText
@@ -379,31 +382,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
             MessageSid: "hi",
             MessageStatus: ReceiptStatus.PENDING.statuses[0]
         ], mockRequest)
-        service.processHelper(params)
+        service.process(params)
 
         then: "text message"
         1 == numText
         1 == numChildCall
         1 == numParentCall
-    }
-
-    @DirtiesRuntime
-    void "test processing after a delay"() {
-        given:
-        int numCalled = 0
-        service.metaClass.processHelper = { GrailsParameterMap params -> numCalled++ }
-        service.threadService = Mock(ThreadService)
-        service.twimlBuilder = TestHelpers.getTwimlBuilder(grailsApplication)
-
-        when:
-        Result<Closure> res = service.process(null)
-
-        then:
-        1 * service.threadService.submit(*_) >> { Closure action ->
-            action()
-            assert numCalled == 1
-        }
-        res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({ Response {} })
     }
 }

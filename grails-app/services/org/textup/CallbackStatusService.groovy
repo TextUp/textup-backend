@@ -4,7 +4,6 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.TimeUnit
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -17,21 +16,13 @@ class CallbackStatusService {
     ResultFactory resultFactory
     SocketService socketService
     ThreadService threadService
-    TwimlBuilder twimlBuilder
 
-    Result<Closure> process(GrailsParameterMap params) {
-        threadService.submit {
-            // first wait for a few seconds to allow for the receipts to be saved
-            TimeUnit.SECONDS.sleep(5)
-            // after waiting, we can start processing this status callback
-            processHelper(params)
-        }
-        twimlBuilder.noResponse()
-    }
-
+    // Moved creation of new thread to PublicRecordController to avoid self-calls.
+    // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
+    // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies
     @OptimisticLockingRetry
-    protected void processHelper(GrailsParameterMap params) {
-        if (params.CallSid) {
+    void process(GrailsParameterMap params) {
+        if (params?.CallSid) {
             ReceiptStatus status = ReceiptStatus.translate(params.CallStatus as String)
             Integer duration = Helpers.to(Integer, params.CallDuration)
             if (status && duration) {
@@ -50,7 +41,7 @@ class CallbackStatusService {
                 }
             }
         }
-        else if (params.MessageSid) {
+        else if (params?.MessageSid) {
             ReceiptStatus status = ReceiptStatus.translate(params.MessageStatus as String)
             if (status) {
                 handleUpdateForText(params.MessageSid as String, status)
@@ -166,8 +157,7 @@ class CallbackStatusService {
             // attempting to send the items because, in the JSON marshaller, the receipts
             // sent are the PERSISTENT values. If the receipts in the current transaction haven't
             // saved yet, then we won't be sending any of the latest updates
-            threadService.submit {
-                TimeUnit.SECONDS.sleep(5)
+            threadService.submit(5, TimeUnit.SECONDS) {
                 //send items with updated status through socket
                 Collection<RecordItem> items = RecordItem.getAll(itemIds as Iterable<Serializable>)
                 socketService.sendItems(items, Constants.SOCKET_EVENT_RECORD_STATUSES)

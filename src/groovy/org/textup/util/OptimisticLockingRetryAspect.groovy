@@ -19,7 +19,6 @@ class OptimisticLockingRetryAspect implements Ordered {
 	@Around(value="@annotation(optimisticLockingRetry)", argNames = "optimisticLockingRetry")
 	def retry(ProceedingJoinPoint pjp, OptimisticLockingRetry optimisticLockingRetry)
 		throws Throwable {
-
 		Integer allowedRetries = optimisticLockingRetry.retryCount(),
 			retriesSoFar = 0
 		def result
@@ -30,8 +29,8 @@ class OptimisticLockingRetryAspect implements Ordered {
 			}
 			catch (StaleObjectStateException |
 	            HibernateOptimisticLockingFailureException e) {
-	            log.debug("OPTIMISTIC LOCKING EXCEPTION after $retriesSoFar retries \
-	                e.message: e.class: ${e.class}, ${e.message}, e: $e")
+	            log.warn("OPTIMISTIC LOCKING EXCEPTION after $retriesSoFar retries \
+	                e.class: ${e.class}, e.message: ${e.message}, e: $e")
 	            if (retriesSoFar < allowedRetries) {
 	            	retriesSoFar++
             	}

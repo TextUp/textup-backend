@@ -1,8 +1,10 @@
 package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
+import java.util.concurrent.TimeUnit
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.rest.TwimlBuilder
 
 @GrailsTypeChecked
 @Secured("permitAll")
@@ -13,6 +15,8 @@ class PublicRecordController extends BaseController {
     //grailsApplication from superclass
     CallbackService callbackService
     CallbackStatusService callbackStatusService
+    ThreadService threadService
+    TwimlBuilder twimlBuilder
 
     @Override
     protected String getNamespaceAsString() { namespace }
@@ -28,7 +32,11 @@ class PublicRecordController extends BaseController {
             respondWithResult(Void, res)
         }
         else if (params.handle == Constants.CALLBACK_STATUS) {
-            respondWithResult(Closure, callbackStatusService.process(params))
+            // Moved creation of new thread to PublicRecordController to avoid self-calls.
+            // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
+            // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies
+            threadService.submit(5, TimeUnit.SECONDS) { callbackStatusService.process(params) }
+            respondWithResult(Closure, twimlBuilder.noResponse())
         }
         else {
             respondWithResult(Closure, callbackService.process(params))

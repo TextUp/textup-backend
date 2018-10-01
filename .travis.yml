@@ -46,12 +46,12 @@ jobs:
         - chmod 400 .travis/textup.pem
       deploy:
         - provider: script
-          script: .travis/deploy.sh $USER_STAGING $HOSTNAME_STAGING .travis/textup.pem target textup-backend.war .travis/remote.sh
+          script: .travis/deploy.sh $DEPLOY_USER_STAGING $DEPLOY_HOSTNAME_STAGING .travis/textup.pem target textup-backend.war .travis/remote.sh
           skip_cleanup: true
           on:
             branch: dev
         - provider: script
-          script: .travis/deploy.sh $USER_PRODUCTION $HOSTNAME_PRODUCTION .travis/textup.pem target textup-backend.war .travis/remote.sh
+          script: .travis/deploy.sh $DEPLOY_USER_PRODUCTION $DEPLOY_HOSTNAME_PRODUCTION .travis/textup.pem target textup-backend.war .travis/remote.sh
           skip_cleanup: true
           on:
             branch: master

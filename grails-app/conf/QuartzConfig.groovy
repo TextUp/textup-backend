@@ -3,13 +3,13 @@ import org.textup.Helpers
 //
 // NOTE:
 //
-// if you are changing `ENABLE_QUARTZ` to true on the staging or development environments,
+// if you are changing `TEXTUP_BACKEND_ENABLE_QUARTZ` to true on the staging or development environments,
 // make sure to double check that Quartz has no triggers that will fire. Triggers that fire
 // immediately when past due will cause all those outdated scheduled messages to erroneously
 // send to possibly many unintended recipients.
 //
 
-def shouldEnable = System.getenv("ENABLE_QUARTZ") ?: System.getProperty("ENABLE_QUARTZ")
+def shouldEnable = System.getenv("TEXTUP_BACKEND_ENABLE_QUARTZ") ?: System.getProperty("TEXTUP_BACKEND_ENABLE_QUARTZ")
 
 quartz {
     autoStartup = Helpers.to(boolean, shouldEnable, false)

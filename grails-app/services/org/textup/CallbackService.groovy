@@ -195,8 +195,7 @@ class CallbackService {
                 // at the provided url still isn't ready and a request to that url returns a
                 // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
                 // is completely done being stored before attempting to fetch it.
-                threadService.submit {
-                    TimeUnit.SECONDS.sleep(5)
+                threadService.submit(5, TimeUnit.SECONDS) {
                     p1.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
                         .logFail("CallbackService.processCall: VOICEMAIL_DONE voicemailUrl: ${voicemailUrl}")
                 }
@@ -280,9 +279,10 @@ class CallbackService {
         // that the incoming message hasn't finished delivering yet. For incoming message
         // no status callbacks so we have to wait a fixed period of time then attempt to delete
         if (itemsToUpload && !resGroup.anyFailures) {
-            TimeUnit.SECONDS.sleep(20)
-            mediaService.deleteMedia(apiId, mediaIdsToDelete)
-                .logFail("CallbackService.handleMediaAndSocket: deleting media")
+            threadService.submit(20, TimeUnit.SECONDS) {
+                mediaService.deleteMedia(apiId, mediaIdsToDelete)
+                    .logFail("CallbackService.handleMediaAndSocket: deleting media")
+            }
         }
     }
 }

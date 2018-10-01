@@ -5,6 +5,7 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 import org.apache.commons.lang3.tuple.Pair
 import org.codehaus.groovy.grails.commons.GrailsApplication
@@ -314,9 +315,10 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test uploading and delete media after relaying text"() {
         given:
-        service.storageService = Mock(StorageService)
         service.mediaService = Mock(MediaService)
         service.socketService = Mock(SocketService)
+        service.storageService = Mock(StorageService)
+        service.threadService = Mock(ThreadService)
 
         when: "missing items to upload"
         service.handleMediaAndSocket(null, null, null, null)
@@ -326,6 +328,7 @@ class CallbackServiceSpec extends CustomSpec {
 
         then: "handle socket and delete if needed afterwards"
         1 * service.socketService.sendItems(*_)
+        0 * service.threadService.submit(*_)
         0 * service.mediaService.deleteMedia(*_)
 
         when: "has items, but has some upload errors"
@@ -337,21 +340,21 @@ class CallbackServiceSpec extends CustomSpec {
 
         then: "handle socket and delete if needed afterwards"
         1 * service.socketService.sendItems(*_)
+        0 * service.threadService.submit(*_)
         0 * service.mediaService.deleteMedia(*_)
 
         when: "has items and all uploads successful"
-        long timeStart = System.currentTimeMillis()
         service.handleMediaAndSocket(null, [new UploadItem()], [], null)
-        long timeFinish = System.currentTimeMillis()
 
         then: "upload items"
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
 
         then: "handle socket and delete if needed afterwards"
         1 * service.socketService.sendItems(*_)
+        1 * service.threadService.submit(_ as Long, _ as TimeUnit, _ as Closure) >> { args ->
+            args[2](); return null;
+        }
         1 * service.mediaService.deleteMedia(*_) >> new Result()
-        // wait 20 seconds before deleting media to avoid "not delivered yet" error
-        (timeFinish - timeStart) > 20000
     }
 
     void "test processing text overall"() {
