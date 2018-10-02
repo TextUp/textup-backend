@@ -11,14 +11,17 @@ import javax.annotation.PreDestroy
 class ThreadService {
 
     private ScheduledThreadPoolExecutor _pool
-    private final int NUM_THREADS = 500
+    private final int MIN_POOL_SIZE = 10
+    private final int POOL_DELTA = 10
+    private final int QUEUE_THRESHOLD = 10
+    private final int MAX_POOL_SIZE = 200
 
     @PostConstruct
     // sometimes hot reloading will call the destroy hook so we need to make sure the initialization
     // is also in a similar annotation driven lifecycle hook
     protected void startPool() {
         // when core number of threads = max number of threads, effective same as Executors.newFixedThreadPool
-        _pool = new ScheduledThreadPoolExecutor(NUM_THREADS, new ThreadPoolExecutor.AbortPolicy())
+        _pool = new ScheduledThreadPoolExecutor(MIN_POOL_SIZE, new ThreadPoolExecutor.AbortPolicy())
         // if we allow core thread timeout, we core threads need to have non-zero keep alive times
         _pool.setKeepAliveTime(2L, TimeUnit.MINUTES)
         _pool.allowCoreThreadTimeOut(true)
@@ -50,24 +53,47 @@ class ThreadService {
     // --------------
 
     public <T> Future<T> submit(Closure<T> action) {
-        _pool.submit(wrapAsCallable(action))
+        Future<T> res = _pool.submit(wrapAsCallable(action))
+        tryAdjustPoolSize()
+        res
     }
 
     public <T> ScheduledFuture<T> submit(long delay, TimeUnit unit, Closure<T> action) {
-        _pool.schedule(wrapAsCallable(action), delay, unit)
+        ScheduledFuture<T> res = _pool.schedule(wrapAsCallable(action), delay, unit)
+        tryAdjustPoolSize()
+        res
     }
 
     // Helpers
     // -------
+
+    protected void tryAdjustPoolSize() {
+        int actualPoolSize = _pool.poolSize,
+            corePoolSize = _pool.corePoolSize,
+            queueSize = _pool.queue.size()
+        Integer newPoolSize
+        if (queueSize > QUEUE_THRESHOLD && corePoolSize + POOL_DELTA <= MAX_POOL_SIZE) {
+            newPoolSize = corePoolSize + POOL_DELTA
+        }
+        else if (queueSize == 0 && actualPoolSize + (POOL_DELTA * 2) < corePoolSize &&
+            actualPoolSize + POOL_DELTA >= MIN_POOL_SIZE) {
+
+            newPoolSize = actualPoolSize + POOL_DELTA
+        }
+        // [FUTURE] change log level to debug once we've determined an appropriate max size for the
+        // thread pool from logging real-world usage
+        if (newPoolSize) {
+            log.error("Adjust core pool size: before ${_pool.corePoolSize}, after ${newPoolSize} \
+                actualPoolSize: ${actualPoolSize}, largestPoolSize: ${_pool.largestPoolSize}, queueSize: ${queueSize}")
+            _pool.corePoolSize = newPoolSize
+        }
+    }
 
     protected <T> Callable<T> wrapAsCallable(Closure<T> action) {
         [call: addSessionAndTransaction(action)] as Callable<T>
     }
     protected <T> Closure<T> addSessionAndTransaction(Closure<T> action) {
         return { ->
-            // [FUTURE] remove this log line once we've determined an appropriate max size for the
-            // thread pool from logging real-world usage
-            log.error("poolSize: ${_pool.poolSize}, largestPoolSize: ${_pool.largestPoolSize}, queue.size(): ${_pool.queue.size()}")
             try {
                 // doesn't matter which domain class we call this on
                 Organization.withNewSession {
