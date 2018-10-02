@@ -9,7 +9,6 @@ import groovy.json.JsonBuilder
 import groovy.xml.MarkupBuilder
 import java.util.UUID
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.springframework.http.HttpStatus

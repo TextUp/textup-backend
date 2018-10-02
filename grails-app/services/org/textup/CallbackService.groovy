@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 import org.apache.commons.lang3.tuple.Pair
 import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.*
@@ -29,7 +29,7 @@ class CallbackService {
 	// Validate request
 	// ----------------
 
-    Result<Void> validate(HttpServletRequest request, GrailsParameterMap params) {
+    Result<Void> validate(HttpServletRequest request, TypeConvertingMap params) {
         // step 1: try to extract auth header
         String errCode = "callbackService.validate.invalid",
             authHeader = request.getHeader("x-twilio-signature")
@@ -58,7 +58,7 @@ class CallbackService {
     }
 
     protected Map<String,String> extractTwilioParams(HttpServletRequest request,
-    	GrailsParameterMap allParams) {
+    	TypeConvertingMap allParams) {
 
         // step 1: build list of what to ignore. Params that should be ignored are query params
         // that we append to the callback functions that should be factored into the validation
@@ -83,7 +83,7 @@ class CallbackService {
 
     @OptimisticLockingRetry
     @RollbackOnResultFailure
-    Result<Closure> process(GrailsParameterMap params) {
+    Result<Closure> process(TypeConvertingMap params) {
         // if a call direct messaage or other direct actions that we do
         // not need to do further processing for, handle right here
         if (params.handle == CallResponse.DIRECT_MESSAGE.toString()) {
@@ -98,7 +98,7 @@ class CallbackService {
         else { processForNumbers(params) }
     }
 
-    protected Result<Closure> processForNumbers(GrailsParameterMap params) {
+    protected Result<Closure> processForNumbers(TypeConvertingMap params) {
         // step 1: check that both to and from numbers are valid US phone numbers
         PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
             toNum = new PhoneNumber(number:params.To as String)
@@ -131,7 +131,7 @@ class CallbackService {
     }
 
     protected Result<IncomingSession> getOrCreateIncomingSession(Phone p1, BasePhoneNumber fromNum,
-        BasePhoneNumber toNum, GrailsParameterMap params) {
+        BasePhoneNumber toNum, TypeConvertingMap params) {
         //usually handle incoming from session (client) to phone (staff)
         BasePhoneNumber sessionNum = fromNum
         // finish bridge is call from phone to personal phone
@@ -156,7 +156,7 @@ class CallbackService {
     }
 
     protected BasePhoneNumber getNumberForPhone(BasePhoneNumber fromNum, BasePhoneNumber toNum,
-        GrailsParameterMap params) {
+        TypeConvertingMap params) {
 
         //usually handle incoming from session (client) to phone (staff)
         BasePhoneNumber phoneNum = toNum
@@ -176,7 +176,7 @@ class CallbackService {
     }
 
     protected Result<Closure> processCall(Phone p1, IncomingSession is1, String apiId,
-        GrailsParameterMap params) {
+        TypeConvertingMap params) {
         String digits = params.Digits
         switch(params.handle) {
             case CallResponse.SCREEN_INCOMING.toString():
@@ -216,7 +216,7 @@ class CallbackService {
     }
 
     protected Result<Closure> processText(Phone p1, IncomingSession is1, String apiId,
-        GrailsParameterMap params) {
+        TypeConvertingMap params) {
 
         // step 1: handle media, if applicable
         MediaInfo mInfo
@@ -249,7 +249,7 @@ class CallbackService {
         else { resultFactory.failWithValidationErrors(text.errors) }
     }
     protected Result<MediaInfo> handleMedia(int numMedia, Closure<Void> collectUploads,
-        Closure<Void> collectMediaIds, GrailsParameterMap params) {
+        Closure<Void> collectMediaIds, TypeConvertingMap params) {
 
         Map<String, String> urlToMimeType = [:]
         for (int i = 0; i < numMedia; ++i) {

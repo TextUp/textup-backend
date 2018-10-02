@@ -8,7 +8,6 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import groovy.xml.MarkupBuilder
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.springframework.security.authentication.encoding.PasswordEncoder

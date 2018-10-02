@@ -2,7 +2,6 @@ package org.textup.rest
 
 import grails.plugins.rest.client.RestResponse
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap

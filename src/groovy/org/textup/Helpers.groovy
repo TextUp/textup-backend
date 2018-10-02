@@ -20,6 +20,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.hibernate.FlushMode
 import org.hibernate.Session
@@ -224,6 +225,9 @@ class Helpers {
             results << to(clazz, obj, replaceFailWith)
         }
         results
+    }
+    static TypeConvertingMap extractParams(GrailsParameterMap params) {
+        new TypeConvertingMap(params)
     }
 
     // Formatting

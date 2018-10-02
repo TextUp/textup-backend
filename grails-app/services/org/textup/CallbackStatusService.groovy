@@ -3,7 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.TimeUnit
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -21,7 +21,7 @@ class CallbackStatusService {
     // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
     // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies
     @OptimisticLockingRetry
-    void process(GrailsParameterMap params) {
+    void process(TypeConvertingMap params) {
         if (params?.CallSid) {
             ReceiptStatus status = ReceiptStatus.translate(params.CallStatus as String)
             Integer duration = Helpers.to(Integer, params.CallDuration)
@@ -75,7 +75,7 @@ class CallbackStatusService {
 
     // From the statusCallback attribute on the original POST request to the Call resource
     protected Result<Void> handleUpdateForParentCall(String callId, ReceiptStatus status,
-        Integer duration, GrailsParameterMap params) {
+        Integer duration, TypeConvertingMap params) {
         updateExistingReceiptsWithStatus(callId, status)
             .then { List<RecordItemReceipt> rpts -> updateDurationForCall(rpts, duration) }
             .then { List<RecordItemReceipt> rpts ->
@@ -168,7 +168,7 @@ class CallbackStatusService {
 
     // If multiple phone numbers on a call and the status is failure, then retry the call.
     // See CallService.start for the parameters passed into the status callback
-    protected void tryRetryParentCall(String callId, GrailsParameterMap params) {
+    protected void tryRetryParentCall(String callId, TypeConvertingMap params) {
         PhoneNumber fromNum = new PhoneNumber(number:params.From as String)
         List<PhoneNumber> toNums = params.list("remaining")?.collect { Object num ->
             new PhoneNumber(number:num as String)

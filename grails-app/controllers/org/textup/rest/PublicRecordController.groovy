@@ -2,6 +2,7 @@ package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
 import java.util.concurrent.TimeUnit
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.rest.TwimlBuilder
@@ -27,19 +28,20 @@ class PublicRecordController extends BaseController {
     def delete() { notAllowed() }
 
     def save() {
-        Result<Void> res = callbackService.validate(request, params)
+        TypeConvertingMap paramsMap = Helpers.extractParams(params)
+        Result<Void> res = callbackService.validate(request, paramsMap)
         if (!res.success) {
             respondWithResult(Void, res)
         }
-        else if (params.handle == Constants.CALLBACK_STATUS) {
+        else if (paramsMap.handle == Constants.CALLBACK_STATUS) {
             // Moved creation of new thread to PublicRecordController to avoid self-calls.
             // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
             // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies
-            threadService.submit(5, TimeUnit.SECONDS) { callbackStatusService.process(params) }
+            threadService.submit(5, TimeUnit.SECONDS) { callbackStatusService.process(paramsMap) }
             respondWithResult(Closure, twimlBuilder.noResponse())
         }
         else {
-            respondWithResult(Closure, callbackService.process(params))
+            respondWithResult(Closure, callbackService.process(paramsMap))
         }
     }
 }

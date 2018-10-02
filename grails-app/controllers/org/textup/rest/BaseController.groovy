@@ -7,7 +7,6 @@ import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.orm.hibernate.cfg.NamedCriteriaProxy
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.annotation.Secured
 import org.textup.*

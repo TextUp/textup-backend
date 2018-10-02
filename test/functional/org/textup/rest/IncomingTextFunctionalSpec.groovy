@@ -2,7 +2,7 @@ package org.textup.rest
 
 import grails.plugins.rest.client.RestResponse
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
@@ -21,7 +21,7 @@ class IncomingTextFunctionalSpec extends RestSpec {
         remote.exec({
             // ensure that callbackService validates all requests
             ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                GrailsParameterMap params ->
+                TypeConvertingMap params ->
                 ctx.resultFactory.success()
             }
             String apiId = "iamsosospecial!"

@@ -3,7 +3,7 @@ package org.textup.rest
 import grails.plugins.rest.client.RestResponse
 import java.util.UUID
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.quartz.JobDataMap
 import org.quartz.JobExecutionContext
 import org.quartz.Trigger
@@ -28,7 +28,7 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 		(targetPhoneNumber, prevPersonalNumber) = remote.exec({ un ->
             // ensure that callbackService validates all requests
             ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                GrailsParameterMap params ->
+                TypeConvertingMap params ->
 
                 ctx.resultFactory.success()
             }

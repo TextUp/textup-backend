@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 import org.apache.commons.lang3.tuple.Pair
 import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
@@ -92,8 +92,7 @@ class CallbackServiceSpec extends CustomSpec {
     		getQueryString: { "test3=bye&" }
     	] as HttpServletRequest
         request.metaClass.getProperties = { ["forwardURI":""] }
-    	GrailsParameterMap allParams = new GrailsParameterMap([test1:"hello",
-    		test2:"bye", test3:"kiki"], request)
+    	TypeConvertingMap allParams = new TypeConvertingMap([test1:"hello", test2:"bye", test3:"kiki"])
     	Map<String,String> params = service.extractTwilioParams(request, allParams)
 
     	then:
@@ -124,7 +123,7 @@ class CallbackServiceSpec extends CustomSpec {
         RequestValidator allValidators = GroovySpy(RequestValidator,
             constructorArgs: ["valid auth token"], global: true)
         service.grailsApplication = Mock(GrailsApplication)
-        GrailsParameterMap allParams = new GrailsParameterMap([:], mockRequest)
+        TypeConvertingMap allParams = new TypeConvertingMap([:])
 
         when: "missing auth header"
         Result<Void> res = service.validate(mockRequest, allParams)
@@ -169,10 +168,9 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test process"() {
     	when: "'to' maps to nonexistent phone"
-    	HttpServletRequest request = [:] as HttpServletRequest
         String nonexistentNumber = "8888888888"
         assert Phone.countByNumberAsString(nonexistentNumber) == 0
-    	GrailsParameterMap params = new GrailsParameterMap([From: nonexistentNumber, To:nonexistentNumber], request)
+    	TypeConvertingMap params = new TypeConvertingMap([From: nonexistentNumber, To:nonexistentNumber])
     	Result<Closure> res = service.process(params)
 
     	then:
@@ -180,7 +178,7 @@ class CallbackServiceSpec extends CustomSpec {
     	res.payload == "notFoundForText"
 
     	when: "neither messageSid nor callSid specified"
-    	params = new GrailsParameterMap([To:p1.numberAsString, From:"1112223333"], request)
+    	params = new TypeConvertingMap([To:p1.numberAsString, From:"1112223333"])
 		res = service.process(params)
 
     	then:
@@ -191,8 +189,7 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test process for non-US numbers"() {
         when: "incoming is non-US number for text"
-        HttpServletRequest request = [:] as HttpServletRequest
-        GrailsParameterMap params = new GrailsParameterMap([To:"blah", From:"invalid", MessageSid:"ok"], request)
+        TypeConvertingMap params = new TypeConvertingMap([To:"blah", From:"invalid", MessageSid:"ok"])
         Result<Closure> res = service.process(params)
 
         then:
@@ -200,7 +197,7 @@ class CallbackServiceSpec extends CustomSpec {
         res.payload == "invalidNumberForText"
 
         when: "incoming is non-US number for call"
-        params = new GrailsParameterMap([To: "blah", From:"invalid", CallSid:"ok"], request)
+        params = new TypeConvertingMap([To: "blah", From:"invalid", CallSid:"ok"])
         res = service.process(params)
 
         then:
@@ -210,9 +207,7 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test process for utility call responses"() {
         when: "retrieving a outgoing direct message delivered through call"
-        HttpServletRequest request = [:] as HttpServletRequest
-        GrailsParameterMap params = new GrailsParameterMap(
-            [handle:CallResponse.DIRECT_MESSAGE.toString()], request)
+        TypeConvertingMap params = new TypeConvertingMap([handle:CallResponse.DIRECT_MESSAGE.toString()])
         Result<Closure> res = service.process(params)
 
         then:
@@ -220,7 +215,7 @@ class CallbackServiceSpec extends CustomSpec {
         res.payload == CallResponse.DIRECT_MESSAGE
 
         when: "no-op"
-        params = new GrailsParameterMap([handle:CallResponse.DO_NOTHING.toString()], request)
+        params = new TypeConvertingMap([handle:CallResponse.DO_NOTHING.toString()])
         res = service.process(params)
 
         then:
@@ -228,7 +223,7 @@ class CallbackServiceSpec extends CustomSpec {
         res.payload == CallResponse.DO_NOTHING
 
         when: "hanging up"
-        params = new GrailsParameterMap([handle:CallResponse.END_CALL.toString()], request)
+        params = new TypeConvertingMap([handle:CallResponse.END_CALL.toString()])
         res = service.process(params)
 
         then:
@@ -242,9 +237,7 @@ class CallbackServiceSpec extends CustomSpec {
         PhoneNumber fromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
         PhoneNumber toNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
         [originalFromNumber, fromNumber, toNumber].each { assert it.validate() }
-        HttpServletRequest mockRequest = Mock(HttpServletRequest)
-        GrailsParameterMap params = new GrailsParameterMap(
-            [originalFrom: originalFromNumber.number], mockRequest)
+        TypeConvertingMap params = new TypeConvertingMap([originalFrom: originalFromNumber.number])
         int iBaseline = IncomingSession.count()
 
         when: "CallResponse.FINISH_BRIDGE + new phone number"
@@ -288,8 +281,7 @@ class CallbackServiceSpec extends CustomSpec {
     void "test handling incoming media"() {
         given: "this method assumes numMedia > 0"
         service.mediaService = Mock(MediaService)
-        HttpServletRequest mockRequest = Mock(HttpServletRequest)
-        GrailsParameterMap params = new GrailsParameterMap([:], mockRequest)
+        TypeConvertingMap params = new TypeConvertingMap([:])
         List<String> urls = []
         int numMedia = 2
         numMedia.times {
@@ -362,11 +354,10 @@ class CallbackServiceSpec extends CustomSpec {
         service.mediaService = Mock(MediaService)
         service.threadService = Mock(ThreadService)
         Phone mockPhone = Mock(Phone)
-        HttpServletRequest mockRequest = Mock(HttpServletRequest)
-        GrailsParameterMap params = new GrailsParameterMap([
+        TypeConvertingMap params = new TypeConvertingMap([
             Body: "hello",
             NumSegments: 88
-        ], mockRequest)
+        ])
 
         when: "no media"
         params.NumMedia = 0
@@ -404,11 +395,9 @@ class CallbackServiceSpec extends CustomSpec {
         service.threadService = Mock(ThreadService)
 
         when: "starting voicemail"
-        HttpServletRequest request = [:] as HttpServletRequest
         String clientNum = "1233834920"
-        GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
-            handle:CallResponse.SCREEN_INCOMING.toString()],
-            request)
+        TypeConvertingMap params = new TypeConvertingMap([CallSid:"iamasid!!",
+            handle:CallResponse.SCREEN_INCOMING.toString()])
         // voicemail is inbound so from client to TextUp phone
         // but we use a relayed call to allow for screening so we store the
         // originalFrom and use the From of the second bridged call to keep track
@@ -461,11 +450,9 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test process for outbound calls"() {
     	when: "voicemail"
-    	HttpServletRequest request = [:] as HttpServletRequest
     	String clientNum = "1233834920"
-    	GrailsParameterMap params = new GrailsParameterMap([CallSid:"iamasid!!",
-            handle:CallResponse.FINISH_BRIDGE.toString()],
-    		request)
+    	TypeConvertingMap params = new TypeConvertingMap([CallSid:"iamasid!!",
+            handle:CallResponse.FINISH_BRIDGE.toString()])
         // outbound so from TextUp phone to client
         params.From = p1.numberAsString
         params.To = clientNum

@@ -7,7 +7,7 @@ import grails.test.mixin.TestMixin
 import grails.test.runtime.DirtiesRuntime
 import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.*
@@ -168,8 +168,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
     void "test retrying parent call"() {
         given:
         service.callService = Mock(CallService)
-        HttpServletRequest mockRequest = Mock(HttpServletRequest)
-        GrailsParameterMap params = new GrailsParameterMap([:], mockRequest)
+        TypeConvertingMap params = new TypeConvertingMap([:])
 
 
         when: "no remaining numbers"
@@ -179,7 +178,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         0 * service.callService._
 
         when: "has remaining numbers"
-        params = new GrailsParameterMap([remaining:[TestHelpers.randPhoneNumber()]], mockRequest)
+        params = new TypeConvertingMap([remaining:[TestHelpers.randPhoneNumber()]])
         service.tryRetryParentCall(null, params)
 
         then:
@@ -250,10 +249,9 @@ class CallbackStatusServiceSpec extends CustomSpec {
         int rptBaseline = RecordItemReceipt.count()
         ReceiptStatus status = ReceiptStatus.BUSY
         Integer duration = 88
-        HttpServletRequest mockRequest = Mock(HttpServletRequest)
-        GrailsParameterMap params = new GrailsParameterMap([
+        TypeConvertingMap params = new TypeConvertingMap([
             remaining:[TestHelpers.randPhoneNumber()]
-        ], mockRequest)
+        ])
 
         when: "call status is not failed"
         Result<Void> res = service.handleUpdateForParentCall(validRpt.apiId, status,
@@ -295,13 +293,12 @@ class CallbackStatusServiceSpec extends CustomSpec {
             numChildCall++; new Result();
         }
         service.metaClass.handleUpdateForParentCall = { String callId, ReceiptStatus status,
-            Integer duration, GrailsParameterMap params ->
+            Integer duration, TypeConvertingMap params ->
             numParentCall++; new Result();
         }
-        HttpServletRequest mockRequest = Mock(HttpServletRequest)
 
         when: "empty input"
-        GrailsParameterMap params = new GrailsParameterMap([:], mockRequest)
+        TypeConvertingMap params = new TypeConvertingMap([:])
         service.process(params)
 
         then: "no method called"
@@ -310,11 +307,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
         0 == numParentCall
 
         when: "call id but invalid status and duration"
-        params = new GrailsParameterMap([
+        params = new TypeConvertingMap([
             CallSid: "hi",
             CallStatus: "no",
             CallDuration: "no"
-        ], mockRequest)
+        ])
         service.process(params)
 
         then: "no method called"
@@ -323,13 +320,13 @@ class CallbackStatusServiceSpec extends CustomSpec {
         0 == numParentCall
 
         when: "parent call id, call id, valid status, valid duration, invalid child number"
-        params = new GrailsParameterMap([
+        params = new TypeConvertingMap([
             CallSid: "hi",
             CallStatus: ReceiptStatus.PENDING.statuses[0],
             CallDuration: "88",
             ParentCallSid: "yes",
             (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): "not a valid phone number"
-        ], mockRequest)
+        ])
         service.process(params)
 
         then: "no method called"
@@ -338,10 +335,10 @@ class CallbackStatusServiceSpec extends CustomSpec {
         0 == numParentCall
 
         when: "text id but invalid status"
-        params = new GrailsParameterMap([
+        params = new TypeConvertingMap([
             MessageSid: "hi",
             MessageStatus: "no"
-        ], mockRequest)
+        ])
         service.process(params)
 
         then: "no method called"
@@ -350,11 +347,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
         0 == numParentCall
 
         when: "call id, valid status, valid duration"
-        params = new GrailsParameterMap([
+        params = new TypeConvertingMap([
             CallSid: "hi",
             CallStatus: ReceiptStatus.PENDING.statuses[0],
             CallDuration: "88",
-        ], mockRequest)
+        ])
         service.process(params)
 
         then: "parent call"
@@ -363,13 +360,13 @@ class CallbackStatusServiceSpec extends CustomSpec {
         1 == numParentCall
 
         when: "parent call id, call id, valid status, valid duration, valid child number"
-        params = new GrailsParameterMap([
+        params = new TypeConvertingMap([
             CallSid: "hi",
             CallStatus: ReceiptStatus.PENDING.statuses[0],
             CallDuration: "88",
             ParentCallSid: "yes",
             (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): TestHelpers.randPhoneNumber()
-        ], mockRequest)
+        ])
         service.process(params)
 
         then: "child call"
@@ -378,10 +375,10 @@ class CallbackStatusServiceSpec extends CustomSpec {
         1 == numParentCall
 
         when: "text id, valid status"
-        params = new GrailsParameterMap([
+        params = new TypeConvertingMap([
             MessageSid: "hi",
             MessageStatus: ReceiptStatus.PENDING.statuses[0]
-        ], mockRequest)
+        ])
         service.process(params)
 
         then: "text message"
