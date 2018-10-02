@@ -19,59 +19,37 @@ class MediaElement implements ReadOnlyMediaElement {
         useForCreation = false)
     String uid = UUID.randomUUID().toString()
 
-    @RestApiObjectField(
-        description    = "MIME type, if available. Currently: `image/jpeg`, `image/png` and `image/gif`",
-        allowedType    = "String",
-        useForCreation = false)
-    MediaType type
-
     MediaElementVersion sendVersion
 
     @RestApiObjectFields(params=[
          @RestApiObjectField(
-            apiFieldName   = "small",
-            description    = "version for display on small screens",
-            allowedType    = "MediaElementVersion",
-            useForCreation = false),
-         @RestApiObjectField(
-            apiFieldName   = "large",
-            description    = "version for display on large screens",
-            allowedType    = "MediaElementVersion",
-            useForCreation = false),
-         @RestApiObjectField(
-            apiFieldName   = "large",
-            description    = "version for display on large screens",
+            apiFieldName   = "versions",
+            description    = "various versions for display",
             allowedType    = "MediaElementVersion",
             useForCreation = false)
     ])
-    static hasMany = [displayVersions: MediaElementVersion]
+    static hasMany = [alternateVersions: MediaElementVersion]
     static constraints = { // all nullable:false by default
         sendVersion cascadeValidation: true, validator: { MediaElementVersion send1 ->
             if (send1?.sizeInBytes > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
                 return ["sizeTooBig"]
             }
         }
-        displayVersions nullable: true, cascadeValidation: true
+        alternateVersions nullable: true, cascadeValidation: true
     }
     static mapping = {
         sendVersion lazy: false, cascade: "save-update"
-        displayVersions lazy: false, cascade: "save-update"
+        alternateVersions lazy: false, cascade: "save-update"
     }
 
     // Static factory methods
     // ----------------------
 
-    static Result<MediaElement> create(MediaType mimeType, List<UploadItem> uItems) {
-        MediaElement e1 = new MediaElement(type: mimeType)
-        List<Result<MediaElementVersion>> failRes = []
-        uItems.each { UploadItem uItem ->
-            Result<MediaElementVersion> res = e1.addVersion(uItem)
-            if (!res.success) { failRes << res }
-        }
-        if (failRes) {
-            Helpers.resultFactory.failWithResultsAndStatus(failRes, ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        else if (e1.save()) {
+    static Result<MediaElement> create(UploadItem sVersion, List<UploadItem> alternates) {
+        MediaElement e1 = new MediaElement(sendVersion: sVersion.toMediaElementVersion())
+        alternates.each { UploadItem uItem -> addToAlternateVersions(uItem.toMediaElementVersion()) }
+
+        if (e1.save()) {
             Helpers.resultFactory.success(e1)
         }
         else { Helpers.resultFactory.failWithValidationErrors(e1.errors) }
@@ -80,26 +58,23 @@ class MediaElement implements ReadOnlyMediaElement {
     // Methods
     // -------
 
-    Result<MediaElementVersion> addVersion(UploadItem uItem) {
-        MediaElementVersion vers1 = new MediaElementVersion(mediaVersion: uItem.mediaVersion,
-            versionId: uItem.key,
-            sizeInBytes: uItem.sizeInBytes,
-            widthInPixels: uItem.widthInPixels,
-            heightInPixels: uItem.heightInPixels)
-        if (uItem.mediaVersion == MediaVersion.SEND) {
-            sendVersion = vers1
-        }
-        else { addToDisplayVersions(vers1) }
-        vers1.save() ? Helpers.resultFactory.success(vers1) :
-            Helpers.resultFactory.failWithValidationErrors(vers1.errors)
+    boolean hasType(Collection<MediaType> typesToCheckFor) {
+        HashSet<MediaType> allTypes = getAllTypes()
+        typesToCheckFor.any { MediaType t1 -> allTypes.contains(t1) }
     }
 
     // Property access
     // ---------------
 
-    Map<MediaVersion, MediaElementVersion> getVersionsForDisplay() {
-        Map<MediaVersion, MediaElementVersion> vMap = [:]
-        displayVersions?.each { MediaElementVersion vers1 -> vMap[vers1.mediaVersion] = vers1 }
-        vMap ?: [(MediaVersion.LARGE): sendVersion]
+    HashSet<MediaType> getAllTypes() {
+        HashSet<MediaType> allTypes = new HashSet<>()
+        getAllVersions().collect { MediaElementVersion v1 -> allTypes << v1.type }
+        allTypes
+    }
+
+    List<MediaElementVersion> getAllVersions() {
+        List<MediaElementVersion> allVersions = [sendVersion]
+        alternateVersions?.each { MediaElementVersion vers1 -> allVersions << vers1 }
+        allVersions
     }
 }

@@ -14,7 +14,7 @@ env:
   - TEST_SCOPE='"integration:" org.textup.rest.marshaller.*'
   - TEST_SCOPE='"integration:" org.textup.* org.textup.util.*'
   - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.*
-    org.textup.type.* org.textup.util.*'
+    org.textup.type.* org.textup.util.* org.textup.media.*'
   - TEST_SCOPE='"unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E*
     org.textup.F* org.textup.G* org.textup.H* org.textup.I* org.textup.J* org.textup.K*
     org.textup.L* org.textup.M*'

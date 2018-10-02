@@ -6,6 +6,7 @@ import org.textup.rest.*
 import org.textup.rest.marshaller.*
 import org.textup.util.*
 import org.textup.validator.*
+import org.textup.media.*
 
 // Place your Spring DSL code here
 beans = {
@@ -22,6 +23,7 @@ beans = {
 	// ------------------
 
 	def tConfig = application.config.textup
+	def audioConfig = tConfig.media.audio
 	def tRestConfig = tConfig.rest
 	def apiConfig = tConfig.apiKeys
 	def restConfig = application.config.grails.plugin.springsecurity.rest.token
@@ -29,6 +31,8 @@ beans = {
 
 	s3Service(AmazonS3Client,
 		new BasicAWSCredentials(apiConfig.aws.accessKey, apiConfig.aws.secretKey))
+	audioUtils(AudioUtils, audioConfig.executableDirectory, audioConfig.executableName,
+		tConfig.tempDirectory)
 	pusherService(Pusher, apiConfig.pusher.appId, apiConfig.pusher.apiKey, apiConfig.pusher.apiSecret) {
 		encrypted = true
 	}

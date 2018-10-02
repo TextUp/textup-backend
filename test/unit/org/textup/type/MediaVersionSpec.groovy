@@ -2,6 +2,8 @@ package org.textup.type
 
 import spock.lang.*
 
+// TODO move these tests over to ImagePostProcessor
+
 class MediaVersionSpec extends Specification {
 
     void "test iterating through versions in appropriate order"() {

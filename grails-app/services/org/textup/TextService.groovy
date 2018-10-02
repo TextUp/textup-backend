@@ -6,7 +6,6 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.rest.TwimlBuilder
-import org.textup.type.MediaVersion
 import org.textup.validator.*
 
 @GrailsTypeChecked

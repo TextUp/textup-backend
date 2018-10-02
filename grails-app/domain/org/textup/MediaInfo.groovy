@@ -93,7 +93,7 @@ class MediaInfo implements ReadOnlyMediaInfo {
 
     List<MediaElement> getMediaElementsByType(Collection<MediaType> typesToFind = []) {
         Collection<MediaElement> elementCollection = typesToFind ?
-            mediaElements?.findAll { MediaElement e1 -> e1.type in typesToFind } : mediaElements
+            mediaElements?.findAll { MediaElement e1 -> e1.hasType(typesToFind) } : mediaElements
         elementCollection ? new ArrayList<MediaElement>(elementCollection) : []
     }
 

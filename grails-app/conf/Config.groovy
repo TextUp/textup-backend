@@ -221,12 +221,17 @@ textup {
     verifyTokenSize = 5
     numTimesAccessNotification = 3 // number of times a notification is allowed to be accessed
 
+    tempDirectory = System.getenv("TEXTUP_BACKEND_TEMP_DIRECTORY") ?: System.getProperty("TEXTUP_BACKEND_TEMP_DIRECTORY")
     media {
         bucketName = System.getenv("TEXTUP_BACKEND_STORAGE_BUCKET_NAME") ?: System.getProperty("TEXTUP_BACKEND_STORAGE_BUCKET_NAME")
         cdn {
             root           = System.getenv("TEXTUP_BACKEND_CDN_ROOT") ?: System.getProperty("TEXTUP_BACKEND_CDN_ROOT")
             keyId          = System.getenv("TEXTUP_BACKEND_CDN_KEY_ID") ?: System.getProperty("TEXTUP_BACKEND_CDN_KEY_ID")
             privateKeyPath = System.getenv("TEXTUP_BACKEND_CDN_PRIVATE_KEY_PATH") ?: System.getProperty("TEXTUP_BACKEND_CDN_PRIVATE_KEY_PATH")
+        }
+        audio {
+            executableDirectory = System.getenv("TEXTUP_BACKEND_FFMPEG_DIRECTORY") ?: System.getProperty("TEXTUP_BACKEND_FFMPEG_DIRECTORY")
+            executableName      = System.getenv("TEXTUP_BACKEND_FFMPEG_COMMAND") ?: System.getProperty("TEXTUP_BACKEND_FFMPEG_COMMAND")
         }
     }
     mail {

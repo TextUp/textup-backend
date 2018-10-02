@@ -2,7 +2,6 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import org.textup.type.MediaType
-import org.textup.type.MediaVersion
 
 // The interfaces that define the contract for handling media
 
@@ -27,13 +26,13 @@ interface ReadOnlyMediaInfo {
 @GrailsTypeChecked
 interface ReadOnlyMediaElement {
     String getUid()
-    MediaType type
-    Map<MediaVersion, ? extends ReadOnlyMediaElementVersion> getVersionsForDisplay()
+    List<? extends ReadOnlyMediaElementVersion> getAllVersions()
 }
 
 @GrailsTypeChecked
 interface ReadOnlyMediaElementVersion {
+    MediaType getType()
     URL getLink()
-    Integer getInherentWidth()
+    Integer getWidthInPixels()
     Integer getHeightInPixels()
 }

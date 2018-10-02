@@ -14,11 +14,18 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
 
     StorageService storageService
 
-    MediaVersion mediaVersion
     String versionId
     Long sizeInBytes
     Integer widthInPixels
     Integer heightInPixels
+
+    @RestApiObjectField(
+        description    = "MIME type, if available. Currently: `image/jpeg`, `image/png`, `image/gif`, \
+            `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/ogg;codecs=opus`, `audio/ogg; codecs=opus`, \
+            `audio/webm`, `audio/webm;codecs=opus`, `audio/webm; codecs=opus`",
+        allowedType    = "String",
+        useForCreation = false)
+    MediaType type
 
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -48,13 +55,6 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
 
     // Property access
     // ---------------
-
-    // DON'T prepend the "w" unit for inherent width as called for in the `srcset` attribute
-    // becuase we want to give the frontend the flexibility to do number comparisons
-    // on these widths without having to manually strip the unit
-    Integer getInherentWidth() {
-        widthInPixels ?: mediaVersion?.maxWidthInPixels
-    }
 
     URL getLink() {
         Result<URL> res = storageService

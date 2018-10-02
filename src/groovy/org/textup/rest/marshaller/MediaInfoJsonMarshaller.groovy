@@ -10,8 +10,11 @@ class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
 
     static final Closure marshalClosure = { ReadOnlyMediaInfo mInfo ->
 
-        Map json = [id: mInfo.id, images: mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES)]
-
+        Map json = [
+            id     : mInfo.id,
+            images : mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES),
+            audio  : mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES)
+        ]
         Result<?> res = Helpers.tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
             .logFail("MediaInfoJsonMarshaller: no available request", LogLevel.DEBUG)
         if (res.success) { json.uploadErrors = res.payload }

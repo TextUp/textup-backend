@@ -40,8 +40,12 @@ class MediaAction extends BaseAction {
 				if (!data) {
 					return ["requiredForAdd"]
 				}
-				if (!Base64.isBase64(data)) {
-		            return ["invalidFormat"]
+				if (Base64.isBase64(data) &&
+					Base64.decodeBase64(data).length > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
+					return ["tooLarge", Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES]
+		        }
+		        else {
+		        	return ["invalidFormat"]
 		        }
 			}
 		}
