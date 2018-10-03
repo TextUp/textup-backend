@@ -17,6 +17,7 @@ class RecordService {
     AuthService authService
     GrailsApplication grailsApplication
     MediaService mediaService
+    OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
     StorageService storageService
 
@@ -28,6 +29,11 @@ class RecordService {
         if (!p1) {
             return resultFactory.failWithCodeAndStatus("recordService.create.noPhone",
                 ResultStatus.UNPROCESSABLE_ENTITY).toGroup()
+        }
+        // TODO
+        Staff authUser = authService.loggedInAndActive
+        if (p1.owner.all.any { Staff s2 -> s2.id == authUser.id }) {
+            return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
         }
         Result<Class<RecordItem>> res = determineClass(body)
         if (!res.success) { return res.toGroup() }
@@ -64,7 +70,7 @@ class RecordService {
         Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
             .logFail("RecordService.createText")
         // step 4: actually send outgoing message
-        p1.sendMessage(msgRes.payload, mInfo, authService.loggedInAndActive)
+        outgoingMessageService.sendMessage(p1, msgRes.payload, mInfo, authService.loggedInAndActive)
     }
     protected Result<OutgoingMessage> buildOutgoingMessage(Phone p1, Map body, MediaInfo mInfo = null) {
         // step 1: create each type of recipient
@@ -133,11 +139,7 @@ class RecordService {
             return resultFactory.failWithCodeAndStatus("recordService.create.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
-        createCallHelper(p1, cont1, authService.loggedInAndActive)
-    }
-    // for easier mocking during testing
-    protected Result<RecordCall> createCallHelper(Phone p1, Contactable c1, Staff staff) {
-        p1.startBridgeCall(c1, staff)
+        outgoingMessageService.startBridgeCall(p1, cont1, authService.loggedInAndActive)
     }
 
     @RollbackOnResultFailure

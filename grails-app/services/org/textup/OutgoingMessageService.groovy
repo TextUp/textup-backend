@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.commons.lang3.tuple.Pair
+import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -14,16 +15,28 @@ class OutgoingMessageService {
     MediaService mediaService
     ResultFactory resultFactory
     TokenService tokenService
+    TwimlBuilder twimlBuilder
 
     // Outgoing calls
     // --------------
 
     Result<RecordCall> startBridgeCall(Phone p1, Contactable c1, Staff s1) {
+        // TODO
+        if (!p1.isActive) {
+            return resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
+        }
+        if (!s1.personalPhoneAsString) {
+            return resultFactory.failWithCodeAndStatus("phone.startBridgeCall.noPersonalNumber",
+                ResultStatus.UNPROCESSABLE_ENTITY)
+        }
         PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : p1.number,
             toNum = s1.personalPhoneNumber
         Map afterPickup = [contactId:c1.contactId, handle:CallResponse.FINISH_BRIDGE]
         callService.start(fromNum, toNum, afterPickup)
             .then(this.&afterBridgeCall.curry(c1, s1))
+    }
+    Result<Closure> finishBridgeCall(Contact c1) {
+        twimlBuilder.build(CallResponse.FINISH_BRIDGE, [contact:c1])
     }
 
     protected Result<RecordCall> afterBridgeCall(Contactable c1, Staff s1, TempRecordReceipt rpt) {
@@ -40,6 +53,10 @@ class OutgoingMessageService {
 
     ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg1, MediaInfo mInfo = null,
         Staff staff = null) {
+        // TODO
+        if (!phone.isActive) {
+            resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND).toGroup()
+        }
         // step 1: initialize variables
         List<Contactable> recipients = msg1.toRecipients().toList()
         Author author1 = staff?.toAuthor()

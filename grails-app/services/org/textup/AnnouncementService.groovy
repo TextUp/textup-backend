@@ -30,6 +30,18 @@ class AnnouncementService {
 		create(authService.loggedInAndActive?.phone, body)
 	}
 
+    Result<Closure> completeCallAnnouncement(String digits, String message,
+        String identifier, IncomingSession session) {
+        if (digits == Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE) {
+            session.isSubscribedToCall = false
+            twimlBuilder.build(CallResponse.UNSUBSCRIBED)
+        }
+        else {
+            twimlBuilder.build(CallResponse.ANNOUNCEMENT_AND_DIGITS,
+                [message:message, identifier:identifier])
+        }
+    }
+
     @RollbackOnResultFailure
 	protected Result<FeaturedAnnouncement> create(Phone p1, Map body) {
 		if (!p1) {
@@ -39,7 +51,22 @@ class AnnouncementService {
         String msg = body.message as String
         DateTime expires = Helpers.toUTCDateTime(body.expiresAt)
         Staff loggedIn = authService.loggedInAndActive
-        p1.sendAnnouncement(msg, expires, loggedIn)
+
+        // TODO
+        if (!p1.isActive) {
+            return resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
+        }
+        // validate expiration
+        if (!expires || expires.isBeforeNow()) {
+            return resultFactory.failWithCodeAndStatus("phone.sendAnnouncement.expiresInPast",
+                ResultStatus.UNPROCESSABLE_ENTITY)
+        }
+        // validate staff
+        if (!p1.owner.all.contains(authService.loggedInAndActive)) {
+            return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
+        }
+
+        sendAnnouncement(p1, msg, expires, loggedIn)
             .then { FeaturedAnnouncement fa1 -> resultFactory.success(fa1, ResultStatus.CREATED) }
 	}
 
@@ -63,7 +90,52 @@ class AnnouncementService {
     // Outgoing
     // --------
 
-    Map<String, Result<TempRecordReceipt>> sendTextAnnouncement(Phone phone, String message,
+    // TODO
+    protected Result<FeaturedAnnouncement> sendAnnouncement(Phone p1, String message, DateTime expiresAt, Staff staff) {
+        // collect relevant classes
+        List<IncomingSession> textSubs = IncomingSession.findAllByPhoneAndIsSubscribedToText(p1, true),
+            callSubs = IncomingSession.findAllByPhoneAndIsSubscribedToCall(p1, true)
+        String identifier = p1.name
+        // build announcements class
+        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
+            expiresAt:expiresAt, message:message)
+        //mark as to-be-saved to avoid TransientObjectExceptions
+        if (!announce.save()) {
+            resultFactory.failWithValidationErrors(announce.errors)
+        }
+        // send announcements
+        Map<String, Result<TempRecordReceipt>> textRes = sendTextAnnouncement(p1, message, identifier, textSubs, staff)
+        Map<String, Result<TempRecordReceipt>> callRes = startCallAnnouncement(p1, message, identifier, callSubs, staff)
+        // collect sessions that we successfully reached
+        Collection<IncomingSession> successTexts = textSubs.findAll {
+            textRes[it.numberAsString]?.success
+        }, successCalls = callSubs.findAll {
+            callRes[it.numberAsString]?.success
+        }
+        // add sessions to announcement as receipts
+        ResultGroup<AnnouncementReceipt> textResGroup = announce.addToReceipts(RecordItemType.TEXT, successTexts),
+            callResGroup = announce.addToReceipts(RecordItemType.CALL, successCalls)
+        textResGroup.logFail("Phone.sendAnnouncement: add text announce receipts")
+        callResGroup.logFail("Phone.sendAnnouncement: add call announce receipts")
+        // don't use announce.numReceipts here because the dynamic finder
+        // will flush the session
+        boolean noSubscribers = (!textSubs && !callSubs),
+            anySuccessWithSubscribers = (textResGroup.anySuccesses || callResGroup.anySuccesses) && (textSubs || callSubs)
+        if (noSubscribers || anySuccessWithSubscribers) {
+            if (announce.save()) {
+                resultFactory.success(announce)
+            }
+            else { resultFactory.failWithValidationErrors(announce.errors) }
+        }
+        // return error if all subscribers failed to receive announcement
+        else {
+            resultFactory.failWithResultsAndStatus(textRes.values() + callRes.values(),
+                ResultStatus.INTERNAL_SERVER_ERROR)
+        }
+    }
+
+    // TODO
+    protected Map<String, Result<TempRecordReceipt>> sendTextAnnouncement(Phone phone, String message,
         String identifier, List<IncomingSession> sessions, Staff staff) {
 
         Author author1 = staff.toAuthor()
@@ -74,7 +146,7 @@ class AnnouncementService {
             ])
             .logFail("AnnouncementService.sendTextAnnouncement")
         String announcement = res.success ? res.payload[0] : "$identifier: $message"
-        startAnnouncement(phone, sessions, { IncomingSession s1 ->
+        sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
             textService.send(phone.number, [s1.number], announcement)
         }, { Contact c1, TempRecordReceipt receipt ->
             c1.record.storeOutgoingText(message, author1)
@@ -84,11 +156,13 @@ class AnnouncementService {
                 }
         })
     }
-    Map<String, Result<TempRecordReceipt>> startCallAnnouncement(Phone phone, String message,
+
+    // TODO
+    protected Map<String, Result<TempRecordReceipt>> startCallAnnouncement(Phone phone, String message,
         String identifier, List<IncomingSession> sessions, Staff staff) {
 
         Author author1 = staff.toAuthor()
-        startAnnouncement(phone, sessions, { IncomingSession s1 ->
+        sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
             callService.start(phone.number, s1.number, [
                 handle:CallResponse.ANNOUNCEMENT_AND_DIGITS,
                 message:message,
@@ -103,7 +177,8 @@ class AnnouncementService {
         })
     }
 
-    protected Map<String, Result<TempRecordReceipt>> startAnnouncement(Phone phone,
+    // TODO
+    protected Map<String, Result<TempRecordReceipt>> sendAnnouncementHelper(Phone phone,
         List<IncomingSession> sessions, Closure<Result<TempRecordReceipt>> receiptAction,
         Closure<Result<? extends RecordItem>> addToRecordAction) {
 
@@ -111,7 +186,7 @@ class AnnouncementService {
         Map<String,TempRecordReceipt> numberAsStringToReceipt = [:]
         sessions.each { IncomingSession s1 ->
             Result<TempRecordReceipt> res = receiptAction(s1)
-                .logFail("AnnouncementService.startAnnouncement: sending and returning receipt")
+                .logFail("AnnouncementService.sendAnnouncementHelper: sending and returning receipt")
             if (res.success) {
                 TempRecordReceipt receipt = res.payload
                 numberAsStringToReceipt[s1.numberAsString] = receipt
@@ -127,7 +202,7 @@ class AnnouncementService {
                 TempRecordReceipt receipt = numberAsStringToReceipt[numAsString]
                 if (!contacts) { // create new contact if none found for session
                     phone.createContact([:], [numAsString])
-                        .logFail("AnnouncementService.startAnnouncement: create contact")
+                        .logFail("AnnouncementService.sendAnnouncementHelper: create contact")
                         .thenEnd({ Contact newC ->
                             newContacts << newC
                             contacts << newC
@@ -136,12 +211,12 @@ class AnnouncementService {
                 if (receipt) {
                     contacts.each { Contact c1 ->
                         addToRecordAction(c1, receipt)
-                            .logFail("AnnouncementService.startAnnouncement: add to record")
+                            .logFail("AnnouncementService.sendAnnouncementHelper: add to record")
                             .thenEnd({ RecordItem item -> item.isAnnouncement = true })
                     }
                 }
                 else {
-                    log.error("AnnouncementService.startAnnouncement: no receipt for $numAsString")
+                    log.error("AnnouncementService.sendAnnouncementHelper: no receipt for $numAsString")
                 }
             }
         // notify of new contacts

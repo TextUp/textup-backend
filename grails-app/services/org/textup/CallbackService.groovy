@@ -18,13 +18,17 @@ import org.textup.validator.*
 @Transactional
 class CallbackService {
 
+    AnnouncementService announcementService
     GrailsApplication grailsApplication
+    IncomingMessageService incomingMessageService
     MediaService mediaService
+    OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
     SocketService socketService
     StorageService storageService
     ThreadService threadService
     TwimlBuilder twimlBuilder
+    VoicemailService voicemailService
 
 	// Validate request
 	// ----------------
@@ -116,6 +120,14 @@ class CallbackService {
         IncomingSession is1
         if (iRes.success) {is1 = iRes.payload }
         else { return iRes }
+
+
+        if (is1.phone?.id != p1?.id) { //validate session
+            // TODO
+            Helpers.resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
+        }
+
+
         // step 4: process request
         String apiId = params.CallSid ?: params.MessageSid
         if (params.CallSid) {
@@ -179,12 +191,9 @@ class CallbackService {
         TypeConvertingMap params) {
         String digits = params.Digits
         switch(params.handle) {
-            case CallResponse.SCREEN_INCOMING.toString():
-                p1.screenIncomingCall(is1)
-                break
             case CallResponse.CHECK_IF_VOICEMAIL.toString():
                 ReceiptStatus rStatus = ReceiptStatus.translate(params.DialCallStatus as String)
-                p1.tryStartVoicemail(is1.number, p1.number, rStatus)
+                voicemailService.tryStartVoicemail(p1, is1.number, rStatus)
                 break
             case CallResponse.VOICEMAIL_DONE.toString():
                 Integer voicemailDuration = Helpers.to(Integer, params.RecordingDuration)
@@ -196,22 +205,25 @@ class CallbackService {
                 // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
                 // is completely done being stored before attempting to fetch it.
                 threadService.submit(5, TimeUnit.SECONDS) {
-                    p1.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
+                    voicemailService.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
                         .logFail("CallbackService.processCall: VOICEMAIL_DONE voicemailUrl: ${voicemailUrl}")
                 }
                 twimlBuilder.build(CallResponse.VOICEMAIL_DONE)
                 break
-            case CallResponse.FINISH_BRIDGE.toString():
-                Contact c1 = Contact.get(params.long("contactId"))
-                p1.finishBridgeCall(c1)
-                break
             case CallResponse.ANNOUNCEMENT_AND_DIGITS.toString():
                 String msg = params.message,
                     ident = params.identifier
-                p1.completeCallAnnouncement(digits, msg, ident, is1)
+                announcementService.completeCallAnnouncement(digits, msg, ident, is1)
+                break
+            case CallResponse.FINISH_BRIDGE.toString():
+                Contact c1 = Contact.get(params.long("contactId"))
+                outgoingMessageService.finishBridgeCall(c1)
+                break
+            case CallResponse.SCREEN_INCOMING.toString():
+                incomingMessageService.screenIncomingCall(p1, is1)
                 break
             default:
-                p1.receiveCall(apiId, digits, is1)
+                incomingMessageService.receiveCall(p1, apiId, digits, is1)
         }
     }
 
@@ -235,8 +247,8 @@ class CallbackService {
         IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String,
             numSegments: Helpers.to(Integer, params.NumSegments))
         if (text.validate()) { //validate text
-            p1
-                .receiveText(text, is1, mInfo)
+            incomingMessageService
+                .receiveText(p1, text, is1, mInfo)
                 .then { Pair<Closure, List<RecordText>> payload ->
                     // don't want the twilio request to time out so we first return a response
                     // to twilio and then deal with remaining more time-intensive tasks

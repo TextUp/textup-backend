@@ -29,6 +29,7 @@ class FutureMessageService {
     MediaService mediaService
     MessageSource messageSource
     NotificationService notificationService
+    OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
     Scheduler quartzScheduler
     SocketService socketService
@@ -123,7 +124,8 @@ class FutureMessageService {
         // OR in the future the contact may not longer be shared with this staff member
         // but any scheduled messages that this staff member initiated should still fire
         // regardless of present sharing status
-        ResultGroup<RecordItem> resGroup = p1.sendMessage(msg, fMsg.media, Staff.get(staffId), true)
+        ResultGroup<RecordItem> resGroup = outgoingMessageService
+            .sendMessage(p1, msg, fMsg.media, Staff.get(staffId))
         socketService
             .sendItems(resGroup.payload)
             .logFail("FutureMessageService.execute: sending items through socket")

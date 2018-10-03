@@ -14,18 +14,28 @@ import org.textup.validator.*
 class IncomingMessageService {
 
     AnnouncementService announcementService
+    MessageSource messageSource
     NotificationService notificationService
     ResultFactory resultFactory
     SocketService socketService
     TokenService tokenService
     TwimlBuilder twimlBuilder
-    MessageSource messageSource
+    VoicemailService voicemailService
 
     // Texts
     // -----
 
-    Result<Pair<Closure, List<RecordText>>> relayText(Phone p1, IncomingText text, IncomingSession sess1,
+    Result<Pair<Closure, List<RecordText>>> receiveText(Phone p1, IncomingText text, IncomingSession sess1,
         MediaInfo mInfo = null) {
+        if (p1.getAnnouncements()) {
+            announcementService.handleAnnouncementText(p1, text, sess1,
+                { relayText(p1, text, sess1, mInfo) })
+        }
+        else { relayText(p1, text, sess1, mInfo) }
+    }
+
+    protected Result<Pair<Closure, List<RecordText>>> relayText(Phone p1, IncomingText text,
+        IncomingSession sess1, MediaInfo mInfo = null) {
 
         List<RecordText> rTexts = []
         storeForNumber(p1, sess1.number, this.&storeIncomingText.curry(text, sess1, mInfo, rTexts.&add))
@@ -97,7 +107,22 @@ class IncomingMessageService {
     // Calls
     // -----
 
-    Result<Closure> relayCall(Phone p1, String apiId, IncomingSession sess1) {
+    Result<Closure> receiveCall(Phone p1, String apiId, String digits, IncomingSession session) {
+        //if staff member is calling from personal phone to TextUp phone
+        if (p1.owner.all.any { it.personalPhoneAsString == session.numberAsString }) {
+            Staff staff = p1.owner.all.find { it.personalPhoneAsString == session.numberAsString }
+            handleSelfCall(p1, apiId, digits, staff)
+        }
+        else if (p1.getAnnouncements()) {
+            announcementService.handleAnnouncementCall(p1, digits, session,
+                { relayCall(p1, apiId, session) })
+        }
+        else {
+            relayCall(p1, apiId, session)
+        }
+    }
+
+    protected Result<Closure> relayCall(Phone p1, String apiId, IncomingSession sess1) {
         List<RecordCall> rCalls = []
         storeForNumber(p1, sess1.number, this.&storeIncomingCall.curry(apiId, sess1, rCalls.&add))
             // do not curry to enable mocking for testing
@@ -155,23 +180,13 @@ class IncomingMessageService {
         rCalls.each { RecordCall rCall -> rCall.hasAwayMessage = true }
         // must pass in a non-success status because we will not start voicemail
         // if the call has already completed successfully
-        p1.tryStartVoicemail(sess1.number, p1.number, ReceiptStatus.PENDING)
+        voicemailService.tryStartVoicemail(p1, sess1.number, ReceiptStatus.PENDING)
     }
 
-    // Other incoming call handlers
-    // ----------------------------
+    // Self call
+    // ---------
 
-    Result<Closure> screenIncomingCall(Phone phone, IncomingSession session) {
-        List<Contact> notBlockedContacts = getDeliverableContacts(phone, session.number).right
-        HashSet<String> idents = new HashSet<>()
-        notBlockedContacts.each { Contact c1 -> idents.add(c1.getNameOrNumber()) }
-        twimlBuilder.build(CallResponse.SCREEN_INCOMING, [
-            callerId: Helpers.joinWithDifferentLast(new ArrayList<String>(idents), ", ", " or "),
-            linkParams:[handle:CallResponse.DO_NOTHING]
-        ])
-    }
-
-    Result<Closure> handleSelfCall(Phone phone, String apiId, String digits, Staff staff) {
+    protected Result<Closure> handleSelfCall(Phone phone, String apiId, String digits, Staff staff) {
         if (!digits) {
             return twimlBuilder.build(CallResponse.SELF_GREETING)
         }
@@ -195,6 +210,19 @@ class IncomingMessageService {
             .storeOutgoingCall(staff.toAuthor())
             .logFail("IncomingMessageService.storeOutgoingCall")
             .thenEnd { RecordCall rCall1 -> rCall1.addReceipt(rpt) }
+    }
+
+    // Screening
+    // ---------
+
+    Result<Closure> screenIncomingCall(Phone p1, IncomingSession session) {
+        List<Contact> notBlockedContacts = getDeliverableContacts(p1, session.number).right
+        HashSet<String> idents = new HashSet<>()
+        notBlockedContacts.each { Contact c1 -> idents.add(c1.getNameOrNumber()) }
+        twimlBuilder.build(CallResponse.SCREEN_INCOMING, [
+            callerId: Helpers.joinWithDifferentLast(new ArrayList<String>(idents), ", ", " or "),
+            linkParams:[handle:CallResponse.DO_NOTHING]
+        ])
     }
 
     // Helpers

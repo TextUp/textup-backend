@@ -12,14 +12,10 @@ import org.textup.validator.action.*
 @Transactional
 class PhoneService {
 
-    AnnouncementService announcementService
     AuthService authService
-    IncomingMessageService incomingMessageService
     NotificationService notificationService
     NumberService numberService
-    OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
-    VoicemailService voicemailService
 
     Result<Staff> mergePhone(Staff s1, Map body, String timezone) {
         if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
@@ -150,67 +146,5 @@ class PhoneService {
         }
         numberService.changeForApiId(apiId)
             .then({ IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) })
-    }
-
-    // Outgoing
-    // --------
-
-    ResultGroup<RecordItem> sendMessage(Phone phone, OutgoingMessage msg1, MediaInfo mInfo = null,
-        Staff staff = null) {
-        outgoingMessageService.sendMessage(phone, msg1, mInfo, staff)
-    }
-
-    Result<RecordCall> startBridgeCall(Phone phone, Contactable c1, Staff staff) {
-        outgoingMessageService.startBridgeCall(phone, c1, staff)
-    }
-
-    Map<String, Result<TempRecordReceipt>> sendTextAnnouncement(Phone phone, String message,
-        String identifier, List<IncomingSession> sessions, Staff staff) {
-
-        announcementService.sendTextAnnouncement(phone, message, identifier, sessions, staff)
-    }
-    Map<String, Result<TempRecordReceipt>> startCallAnnouncement(Phone phone, String message,
-        String identifier, List<IncomingSession> sessions, Staff staff) {
-
-        announcementService.startCallAnnouncement(phone, message, identifier, sessions, staff)
-    }
-
-	// Incoming
-	// --------
-
-    Result<Pair<Closure, List<RecordText>>> relayText(Phone phone, IncomingText text,
-        IncomingSession session, MediaInfo mInfo = null) {
-
-        incomingMessageService.relayText(phone, text, session, mInfo)
-    }
-    Result<Pair<Closure, List<RecordText>>> handleAnnouncementText(Phone phone, IncomingText text,
-        IncomingSession session, MediaInfo mInfo = null) {
-
-        announcementService.handleAnnouncementText(phone, text, session,
-            { relayText(phone, text, session, mInfo) })
-    }
-
-    Result<Closure> relayCall(Phone phone, String apiId, IncomingSession session) {
-        incomingMessageService.relayCall(phone, apiId, session)
-    }
-    Result<Closure> handleAnnouncementCall(Phone phone, String apiId, String digits,
-        IncomingSession session) {
-
-        announcementService.handleAnnouncementCall(phone, digits, session,
-            { relayCall(phone, apiId, session) })
-    }
-
-    Result<Closure> screenIncomingCall(Phone phone, IncomingSession session) {
-        incomingMessageService.screenIncomingCall(phone, session)
-    }
-    Result<Closure> handleSelfCall(Phone phone, String apiId, String digits, Staff staff) {
-        incomingMessageService.handleSelfCall(phone, apiId, digits, staff)
-    }
-
-    Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
-        voicemailService.moveVoicemail(callId, recordingId, voicemailUrl)
-    }
-    ResultGroup<RecordCall> storeVoicemail(String callId, int voicemailDuration) {
-        voicemailService.storeVoicemail(callId, voicemailDuration)
     }
 }

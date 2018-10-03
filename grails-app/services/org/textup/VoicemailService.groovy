@@ -9,6 +9,9 @@ import org.apache.http.HttpResponse
 import org.apache.http.HttpStatus as ApacheHttpStatus
 import org.apache.http.impl.client.CloseableHttpClient
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.textup.rest.TwimlBuilder
+import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
@@ -18,9 +21,54 @@ class VoicemailService {
     ResultFactory resultFactory
     SocketService socketService
     StorageService storageService
+    TwimlBuilder twimlBuilder
+
+    Result<Closure> tryStartVoicemail(Phone p1, BasePhoneNumber fromNum, ReceiptStatus status) {
+        if (status == ReceiptStatus.SUCCESS) { // call already connected so no voicemail
+            twimlBuilder.noResponse()
+        }
+        else {
+            twimlBuilder.build(CallResponse.CHECK_IF_VOICEMAIL,
+                [
+                    voice: p1.voice,
+                    awayMessage:p1.awayMessage,
+                    // no-op for Record Twiml verb to call because recording might not be ready
+                    linkParams:[handle:CallResponse.END_CALL],
+                    // need to population From and To parameters to help in finding
+                    // phone and session in the recording status hook
+                    callbackParams:[handle:CallResponse.VOICEMAIL_DONE,
+                        From:fromNum.e164PhoneNumber, To:p1.number.e164PhoneNumber]
+                ])
+        }
+    }
+
+    ResultGroup<RecordCall> completeVoicemail(String callId, String recordingId,
+        String voicemailUrl, Integer voicemailDuration) {
+        // move the encrypted voicemail to s3 and delete recording at Twilio
+        Result<String> res = moveVoicemail(callId, recordingId, voicemailUrl)
+            .logFail("Phone.moveVoicemail: call: ${callId}, recording: ${recordingId}")
+        if (!res.success) {
+            return res.toGroup()
+        }
+        storeVoicemail(callId, voicemailDuration)
+            .logFail("Phone.storeVoicemail: call: ${callId}, recording: ${recordingId}")
+    }
+
+    String getVoicemailUrl(String voicemailKey) {
+        if (voicemailKey) {
+            Result<URL> res = storageService
+                .generateAuthLink(voicemailKey)
+                .logFail("VoicemailService.getVoicemailUrl")
+            res.success ? res.payload.toString() : ""
+        }
+        else { "" }
+    }
+
+    // Helpers
+    // -------
 
     // [UNTESTED] due to mocking constraints
-    Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
+    protected Result<String> moveVoicemail(String callId, String recordingId, String voicemailUrl) {
         try {
             String sid = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
                 authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
@@ -56,7 +104,7 @@ class VoicemailService {
         }
     }
 
-    ResultGroup<RecordCall> storeVoicemail(String callId, int voicemailDuration) {
+    protected ResultGroup<RecordCall> storeVoicemail(String callId, int voicemailDuration) {
         ResultGroup<RecordCall> resGroup = new ResultGroup<>()
         List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(callId)
         Collection<RecordItem> rItems = receipts*.item.unique { RecordItem rItem -> rItem.id }
@@ -81,15 +129,5 @@ class VoicemailService {
         // send updated items with receipts through socket
         socketService.sendItems(resGroup.payload)
         resGroup
-    }
-
-    String getVoicemailUrl(String voicemailKey) {
-        if (voicemailKey) {
-            Result<URL> res = storageService
-                .generateAuthLink(voicemailKey)
-                .logFail("VoicemailService.getVoicemailUrl")
-            res.success ? res.payload.toString() : ""
-        }
-        else { "" }
     }
 }
