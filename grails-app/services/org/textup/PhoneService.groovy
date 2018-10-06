@@ -3,6 +3,7 @@ package org.textup
 import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import java.util.concurrent.Future
 import org.apache.commons.lang3.tuple.Pair
 import org.textup.type.*
 import org.textup.validator.*
@@ -13,6 +14,7 @@ import org.textup.validator.action.*
 class PhoneService {
 
     AuthService authService
+    MediaService mediaService
     NotificationService notificationService
     NumberService numberService
     ResultFactory resultFactory

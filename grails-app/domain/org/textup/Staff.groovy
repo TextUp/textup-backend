@@ -18,7 +18,9 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.ScheduleChange
 
 @EqualsAndHashCode
-@RestApiObject(name="Staff", description="A staff member at an organization.")
+@RestApiObject(
+    name        = "Staff",
+    description = "A staff member at an organization.")
 class Staff implements Schedulable {
 
 	SpringSecurityService springSecurityService
@@ -33,7 +35,7 @@ class Staff implements Schedulable {
 
     String personalPhoneAsString
 
-    @RestApiObjectField(description="Username of the staff member.")
+    @RestApiObjectField(description = "Username of the staff member.")
 	String username
 
     @RestApiObjectField(
@@ -46,10 +48,10 @@ class Staff implements Schedulable {
         presentInResponse = false)
     String lockCode = Constants.DEFAULT_LOCK_CODE
 
-    @RestApiObjectField(description="Full name of the staff member.")
+    @RestApiObjectField(description = "Full name of the staff member.")
 	String name
 
-    @RestApiObjectField(description="Email address of the staff member.")
+    @RestApiObjectField(description = "Email address of the staff member.")
 	String email
 
     @RestApiObjectField(
@@ -86,7 +88,7 @@ class Staff implements Schedulable {
         defaultValue = "true")
     boolean isAvailable = true
 
-    @RestApiObjectFields(params=[
+    @RestApiObjectFields(params = [
         @RestApiObjectField(
             apiFieldName  = "phone",
             description   = "TextUp phone",
@@ -103,16 +105,18 @@ class Staff implements Schedulable {
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName = "personalPhoneNumber",
-            description  = "Personal phone number of the staff member. To remove \
-                a staff member's personal phone number, pass in an empty string \
-                in the update request",
+            description  = "Personal phone number of the staff member. To remove a staff member's personal phone number, pass in an empty string in the update request",
             allowedType  = "String"),
         @RestApiObjectField(
             apiFieldName      = "captcha",
-            description       = "reCaptcha code verifying that request is not a bot \
-                only required if you are not logged in when creating a staff",
+            description       = "reCaptcha code verifying that request is not a bot only required if you are not logged in when creating a staff",
             useForCreation    = true,
-            presentInResponse = false)
+            presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName      = "channelName",
+            description       = "Pusher websocket channel name",
+            useForCreation    = false,
+            presentInResponse = true)
     ])
     static transients = ["personalPhoneNumber", "phone", "springSecurityService", "passwordEncoder"]
 	static constraints = {
@@ -281,15 +285,18 @@ class Staff implements Schedulable {
     List<Team> getTeams(Map params=[:]) {
         Team.forStaffs([this]).list(params)
     }
+
     @GrailsTypeChecked
     void setUsername(String un) {
         this.username = un?.toLowerCase()
     }
+
     @GrailsTypeChecked
     void setSchedule(Schedule s) {
         this.schedule = s
         this.schedule?.save()
     }
+
     @GrailsTypeChecked
     void setPersonalPhoneNumber(BasePhoneNumber num) {
         this.personalPhoneAsString = num?.number
@@ -298,6 +305,12 @@ class Staff implements Schedulable {
     PhoneNumber getPersonalPhoneNumber() {
         new PhoneNumber(number:this.personalPhoneAsString)
     }
+
+    @GrailsTypeChecked
+    String getChannelName() {
+        "private-${username}"
+    }
+
     @GrailsTypeChecked
     boolean getHasInactivePhone() {
         Phone ph = this.phoneWithAnyStatus

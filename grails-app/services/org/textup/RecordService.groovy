@@ -2,7 +2,8 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.codehaus.groovy.grails.commons.GrailsApplication
+import java.util.concurrent.Future
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.*
@@ -15,11 +16,9 @@ import org.textup.validator.action.*
 class RecordService {
 
     AuthService authService
-    GrailsApplication grailsApplication
     MediaService mediaService
     OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
-    StorageService storageService
 
     // Create
     // ------
@@ -62,7 +61,9 @@ class RecordService {
         if (!msgRes.success) { return msgRes.toGroup() }
         // step 3: return new domain objects and continue processing media separately
         Staff authUser = authService.loggedInAndActive
-        outgoingMessageService.processMessage(p1, msgRes.payload, authUser, mediaTuple?.second)
+        outgoingMessageService
+            .processMessage(p1, msgRes.payload, authUser, mediaTuple?.second)
+            .first
     }
 
     @RollbackOnResultFailure
@@ -74,7 +75,7 @@ class RecordService {
 
     @RollbackOnResultFailure
     protected Result<RecordItem> createNote(Phone p1, TypeConvertingMap body) {
-        RecordUtils.checkNoteTarget(p1, body)
+        RecordUtils.buildNoteTarget(p1, body)
             .then { Record rec1 ->
                 mergeNote(new RecordNote(record: rec1), body, ResultStatus.CREATED)
             }

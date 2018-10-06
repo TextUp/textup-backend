@@ -315,8 +315,8 @@ class BaseController {
         results
     }
     protected List<Integer> buildPaginationOptions(Integer optMax, Integer optOffset, Integer optTotal) {
-        Integer defaultMax = Helpers.to(Integer, grailsApplication.flatConfig["textup.defaultMax"]),
-            largestMax = Helpers.to(Integer, grailsApplication.flatConfig["textup.largestMax"]),
+        Integer defaultMax = Constants.DEFAULT_PAGINATION_MAX,
+            largestMax = Constants.MAX_PAGINATION_MAX,
             offset = (optOffset > 0) ? optOffset : 0,
             max = Math.min((optMax > 0) ? optMax : defaultMax, largestMax),
             total = (optTotal >= 0) ? optTotal : max

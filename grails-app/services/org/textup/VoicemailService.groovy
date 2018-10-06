@@ -40,25 +40,31 @@ class VoicemailService {
         }
     }
 
-    ResultGroup<RecordCall> processVoicemailMessage(IncomingRecordingInfo im1) {
-        List<MediaElement> mediaElements = incomingMediaService.processElement([im1]).payload
+    ResultGroup<RecordCall> processVoicemailMessage(String callId, int duration,
+        IncomingRecordingInfo im1) {
+
+        List<MediaElement> mediaElements = incomingMediaService.process([im1]).payload
         if (mediaElements) { return }
-        RecordItemReceipt.findAllByApiId(callId)
-            *.item
+        ResultGroup<RecordCall> resGroup = new ResultGroup<>()
+        Collection<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(callId)
+        receipts*.item
             .unique { RecordItem item -> item.id }
             .each { RecordItem item ->
                 if (item.instanceOf(RecordCall)) {
-                    resGroup << updateVoicemailForCall(item as RecordCall, mediaElements)
+                    resGroup << updateVoicemailForCall(item as RecordCall, duration, mediaElements)
                 }
             }
         // send updated items with receipts through socket
         socketService.sendItems(resGroup.payload)
         resGroup
     }
-    protected Result<RecordCall> updateVoicemailForCall(RecordCall call, List<MediaElement> eList) {
+    protected Result<RecordCall> updateVoicemailForCall(RecordCall call, int duration,
+        List<MediaElement> eList) {
+
         MediaInfo mInfo = call.media ?: new MediaInfo()
-        mediaElements.each { MediaElement e1 -> mInfo.addToMediaElements(e1) }
+        eList.each { MediaElement e1 -> mInfo.addToMediaElements(e1) }
         call.hasAwayMessage = true
+        call.voicemailInSeconds = duration
         call.record.updateLastRecordActivity()
         call.media = mInfo
 

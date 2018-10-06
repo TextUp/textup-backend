@@ -115,15 +115,12 @@ class TestHelpers {
     }
 
     static ResultFactory getResultFactory(GrailsApplication grailsApplication) {
-        ResultFactory resultFactory = TestHelpers.getBean(grailsApplication, ResultFactory)
-        resultFactory.messageSource = TestHelpers.mockMessageSource()
-        resultFactory
+        TestHelpers.getBean(grailsApplication, ResultFactory)
     }
 
     static TwimlBuilder getTwimlBuilder(GrailsApplication grailsApplication) {
         TwimlBuilder twimlBuilder = TestHelpers.getBean(grailsApplication, TwimlBuilder)
         twimlBuilder.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        twimlBuilder.messageSource = TestHelpers.mockMessageSource()
         twimlBuilder.linkGenerator = TestHelpers.mockLinkGenerator()
         twimlBuilder
     }
@@ -143,8 +140,7 @@ class TestHelpers {
 
     static MediaElement buildMediaElement(BigDecimal sendSize = 88) {
         MediaElement e1 = new MediaElement(type: MediaType.IMAGE_JPEG,
-            sendVersion: new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-                versionId: UUID.randomUUID().toString(),
+            sendVersion: new MediaElementVersion(versionId: UUID.randomUUID().toString(),
                 sizeInBytes: sendSize.longValue(),
                 widthInPixels: 888))
         assert e1.validate()

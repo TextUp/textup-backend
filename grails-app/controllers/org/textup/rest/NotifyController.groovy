@@ -14,7 +14,7 @@ class NotifyController extends BaseController {
 
 	static String namespace = "v1"
 
-	TokenService tokenService
+	NotificationService notificationService
 
     @Override
     protected String getNamespaceAsString() { namespace }
@@ -34,7 +34,7 @@ class NotifyController extends BaseController {
     ])
     def show() {
     	String token = params.id
-        respondWithResult(Notification, tokenService.showNotification(token))
+        respondWithResult(Notification, notificationService.show(token))
     }
 
     def index() { notAllowed() }

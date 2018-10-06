@@ -1,6 +1,8 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class RecordUtils {
@@ -32,8 +34,7 @@ class RecordUtils {
             Helpers.resultFactory.success(RecordNote)
         }
         else {
-            // TODO
-            Helpers.resultFactory.failWithCodeAndStatus("recordService.create.unknownType",
+            Helpers.resultFactory.failWithCodeAndStatus("recordUtils.determineClass.unknownType",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
     }
@@ -95,8 +96,7 @@ class RecordUtils {
             Helpers.resultFactory.success(cont1)
         }
         else {
-            // TODO
-            resultFactory.failWithCodeAndStatus("recordService.create.atLeastOneRecipient",
+            Helpers.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -124,8 +124,7 @@ class RecordUtils {
             with1.tryGetRecord()
         }
         else {
-            // TODO
-            Helpers.resultFactory.failWithCodeAndStatus("recordService.create.atLeastOneRecipient",
+            Helpers.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -135,16 +134,14 @@ class RecordUtils {
 
     protected static Result<OutgoingMessage> checkOutgoingMessageRecipients(OutgoingMessage msg1) {
         // step 1: validate number of recipients
-        HashSet<Contactable> recipients = msg1.toRecipients()
-        Integer maxNumRecipients = Helpers.to(Integer, grailsApplication.flatConfig["textup.maxNumText"])
-        if (recipients.size() > maxNumRecipients) {
-            // TODO
-            Helpers.resultFactory.failWithCodeAndStatus("recordService.create.tooManyForText",
+        Collection<Contactable> recipients = msg1.toRecipients()
+        if (recipients.size() > Constants.MAX_NUM_TEXT_RECIPIENTS) {
+            Helpers.resultFactory.failWithCodeAndStatus(
+                "recordUtils.checkOutgoingMessageRecipients.tooMany",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         else if (recipients.isEmpty()) {
-            // TODO
-            Helpers.resultFactory.failWithCodeAndStatus("recordService.create.atLeastOneRecipient",
+            Helpers.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
         else { Helpers.resultFactory.success(msg1) }

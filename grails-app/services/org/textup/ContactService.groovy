@@ -4,9 +4,6 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.hibernate.Session
 import org.joda.time.DateTime
-import org.springframework.context.i18n.LocaleContextHolder as LCH
-import org.springframework.context.MessageSource
-import org.springframework.context.NoSuchMessageException
 import org.textup.type.ContactStatus
 import org.textup.type.SharePermission
 import org.textup.type.VoiceLanguage
@@ -23,7 +20,6 @@ class ContactService {
 
     AuthService authService
     DuplicateService duplicateService
-    MessageSource messageSource
     NotificationService notificationService
     ResultFactory resultFactory
     SocketService socketService
@@ -232,20 +228,15 @@ class ContactService {
     }
     protected Result<RecordNote> recordSharingChangesHelper(Record rec, HashSet<String> names,
         String code, Author auth) {
-        try {
-            List<String> namesList = new ArrayList<>(names)
-            String namesString = Helpers.joinWithDifferentLast(namesList, ", ", ", and "),
-                contents = messageSource.getMessage(code, [namesString] as Object[], LCH.getLocale())
-            RecordNote rNote1 = new RecordNote(record:rec, isReadOnly:true, noteContents:contents)
-            rNote1.author = auth
-            if (rNote1.save()) {
-                resultFactory.success(rNote1)
-            }
-            else { resultFactory.failWithValidationErrors(rNote1.errors) }
+        List<String> namesList = new ArrayList<>(names)
+        String namesString = Helpers.joinWithDifferentLast(namesList, ", ", ", and "),
+            contents = Helpers.getMessage(code, [namesString])
+        RecordNote rNote1 = new RecordNote(record:rec, isReadOnly:true, noteContents:contents)
+        rNote1.author = auth
+        if (rNote1.save()) {
+            resultFactory.success(rNote1)
         }
-        catch (NoSuchMessageException e) {
-            resultFactory.failWithThrowable(e)
-        }
+        else { resultFactory.failWithValidationErrors(rNote1.errors) }
     }
     protected Result<Contact> handleMergeActions(Contact c1, Map body, SharedContact sc1 = null) {
         if (body.doMergeActions && !sc1) {

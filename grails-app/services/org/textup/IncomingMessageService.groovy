@@ -2,23 +2,21 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.apache.commons.lang3.tuple.Pair
-import org.springframework.context.i18n.LocaleContextHolder as LCH
-import org.springframework.context.MessageSource
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.validator.*
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 
 @GrailsTypeChecked
 @Transactional
 class IncomingMessageService {
 
     AnnouncementService announcementService
-    MessageSource messageSource
+    IncomingMediaService incomingMediaService
     NotificationService notificationService
     ResultFactory resultFactory
     SocketService socketService
-    TokenService tokenService
+    ThreadService threadService
     TwimlBuilder twimlBuilder
     VoicemailService voicemailService
 
@@ -28,16 +26,19 @@ class IncomingMessageService {
     Result<Closure> processText(Phone p1, IncomingText text, IncomingSession sess1,
         TypeConvertingMap params) {
         // step 1: build texts
-        buildTexts(p1, text, is1)
+        buildTexts(p1, text, sess1)
             .then { Tuple<List<RecordText>, List<Contact>> processed ->
-                List<RecordText> rTexts = processed.x
-                List<Contact> notBlockedContacts = processed.y
+                List<RecordText> rTexts = processed.first
+                List<Contact> notBlockedContacts = processed.second
                 List<BasicNotification> notifs = notificationService.build(p1, notBlockedContacts)
                 // step 2: in a new thread, handle long-running tasks
-                threadService.submit { finishProcessingText(text, rTexts*.id, notifs, params) }
+                threadService.submit {
+                    finishProcessingText(text, rTexts*.id, notifs, params)
+                        .logFail("IncomingMessageService.processText: finishing processing")
+                }
                 // step 3: return the appropriate response while long-running tasks still processing
                 if (notBlockedContacts) {
-                    buildTextResponse(p1, sess1, notifs)
+                    buildTextResponse(p1, sess1, rTexts, notifs)
                 }
                 else { twimlBuilder.build(TextResponse.BLOCKED) }
             }
@@ -59,7 +60,7 @@ class IncomingMessageService {
     }
 
     protected Result<Closure> buildTextResponse(Phone p1, IncomingSession sess1,
-        List<BasicNotification> notifs) {
+        List<RecordText> rTexts, List<BasicNotification> notifs) {
         List<String> responses = []
         if (notifs.isEmpty()) {
             rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
@@ -71,53 +72,49 @@ class IncomingMessageService {
             .then { List<String> instructions -> twimlBuilder.buildTexts(responses + instructions) }
     }
 
-    protected void finishProcessingText(IncomingText text, List<Long> textIds,
+    protected Result<Void> finishProcessingText(IncomingText text, List<Long> textIds,
         List<BasicNotification> notifs, TypeConvertingMap params) {
 
         Integer numMedia = params.int("NumMedia")
         // if needed, process media, which includes generating versions, uploading versions,
         // and deleting copies stored by Twilio
         if (numMedia > 0) {
-            ResultGroup<MediaElement> outcome = incomingMediaService
+            ResultGroup<MediaElement> outcomes = incomingMediaService
                 .process(TwilioUtils.buildIncomingMedia(numMedia, text.apiId, params))
             MediaInfo mInfo = new MediaInfo()
-            outcome.payload.each { MediaElement el1 -> mInfo.addToMediaElements(el1) }
+            for (MediaElement el1 in outcomes.payload) {
+                mInfo.addToMediaElements(el1)
+            }
             if (mInfo.save()) {
                 finishProcessingTextHelper(text, textIds, notifs, mInfo)
             }
-            else {
-                resultFactory.failWithValidationErrors(mInfo.errors)
-                    .logFail("IncomingMessageService.finishProcessingText: saving media info")
-            }
+            else { resultFactory.failWithValidationErrors(mInfo.errors) }
         }
         else { finishProcessingTextHelper(text, textIds, notifs) }
     }
     protected Result<Void> finishProcessingTextHelper(IncomingText text, List<Long> textIds,
         List<BasicNotification> notifs, MediaInfo mInfo = null) {
 
-        RecordText rTexts = RecordText.getAll(textIds)
+        Collection<RecordText> rTexts = RecordText.getAll(textIds as Iterable<Serializable>)
         int numNotified = notifs.size()
         ResultGroup<RecordText> outcomes = new ResultGroup<>()
         rTexts.each { RecordText rText ->
             rText.media = mInfo
             rText.numNotified = numNotified
-            outcomes << rText.save() ?: resultFactory.failWithValidationErrors(rText.errors)
+            if (!rText.save()) { outcomes << resultFactory.failWithValidationErrors(rText.errors) }
         }
-        outcomes.logFail("IncomingMessageService.finishProcessingTextHelper: updating texts")
         if (!outcomes.anyFailures) {
             // send out notifications
-            String instructions = messageSource.getMessage(
-                "incomingMessageService.notifyStaff.notification", null, LCH.getLocale())
-            notifs.each { BasicNotification bn1 ->
-                tokenService
-                    .notifyStaff(bn1, false, text.message, instructions)
-                    .logFail("IncomingMessageService.finishProcessingTextHelper: notifying staff")
-            }
+            String instr = Helpers.getMessage("incomingMessageService.notifyStaff.notification")
+            notificationService.send(notifs, false, text.message, instr)
+                .logFail("IncomingMessageService.finishProcessingTextHelper: notifying staff")
             // For outgoing messages and all calls, we rely on status callbacks
             // to push record items to the frontend. However, for incoming texts
             // no status callback happens so we need to push the item here
             socketService.sendItems(rTexts)
+            resultFactory.success()
         }
+        else { resultFactory.failWithGroup(outcomes) }
     }
 
     // Calls
@@ -232,7 +229,7 @@ class IncomingMessageService {
     // ---------
 
     Result<Closure> screenIncomingCall(Phone p1, IncomingSession session) {
-        List<Contact> notBlockedContacts = getDeliverableContacts(p1, session.number).right
+        List<Contact> notBlockedContacts = getDeliverableContacts(p1, session.number).second
         HashSet<String> idents = new HashSet<>()
         notBlockedContacts.each { Contact c1 -> idents.add(c1.getNameOrNumber()) }
         twimlBuilder.build(CallResponse.SCREEN_INCOMING, [
@@ -244,20 +241,20 @@ class IncomingMessageService {
     // Helpers
     // -------
 
-    protected Pair<List<Contact>, List<Contact>> getDeliverableContacts(Phone phone, PhoneNumber pNum) {
+    protected Tuple<List<Contact>, List<Contact>> getDeliverableContacts(Phone phone, PhoneNumber pNum) {
         List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum),
             notBlockedContacts = contacts.findAll { Contact c1 ->
                 c1.status != ContactStatus.BLOCKED
             } as List<Contact>
-        Pair.of(contacts, notBlockedContacts)
+        Tuple.create(contacts, notBlockedContacts)
     }
 
     protected Result<List<Contact>> storeForNumber(Phone phone, PhoneNumber pNum,
         Closure<Void> storeContact) {
 
-        Pair<List<Contact>, List<Contact>> deliverables = getDeliverableContacts(phone, pNum)
-        List<Contact> contacts = deliverables.left,
-            notBlockedContacts = deliverables.right
+        Tuple<List<Contact>, List<Contact>> deliverables = getDeliverableContacts(phone, pNum)
+        List<Contact> contacts = deliverables.first,
+            notBlockedContacts = deliverables.second
         // only create new contact if no blocked contact either because
         // we don't want to create a new contact if there is a blocked contact associated
         // with the incoming number

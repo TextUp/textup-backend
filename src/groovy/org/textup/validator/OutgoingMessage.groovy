@@ -4,8 +4,6 @@ import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.springframework.context.i18n.LocaleContextHolder as LCH
-import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.RecordItemType
 import org.textup.type.VoiceLanguage
@@ -37,9 +35,6 @@ class OutgoingMessage {
 	// -------
 
 	HashSet<Contactable> toRecipients() {
-
-		// TODO define identity function for hashset to use ids
-
 		HashSet<Contactable> recipients = new HashSet<>()
         // add all contactables to a hashset to avoid duplication
         recipients.addAll(contacts.recipients)
@@ -49,11 +44,19 @@ class OutgoingMessage {
 	}
 
 	HashSet<WithRecord> toRecordOwners() {
-		// TODO
+		HashSet<WithRecord> recordOwners = new HashSet<>()
+		recordOwners.addAll(contacts.recipients)
+        recordOwners.addAll(sharedContacts.recipients)
+        recordOwners.addAll(tags.recipients)
+        recordOwners
 	}
 
-	Map<Long, List<ContacTag>> getContactIdToTags() {
-		// TODO
+	Map<Long, List<ContactTag>> getContactIdToTags() {
+		Map<Long, List<ContactTag>> contactIdToTags = [:].withDefault { [] as List<ContactTag> }
+		tags.recipients.each { ContactTag ct1 ->
+			ct1.members?.each { Contact c1 -> contactIdToTags[c1.id] << ct1 }
+		}
+		contactIdToTags
 	}
 
 	// Property Access
@@ -66,8 +69,7 @@ class OutgoingMessage {
 		}
 		Long id = contacts.recipients?.find { Contact c1 -> c1.id }?.id
 		if (id) { // don't return contact name, instead id, for PHI
-			Helpers.messageSource.getMessage("outgoingMessage.getName.contactId",
-            	[id] as Object[], LCH.getLocale()) ?: ""
+			Helpers.getMessage("outgoingMessage.getName.contactId", [id])
 		}
 		else { tags.recipients?.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
     }

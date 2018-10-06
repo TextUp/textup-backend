@@ -15,38 +15,6 @@ import org.textup.validator.*
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes = "owner")
 @RestApiObject(name = "Phone", description = "A TextUp phone.")
-@RestApiObjectFields(params = [
-    @RestApiObjectField(
-        apiFieldName = "number",
-        description  = "Phone number of this TextUp phone.",
-        allowedType  = "String"),
-     @RestApiObjectField(
-        apiFieldName   = "mandatoryEmergencyMessage",
-        description    = "Mandatory emergency message that will be appended to the custom away message to bring the total character length to no more than 160 characters.",
-        allowedType    = "String",
-        useForCreation = false),
-    @RestApiObjectField(
-        apiFieldName      = "doPhoneActions",
-        description       = "List of some actions to perform on this phone",
-        allowedType       = "List<[phoneAction]>",
-        useForCreation    = false,
-        presentInResponse = false),
-    @RestApiObjectField(
-        apiFieldName   = "tags",
-        description    = "List of tags, if any.",
-        allowedType    = "List<Tag>",
-        useForCreation = false),
-    @RestApiObjectField(
-        apiFieldName   = "availability",
-        description    = "Contains availability info for a particular staff for this phone, update attributes in this object to update phone-specific availability",
-        allowedType    = "StaffPolicyAvailability",
-        useForCreation = false),
-    @RestApiObjectField(
-        apiFieldName   = "others",
-        description    = "READ ONLY, full availability information for other staff owners of this particular phone if this is a team phone.",
-        allowedType    = "List<StaffPolicyAvailability>",
-        useForCreation = false)
-])
 class Phone implements WithMedia {
 
     PhoneService phoneService
@@ -84,6 +52,38 @@ class Phone implements WithMedia {
         defaultValue = "ENGLISH")
     VoiceLanguage language = VoiceLanguage.ENGLISH
 
+    @RestApiObjectFields(params = [
+        @RestApiObjectField(
+            apiFieldName = "number",
+            description  = "Phone number of this TextUp phone.",
+            allowedType  = "String"),
+         @RestApiObjectField(
+            apiFieldName   = "mandatoryEmergencyMessage",
+            description    = "Mandatory emergency message that will be appended to the custom away message to bring the total character length to no more than 160 characters.",
+            allowedType    = "String",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName      = "doPhoneActions",
+            description       = "List of some actions to perform on this phone",
+            allowedType       = "List<[phoneAction]>",
+            useForCreation    = false,
+            presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName   = "tags",
+            description    = "List of tags, if any.",
+            allowedType    = "List<Tag>",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "availability",
+            description    = "Contains availability info for a particular staff for this phone, update attributes in this object to update phone-specific availability",
+            allowedType    = "StaffPolicyAvailability",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "others",
+            description    = "READ ONLY, full availability information for other staff owners of this particular phone if this is a team phone.",
+            allowedType    = "List<StaffPolicyAvailability>",
+            useForCreation = false)
+    ])
     static transients = ["number", "phoneService", "twimlBuilder"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
@@ -452,6 +452,8 @@ class Phone implements WithMedia {
     List<IncomingSession> getTextSubscribedSessions(Map params=[:]) {
         IncomingSession.findAllByPhoneAndIsSubscribedToText(this, true, params)
     }
+
+    ReadOnlyMediaInfo getReadOnlyMedia() { media }
 
     Result<PhoneOwnership> updateOwner(Team t1) {
         PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(t1.id,

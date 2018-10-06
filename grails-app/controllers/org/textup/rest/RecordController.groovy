@@ -5,7 +5,7 @@ import grails.converters.JSON
 import grails.transaction.Transactional
 import groovy.transform.TypeCheckingMode
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
@@ -96,7 +96,7 @@ class RecordController extends BaseController {
             listForRecord(ct1.record, params)
         }
     }
-    protected void listForRecord(ReadOnlyRecord rec1, GrailsParameterMap params) {
+    protected void listForRecord(ReadOnlyRecord rec1, TypeConvertingMap params) {
         Closure<Integer> count
         Closure<List<ReadOnlyRecordItem>> list
         Collection<Class<? extends RecordItem>> types = RecordUtils.parseTypes(params.list("types[]"))
@@ -166,8 +166,9 @@ class RecordController extends BaseController {
     ])
     @OptimisticLockingRetry
     def save() {
-        Map rInfo = getJsonPayload(RecordItem, request)
-        if (rInfo == null) { return }
+        Map inputData = getJsonPayload(RecordItem, request)
+        if (inputData == null) { return }
+        TypeConvertingMap rInfo = new TypeConvertingMap(inputData)
         Long tId = params.long("teamId")
         if (tId && authService.exists(Team, tId)) {
             if (authService.hasPermissionsForTeam(tId)) {
@@ -177,7 +178,7 @@ class RecordController extends BaseController {
         }
         else { createForPhone(authService.loggedInAndActive?.phone?.id, rInfo) }
     }
-    protected void createForPhone(Long phoneId, Map body) {
+    protected void createForPhone(Long phoneId, TypeConvertingMap body) {
         Result<Class<RecordItem>> res = RecordUtils.determineClass(body)
         if (!res.success) {
             badRequest()
@@ -187,7 +188,7 @@ class RecordController extends BaseController {
             respondWithResult(RecordItem, recordService.create(phoneId, body))
         }
     }
-    protected boolean validateCreateBody(Class<RecordItem> clazz, Map body) {
+    protected boolean validateCreateBody(Class<RecordItem> clazz, TypeConvertingMap body) {
         switch(clazz) {
             case RecordCall:
                 if (!Helpers.exactly(1, ["callContact", "callSharedContact"], body)) {
@@ -223,8 +224,9 @@ class RecordController extends BaseController {
         @RestApiError(code="422", description="The updated fields created an invalid note.")
     ])
     def update() {
-        Map noteInfo = getJsonPayload(RecordItem, request)
-        if (noteInfo == null) { return }
+        Map inputData = getJsonPayload(RecordItem, request)
+        if (inputData == null) { return }
+        TypeConvertingMap noteInfo = new TypeConvertingMap(inputData)
         Long id = params.long("id")
         if (authService.exists(RecordNote, id)) {
             if (authService.hasPermissionsForItem(id)) {

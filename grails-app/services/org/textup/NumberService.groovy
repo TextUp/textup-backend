@@ -10,9 +10,8 @@ import com.twilio.rest.lookups.v1.PhoneNumber as LookupPhoneNumber
 import grails.compiler.GrailsCompileStatic
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.textup.validator.AvailablePhoneNumber
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
+import org.textup.util.RollbackOnResultFailure
+import org.textup.validator.*
 
 // [UNTESTED] cannot mock for testing because all Twilio SDK methods are final
 
@@ -22,6 +21,33 @@ class NumberService {
 
 	GrailsApplication grailsApplication
 	ResultFactory resultFactory
+    TokenService tokenService
+    TextService textService
+
+    // Verifying ownership
+    // -------------------
+
+    @RollbackOnResultFailure
+    Result<Void> startVerifyOwnership(PhoneNumber toNum) {
+        // validate to number
+        if (!toNum.validate()) {
+            return resultFactory.failWithValidationErrors(toNum.errors)
+        }
+        Helpers
+            .tryGetNotificationNumber()
+            .then { PhoneNumber fromNum -> tokenService.generateVerifyNumber(toNum).curry(fromNum) }
+            .then { PhoneNumber fromNum, Token tok1 ->
+                String msg = Helpers.getMessage("numberService.startVerifyOwnership.message", [tok1.token])
+                textService
+                    .send(fromNum, [toNum], msg)
+                    .logFail("NumberService.startVerifyOwnership from $fromNum to $toNum")
+            }
+    }
+
+    @RollbackOnResultFailure
+    Result<Void> finishVerifyOwnership(String token, PhoneNumber toVerify) {
+        tokenService.verifyNumber(token, toVerify)
+    }
 
     // Numbers utility methods
     // -----------------------

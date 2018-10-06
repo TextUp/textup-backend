@@ -2,12 +2,16 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
 class OutgoingMediaService {
 
+    CallService callService
     ResultFactory resultFactory
+    TextService textService
 
     Result<List<TempRecordReceipt>> send(BasePhoneNumber fromNum,
         List<? extends BasePhoneNumber> toNums, String msg1 = "",
@@ -46,7 +50,7 @@ class OutgoingMediaService {
         ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
         // if this call has media (currently only images), send only media as a text
         if (mInfo && !mInfo.isEmpty()) {
-            resGroup.merge(sendWithMediaForText(fromNum, toNums, "", mInfo))
+            resGroup << sendWithMediaForText(fromNum, toNums, "", mInfo)
         }
         resGroup << callService.start(fromNum, toNums, [
             handle: CallResponse.DIRECT_MESSAGE,

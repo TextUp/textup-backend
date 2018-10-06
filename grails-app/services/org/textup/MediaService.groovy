@@ -1,15 +1,8 @@
 package org.textup
 
-import com.twilio.rest.api.v2010.account.message.Media
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.apache.commons.io.IOUtils
-import org.apache.commons.lang3.tuple.Pair
-import org.apache.http.client.methods.HttpGet
-import org.apache.http.HttpResponse
-import org.apache.http.HttpStatus as ApacheHttpStatus
-import org.apache.http.impl.client.CloseableHttpClient
-import org.codehaus.groovy.grails.commons.GrailsApplication
+import java.util.concurrent.Future
 import org.textup.media.*
 import org.textup.type.*
 import org.textup.validator.*
@@ -19,10 +12,9 @@ import org.textup.validator.action.*
 @Transactional
 class MediaService {
 
-    CallService callService
-    GrailsApplication grailsApplication
     ResultFactory resultFactory
-    TextService textService
+    StorageService storageService
+    ThreadService threadService
 
     // Handling media actions
     // ----------------------
@@ -47,16 +39,23 @@ class MediaService {
         }
         ResultGroup<UploadItem> uploadGroup = handleActions(mInfo, body)
             .logFail("MediaService.tryProcess: building initial version")
+        List<Tuple<UploadItem, MediaElement>> toProcess = []
         uploadGroup.payload.each { UploadItem initialUpload ->
             MediaElement e1 = new MediaElement()
             e1.addToAlternateVersions(initialUpload.toMediaElementVersion())
             mInfo.addToMediaElements(e1)
+            toProcess << Tuple.create(initialUpload, e1)
         }
         if (mInfo.save()) {
+            Collection<String> errorMsgs = []
             storageService.uploadAsync(uploadGroup.payload)
                 .logFail("MediaService.tryProcess: uploading initial media")
+                .failures
+                .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
+            Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
+                .logFail("MediaService.tryProcess: setting upload errors on request")
             Future<Result<MediaInfo>> fut = threadService.submit {
-                mediaService.tryFinishProcessing(mInfo)
+                tryFinishProcessing(mInfo, toProcess)
             }
             resultFactory.success(mInfo, fut)
         }
@@ -95,11 +94,15 @@ class MediaService {
             outcomes << processElement(processed.first, processed.second)
         }
         outcomes.logFail("MediaService.tryFinishProcessing")
-        storageService.uploadAsync(outcomes.payload*.first.flatten())
+
+        List<UploadItem> toUpload = []
+        outcomes.payload.each { Tuple<List<UploadItem>, MediaElement> processed ->
+            toUpload.addAll(processed.first)
+        }
+        storageService.uploadAsync(toUpload)
             .logFail("MediaService.tryProcess: uploading initial media")
+
         if (mInfo.save()) {
-            // send new media info through socket
-            socketService.sendMedia([mInfo])
             resultFactory.success(mInfo)
         }
         else { resultFactory.failWithValidationErrors(mInfo.errors) }
@@ -110,10 +113,14 @@ class MediaService {
         MediaPostProcessor
             .process(uItem.type, uItem.data)
             .then { Tuple<UploadItem, List<UploadItem>> processed ->
-                e1.sendVersion = processed.first
-                processed.second.each { MediaElementVersion v1 -> e1.addToAlternateVersions(v1) }
+                e1.sendVersion = processed.first.toMediaElementVersion()
+                processed.second.each { UploadItem uItem2 ->
+                    e1.addToAlternateVersions(uItem2.toMediaElementVersion())
+                }
                 if (e1.save()) {
-                    resultFactory.success(processed.second.clone() << processed.first, e1)
+                    List<UploadItem> uItems = new ArrayList<UploadItem>(processed.second)
+                    uItems << processed.first
+                    resultFactory.success(uItems, e1)
                 }
                 else { resultFactory.failWithValidationErrors(e1.errors) }
             }

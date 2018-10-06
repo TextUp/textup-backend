@@ -5,6 +5,7 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
+import org.textup.type.*
 
 @GrailsTypeChecked
 class PhoneJsonMarshaller extends JsonNamedMarshaller {

@@ -5,7 +5,6 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.springframework.context.MessageSource
 import org.textup.type.PhoneOwnershipType
 import org.textup.type.RecordItemType
 import org.textup.type.StaffStatus

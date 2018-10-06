@@ -160,7 +160,7 @@ class CallbackStatusService {
             threadService.submit(5, TimeUnit.SECONDS) {
                 //send items with updated status through socket
                 Collection<RecordItem> items = RecordItem.getAll(itemIds as Iterable<Serializable>)
-                socketService.sendItems(items, Constants.SOCKET_EVENT_RECORD_STATUSES)
+                socketService.sendItems(items)
                     .logFail("CallbackStatusService.sendItemsThroughSocket: receipts: $receipts")
             }
         }

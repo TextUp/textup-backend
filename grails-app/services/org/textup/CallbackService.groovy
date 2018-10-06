@@ -147,7 +147,7 @@ class CallbackService {
     // Processing
     // ----------
 
-    protected Result<Closure> processCall(Phone p1, IncomingSession is1, String apiId,
+    protected Result<Closure> processCall(Phone p1, IncomingSession is1, String callId,
         TypeConvertingMap params) {
         String digits = params.Digits
         switch(params.handle) {
@@ -160,9 +160,11 @@ class CallbackService {
                 // at the provided url still isn't ready and a request to that url returns a
                 // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
                 // is completely done being stored before attempting to fetch it.
+                int duration = params.int("RecordingDuration", 0)
+                IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
                 threadService.submit(5, TimeUnit.SECONDS) {
                     voicemailService
-                        .completeVoicemail(TwilioUtils.buildIncomingRecording(params))
+                        .processVoicemailMessage(callId, duration, im1)
                         .logFail("CallbackService.processCall: VOICEMAIL_DONE")
                 }
                 twimlBuilder.build(CallResponse.VOICEMAIL_DONE)
@@ -180,14 +182,14 @@ class CallbackService {
                 incomingMessageService.screenIncomingCall(p1, is1)
                 break
             default:
-                incomingMessageService.receiveCall(p1, apiId, digits, is1)
+                incomingMessageService.receiveCall(p1, callId, digits, is1)
         }
     }
 
-    protected Result<Closure> processText(Phone p1, IncomingSession sess1, String apiId,
+    protected Result<Closure> processText(Phone p1, IncomingSession sess1, String messageId,
         TypeConvertingMap params) {
         // step 1: store incoming text without media
-        IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String,
+        IncomingText text = new IncomingText(apiId: messageId, message: params.Body as String,
             numSegments: params.int("NumSegments"))
         if (!text.validate()) {
             return resultFactory.failWithValidationErrors(text.errors)

@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
+import org.joda.time.*
 import org.restapidoc.annotation.*
 import org.textup.type.*
 import org.textup.validator.UploadItem
@@ -12,13 +13,6 @@ import org.textup.validator.UploadItem
 @RestApiObject(
     name        = "MediaElement",
     description = "A media element contained within a media info object contains various versions optimized for sending or display")
-@RestApiObjectFields(params=[
-     @RestApiObjectField(
-        apiFieldName   = "versions",
-        description    = "various versions for display",
-        allowedType    = "MediaElementVersion",
-        useForCreation = false)
-])
 class MediaElement implements ReadOnlyMediaElement {
 
     @RestApiObjectField(
@@ -30,11 +24,17 @@ class MediaElement implements ReadOnlyMediaElement {
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
     MediaElementVersion sendVersion
 
+    @RestApiObjectFields(params=[
+         @RestApiObjectField(
+            apiFieldName   = "versions",
+            description    = "various versions for display",
+            allowedType    = "MediaElementVersion",
+            useForCreation = false)
+    ])
     static hasMany = [alternateVersions: MediaElementVersion]
     static constraints = { // all nullable:false by default
-        label nullable: true, blank: true
         sendVersion nullable: true, cascadeValidation: true, validator: { MediaElementVersion send1 ->
-            if (send && send1.sizeInBytes > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
+            if (send1 && send1.sizeInBytes > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
                 return ["sizeTooBig"]
             }
         }
@@ -70,10 +70,6 @@ class MediaElement implements ReadOnlyMediaElement {
 
     // Property access
     // ---------------
-
-    MediaElementVersion getInitialVersion() {
-        // TODO
-    }
 
     HashSet<MediaType> getAllTypes() {
         HashSet<MediaType> allTypes = new HashSet<>()

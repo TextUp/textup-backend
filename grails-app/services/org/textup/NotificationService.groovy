@@ -2,16 +2,20 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.textup.type.PhoneOwnershipType
-import org.textup.validator.action.ActionContainer
-import org.textup.validator.action.NotificationPolicyAction
-import org.textup.validator.BasicNotification
+import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.textup.type.*
+import org.textup.util.RollbackOnResultFailure
+import org.textup.validator.*
+import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional(readOnly=true)
 class NotificationService {
 
-	ResultFactory resultFactory
+    GrailsApplication grailsApplication
+    ResultFactory resultFactory
+    TextService textService
+    TokenService tokenService
 
 	// Modifying notification policies
 	// -------------------------------
@@ -76,6 +80,30 @@ class NotificationService {
 		// then build basic notifications with these data maps
 		buildNotifications(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify)
 	}
+
+    ResultGroup<Void> send(List<BasicNotification> notifs, Boolean outgoing, String contents, String instr) {
+        ResultGroup<Void> outcomes = new ResultGroup<>()
+        notifs.each { BasicNotification bn1 ->
+            outcomes << sendForNotification(bn1, outgoing, contents, instr)
+        }
+        outcomes.logFail("NotificationService.send for records with ids: ${notifs*.record*.id}")
+    }
+
+    @RollbackOnResultFailure
+    Result<Notification> show(String token) {
+        tokenService.findNotification(token).then { Token tok ->
+            Map data = tok.data
+            Notification notif = new Notification(contents:data.contents as String,
+                owner:Phone.get(Helpers.to(Long, data.phoneId))?.owner,
+                outgoing:Helpers.to(Boolean, data.outgoing),
+                tokenId:Helpers.to(Long, tok.id))
+            notif.record = Record.get(Helpers.to(Long, data.recordId))
+            if (notif.validate()) {
+                resultFactory.success(notif)
+            }
+            else { resultFactory.failWithValidationErrors(notif.errors) }
+        }
+    }
 
 	// Helpers
 	// -------
@@ -162,4 +190,26 @@ class NotificationService {
         }
         notifs
 	}
+
+    protected Result<Void> sendForNotification(BasicNotification bn1, Boolean outgoing,
+        String contents, String instr) {
+
+        Phone p1 = bn1.owner.phone
+        Staff s1 = bn1.staff
+        // short circuit if no staff specified or staff has no personal phone
+        if (!s1?.personalPhoneAsString) {
+            return resultFactory.success()
+        }
+        Map tokenData = [
+            phoneId: p1.id,
+            recordId:bn1.record.id,
+            contents:contents,
+            outgoing:outgoing
+        ]
+        tokenService.generateNotification(tokenData).then { Token tok1 ->
+            String notifyLink = grailsApplication.flatConfig["textup.links.notifyMessage"]
+            String notification = "${instr} \n\n ${notifyLink + tok1.token}"
+            textService.send(p1.number, [s1.personalPhoneNumber], notification)
+        }
+    }
 }

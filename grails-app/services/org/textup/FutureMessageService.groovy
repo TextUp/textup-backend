@@ -2,24 +2,13 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import java.util.concurrent.Future
 import org.joda.time.DateTime
-import org.quartz.ScheduleBuilder
-import org.quartz.Scheduler
-import org.quartz.SimpleTrigger
-import org.quartz.Trigger
-import org.quartz.TriggerBuilder
-import org.quartz.TriggerKey
-import org.springframework.context.i18n.LocaleContextHolder as LCH
-import org.springframework.context.MessageSource
-import org.springframework.transaction.TransactionStatus
+import org.quartz.*
 import org.textup.job.FutureMessageJob
-import org.textup.type.FutureMessageType
-import org.textup.type.VoiceLanguage
-import org.textup.util.OptimisticLockingRetry
-import org.textup.util.RollbackOnResultFailure
-import org.textup.validator.BasicNotification
-import org.textup.validator.OutgoingMessage
-import org.textup.validator.UploadItem
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
@@ -27,14 +16,11 @@ class FutureMessageService {
 
     AuthService authService
     MediaService mediaService
-    MessageSource messageSource
     NotificationService notificationService
     OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
     Scheduler quartzScheduler
     SocketService socketService
-    StorageService storageService
-    TokenService tokenService
 
 	// Scheduler
 	// ---------
@@ -120,26 +106,20 @@ class FutureMessageService {
                 "futureMessageService.execute.phoneNotFound", ResultStatus.NOT_FOUND).toGroup()
         }
         Phone p1 = phones[0]
-        // skip owner check on the phone because we may be sending through a shared contact
-        // OR in the future the contact may not longer be shared with this staff member
-        // but any scheduled messages that this staff member initiated should still fire
-        // regardless of present sharing status
-        ResultGroup<RecordItem> resGroup = outgoingMessageService
-            .sendMessage(p1, msg, fMsg.media, Staff.get(staffId))
-        socketService
-            .sendItems(resGroup.payload)
-            .logFail("FutureMessageService.execute: sending items through socket")
+        // Don't need to send through socket here because status callback will send through socket
+        // after the messages and processed and sent out
+        Tuple<ResultGroup<RecordItem>, Future<?>> processed = outgoingMessageService
+            .processMessage(p1, msg, Staff.get(staffId))
+        ResultGroup<RecordItem> resGroup = processed.first
+        Future<?> future = processed.second
         // notify staffs is any successes
         if (fMsg.notifySelf && resGroup.anySuccesses) {
-            String instructions = messageSource.getMessage(
-                "futureMessageService.notifyStaff.notification", null, LCH.getLocale())
-            List<BasicNotification> notifs = notificationService.build(p1, msg.contacts.recipients,
-                msg.tags.recipients)
-            notifs.each { BasicNotification bn1 ->
-                tokenService
-                    .notifyStaff(bn1, true, fMsg.message, instructions)
-                    .logFail("FutureMessageService.execute: calling notifyStaff")
-            }
+            future.get() // wait for processing and sending to finish
+            String instr = Helpers.getMessage("futureMessageService.notifyStaff.notification")
+            List<BasicNotification> notifs = notificationService
+                .build(p1, msg.contacts.recipients, msg.tags.recipients)
+            notificationService.send(notifs, true, fMsg.message, instr)
+                .logFail("FutureMessageService.execute: sending notifications")
             int numNotified = notifs.size()
             resGroup.payload.each { RecordItem rItem -> rItem.numNotified = numNotified }
         }

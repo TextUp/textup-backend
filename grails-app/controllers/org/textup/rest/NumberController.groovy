@@ -23,7 +23,6 @@ class NumberController extends BaseController {
     AuthService authService
     NumberService numberService
     ResultFactory resultFactory
-    TokenService tokenService
 
     // requesting list of available twilio numbers
     @Transactional(readOnly=true)
@@ -55,8 +54,8 @@ class NumberController extends BaseController {
         String token = vInfo.token
         if (pNum.validate()) {
             Result<Void> res = token ?
-                tokenService.verifyNumber(token, pNum) :
-                tokenService.requestVerify(pNum)
+                numberService.finishVerifyOwnership(token, pNum) :
+                numberService.startVerifyOwnership(pNum)
             respondWithResult(Void, res)
         }
         else {

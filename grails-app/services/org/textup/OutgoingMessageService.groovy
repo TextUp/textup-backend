@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import java.util.concurrent.Future
 import org.apache.commons.lang3.tuple.Pair
 import org.textup.rest.TwimlBuilder
 import org.textup.type.*
@@ -12,10 +13,11 @@ import org.textup.validator.*
 class OutgoingMessageService {
 
     CallService callService
-    MediaService mediaService
+    OutgoingMediaService outgoingMediaService
     ResultFactory resultFactory
     TokenService tokenService
     TwimlBuilder twimlBuilder
+    ThreadService threadService
 
     // Outgoing calls
     // --------------
@@ -52,22 +54,27 @@ class OutgoingMessageService {
     // Outgoing message
     // ----------------
 
-    ResultGroup<RecordItem> processMessage(Phone phone, OutgoingMessage msg1, Staff staff,
-        Future<Result<MediaInfo>> mediaFuture = null) {
+    Tuple<ResultGroup<RecordItem>, Future<?>> processMessage(Phone phone, OutgoingMessage msg1,
+        Staff staff, Future<Result<MediaInfo>> mediaFuture = null) {
+
+        Future<?> future = Helpers.noOpFuture()
         if (!phone.isActive) {
-            resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND).toGroup()
+            Result<RecordItem> failRes = resultFactory
+                .failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
+            return Tuple.create(failRes.toGroup(), future)
         }
         // step 1: create initial domain classes
         ResultGroup<RecordItem> resGroup = buildMessages(msg1, staff.toAuthor())
-        if (!resGroup.isAnyFailures) {
+        if (!resGroup.anyFailures) {
             Map<Long, List<RecordItem>> recordIdToItems = [:].withDefault { [] as List<RecordItem> }
             resGroup.payload.each { RecordItem i1 -> recordIdToItems[i1.record.id] << i1 }
             // step 2: finish all other long-running tasks asynchronously
-            threadService.submit {
-                finishProcessingMessages(recordIdToItems, msg1, mediaFuture)
+            future = threadService.submit {
+                finishProcessingMessages(recordIdToItems, phone.name, msg1, mediaFuture)
+                    .logFail("OutgoingMessageService.processMessage: finish processing")
             }
         }
-        resGroup
+        Tuple.create(resGroup, future)
     }
 
     protected ResultGroup<RecordItem> buildMessages(OutgoingMessage msg1, Author author1) {
@@ -84,7 +91,7 @@ class OutgoingMessageService {
         resGroup
     }
 
-    protected void finishProcessingMessages(Map<Long, List<RecordItem>> recordIdToItems,
+    protected ResultGroup<?> finishProcessingMessages(Map<Long, List<RecordItem>> recordIdToItems,
         String phoneName, OutgoingMessage msg1, Future<Result<MediaInfo>> mediaFuture = null) {
 
         if (mediaFuture) {
@@ -96,16 +103,17 @@ class OutgoingMessageService {
             mediaRes
                 .logFail("OutgoingMessageService.finishProcessingMessages: processing media")
                 .thenEnd { MediaInfo mInfo2 ->
-                    outgoingMessageService.sendAndStore(recordIdToItems, phoneName, msg1, mInfo2)
+                    msg1.media = mInfo2
+                    sendAndStore(recordIdToItems, phoneName, msg1)
                 }
         }
-        else { outgoingMessageService.sendAndStore(recordIdToItems, phoneName, msg1) }
+        else { sendAndStore(recordIdToItems, phoneName, msg1) }
     }
 
-    protected void sendAndStore(Map<Long, List<RecordItem>> recordIdToItems,
-        String phoneName, OutgoingMessage msg1, MediaInfo mInfo = null) {
+    protected ResultGroup<?> sendAndStore(Map<Long, List<RecordItem>> recordIdToItems,
+        String phoneName, OutgoingMessage msg1) {
 
-        Map<Long, List<ContacTag>> contactIdToTags = msg1.getContactIdToTags()
+        Map<Long, List<ContactTag>> contactIdToTags = msg1.getContactIdToTags()
         // this returns a call token that has ALREADY BEEN SAVED. If a call token is returned
         // instead of a null value, then that means that we are sending out this message as a call
         // See `mediaService.sendWithMedia` to see how this is handled
@@ -113,7 +121,7 @@ class OutgoingMessageService {
         ResultGroup<?> resGroup = new ResultGroup<>()
         msg1.toRecipients().each { Contactable c1 ->
             resGroup << outgoingMediaService
-                .send(c1.fromNum, c1.sortedNumbers, msg1.message, mInfo, callToken)
+                .send(c1.fromNum, c1.sortedNumbers, msg1.message, msg1.media, callToken)
                 .then { List<TempRecordReceipt> tempReceipts ->
                     tryStoreReceipts(recordIdToItems, c1, tempReceipts)
                         .logFail("OutgoingMessageService.finishProcessingMessages: contactable")
@@ -124,7 +132,7 @@ class OutgoingMessageService {
                 }
         }
         // No need to send items through socket here. Status callbacks will send items.
-        resGroup.logFail("OutgoingMessageService.finishProcessingMessages: sending")
+        resGroup
     }
 
     protected Result<Void> tryStoreReceipts(Map<Long, List<RecordItem>> recordIdToItems,
@@ -138,7 +146,7 @@ class OutgoingMessageService {
             }
             else {
                 resultFactory.failWithCodeAndStatus("outgoingMessageService.tryStoreReceipts.notFound",
-                    ResultFactory.NOT_FOUND, [rec1.id, tempReceipts*.apiId])
+                    ResultStatus.NOT_FOUND, [rec1.id, tempReceipts*.apiId])
             }
         }
     }

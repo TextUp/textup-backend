@@ -2,22 +2,37 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import java.util.concurrent.*
+import org.apache.commons.io.IOUtils
+import org.apache.http.client.methods.HttpGet
+import org.apache.http.HttpResponse
+import org.apache.http.HttpStatus as ApacheHttpStatus
+import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.textup.media.*
+import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
 class IncomingMediaService {
 
     GrailsApplication grailsApplication
-    ThreadService threadService
+    ResultFactory resultFactory
     StorageService storageService
+    ThreadService threadService
 
-    ResultGroup<MediaElement> process(Collection<IsIncomingMedia> incomingMediaList) {
+    ResultGroup<MediaElement> process(Collection<? extends IsIncomingMedia> incomingMediaList) {
         // step 1: fetch media from Twilio and build appropriate versions
-        ResultGroup<Tuple<List<UploadItem>, MediaElement>> outcomes =
-            new ResultGroup<>(incomingMediaList.collect(this.&processElement))
-            .logFail("IncomingMediaService.process: processing elements")
+        ResultGroup<Tuple<List<UploadItem>, MediaElement>> outcomes = new ResultGroup<>()
+        incomingMediaList.each { IsIncomingMedia im1 -> outcomes << processElement(im1) }
+        outcomes.logFail("IncomingMediaService.process: processing elements")
         // step 2: upload to our media bucket and delete copy from Twilio
-        finishProcessingUploads(incomingMediaList, outcomes.payload*.first.flatten())
+        Collection<UploadItem> toUpload = []
+        outcomes.payload.each { Tuple<List<UploadItem>, MediaElement> processed ->
+            toUpload.addAll(processed.first)
+        }
+        finishProcessingUploads(incomingMediaList, toUpload)
             .logFail("IncomingMediaService.process: updating and deleting")
         outcomes
     }
@@ -32,11 +47,11 @@ class IncomingMediaService {
         MediaType type = MediaType.convertMimeType(im1.mimeType)
         if (!type) {
             return resultFactory.failWithCodeAndStatus("incomingMediaService.processElement.invalidMimeType",
-                ResultStatus.UNPROCESSABLE_ENTITY, [mimeType])
+                ResultStatus.UNPROCESSABLE_ENTITY, [im1.mimeType])
         }
         String sid = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
             authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
-        Helpers.executeBasicAuthRequest(sid, authToken, new HttpGet(url.im1)) { HttpResponse resp ->
+        Helpers.executeBasicAuthRequest(sid, authToken, new HttpGet(im1.url)) { HttpResponse resp ->
             int statusCode = resp.statusLine.statusCode
             if (statusCode == ApacheHttpStatus.SC_OK) {
                 return resultFactory.failWithCodeAndStatus(
@@ -48,18 +63,18 @@ class IncomingMediaService {
                 MediaPostProcessor
                     .process(type, data)
                     .then { Tuple<UploadItem, List<UploadItem>> processed ->
-                        MediaElement
-                            .create(processed.first, processed.second)
-                            .curry(processed.second.clone() << processed.first)
+                        List<UploadItem> uItems = new ArrayList<>(processed.second)
+                        uItems << processed.first
+                        MediaElement.create(processed.first, processed.second).curry(uItems)
                     }
-                    .then { List<UploadItems> uItems, MediaElement e1 ->
+                    .then { List<UploadItem> uItems, MediaElement e1 ->
                         resultFactory.success(uItems, e1)
                     }
             }
         }
     }
 
-    protected Result<Void> finishProcessingUploads(Collection<IsIncomingMedia> incomingMediaList,
+    protected Result<Void> finishProcessingUploads(Collection<? extends IsIncomingMedia> incomingMediaList,
         Collection<UploadItem> itemsToUpload) {
 
         // step 1: upload our processed copies

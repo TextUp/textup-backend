@@ -23,6 +23,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             schedule  = s1.schedule
             phone = s1.phone
             hasInactivePhone = s1.hasInactivePhone
+            channelName = s1.channelName
             // manual schedule fields
             manualSchedule = s1.manualSchedule
             if (s1.manualSchedule == true) {

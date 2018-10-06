@@ -86,9 +86,11 @@ class Result<T> {
     }
     Result<T> currySuccess(Object... args) {
         successArgs.addAll(args)
+        this
     }
     Result<T> curryFailure(Object... args) {
         failureArgs.addAll(args)
+        this
     }
 
     Result<T> clearCurry() {
@@ -97,9 +99,11 @@ class Result<T> {
     }
     Result<T> clearCurrySuccess() {
         successArgs.clear()
+        this
     }
     Result<T> clearCurryFailure() {
         failureArgs.clear()
+        this
     }
 
     // Property Access
@@ -123,10 +127,15 @@ class Result<T> {
     // -------
 
     protected <W> W executeSuccess(Closure<W> action) {
-        execute(action, successArgs + [payload, status])
+        List<Object> args = new ArrayList<Object>(successArgs)
+        args << payload
+        args << status
+        execute(action, args)
     }
     protected <W> W executeFailure(Closure<W> action) {
-        execute(action, failureArgs + [this])
+        List<Object> args = new ArrayList<Object>(failureArgs)
+        args << this
+        execute(action, args)
     }
     protected <W> W execute(Closure<W> action, List<Object> args) {
         if (!action) {
@@ -147,7 +156,8 @@ class Result<T> {
             args[0..(maxNumArgs - 1)]
         }
         else { // numArgs < maxNumArgs
-            args + Collections.nCopies(maxNumArgs - numArgs, null)
+            args.addAll(Collections.nCopies(maxNumArgs - numArgs, null))
+            args
         }
     }
 }

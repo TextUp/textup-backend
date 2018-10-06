@@ -8,11 +8,19 @@ class Constants {
 
 	static final int MAX_REPEATS = 20
 	static final int TEXT_LENGTH = 160
+
+	static final int MAX_NUM_TEXT_RECIPIENTS = 500
+
+	static final int DEFAULT_PAGINATION_MAX = 10
+	static final int MAX_PAGINATION_MAX = 100
+
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
 	// keep the space before the away message to aid in appropriate spacing when appending to ensure
 	// accurate count of how much to truncate for API consumers
 	static final String AWAY_EMERGENCY_MESSAGE = " If this is an emergency, contact 9 1 1."
+
 	static final int DEFAULT_TOKEN_LENGTH = 25
+	static final int MAX_NUM_ACCESS_NOTIFICATION_TOKEN = 3
 
 	// Storing info on HTTP Request keys
 	// ---------------------------------
@@ -78,9 +86,9 @@ class Constants {
 	// Socket events
 	// -------------
 
+	static final int SOCKET_PAYLOAD_BATCH_SIZE = 20
 	static final String SOCKET_EVENT_CONTACTS = "contacts"
 	static final String SOCKET_EVENT_FUTURE_MESSAGES = "futureMessages"
-	static final String SOCKET_EVENT_RECORD_STATUSES = "recordStatuses"
 	static final String SOCKET_EVENT_RECORDS = "records"
 
 	// Quartz jobs

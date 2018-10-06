@@ -1,18 +1,22 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 class Tuple<X, Y> {
 
     private final X first
     private final Y second
 
-    Tuple(X x, Y, y) {
-        first = x
-        second = y
+    Tuple(X arg1, Y arg2) {
+        first = arg1
+        second = arg2
+    }
+
+    static <X, Y> Tuple<X, Y> create(X arg1, Y arg2) {
+        new Tuple<X, Y>(arg1, arg2)
     }
 
     X getFirst() { first }

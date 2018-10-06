@@ -1,15 +1,18 @@
 package org.textup
 
+import com.twilio.rest.api.v2010.account.message.Media
+import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsTypeChecked
-import org.textup.*
 import grails.validation.Validateable
 import groovy.util.logging.Log4j
+import org.springframework.validation.Errors
+import org.textup.*
 
 @GrailsTypeChecked
 interface IsIncomingMedia {
     String getMimeType()
     String getUrl()
-    String mediaId()
+    String getMediaId()
     Result<Boolean> delete()
 
     boolean validate()

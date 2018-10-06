@@ -11,30 +11,37 @@ import org.textup.validator.TempRecordReceipt
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
 @RestApiObject(name = "RecordCall", description = "A phone call entry in a contact's record.")
-@RestApiObjectFields(params = [
-    @RestApiObjectField(
-        apiFieldName      = "callContact",
-        description       = "Id of a contact to call",
-        allowedType       = "Number",
-        mandatory         = false,
-        useForCreation    = true,
-        presentInResponse = false),
-    @RestApiObjectField(
-        apiFieldName      = "callSharedContact",
-        description       = "Id of a contact shared with us to call",
-        allowedType       = "Number",
-        mandatory         = false,
-        useForCreation    = true,
-        presentInResponse = false),
-    @RestApiObjectField(
-        apiFieldName   = "durationInSeconds",
-        description    = "Duration of the call",
-        allowedType    = "Number",
-        useForCreation = false)
-])
 class RecordCall extends RecordItem implements ReadOnlyRecordCall {
 
+    @RestApiObjectField(
+        description    = "Duration of the voicemail",
+        allowedType    = "Number",
+        useForCreation = false)
+    int voicemailInSeconds = 0
+
+    @RestApiObjectFields(params = [
+        @RestApiObjectField(
+            apiFieldName      = "callContact",
+            description       = "Id of a contact to call",
+            allowedType       = "Number",
+            mandatory         = false,
+            useForCreation    = true,
+            presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName      = "callSharedContact",
+            description       = "Id of a contact shared with us to call",
+            allowedType       = "Number",
+            mandatory         = false,
+            useForCreation    = true,
+            presentInResponse = false),
+        @RestApiObjectField(
+            apiFieldName   = "durationInSeconds",
+            description    = "Duration of the call",
+            allowedType    = "Number",
+            useForCreation = false)
+    ])
     static constraints = { // default nullable: false
+        voicemailInSeconds minSize:0
     }
 
     // Property Access

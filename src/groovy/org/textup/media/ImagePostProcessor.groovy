@@ -51,11 +51,11 @@ class ImagePostProcessor implements CanProcessMedia {
         getInitialUploadItem().then { UploadItem uItem ->
             ImageUtils.tryResizeToWidth(_type, _data, _image, target.maxWidthInPixels)
                 .then { Tuple<byte[], BufferedImage> after ->
-                    ImageUtils.tryCompress(_type, after.left, after.right, target.maxSizeInBytes)
+                    ImageUtils.tryCompress(_type, after.first, after.second, target.maxSizeInBytes)
                 }
                 .then { Tuple<byte[], BufferedImage> after ->
-                    uItem.data = after.left
-                    uItem.image = after.right
+                    uItem.data = after.first
+                    uItem.image = after.second
                 }
             if (uItem.validate()) {
                 Helpers.resultFactory.success(uItem)

@@ -167,6 +167,12 @@ class RecordItem implements ReadOnlyRecordItem {
     // -------
 
     @GrailsTypeChecked
+    RecordItem addAllReceipts(Collection<TempRecordReceipt> receipts) {
+        receipts.each { TempRecordReceipt r1 -> addReceipt(r1) }
+        this
+    }
+
+    @GrailsTypeChecked
     RecordItem addReceipt(TempRecordReceipt r1) {
         RecordItemReceipt receipt = new RecordItemReceipt(status: r1.status, apiId: r1.apiId,
             contactNumberAsString: r1.contactNumberAsString, numBillable: r1.numSegments)

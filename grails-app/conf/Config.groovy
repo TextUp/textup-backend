@@ -212,15 +212,6 @@ ConstrainedProperty.registerNewConstraint(
 )
 
 textup {
-    maxNumText = 500 //max number of recipients to text
-
-    defaultMax = 10 //default max during pagination
-    largestMax = 100 //largest max allowed during pagination
-
-    resetTokenSize = 25
-    verifyTokenSize = 5
-    numTimesAccessNotification = 3 // number of times a notification is allowed to be accessed
-
     tempDirectory = System.getenv("TEXTUP_BACKEND_TEMP_DIRECTORY") ?: System.getProperty("TEXTUP_BACKEND_TEMP_DIRECTORY")
     media {
         bucketName = System.getenv("TEXTUP_BACKEND_STORAGE_BUCKET_NAME") ?: System.getProperty("TEXTUP_BACKEND_STORAGE_BUCKET_NAME")

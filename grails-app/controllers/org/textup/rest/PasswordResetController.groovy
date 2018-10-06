@@ -15,7 +15,7 @@ class PasswordResetController extends BaseController {
     static String namespace = null
 	static allowedMethods = [index:"GET", requestReset:"POST", resetPassword:"PUT", delete:"DELETE"]
 
-	TokenService tokenService
+	PasswordResetService passwordResetService
 
     @Override
     protected String getNamespaceAsString() { namespace }
@@ -37,7 +37,7 @@ class PasswordResetController extends BaseController {
         if (!info.username) {
             badRequest()
         }
-        else { respondWithResult(Void, tokenService.requestReset(info.username as String)) }
+        else { respondWithResult(Void, passwordResetService.start(info.username as String)) }
     }
 
     @RestApiMethod(description="Reset password with a valid reset tokentoken")
@@ -53,7 +53,7 @@ class PasswordResetController extends BaseController {
         if (!info.token || !info.password) {
             return badRequest()
         }
-        Result<Staff> res = tokenService.resetPassword(info.token as String, info.password as String)
+        Result<Staff> res = passwordResetService.finish(info.token as String, info.password as String)
         if (res.success) {
             noContent()
         }

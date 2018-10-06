@@ -73,8 +73,6 @@ interface ReadOnlyRecordText {
 @GrailsTypeChecked
 interface ReadOnlyRecordCall {
     int getDurationInSeconds()
-    boolean getHasVoicemail()
-    String getVoicemailUrl()
     int getVoicemailInSeconds()
 }
 

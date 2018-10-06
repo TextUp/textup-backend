@@ -1,37 +1,51 @@
 package org.textup
 
-import grails.async.Promise
-import grails.async.PromiseList
-import grails.async.Promises
+import grails.async.*
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
-import groovy.json.JsonBuilder
-import groovy.json.JsonException
-import groovy.json.JsonSlurper
+import groovy.json.*
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 import javax.servlet.http.HttpServletRequest
 import org.apache.commons.lang3.ClassUtils
-import org.apache.http.auth.AuthScope
-import org.apache.http.auth.UsernamePasswordCredentials
+import org.apache.http.auth.*
 import org.apache.http.client.CredentialsProvider
-import org.apache.http.impl.client.BasicCredentialsProvider
-import org.apache.http.impl.client.CloseableHttpClient
-import org.apache.http.impl.client.HttpClients
+import org.apache.http.client.methods.HttpUriRequest
+import org.apache.http.HttpResponse
+import org.apache.http.impl.client.*
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.codehaus.groovy.grails.web.util.WebUtils
-import org.hibernate.FlushMode
-import org.hibernate.Session
+import org.hibernate.*
 import org.joda.time.*
 import org.quartz.Scheduler
+import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.springframework.context.MessageSource
+import org.springframework.context.MessageSourceResolvable
+import org.springframework.context.NoSuchMessageException
 import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
 class Helpers {
+
+    // Notifications
+    // -------------
+
+    Result<PhoneNumber> tryGetNotificationNumber() {
+        String noticeNum = Holders.flatConfig["textup.apiKeys.twilio.notificationNumber"]
+        if (!noticeNum) {
+            return Helpers.resultFactory.failWithCodeAndStatus(
+                "helpers.getNotificationNumber.missing",
+                ResultStatus.INTERNAL_SERVER_ERROR)
+        }
+        PhoneNumber fromNum = new PhoneNumber(number: noticeNum)
+        if (fromNum.validate()) {
+            Helpers.resultFactory.success(fromNum)
+        }
+        else { Helpers.resultFactory.failWithValidationErrors(fromNum.errors) }
+    }
 
     // Enum
     // ----
@@ -61,15 +75,37 @@ class Helpers {
             .applicationContext
             .getBean(ResultFactory) as ResultFactory
     }
-    static MessageSource getMessageSource() {
-        Holders
-            .applicationContext
-            .getBean(MessageSource) as MessageSource
-    }
     static Scheduler getQuartzScheduler() {
         Holders
             .applicationContext
             .getBean(Scheduler) as Scheduler
+    }
+
+    // il8n
+    // ----
+
+    static String getMessage(String code, List params = []) {
+        try {
+            Helpers.messageSource.getMessage(code, params as Object[], LCH.getLocale())
+        }
+        catch (NoSuchMessageException e) {
+            log.error("Helpers.getMessage for code $code with error ${e.message}")
+            ""
+        }
+    }
+    static String getMessage(MessageSourceResolvable resolvable) {
+        try {
+            Helpers.messageSource.getMessage(resolvable, LCH.getLocale())
+        }
+        catch (NoSuchMessageException e) {
+            log.error("ResultFactory.getMessage for resolvable $resolvable with error ${e.message}")
+            ""
+        }
+    }
+    protected static MessageSource getMessageSource() {
+        Holders
+            .applicationContext
+            .getBean(MessageSource) as MessageSource
     }
 
     // Request
@@ -124,7 +160,7 @@ class Helpers {
     // Async
     // -----
 
-    static <T> Future<T> noOpFuture(T obj) {
+    static <T> Future<T> noOpFuture(T obj = null) {
         [
             cancel: { boolean b -> true },
             get: { obj },
@@ -412,7 +448,7 @@ class Helpers {
                 .setDefaultCredentialsProvider(credentials)
                 .build()
             client.withCloseable {
-                HttpResponse resp = client.execute(new HttpGet(url))
+                HttpResponse resp = client.execute(request)
                 resp.withCloseable { doAction(resp) }
             }
         }

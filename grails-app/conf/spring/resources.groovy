@@ -41,7 +41,6 @@ beans = {
 	}
 	twimlBuilder(TwimlBuilder) { bean ->
 		linkGenerator = ref("grailsLinkGenerator")
-		messageSource = ref("messageSource")
 		resultFactory = ref("resultFactory")
 		tokenService = ref("tokenService")
 	}

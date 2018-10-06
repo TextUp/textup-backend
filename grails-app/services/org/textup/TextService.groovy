@@ -53,7 +53,7 @@ class TextService {
             Message msg1 = Message
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), message)
                 .setStatusCallback(callback)
-                .setMediaUrl(mediaUrls)
+                .setMediaUrl(new ArrayList<URI>(mediaUrls))
                 .create()
             resultFactory.success(msg1)
         }
