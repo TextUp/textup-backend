@@ -30,177 +30,92 @@ class MediaService {
     boolean hasMediaActions(Map body) { !!body?.doMediaActions }
     protected Object getMediaActions(Map body) { body?.doMediaActions }
 
-    Result<MediaInfo> handleActions(MediaInfo mInfo, Closure<Void> collectUploads, Map body) {
+    Result<Tuple<WithMedia, Future<Result<MediaInfo>>>> tryProcess(WithMedia withMedia, Map body) {
+        if (!hasMediaActions(body)) {
+            return resultFactory.success(withMedia, Helpers.noOpFuture(withMedia.media))
+        }
+        tryProcess(withMedia.media ?: new MediaInfo(), body)
+            .then { Tuple<MediaInfo, Future<?>> processed ->
+                withMedia.media = processed.first
+                resultFactory.success(processed)
+            }
+    }
+
+    Result<Tuple<MediaInfo, Future<Result<MediaInfo>>>> tryProcess(MediaInfo mInfo, Map body) {
+        if (!hasMediaActions(body)) {
+            return resultFactory.success(mInfo, Helpers.noOpFuture(mInfo))
+        }
+        ResultGroup<UploadItem> uploadGroup = handleActions(mInfo, body)
+            .logFail("MediaService.tryProcess: building initial version")
+        uploadGroup.payload.each { UploadItem initialUpload ->
+            MediaElement e1 = new MediaElement()
+            e1.addToAlternateVersions(initialUpload.toMediaElementVersion())
+            mInfo.addToMediaElements(e1)
+        }
+        if (mInfo.save()) {
+            storageService.uploadAsync(uploadGroup.payload)
+                .logFail("MediaService.tryProcess: uploading initial media")
+            Future<Result<MediaInfo>> fut = threadService.submit {
+                mediaService.tryFinishProcessing(mInfo)
+            }
+            resultFactory.success(mInfo, fut)
+        }
+        else { resultFactory.failWithValidationErrors(mInfo.errors) }
+    }
+
+    // Helpers
+    // -------
+
+    protected ResultGroup<UploadItem> handleActions(MediaInfo mInfo, Map body) {
         // validate actions
         ActionContainer ac1 = new ActionContainer(getMediaActions(body))
         List<MediaAction> actions = ac1.validateAndBuildActions(MediaAction)
         if (ac1.hasErrors()) {
-            return resultFactory.failWithValidationErrors(ac1.errors)
+            return resultFactory.failWithValidationErrors(ac1.errors).toGroup()
         }
-        List<Result<MediaInfo>> failRes = []
+        ResultGroup<UploadItem> outcomes = new ResultGroup<>()
         // process actions
         actions.each { MediaAction a1 ->
             switch (a1) {
                 case Constants.MEDIA_ACTION_ADD:
-                    Result<MediaInfo> res = doAddMedia(mInfo, collectUploads, a1.type, a1.byteData)
-                    if (!res.success) { failRes << res }
+                    outcomes << MediaPostProcessor.buildInitialData(a1.type, a1.byteData)
                     break
                 default: // Constants.MEDIA_ACTION_REMOVE
                     mInfo.removeMediaElement(a1.uid)
             }
         }
-        if (failRes) {
-            resultFactory.failWithResultsAndStatus(failRes, ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        else {
-            mInfo.save() ? resultFactory.success(mInfo) : resultFactory.failWithValidationErrors(mInfo.errors)
-        }
+        outcomes
     }
 
-    protected Result<MediaInfo> doAddMedia(MediaInfo mInfo, Closure<Void> collectUploads,
-        MediaType type, byte[] data) {
+    protected Result<MediaInfo> tryFinishProcessing(MediaInfo mInfo,
+        List<Tuple<UploadItem, MediaElement>> toProcess) {
+
+        ResultGroup<Tuple<List<UploadItem>, MediaElement>> outcomes = new ResultGroup<>()
+        toProcess.each { Tuple<UploadItem, MediaElement> processed ->
+            outcomes << processElement(processed.first, processed.second)
+        }
+        outcomes.logFail("MediaService.tryFinishProcessing")
+        storageService.uploadAsync(outcomes.payload*.first.flatten())
+            .logFail("MediaService.tryProcess: uploading initial media")
+        if (mInfo.save()) {
+            // send new media info through socket
+            socketService.sendMedia([mInfo])
+            resultFactory.success(mInfo)
+        }
+        else { resultFactory.failWithValidationErrors(mInfo.errors) }
+    }
+    protected Result<Tuple<List<UploadItem>, MediaElement>> processElement(UploadItem uItem,
+        MediaElement e1) {
+
         MediaPostProcessor
-            .process(type, data)
-            .then { Pair<UploadItem, List<UploadItem>> processed ->
-                collectUploads([processed.left]) // called with `addAll` so accepts a collection as argument
-                collectUploads(processed.right) // called with `addAll` so accepts a collection as argument
-                MediaElement.create(processed.left, processed.right)
-            }
-            .then { MediaElement e1 ->
-                mInfo.addToMediaElements(e1)
-                resultFactory.success(mInfo)
-            }
-    }
-
-    // Receiving media
-    // ---------------
-
-    Result<MediaInfo> buildFromIncomingMedia(Map<String, String> urlToMimeType,
-        Closure<Void> collectUploads, Closure<Void> collectMediaIds) {
-
-        try {
-            MediaInfo mInfo = new MediaInfo()
-            ResultGroup<MediaInfo> failGroup = new ResultGroup<>()
-            urlToMimeType.each { String url, String mimeType ->
-                MediaType type = MediaType.convertMimeType(mimeType)
-                if (!type) {
-                    failGroup << resultFactory.failWithCodeAndStatus(
-                        "mediaService.buildFromIncomingMedia.invalidMimeType",
-                        ResultStatus.UNPROCESSABLE_ENTITY,
-                        [mimeType])
-                    return
+            .process(uItem.type, uItem.data)
+            .then { Tuple<UploadItem, List<UploadItem>> processed ->
+                e1.sendVersion = processed.first
+                processed.second.each { MediaElementVersion v1 -> e1.addToAlternateVersions(v1) }
+                if (e1.save()) {
+                    resultFactory.success(processed.second.clone() << processed.first, e1)
                 }
-                String sid = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
-                    authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
-                CloseableHttpClient client = Helpers.buildBasicAuthHttpClient(sid, authToken)
-                client.withCloseable {
-                    HttpResponse resp = client.execute(new HttpGet(url))
-                    resp.withCloseable {
-                        int statusCode = resp.statusLine.statusCode
-                        if (statusCode == ApacheHttpStatus.SC_OK) {
-                            resp.entity.content.withStream { InputStream stream ->
-                                byte[] data = IOUtils.toByteArray(stream)
-                                Result<?> res = doAddMedia(mInfo, collectUploads, type, data)
-                                if (res.success) {
-                                    collectMediaIds(extractMediaIdFromUrl(url))
-                                }
-                                else { failGroup << res  }
-                            }
-                        }
-                        else {
-                            failGroup << resultFactory.failWithCodeAndStatus(
-                                "mediaService.buildFromIncomingMedia.couldNotRetrieveMedia",
-                                ResultStatus.convert(statusCode),
-                                [resp.statusLine.reasonPhrase])
-                        }
-                    }
-                }
+                else { resultFactory.failWithValidationErrors(e1.errors) }
             }
-            if (failGroup.anyFailures) {
-                resultFactory.failWithResultsAndStatus(failGroup.failures, failGroup.failureStatus)
-            }
-            else {
-                mInfo.save() ? resultFactory.success(mInfo) :
-                    resultFactory.failWithValidationErrors(mInfo.errors)
-            }
-        }
-        catch (Throwable e) {
-            log.error("MediaService.buildFromIncomingMedia throwable: ${e.message}")
-            e.printStackTrace()
-            resultFactory.failWithThrowable(e)
-        }
-    }
-    protected String extractMediaIdFromUrl(String url) {
-        url ? url.substring(url.lastIndexOf("/") + 1) : ""
-    }
-
-    Result<Void> deleteMedia(String messageId, Collection<String> mediaIds) {
-        List<Result<Boolean>> resList = Helpers.<String>doAsyncInBatches(mediaIds,
-            // do not curry to enable mocking during testing
-            { String mediaId -> this.deleteMediaHelper(messageId, mediaId) })
-        ResultGroup<Boolean> resGroup = new ResultGroup<Boolean>(resList)
-        if (resGroup.anyFailures) {
-            resultFactory.failWithResultsAndStatus(resGroup.failures, ResultStatus.INTERNAL_SERVER_ERROR)
-        }
-        else { resultFactory.success() }
-    }
-
-    // [UNTESTED] because of limitations in mocking
-    protected Result<Boolean> deleteMediaHelper(String messageId, String mediaId) {
-        try {
-            resultFactory.success(Media.deleter(messageId, mediaId).delete())
-        }
-        catch (Throwable e) {
-            log.error("MediaService.deleteMediaHelper: ${e.message}")
-            e.printStackTrace()
-            resultFactory.failWithThrowable(e)
-        }
-    }
-
-    // Sending media
-    // -------------
-
-    Result<List<TempRecordReceipt>> sendWithMedia(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, String msg1 = "",
-        MediaInfo mInfo = null, Token callToken = null) {
-        ResultGroup<TempRecordReceipt> resGroup = callToken ?
-            sendWithMediaForCall(fromNum, toNums, callToken, mInfo) :
-            sendWithMediaForText(fromNum, toNums, msg1, mInfo)
-        if (resGroup.anyFailures) {
-            resultFactory.failWithResultsAndStatus(resGroup.failures,
-                resGroup.failureStatus)
-        }
-        else {
-            resultFactory.success(resGroup.successes*.payload)
-        }
-    }
-
-    protected ResultGroup<TempRecordReceipt> sendWithMediaForText(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, String msg1, MediaInfo mInfo = null) {
-        ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
-        // if no media, then just send message as a text
-        if (!mInfo || mInfo.isEmpty()) {
-            resGroup << textService.send(fromNum, toNums, msg1)
-        }
-        else { // if yes media, then send media in as many batches as needed
-            mInfo.forEachBatch { List<MediaElement> batchSoFar ->
-                resGroup << textService.send(fromNum, toNums, msg1, batchSoFar)
-            }
-        }
-        resGroup
-    }
-
-    protected ResultGroup<TempRecordReceipt> sendWithMediaForCall(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, Token callToken, MediaInfo mInfo = null) {
-        ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
-        // if this call has media (currently only images), send only media as a text
-        if (mInfo && !mInfo.isEmpty()) {
-            resGroup.merge(sendWithMediaForText(fromNum, toNums, "", mInfo))
-        }
-        resGroup << callService.start(fromNum, toNums, [
-            handle: CallResponse.DIRECT_MESSAGE,
-            token: callToken.token
-        ])
-        resGroup
     }
 }

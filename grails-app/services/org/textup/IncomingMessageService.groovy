@@ -25,83 +25,99 @@ class IncomingMessageService {
     // Texts
     // -----
 
-    Result<Pair<Closure, List<RecordText>>> receiveText(Phone p1, IncomingText text, IncomingSession sess1,
-        MediaInfo mInfo = null) {
-        if (p1.getAnnouncements()) {
-            announcementService.handleAnnouncementText(p1, text, sess1,
-                { relayText(p1, text, sess1, mInfo) })
-        }
-        else { relayText(p1, text, sess1, mInfo) }
+    Result<Closure> processText(Phone p1, IncomingText text, IncomingSession sess1,
+        TypeConvertingMap params) {
+        // step 1: build texts
+        buildTexts(p1, text, is1)
+            .then { Tuple<List<RecordText>, List<Contact>> processed ->
+                List<RecordText> rTexts = processed.x
+                List<Contact> notBlockedContacts = processed.y
+                List<BasicNotification> notifs = notificationService.build(p1, notBlockedContacts)
+                // step 2: in a new thread, handle long-running tasks
+                threadService.submit { finishProcessingText(text, rTexts*.id, notifs, params) }
+                // step 3: return the appropriate response while long-running tasks still processing
+                if (notBlockedContacts) {
+                    buildTextResponse(p1, sess1, notifs)
+                }
+                else { twimlBuilder.build(TextResponse.BLOCKED) }
+            }
     }
 
-    protected Result<Pair<Closure, List<RecordText>>> relayText(Phone p1, IncomingText text,
-        IncomingSession sess1, MediaInfo mInfo = null) {
-
+    protected Result<Tuple<List<RecordText>, List<Contact>>> buildTexts(Phone p1, IncomingText text,
+        IncomingSession sess1) {
         List<RecordText> rTexts = []
-        storeForNumber(p1, sess1.number, this.&storeIncomingText.curry(text, sess1, mInfo, rTexts.&add))
-            // do not curry to enable mocking for testing
-            .then { List<Contact> cList -> afterStoreForText(p1, text, sess1, rTexts, cList) }
+        storeForNumber(p1, sess1.number, this.&buildTextsHelper.curry(text, sess1, rTexts.&add))
+            .then { List<Contact> cList -> resultFactory.success(rTexts, cList) }
     }
-
-    protected void storeIncomingText(IncomingText text, IncomingSession session,
-        MediaInfo mInfo, Closure<Void> storeText, Contact c1) {
+    protected void buildTextsHelper(IncomingText text, IncomingSession sess1,
+        Closure<Void> doStoreText, Contact c1) {
 
         Result<RecordText> res = c1.record
-            .storeIncomingText(text, session, mInfo)
-            .logFail("IncomingMessageService.storeIncomingText: contact ${c1.id}")
-        if (res.success) {
-            storeText(res.payload)
-        }
+            .storeIncomingText(text, sess1)
+            .logFail("IncomingMessageService.buildTextsHelper: contact ${c1.id}")
+        if (res.success) { doStoreText(res.payload) }
     }
 
-    protected Result<Pair<Closure, List<RecordText>>> afterStoreForText(Phone p1, IncomingText text,
-        IncomingSession sess1, List<RecordText> rTexts, List<Contact> notBlockedContacts) {
-
-        // if contacts is empty, then return a message notifying the texter
-        // that he or she has been blocked by the user
-        if (notBlockedContacts.isEmpty()) {
-            return twimlBuilder.build(TextResponse.BLOCKED)
-                .then { Closure response -> resultFactory.success(Pair.of(response, rTexts)) }
+    protected Result<Closure> buildTextResponse(Phone p1, IncomingSession sess1,
+        List<BasicNotification> notifs) {
+        List<String> responses = []
+        if (notifs.isEmpty()) {
+            rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
+            responses << p1.awayMessage
         }
-        // try notify available staff members
-        List<BasicNotification> notifs = notificationService.build(p1, notBlockedContacts)
-        if (notifs) {
-            handleNotificationsForIncomingText(p1, text, sess1, rTexts, notifs)
-        }
-        else { handleAwayForIncomingText(p1, sess1, rTexts) }
-    }
-
-    protected Result<Pair<Closure, List<RecordText>>> handleNotificationsForIncomingText(Phone p1,
-        IncomingText text, IncomingSession sess1, List<RecordText> rTexts, List<BasicNotification> notifs) {
-
-        String instructions = messageSource.getMessage(
-            "incomingMessageService.notifyStaff.notification",
-            null,
-            LCH.getLocale())
-        notifs.each { BasicNotification bn1 ->
-            tokenService
-                .notifyStaff(bn1, false, text.message, instructions)
-                .logFail("IncomingMessageService.notifyStaffAboutMessage: calling notifyStaff")
-        }
-        int numNotified = notifs.size()
-        rTexts.each { RecordText rText -> rText.numNotified = numNotified }
-        buildIncomingTextResponse(p1, sess1, rTexts)
-    }
-
-    protected Result<Pair<Closure, List<RecordText>>> handleAwayForIncomingText(Phone p1,
-        IncomingSession sess1, List<RecordText> rTexts) {
-
-        rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
-        buildIncomingTextResponse(p1, sess1, rTexts, [p1.awayMessage])
-    }
-
-    protected Result<Pair<Closure, List<RecordText>>> buildIncomingTextResponse(Phone p1,
-        IncomingSession sess1, List<RecordText> rTexts, List<String> responses = []) {
         // remind about instructions if phone has announcements enabled
         announcementService
             .tryBuildTextInstructions(p1, sess1)
             .then { List<String> instructions -> twimlBuilder.buildTexts(responses + instructions) }
-            .then { Closure response -> resultFactory.success(Pair.of(response, rTexts)) }
+    }
+
+    protected void finishProcessingText(IncomingText text, List<Long> textIds,
+        List<BasicNotification> notifs, TypeConvertingMap params) {
+
+        Integer numMedia = params.int("NumMedia")
+        // if needed, process media, which includes generating versions, uploading versions,
+        // and deleting copies stored by Twilio
+        if (numMedia > 0) {
+            ResultGroup<MediaElement> outcome = incomingMediaService
+                .process(TwilioUtils.buildIncomingMedia(numMedia, text.apiId, params))
+            MediaInfo mInfo = new MediaInfo()
+            outcome.payload.each { MediaElement el1 -> mInfo.addToMediaElements(el1) }
+            if (mInfo.save()) {
+                finishProcessingTextHelper(text, textIds, notifs, mInfo)
+            }
+            else {
+                resultFactory.failWithValidationErrors(mInfo.errors)
+                    .logFail("IncomingMessageService.finishProcessingText: saving media info")
+            }
+        }
+        else { finishProcessingTextHelper(text, textIds, notifs) }
+    }
+    protected Result<Void> finishProcessingTextHelper(IncomingText text, List<Long> textIds,
+        List<BasicNotification> notifs, MediaInfo mInfo = null) {
+
+        RecordText rTexts = RecordText.getAll(textIds)
+        int numNotified = notifs.size()
+        ResultGroup<RecordText> outcomes = new ResultGroup<>()
+        rTexts.each { RecordText rText ->
+            rText.media = mInfo
+            rText.numNotified = numNotified
+            outcomes << rText.save() ?: resultFactory.failWithValidationErrors(rText.errors)
+        }
+        outcomes.logFail("IncomingMessageService.finishProcessingTextHelper: updating texts")
+        if (!outcomes.anyFailures) {
+            // send out notifications
+            String instructions = messageSource.getMessage(
+                "incomingMessageService.notifyStaff.notification", null, LCH.getLocale())
+            notifs.each { BasicNotification bn1 ->
+                tokenService
+                    .notifyStaff(bn1, false, text.message, instructions)
+                    .logFail("IncomingMessageService.finishProcessingTextHelper: notifying staff")
+            }
+            // For outgoing messages and all calls, we rely on status callbacks
+            // to push record items to the frontend. However, for incoming texts
+            // no status callback happens so we need to push the item here
+            socketService.sendItems(rTexts)
+        }
     }
 
     // Calls

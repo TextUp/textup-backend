@@ -18,11 +18,13 @@ class AudioPostProcessor implements CanProcessMedia {
 
     private final AudioUtils _audioUtils
     private final MediaType _type
+    private final byte[] _data
     private final Path _temp
 
     AudioPostProcessor(MediaType t1, byte[] d1) {
         _audioUtils = Holders.applicationContext.getBean(AudioUtils) as AudioUtils
         _type = t1
+        _data = d1
         _temp = _audioUtils.createTempFile(d1)
     }
 
@@ -30,30 +32,36 @@ class AudioPostProcessor implements CanProcessMedia {
         _audioUtils.delete(_temp)
     }
 
-    Result<? extends UploadItem> createSendVersion() {
+    Result<UploadItem> createInitialVersion() {
+        buildUploadItem(_type, _data)
+    }
+
+    Result<UploadItem> createSendVersion() {
         convertData(SEND_TYPE)
     }
 
-    ResultGroup<? extends UploadItem> createAlternateVersions() {
+    ResultGroup<UploadItem> createAlternateVersions() {
         convertData(ALT_TYPE).toGroup()
     }
 
     // Helpers
     // -------
 
-    Result<UploadItem> convertData(MediaType outputType) {
+    protected Result<UploadItem> convertData(MediaType outputType) {
         if (!_temp) {
             return Helpers.resultFactory.failWithCodeAndStatus("audioPostProcessor.convertData.missingTemp",
                 ResultStatus.INTERNAL_SERVER_ERROR, [_type])
         }
         _audioUtils
             .convert(CONVERSION_TIMEOUT_IN_MILLIS, _type, _temp, outputType)
-            .then { byte[] newData ->
-                UploadItem uItem = new UploadItem(type: outputType, data: newData)
-                if (uItem.validate()) {
-                    Helpers.resultFactory.success(uItem)
-                }
-                else { Helpers.resultFactory.failWithValidationErrors(uItem.errors) }
-            }
+            .then { byte[] newData -> buildUploadItem(outputType, newData) }
+    }
+
+    protected Result<UploadItem> buildUploadItem(MediaType type, byte[] data) {
+        UploadItem uItem = new UploadItem(type: type, data: data)
+        if (uItem.validate()) {
+            Helpers.resultFactory.success(uItem)
+        }
+        else { Helpers.resultFactory.failWithValidationErrors(uItem.errors) }
     }
 }

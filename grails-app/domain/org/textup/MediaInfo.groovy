@@ -10,16 +10,16 @@ import org.textup.type.*
 @RestApiObject(
     name        = "MediaInfo",
     description = "Contains all media elements for a message or batch of messages")
+@RestApiObjectField(
+    apiFieldName   = "elements",
+    description    = "Media of various types contained within this message",
+    allowedType    = "Set<MediaElement>",
+    useForCreation = false)
 class MediaInfo implements ReadOnlyMediaInfo {
 
     private Set<MediaElement> _originalMediaElements = Collections.emptySet()
 
     static transients = ['_originalMediaElements']
-    @RestApiObjectField(
-        apiFieldName   = "elements",
-        description    = "Media of various types contained within this message",
-        allowedType    = "Set<MediaElement>",
-        useForCreation = false)
     static hasMany = [mediaElements: MediaElement]
     static constraints = { // all nullable:false by default
         mediaElements cascadeValidation: true
@@ -63,6 +63,13 @@ class MediaInfo implements ReadOnlyMediaInfo {
             currentBatchSize = 0
         List<MediaElement> batchSoFar = []
         getMediaElementsByType(typesToRetrieve).each { MediaElement e1 ->
+
+
+            // TODO exclude media elements missing a sendVersion because those elements are
+            // still processing and should not be sent out. Log this as an error because we should
+            // only send out media AFTER we've finished processing
+
+
             Long elementSize = e1.sendVersion?.sizeInBytes ?: 0
             // if adding the current element would exceed either the file size or file number
             // thresholds, then execute this batch first and then clear to start new batch
@@ -95,6 +102,10 @@ class MediaInfo implements ReadOnlyMediaInfo {
         Collection<MediaElement> elementCollection = typesToFind ?
             mediaElements?.findAll { MediaElement e1 -> e1.hasType(typesToFind) } : mediaElements
         elementCollection ? new ArrayList<MediaElement>(elementCollection) : []
+    }
+
+    MediaElement getMostRecentByType(Collection<MediaType> typesToFind = []) {
+        // TODO
     }
 
     MediaElement removeMediaElement(String uid) {

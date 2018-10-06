@@ -21,11 +21,9 @@ class CallbackService {
     AnnouncementService announcementService
     GrailsApplication grailsApplication
     IncomingMessageService incomingMessageService
-    MediaService mediaService
     OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
     SocketService socketService
-    StorageService storageService
     ThreadService threadService
     TwimlBuilder twimlBuilder
     VoicemailService voicemailService
@@ -41,8 +39,8 @@ class CallbackService {
             return resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
         }
         // step 2: build browser url and extract Twilio params
-        String url = getBrowserURL(request)
-        Map<String, String> twilioParams = extractTwilioParams(request, params)
+        String url = TwilioUtils.getBrowserURL(request)
+        Map<String, String> twilioParams = TwilioUtils.extractTwilioParams(request, params)
         // step 3: build and run request validator
         String authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
         RequestValidator validator = new RequestValidator(authToken)
@@ -50,36 +48,6 @@ class CallbackService {
         validator.validate(url, twilioParams, authHeader) ?
             resultFactory.success() :
             resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
-    }
-
-    protected String getBrowserURL(HttpServletRequest request) {
-        String browserURL = (request.requestURL.toString() - request.requestURI) + getForwardURI(request)
-        request.queryString ? "$browserURL?${request.queryString}" : browserURL
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected String getForwardURI(HttpServletRequest request) {
-        request.getForwardURI()
-    }
-
-    protected Map<String,String> extractTwilioParams(HttpServletRequest request,
-    	TypeConvertingMap allParams) {
-
-        // step 1: build list of what to ignore. Params that should be ignored are query params
-        // that we append to the callback functions that should be factored into the validation
-        Collection<String> requestParamKeys = request.parameterMap.keySet(),
-            queryParams = []
-        request.queryString?.tokenize("&")?.each { queryParams << it.tokenize("=")[0] }
-        HashSet<String> ignoreParamKeys = new HashSet<>(queryParams),
-            keepParamKeys = new HashSet<>(requestParamKeys)
-        // step 2: collect params
-        Map<String,String> twilioParams = [:]
-        allParams.each {
-            String key = it.key, val = it.value
-            if (keepParamKeys.contains(key) && !ignoreParamKeys.contains(key)) {
-                twilioParams[key] = val
-            }
-        }
-        twilioParams
     }
 
     // Process request
@@ -99,10 +67,6 @@ class CallbackService {
         else if (params.handle == CallResponse.END_CALL.toString()) {
             return twimlBuilder.build(CallResponse.END_CALL)
         }
-        else { processForNumbers(params) }
-    }
-
-    protected Result<Closure> processForNumbers(TypeConvertingMap params) {
         // step 1: check that both to and from numbers are valid US phone numbers
         PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
             toNum = new PhoneNumber(number:params.To as String)
@@ -116,31 +80,24 @@ class CallbackService {
             return params.CallSid ? twimlBuilder.notFoundForCall() : twimlBuilder.notFoundForText()
         }
         // step 3: get session
-        Result<IncomingSession> iRes = getOrCreateIncomingSession(p1, fromNum, toNum, params)
-        IncomingSession is1
-        if (iRes.success) {is1 = iRes.payload }
-        else { return iRes }
-
-
-        if (is1.phone?.id != p1?.id) { //validate session
-            // TODO
-            Helpers.resultFactory.failWithCodeAndStatus("phone.receive.notMine", ResultStatus.FORBIDDEN)
-        }
-
-
-        // step 4: process request
-        String apiId = params.CallSid ?: params.MessageSid
-        if (params.CallSid) {
-            processCall(p1, is1, apiId, params)
-        }
-        else if (params.MessageSid) {
-            processText(p1, is1, apiId, params)
-        }
-        else {
-            resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
-                ResultStatus.BAD_REQUEST)
+        getOrCreateIncomingSession(p1, fromNum, toNum, params).then { IncomingSession is1 ->
+            // step 4: process request
+            String apiId = params.CallSid ?: params.MessageSid
+            if (params.CallSid) {
+                processCall(p1, is1, apiId, params)
+            }
+            else if (params.MessageSid) {
+                processText(p1, is1, apiId, params)
+            }
+            else {
+                resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
+                    ResultStatus.BAD_REQUEST)
+            }
         }
     }
+
+    // Gathering objects
+    // -----------------
 
     protected Result<IncomingSession> getOrCreateIncomingSession(Phone p1, BasePhoneNumber fromNum,
         BasePhoneNumber toNum, TypeConvertingMap params) {
@@ -187,6 +144,9 @@ class CallbackService {
         phoneNum
     }
 
+    // Processing
+    // ----------
+
     protected Result<Closure> processCall(Phone p1, IncomingSession is1, String apiId,
         TypeConvertingMap params) {
         String digits = params.Digits
@@ -196,17 +156,14 @@ class CallbackService {
                 voicemailService.tryStartVoicemail(p1, is1.number, rStatus)
                 break
             case CallResponse.VOICEMAIL_DONE.toString():
-                Integer voicemailDuration = Helpers.to(Integer, params.RecordingDuration)
-                String callId = Helpers.to(String, params.CallSid),
-                    recordingId = Helpers.to(String, params.RecordingSid),
-                    voicemailUrl = Helpers.to(String, params.RecordingUrl)
                 // in about 5% of cases, when the RecordingStatusCallback is called, the recording
                 // at the provided url still isn't ready and a request to that url returns a
                 // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
                 // is completely done being stored before attempting to fetch it.
                 threadService.submit(5, TimeUnit.SECONDS) {
-                    voicemailService.completeVoicemail(callId, recordingId, voicemailUrl, voicemailDuration)
-                        .logFail("CallbackService.processCall: VOICEMAIL_DONE voicemailUrl: ${voicemailUrl}")
+                    voicemailService
+                        .completeVoicemail(TwilioUtils.buildIncomingRecording(params))
+                        .logFail("CallbackService.processCall: VOICEMAIL_DONE")
                 }
                 twimlBuilder.build(CallResponse.VOICEMAIL_DONE)
                 break
@@ -227,74 +184,27 @@ class CallbackService {
         }
     }
 
-    protected Result<Closure> processText(Phone p1, IncomingSession is1, String apiId,
+    protected Result<Closure> processText(Phone p1, IncomingSession sess1, String apiId,
         TypeConvertingMap params) {
-
-        // step 1: handle media, if applicable
-        MediaInfo mInfo
-        Collection<UploadItem> itemsToUpload = []
-        Set<String> mediaIdsToDelete = new HashSet<>()
-        Integer numMedia = Helpers.to(Integer, params.NumMedia)
-        if (numMedia > 0) {
-            Result<MediaInfo> mediaRes = handleMedia(numMedia, itemsToUpload.&addAll,
-                mediaIdsToDelete.&add, params)
-            if (mediaRes.success) {
-                mInfo = mediaRes.payload
-            }
-            else { return mediaRes }
-        }
-        // step 2: relay text
+        // step 1: store incoming text without media
         IncomingText text = new IncomingText(apiId:apiId, message:params.Body as String,
-            numSegments: Helpers.to(Integer, params.NumSegments))
-        if (text.validate()) { //validate text
-            incomingMessageService
-                .receiveText(p1, text, is1, mInfo)
-                .then { Pair<Closure, List<RecordText>> payload ->
-                    // don't want the twilio request to time out so we first return a response
-                    // to twilio and then deal with remaining more time-intensive tasks
-                    threadService.submit {
-                        handleMediaAndSocket(apiId, itemsToUpload, payload.right, mediaIdsToDelete)
-                    }
-                    resultFactory.success(payload.left)
+            numSegments: params.int("NumSegments"))
+        if (!text.validate()) {
+            return resultFactory.failWithValidationErrors(text.errors)
+        }
+        switch (text.message) {
+            case Constants.TEXT_SEE_ANNOUNCEMENTS:
+                Collection<FeaturedAnnouncement> announces = p1.getAnnouncements()
+                if (announces) {
+                    announcementService.textSeeAnnouncements(announces, sess1)
                 }
-        }
-        else { resultFactory.failWithValidationErrors(text.errors) }
-    }
-    protected Result<MediaInfo> handleMedia(int numMedia, Closure<Void> collectUploads,
-        Closure<Void> collectMediaIds, TypeConvertingMap params) {
-
-        Map<String, String> urlToMimeType = [:]
-        for (int i = 0; i < numMedia; ++i) {
-            String contentUrl = params["MediaUrl${i}"],
-                contentType = params["MediaContentType${i}"]
-            urlToMimeType[contentUrl] = contentType
-        }
-        mediaService
-            .buildFromIncomingMedia(urlToMimeType, collectUploads, collectMediaIds)
-            .logFail("CallbackService.handleMedia: building incoming media")
-    }
-    protected void handleMediaAndSocket(String apiId, Collection<UploadItem> itemsToUpload,
-        List<RecordText> textsToSendThroughSocket, Set<String> mediaIdsToDelete) {
-
-        // step 1: upload our processed copies
-        ResultGroup<?> resGroup = storageService.uploadAsync(itemsToUpload)
-            .logFail("CallbackService.handleMediaAndSocket: uploading processed media")
-
-        // step 2: after uploading, send texts to frontend
-        // For outgoing messages and all calls, we rely on status callbacks
-        // to push record items to the frontend. However, for incoming texts
-        // no status callback happens so we need to push the item here
-        socketService.sendItems(textsToSendThroughSocket)
-
-        // step 3: delete media only if no upload errors after a delay
-        // need a delay here because try to delete immediately results in an error saying
-        // that the incoming message hasn't finished delivering yet. For incoming message
-        // no status callbacks so we have to wait a fixed period of time then attempt to delete
-        if (itemsToUpload && !resGroup.anyFailures) {
-            threadService.submit(20, TimeUnit.SECONDS) {
-                mediaService.deleteMedia(apiId, mediaIdsToDelete)
-                    .logFail("CallbackService.handleMediaAndSocket: deleting media")
-            }
+                else { incomingMessageService.processText(p1, text, sess1, params) }
+                break
+            case Constants.TEXT_TOGGLE_SUBSCRIBE:
+                announcementService.textToggleSubscribe(sess1)
+                break
+            default:
+                incomingMessageService.processText(p1, text, sess1, params)
         }
     }
 }

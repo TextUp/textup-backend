@@ -18,6 +18,10 @@ class SocketService {
     Pusher pusherService
     ResultFactory resultFactory
 
+    ResultGroup<Staff> sendMedia() {
+        // TODO
+    }
+
     ResultGroup<Staff> sendItems(Collection<? extends RecordItem> items,
         String eventName = Constants.SOCKET_EVENT_RECORDS) {
         if (!items) {

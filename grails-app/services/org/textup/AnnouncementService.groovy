@@ -228,39 +228,26 @@ class AnnouncementService {
     // Incoming
     // --------
 
-    Result<Pair<Closure, List<RecordText>>> handleAnnouncementText(Phone phone, IncomingText text,
-        IncomingSession session, Closure<Result<Pair<Closure, List<RecordText>>>> fallbackAction) {
+    Result<Closure> textSeeAnnouncements(Collection<FeaturedAnnouncement> announces, IncomingSession sess1) {
+        announces.each { FeaturedAnnouncement announce ->
+            announce
+                .addToReceipts(RecordItemType.TEXT, sess1)
+                .logFail("AnnouncementService.handleAnnouncementText: add announce receipt")
+        }
+        twimlBuilder.build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:announces])
+    }
 
-        switch (text.message) {
-            case Constants.TEXT_SEE_ANNOUNCEMENTS:
-                Collection<FeaturedAnnouncement> announces = phone.getAnnouncements()
-                announces.each { FeaturedAnnouncement announce ->
-                    announce
-                        .addToReceipts(RecordItemType.TEXT, session)
-                        .logFail("AnnouncementService.handleAnnouncementText: add announce receipt")
-                }
-                twimlBuilder
-                    .build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:announces])
-                    .then { Closure response -> resultFactory.success(Pair.of(response, [])) }
-                break
-            case Constants.TEXT_TOGGLE_SUBSCRIBE:
-                if (session.isSubscribedToText) {
-                    session.isSubscribedToText = false
-                    twimlBuilder
-                        .build(TextResponse.UNSUBSCRIBED)
-                        .then { Closure response -> resultFactory.success(Pair.of(response, [])) }
-                }
-                else {
-                    session.isSubscribedToText = true
-                    twimlBuilder
-                        .build(TextResponse.SUBSCRIBED)
-                        .then { Closure response -> resultFactory.success(Pair.of(response, [])) }
-                }
-                break
-            default:
-                fallbackAction()
+    Result<Closure> textToggleSubscribe(IncomingSession sess1) {
+        if (sess1.isSubscribedToText) {
+            sess1.isSubscribedToText = false
+            twimlBuilder.build(TextResponse.UNSUBSCRIBED)
+        }
+        else {
+            sess1.isSubscribedToText = true
+            twimlBuilder.build(TextResponse.SUBSCRIBED)
         }
     }
+
     Result<List<String>> tryBuildTextInstructions(Phone phone, IncomingSession session) {
         if (phone.getAnnouncements() && session.shouldSendInstructions) {
             session.updateLastSentInstructions()

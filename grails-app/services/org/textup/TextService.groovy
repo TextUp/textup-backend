@@ -16,12 +16,12 @@ class TextService {
 	ResultFactory resultFactory
 
     Result<TempRecordReceipt> send(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
-        String message, List<MediaElement> media = []) {
+        String message, Collection<URI> mediaUrls = []) {
 
         ResultGroup<Message> failResults = new ResultGroup<>()
         Result<Message> res
         for (toNum in toNums) {
-            res = this.tryText(fromNum, toNum, message, media)
+            res = this.tryText(fromNum, toNum, message, mediaUrls)
             //record receipt and return on first success
             if (res.success) {
                 Message tMessage = res.payload
@@ -37,18 +37,15 @@ class TextService {
             }
             else { failResults << res }
         }
-        if (!failResults.isEmpty) {
-            resultFactory.failWithResultsAndStatus(failResults.failures,
-                failResults.failureStatus)
-        }
-        else {
+        if (failResults.isEmpty) {
             resultFactory.failWithCodeAndStatus("textService.text.noNumbers",
                 ResultStatus.UNPROCESSABLE_ENTITY, null)
         }
+        else { resultFactory.failWithGroup(failResults) }
 	}
 
     protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
-        String message, List<MediaElement> media) {
+        String message, Collection<URI> mediaUrls) {
 
         String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
                 action:"save", absolute:true, params:[handle:Constants.CALLBACK_STATUS])
@@ -56,9 +53,7 @@ class TextService {
             Message msg1 = Message
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), message)
                 .setStatusCallback(callback)
-                .setMediaUrl(media.collect { MediaElement e1 ->
-                    e1.sendVersion?.link?.toURI()
-                })
+                .setMediaUrl(mediaUrls)
                 .create()
             resultFactory.success(msg1)
         }

@@ -1,7 +1,6 @@
 package org.textup.media
 
 import grails.compiler.GrailsTypeChecked
-import org.apache.commons.lang3.tuple.Pair
 import org.textup.*
 import org.textup.type.*
 import org.textup.validator.*
@@ -9,9 +8,13 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class MediaPostProcessor {
 
-    static Result<Pair<? extends UploadItem, List<? extends UploadItem>>> process(MediaType type,
-        byte[] data) {
+    static Result<UploadItem> buildInitialData(MediaType type, byte[] data) {
+        getProcessor(type, data).then { CanProcessMedia processor ->
+            processor.withCloseable { processor.createInitialVersion() }
+        }
+    }
 
+    static Result<Tuple<UploadItem, List<UploadItem>>> process(MediaType type, byte[] data) {
         getProcessor(type, data).then { CanProcessMedia processor ->
             processor.withCloseable {
                 processor
@@ -19,11 +22,14 @@ class MediaPostProcessor {
                     .then { UploadItem sendVersion ->
                         ResultGroup<UploadItem> alternates = processor.createAlternateVersions()
                             .logFail("MediaPostProcessor: creating alternate versions")
-                        Helpers.resultFactory.success(Pair.of(sendVersion, alternates.successes))
+                        Helpers.resultFactory.success(sendVersion, alternates.successes)
                     }
             }
         }
     }
+
+    // Helpers
+    // -------
 
     protected static Result<CanProcessMedia> getProcessor(MediaType type, byte[] data) {
         ResultFactory resultFactory = Helpers.resultFactory

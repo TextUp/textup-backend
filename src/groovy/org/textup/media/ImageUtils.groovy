@@ -10,7 +10,6 @@ import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam
 import javax.imageio.ImageWriter
 import javax.imageio.stream.ImageOutputStream
-import org.apache.commons.lang3.tuple.Pair
 import org.textup.*
 import org.textup.type.*
 
@@ -40,12 +39,12 @@ class ImageUtils {
         }
     }
 
-    static Result<Pair<byte[], BufferedImage>> tryResizeToWidth(MediaType type, byte[] data,
+    static Result<Tuple<byte[], BufferedImage>> tryResizeToWidth(MediaType type, byte[] data,
         BufferedImage image, int maxWidthInPixels) {
 
         // short circuit if target width is invalid or if present width is already smaller than target width
         if (maxWidthInPixels <= 0 || image?.width < maxWidthInPixels) {
-            return Helpers.resultFactory.success(Pair.of(data, image))
+            return Helpers.resultFactory.success(data, image)
         }
         ImageWriter writer
         try {
@@ -54,7 +53,7 @@ class ImageUtils {
             Image resizedImg = image.getScaledInstance(maxWidthInPixels, -1, Image.SCALE_DEFAULT)
             BufferedImage newImage = ImageUtils.imageToBufferedImage(resizedImg)
             byte[] newData = ImageUtils.getDataFromImage(newImage, writer, writer.defaultWriteParam)
-            Helpers.resultFactory.success(Pair.of(newData, newImage))
+            Helpers.resultFactory.success(newData, newImage)
         }
         catch (Throwable e) {
             log.error("ImageUtils.tryResizeToWidth: maxWidthInPixels: ${maxWidthInPixels}, ${e.message}")
@@ -63,11 +62,11 @@ class ImageUtils {
         finally { writer?.dispose() }
     }
 
-    protected Result<Pair<byte[], BufferedImage>> tryCompress(MediaType type, byte[] data,
+    protected Result<Tuple<byte[], BufferedImage>> tryCompress(MediaType type, byte[] data,
         BufferedImage image, long maxSizeInBytes) {
         // short circuit if invalid input or incompressible or if requested size is smaller than current
         if (maxSizeInBytes <= 0 || !ImageUtils.canCompress(type) || !data || data.size() <= maxSizeInBytes) {
-            return Helpers.resultFactory.success(Pair.of(data, image))
+            return Helpers.resultFactory.success(data, image)
         }
         ImageWriter writer
         try {
@@ -86,7 +85,7 @@ class ImageUtils {
                 currentQuality -= qualityStep
             }
             // step 3: after breaking out of the loop, return the newly-compressed values
-            return Helpers.resultFactory.success(Pair.of(currData, currImage))
+            return Helpers.resultFactory.success(currData, currImage)
         }
         catch (Throwable e) {
             log.error("ImageUtils.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")

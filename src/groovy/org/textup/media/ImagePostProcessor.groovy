@@ -3,7 +3,6 @@ package org.textup.media
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import java.awt.image.BufferedImage
-import org.apache.commons.lang3.tuple.Pair
 import org.textup.*
 import org.textup.type.*
 import org.textup.validator.*
@@ -33,11 +32,15 @@ class ImagePostProcessor implements CanProcessMedia {
 
     void close() {}
 
-    Result<? extends UploadItem> createSendVersion() {
+    Result<UploadItem> createInitialVersion() {
+        getInitialUploadItem()
+    }
+
+    Result<UploadItem> createSendVersion() {
         buildUploadItem(SEND_VERSION)
     }
 
-    ResultGroup<? extends UploadItem> createAlternateVersions() {
+    ResultGroup<UploadItem> createAlternateVersions() {
         new ResultGroup<UploadItem>(ALT_VERSIONS.collect { ImagePostProcessor.ImageData d1 -> buildUploadItem(d1) })
     }
 
@@ -47,10 +50,10 @@ class ImagePostProcessor implements CanProcessMedia {
     protected Result<UploadItem> buildUploadItem(ImagePostProcessor.ImageData target) {
         getInitialUploadItem().then { UploadItem uItem ->
             ImageUtils.tryResizeToWidth(_type, _data, _image, target.maxWidthInPixels)
-                .then { Pair<byte[], BufferedImage> after ->
+                .then { Tuple<byte[], BufferedImage> after ->
                     ImageUtils.tryCompress(_type, after.left, after.right, target.maxSizeInBytes)
                 }
-                .then { Pair<byte[], BufferedImage> after ->
+                .then { Tuple<byte[], BufferedImage> after ->
                     uItem.data = after.left
                     uItem.image = after.right
                 }

@@ -16,6 +16,9 @@ class Result<T> {
     ResultStatus status = ResultStatus.OK
     List<String> errorMessages = []
 
+    private final List<Object> successArgs = []
+    private final List<Object> failureArgs = []
+
     // Static methods
     // --------------
 
@@ -53,7 +56,9 @@ class Result<T> {
     Result<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {
         if (!this.success) {
             String statusString = this.status.intStatus.toString()
-            String msg = prefix ? "${prefix}: ${statusString}: ${errorMessages}" : "${statusString}: ${errorMessages}"
+            String msg = prefix
+                ? "${prefix}: ${statusString}: ${errorMessages}"
+                : "${statusString}: ${errorMessages}"
             switch (level) {
                 case LogLevel.DEBUG:
                     log.debug(msg)
@@ -70,6 +75,31 @@ class Result<T> {
 
     ResultGroup<T> toGroup() {
         (new ResultGroup<>()).add(this)
+    }
+
+    // Currying
+    // --------
+
+    Result<T> curry(Object... args) {
+        currySuccess(args)
+        curryFailure(args)
+    }
+    Result<T> currySuccess(Object... args) {
+        successArgs.addAll(args)
+    }
+    Result<T> curryFailure(Object... args) {
+        failureArgs.addAll(args)
+    }
+
+    Result<T> clearCurry() {
+        clearCurrySuccess()
+        clearCurryFailure()
+    }
+    Result<T> clearCurrySuccess() {
+        successArgs.clear()
+    }
+    Result<T> clearCurryFailure() {
+        failureArgs.clear()
     }
 
     // Property Access
@@ -93,25 +123,31 @@ class Result<T> {
     // -------
 
     protected <W> W executeSuccess(Closure<W> action) {
-    	if (action.maximumNumberOfParameters == 0) {
-            action()
-        }
-        else if (action.maximumNumberOfParameters == 1) {
-            action(payload)
-        }
-        else { // action.maximumNumberOfParameters == 2
-            action(payload, status)
-        }
+        execute(action, successArgs + [payload, status])
     }
     protected <W> W executeFailure(Closure<W> action) {
-        if (action.maximumNumberOfParameters == 0) {
-            action()
+        execute(action, failureArgs + [this])
+    }
+    protected <W> W execute(Closure<W> action, List<Object> args) {
+        if (!action) {
+            return this
         }
-        else if (action.maximumNumberOfParameters == 1) {
-            action(errorMessages)
+        int maxNumArgs = action.maximumNumberOfParameters
+        action.call(buildArgs(maxNumArgs, args))
+    }
+    protected List<Object> buildArgs(int maxNumArgs, List<Object> args) {
+        int numArgs = args.size()
+        if (maxNumArgs == 0) {
+            []
         }
-        else { // action.maximumNumberOfParameters == 2
-            action(errorMessages, status)
+        else if (numArgs == maxNumArgs) {
+            args
+        }
+        else if (numArgs > maxNumArgs) {
+            args[0..(maxNumArgs - 1)]
+        }
+        else { // numArgs < maxNumArgs
+            args + Collections.nCopies(maxNumArgs - numArgs, null)
         }
     }
 }

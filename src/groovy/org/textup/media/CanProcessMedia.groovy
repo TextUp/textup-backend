@@ -7,6 +7,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 interface CanProcessMedia extends Closeable {
-    Result<? extends UploadItem> createSendVersion()
-    ResultGroup<? extends UploadItem> createAlternateVersions()
+    Result<UploadItem> createInitialVersion()
+    Result<UploadItem> createSendVersion()
+    ResultGroup<UploadItem> createAlternateVersions()
 }

@@ -124,9 +124,22 @@ class Helpers {
     // Async
     // -----
 
+    static <T> Future<T> noOpFuture(T obj) {
+        [
+            cancel: { boolean b -> true },
+            get: { obj },
+            get: { long timeout, TimeUnit unit -> obj },
+            isCancelled: { false },
+            isDone: { true }
+        ] as Future<?>
+    }
+
     static <K, T> List<T> doAsyncInBatches(Collection<K> data, Closure<T> doAction,
         int batchSize = Constants.CONCURRENT_SEND_BATCH_SIZE) {
 
+        if (!data) {
+            return []
+        }
         // step 1: process in batches
         PromiseList<T> pList1 = new PromiseList<>()
         new ArrayList<K>(data)
@@ -387,13 +400,26 @@ class Helpers {
     // From http://www.baeldung.com/httpclient-4-basic-authentication
     // Twilio has inconsistent behavior with a basic authentication header string.
     // Therefore, use Credential Provider
-    static CloseableHttpClient buildBasicAuthHttpClient(String un, String pwd) {
-        UsernamePasswordCredentials authValues = new UsernamePasswordCredentials(un, pwd)
-        // See https://hc.apache.org/httpcomponents-client-ga/httpclient/examples/org/apache/http/examples/client/ClientAuthentication.java
-        CredentialsProvider credentials = new BasicCredentialsProvider()
-        credentials.setCredentials(AuthScope.ANY, authValues)
-        CloseableHttpClient client = HttpClients.custom()
-            .setDefaultCredentialsProvider(credentials)
-            .build()
+    static <T> Result<T> executeBasicAuthRequest(String un, String pwd,
+        HttpUriRequest request, Closure<Result<T>> doAction) {
+
+        try {
+            UsernamePasswordCredentials authValues = new UsernamePasswordCredentials(un, pwd)
+            // See https://hc.apache.org/httpcomponents-client-ga/httpclient/examples/org/apache/http/examples/client/ClientAuthentication.java
+            CredentialsProvider credentials = new BasicCredentialsProvider()
+            credentials.setCredentials(AuthScope.ANY, authValues)
+            CloseableHttpClient client = HttpClients.custom()
+                .setDefaultCredentialsProvider(credentials)
+                .build()
+            client.withCloseable {
+                HttpResponse resp = client.execute(new HttpGet(url))
+                resp.withCloseable { doAction(resp) }
+            }
+        }
+        catch (Throwable e) {
+            log.error("Helpers.executeBasicAuthRequest: ${e.message}")
+            e.printStackTrace()
+            resultFactory.failWithThrowable(e)
+        }
     }
 }

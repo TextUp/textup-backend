@@ -15,6 +15,7 @@ class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
             images : mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES),
             audio  : mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES)
         ]
+        // TODO remove this? do we ever upload media synchronously anymore?
         Result<?> res = Helpers.tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
             .logFail("MediaInfoJsonMarshaller: no available request", LogLevel.DEBUG)
         if (res.success) { json.uploadErrors = res.payload }

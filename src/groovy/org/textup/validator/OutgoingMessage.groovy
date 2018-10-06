@@ -37,12 +37,23 @@ class OutgoingMessage {
 	// -------
 
 	HashSet<Contactable> toRecipients() {
+
+		// TODO define identity function for hashset to use ids
+
 		HashSet<Contactable> recipients = new HashSet<>()
         // add all contactables to a hashset to avoid duplication
         recipients.addAll(contacts.recipients)
         recipients.addAll(sharedContacts.recipients)
         tags.recipients.each { ContactTag ct1 -> recipients.addAll(ct1.members ?: []) }
         recipients
+	}
+
+	HashSet<WithRecord> toRecordOwners() {
+		// TODO
+	}
+
+	Map<Long, List<ContacTag>> getContactIdToTags() {
+		// TODO
 	}
 
 	// Property Access

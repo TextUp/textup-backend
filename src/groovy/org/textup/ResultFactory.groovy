@@ -22,6 +22,11 @@ class ResultFactory {
 	// Success
 	// -------
 
+    public <X, Y> Result<Tuple<X, Y>> success(X first, Y second,
+        ResultStatus status = ResultStatus.OK) {
+
+        Result.createSuccess(new Tuple(first, second), status)
+    }
 	public <T> Result<T> success(T payload, ResultStatus status = ResultStatus.OK) {
 		Result.createSuccess(payload, status)
 	}
@@ -36,6 +41,10 @@ class ResultFactory {
         List<String> messages = []
     	results.each { Result<?> res -> messages += res.errorMessages }
     	Result.<T>createError(messages, status)
+    }
+
+    public <T> Result<T> failWithGroup(ResultGroup<T> resGroup) {
+        failWithResultsAndStatus(resGroup.failures, resGroup.failureStatus)
     }
 
     public <T> Result<T> failWithCodeAndStatus(String code, ResultStatus status, List params = []) {

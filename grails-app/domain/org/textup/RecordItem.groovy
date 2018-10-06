@@ -98,7 +98,7 @@ class RecordItem implements ReadOnlyRecordItem {
     	authorName blank:true, nullable:true
     	authorId nullable:true
         authorType nullable:true
-        media nullable:true // can be null for backwards compatibility for RecordItems that predate this
+        media nullable:true, cascadeValidation: true // can be null for backwards compatibility for RecordItems that predate this
         noteContents blank:true, nullable:true, maxSize:15000
         numNotified min: 0
     }

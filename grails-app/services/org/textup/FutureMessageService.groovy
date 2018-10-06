@@ -172,35 +172,26 @@ class FutureMessageService {
                 "futureMessageService.create.noRecordOrInsufficientPermissions",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        // step 1: handle media upload, storing upload errors on request
-        Collection<UploadItem> itemsToUpload = []
-        MediaInfo mInfo
-        if (mediaService.hasMediaActions(body)) {
-            Result<MediaInfo> mediaRes = mediaService.handleActions(new MediaInfo(),
-                itemsToUpload.&addAll, body)
-            if (mediaRes.success) {
-                mInfo = mediaRes.payload
+        SimpleFutureMessage fm0 = new SimpleFutureMessage(record: rec)
+        mediaService.tryProcess(fm0, body)
+            .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
+                setFromBody(fm0, body, timezone).curry(processed.second)
             }
-            else { return mediaRes }
-        }
-        // step 2: create future message
-        SimpleFutureMessage fm0 = new SimpleFutureMessage(record: rec, media: mInfo)
-        setFromBody(fm0, body, timezone).then { FutureMessage fm1 ->
-            fm1.language = Helpers.withDefault(Helpers.convertEnum(VoiceLanguage, body.language),
-                rec.language)
-            // step 3: upload media, if needed
-            tryUploadMedia(itemsToUpload)
-            resultFactory.success(fm1, ResultStatus.CREATED)
-        }
-    }
-
-    protected void tryUploadMedia(Collection<UploadItem> itemsToUpload) {
-        Collection<String> errorMsgs = []
-        storageService.uploadAsync(itemsToUpload)
-            .failures
-            .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-        Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
-            .logFail("FutureMessageService.tryUploadMedia")
+            .then({ Future<Result<MediaInfo>> mediaFuture, FutureMessage fm1 ->
+                fm1.language = Helpers.withDefault(
+                    Helpers.convertEnum(VoiceLanguage, body.language),
+                    rec.language)
+                if (fm1.save()) {
+                    resultFactory.success(fm1, ResultStatus.CREATED)
+                }
+                else {
+                    mediaFuture.cancel(true)
+                    resultFactory.failWithValidationErrors(fm1.errors)
+                }
+            }, { Future<Result<MediaInfo>> mediaFuture, Result<FutureMessage> failRes ->
+                mediaFuture.cancel(true)
+                failRes
+            })
     }
 
     // Update
@@ -213,21 +204,16 @@ class FutureMessageService {
             return resultFactory.failWithCodeAndStatus("futureMessageService.update.notFound",
                 ResultStatus.NOT_FOUND, [fId])
         }
-        // step 1: handle media upload, storing upload errors on request
-        Collection<UploadItem> itemsToUpload = []
-        if (mediaService.hasMediaActions(body)) {
-            Result<MediaInfo> mediaRes = mediaService.handleActions(fMsg.media ?: new MediaInfo(),
-                itemsToUpload.&addAll, body)
-            if (mediaRes.success) {
-                fMsg.media = mediaRes.payload
+        // need to set first to ensure that future message validators take into account
+        // the media object too
+        mediaService.tryProcess(fMsg, body)
+            .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
+                setFromBody(fMsg, body, timezone).curryFailure(processed.second)
             }
-            else { return mediaRes }
-        }
-        // step 2: update future message
-        setFromBody(fMsg, body, timezone).then { FutureMessage fm1 ->
-            tryUploadMedia(itemsToUpload)
-            resultFactory.success(fm1)
-        }
+            .then(null) { Future<Result<MediaInfo>> mediaFuture, Result<FutureMessage> failRes ->
+                mediaFuture.cancel(true)
+                failRes
+            }
     }
 
     // Delete

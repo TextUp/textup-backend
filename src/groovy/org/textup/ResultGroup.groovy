@@ -32,6 +32,9 @@ class ResultGroup<T> {
 	ResultGroup<T> leftShift(Collection<Result<? extends T>> manyRes) {
 		add(manyRes)
 	}
+	ResultGroup<T> leftShift(ResultGroup<? extends T> resGroup) {
+		add(resGroup)
+	}
 	ResultGroup<T> add(Result<? extends T> res) {
 		add([res])
 	}
@@ -43,6 +46,10 @@ class ResultGroup<T> {
 			else { addHelper(res, failureItems, failureStatusToCount) }
 		}
 		this
+	}
+	ResultGroup<T> add(ResultGroup<? extends T> resGroup) {
+		add(resGroup.successes)
+		add(resGroup.failures)
 	}
 	protected void addHelper(Result<? extends T> res, List<Result<T>> items,
 		Map<ResultStatus,Integer> statusToCount) {
@@ -59,15 +66,6 @@ class ResultGroup<T> {
 			statusToCount[res.status] = statusToCount[res.status] + 1
 		}
 		else { statusToCount[res.status] = 1 }
-	}
-
-	// Composition
-	// -----------
-
-	ResultGroup<T> merge(ResultGroup<? extends T> resGroup) {
-		add(resGroup.successes)
-		add(resGroup.failures)
-		this
 	}
 
 	// Groupings

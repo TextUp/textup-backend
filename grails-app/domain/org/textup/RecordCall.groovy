@@ -9,58 +9,32 @@ import org.textup.type.ReceiptStatus
 import org.textup.validator.TempRecordReceipt
 
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
-@RestApiObject(name="RecordCall", description="A phone call entry in a contact's record.")
-class RecordCall extends RecordItem implements ReadOnlyRecordCall {
-
-    VoicemailService voicemailService
-
-    // explicitly store the value of the key the voicemail is stored under
-    String voicemailKey
-
+@EqualsAndHashCode(callSuper = true)
+@RestApiObject(name = "RecordCall", description = "A phone call entry in a contact's record.")
+@RestApiObjectFields(params = [
     @RestApiObjectField(
-        description    = "Duration of the voicemail",
+        apiFieldName      = "callContact",
+        description       = "Id of a contact to call",
+        allowedType       = "Number",
+        mandatory         = false,
+        useForCreation    = true,
+        presentInResponse = false),
+    @RestApiObjectField(
+        apiFieldName      = "callSharedContact",
+        description       = "Id of a contact shared with us to call",
+        allowedType       = "Number",
+        mandatory         = false,
+        useForCreation    = true,
+        presentInResponse = false),
+    @RestApiObjectField(
+        apiFieldName   = "durationInSeconds",
+        description    = "Duration of the call",
         allowedType    = "Number",
         useForCreation = false)
-    int voicemailInSeconds = 0
+])
+class RecordCall extends RecordItem implements ReadOnlyRecordCall {
 
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName      = "callContact",
-            description       = "Id of a contact to call",
-            allowedType       = "Number",
-            mandatory         = false,
-            useForCreation    = true,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "callSharedContact",
-            description       = "Id of a contact shared with us to call",
-            allowedType       = "Number",
-            mandatory         = false,
-            useForCreation    = true,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName   = "durationInSeconds",
-            description    = "Duration of the call",
-            allowedType    = "Number",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "hasVoicemail",
-            description    = "Whether or not this call has a voicemail",
-            allowedType    = "Boolean",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName      = "voicemailUrl",
-            description       = "Url to access the voicemail at",
-            allowedType       = "String",
-            mandatory         = false,
-            useForCreation    = false,
-            presentInResponse = true)
-    ])
-    static transients = ["voicemailService"]
-    static constraints = {
-        voicemailKey nullable: true, blank: true
-        voicemailInSeconds minSize:0
+    static constraints = { // default nullable: false
     }
 
     // Property Access
@@ -81,16 +55,6 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
         // for outgoing calls, exclude the receipt with the longest duration because this is the
         // parent bridge call from TextUp to the staff member’s personal phone
         new RecordItemStatus(this.outgoing ? showOnlyContactReceipts() : this.receipts)
-    }
-
-    boolean getHasVoicemail() {
-        this.hasAwayMessage && this.voicemailInSeconds > 0 && this.voicemailKey
-    }
-    String getVoicemailUrl() {
-        if (!this.hasVoicemail) {
-            return ""
-        }
-        voicemailService.getVoicemailUrl(this.voicemailKey)
     }
 
     // Helpers

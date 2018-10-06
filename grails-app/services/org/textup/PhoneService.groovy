@@ -43,6 +43,16 @@ class PhoneService {
         handlePhoneActions(p1, body)
             .then { Phone p2 -> handleAvailability(p2, body, timezone) }
             .then { Phone p2 -> updateFields(p2, body) }
+            .then { Phone p2 -> mediaService.tryProcess(p2, body).curry(p2) }
+            .then { Phone p2, Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
+                if (p2.save()) {
+                    resultFactory.success(p2)
+                }
+                else {
+                    processed.second.cancel(true)
+                    resultFactory.failWithValidationErrors(p2.errors)
+                }
+            }
     }
 
     protected Result<Phone> updateFields(Phone p1, Map body) {

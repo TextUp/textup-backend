@@ -99,7 +99,7 @@ class RecordController extends BaseController {
     protected void listForRecord(ReadOnlyRecord rec1, GrailsParameterMap params) {
         Closure<Integer> count
         Closure<List<ReadOnlyRecordItem>> list
-        Collection<Class<? extends RecordItem>> types = recordService.parseTypes(params.list("types[]"))
+        Collection<Class<? extends RecordItem>> types = RecordUtils.parseTypes(params.list("types[]"))
         if (params.since && !params.before) {
             DateTime since = Helpers.toUTCDateTime(params.since)
             count = { rec1.countSince(since, types) }
@@ -178,7 +178,7 @@ class RecordController extends BaseController {
         else { createForPhone(authService.loggedInAndActive?.phone?.id, rInfo) }
     }
     protected void createForPhone(Long phoneId, Map body) {
-        Result<Class<RecordItem>> res = recordService.determineClass(body)
+        Result<Class<RecordItem>> res = RecordUtils.determineClass(body)
         if (!res.success) {
             badRequest()
             return
