@@ -228,9 +228,9 @@ class ContactSpec extends CustomSpec {
         Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED])[0].id in sharedContacts*.contactId
         Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.BLOCKED]).isEmpty()
 
-        Contact.countForPhoneAndStatuses(phone1) == 4  // defaults to `Constants.CONTACT_ACTIVE_STATUSES`
-        Contact.countForPhoneAndStatuses(phone1, null) == 4  // defaults to `Constants.CONTACT_ACTIVE_STATUSES`
-        Contact.countForPhoneAndStatuses(phone1, []) == 4  // defaults to `Constants.CONTACT_ACTIVE_STATUSES`
+        Contact.countForPhoneAndStatuses(phone1) == 4  // defaults to `ContactStatus.ACTIVE_STATUSES`
+        Contact.countForPhoneAndStatuses(phone1, null) == 4  // defaults to `ContactStatus.ACTIVE_STATUSES`
+        Contact.countForPhoneAndStatuses(phone1, []) == 4  // defaults to `ContactStatus.ACTIVE_STATUSES`
         Contact.countForPhoneAndStatuses(phone1, [ContactStatus.UNREAD]) == 2
         Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ACTIVE]) == 2
         Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED]) == 2

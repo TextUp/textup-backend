@@ -2,9 +2,8 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.apache.commons.lang3.tuple.Pair
 import org.joda.time.DateTime
-import org.textup.rest.TwimlBuilder
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.*
@@ -16,7 +15,6 @@ class AnnouncementService {
     AuthService authService
     OutgoingAnnouncementService outgoingAnnouncementService
     ResultFactory resultFactory
-    TwimlBuilder twimlBuilder
 
 	// Create
 	// ------
@@ -78,27 +76,24 @@ class AnnouncementService {
                 .addToReceipts(RecordItemType.TEXT, sess1)
                 .logFail("AnnouncementService.handleAnnouncementText: add announce receipt")
         }
-        twimlBuilder.build(TextResponse.SEE_ANNOUNCEMENTS, [announcements:announces])
+        TextTwiml.seeAnnouncements(announces)
     }
 
     Result<Closure> textToggleSubscribe(IncomingSession sess1) {
         if (sess1.isSubscribedToText) {
             sess1.isSubscribedToText = false
-            twimlBuilder.build(TextResponse.UNSUBSCRIBED)
+            TextTwiml.unsubscribed()
         }
         else {
             sess1.isSubscribedToText = true
-            twimlBuilder.build(TextResponse.SUBSCRIBED)
+            TextTwiml.subscribed()
         }
     }
 
-    Result<List<String>> tryBuildTextInstructions(Phone phone, IncomingSession session) {
-        if (phone.getAnnouncements() && session.shouldSendInstructions) {
-            session.updateLastSentInstructions()
-            TextResponse code = session.isSubscribedToText ?
-                TextResponse.INSTRUCTIONS_SUBSCRIBED :
-                TextResponse.INSTRUCTIONS_UNSUBSCRIBED
-            twimlBuilder.translate(code)
+    Result<List<String>> tryBuildTextInstructions(Phone phone, IncomingSession sess1) {
+        if (phone.getAnnouncements() && sess1.shouldSendInstructions) {
+            sess1.updateLastSentInstructions()
+            sess1.isSubscribedToText ? TextTwiml.afterSubscribing() : TextTwiml.afterUnsubscribing()
         }
         else { resultFactory.success([]) }
     }
@@ -114,17 +109,16 @@ class AnnouncementService {
                         announce.addToReceipts(RecordItemType.CALL, session)
                             .logFail("AnnouncementService.handleAnnouncementCall: add announce receipt")
                     }
-                    twimlBuilder.build(CallResponse.HEAR_ANNOUNCEMENTS,
-                        [announcements:announces, isSubscribed:session.isSubscribedToCall])
+                    CallTwiml.hearAnnouncements(announces, session.isSubscribedToCall)
                     break
                 case Constants.CALL_TOGGLE_SUBSCRIBE:
                     if (session.isSubscribedToCall) {
                         session.isSubscribedToCall = false
-                        twimlBuilder.build(CallResponse.UNSUBSCRIBED)
+                        CallTwiml.unsubscribed()
                     }
                     else {
                         session.isSubscribedToCall = true
-                        twimlBuilder.build(CallResponse.SUBSCRIBED)
+                        CallTwiml.subscribed()
                     }
                     break
                 default:
@@ -132,8 +126,7 @@ class AnnouncementService {
             }
         }
         else if (phone.getAnnouncements()) {
-            twimlBuilder.build(CallResponse.ANNOUNCEMENT_GREETING,
-                [name:phone.owner.name, isSubscribed:session.isSubscribedToCall])
+            CallTwiml.announcementGreeting(phone.owner.name, session.isSubscribedToCall)
         }
         else { fallbackAction() }
     }
@@ -142,11 +135,8 @@ class AnnouncementService {
         String identifier, IncomingSession session) {
         if (digits == Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE) {
             session.isSubscribedToCall = false
-            twimlBuilder.build(CallResponse.UNSUBSCRIBED)
+            CallTwiml.unsubscribed()
         }
-        else {
-            twimlBuilder.build(CallResponse.ANNOUNCEMENT_AND_DIGITS,
-                [message:message, identifier:identifier])
-        }
+        else { CallTwiml.announcementAndDigits(identifier, message) }
     }
 }

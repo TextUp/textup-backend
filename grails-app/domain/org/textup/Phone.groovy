@@ -3,12 +3,10 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
-import org.apache.commons.lang3.tuple.Pair
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -16,9 +14,6 @@ import org.textup.validator.*
 @EqualsAndHashCode(excludes = "owner")
 @RestApiObject(name = "Phone", description = "A TextUp phone.")
 class Phone implements WithMedia {
-
-    PhoneService phoneService
-    TwimlBuilder twimlBuilder
 
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
@@ -84,7 +79,7 @@ class Phone implements WithMedia {
             allowedType    = "List<StaffPolicyAvailability>",
             useForCreation = false)
     ])
-    static transients = ["number", "phoneService", "twimlBuilder"]
+    static transients = ["number"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
         voice blank:false, nullable:false
@@ -345,7 +340,7 @@ class Phone implements WithMedia {
             return 0
         }
         Contact.countForPhoneAndStatuses(this,
-            Helpers.toEnumList(ContactStatus, params.statuses, Constants.CONTACT_ACTIVE_STATUSES))
+            Helpers.toEnumList(ContactStatus, params.statuses, ContactStatus.ACTIVE_STATUSES))
     }
     //Optional specify 'status' corresponding to valid contact statuses
     List<Contactable> getContacts(Map params=[:]) {
@@ -353,7 +348,7 @@ class Phone implements WithMedia {
             return []
         }
         Collection<ContactStatus> statusEnums =
-            Helpers.toEnumList(ContactStatus, params.statuses, Constants.CONTACT_ACTIVE_STATUSES)
+            Helpers.toEnumList(ContactStatus, params.statuses, ContactStatus.ACTIVE_STATUSES)
         //get contacts, both mine and those shared with me
         List<Contact> contactList = Contact.listForPhoneAndStatuses(this, statusEnums, params)
         replaceContactsWithShared(contactList)
@@ -454,6 +449,11 @@ class Phone implements WithMedia {
     }
 
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
+    String getVoicemailGreetingUrlIfAllowed() {
+        if (useVoicemailRecordingIfPresent)
+            media?.getMostRecentByType(MediaType.AUDIO_TYPES)?.sendVersion?.link
+        }
+    }
 
     Result<PhoneOwnership> updateOwner(Team t1) {
         PhoneOwnership own = PhoneOwnership.findByOwnerIdAndType(t1.id,

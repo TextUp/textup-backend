@@ -8,4 +8,7 @@ enum ContactStatus {
 	ACTIVE,
 	ARCHIVED,
 	BLOCKED
+
+    static List<ContactStatus> ACTIVE_STATUSES = [ACTIVE, UNREAD]
+    static List<ContactStatus> VISIBLE_STATUSES = [ACTIVE, UNREAD, ARCHIVED]
 }

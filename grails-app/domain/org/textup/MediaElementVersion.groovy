@@ -19,6 +19,9 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
     Integer widthInPixels
     Integer heightInPixels
 
+    // usually is false but is true for voicemail greetings
+    boolean isPublic = false
+
     @RestApiObjectField(
         description    = "MIME type, if available. Currently: `image/jpeg`, `image/png`, `image/gif`, \
             `audio/mpeg`, `audio/mp3`, `audio/ogg`, `audio/ogg;codecs=opus`, `audio/ogg; codecs=opus`, \
@@ -57,9 +60,10 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
     // ---------------
 
     URL getLink() {
-        Result<URL> res = storageService
-            .generateAuthLink(versionId)
-            .logFail('MediaElementVersion.getLink')
+        Result<URL> res = isPublic
+            ? storageService.generateAuthLink(versionId)
+            : storageService.generateLink(versionId)
+        res.logFail('MediaElementVersion.getLink')
         res.success ? res.payload : null
     }
 }

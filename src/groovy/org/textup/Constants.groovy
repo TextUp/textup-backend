@@ -6,10 +6,10 @@ import org.textup.type.ContactStatus
 @GrailsTypeChecked
 class Constants {
 
-	static final int MAX_REPEATS = 20
 	static final int TEXT_LENGTH = 160
-
 	static final int MAX_NUM_TEXT_RECIPIENTS = 500
+
+	static final int DIRECT_MESSAGE_MAX_REPEATS = 10
 
 	static final int DEFAULT_PAGINATION_MAX = 10
 	static final int MAX_PAGINATION_MAX = 100
@@ -27,14 +27,6 @@ class Constants {
 
 	static final String REQUEST_TIMEZONE = "timezone"
 	static final String REQUEST_UPLOAD_ERRORS = "uploadErrors"
-
-	// Contacts
-	// --------
-
-	static final List<ContactStatus> CONTACT_ACTIVE_STATUSES =
-		[ContactStatus.ACTIVE, ContactStatus.UNREAD]
-	static final List<ContactStatus> CONTACT_VISIBLE_STATUSES =
-		[ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED]
 
 	// Concurrency
 	// -----------

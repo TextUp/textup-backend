@@ -21,8 +21,13 @@ class StorageService {
     GrailsApplication grailsApplication
     ResultFactory resultFactory
 
-    // Auth link
-    // ---------
+    // Link
+    // ----
+
+    Result<URL> generateLink(String identifier) {
+        // TODO
+        // for voicemail greetings to enable caching
+    }
 
 	Result<URL> generateAuthLink(String identifier) {
 		DateTime expires = DateTime.now().plusHours(1)
@@ -68,14 +73,18 @@ class StorageService {
     Result<PutObjectResult> upload(UploadItem uItem) {
         if (uItem.validate()) {
             new ByteArrayInputStream(uItem.data).withStream { InputStream bStream ->
-                upload(uItem.key, uItem.type?.mimeType, bStream)
+                upload(uItem.key, uItem.type?.mimeType, uItem.isPublic, bStream)
             }
         }
         else { resultFactory.failWithValidationErrors(uItem.errors) }
     }
-    Result<PutObjectResult> upload(String identifier, String mimeType, InputStream stream) {
+    Result<PutObjectResult> upload(String identifier, String mimeType, boolean isPublic,
+        InputStream stream) {
+
         String bucketName = grailsApplication.flatConfig["textup.media.bucketName"]
         try {
+            // TODO handle public upload
+
             ObjectMetadata metadata = new ObjectMetadata()
             metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION)
             metadata.setContentType(mimeType)

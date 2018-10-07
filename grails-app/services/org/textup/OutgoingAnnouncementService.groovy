@@ -3,7 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.joda.time.DateTime
-import org.textup.rest.TwimlBuilder
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -15,7 +15,6 @@ class OutgoingAnnouncementService {
     ResultFactory resultFactory
     SocketService socketService
     TextService textService
-    TwimlBuilder twimlBuilder
 
     Result<FeaturedAnnouncement> send(Phone p1, String message, DateTime expiresAt, Staff staff) {
         // collect relevant classes
@@ -66,13 +65,7 @@ class OutgoingAnnouncementService {
         String identifier, List<IncomingSession> sessions, Staff staff) {
 
         Author author1 = staff.toAuthor()
-        Result<List<String>> res = twimlBuilder
-            .translate(TextResponse.ANNOUNCEMENT, [
-                identifier:identifier,
-                message:message
-            ])
-            .logFail("AnnouncementService.sendTextAnnouncement")
-        String announcement = res.success ? res.payload[0] : "$identifier: $message"
+        String announcement = TwilioUtils.formatAnnouncementForSend(identifier, message)
         sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
             textService.send(phone.number, [s1.number], announcement)
         }, { Contact c1, TempRecordReceipt receipt ->
@@ -89,11 +82,8 @@ class OutgoingAnnouncementService {
 
         Author author1 = staff.toAuthor()
         sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
-            callService.start(phone.number, s1.number, [
-                handle:CallResponse.ANNOUNCEMENT_AND_DIGITS,
-                message:message,
-                identifier:identifier
-            ])
+            callService.start(phone.number, s1.number,
+                CallTwiml.infoForAnnouncementAndDigits(identifier, message))
         }, { Contact c1, TempRecordReceipt receipt ->
             c1.record.storeOutgoingCall(author1, message)
                 .then { RecordCall rCall1 ->

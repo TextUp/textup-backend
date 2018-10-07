@@ -9,7 +9,7 @@ import javax.servlet.http.HttpServletRequest
 import org.apache.commons.lang3.tuple.Pair
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
-import org.textup.rest.TwimlBuilder
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -25,7 +25,6 @@ class CallbackService {
     ResultFactory resultFactory
     SocketService socketService
     ThreadService threadService
-    TwimlBuilder twimlBuilder
     VoicemailService voicemailService
 
 	// Validate request
@@ -59,25 +58,25 @@ class CallbackService {
         // if a call direct messaage or other direct actions that we do
         // not need to do further processing for, handle right here
         if (params.handle == CallResponse.DIRECT_MESSAGE.toString()) {
-            return twimlBuilder.build(CallResponse.DIRECT_MESSAGE, params)
+            return outgoingMessageService.directMessageCall(params.token as String)
         }
         else if (params.handle == CallResponse.DO_NOTHING.toString()) {
-            return twimlBuilder.build(CallResponse.DO_NOTHING)
+            return TwilioUtils.noResponseTwiml()
         }
         else if (params.handle == CallResponse.END_CALL.toString()) {
-            return twimlBuilder.build(CallResponse.END_CALL)
+            return CallTwiml.hangUp()
         }
         // step 1: check that both to and from numbers are valid US phone numbers
         PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
             toNum = new PhoneNumber(number:params.To as String)
         if (!fromNum.validate() || !toNum.validate()) {
-            return params.CallSid ? twimlBuilder.invalidNumberForCall() : twimlBuilder.invalidNumberForText()
+            return params.CallSid ? CallTwiml.invalid() : TextTwiml.invalidNumber()
         }
         // step 2: get phone
         BasePhoneNumber pNum = getNumberForPhone(fromNum, toNum, params)
         Phone p1 = Phone.findByNumberAsString(pNum.number)
         if (!p1) {
-            return params.CallSid ? twimlBuilder.notFoundForCall() : twimlBuilder.notFoundForText()
+            return params.CallSid ? CallTwiml.notFound() : TextTwiml.notFound()
         }
         // step 3: get session
         getOrCreateIncomingSession(p1, fromNum, toNum, params).then { IncomingSession is1 ->
@@ -153,7 +152,10 @@ class CallbackService {
         switch(params.handle) {
             case CallResponse.CHECK_IF_VOICEMAIL.toString():
                 ReceiptStatus rStatus = ReceiptStatus.translate(params.DialCallStatus as String)
-                voicemailService.tryStartVoicemail(p1, is1.number, rStatus)
+                if (rStatus == ReceiptStatus.SUCCESS) { // call already connected so no voicemail
+                    TwilioUtils.noResponseTwiml()
+                }
+                else { CallTwiml.recordVoicemailMessage(p1, is1.number) }
                 break
             case CallResponse.VOICEMAIL_DONE.toString():
                 // in about 5% of cases, when the RecordingStatusCallback is called, the recording
@@ -167,7 +169,7 @@ class CallbackService {
                         .processVoicemailMessage(callId, duration, im1)
                         .logFail("CallbackService.processCall: VOICEMAIL_DONE")
                 }
-                twimlBuilder.build(CallResponse.VOICEMAIL_DONE)
+                TwilioUtils.noResponseTwiml()
                 break
             case CallResponse.ANNOUNCEMENT_AND_DIGITS.toString():
                 String msg = params.message,
@@ -175,8 +177,7 @@ class CallbackService {
                 announcementService.completeCallAnnouncement(digits, msg, ident, is1)
                 break
             case CallResponse.FINISH_BRIDGE.toString():
-                Contact c1 = Contact.get(params.long("contactId"))
-                outgoingMessageService.finishBridgeCall(c1)
+                outgoingMessageService.finishBridgeCall(params)
                 break
             case CallResponse.SCREEN_INCOMING.toString():
                 incomingMessageService.screenIncomingCall(p1, is1)

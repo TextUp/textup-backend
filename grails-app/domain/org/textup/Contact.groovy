@@ -148,7 +148,7 @@ class Contact implements Contactable {
     }
     static namedQueries = {
         forPhoneAndStatuses { Phone thisPhone,
-            Collection<ContactStatus> statuses = Constants.CONTACT_ACTIVE_STATUSES ->
+            Collection<ContactStatus> statuses = ContactStatus.ACTIVE_STATUSES ->
             // get both my contacts and contacts that have SharedContact with me
             or {
                 // if my contact, check status directly on this contact
@@ -160,7 +160,7 @@ class Contact implements Contactable {
                 }
                 // if not my contact (shared with me), check the status on the shared contact
                 // NOTE: by default, this finder will NOT show shared contacts for contacts
-                // blocked by the original owner. See `Constants.CONTACT_VISIBLE_STATUSES`
+                // blocked by the original owner. See `ContactStatus.VISIBLE_STATUSES`
                 Collection<SharedContact> shareds = SharedContact
                     .sharedWithMe(thisPhone, statuses)
                     .list()
@@ -186,14 +186,14 @@ class Contact implements Contactable {
             or {
                 eq("phone", thisPhone)
                 List<SharedContact> shareds = SharedContact
-                    .sharedWithMe(thisPhone, Constants.CONTACT_VISIBLE_STATUSES)
+                    .sharedWithMe(thisPhone, ContactStatus.VISIBLE_STATUSES)
                     .list()
                 if (shareds) {
                     "in"("id", shareds*.contact*.id)
                 }
             }
             // search results should include all contacts EXCEPT blocked contacts
-            "in"("status", Constants.CONTACT_VISIBLE_STATUSES)
+            "in"("status", ContactStatus.VISIBLE_STATUSES)
             // must not be deleted
             eq("isDeleted", false)
             // conduct search in contact name and associated numbers

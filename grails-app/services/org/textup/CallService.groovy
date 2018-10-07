@@ -4,7 +4,6 @@ import com.twilio.exception.ApiException
 import com.twilio.rest.api.v2010.account.Call
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.TempRecordReceipt
 
@@ -12,12 +11,10 @@ import org.textup.validator.TempRecordReceipt
 @Transactional
 class CallService {
 
-    LinkGenerator grailsLinkGenerator
     ResultFactory resultFactory
 
     Result<TempRecordReceipt> start(BasePhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup) {
-        String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
-            action:"save", absolute:true, params:[handle:Constants.CALLBACK_STATUS])
+        String callback = Helpers.getWebhookLink(handle: Constants.CALLBACK_STATUS)
         doCall(fromNum, toNum, afterPickup, callback)
     }
     Result<TempRecordReceipt> start(BasePhoneNumber fromNum,
@@ -50,14 +47,8 @@ class CallService {
                 // started. If it IMMEDIATELY fails, then we move onto the next number to use
                 // to try to start this call.
                 else {
-                    String callback = grailsLinkGenerator.link(namespace:"v1",
-                        resource:"publicRecord", action:"save", absolute:true,
-                        params:[
-                            handle:Constants.CALLBACK_STATUS,
-                            remaining:remaining,
-                            afterPickup:afterPickupJson
-                        ]
-                    )
+                    String callback = Helpers.getWebhookLink(handle: Constants.CALLBACK_STATUS,
+                        remaining: remaining, afterPickup: afterPickupJson)
                     Result<TempRecordReceipt> res = doCall(fromNum, toNum, afterPickup, callback)
                     if (res.success) {
                         return res
@@ -86,8 +77,7 @@ class CallService {
             resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
                 ResultStatus.UNPROCESSABLE_ENTITY, null)
         }
-        String afterLink = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
-            action:"save", absolute:true, params:afterPickup)
+        String afterLink = Helpers.getWebhookLink(afterPickup)
         try {
             Call call = Call
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), new URI(afterLink))

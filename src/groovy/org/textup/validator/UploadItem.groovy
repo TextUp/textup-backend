@@ -15,6 +15,7 @@ class UploadItem {
     String key = UUID.randomUUID().toString()
     MediaType type
     byte[] data
+    boolean isPublic = false
 
     Integer widthInPixels
     Integer heightInPixels
@@ -33,7 +34,8 @@ class UploadItem {
         new MediaElementVersion(versionId: key,
             sizeInBytes: sizeInBytes,
             widthInPixels: widthInPixels,
-            heightInPixels: heightInPixels)
+            heightInPixels: heightInPixels,
+            isPublic: isPublic)
     }
 
     // Property accesss

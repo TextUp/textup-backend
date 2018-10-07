@@ -2,11 +2,16 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.TypeCheckingMode
+import groovy.util.logging.Log4j
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.joda.time.DateTime
+import org.ocpsoft.prettytime.PrettyTime
+import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.textup.type.*
 
 @GrailsTypeChecked
+@Log4j
 class TwilioUtils {
 
     // Processing request
@@ -58,6 +63,48 @@ class TwilioUtils {
         new IncomingRecordingInfo(mimeType: MediaType.AUDIO_MP3.mimeType,
             url: params.RecordingUrl as String,
             mediaId: params.RecordingSid as String)
+    }
+
+    // Twiml
+    // -----
+
+    static Result<Closure> invalidTwimlInputs(String code) {
+        log.error("TwilioUtils.invalidTwimlInputs: invalid inputs in callback for $code")
+        Helpers.resultFactory.failWithCodeAndStatus("twimlBuilder.invalidCode",
+            ResultStatus.BAD_REQUEST, [code])
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static Result<Closure> noResponseTwiml() {
+        TwilioUtils.wrapTwiml { -> }
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static Result<Closure> wrapTwiml(Closure body) {
+        Helpers.resultFactory.success {
+            Response {
+                body.delegate = delegate
+                body()
+            }
+        }
+    }
+
+    static List<String> formatAnnouncementsForRequest(Collection<FeaturedAnnouncement> announces) {
+        if (announces) {
+            announces.collect { FeaturedAnnouncement a1 ->
+                TwilioUtils.formatAnnouncementForRequest(a1.whenCreated, a1.owner.name, a1.message)
+            }
+        }
+        else { [Helpers.getMessage("twimlBuilder.noAnnouncements")] }
+    }
+    static String formatAnnouncementForRequest(DateTime dt, String identifier, String msg) {
+        String timeAgo = new PrettyTime(LCH.getLocale()).format(dt.toDate())
+        Helpers.getMessage("twimlBuilder.announcement", [timeAgo, identifier, msg])
+    }
+    static String formatAnnouncementForSend(String identifier, String message) {
+        String unsubscribe = Helpers.getMessage("twimlBuilder.text.announcementUnsubscribe",
+            [Constants.TEXT_TOGGLE_SUBSCRIBE])
+        "${identifier}: ${message}. ${unsubscribe}"
     }
 
     // Helpers

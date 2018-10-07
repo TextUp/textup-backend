@@ -55,7 +55,7 @@ class TokenService {
                 // after the the TextUp user picks up the call and we must serialize the
                 // parameters that are then passed back to TextUp by Twilio after pickup
                 language: msg1.language?.toString()
-            ])
+            ], 1)
             if (!res.success) {
                 log.error("Token.tryBuildAndPersistCallToken: ${res.errorMessages}")
             }
@@ -113,27 +113,8 @@ class TokenService {
         }
     }
 
-    Closure buildCallDirectMessageBody(Closure<String> getLink, String token = null,
-        Integer repeatsSoFar = null) {
-
-        if (!token) { return }
-        Result<Token> res = findToken(TokenType.CALL_DIRECT_MESSAGE, token)
-        if (!res.success) { return }
-
-        int repeatCount = repeatsSoFar ?: 0
-        if (repeatCount < Constants.MAX_REPEATS) {
-            Token tok1 = res.payload
-            Map<String, ?> tData = tok1.data
-            VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, tData.language)
-            String messageIntro = Helpers.getMessage("twimlBuilder.call.messageIntro", [tData.identifier]),
-                repeatWebhook = getLink([
-                    handle: CallResponse.DIRECT_MESSAGE,
-                    token: tok1.token,
-                    repeatCount: repeatCount + 1
-                ])
-            buildCallResponse(messageIntro, tData.message as String, lang, repeatWebhook)
-        }
-        else { buildCallEnd() }
+    Result<Token> findDirectMessage(String token) {
+        findToken(TokenType.CALL_DIRECT_MESSAGE, token)
     }
 
     // Helpers
@@ -159,21 +140,4 @@ class TokenService {
         }
         resultFactory.success(t1)
     }
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected Closure buildCallResponse(String intro, String message, VoiceLanguage lang,
-        String repeatWebhook) {
-
-        return {
-            Say(intro)
-            Pause(length:"1")
-            if (lang) {
-                Say(language:lang.toTwimlValue(), message)
-            }
-            else { Say(message) }
-            Redirect(repeatWebhook)
-        }
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected Closure buildCallEnd() { return { Hangup() } }
 }

@@ -12,7 +12,6 @@ import org.quartz.Scheduler
 import org.quartz.TriggerKey
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.validator.*
 import org.apache.commons.codec.binary.Base64
@@ -116,13 +115,6 @@ class TestHelpers {
 
     static ResultFactory getResultFactory(GrailsApplication grailsApplication) {
         TestHelpers.getBean(grailsApplication, ResultFactory)
-    }
-
-    static TwimlBuilder getTwimlBuilder(GrailsApplication grailsApplication) {
-        TwimlBuilder twimlBuilder = TestHelpers.getBean(grailsApplication, TwimlBuilder)
-        twimlBuilder.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        twimlBuilder.linkGenerator = TestHelpers.mockLinkGenerator()
-        twimlBuilder
     }
 
     static LinkGenerator mockLinkGenerator() {

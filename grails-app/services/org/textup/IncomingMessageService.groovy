@@ -2,10 +2,10 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.textup.rest.TwimlBuilder
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.validator.*
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 
 @GrailsTypeChecked
 @Transactional
@@ -17,7 +17,6 @@ class IncomingMessageService {
     ResultFactory resultFactory
     SocketService socketService
     ThreadService threadService
-    TwimlBuilder twimlBuilder
     VoicemailService voicemailService
 
     // Texts
@@ -40,7 +39,7 @@ class IncomingMessageService {
                 if (notBlockedContacts) {
                     buildTextResponse(p1, sess1, rTexts, notifs)
                 }
-                else { twimlBuilder.build(TextResponse.BLOCKED) }
+                else { TextTwiml.blocked() }
             }
     }
 
@@ -69,7 +68,7 @@ class IncomingMessageService {
         // remind about instructions if phone has announcements enabled
         announcementService
             .tryBuildTextInstructions(p1, sess1)
-            .then { List<String> instructions -> twimlBuilder.buildTexts(responses + instructions) }
+            .then { List<String> instructions -> TextTwiml.build(responses + instructions) }
     }
 
     protected Result<Void> finishProcessingText(IncomingText text, List<Long> textIds,
@@ -156,7 +155,7 @@ class IncomingMessageService {
 
         // if contacts is empty, then he or she has been blocked by the user
         if (notBlockedContacts.isEmpty()) {
-            return twimlBuilder.build(CallResponse.BLOCKED)
+            return CallTwiml.blocked()
         }
         // try notify available staff members
         List<BasicNotification> notifs = notificationService.build(p1, notBlockedContacts)
@@ -176,24 +175,14 @@ class IncomingMessageService {
                 numsToCall << s1.personalPhoneNumber.e164PhoneNumber
             }
         }
-        twimlBuilder.build(CallResponse.CONNECT_INCOMING, [
-            displayedNumber:p1.number.e164PhoneNumber,
-            numsToCall:numsToCall,
-            linkParams:[handle:CallResponse.CHECK_IF_VOICEMAIL],
-            screenParams:[
-                handle:CallResponse.SCREEN_INCOMING,
-                originalFrom: sess1.number.e164PhoneNumber
-            ]
-        ])
+        CallTwiml.connectIncoming(p1.number.e164PhoneNumber, sess1.number.e164PhoneNumber, numsToCall)
     }
 
     protected Result<Closure> handleAwayForIncomingCall(Phone p1, IncomingSession sess1,
         List<RecordCall> rCalls) {
 
         rCalls.each { RecordCall rCall -> rCall.hasAwayMessage = true }
-        // must pass in a non-success status because we will not start voicemail
-        // if the call has already completed successfully
-        voicemailService.tryStartVoicemail(p1, sess1.number, ReceiptStatus.PENDING)
+        CallTwiml.recordVoicemailMessage(p1, sess1.number)
     }
 
     // Self call
@@ -201,21 +190,20 @@ class IncomingMessageService {
 
     protected Result<Closure> handleSelfCall(Phone phone, String apiId, String digits, Staff staff) {
         if (!digits) {
-            return twimlBuilder.build(CallResponse.SELF_GREETING)
+            return CallTwiml.selfGreeting()
         }
-        PhoneNumber pNum = new PhoneNumber(number:digits)
+        PhoneNumber pNum = new PhoneNumber(number: digits)
         if (!pNum.validate()) { //then is a valid phone number
-            return twimlBuilder.build(CallResponse.SELF_INVALID_DIGITS, [digits:digits])
+            return CallTwiml.selfInvalid(digits)
         }
         TempRecordReceipt rpt = new TempRecordReceipt(apiId: apiId)
         rpt.contactNumber = pNum
         if (!rpt.validate()) {
             log.error("IncomingMessageService.handleSelfCall: receipt errors: ${rpt.errors}")
-            return twimlBuilder.errorForCall()
+            return CallTwiml.error()
         }
         storeForNumber(phone, pNum, this.&storeOutgoingCall.curry(staff, rpt))
-        twimlBuilder.build(CallResponse.SELF_CONNECTING,
-            [displayedNumber:phone.number.e164PhoneNumber, numAsString:pNum.number])
+        CallTwiml.selfConnecting(phone.number.e164PhoneNumber, pNum.number)
     }
 
     protected void storeOutgoingCall(Staff staff, TempRecordReceipt rpt, Contact c1) {
@@ -232,10 +220,7 @@ class IncomingMessageService {
         List<Contact> notBlockedContacts = getDeliverableContacts(p1, session.number).second
         HashSet<String> idents = new HashSet<>()
         notBlockedContacts.each { Contact c1 -> idents.add(c1.getNameOrNumber()) }
-        twimlBuilder.build(CallResponse.SCREEN_INCOMING, [
-            callerId: Helpers.joinWithDifferentLast(new ArrayList<String>(idents), ", ", " or "),
-            linkParams:[handle:CallResponse.DO_NOTHING]
-        ])
+        CallTwiml.screenIncoming(idents)
     }
 
     // Helpers

@@ -115,7 +115,7 @@ class SharedContact implements Contactable {
                 "in"("status", sharedStatuses)
             }
             contact {
-                "in"("status", Constants.CONTACT_VISIBLE_STATUSES)
+                "in"("status", ContactStatus.VISIBLE_STATUSES)
                 // must not be deleted
                 eq("isDeleted", false)
             }
@@ -130,7 +130,7 @@ class SharedContact implements Contactable {
                 gt("dateExpired", DateTime.now(DateTimeZone.UTC))
             }
             contact {
-                "in"("status", Constants.CONTACT_VISIBLE_STATUSES)
+                "in"("status", ContactStatus.VISIBLE_STATUSES)
                 // must not be deleted
                 eq("isDeleted", false)
             }

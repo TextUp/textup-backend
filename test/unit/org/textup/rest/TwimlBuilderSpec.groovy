@@ -18,6 +18,10 @@ import org.textup.util.TestHelpers
 import spock.lang.Ignore
 import spock.lang.Shared
 
+
+// TODO Move tests out to CallTwiml and TextTwiml!
+
+
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,

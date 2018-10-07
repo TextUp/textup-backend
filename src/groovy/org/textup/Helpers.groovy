@@ -14,6 +14,7 @@ import org.apache.http.client.CredentialsProvider
 import org.apache.http.client.methods.HttpUriRequest
 import org.apache.http.HttpResponse
 import org.apache.http.impl.client.*
+import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.codehaus.groovy.grails.web.util.WebUtils
@@ -79,6 +80,22 @@ class Helpers {
         Holders
             .applicationContext
             .getBean(Scheduler) as Scheduler
+    }
+
+    // Links
+    // -----
+
+    static String getWebhookLink(Map linkParams) {
+        Helpers.linkGenerator.link(namespace: "v1",
+            resource: "publicRecord",
+            action: "save",
+            absolute: true,
+            params: linkParams)
+    }
+    protected static LinkGenerator getLinkGenerator() {
+        Holders
+            .applicationContext
+            .getBean(LinkGenerator) as LinkGenerator
     }
 
     // il8n

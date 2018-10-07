@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -52,10 +53,7 @@ class OutgoingMediaService {
         if (mInfo && !mInfo.isEmpty()) {
             resGroup << sendWithMediaForText(fromNum, toNums, "", mInfo)
         }
-        resGroup << callService.start(fromNum, toNums, [
-            handle: CallResponse.DIRECT_MESSAGE,
-            token: callToken.token
-        ])
+        resGroup << callService.start(fromNum, toNums, CallTwiml.infoForDirectMessage(callToken.token))
         resGroup
     }
 }

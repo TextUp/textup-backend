@@ -3,8 +3,8 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.Future
-import org.apache.commons.lang3.tuple.Pair
-import org.textup.rest.TwimlBuilder
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -16,11 +16,21 @@ class OutgoingMessageService {
     OutgoingMediaService outgoingMediaService
     ResultFactory resultFactory
     TokenService tokenService
-    TwimlBuilder twimlBuilder
     ThreadService threadService
 
     // Outgoing calls
     // --------------
+
+    Result<Closure> directMessageCall(String token) {
+        tokenService.findDirectMessage(token).then({ Token tok1 ->
+            Map<String, ?> data = tok1.data
+            VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, data.language)
+            CallTwiml.directMessage(data.identifier as String, lang, data.message  as String)
+        }, { Result<Token> failRes ->
+            failRes.logFail("OutgoingMessageService.directMessageCall")
+            CallTwiml.error()
+        })
+    }
 
     Result<RecordCall> startBridgeCall(Phone p1, Contactable c1, Staff s1) {
         if (!p1.isActive) {
@@ -33,13 +43,14 @@ class OutgoingMessageService {
         }
         PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : p1.number,
             toNum = s1.personalPhoneNumber
-        Map afterPickup = [contactId:c1.contactId, handle:CallResponse.FINISH_BRIDGE]
-        callService.start(fromNum, toNum, afterPickup)
+        callService
+            .start(fromNum, toNum, CallTwiml.infoForFinishBridge(c1))
             .then(this.&afterBridgeCall.curry(c1, s1))
     }
 
-    Result<Closure> finishBridgeCall(Contact c1) {
-        twimlBuilder.build(CallResponse.FINISH_BRIDGE, [contact:c1])
+    Result<Closure> finishBridgeCall(TypeConvertingMap params) {
+        Contact c1 = Contact.get(params.long("contactId"))
+        CallTwiml.finishBridge(c1)
     }
 
     protected Result<RecordCall> afterBridgeCall(Contactable c1, Staff s1, TempRecordReceipt rpt) {

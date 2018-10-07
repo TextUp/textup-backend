@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import org.textup.rest.TwimlBuilder
 
 @GrailsTypeChecked
 @Secured("permitAll")
@@ -17,7 +16,6 @@ class PublicRecordController extends BaseController {
     CallbackService callbackService
     CallbackStatusService callbackStatusService
     ThreadService threadService
-    TwimlBuilder twimlBuilder
 
     @Override
     protected String getNamespaceAsString() { namespace }
@@ -38,7 +36,7 @@ class PublicRecordController extends BaseController {
             // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
             // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies
             threadService.submit(5, TimeUnit.SECONDS) { callbackStatusService.process(paramsMap) }
-            respondWithResult(Closure, twimlBuilder.noResponse())
+            respondWithResult(Closure, TwilioUtils.noResponseTwiml())
         }
         else {
             respondWithResult(Closure, callbackService.process(paramsMap))

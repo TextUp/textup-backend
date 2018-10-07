@@ -4,15 +4,12 @@ import com.twilio.exception.ApiException
 import com.twilio.rest.api.v2010.account.Message
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.textup.rest.TwimlBuilder
 import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
 class TextService {
 
-    LinkGenerator grailsLinkGenerator
 	ResultFactory resultFactory
 
     Result<TempRecordReceipt> send(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
@@ -47,8 +44,7 @@ class TextService {
     protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         String message, Collection<URI> mediaUrls) {
 
-        String callback = grailsLinkGenerator.link(namespace:"v1", resource:"publicRecord",
-                action:"save", absolute:true, params:[handle:Constants.CALLBACK_STATUS])
+        String callback = Helpers.getWebhookLink(handle: Constants.CALLBACK_STATUS)
         try {
             Message msg1 = Message
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), message)
