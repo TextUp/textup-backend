@@ -22,11 +22,14 @@ class Constants {
 	static final int DEFAULT_TOKEN_LENGTH = 25
 	static final int MAX_NUM_ACCESS_NOTIFICATION_TOKEN = 3
 
-	// Storing info on HTTP Request keys
-	// ---------------------------------
+	// HTTP
+	// ----
 
 	static final String REQUEST_TIMEZONE = "timezone"
 	static final String REQUEST_UPLOAD_ERRORS = "uploadErrors"
+
+	static final String PROTOCOL_HTTP = "http"
+	static final String PROTOCOL_HTTPS = "https"
 
 	// Concurrency
 	// -----------
@@ -74,6 +77,8 @@ class Constants {
 	static final String CALL_HEAR_ANNOUNCEMENTS = "1"
 	static final String CALL_TOGGLE_SUBSCRIBE = "2"
 	static final String CALL_ANNOUNCEMENT_UNSUBSCRIBE = "1"
+
+	static final String CALL_HOLD_MUSIC_URL = "http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3"
 
 	// Socket events
 	// -------------

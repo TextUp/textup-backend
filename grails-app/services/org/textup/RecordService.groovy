@@ -82,19 +82,23 @@ class RecordService {
     }
     protected Result<RecordNote> mergeNote(RecordNote note1, TypeConvertingMap body,
         ResultStatus status = ResultStatus.OK) {
-        // step 1: handle media actions
-        mediaService.tryProcess(note1, body)
+
+        Future <?> future
+        // need to add media object to note BEFORE we create the validator because we need
+        // the validator object to take the media object into account when determining if the
+        // note has complete information
+        Result<RecordNote> res = mediaService.tryProcess(note1, body)
             .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
-                // step 2: create validator object for note
+                future = processed.second
                 TempRecordNote tempNote = new TempRecordNote(info: body,
                     note: note1,
                     after: body.after ? Helpers.toDateTimeWithZone(body.after) : null)
-                Result<RecordNote> res = tempNote.toNote(authService.loggedInAndActive.toAuthor())
-                    .then { RecordNote note2 -> note2.tryCreateRevision() }
-                    .then { RecordNote note2 -> resultFactory.success(note2, status) }
-                if (!res.success) { processed.second.cancel(true) }
-                res
+                tempNote.toNote(authService.loggedInAndActive.toAuthor())
             }
+            .then { RecordNote note2 -> note2.tryCreateRevision() }
+            .then { RecordNote note2 -> resultFactory.success(note2, status) }
+        if (!res.success && future) { future.cancel(true) }
+        res
     }
 
     // Update note

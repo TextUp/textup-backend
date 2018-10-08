@@ -71,6 +71,22 @@ class CallService {
         })
     }
 
+    // interrupt existing call with the following Twiml
+    // see https://www.twilio.com/docs/voice/api/call#update-a-call-resource
+    Result<Void> interrupt(String callId, Map afterPickup) {
+        try {
+            Call.updater(callId)
+                .setUrl(Helpers.getWebhookLink(afterPickup))
+                .setStatusCallback(Helpers.getWebhookLink(handle: Constants.CALLBACK_STATUS))
+                .update()
+            resultFactory.success()
+        }
+        catch (Throwable e) { resultFactory.failWithThrowable(e) }
+    }
+
+    // Helpers
+    // -------
+
     protected Result<TempRecordReceipt> doCall(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         Map afterPickup, String callback) {
         if (!fromNum || !toNum) {

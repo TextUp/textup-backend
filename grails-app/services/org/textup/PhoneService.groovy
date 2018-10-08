@@ -4,7 +4,7 @@ import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.Future
-import org.apache.commons.lang3.tuple.Pair
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.validator.*
 import org.textup.validator.action.*
@@ -14,6 +14,7 @@ import org.textup.validator.action.*
 class PhoneService {
 
     AuthService authService
+    CallService callService
     MediaService mediaService
     NotificationService notificationService
     NumberService numberService
@@ -42,19 +43,23 @@ class PhoneService {
     // ----------------
 
     protected Result<Phone> mergeHelper(Phone p1, Map body, String timezone) {
-        handlePhoneActions(p1, body)
-            .then { Phone p2 -> handleAvailability(p2, body, timezone) }
-            .then { Phone p2 -> updateFields(p2, body) }
-            .then { Phone p2 -> mediaService.tryProcess(p2, body).curry(p2) }
-            .then { Phone p2, Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
-                if (p2.save()) {
-                    resultFactory.success(p2)
-                }
-                else {
-                    processed.second.cancel(true)
-                    resultFactory.failWithValidationErrors(p2.errors)
-                }
+        Future<?> future
+        Result<Phone> res = mediaService.tryProcess(p1, body)
+            .then { Tuple<WithMedia, Future<?>> processed ->
+                future = processed.second
+                handlePhoneActions(p1, body)
             }
+            .then { handleAvailability(p1, body, timezone) }
+            .then { updateFields(p1, body) }
+        // try to initiate voicemail greeting call at very end if successful so far
+        if (res.success) {
+            requestVoicemailGreetingCall(p1, body)
+                .logFail("PhoneService.mergeHelper: trying to start voicemail greeting call")
+        }
+        else { // cancel media processing if this request is unsuccessful
+            if (future) { future.cancel(true) }
+        }
+        res
     }
 
     protected Result<Phone> updateFields(Phone p1, Map body) {
@@ -80,6 +85,21 @@ class PhoneService {
             if (!res.success) { return res }
         }
         resultFactory.success(p1)
+    }
+
+    protected Result<?> requestVoicemailGreetingCall(Phone p1, Map body) {
+        String num = body.requestVoicemailGreetingCall
+        if (!num) {
+            return resultFactory.success()
+        }
+        PhoneNumber toNum = new PhoneNumber(number: getNumberToCallForVoicemailGreeting(num))
+        if (!toNum.validate()) {
+            return resultFactory.failWithValidationErrors(toNum.errors)
+        }
+        callService.start(p1.number, toNum, CallTwiml.infoForRecordVoicemailGreeting())
+    }
+    protected String getNumberToCallForVoicemailGreeting(String possibleNum) {
+        possibleNum == "true" ? authService.loggedInAndActive?.personalPhoneAsString : possibleNum
     }
 
     // Phone actions

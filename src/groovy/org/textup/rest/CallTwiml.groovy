@@ -85,8 +85,7 @@ class CallTwiml {
         if (!displayedNumber || !numToCall) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.SELF_CONNECTING)
         }
-        String connecting = Helpers.getMessage("twimlBuilder.call.selfConnecting",
-                [Helpers.formatNumberForSay(numToCall)]),
+        String connecting = TwilioUtils.say("twimlBuilder.call.selfConnecting", [numToCall]),
             goodbye = Helpers.getMessage("twimlBuilder.call.goodbye")
         TwilioUtils.wrapTwiml {
             Say(connecting)
@@ -103,8 +102,7 @@ class CallTwiml {
         if (!digits) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.SELF_INVALID_DIGITS)
         }
-        String error = Helpers.getMessage("twimlBuilder.call.selfInvalidDigits",
-            [Helpers.formatNumberForSay(digits)])
+        String error = TwilioUtils.say("twimlBuilder.call.selfInvalidDigits", [digits])
         TwilioUtils.wrapTwiml {
             Say(error)
             Redirect(Helpers.getWebhookLink()) // go back to selfGreeting
@@ -146,8 +144,7 @@ class CallTwiml {
         }
         Collection<String> copiedIdents = new ArrayList<String>(idents)
         String identifier = Helpers.joinWithDifferentLast(copiedIdents, ", ", " or "),
-            directions = Helpers.getMessage("twimlBuilder.call.screenIncoming",
-                [Helpers.formatForSayIfPhoneNumber(identifier)]),
+            directions = TwilioUtils.say("twimlBuilder.call.screenIncoming", [identifier]),
             goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
             finishScreenWebhook = Helpers.getWebhookLink(handle: CallResponse.DO_NOTHING)
         TwilioUtils.wrapTwiml {
@@ -167,17 +164,18 @@ class CallTwiml {
         }
         String directions = Helpers.getMessage("twimlBuilder.call.voicemailDirections"),
             goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
-            greetingUrl = p1.voicemailGreetingUrlIfAllowed,
+            shouldUseRecording = p1.useVoicemailRecordingIfPresent,
             // no-op for Record Twiml verb to call because recording might not be ready
             actionWebhook = Helpers.getWebhookLink(handle: CallResponse.END_CALL),
             // need to population From and To parameters to help in finding
             // phone and session in the recording status hook
             callbackWebhook = Helpers.getWebhookLink(handle: CallResponse.VOICEMAIL_DONE,
                 From: fromNum.e164PhoneNumber, To: p1.number.e164PhoneNumber)
+        URL recordingUrl = p1.voicemailGreetingUrl
         TwilioUtils.wrapTwiml {
             Pause(length: 1)
-            if (greetingUrl) {
-                Play(greetingUrl)
+            if (shouldUseRecording && recordingUrl) {
+                Play(recordingUrl.toString())
             }
             else { Say(voice: p1.voice.toTwimlValue(), p1.awayMessage) }
             Say(directions)
@@ -200,12 +198,12 @@ class CallTwiml {
         }
         List<ContactNumber> nums = c1.sortedNumbers ?: []
         int lastIndex = nums.size() - 1
-        String nameOrNum = c1.getNameOrNumber(true)
+        String nameOrNum = c1.getNameOrNumber()
         TwilioUtils.wrapTwiml {
             Pause(length: 1)
             if (nums) {
                 nums.eachWithIndex { ContactNumber num, int index ->
-                    String numForSay = Helpers.formatNumberForSay(num.number)
+                    String numForSay = TwilioUtils.say(num)
                     Say(Helpers.getMessage("twimlBuilder.call.bridgeNumberStart",
                         [numForSay, index + 1, lastIndex + 1]))
                     if (index != lastIndex) {
@@ -213,17 +211,17 @@ class CallTwiml {
                     }
                     // increase the timeout a bit to allow a longer window
                     // for the called party's voicemail to answer
-                    Dial(timeout: 60, hangupOnStar: "true") {
+                    Dial(timeout: 60, hangupOnStar: true) {
                         Number(statusCallback: CallTwiml.childCallStatus(num.e164PhoneNumber),
                             num.e164PhoneNumber)
                     }
                     Say(Helpers.getMessage("twimlBuilder.call.bridgeNumberFinish", [numForSay]))
                 }
                 Pause(length: 5)
-                Say(Helpers.getMessage("twimlBuilder.call.bridgeDone", [nameOrNum]))
+                Say(TwilioUtils.say("twimlBuilder.call.bridgeDone", [nameOrNum]))
             }
             else {
-                Say(Helpers.getMessage("twimlBuilder.call.bridgeNoNumbers", [nameOrNum]))
+                Say(TwilioUtils.say("twimlBuilder.call.bridgeNoNumbers", [nameOrNum]))
             }
             Hangup()
         }
@@ -233,52 +231,63 @@ class CallTwiml {
     // ------------------
 
     // CallResponse.VOICEMAIL_GREETING_RECORD
-    static Result<Closure> recordVoicemailGreeting() { // TODO
-        // // processingWebhook --> CallResponse.VOICEMAIL_GREETING_PROCESSING
-        // // doneWebhook --> CallResponse.VOICEMAIL_GREETING_PROCESSED
-        // {
-        //     Pause(length: 1)
-        //     Say(directions)
-        //     Record(action: processingWebhook, maxLength: 180, recordingStatusCallback: doneWebhook)
-        //     Say(goodbye)
-        //     Hangup()
-        // }
-        TwilioUtils.wrapTwiml {  }
+    static Map<String, String> infoForRecordVoicemailGreeting() {
+        [handle: CallResponse.VOICEMAIL_GREETING_RECORD]
+    }
+    static Result<Closure> recordVoicemailGreeting(BasePhoneNumber fromNum) {
+        if (!fromNum) {
+            return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_RECORD)
+        }
+        String directions = Helpers.say("twimlBuilder.call.recordVoicemailGreeting", [fromNum.number]),
+            goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
+            processingLink = Helpers.getWebhookLink(handle: CallResponse.VOICEMAIL_GREETING_PROCESSING),
+            doneLink = Helpers.getWebhookLink(infoForVoicemailGreetingFinishedProcessing())
+        TwilioUtils.wrapTwiml {
+            Pause(length: 1)
+            Say(directions)
+            Record(action: processingLink, maxLength: 180, recordingStatusCallback: doneLink)
+            Say(goodbye)
+            Hangup()
+        }
     }
 
     // CallResponse.VOICEMAIL_GREETING_PROCESSING
-    static Result<Closure> processingVoicemailGreeting() { // TODO
-        // {
-        //     Say(loop: 2, processingMessage)
-        //     Play("http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3")
-        //     Say(loop: 2, processingMessage)
-        //     Play(loop: 0, "http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3")
-        // }
-        TwilioUtils.wrapTwiml {  }
+    static Result<Closure> processingVoicemailGreeting() {
+        String processingMessage = Helpers.getMessage("twimlBuilder.call.processingVoicemailGreeting")
+        TwilioUtils.wrapTwiml {
+            Say(loop: 2, processingMessage)
+            Play(Constants.CALL_HOLD_MUSIC_URL)
+            Say(loop: 2, processingMessage)
+            Play(loop: 0, Constants.CALL_HOLD_MUSIC_URL)
+        }
     }
 
-    // // TODO
     // CallResponse.VOICEMAIL_GREETING_PROCESSED
-    // // interrupt existing call with the following Twiml:
-    // // see https://www.twilio.com/docs/voice/api/call#update-a-call-resource
-    // Call call = Call.updater("<parent call sid>")
-    //     .setUrl(playWebhook)
-    //     .setStatusCallback(statusWebhook)
-    //     .update()
+    static Map<String, String> infoForVoicemailGreetingFinishedProcessing() {
+        [handle: CallResponse.VOICEMAIL_GREETING_PROCESSED]
+    }
 
     // CallResponse.VOICEMAIL_GREETING_PLAY
-    static Result<Closure> playVoicemailGreeting() { // TODO
-        // {
-        //     Gather(numDigits: 1, action: recordWebhook) {
-        //         Say(finishedMessage)
-        //         Play(greetingUrl)
-        //         Say(finishedMessage)
-        //         Play(greetingUrl)
-        //     }
-        //     Say(goodbye)
-        //     Hangup()
-        // }
-        TwilioUtils.wrapTwiml {  }
+    static Map<String, String> infoForPlayVoicemailGreeting() {
+        [handle: CallResponse.VOICEMAIL_GREETING_PLAY]
+    }
+    static Result<Closure> playVoicemailGreeting(BasePhoneNumber fromNum, URL greetingLink) {
+        if (!fromNum || !greetingLink) {
+            return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_PLAY)
+        }
+        String goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
+            finishedMessage = Helpers.say("twimlBuilder.call.finishedVoicemailGreeting",[fromNum.number]),
+            recordLink = Helpers.getWebhookLink(infoForRecordVoicemailGreeting())
+        TwilioUtils.wrapTwiml {
+            Gather(numDigits: 1, action: recordLink) {
+                Say(finishedMessage)
+                Play(greetingLink.toString())
+                Say(finishedMessage)
+                Play(greetingLink.toString())
+            }
+            Say(goodbye)
+            Hangup()
+        }
     }
 
     // Announcements

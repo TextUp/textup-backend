@@ -9,6 +9,7 @@ import org.joda.time.DateTime
 import org.ocpsoft.prettytime.PrettyTime
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
@@ -87,6 +88,16 @@ class TwilioUtils {
                 body()
             }
         }
+    }
+
+    static String say(String code, List<Object> args = []) {
+        separateDigits(Helpers.getMessage(code, args))
+    }
+    static String say(BasePhoneNumber pNum) {
+        separateDigits(pNum.number)
+    }
+    protected static String separateDigits(String msg) {
+        msg.replaceAll(/(\/|\-)/, "").replaceAll(/(\d)/, / $0 /)
     }
 
     static List<String> formatAnnouncementsForRequest(Collection<FeaturedAnnouncement> announces) {

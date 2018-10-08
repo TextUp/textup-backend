@@ -371,9 +371,9 @@ class Contact implements Contactable {
         this.record?.save()
     }
     @GrailsTypeChecked
-    String getNameOrNumber(boolean formatNumber=false) {
+    String getNameOrNumber() {
         String num = this.numbers ? (this.numbers[0] as ContactNumber)?.number : null
-        this.name ?: (formatNumber ? Helpers.formatNumberForSay(num) : num)
+        this.name ?: num
     }
     List<ContactTag> getTags(Map params=[:]) {
         ContactTag.createCriteria().list(params) {

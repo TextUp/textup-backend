@@ -8,6 +8,7 @@ import org.apache.http.client.methods.HttpGet
 import org.apache.http.HttpResponse
 import org.apache.http.HttpStatus as ApacheHttpStatus
 import org.apache.http.impl.client.CloseableHttpClient
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.validator.*
 
@@ -15,6 +16,7 @@ import org.textup.validator.*
 @Transactional
 class VoicemailService {
 
+    CallService callService
     IncomingMediaService incomingMediaService
     ResultFactory resultFactory
     SocketService socketService
@@ -25,9 +27,9 @@ class VoicemailService {
     ResultGroup<RecordCall> processVoicemailMessage(String callId, int duration,
         IncomingRecordingInfo im1) {
 
-        List<MediaElement> mediaElements = incomingMediaService.process([im1]).payload
-        if (mediaElements) { return }
         ResultGroup<RecordCall> resGroup = new ResultGroup<>()
+        List<MediaElement> mediaElements = incomingMediaService.process([im1]).payload
+        if (mediaElements) { return resGroup }
         Collection<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(callId)
         receipts*.item
             .unique { RecordItem item -> item.id }
@@ -62,23 +64,22 @@ class VoicemailService {
     // Voicemail greeting
     // ------------------
 
-    Result<Closure> recordVoicemailGreeting() {
-        // TODO CallResponse.VOICEMAIL_GREETING_RECORD
+    Result<Void> finishedProcessingVoicemailGreeting(Phone p1, String callId,
+        IncomingRecordingInfo im1) {
 
-    }
-
-    Result<Closure> processingVoicemailGreeting() {
-        // TODO CallResponse.VOICEMAIL_GREETING_PROCESSING
-    }
-
-    Result<Phone> processVoicemailGreeting(IncomingRecordingInfo im1) {
-        // TODO CallResponse.VOICEMAIL_GREETING_PROCESSED
-        // Uploading via storage service needs to be able to upload PUBLIC ASSETS so Twilio can cache the URL
-
-
-    }
-
-    Result<Closure> playVoicemailGreeting() {
-        // TODO CallResponse.VOICEMAIL_GREETING_PLAY
+        // voicemail greetings are public so that Twilio can cache the object and because anyone
+        // who calls the number and gets sent to voicemail will hear this greeting
+        im1.isPublic = true
+        ResultGroup<MediaElement> resGroup = incomingMediaService.process([im1])
+        if (resGroup.anyFailures) {
+            return resultFactory.failWithGroup(resGroup)
+        }
+        MediaInfo mInfo = p1.media ?: new MediaInfo()
+        resGroup.payload.each { MediaElement e1 -> mInfo.addToMediaElements(e1) }
+        p1.media = mInfo
+        if (p1.save()) {
+            callService.interrupt(callId, CallTwiml.infoForPlayVoicemailGreeting())
+        }
+        else { resultFactory.failWithValidationErrors(p1.errors) }
     }
 }

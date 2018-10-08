@@ -420,20 +420,6 @@ class Helpers {
         str ? new JsonSlurper().parseText(str) : null
     }
 
-    // TwimlBuilder
-    // ------------
-
-    static String formatNumberForSay(String number) {
-        number?.replaceAll(/\D*/, "")?.replaceAll(/.(?!$)/, /$0 /)
-    }
-    static String formatNumberForSay(PhoneNumber num) {
-        formatNumberForSay(num?.number)
-    }
-    static String formatForSayIfPhoneNumber(String possiblePhoneNumber) {
-        PhoneNumber pNum = new PhoneNumber(number:possiblePhoneNumber)
-        pNum.validate() ? formatNumberForSay(pNum.number) : possiblePhoneNumber
-    }
-
     // Security
     // --------
 

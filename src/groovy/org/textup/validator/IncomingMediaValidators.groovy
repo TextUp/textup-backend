@@ -13,6 +13,7 @@ interface IsIncomingMedia {
     String getMimeType()
     String getUrl()
     String getMediaId()
+    boolean getIsPublic()
     Result<Boolean> delete()
 
     boolean validate()
@@ -28,6 +29,7 @@ class IncomingMediaInfo implements IsIncomingMedia {
     String url
     String messageId
     String mediaId
+    boolean isPublic = false
 
     Result<Boolean> delete() {
         try {
@@ -49,6 +51,7 @@ class IncomingRecordingInfo implements IsIncomingMedia {
     String mimeType
     String url
     String mediaId
+    boolean isPublic = false
 
     Result<Boolean> delete() {
         try {

@@ -55,42 +55,33 @@ class CallbackService {
     @OptimisticLockingRetry
     @RollbackOnResultFailure
     Result<Closure> process(TypeConvertingMap params) {
-        // if a call direct messaage or other direct actions that we do
-        // not need to do further processing for, handle right here
-        if (params.handle == CallResponse.DIRECT_MESSAGE.toString()) {
-            return outgoingMessageService.directMessageCall(params.token as String)
-        }
-        else if (params.handle == CallResponse.DO_NOTHING.toString()) {
-            return TwilioUtils.noResponseTwiml()
-        }
-        else if (params.handle == CallResponse.END_CALL.toString()) {
-            return CallTwiml.hangUp()
-        }
-        // step 1: check that both to and from numbers are valid US phone numbers
-        PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
-            toNum = new PhoneNumber(number:params.To as String)
-        if (!fromNum.validate() || !toNum.validate()) {
-            return params.CallSid ? CallTwiml.invalid() : TextTwiml.invalidNumber()
-        }
-        // step 2: get phone
-        BasePhoneNumber pNum = getNumberForPhone(fromNum, toNum, params)
-        Phone p1 = Phone.findByNumberAsString(pNum.number)
-        if (!p1) {
-            return params.CallSid ? CallTwiml.notFound() : TextTwiml.notFound()
-        }
-        // step 3: get session
-        getOrCreateIncomingSession(p1, fromNum, toNum, params).then { IncomingSession is1 ->
-            // step 4: process request
-            String apiId = params.CallSid ?: params.MessageSid
-            if (params.CallSid) {
-                processCall(p1, is1, apiId, params)
+        processAnonymousCall(params) {
+            // step 1: check that both to and from numbers are valid US phone numbers
+            PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
+                toNum = new PhoneNumber(number:params.To as String)
+            if (!fromNum.validate() || !toNum.validate()) {
+                return params.CallSid ? CallTwiml.invalid() : TextTwiml.invalidNumber()
             }
-            else if (params.MessageSid) {
-                processText(p1, is1, apiId, params)
+            // step 2: get phone
+            BasePhoneNumber pNum = getNumberForPhone(fromNum, toNum, params)
+            Phone p1 = Phone.findByNumberAsString(pNum.number)
+            if (!p1) {
+                return params.CallSid ? CallTwiml.notFound() : TextTwiml.notFound()
             }
-            else {
-                resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
-                    ResultStatus.BAD_REQUEST)
+            // step 3: get session
+            getOrCreateIncomingSession(p1, fromNum, toNum, params).then { IncomingSession is1 ->
+                // step 4: process request
+                String apiId = params.CallSid ?: params.MessageSid
+                if (params.CallSid) {
+                    processCall(p1, is1, apiId, params)
+                }
+                else if (params.MessageSid) {
+                    processText(p1, is1, apiId, params)
+                }
+                else {
+                    resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
+                        ResultStatus.BAD_REQUEST)
+                }
             }
         }
     }
@@ -146,6 +137,27 @@ class CallbackService {
     // Processing
     // ----------
 
+    protected Result<Closure> processAnonymousCall(TypeConvertingMap params,
+        Closure<Result<Closure>> continueProcessing) {
+
+        switch (params.handle) {
+            case CallResponse.DIRECT_MESSAGE.toString():
+                outgoingMessageService.directMessageCall(params.token as String)
+                break
+            case CallResponse.DO_NOTHING.toString():
+                TwilioUtils.noResponseTwiml()
+                break
+            case CallResponse.END_CALL.toString():
+                CallTwiml.hangUp()
+                break
+            case CallResponse.VOICEMAIL_GREETING_PROCESSING.toString():
+                CallTwiml.processingVoicemailGreeting()
+                break
+            default:
+                continueProcessing()
+        }
+    }
+
     protected Result<Closure> processCall(Phone p1, IncomingSession is1, String callId,
         TypeConvertingMap params) {
         String digits = params.Digits
@@ -170,6 +182,21 @@ class CallbackService {
                         .logFail("CallbackService.processCall: VOICEMAIL_DONE")
                 }
                 TwilioUtils.noResponseTwiml()
+                break
+            case CallResponse.VOICEMAIL_GREETING_RECORD.toString():
+                CallTwiml.recordVoicemailGreeting(p1.number)
+                break
+            case CallResponse.VOICEMAIL_GREETING_PROCESSED.toString():
+                IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
+                threadService.submit(5, TimeUnit.SECONDS) {
+                    voicemailService
+                        .finishedProcessingVoicemailGreeting(p1, callId, im1)
+                        .logFail("CallbackService.processCall: VOICEMAIL_GREETING_PROCESSED")
+                }
+                TwilioUtils.noResponseTwiml()
+                break
+            case CallResponse.VOICEMAIL_GREETING_PLAY.toString():
+                CallTwiml.playVoicemailGreeting(p1.number, p1.voicemailGreetingUrl)
                 break
             case CallResponse.ANNOUNCEMENT_AND_DIGITS.toString():
                 String msg = params.message,

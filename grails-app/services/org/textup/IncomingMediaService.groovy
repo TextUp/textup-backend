@@ -63,9 +63,15 @@ class IncomingMediaService {
                 MediaPostProcessor
                     .process(type, data)
                     .then { Tuple<UploadItem, List<UploadItem>> processed ->
-                        List<UploadItem> uItems = new ArrayList<>(processed.second)
-                        uItems << processed.first
-                        MediaElement.create(processed.first, processed.second).curry(uItems)
+                        UploadItem sendVersion = processed.first
+                        List<UploadItem> altVersions = processed.second
+                        // enforce visibility status from info object
+                        sendVersion.isPublic = im1.isPublic
+                        altVersions.each { UploadItem uItem -> uItem.isPublic = im1.isPublic }
+
+                        List<UploadItem> allItems = new ArrayList<>(altVersions)
+                        allItems << sendVersion
+                        MediaElement.create(sendVersion, altVersions).curry(allItems)
                     }
                     .then { List<UploadItem> uItems, MediaElement e1 ->
                         resultFactory.success(uItems, e1)

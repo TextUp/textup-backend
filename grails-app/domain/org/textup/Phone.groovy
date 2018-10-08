@@ -77,7 +77,13 @@ class Phone implements WithMedia {
             apiFieldName   = "others",
             description    = "READ ONLY, full availability information for other staff owners of this particular phone if this is a team phone.",
             allowedType    = "List<StaffPolicyAvailability>",
-            useForCreation = false)
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName      = "requestVoicemailGreetingCall",
+            description       = "Triggers a phone call to the phone number provided to update this phone's voicemail greeting. Boolean `true` also accepted and will default to the current staff member's personal phone number.",
+            allowedType       = "Boolean or String",
+            useForCreation    = false,
+            presentInResponse = false)
     ])
     static transients = ["number"]
     static constraints = {
@@ -449,10 +455,8 @@ class Phone implements WithMedia {
     }
 
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
-    String getVoicemailGreetingUrlIfAllowed() {
-        if (useVoicemailRecordingIfPresent)
-            media?.getMostRecentByType(MediaType.AUDIO_TYPES)?.sendVersion?.link
-        }
+    URL getVoicemailGreetingUrl() {
+        media?.getMostRecentByType(MediaType.AUDIO_TYPES)?.sendVersion?.link
     }
 
     Result<PhoneOwnership> updateOwner(Team t1) {

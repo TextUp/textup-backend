@@ -3,8 +3,7 @@ package org.textup
 import com.amazonaws.services.cloudfront.CloudFrontUrlSigner
 import com.amazonaws.services.cloudfront.CloudFrontUrlSigner.Protocol
 import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.ObjectMetadata
-import com.amazonaws.services.s3.model.PutObjectResult
+import com.amazonaws.services.s3.model.*
 import grails.async.Promises
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
@@ -24,9 +23,13 @@ class StorageService {
     // Link
     // ----
 
+    // for voicemail greetings to enable caching
     Result<URL> generateLink(String identifier) {
-        // TODO
-        // for voicemail greetings to enable caching
+        try {
+            String root = grailsApplication.flatConfig["textup.media.cdn.root"]
+            resultFactory.success(new URL(Constants.PROTOCOL_HTTPS, root, "/" + identifier))
+        }
+        catch (Throwable e) { resultFactory.failWithThrowable(e) }
     }
 
 	Result<URL> generateAuthLink(String identifier) {
@@ -83,12 +86,15 @@ class StorageService {
 
         String bucketName = grailsApplication.flatConfig["textup.media.bucketName"]
         try {
-            // TODO handle public upload
-
             ObjectMetadata metadata = new ObjectMetadata()
             metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION)
             metadata.setContentType(mimeType)
-            resultFactory.success(s3Service.putObject(bucketName, identifier, stream, metadata))
+            PutObjectRequest request = new PutObjectRequest(bucketName, identifier, stream, metadata)
+            // Only set an object-level ACL if the object is public.
+            // Don't specify an object-level ACL here for private items because when we adjust
+            // the bucket-level ACL its scope of effect will be overriden by these object-level ACLs
+            if (isPublic) { request.withCannedAcl(CannedAccessControlList.PublicRead) }
+            resultFactory.success(s3Service.putObject(request))
         }
         catch (Throwable e) {
             log.error("StorageService.upload: could not upload: ${e.message}")

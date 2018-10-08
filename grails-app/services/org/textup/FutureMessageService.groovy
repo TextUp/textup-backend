@@ -152,26 +152,15 @@ class FutureMessageService {
                 "futureMessageService.create.noRecordOrInsufficientPermissions",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        SimpleFutureMessage fm0 = new SimpleFutureMessage(record: rec)
-        mediaService.tryProcess(fm0, body)
+        Future<?> future
+        SimpleFutureMessage fm0 = new SimpleFutureMessage(record: rec, language: rec.language)
+        Result<FutureMessage> res = mediaService.tryProcess(fm0, body)
             .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
-                setFromBody(fm0, body, timezone).curry(processed.second)
+                future = processed.second
+                setFromBody(fm0, body, timezone, ResultStatus.CREATED)
             }
-            .then({ Future<Result<MediaInfo>> mediaFuture, FutureMessage fm1 ->
-                fm1.language = Helpers.withDefault(
-                    Helpers.convertEnum(VoiceLanguage, body.language),
-                    rec.language)
-                if (fm1.save()) {
-                    resultFactory.success(fm1, ResultStatus.CREATED)
-                }
-                else {
-                    mediaFuture.cancel(true)
-                    resultFactory.failWithValidationErrors(fm1.errors)
-                }
-            }, { Future<Result<MediaInfo>> mediaFuture, Result<FutureMessage> failRes ->
-                mediaFuture.cancel(true)
-                failRes
-            })
+        if (!res.success && future) { future.cancel(true) }
+        res
     }
 
     // Update
@@ -186,14 +175,14 @@ class FutureMessageService {
         }
         // need to set first to ensure that future message validators take into account
         // the media object too
-        mediaService.tryProcess(fMsg, body)
+        Future<?> future
+        Result<FutureMessage> res = mediaService.tryProcess(fMsg, body)
             .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
-                setFromBody(fMsg, body, timezone).curryFailure(processed.second)
+                future = processed.second
+                setFromBody(fMsg, body, timezone)
             }
-            .then(null) { Future<Result<MediaInfo>> mediaFuture, Result<FutureMessage> failRes ->
-                mediaFuture.cancel(true)
-                failRes
-            }
+        if (!res.success && future) { future.cancel(true) }
+        res
     }
 
     // Delete
@@ -224,7 +213,9 @@ class FutureMessageService {
     // Helper Methods
     // --------------
 
-    protected Result<FutureMessage> setFromBody(FutureMessage fMsg, Map body, String timezone = null) {
+    protected Result<FutureMessage> setFromBody(FutureMessage fMsg, Map body,
+        String timezone = null, ResultStatus status = ResultStatus.OK) {
+
         fMsg.with {
             if (body.notifySelf != null) notifySelf = body.notifySelf
             if (body.type) {
@@ -267,7 +258,7 @@ class FutureMessageService {
             // call save finally here to persist the message
             if (fMsg.save()) {
                 socketService.sendFutureMessages([fMsg]) // socketService will refresh trigger
-                resultFactory.success(fMsg)
+                resultFactory.success(fMsg, status)
             }
             else { resultFactory.failWithValidationErrors(fMsg.errors) }
         }
