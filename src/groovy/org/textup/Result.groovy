@@ -1,12 +1,12 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
 import groovy.util.logging.Log4j
 import org.textup.type.LogLevel
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Log4j
 @ToString
 @EqualsAndHashCode
@@ -34,22 +34,11 @@ class Result<T> {
     // Methods
     // -------
 
-    public void thenEnd(Closure<?> successAction) {
-        if (this.success) {
-            executeSuccess(successAction)
-        }
-    }
-    public void thenEnd(Closure<?> successAction, Closure<?> failAction) {
+    public void thenEnd(Closure<?> successAction, Closure<?> failAction = null) {
         this.success ? executeSuccess(successAction) : executeFailure(failAction)
     }
 
-    public <V> Result<V> then(Closure<Result<V>> successAction) {
-        if (this.success) {
-            executeSuccess(successAction)
-        }
-        else { Result.<V>createError(this.errorMessages, this.status) }
-    }
-    public <V> Result<V> then(Closure<Result<V>> successAction, Closure<Result<V>> failAction) {
+    public <V> Result<V> then(Closure<Result<V>> successAction, Closure<Result<V>> failAction = null) {
         this.success ? executeSuccess(successAction) : executeFailure(failAction)
     }
 
@@ -142,7 +131,8 @@ class Result<T> {
             return this
         }
         int maxNumArgs = action.maximumNumberOfParameters
-        action.call(buildArgs(maxNumArgs, args))
+        List<Object> builtArgs = buildArgs(maxNumArgs, args)
+        Helpers.callClosure(action, builtArgs.toArray())
     }
     protected List<Object> buildArgs(int maxNumArgs, List<Object> args) {
         int numArgs = args.size()

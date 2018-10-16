@@ -21,10 +21,8 @@ import org.codehaus.groovy.grails.web.util.WebUtils
 import org.hibernate.*
 import org.joda.time.*
 import org.quartz.Scheduler
+import org.springframework.context.*
 import org.springframework.context.i18n.LocaleContextHolder as LCH
-import org.springframework.context.MessageSource
-import org.springframework.context.MessageSourceResolvable
-import org.springframework.context.NoSuchMessageException
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -34,7 +32,7 @@ class Helpers {
     // Notifications
     // -------------
 
-    Result<PhoneNumber> tryGetNotificationNumber() {
+    static Result<PhoneNumber> tryGetNotificationNumber() {
         String noticeNum = Holders.flatConfig["textup.apiKeys.twilio.notificationNumber"]
         if (!noticeNum) {
             return Helpers.resultFactory.failWithCodeAndStatus(
@@ -68,6 +66,17 @@ class Helpers {
         else { fallbackList }
     }
 
+    // Closures
+    // --------
+
+    static <T> T callClosure(Closure<T> action, Object[] args) {
+        switch (args.length) {
+            case 0: return action.call()
+            case 1: return action.call(args[0])
+            default: return action.call(args)
+        }
+    }
+
     // Dependency injection
     // --------------------
 
@@ -85,7 +94,7 @@ class Helpers {
     // Links
     // -----
 
-    static String getWebhookLink(Map linkParams) {
+    static String getWebhookLink(Map linkParams = [:]) {
         Helpers.linkGenerator.link(namespace: "v1",
             resource: "publicRecord",
             action: "save",
@@ -180,8 +189,7 @@ class Helpers {
     static <T> Future<T> noOpFuture(T obj = null) {
         [
             cancel: { boolean b -> true },
-            get: { obj },
-            get: { long timeout, TimeUnit unit -> obj },
+            get: { long timeout = 0l, TimeUnit unit = null -> obj },
             isCancelled: { false },
             isDone: { true }
         ] as Future<?>

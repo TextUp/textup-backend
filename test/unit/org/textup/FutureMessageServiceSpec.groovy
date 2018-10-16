@@ -4,18 +4,15 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
-import java.util.concurrent.TimeUnit
-import java.util.UUID
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
+import grails.test.runtime.*
+import java.util.concurrent.*
+import org.joda.time.*
 import org.quartz.Scheduler
 import org.quartz.SimpleTrigger
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
-import spock.lang.Ignore
-import spock.lang.Shared
-import static org.springframework.http.HttpStatus.*
+import spock.lang.*
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
@@ -30,116 +27,24 @@ class FutureMessageServiceSpec extends CustomSpec {
 		resultFactory(ResultFactory)
 	}
 
-	FutureMessage fMsg1
-
     def setup() {
     	setupData()
-        Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj -> new Result() }
         Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
     	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.messageSource = TestHelpers.mockMessageSource()
-        service.socketService = [
-            sendItems:{ List<RecordItem> items,
-                String eventName=Constants.SOCKET_EVENT_RECORDS ->
-                new Result(status:ResultStatus.OK).toGroup()
-            },
-            sendFutureMessages: { List<FutureMessage> fMsgs,
-                String eventName=Constants.SOCKET_EVENT_FUTURE_MESSAGES ->
-                new Result(status:ResultStatus.OK).toGroup()
-            }
-        ] as SocketService
-        OutgoingMessage.metaClass.getMessageSource = { -> TestHelpers.mockMessageSource() }
-
-    	fMsg1 = new FutureMessage(record:c1.record, type:FutureMessageType.CALL,
-    		message:"hi")
-    	fMsg1.save(flush:true, failOnError:true)
     }
 
     def cleanup() {
     	cleanupData()
     }
 
-    // Test job execution
-    // ------------------
-
-    void "test mark done"() {
-    	when: "passed in a nonexistent keyName"
-    	Result<FutureMessage> res = service.markDone("nonexistent")
-
-    	then: "not found"
-    	res.success == false
-    	res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "futureMessageService.markDone.messageNotFound"
-
-    	when: "passed in an existing keyName"
-    	assert fMsg1.isDone == false
-    	res = service.markDone(fMsg1.keyName)
-
-    	then:
-    	res.success == true
-    	res.payload instanceof FutureMessage
-    	res.payload.keyName == fMsg1.keyName
-    	res.payload.isDone == true
-    }
-
-    void "test execute"() {
-        given: "overrides and baselines"
-        service.tokenService = Mock(TokenService)
-        service.notificationService = Mock(NotificationService)
-        Record rec = new Record()
-        RecordItem rItem1 = new RecordItem(record: rec)
-        assert rItem1.validate()
-        Phone.metaClass.sendMessage = { OutgoingMessage msg, MediaInfo mInfo = null,
-            Staff staff = null, boolean skipOwnerCheck = false ->
-            new Result(status:ResultStatus.OK, payload: rItem1).toGroup()
-        }
-
-    	when: "nonexistent keyName"
-        ResultGroup resGroup = service.execute("nonexistent", s1.id)
-
-    	then: "not found"
-        0 * service.notificationService._
-        0 * service.tokenService._
-        rItem1.numNotified == 0
-        resGroup.anySuccesses == false
-        resGroup.failures[0].errorMessages[0] == "futureMessageService.execute.messageNotFound"
-
-    	when: "existing message with notify staff"
-        fMsg1.notifySelf = true
-        fMsg1.save(flush:true, failOnError:true)
-        resGroup = service.execute(fMsg1.keyName, s1.id)
-
-    	then:
-        1 * service.notificationService.build(*_) >> [new BasicNotification()]
-        1 * service.tokenService.notifyStaff(*_) >> new Result(status:ResultStatus.NO_CONTENT)
-        resGroup.anySuccesses == true
-        rItem1.numNotified == 1 // because one basic notification
-    }
-
-    // Test CRUD
-    // ---------
-
-    boolean _didSchedule = false
-    boolean _didUnschedule = false
-    protected void mockForCRUD() {
-        service.metaClass.doSchedule = { FutureMessage fMsg ->
-            _didSchedule = true
-            new Result(status:ResultStatus.NO_CONTENT, payload:null)
-        }
-        service.metaClass.unschedule = { FutureMessage fMsg ->
-            _didUnschedule = true
-            new Result(status:ResultStatus.NO_CONTENT, payload:null)
-        }
-    }
-
     void "test set from body for future message"() {
     	given: "an unsaved (new) future message with record"
-        mockForCRUD()
-    	FutureMessage fMsg = new FutureMessage(record:c1.record)
+        service.futureMessageJobService = Mock(FutureMessageJobService)
+        service.socketService = Mock(SocketService)
+    	FutureMessage fMsg = new FutureMessage(record: c1.record)
         assert fMsg.id == null
 
     	when: "setting properties"
-        _didSchedule = false
         FutureMessageType fType = FutureMessageType.CALL
         Map info = [
             notifySelf: true,
@@ -152,7 +57,9 @@ class FutureMessageServiceSpec extends CustomSpec {
         Result<FutureMessage> res = service.setFromBody(fMsg, info)
 
     	then: "success and did schedule"
-        res.success == true
+        1 * service.futureMessageJobService.schedule(*_) >> new Result()
+        1 * service.socketService.sendFutureMessages(*_)
+        res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload.notifySelf == info.notifySelf
         res.payload.type == fType
@@ -162,44 +69,43 @@ class FutureMessageServiceSpec extends CustomSpec {
             info.startDate.withZone(DateTimeZone.UTC).toString()
         res.payload.endDate.withZone(DateTimeZone.UTC).toString() ==
             info.endDate.withZone(DateTimeZone.UTC).toString()
-        _didSchedule == true
         res.payload.validate() == true
 
     	when: "update without changing reschedule properties"
         fMsg = res.payload
         fMsg.save(flush:true, failOnError:true)
 
-        _didSchedule = false
         info = [message: "YAAAS"]
         res = service.setFromBody(fMsg, info)
 
     	then: "success and did not call schedule"
-        res.success == true
+        0 * service.futureMessageJobService._
+        1 * service.socketService.sendFutureMessages(*_)
+        res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload.message == info.message
-        _didSchedule == false
 
     	when: "update and did change reschedule properties"
-        _didSchedule = false
         info = [startDate: DateTime.now()]
-        res = service.setFromBody(fMsg, info)
+        res = service.setFromBody(fMsg, info, null, ResultStatus.ACCEPTED)
 
     	then: "success and did call schedule"
-        res.success == true
+        1 * service.futureMessageJobService.schedule(*_) >> new Result()
+        1 * service.socketService.sendFutureMessages(*_)
+        res.status == ResultStatus.ACCEPTED
         res.payload instanceof FutureMessage
         res.payload.startDate.withZone(DateTimeZone.UTC).toString() ==
             info.startDate.withZone(DateTimeZone.UTC).toString()
-        _didSchedule == true
     }
 
     void "test set from body for simple future message"() {
         given: "an unsaved (new) future message with record"
-        mockForCRUD()
+        service.futureMessageJobService = Mock(FutureMessageJobService)
+        service.socketService = Mock(SocketService)
         SimpleFutureMessage sMsg = new SimpleFutureMessage(record:c1.record)
         assert sMsg.id == null
 
         when: "setting properties"
-        _didSchedule = false
         FutureMessageType fType = FutureMessageType.CALL
         Map info = [
             notifySelf: true,
@@ -213,7 +119,8 @@ class FutureMessageServiceSpec extends CustomSpec {
         Result<FutureMessage> res = service.setFromBody(sMsg, info)
 
         then: "success and did schedule"
-        res.success == true
+        1 * service.futureMessageJobService.schedule(*_) >> new Result()
+        1 * service.socketService.sendFutureMessages(*_)
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload instanceof SimpleFutureMessage
@@ -226,14 +133,11 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.endDate.withZone(DateTimeZone.UTC).toString() ==
             info.endDate.withZone(DateTimeZone.UTC).toString()
         res.payload.repeatIntervalInDays == info.repeatIntervalInDays
-        _didSchedule == true
         res.payload.validate() == true
 
         when: "update without changing reschedule properties"
         sMsg = res.payload
         sMsg.save(flush:true, failOnError:true)
-
-        _didSchedule = false
         info = [
             message: "YAAAS",
             repeatCount: info.repeatCount,
@@ -242,47 +146,45 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.setFromBody(sMsg, info)
 
         then: "success and did not call reschedule"
-        res.success == true
+        0 * service.futureMessageJobService._
+        1 * service.socketService.sendFutureMessages(*_)
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload instanceof SimpleFutureMessage
         res.payload.message == info.message
-        _didSchedule == false
 
         when: "update and null both repeatCount and endDate"
         sMsg = res.payload
         sMsg.save(flush:true, failOnError:true)
-
-        _didSchedule = false
         info = [message: "YAAAS"]
         res = service.setFromBody(sMsg, info)
 
         then: "success and DID call reschedule because repeatCount and endDate both nulled"
-        res.success == true
+        1 * service.futureMessageJobService.schedule(*_) >> new Result()
+        1 * service.socketService.sendFutureMessages(*_)
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload instanceof SimpleFutureMessage
         res.payload.message == info.message
         res.payload.repeatCount == null
         res.payload.endDate == null
-        _didSchedule == true
 
         when: "update and did change reschedule properties"
-        _didSchedule = false
         info = [repeatCount: 8]
         res = service.setFromBody(sMsg, info)
 
         then: "success and did call schedule"
-        res.success == true
+        1 * service.futureMessageJobService.schedule(*_) >> new Result()
+        1 * service.socketService.sendFutureMessages(*_)
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload.repeatCount == info.repeatCount
-        _didSchedule == true
     }
 
     void "test set from body for a specific timezone"() {
         given: "an unsaved (new) future message with record"
-        mockForCRUD()
+        service.futureMessageJobService = Stub(FutureMessageJobService) { schedule(*_) >> new Result() }
+        service.socketService = Stub(SocketService)
         FutureMessage fMsg = new FutureMessage(record:c1.record,
             type:FutureMessageType.CALL, message: "hi")
         assert fMsg.id == null
@@ -326,7 +228,6 @@ class FutureMessageServiceSpec extends CustomSpec {
         Result<FutureMessage> res = service.setFromBody(fMsg, info)
 
         then: "all are converted to UTC and retain their actual values"
-        res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload.startDate.withZone(DateTimeZone.UTC).hourOfDay ==
@@ -346,7 +247,6 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.setFromBody(fMsg, info, targetTz)
 
         then: "all date values have their values preserved no matter initial timezone"
-        res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         // daylight savings time adjust info populated because start time is
@@ -374,7 +274,6 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.setFromBody(fMsg, info, targetZone.getID())
 
         then:
-        res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
         res.payload.whenAdjustDaylightSavings != null
@@ -385,23 +284,23 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     void "test handling language for creation versus updating"() {
         given:
-        mockForCRUD()
+        service.futureMessageJobService = Stub(FutureMessageJobService) { schedule(*_) >> new Result() }
+        service.socketService = Stub(SocketService)
         c1.phone.language = VoiceLanguage.ENGLISH
         c1.phone.save(flush:true, failOnError:true)
         service.mediaService = Mock(MediaService)
-        service.storageService = Mock(StorageService)
+        Future fut1 = Mock()
 
         when: "creating withOUT specified language"
         Map info = [
             type: FutureMessageType.CALL.toString(),
-            message: UUID.randomUUID().toString(),
+            message: TestHelpers.randString(),
             startDate: DateTime.now().plusDays(2)
         ]
         Result<FutureMessage> res = service.create(c1.record, info)
 
         then: "use phone default"
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload.language == c1.phone.language
@@ -411,33 +310,30 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.create(c1.record, info)
 
         then: "use specified language"
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload.language != c1.phone.language
         res.payload.language == VoiceLanguage.SPANISH
 
         when: "updating without specified language"
-        info = [message: UUID.randomUUID().toString()]
+        info = [message: TestHelpers.randString()]
         VoiceLanguage originalLang = res.payload.language
         res = service.update(res.payload.id, info)
 
         then: "do not change the language"
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
         res.success == true
         res.status == ResultStatus.OK
         res.payload.message == info.message
         res.payload.language == originalLang
 
         when: "updating with specified language"
-        info = [message: UUID.randomUUID().toString(), language: VoiceLanguage.CHINESE.toString()]
+        info = [message: TestHelpers.randString(), language: VoiceLanguage.CHINESE.toString()]
         res = service.update(res.payload.id, info)
 
         then: "update the language"
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
         res.success == true
         res.status == ResultStatus.OK
         res.payload.message == info.message
@@ -447,10 +343,11 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     void "test appropriate status codes when creating, updating, and deleting"() {
         given:
-        mockForCRUD()
+        service.futureMessageJobService = Mock(FutureMessageJobService) { schedule(*_) >> new Result() }
+        service.socketService = Stub(SocketService)
         int fBaseline = FutureMessage.count()
         service.mediaService = Mock(MediaService)
-        service.storageService = Mock(StorageService)
+        Future fut1 = Mock()
 
         when: "creating"
         Result<FutureMessage> res = service.createForContact(c1.id,
@@ -458,8 +355,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         FutureMessage.withSession { it.flush() }
 
         then:
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
         res.success == true
         res.status == ResultStatus.CREATED
         res.payload instanceof FutureMessage
@@ -471,8 +367,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         res = service.update(id, [message:msg])
 
         then:
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
         res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof FutureMessage
@@ -480,35 +375,39 @@ class FutureMessageServiceSpec extends CustomSpec {
         FutureMessage.count() == fBaseline + 1
 
         when: "deleting"
-        service.metaClass.deleteHelper = { FutureMessage fMsg ->
-            new Result(status:ResultStatus.NO_CONTENT)
-        }
         res = service.delete(id)
 
         then:
-        res.success == true
+        1 * service.futureMessageJobService.unschedule(*_) >> new Result()
         res.status == ResultStatus.NO_CONTENT
-        FutureMessage.get(id).isDone == false // didn't actually do delete, just mocked it
+        FutureMessage.get(id).isDone == true
         FutureMessage.count() == fBaseline + 1
     }
 
-    void "test uploading media"() {
+    @DirtiesRuntime
+    void "test cancelling future processing on error during creation or updating"() {
         given:
-        Collection<String> errorMsgs
-        Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj ->
-            errorMsgs = obj; new Result();
-        }
-        service.storageService = Mock(StorageService)
-        String uniqueMsg = UUID.randomUUID().toString()
+        service.mediaService = Mock(MediaService)
+        Future fut1 = Mock()
+        MockedMethod setFromBody = TestHelpers.mock(service, "setFromBody")
+            { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
 
-        when:
-        service.tryUploadMedia(null)
+        when: "error during creation"
+        Result<FutureMessage> res = service.create(Mock(Record), null, null)
 
         then:
-        1 * service.storageService.uploadAsync(*_) >>
-            new ResultGroup([new Result(status: ResultStatus.BAD_REQUEST, errorMessages: [uniqueMsg])])
-        errorMsgs != null
-        errorMsgs[0] == uniqueMsg
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
+        setFromBody.callCount == 1
+        1 * fut1.cancel(true)
+
+        when: "error when updating"
+        FutureMessage.metaClass."static".get = { Long id -> Mock(FutureMessage) }
+        res = service.update(88, null, null)
+
+        then:
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
+        setFromBody.callCount == 2
+        1 * fut1.cancel(true)
     }
 
     void "test create errors"() {

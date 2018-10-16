@@ -38,6 +38,10 @@ class CustomSpec extends Specification {
         setupData(iterNum)
     }
     void setupData(int iterNum) {
+        Helpers.metaClass.'static'.getLinkGenerator = { -> TestHelpers.mockLinkGenerator() }
+        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
+        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+
         loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"
         organizations(iterNum)
@@ -48,8 +52,6 @@ class CustomSpec extends Specification {
         shareContacts(iterNum)
         tags(iterNum)
         tagMemberships(iterNum)
-
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
     void cleanupData() {}
 

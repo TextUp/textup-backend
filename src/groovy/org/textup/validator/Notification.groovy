@@ -1,6 +1,6 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.ToString
 import org.textup.*
@@ -8,7 +8,7 @@ import org.textup.type.PhoneOwnershipType
 
 // See [notification] in CustomApiDocs.groovy for documentation
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Validateable
 @ToString
 class Notification extends BasicNotification {
@@ -21,10 +21,7 @@ class Notification extends BasicNotification {
 	Contact contact
 	ContactTag tag
 
- 	static constraints = {
-		tokenId nullable:false
-		contents nullable:false
-		outgoing nullable:false
+ 	static constraints = { // default nullable: false
 		contact nullable:true, validator:{ Contact c1, Notification notif ->
 			if (!c1 && !notif.tag) { ['noContactOrTag'] }
 		}

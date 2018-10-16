@@ -33,43 +33,6 @@ class RecordCallSpec extends Specification {
         rCall1.validate() == true
     }
 
-    void "test getting voicemail url"() {
-        given:
-        VoicemailService mockVoicemailService = Mock(VoicemailService)
-        mockVoicemailService.getVoicemailUrl(*_) >> { String key -> key }
-
-        when: "we don't have a voicemail"
-        Record rec = new Record()
-        assert rec.save(flush:true, failOnError:true)
-        RecordCall call = new RecordCall(record:rec)
-        call.voicemailService = mockVoicemailService
-
-        then: "empty string"
-        call.validate() == true
-        call.hasVoicemail == false
-        call.voicemailUrl == ""
-
-        when: "we have away message, but voicemail duration is 0"
-        call.hasAwayMessage = true
-        call.voicemailInSeconds = 0
-
-        then: "effectively no voicemail, such as when user hangs up before recording a voicemail"
-        call.validate() == true
-        call.hasVoicemail == false
-        call.voicemailUrl == ""
-
-        when: "we do have voicemail AND no receipts"
-        String apiId = "testing123"
-        call.hasAwayMessage = true
-        call.voicemailInSeconds = 88
-        call.voicemailKey = apiId
-        assert call.save(flush:true, failOnError:true)
-
-        then: "can get url -- see mock"
-        call.hasVoicemail == true
-        call.voicemailUrl == apiId
-    }
-
     void "test getting duration in seconds and excluding receipt with longest duration"() {
         given: "a valid record call"
         Record rec = new Record()

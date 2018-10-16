@@ -30,65 +30,42 @@ class NumberControllerSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    private String _token
-    private PhoneNumber _reqPNum, _verifyPNum
-
     def setup() {
-        super.setupData()
-        controller.tokenService = [requestVerify:{ PhoneNumber pNum ->
-            _reqPNum = pNum
-            new Result(status:ResultStatus.NO_CONTENT, payload:null)
-        }, verifyNumber: { String token, PhoneNumber pNum ->
-            _token = token
-            _verifyPNum = pNum
-            new Result(status:ResultStatus.NO_CONTENT, payload:null)
-        }] as TokenService
-        controller.grailsApplication.flatConfig = config.flatten()
-    }
-    def cleanup() {
-        super.cleanupData()
+        setupData()
+        controller.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
 
-    protected String toJson(Closure data) {
-        JsonBuilder builder = new JsonBuilder()
-        builder(data)
-        builder.toString()
+    def cleanup() {
+        cleanupData()
     }
 
     // Listing available phone numbers
     // -------------------------------
 
     void "test listing available phone numbers"() {
+        given:
+        controller.authService = Mock(AuthService)
+        controller.numberService = Mock(NumberService)
+        AvailablePhoneNumber aNum = Mock()
+
         when: "not logged in and active"
-        controller.authService = [getLoggedInAndActive:{ -> null }] as AuthService
         request.method = "GET"
         controller.index()
 
         then:
+        1 * controller.authService.loggedInAndActive
+        0 * controller.numberService._
         response.status == SC_FORBIDDEN
 
         when:
         response.reset()
-        controller.authService = [getLoggedInAndActive:{ -> s1 }] as AuthService
-        controller.numberService = [
-            listExistingNumbers:{ ->
-                AvailablePhoneNumber aNum = new AvailablePhoneNumber(phoneNumber:"111@222 3333",
-                    infoType:"region", info:"i am a valid region here")
-                assert aNum.validate() == true
-                new Result(payload:[aNum], status:ResultStatus.OK)
-            },
-            listNewNumbers: { String search, Location loc1 ->
-                AvailablePhoneNumber aNum = new AvailablePhoneNumber(phoneNumber:"111@222 3333",
-                    infoType:"region", info:"i am a valid region here")
-                assert aNum.validate() == true
-                new Result(payload:[aNum], status:ResultStatus.OK)
-            }
-        ] as NumberService
-        controller.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         request.method = "GET"
         controller.index()
 
         then:
+        1 * controller.authService.loggedInAndActive >> s1
+        1 * controller.numberService.listExistingNumbers(*_) >> new Result(payload: [aNum])
+        1 * controller.numberService.listNewNumbers(*_) >> new Result(payload: [aNum])
         response.status == SC_OK
         response.json.size() == 2
     }
@@ -98,9 +75,8 @@ class NumberControllerSpec extends CustomSpec {
 
     void "test validating numbers"() {
         given:
-        controller.numberService = [validateNumber:{ PhoneNumber pNum ->
-            new Result(status:ResultStatus.OK, payload:[valid:true])
-        }] as NumberService
+        controller.numberService = Mock(NumberService)
+        AvailablePhoneNumber aNum = Mock()
 
         when:
         request.method = "GET"
@@ -108,6 +84,7 @@ class NumberControllerSpec extends CustomSpec {
         controller.show()
 
         then:
+        0 * controller.numberService._
         response.status == 422
         response.json.errors?.size() > 0
 
@@ -118,6 +95,7 @@ class NumberControllerSpec extends CustomSpec {
         controller.show()
 
         then:
+        1 * controller.numberService.validateNumber(*_) >> new Result(payload: aNum)
         response.status == SC_OK
     }
 
@@ -125,30 +103,34 @@ class NumberControllerSpec extends CustomSpec {
     // -------------
 
     void "test request verify without phoneNumber"() {
+        given:
+        controller.numberService = Mock(NumberService)
+
         when:
         request.method = "POST"
         request.json = "{}"
         controller.save()
 
         then:
+        0 * controller.numberService._
         response.status == 422 // unprocessable entity
     }
 
     void "test request verify success"() {
         given:
-        String num = "1112223333"
+        controller.numberService = Mock(NumberService)
+        String num = TestHelpers.randPhoneNumber()
 
         when:
         request.method = "POST"
-        request.json = toJson({
-            phoneNumber(num)
-        })
+        request.json = Helpers.toJsonString { phoneNumber(num) }
         controller.save()
 
         then:
+        1 * controller.numberService.startVerifyOwnership({ it.number == num }) >>
+            new Result(status: ResultStatus.NO_CONTENT)
         response.status == SC_NO_CONTENT
         response.text == ""
-        _reqPNum.number == new PhoneNumber(number:num).number
     }
 
     // Complete verify
@@ -157,21 +139,22 @@ class NumberControllerSpec extends CustomSpec {
 
     void "test complete verify success"() {
         given:
-        String tok = "iamaspecialsnowflake"
-        String num = "1112223333"
+        controller.numberService = Mock(NumberService)
+        String tok = TestHelpers.randString()
+        String num = TestHelpers.randPhoneNumber()
 
         when:
         request.method = "POST"
-        request.json = toJson({
+        request.json = Helpers.toJsonString {
             token(tok)
             phoneNumber(num)
-        })
+        }
         controller.save()
 
         then:
+        1 * controller.numberService.finishVerifyOwnership(tok, { it.number == num }) >>
+            new Result(status: ResultStatus.NO_CONTENT)
         response.status == SC_NO_CONTENT
         response.text == ""
-        _verifyPNum.number == new PhoneNumber(number:num).number
-         _token == tok
     }
 }

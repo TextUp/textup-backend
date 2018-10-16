@@ -44,6 +44,8 @@ class StaffSpec extends CustomSpec {
     	Staff staff1 = new Staff(lockCode:Constants.DEFAULT_LOCK_CODE)
 
     	then:
+        staff1.username == null
+        staff1.channelName == ""
     	staff1.validate() == false
 
     	when: "we have fill in info except for invalid email"
@@ -57,6 +59,8 @@ class StaffSpec extends CustomSpec {
 
     	then:
     	staff1.getUsername() == un.toLowerCase()
+        staff1.channelName.contains("private")
+        staff1.channelName.contains(un.toLowerCase())
     	staff1.validate() == false
     	staff1.errors.errorCount == 1
     	staff1.errors.getFieldErrorCount("email") == 1

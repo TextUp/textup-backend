@@ -20,8 +20,8 @@ class IncomingMediaService {
     GrailsApplication grailsApplication
     ResultFactory resultFactory
     StorageService storageService
-    ThreadService threadService
 
+    @GrailsTypeChecked(groovy.transform.TypeCheckingMode.SKIP) // TODO
     ResultGroup<MediaElement> process(Collection<? extends IsIncomingMedia> incomingMediaList) {
         // step 1: fetch media from Twilio and build appropriate versions
         ResultGroup<Tuple<List<UploadItem>, MediaElement>> outcomes = new ResultGroup<>()
@@ -53,7 +53,7 @@ class IncomingMediaService {
             authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
         Helpers.executeBasicAuthRequest(sid, authToken, new HttpGet(im1.url)) { HttpResponse resp ->
             int statusCode = resp.statusLine.statusCode
-            if (statusCode == ApacheHttpStatus.SC_OK) {
+            if (statusCode != ApacheHttpStatus.SC_OK) {
                 return resultFactory.failWithCodeAndStatus(
                     "incomingMediaService.processElement.couldNotRetrieveMedia",
                     ResultStatus.convert(statusCode), [resp.statusLine.reasonPhrase])
@@ -84,19 +84,20 @@ class IncomingMediaService {
         Collection<UploadItem> itemsToUpload) {
 
         // step 1: upload our processed copies
-        ResultGroup<?> resGroup = storageService.uploadAsync(itemsToUpload)
+        ResultGroup<?> uploadGroup = storageService.uploadAsync(itemsToUpload)
             .logFail("IncomingMediaService.finishProcessingUploads: uploading processed media")
+        if (uploadGroup.anyFailures) {
+            return resultFactory.failWithGroup(uploadGroup)
+        }
         // step 2: delete media only if no upload errors after a delay
+        ResultGroup<Boolean> deleteGroup = new ResultGroup<>()
         if (itemsToUpload) {
             // need a delay here because try to delete immediately results in an error saying
             // that the incoming message hasn't finished delivering yet. For incoming message
             // no status callbacks so we have to wait a fixed period of time then attempt to delete
             TimeUnit.SECONDS.sleep(5)
-            incomingMediaList.each { IsIncomingMedia im1 -> resGroup << im1.delete() }
+            incomingMediaList.each { IsIncomingMedia im1 -> deleteGroup << im1.delete() }
         }
-        if (resGroup.anyFailures) {
-            resultFactory.failWithGroup(resGroup)
-        }
-        else { resultFactory.success() }
+        deleteGroup.anyFailures ? resultFactory.failWithGroup(deleteGroup) : resultFactory.success()
     }
 }

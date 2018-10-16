@@ -1,13 +1,9 @@
 package org.textup
 
-import com.twilio.security.RequestValidator
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import groovy.transform.TypeCheckingMode
 import java.util.concurrent.TimeUnit
-import javax.servlet.http.HttpServletRequest
-import org.apache.commons.lang3.tuple.Pair
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.rest.*
 import org.textup.type.*
@@ -19,35 +15,11 @@ import org.textup.validator.*
 class CallbackService {
 
     AnnouncementService announcementService
-    GrailsApplication grailsApplication
     IncomingMessageService incomingMessageService
     OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
-    SocketService socketService
     ThreadService threadService
     VoicemailService voicemailService
-
-	// Validate request
-	// ----------------
-
-    Result<Void> validate(HttpServletRequest request, TypeConvertingMap params) {
-        // step 1: try to extract auth header
-        String errCode = "callbackService.validate.invalid",
-            authHeader = request.getHeader("x-twilio-signature")
-        if (!authHeader) {
-            return resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
-        }
-        // step 2: build browser url and extract Twilio params
-        String url = TwilioUtils.getBrowserURL(request)
-        Map<String, String> twilioParams = TwilioUtils.extractTwilioParams(request, params)
-        // step 3: build and run request validator
-        String authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
-        RequestValidator validator = new RequestValidator(authToken)
-
-        validator.validate(url, twilioParams, authHeader) ?
-            resultFactory.success() :
-            resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
-    }
 
     // Process request
     // ---------------
@@ -60,7 +32,7 @@ class CallbackService {
             PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
                 toNum = new PhoneNumber(number:params.To as String)
             if (!fromNum.validate() || !toNum.validate()) {
-                return params.CallSid ? CallTwiml.invalid() : TextTwiml.invalidNumber()
+                return params.CallSid ? CallTwiml.invalid() : TextTwiml.invalid()
             }
             // step 2: get phone
             BasePhoneNumber pNum = getNumberForPhone(fromNum, toNum, params)

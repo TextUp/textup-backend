@@ -133,7 +133,6 @@ class RecordUtils {
     // -------
 
     protected static Result<OutgoingMessage> checkOutgoingMessageRecipients(OutgoingMessage msg1) {
-        // step 1: validate number of recipients
         Collection<Contactable> recipients = msg1.toRecipients()
         if (recipients.size() > Constants.MAX_NUM_TEXT_RECIPIENTS) {
             Helpers.resultFactory.failWithCodeAndStatus(

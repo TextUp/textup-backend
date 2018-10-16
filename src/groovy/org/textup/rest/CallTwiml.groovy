@@ -13,11 +13,11 @@ class CallTwiml {
     static Map<String, String> infoForDirectMessage(String token) {
         [handle: CallResponse.DIRECT_MESSAGE, token: token]
     }
-    static Result<Closure> directMessage(String identifier, VoiceLanguage lang, String message) {
-        if (!identifier || !lang || !message) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.DIRECT_MESSAGE)
+    static Result<Closure> directMessage(String ident, String message, VoiceLanguage lang = null) {
+        if (!ident || !message) {
+            return TwilioUtils.invalidTwimlInputs(CallResponse.DIRECT_MESSAGE.toString())
         }
-        String messageIntro = Helpers.getMessage("twimlBuilder.call.messageIntro", [identifier])
+        String messageIntro = Helpers.getMessage("twimlBuilder.call.messageIntro", [ident])
         int maxRepeats = Constants.DIRECT_MESSAGE_MAX_REPEATS
         TwilioUtils.wrapTwiml {
             Say(messageIntro)
@@ -72,18 +72,21 @@ class CallTwiml {
 
     // CallResponse.SELF_GREETING
     static Result<Closure> selfGreeting() {
-        String directions = Helpers.getMessage("twimlBuilder.call.selfGreeting")
+        String directions = Helpers.getMessage("twimlBuilder.call.selfGreeting"),
+            goodbye = Helpers.getMessage("twimlBuilder.call.goodbye")
         TwilioUtils.wrapTwiml {
             Gather(numDigits:10) {
-                Say(loop: 0, directions)
+                Say(loop: 20, directions)
             }
+            Say(goodbye)
+            Hangup()
         }
     }
 
     // CallResponse.SELF_CONNECTING
     static Result<Closure> selfConnecting(String displayedNumber, String numToCall) {
         if (!displayedNumber || !numToCall) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.SELF_CONNECTING)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.SELF_CONNECTING.toString())
         }
         String connecting = TwilioUtils.say("twimlBuilder.call.selfConnecting", [numToCall]),
             goodbye = Helpers.getMessage("twimlBuilder.call.goodbye")
@@ -100,7 +103,7 @@ class CallTwiml {
     // CallResponse.SELF_INVALID_DIGITS
     static Result<Closure> selfInvalid(String digits) {
         if (!digits) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.SELF_INVALID_DIGITS)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.SELF_INVALID_DIGITS.toString())
         }
         String error = TwilioUtils.say("twimlBuilder.call.selfInvalidDigits", [digits])
         TwilioUtils.wrapTwiml {
@@ -117,10 +120,10 @@ class CallTwiml {
         Collection<String> numsToCall) {
 
         if (!displayedNumber || !originalFrom || !numsToCall) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.CONNECT_INCOMING)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.CONNECT_INCOMING.toString())
         }
         String voicemailLink = Helpers.getWebhookLink(handle: CallResponse.CHECK_IF_VOICEMAIL),
-            screenLink = Helpers.getWebhookLink(CallTwiml.infoForScreenIncoming())
+            screenLink = Helpers.getWebhookLink(CallTwiml.infoForScreenIncoming(originalFrom))
         TwilioUtils.wrapTwiml {
             // have a short timeout here because we want to avoid having one
             // of the TextUp user's personal phone voicemails pick up and
@@ -140,7 +143,7 @@ class CallTwiml {
     }
     static Result<Closure> screenIncoming(Collection<String> idents) {
         if (!idents) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.SCREEN_INCOMING)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.SCREEN_INCOMING.toString())
         }
         Collection<String> copiedIdents = new ArrayList<String>(idents)
         String identifier = Helpers.joinWithDifferentLast(copiedIdents, ", ", " or "),
@@ -160,7 +163,7 @@ class CallTwiml {
     // CallResponse.CHECK_IF_VOICEMAIL
     static Result<Closure> recordVoicemailMessage(Phone p1, BasePhoneNumber fromNum) {
         if (!p1 || !fromNum) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.CHECK_IF_VOICEMAIL)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.CHECK_IF_VOICEMAIL.toString())
         }
         String directions = Helpers.getMessage("twimlBuilder.call.voicemailDirections"),
             goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
@@ -194,7 +197,7 @@ class CallTwiml {
     }
     static Result<Closure> finishBridge(Contact c1) {
         if (!c1) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.FINISH_BRIDGE)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.FINISH_BRIDGE.toString())
         }
         List<ContactNumber> nums = c1.sortedNumbers ?: []
         int lastIndex = nums.size() - 1
@@ -236,12 +239,12 @@ class CallTwiml {
     }
     static Result<Closure> recordVoicemailGreeting(BasePhoneNumber fromNum) {
         if (!fromNum) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_RECORD)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_RECORD.toString())
         }
-        String directions = Helpers.say("twimlBuilder.call.recordVoicemailGreeting", [fromNum.number]),
+        String directions = TwilioUtils.say("twimlBuilder.call.recordVoicemailGreeting", [fromNum.number]),
             goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
             processingLink = Helpers.getWebhookLink(handle: CallResponse.VOICEMAIL_GREETING_PROCESSING),
-            doneLink = Helpers.getWebhookLink(infoForVoicemailGreetingFinishedProcessing())
+            doneLink = Helpers.getWebhookLink(CallTwiml.infoForVoicemailGreetingFinishedProcessing())
         TwilioUtils.wrapTwiml {
             Pause(length: 1)
             Say(directions)
@@ -273,11 +276,12 @@ class CallTwiml {
     }
     static Result<Closure> playVoicemailGreeting(BasePhoneNumber fromNum, URL greetingLink) {
         if (!fromNum || !greetingLink) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_PLAY)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_PLAY.toString())
         }
         String goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
-            finishedMessage = Helpers.say("twimlBuilder.call.finishedVoicemailGreeting",[fromNum.number]),
-            recordLink = Helpers.getWebhookLink(infoForRecordVoicemailGreeting())
+            finishedMessage = TwilioUtils.say("twimlBuilder.call.finishedVoicemailGreeting",
+                    [fromNum.number]),
+            recordLink = Helpers.getWebhookLink(CallTwiml.infoForRecordVoicemailGreeting())
         TwilioUtils.wrapTwiml {
             Gather(numDigits: 1, action: recordLink) {
                 Say(finishedMessage)
@@ -295,8 +299,8 @@ class CallTwiml {
 
     // CallResponse.ANNOUNCEMENT_GREETING
     static Result<Closure> announcementGreeting(String name, Boolean isSubscribed) {
-        if (!name || !isSubscribed) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_GREETING)
+        if (!name || isSubscribed == null) {
+            return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_GREETING.toString())
         }
         String welcome = Helpers.getMessage("twimlBuilder.call.announcementGreetingWelcome",
                 [name, Constants.CALL_HEAR_ANNOUNCEMENTS]),
@@ -318,8 +322,8 @@ class CallTwiml {
     static Result<Closure> hearAnnouncements(Collection<FeaturedAnnouncement> announcements,
         Boolean isSubscribed) {
 
-        if (!announcements || !isSubscribed) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.HEAR_ANNOUNCEMENTS)
+        if (!announcements || isSubscribed == null) {
+            return TwilioUtils.invalidTwimlInputs(CallResponse.HEAR_ANNOUNCEMENTS.toString())
         }
         String sAction = isSubscribed
                 ? Helpers.getMessage("twimlBuilder.call.announcementUnsubscribe", [Constants.CALL_TOGGLE_SUBSCRIBE])
@@ -341,7 +345,7 @@ class CallTwiml {
     }
     static Result<Closure> announcementAndDigits(String identifier, String message) {
         if (!identifier || !message) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_AND_DIGITS)
+            return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_AND_DIGITS.toString())
         }
         String announcementIntro = Helpers.getMessage("twimlBuilder.call.announcementIntro",
                 [identifier]),
@@ -387,7 +391,7 @@ class CallTwiml {
     // Helpers
     // -------
 
-    static String childCallStatus(String number) {
+    protected static String childCallStatus(String number) {
         Helpers.getWebhookLink([
             handle: Constants.CALLBACK_STATUS,
             (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): number

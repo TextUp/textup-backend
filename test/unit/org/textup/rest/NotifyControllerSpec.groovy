@@ -1,71 +1,29 @@
 package org.textup.rest
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import groovy.json.JsonBuilder
-import groovy.xml.MarkupBuilder
-import java.util.UUID
-import javax.servlet.http.HttpServletRequest
-import org.joda.time.DateTime
-import org.springframework.context.MessageSource
-import org.springframework.http.HttpStatus
 import org.textup.*
-import org.textup.type.ReceiptStatus
 import org.textup.util.*
-import spock.lang.Shared
+import org.textup.validator.*
+import spock.lang.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(NotifyController)
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
-@TestMixin(HibernateTestMixin)
-class NotifyControllerSpec extends CustomSpec {
+class NotifyControllerSpec extends Specification {
 
-    static doWithSpring = {
-        resultFactory(ResultFactory)
-    }
-
-    void "test claim notification success"() {
-    	given: "show notification success"
-    	Map data = [key:UUID.randomUUID().toString()]
-    	controller.tokenService = [showNotification:{ String token ->
-    		new Result(status:ResultStatus.OK, payload:data)
-		}] as TokenService
+    void "test claim notification"() {
+        given:
+        controller.notificationService = Mock(NotificationService)
+        Notification notif = Mock()
+        String tokenId = TestHelpers.randString()
 
     	when:
     	request.method = "GET"
-        params.id = "token goes here"
+        params.id = tokenId
         controller.show()
 
     	then:
+        1 * controller.notificationService.show(tokenId) >> new Result(payload: notif)
     	response.status == SC_OK
     	response.json != null
-    	response.json.key == data.key
-    }
-
-    void "test claim notification error"() {
-    	given: "show notification failure"
-        String code = "testing123"
-        ResultStatus stat = ResultStatus.BAD_REQUEST
-    	controller.tokenService = [showNotification:{ String token ->
-            TestHelpers.getResultFactory(grailsApplication).failWithCodeAndStatus(code, stat)
-		}] as TokenService
-
-    	when:
-    	request.method = "GET"
-        params.id = "token goes here"
-        controller.show()
-
-    	then:
-    	response.status == stat.intStatus
-    	response.json != null
-    	response.json.errors instanceof List
-    	response.json.errors.size() == 1
-    	response.json.errors[0].message == code
     }
 }

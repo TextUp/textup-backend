@@ -15,6 +15,7 @@ stacktrace.log
 /web-app/WEB-INF/classes
 /.link_to_grails_plugins/
 /target-eclipse/
+/tmp/
 
 # build and deploy rest docs using Travis instead of manually
 /web-app/restapidoc.json

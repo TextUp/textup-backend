@@ -42,9 +42,6 @@ class MailServiceSpec extends CustomSpec {
                 data: data
     		])
 	    }
-	    service.messageSource = [getMessage:{ String c, Object[] p, Locale l ->
-            c
-        }] as MessageSource
     }
 
     def cleanup() {

@@ -1,10 +1,10 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.ToString
 import org.textup.type.LogLevel
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @ToString
 class ResultGroup<T> {
 

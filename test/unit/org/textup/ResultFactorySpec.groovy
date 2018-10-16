@@ -8,44 +8,23 @@ import org.springframework.context.MessageSource
 import org.springframework.context.NoSuchMessageException
 import org.springframework.context.support.StaticMessageSource
 import org.textup.util.TestHelpers
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Specification
+import spock.lang.*
 
 @Domain([Organization, Location])
 @TestMixin(HibernateTestMixin)
 class ResultFactorySpec extends Specification {
 
-	@Shared
-	MessageSource staticMessageSource = new StaticMessageSource()
-
     ResultFactory resultFactory
 
     def setup() {
+        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
         resultFactory = new ResultFactory()
-        resultFactory.messageSource = staticMessageSource
-    }
-
-    void "test getting messages from codes"() {
-    	when: "code does exist"
-    	String code = "but I do exist!!!"
-    	staticMessageSource.addMessage(code, Locale.default, code)
-        String result = resultFactory.getMessage(code, [])
-
-        then:
-        result == code
-
-        when: "code doesn't exist"
-        result = resultFactory.getMessage("i do not exist", [])
-
-    	then:
-    	result == ""
     }
 
     void "test success"() {
     	given:
-    	Location loc1 = new Location(address:"Testing Address", lat:0G, lon:0G)
-    	loc1.save(flush:true, failOnError:true)
+    	Location loc1 = TestHelpers.buildLocation()
+        Location loc2 = TestHelpers.buildLocation()
 
     	when: "without specifying payload"
     	Result<Location> res = resultFactory.<Location>success()
@@ -64,5 +43,92 @@ class ResultFactorySpec extends Specification {
     	res.errorMessages.isEmpty() == true
     	res.status == ResultStatus.OK
     	res.payload.id == loc1.id
+
+        when: "specifying two payloads"
+        Result<Tuple<Location, Location>> res2 = resultFactory.success(loc1, loc2)
+
+        then:
+        res2.status == ResultStatus.OK
+        res2.payload instanceof Tuple
+        res2.payload.first == loc1
+        res2.payload.second == loc2
+    }
+
+    void "test fail for results and status and result group"() {
+        given:
+        ResultStatus stat1 = ResultStatus.UNPROCESSABLE_ENTITY
+        Result<String> res1 = Result.createError(["1"], stat1)
+        Result<String> res2 = Result.createSuccess("hi", ResultStatus.CREATED)
+        Result<String> res3 = Result.createError(["3"], stat1)
+
+        when: "results and status"
+        Result<String> res = resultFactory.failWithResultsAndStatus([res1, res2, res3], stat1)
+
+        then:
+        res.payload == null
+        res.status == stat1
+        res.errorMessages.size() == 2 // one result was NOT an error
+
+        when: "result group"
+        ResultGroup<String> resGroup = new ResultGroup<>([res1, res2, res3])
+        res = resultFactory.failWithGroup(resGroup)
+
+        then:
+        res.payload == null
+        res.status == stat1
+        res.errorMessages.size() == 2 // one result was NOT an error
+    }
+
+    void "test fail for code and status"() {
+        given:
+        String code = TestHelpers.randString()
+        ResultStatus stat1 = ResultStatus.LOCKED
+
+        when:
+        Result<String> res = resultFactory.failWithCodeAndStatus(code, stat1)
+
+        then:
+        res.payload == null
+        res.status == stat1
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == code
+    }
+
+    void "test fail for throwable"() {
+        given:
+        String msg = TestHelpers.randString()
+
+        when:
+        Result res = resultFactory.failWithThrowable(new Throwable(msg))
+
+        then:
+        res.payload == null
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages.size() == 1
+        res.errorMessages[0] == msg
+    }
+
+    void "test fail for validation errors"() {
+        given:
+        Location emptyLoc1 = new Location()
+        Location emptyLoc2 = new Location()
+        assert emptyLoc1.validate() == false
+        assert emptyLoc2.validate() == false
+
+        when: "single error object"
+        Result res = resultFactory.failWithValidationErrors(emptyLoc1.errors)
+
+        then:
+        res.payload == null
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() > 0
+
+        when: "many validation errors"
+        res = resultFactory.failWithManyValidationErrors([emptyLoc1, emptyLoc2]*.errors)
+
+        then:
+        res.payload == null
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() > 0
     }
 }

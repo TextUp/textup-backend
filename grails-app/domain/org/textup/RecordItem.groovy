@@ -99,7 +99,7 @@ class RecordItem implements ReadOnlyRecordItem {
     	authorId nullable:true
         authorType nullable:true
         media nullable:true, cascadeValidation: true // can be null for backwards compatibility for RecordItems that predate this
-        noteContents blank:true, nullable:true, maxSize:15000
+        noteContents blank:true, nullable:true, maxSize: Constants.MAX_TEXT_COLUMN_SIZE
         numNotified min: 0
     }
     static mapping = {
@@ -195,6 +195,9 @@ class RecordItem implements ReadOnlyRecordItem {
 
     @GrailsTypeChecked
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
+
+    @GrailsTypeChecked
+    ReadOnlyRecord getReadOnlyRecord() { record }
 
     @GrailsTypeChecked
     void setAuthor(Author author) {

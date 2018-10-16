@@ -30,7 +30,7 @@ class RecordService {
                 ResultStatus.UNPROCESSABLE_ENTITY).toGroup()
         }
         Staff authUser = authService.loggedInAndActive
-        if (p1.owner.all.any { Staff s2 -> s2.id == authUser.id }) {
+        if (!p1.owner.all.any { Staff s2 -> s2.id == authUser.id }) {
             return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
         }
         Result<Class<RecordItem>> res = RecordUtils.determineClass(body)
@@ -75,10 +75,9 @@ class RecordService {
 
     @RollbackOnResultFailure
     protected Result<RecordItem> createNote(Phone p1, TypeConvertingMap body) {
-        RecordUtils.buildNoteTarget(p1, body)
-            .then { Record rec1 ->
-                mergeNote(new RecordNote(record: rec1), body, ResultStatus.CREATED)
-            }
+        RecordUtils.buildNoteTarget(p1, body).then { Record rec1 ->
+            mergeNote(new RecordNote(record: rec1), body, ResultStatus.CREATED)
+        }
     }
     protected Result<RecordNote> mergeNote(RecordNote note1, TypeConvertingMap body,
         ResultStatus status = ResultStatus.OK) {
@@ -89,9 +88,10 @@ class RecordService {
         // note has complete information
         Result<RecordNote> res = mediaService.tryProcess(note1, body)
             .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
+                RecordNote note2 = processed.first as RecordNote
                 future = processed.second
                 TempRecordNote tempNote = new TempRecordNote(info: body,
-                    note: note1,
+                    note: note2,
                     after: body.after ? Helpers.toDateTimeWithZone(body.after) : null)
                 tempNote.toNote(authService.loggedInAndActive.toAuthor())
             }

@@ -6,7 +6,6 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -27,19 +26,10 @@ class PhoneSpec extends CustomSpec {
 
     def setup() {
     	setupData()
-        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
     }
 
     def cleanup() {
     	cleanupData()
-    }
-
-    protected TwimlBuilder getTwimlBuilder() {
-        [build:{ code, params=[:] ->
-            new Result(status:ResultStatus.OK, payload:code)
-        }, noResponse: { ->
-            new Result(status:ResultStatus.OK, payload:"noResponse")
-        }] as TwimlBuilder
     }
 
     void "test constraints"() {
@@ -83,6 +73,78 @@ class PhoneSpec extends CustomSpec {
 
     	then:
     	p1.validate() == true
+    }
+
+    void "test cascading validation and saving to media object"() {
+        given:
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaInfo mInfo = new MediaInfo()
+        mInfo.addToMediaElements(e1)
+        assert mInfo.validate()
+        int miBaseline = MediaInfo.count()
+        int meBaseline = MediaElement.count()
+        assert p1.validate()
+
+        when:
+        p1.media = mInfo
+
+        then:
+        p1.validate() == true
+        MediaInfo.count() == miBaseline
+        MediaElement.count() == meBaseline
+
+        when:
+        e1.whenCreated = null
+
+        then:
+        p1.validate() == false
+        p1.errors.getFieldErrorCount("media.mediaElements.0.whenCreated") == 1
+        MediaInfo.count() == miBaseline
+        MediaElement.count() == meBaseline
+
+        when:
+        e1.whenCreated = DateTime.now()
+        assert p1.save(flush: true, failOnError: true)
+
+        then:
+        MediaInfo.count() == miBaseline + 1
+        MediaElement.count() == meBaseline + 1
+    }
+
+    void "test getting voicemail greeting url"() {
+        given:
+        StorageService storageService = Mock(StorageService)
+        String link = "https://www.example.com/${TestHelpers.randString()}"
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        e1.sendVersion.type = MediaType.IMAGE_JPEG
+        e1.sendVersion.storageService = storageService
+        MediaElement e2 = TestHelpers.buildMediaElement()
+        e2.sendVersion.type = MediaType.AUDIO_MP3
+        e2.sendVersion.storageService = storageService
+
+        when: "phone with empty media"
+        p1.media = null
+
+        then:
+        0 * storageService._
+        p1.voicemailGreetingUrl == null
+
+        when: "has a non-audio media element"
+        MediaInfo mInfo = new MediaInfo()
+        mInfo.addToMediaElements(e1)
+        p1.media = mInfo
+
+        then:
+        0 * storageService._
+        p1.voicemailGreetingUrl == null
+
+        when: "has audio media element"
+        mInfo.addToMediaElements(e2)
+        URL greetingUrl = p1.voicemailGreetingUrl
+
+        then:
+        1 * storageService.generateAuthLink(*_) >> new Result(payload: new URL(link))
+        greetingUrl.toString() == link
     }
 
     void "test getting phones for records"() {
@@ -527,443 +589,5 @@ class PhoneSpec extends CustomSpec {
         // valid language provided so we don't use phone language as default
         tagRes2.payload.language != p1.language
         tagRes2.payload.language == VoiceLanguage.PORTUGUESE
-    }
-
-    // Communications functionality
-    // ----------------------------
-
-    void "test outgoing communication when phone is inactive"() {
-        given: "an inactive phone"
-        p1.deactivate()
-        p1.save(flush:true, failOnError:true)
-        assert !p1.isActive
-
-        when: "send text"
-        OutgoingMessage text = TestHelpers.buildOutgoingMessage("hi")
-        text.contacts.recipients << c1
-        ResultGroup<RecordItem> resGroup = p1.sendMessage(text, null, s1)
-
-        then:
-        resGroup.anySuccesses == false
-        resGroup.failures.size() == 1
-        resGroup.failureStatus == ResultStatus.NOT_FOUND
-        resGroup.failures[0].success == false
-        resGroup.failures[0].status == ResultStatus.NOT_FOUND
-        resGroup.failures[0].errorMessages[0] == "phone.isInactive"
-
-        when: "start bridge call"
-        Result<RecordCall> res1 = p1.startBridgeCall(c1, s1)
-
-        then:
-        res1.success == false
-        res1.status == ResultStatus.NOT_FOUND
-        res1.errorMessages[0] == "phone.isInactive"
-
-        when: "send announcement"
-        Result<FeaturedAnnouncement> res2 = p1.sendAnnouncement("hi", DateTime.now().plusDays(1), s1)
-
-        then:
-        res2.success == false
-        res2.status == ResultStatus.NOT_FOUND
-        res2.errorMessages[0] == "phone.isInactive"
-    }
-
-    void "test sending text"() {
-        given: "a phone"
-        p1.phoneService = [sendMessage:{ Phone phone, OutgoingMessage text, MediaInfo mInfo, Staff staff ->
-            new ResultGroup<RecordItem>([new Result(status: ResultStatus.OK)])
-        }] as PhoneService
-
-        when: "we have an invalid outgoing text"
-        OutgoingMessage text = new OutgoingMessage()
-        assert text.validate() == false
-        ResultGroup<RecordText> resGroup = p1.sendMessage(text, null, s1)
-
-        then: "we assume text is valid when passed in -- do not revalidate"
-        resGroup.anySuccesses == true
-
-        when: "we pass in a staff that is not an owner"
-        text = TestHelpers.buildOutgoingMessage("hi")
-        text.contacts.recipients = [c1, c1_1]
-        assert text.validate() == true
-        resGroup = p1.sendMessage(text, null, otherS2)
-
-        then:
-        resGroup.anySuccesses == false
-        resGroup.failureStatus == ResultStatus.FORBIDDEN
-        resGroup.failures.size() == 1
-        resGroup.failures[0].success == false
-        resGroup.failures[0].payload == null
-        resGroup.failures[0].status == ResultStatus.FORBIDDEN
-        resGroup.failures[0].errorMessages[0] == "phone.notOwner"
-
-        when: "we pass in a valid outgoing text and staff that is owner"
-        resGroup = p1.sendMessage(text, null, s1)
-
-        then:
-        resGroup.anySuccesses == true
-        resGroup.anyFailures == false
-    }
-
-    void "test starting and completing bridge call"() {
-        given: "a phone"
-        p1.phoneService = [startBridgeCall:{ Phone phone, Contactable c1, Staff staff ->
-            new Result(status:ResultStatus.CREATED, payload:null)
-        }] as PhoneService
-        p1.twimlBuilder = getTwimlBuilder()
-        s1.personalPhoneAsString = "1112223333"
-        s1.save(flush:true, failOnError:true)
-
-        when: "try to call that does not belong to this phone"
-        Result<RecordCall> res1 = p1.startBridgeCall(tC1, s1)
-
-        then: "by the time we get here, Contactable should have already been validated"
-        res1.success == true
-
-        when: "try to call shared contact that is not shared with this phone"
-        res1 = p1.startBridgeCall(sc1, s1)
-
-        then: "by the time we get here, Contactable should have already been validated"
-        res1.success == true
-
-        when: "try to call shared contact that we don't have modify permissions for"
-        sc2.permission = SharePermission.VIEW
-        sc2.save(flush:true, failOnError:true)
-        res1 = p1.startBridgeCall(sc2, s1)
-
-        then: "by the time we get here, Contactable should have already been validated"
-        res1.success == true
-
-        when: "pass in a staff that is not an owner of this phone"
-        sc2.permission = SharePermission.DELEGATE
-        sc2.save(flush:true, failOnError:true)
-        res1 = p1.startBridgeCall(sc2, otherS1)
-
-        then:
-        res1.success == false
-        res1.payload == null
-        res1.status == ResultStatus.FORBIDDEN
-        res1.errorMessages[0] == "phone.notOwner"
-
-        when: "pass in valid staff, but staff has no personal phone number"
-        s1.personalPhoneAsString = null
-        s1.save(flush:true, failOnError:true)
-        res1 = p1.startBridgeCall(c1, s1)
-
-        then:
-        res1.success == false
-        res1.payload == null
-        res1.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res1.errorMessages[0] == "phone.startBridgeCall.noPersonalNumber"
-
-        when: "we pass in all valid"
-        s1.personalPhoneAsString = "1112223333"
-        s1.save(flush:true, failOnError:true)
-        res1 = p1.startBridgeCall(c1, s1)
-
-        then:
-        res1.success == true
-        res1.status == ResultStatus.CREATED
-        // we don't check the type of the payload because we are making phoneService right now
-        // and therefore our mocked service is being called, not the actual service
-        // res1.payload instanceof RecordCall
-
-        when: "complete call bridge"
-        Result<Closure> res2 = p1.finishBridgeCall(c1)
-
-        then:
-        res2.success == true
-        res2.status == ResultStatus.OK
-        res2.payload == CallResponse.FINISH_BRIDGE
-    }
-
-    void "test announcement success"() {
-        given: "phone and incoming sessions, some coinciding with contacts"
-        p1.twimlBuilder = getTwimlBuilder()
-        // subscriber
-        String subNum = "1223334445"
-        IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
-            isSubscribedToText:true, isSubscribedToCall:true)
-        sess.save(flush:true, failOnError:true)
-        // mock services
-        p1.phoneService = [sendTextAnnouncement:{ Phone phone, String message,
-            String identifier, List<IncomingSession> sessions, Staff staff ->
-            Map<String, Result<TempRecordReceipt>> resMap = [:]
-            resMap[subNum] = new Result(status:ResultStatus.OK)
-            resMap
-        }, startCallAnnouncement:{ Phone phone, String message,
-            String identifier, List<IncomingSession> sessions, Staff staff ->
-            Map<String, Result<TempRecordReceipt>> resMap = [:]
-            resMap[subNum] = new Result(status:ResultStatus.OK)
-            resMap
-        }] as PhoneService
-        // baselines
-        int featBaseline = FeaturedAnnouncement.count(),
-            aReceiptBaseline = AnnouncementReceipt.count()
-
-        when: "valid and some subscribers successfully reached"
-        Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",
-            DateTime.now().plusDays(1), s1)
-        assert res.success
-        p1.save(flush:true, failOnError:true)
-
-        then:
-        FeaturedAnnouncement.count() == featBaseline + 1
-        AnnouncementReceipt.count() == aReceiptBaseline + 2
-        res.status == ResultStatus.OK
-        res.payload.instanceOf(FeaturedAnnouncement)
-
-        when: "read announcements"
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888")
-        Result<Closure> closureRes = p1.completeCallAnnouncement(null, null,
-            null, session)
-
-        then:
-        closureRes.success == true
-        closureRes.status == ResultStatus.OK
-        closureRes.payload == CallResponse.ANNOUNCEMENT_AND_DIGITS
-
-        when: "confirm unsubscribed"
-        closureRes = p1.completeCallAnnouncement(Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE,
-            "message", "identifier", session)
-
-        then:
-        session.isSubscribedToCall == false
-        closureRes.success == true
-        closureRes.status == ResultStatus.OK
-        closureRes.payload == CallResponse.UNSUBSCRIBED
-    }
-
-    void "test announcement error conditions"() {
-        given: "phone and incoming sessions, some coinciding with contacts"
-        p1.twimlBuilder = getTwimlBuilder()
-
-        when: "expires in the past"
-        Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",
-            DateTime.now().minusDays(1), s1)
-
-        then:
-        res.success == false
-        res.payload == null
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "phone.sendAnnouncement.expiresInPast"
-
-        when: "pass in staff that is not an owner"
-        res = p1.sendAnnouncement("hello", DateTime.now().plusDays(1), otherS1)
-
-        then:
-        res.success == false
-        res.payload == null
-        res.status == ResultStatus.FORBIDDEN
-        res.errorMessages[0] == "phone.notOwner"
-    }
-
-    void "test announcement none reached"() {
-        given: "phone and incoming sessions, some coinciding with contacts"
-        p1.twimlBuilder = getTwimlBuilder()
-        p1.phoneService = [sendTextAnnouncement:{ Phone phone, String message,
-            String identifier, List<IncomingSession> sessions, Staff staff ->
-            [:]
-        }, startCallAnnouncement:{ Phone phone, String message,
-            String identifier, List<IncomingSession> sessions, Staff staff ->
-            [:]
-        }] as PhoneService
-
-        when: "none reached with no subscribers"
-        Result<FeaturedAnnouncement> res = p1.sendAnnouncement("hello",
-            DateTime.now().plusDays(1), s1)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof FeaturedAnnouncement
-
-        when: "none reached with some subscribers"
-        // add a subscriber
-        String subNum = "1223334445"
-        IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
-            isSubscribedToText:true, isSubscribedToCall:true)
-        sess.save(flush:true, failOnError:true)
-        // another announcement
-        res = p1.sendAnnouncement("hello", DateTime.now().plusDays(1), s1)
-
-        then:
-        res.success == false
-        res.payload == null
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-    }
-
-    void "test receiving text"() {
-        given: "a phone"
-        int _numTimesHandleAnnouncementText = 0
-        p1.phoneService = [
-            relayText: { Phone phone, IncomingText text, IncomingSession session, MediaInfo mInfo ->
-                new Result(status:ResultStatus.OK, payload:null)
-            },
-            handleAnnouncementText: { Phone p1, IncomingText t1, IncomingSession s1, MediaInfo m1 ->
-                _numTimesHandleAnnouncementText++
-                new Result(status:ResultStatus.OK, payload:null)
-            }
-        ] as PhoneService
-        p1.twimlBuilder = getTwimlBuilder()
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888"),
-            otherSess = new IncomingSession(phone:p2, numberAsString:"5557778888")
-        session.save(flush:true, failOnError:true)
-
-        when: "invalid incoming text"
-        IncomingText text = new IncomingText()
-        assert text.validate() == false
-        Result res = p1.receiveText(text, session)
-
-        then: "assume that the incoming text has already been validated"
-        res.success == true
-
-        when: "session does not belong to this phone"
-        text = new IncomingText(apiId:"apiId", message:"hello", numSegments: 88)
-        assert text.validate()
-        res = p1.receiveText(text, otherSess)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.FORBIDDEN
-        res.errorMessages[0] == 'phone.receive.notMine'
-
-        when: "we don't have any announcements"
-        res = p1.receiveText(text, session)
-
-        then: "relay text"
-        _numTimesHandleAnnouncementText == 0
-        res.success == true
-        res.status == ResultStatus.OK
-
-        when: "we have announcements and message isn't a valid keyword"
-        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-            message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-        announce.save(flush:true, failOnError:true)
-        text.message = "invalid keyword"
-        assert text.validate()
-        res = p1.receiveText(text, session)
-
-        then: "delegate to phoneService to handle possible announcements response"
-        _numTimesHandleAnnouncementText == 1
-        res.success == true
-    }
-
-    void "test receiving call"() {
-        given: "a phone and incoming sessions"
-        p1.phoneService = [relayCall:{ Phone phone, String apiId,
-            IncomingSession session ->
-            new Result(status:ResultStatus.OK, payload:"relayCall")
-        }, handleAnnouncementCall: { Phone phone, String apiId, String digits,
-            IncomingSession session ->
-            new Result(status:ResultStatus.OK, payload:"handleAnnouncementCall")
-        }, handleSelfCall:{ Phone phone, String apiId, String digits, Staff staff ->
-            new Result(status:ResultStatus.OK, payload:"handleSelfCall")
-        }] as PhoneService
-        p1.twimlBuilder = getTwimlBuilder()
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888"),
-            personalSess = new IncomingSession(phone:p1, numberAsString:s1.personalPhoneAsString),
-            otherSess = new IncomingSession(phone:p2, numberAsString:"5557778888")
-        [session, personalSess, otherSess]*.save(flush:true, failOnError:true)
-
-        when: "session does not belong to this phone"
-        Result<Closure> res = p1.receiveCall("apiId", "digits", otherSess)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.FORBIDDEN
-        res.errorMessages[0] == 'phone.receive.notMine'
-
-        when: "calling from personal phone"
-        res = p1.receiveCall("apiId", "digits", personalSess)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == "handleSelfCall"
-
-        when: "do not have announcements"
-        res = p1.receiveCall("apiId", "digits", session)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == "relayCall"
-
-        when: "have announcements"
-        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-            message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-        announce.save(flush:true, failOnError:true)
-        res = p1.receiveCall("apiId", "digits", session)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == "handleAnnouncementCall"
-    }
-
-    void "test screening incoming call"() {
-        given: "phone and incoming sessions"
-        p1.phoneService = [screenIncomingCall:{ Phone phone, IncomingSession session ->
-            new Result(status:ResultStatus.OK, payload:CallResponse.SCREEN_INCOMING)
-        }] as PhoneService
-        p1.twimlBuilder = getTwimlBuilder()
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888"),
-            otherSess = new IncomingSession(phone:p2, numberAsString:"5557778888")
-        [session, otherSess]*.save(flush:true, failOnError:true)
-
-        when: "session does not belong to this phone"
-        Result<Closure> res = p1.screenIncomingCall(otherSess)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.FORBIDDEN
-        res.errorMessages[0] == "phone.receive.notMine"
-
-        when: "session DOES belong to this phone"
-        res = p1.screenIncomingCall(session)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == CallResponse.SCREEN_INCOMING
-    }
-
-    void "test receiving voicemail"() {
-        given: "a phone"
-        p1.phoneService = Mock(PhoneService)
-        p1.twimlBuilder = getTwimlBuilder()
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888")
-        session.save(flush:true, failOnError:true)
-
-        when: "try starting voicemail prompt when call is already connected (success status)"
-        PhoneNumber fromNum = new PhoneNumber(number:"1112223333")
-        PhoneNumber toNum = new PhoneNumber(number:"2222223333")
-        assert fromNum.validate()
-        assert toNum.validate()
-        Result<Closure> res = p1.tryStartVoicemail(fromNum, toNum, ReceiptStatus.SUCCESS)
-
-        then: "don't need to connect to voicemail"
-        0 * p1.phoneService._
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == "noResponse"
-
-        when: "try starting voicemail prompt when call has NOT been connected"
-        res = p1.tryStartVoicemail(fromNum, toNum, ReceiptStatus.PENDING)
-
-        then: "will connect to voicemail"
-        0 * p1.phoneService._
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == CallResponse.CHECK_IF_VOICEMAIL
-
-        when: "completing voicemail when recording is done processing"
-        ResultGroup<RecordCall> resGroup = p1
-            .completeVoicemail("callId", "recordingId", "http://www.example.com", 88)
-
-        then:
-        1 * p1.phoneService.moveVoicemail(*_) >> new Result(status:ResultStatus.OK)
-        1 * p1.phoneService.storeVoicemail(*_) >> new ResultGroup()
     }
 }

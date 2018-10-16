@@ -24,26 +24,19 @@ class TagServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    int _cancelCalled = 0
-
     def setup() {
-        super.setupData()
+        setupData()
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
         service.notificationService = [
             handleNotificationActions: { Phone p1, Long recordId, Object rawActions ->
                 new Result(status:ResultStatus.NO_CONTENT, payload:null)
             }
         ] as NotificationService
-
         FutureMessage.metaClass.refreshTrigger = { -> null }
-        FutureMessage.metaClass.doUnschedule = { ->
-            _cancelCalled++
-            new Result(success:true)
-        }
     }
 
     def cleanup() {
-        super.cleanupData()
+        cleanupData()
     }
 
     // Create
@@ -280,21 +273,20 @@ class TagServiceSpec extends CustomSpec {
 
     void "test delete for tag with future messages"() {
         given:
+        service.futureMessageJobService = Mock(FutureMessageJobService)
+
         FutureMessage fMsg1 = new FutureMessage(record:tag1.record,
             type:FutureMessageType.CALL, message:"hi")
         fMsg1.save(flush:true, failOnError:true)
-
         int numFutureMsgs = tag1.record.countFutureMessages()
 
         when: "deleting"
-        _cancelCalled = 0
-        Result res = service.delete(tag1.id)
-        assert res.success
-        tag1.save(flush:true, failOnError:true)
+        Result<Void> res = service.delete(tag1.id)
+        ContactTag.withSession { it.flush() }
 
         then: "tag marked as deleted and all future messages cancelled"
+        numFutureMsgs * service.futureMessageJobService.unschedule(*_) >> new Result()
         res.status == ResultStatus.NO_CONTENT
         tag1.isDeleted == true
-        _cancelCalled == numFutureMsgs
     }
 }

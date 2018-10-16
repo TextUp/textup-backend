@@ -31,7 +31,8 @@ class UploadItem {
     // -------
 
     MediaElementVersion toMediaElementVersion() {
-        new MediaElementVersion(versionId: key,
+        new MediaElementVersion(type: type,
+            versionId: key,
             sizeInBytes: sizeInBytes,
             widthInPixels: widthInPixels,
             heightInPixels: heightInPixels,

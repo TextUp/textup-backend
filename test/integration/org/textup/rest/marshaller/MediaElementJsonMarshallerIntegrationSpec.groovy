@@ -12,13 +12,14 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling element"() {
         given:
-        MediaElementVersion mVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
+        MediaElementVersion sendVersion = new MediaElementVersion(type: MediaType.IMAGE_PNG,
             versionId: TestHelpers.randString(),
             sizeInBytes: 888,
             widthInPixels: 12345,
             heightInPixels: 34567)
-        assert mVers.validate()
-        MediaElement e1 = new MediaElement(type: MediaType.IMAGE_PNG, sendVersion: mVers)
+        assert sendVersion.validate()
+        MediaElement e1 = new MediaElement(sendVersion: sendVersion)
+        assert e1.validate()
 
         when: "element with only send version"
         Map json
@@ -28,36 +29,32 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
 
         then:
         json.uid == e1.uid
-        json.type == e1.type.mimeType
-        json[MediaVersion.LARGE.displayName] instanceof Map
-        json[MediaVersion.LARGE.displayName].link.contains(mVers.versionId)
-        json[MediaVersion.LARGE.displayName].width == mVers.inherentWidth
-        json[MediaVersion.LARGE.displayName].width == mVers.widthInPixels
-        json[MediaVersion.LARGE.displayName].height == mVers.heightInPixels
-        json[MediaVersion.MEDIUM.displayName] == null
-        json[MediaVersion.SMALL.displayName] == null
+        json.versions.size() == 1
+        json.versions[0] instanceof Map
+        json.versions[0].type == sendVersion.type.mimeType
+        json.versions[0].link.contains(sendVersion.versionId)
+        json.versions[0].width == sendVersion.widthInPixels
+        json.versions[0].height == sendVersion.heightInPixels
 
         when: "element with array of display versions"
-        MediaElementVersion dVers = new MediaElementVersion(mediaVersion: MediaVersion.MEDIUM,
+        MediaElementVersion altVersion = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
             versionId: TestHelpers.randString(),
             sizeInBytes: 888,
             widthInPixels: 12345,
             heightInPixels: 34567)
-        assert dVers.validate()
-        e1.addToDisplayVersions(dVers)
+        assert altVersion.validate()
+        e1.addToAlternateVersions(altVersion)
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
             json = TestHelpers.jsonToMap(e1 as JSON)
         }
 
         then:
         json.uid == e1.uid
-        json.type == e1.type.mimeType
-        json[MediaVersion.LARGE.displayName] == null
-        json[MediaVersion.MEDIUM.displayName] instanceof Map
-        json[MediaVersion.MEDIUM.displayName].link.contains(dVers.versionId)
-        json[MediaVersion.MEDIUM.displayName].width == dVers.inherentWidth
-        json[MediaVersion.MEDIUM.displayName].width == dVers.widthInPixels
-        json[MediaVersion.MEDIUM.displayName].height == dVers.heightInPixels
-        json[MediaVersion.SMALL.displayName] == null
+        json.versions.size() == 2
+        json.versions.every { it instanceof Map }
+        json.versions*.type.every { it in [sendVersion, altVersion]*.type*.mimeType }
+        json.versions*.width.every { it in [sendVersion, altVersion]*.widthInPixels }
+        json.versions*.height.every { it in [sendVersion, altVersion]*.heightInPixels }
+        json.versions*.link.every { it.contains(sendVersion.versionId) || it.contains(altVersion.versionId) }
     }
 }

@@ -31,7 +31,7 @@ class ResultFactory {
 
     public <T> Result<T> failWithResultsAndStatus(Collection<Result<T>> results, ResultStatus status) {
         List<String> messages = []
-    	results.each { Result<?> res -> messages += res.errorMessages }
+    	results.each { Result<?> res -> messages.addAll(res.errorMessages) }
     	Result.<T>createError(messages, status)
     }
 
@@ -54,7 +54,7 @@ class ResultFactory {
     public <T> Result<T> failWithManyValidationErrors(Collection<Errors> manyErrors) {
         List<String> messages = []
     	manyErrors.each { Errors errors ->
-    		messages += errors.allErrors.collect { ObjectError e1 -> Helpers.getMessage(e1) }
+    		messages.addAll(errors.allErrors.collect { ObjectError e1 -> Helpers.getMessage(e1) })
 		}
     	Result.<T>createError(messages, ResultStatus.UNPROCESSABLE_ENTITY)
     }

@@ -5,25 +5,19 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Specification
+import org.textup.util.*
+import spock.lang.*
 
 @Domain([Organization, Location])
 @TestMixin(HibernateTestMixin)
 class ResultGroupSpec extends Specification {
 
-    protected Location buildLocation() {
-        Location loc1 = new Location(address:"Testing Address", lat:0G, lon:0G)
-        loc1.save(flush:true, failOnError:true)
-    }
-
     void "test adding items and composition"() {
         when: "group is empty"
         ResultGroup<Location> resGroup = new ResultGroup<>()
-        Result<Location> succ1 = Result.createSuccess(buildLocation(), ResultStatus.CREATED)
-        Result<Location> succ2 = Result.createSuccess(buildLocation(), ResultStatus.CREATED)
-        Result<Location> succ3 = Result.createSuccess(buildLocation(), ResultStatus.OK)
+        Result<Location> succ1 = Result.createSuccess(TestHelpers.buildLocation(), ResultStatus.CREATED)
+        Result<Location> succ2 = Result.createSuccess(TestHelpers.buildLocation(), ResultStatus.CREATED)
+        Result<Location> succ3 = Result.createSuccess(TestHelpers.buildLocation(), ResultStatus.OK)
         Result<Location> fail1 = Result.createError(["could not create!"], ResultStatus.UNPROCESSABLE_ENTITY)
         Result<Location> fail2 = Result.createError(["could not create!"], ResultStatus.BAD_REQUEST)
         Result<Location> fail3 = Result.createError(["could not create!"], ResultStatus.UNPROCESSABLE_ENTITY)
@@ -41,7 +35,7 @@ class ResultGroupSpec extends Specification {
         when:
         resGroup << [succ1, fail1]
         resGroup.add([succ2, fail2])
-        resGroup.merge(new ResultGroup([succ3, fail3]))
+        resGroup << new ResultGroup([succ3, fail3])
 
         then:
         resGroup.isEmpty == false

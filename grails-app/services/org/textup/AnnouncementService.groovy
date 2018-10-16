@@ -44,7 +44,7 @@ class AnnouncementService {
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         // validate staff
-        if (!p1.owner.all.contains(authService.loggedInAndActive)) {
+        if (!p1.owner.all.contains(loggedIn)) {
             return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
         }
         outgoingAnnouncementService.send(p1, msg, expires, loggedIn)
@@ -74,7 +74,7 @@ class AnnouncementService {
         announces.each { FeaturedAnnouncement announce ->
             announce
                 .addToReceipts(RecordItemType.TEXT, sess1)
-                .logFail("AnnouncementService.handleAnnouncementText: add announce receipt")
+                .logFail("AnnouncementService.textSeeAnnouncements: add announce receipt")
         }
         TextTwiml.seeAnnouncements(announces)
     }

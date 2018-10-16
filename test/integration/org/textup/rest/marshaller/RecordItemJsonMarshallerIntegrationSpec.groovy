@@ -44,9 +44,8 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         given: "call"
         RecordCall rCall1 = new RecordCall(record: rec,
             voicemailInSeconds: 12,
-            voicemailKey: "key",
             hasAwayMessage: true,
-            noteContets: "hello",
+            noteContents: "hello",
             authorName: "yes",
             authorId: 88L,
             authorType: AuthorType.STAFF,
@@ -65,8 +64,6 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
     	then:
     	validate(json, rCall1)
         json.durationInSeconds == rCall1.durationInSeconds
-        json.hasVoicemail == true
-        json.voicemailUrl == json.voicemailUrl
         json.voicemailInSeconds == json.voicemailInSeconds
         json.type == RecordItemType.CALL.toString()
     }
@@ -76,7 +73,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         RecordCall rCall1 = new RecordCall(record: rec,
             voicemailInSeconds: 0,
             hasAwayMessage: false,
-            noteContets: "hello",
+            noteContents: "hello",
             authorName: "yes",
             authorId: 88L,
             authorType: AuthorType.STAFF,
@@ -95,9 +92,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         then:
         validate(json, rCall1)
         json.durationInSeconds == rCall1.durationInSeconds
-        json.hasVoicemail == false
-        json.voicemailUrl == null
-        json.voicemailInSeconds == null
+        json.voicemailInSeconds == 0
         json.type == RecordItemType.CALL.toString()
     }
 
@@ -105,7 +100,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         given:
         RecordText rText1 = new RecordText(record: rec,
             contents: "hope you're having a great day today!",
-            noteContets: "hello",
+            noteContents: "hello",
             authorName: "yes",
             authorId: 88L,
             authorType: AuthorType.STAFF,

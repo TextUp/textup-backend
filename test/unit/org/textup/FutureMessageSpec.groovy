@@ -93,7 +93,7 @@ class FutureMessageSpec extends CustomSpec {
     	when: "message is a text"
     	fMsg.type = FutureMessageType.TEXT
         fMsg.language = VoiceLanguage.CHINESE
-    	OutgoingMessage msg = fMsg.toOutgoingMessage()
+    	OutgoingMessage msg = fMsg.tryGetOutgoingMessage().payload
     	Collection hasMembers, noMembers
     	if (type == "contact") {
 			hasMembers = msg.contacts.recipients
@@ -115,7 +115,7 @@ class FutureMessageSpec extends CustomSpec {
     	when: "message is a call"
     	fMsg.type = FutureMessageType.CALL
         fMsg.language = VoiceLanguage.ITALIAN
-    	msg = fMsg.toOutgoingMessage()
+    	msg = fMsg.tryGetOutgoingMessage().payload
     	if (type == "contact") {
 			hasMembers = msg.contacts.recipients
 			noMembers = msg.tags.recipients
@@ -137,29 +137,6 @@ class FutureMessageSpec extends CustomSpec {
 		type      | _
 		"contact" | _
 		"tag"     | _
-    }
-
-    void "test cancelling"() {
-    	when: "have a valid future message"
-    	boolean calledUnschedule = false
-    	FutureMessage fMsg = new FutureMessage(type:FutureMessageType.TEXT,
-    		message:"hi", record:c1.record)
-    	fMsg.futureMessageService = [unschedule:{ FutureMessage fMessage ->
-    		calledUnschedule = true
-    		new Result(status:ResultStatus.OK)
-		}] as FutureMessageService
-		assert fMsg.validate()
-
-    	then: "not done yet"
-    	fMsg.isDone == false
-
-    	when: "call cancel"
-    	fMsg.cancel()
-
-    	then:
-    	fMsg.validate()
-    	calledUnschedule == true
-    	fMsg.isDone == true
     }
 
     void "test building detached criteria for records"() {

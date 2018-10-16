@@ -7,10 +7,10 @@ import grails.test.runtime.DirtiesRuntime
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.Future
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.hibernate.Session
 import org.joda.time.DateTime
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -42,31 +42,27 @@ class PhoneServiceSpec extends CustomSpec {
     // Phone actions
     // -------------
 
-    @DirtiesRuntime
     void "test deactivating phone"() {
         given:
-        boolean isCalled = false
-        service.numberService = [
-            freeExistingNumber: { String oldApiId -> isCalled = true; new Result() }
-        ] as NumberService
+        service.numberService = Mock(NumberService)
 
         when:
-        p1.apiId = UUID.randomUUID().toString()
+        p1.apiId = TestHelpers.randString()
         p1.save(flush: true, failOnError: true)
         Result<Phone> res = service.deactivatePhone(p1)
 
         then:
+        1 * service.numberService.freeExistingNumber(*_) >> new Result()
         res.success == true
         res.payload instanceof Phone
         res.payload.numberAsString == null
         res.payload.apiId == null
-        isCalled == true
     }
 
     void "test updating phone number given a phone number error conditions"() {
         given: "baseline"
         int baseline = Phone.count()
-        String oldApiId = UUID.randomUUID().toString()
+        String oldApiId = TestHelpers.randString()
         s1.phone.apiId = oldApiId
         s1.phone.save(flush:true, failOnError:true)
 
@@ -103,8 +99,8 @@ class PhoneServiceSpec extends CustomSpec {
     void "test updating phone number given an api id error conditions"() {
         given: "baseline"
         int baseline = Phone.count()
-        String oldApiId = UUID.randomUUID().toString(),
-            anotherApiId = UUID.randomUUID().toString()
+        String oldApiId = TestHelpers.randString(),
+            anotherApiId = TestHelpers.randString()
         s1.phone.apiId = oldApiId
         s2.phone.apiId = anotherApiId
         [s1, s2]*.save(flush:true, failOnError:true)
@@ -169,17 +165,10 @@ class PhoneServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test handling phone actions overall"() {
         given:
-        boolean isCalled = false
-        service.metaClass.deactivatePhone = { Phone p1 -> isCalled = true; new Result(); }
-        service.metaClass.transferPhone = { Phone p1, Long id, PhoneOwnershipType type ->
-            isCalled = true; new Result();
-        }
-        service.metaClass.updatePhoneForNumber = { Phone p1, PhoneNumber pNum ->
-            isCalled = true; new Result();
-        }
-        service.metaClass.updatePhoneForApiId = { Phone p1, String apiId ->
-            isCalled = true; new Result();
-        }
+        MockedMethod deactivatePhone = TestHelpers.mock(service, "deactivatePhone") { new Result() }
+        MockedMethod transferPhone = TestHelpers.mock(service, "transferPhone") { new Result() }
+        MockedMethod updatePhoneForNumber = TestHelpers.mock(service, "updatePhoneForNumber") { new Result() }
+        MockedMethod updatePhoneForApiId = TestHelpers.mock(service, "updatePhoneForApiId") { new Result() }
 
         when: "no phone actions"
         Result<Phone> res = service.handlePhoneActions(p1, [:])
@@ -187,18 +176,23 @@ class PhoneServiceSpec extends CustomSpec {
         then:
         res.success == true
         res.payload == p1
+        deactivatePhone.callCount == 0
+        transferPhone.callCount == 0
+        updatePhoneForNumber.callCount == 0
+        updatePhoneForApiId.callCount == 0
 
         when: "valid deactivate"
-        isCalled = false
         res = service.handlePhoneActions(p1, [doPhoneActions: [
             [action: Constants.PHONE_ACTION_DEACTIVATE]
         ]])
 
         then:
-        true == isCalled
+        deactivatePhone.callCount == 1
+        transferPhone.callCount == 0
+        updatePhoneForNumber.callCount == 0
+        updatePhoneForApiId.callCount == 0
 
         when: "valid transfer"
-        isCalled = false
         res = service.handlePhoneActions(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_TRANSFER,
@@ -208,10 +202,12 @@ class PhoneServiceSpec extends CustomSpec {
         ]])
 
         then:
-        true == isCalled
+        deactivatePhone.callCount == 1
+        transferPhone.callCount == 1
+        updatePhoneForNumber.callCount == 0
+        updatePhoneForApiId.callCount == 0
 
         when: "new number via number"
-        isCalled = false
         res = service.handlePhoneActions(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_NUM,
@@ -220,19 +216,24 @@ class PhoneServiceSpec extends CustomSpec {
         ]])
 
         then:
-        true == isCalled
+        deactivatePhone.callCount == 1
+        transferPhone.callCount == 1
+        updatePhoneForNumber.callCount == 1
+        updatePhoneForApiId.callCount == 0
 
         when: "new number via api id"
-        isCalled = false
         res = service.handlePhoneActions(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_ID,
-                numberId: UUID.randomUUID().toString()
+                numberId: TestHelpers.randString()
             ]
         ]])
 
         then:
-        true == isCalled
+        deactivatePhone.callCount == 1
+        transferPhone.callCount == 1
+        updatePhoneForNumber.callCount == 1
+        updatePhoneForApiId.callCount == 1
     }
 
     // Updating
@@ -291,15 +292,9 @@ class PhoneServiceSpec extends CustomSpec {
 
     void "testing handling availability"() {
         given:
-        boolean isCalled = false
-        service.notificationService = [
-            update: { NotificationPolicy np1, Map body, String timezone ->
-                assert np1.save() // need to this to mark newly-created policy as persistent
-                isCalled = true
-                new Result()
-            }
-        ] as NotificationService
-        Staff staff1 = new Staff(username: UUID.randomUUID().toString(),
+        service.notificationService = Mock(NotificationService)
+        service.authService = Mock(AuthService)
+        Staff staff1 = new Staff(username: TestHelpers.randString(),
             password: "password",
             name: "hi",
             email:"hi@textup.org",
@@ -313,71 +308,124 @@ class PhoneServiceSpec extends CustomSpec {
         Result<Phone> res = service.handleAvailability(p1, [:], null)
 
         then: "bypassed"
-        false == isCalled
+        0 * service.authService._
+        0 * service.notificationService._
         NotificationPolicy.count() == npBaseline
 
         when: "has availability in body"
         assert p1.owner.getPolicyForStaff(staff1.id) == null
-        service.authService = [getLoggedIn: { -> staff1 }] as AuthService
         res = service.handleAvailability(p1, [availability:[hello: 'there!']], null)
 
         then: "a new notification policy is created and policy is updated"
-        true == isCalled
+        1 * service.authService.loggedIn >> staff1
+        1 * service.notificationService.update(*_) >> { args ->
+            assert args[0].save() // need to this to mark newly-created policy as persistent
+            new Result()
+        }
         NotificationPolicy.count() == npBaseline + 1
+    }
+
+    // Voicemail greeting
+    // ------------------
+
+    void "test getting number to call for voicemail greeting"() {
+        given:
+        String randNum1 = TestHelpers.randPhoneNumber()
+        String randNum2 = TestHelpers.randPhoneNumber()
+        service.authService = Mock(AuthService)
+
+        when: "fall back to personal phone"
+        String num = service.getNumberToCallForVoicemailGreeting("true")
+
+        then:
+        1 * service.authService.loggedInAndActive >> [personalPhoneAsString: randNum1]
+        num == randNum1
+
+        when: "specify different phone number to call"
+        num = service.getNumberToCallForVoicemailGreeting(randNum2)
+
+        then:
+        0 * service.authService._
+        num == randNum2
+    }
+
+    void "test requesting voicemail greeting"() {
+        given:
+        service.callService = Mock(CallService)
+        Phone p1 = Mock(Phone)
+        String randNum1 = TestHelpers.randPhoneNumber()
+
+        when: "not requesting voicemail greeting"
+        Result<?> res = service.requestVoicemailGreetingCall(p1, [:])
+
+        then:
+        0 * service.callService._
+        res.status == ResultStatus.NO_CONTENT
+
+        when: "invalid phone number to call"
+        res = service.requestVoicemailGreetingCall(p1, [requestVoicemailGreetingCall: "invalid"])
+
+        then:
+        0 * service.callService._
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when: "valid phone number to call"
+        res = service.requestVoicemailGreetingCall(p1, [requestVoicemailGreetingCall: randNum1])
+
+        then:
+        1 * service.callService.start(*_) >> new Result()
     }
 
     // Merging
     // -------
 
+    @DirtiesRuntime
     void "test short circuiting when logged-in user is not active"() {
         given:
-        boolean isCalled = false
-        service.authService = [getIsActive: { false }] as AuthService
-        service.metaClass.mergeHelper = { Phone p1, Map body, String timezone ->
-            isCalled = true; new Result();
-        }
+        service.authService = Mock(AuthService)
+        MockedMethod mergeHelper = TestHelpers.mock(service, "mergeHelper") { new Result() }
 
         when: "merge for staff"
         Result<Staff> staffRes = service.mergePhone(s1, [phone: [awayMessage: "hi"]], null)
 
         then:
+        (1.._) * service.authService.isActive >> false
         staffRes.payload instanceof Staff
-        false == isCalled
+        mergeHelper.callCount == 0
 
         when: "merge for team"
         Result<Team> teamRes = service.mergePhone(t1, [phone: [awayMessage: "hi"]], null)
 
         then:
+        (1.._) * service.authService.isActive >> false
         teamRes.payload instanceof Team
-        false == isCalled
+        mergeHelper.callCount == 0
 
         when: "becomes active"
-        service.authService = [getIsActive: { true }] as AuthService
         teamRes = service.mergePhone(t1, [phone: [awayMessage: "hi"]], null)
 
         then:
-        true == isCalled
+        (1.._) * service.authService.isActive >> true
+        mergeHelper.callCount == 1
     }
 
     @DirtiesRuntime
     void "test merging phone creates a new phone if no phone"() {
         given: "staff and team with no phone"
-        Staff staff1 = new Staff(username: UUID.randomUUID().toString(),
-                password: "password",
-                name: "hi",
-                email:"hi@textup.org",
-                org: org,
-                personalPhoneAsString: TestHelpers.randPhoneNumber(),
-                lockCode:Constants.DEFAULT_LOCK_CODE)
-        Team team1 = new Team(name: UUID.randomUUID().toString(),
-                org: org,
-                location: new Location(address: "address", lat: 8G, lon: 10G))
+        Staff staff1 = new Staff(username: TestHelpers.randString(),
+            password: "password",
+            name: "hi",
+            email:"hi@textup.org",
+            org: org,
+            personalPhoneAsString: TestHelpers.randPhoneNumber(),
+            lockCode:Constants.DEFAULT_LOCK_CODE)
+        Team team1 = new Team(name: TestHelpers.randString(),
+            org: org,
+            location: new Location(address: "address", lat: 8G, lon: 10G))
         [staff1, team1]*.save(flush: true, failOnError: true)
-        service.metaClass.mergeHelper = { Phone p1, Map body, String timezone ->
-            assert p1.save() // need to save newly-created phone
-            new Result()
-        }
-        service.authService = [getIsActive: { true }] as AuthService
+        service.authService = Stub(AuthService) { getIsActive() >> true }
+        MockedMethod mergeHelper = TestHelpers.mock(service, "mergeHelper")
+            { Phone p1 -> p1.save(); new Result(); }
         int pBaseline = Phone.count()
         int oBaseline = PhoneOwnership.count()
 
@@ -402,16 +450,16 @@ class PhoneServiceSpec extends CustomSpec {
     void "test lazy creation of notification policy and schedule when merging"() {
         given: "phone without notification policy for owner"
         String utcTimezone = "Etc/UTC"
-        service.notificationService = [
-            update: { NotificationPolicy np1, Map body, String timezone ->
-                assert np1.save() // need to save newly-created policy
-                new Result()
-            }
-        ] as NotificationService
-        service.authService = [
-            getIsActive: { true },
-            getLoggedIn: { s1 }
-        ] as AuthService
+        service.notificationService = Stub(NotificationService) {
+            update(*_) >> { args -> args[0].save(); new Result(); }
+        }
+        service.authService = Stub(AuthService) {
+            getIsActive() >> true
+            getLoggedIn() >> s1
+        }
+        service.mediaService = Stub(MediaService) {
+            tryProcess(*_) >> new Result(payload: Tuple.create(null, null))
+        }
         Long staffId = 888L
         assert p1.owner.getPolicyForStaff(staffId) == null
         int policyBaseline = NotificationPolicy.count()
@@ -443,5 +491,50 @@ class PhoneServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         res.payload instanceof Phone
         NotificationPolicy.count() == policyBaseline + 1
+    }
+
+    @DirtiesRuntime
+    void "test cancelling future processing if error during merging"() {
+        given:
+        service.mediaService = Mock(MediaService)
+        MockedMethod handlePhoneActions = TestHelpers.mock(service, "handlePhoneActions")
+            { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
+        MockedMethod requestVoicemailGreetingCall = TestHelpers.mock(service, "requestVoicemailGreetingCall")
+        Future fut1 = Mock()
+
+        when:
+        Result<Phone> res = service.mergeHelper(null, null, null)
+
+        then:
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
+        1 * fut1.cancel(true)
+        handlePhoneActions.callCount == 1
+        requestVoicemailGreetingCall.callCount == 0
+    }
+
+    @DirtiesRuntime
+    void "test requesting voicemail greeting call during merging"() {
+        given:
+        service.mediaService = Mock(MediaService)
+        MockedMethod handlePhoneActions = TestHelpers.mock(service, "handlePhoneActions")
+            { new Result() }
+        MockedMethod handleAvailability = TestHelpers.mock(service, "handleAvailability")
+            { new Result() }
+        MockedMethod updateFields = TestHelpers.mock(service, "updateFields")
+            { new Result() }
+        MockedMethod requestVoicemailGreetingCall = TestHelpers.mock(service, "requestVoicemailGreetingCall")
+            { new Result() }
+        Future fut1 = Mock()
+
+        when:
+        Result<Phone> res = service.mergeHelper(null, null, null)
+
+        then:
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
+        0 * fut1._
+        handlePhoneActions.callCount == 1
+        handleAvailability.callCount == 1
+        updateFields.callCount == 1
+        requestVoicemailGreetingCall.callCount == 1
     }
 }

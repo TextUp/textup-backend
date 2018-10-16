@@ -372,8 +372,10 @@ class Contact implements Contactable {
     }
     @GrailsTypeChecked
     String getNameOrNumber() {
-        String num = this.numbers ? (this.numbers[0] as ContactNumber)?.number : null
-        this.name ?: num
+        if (name) {
+            name
+        }
+        else { numbers ? (numbers[0] as ContactNumber)?.number : "" }
     }
     List<ContactTag> getTags(Map params=[:]) {
         ContactTag.createCriteria().list(params) {

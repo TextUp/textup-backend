@@ -12,8 +12,9 @@ import org.textup.validator.action.ContactTagAction
 @Transactional
 class TagService {
 
-	ResultFactory resultFactory
+    ResultFactory resultFactory
     AuthService authService
+    FutureMessageJobService futureMessageJobService
     NotificationService notificationService
 
     // Create
@@ -112,12 +113,15 @@ class TagService {
     	if (t1) {
 			t1.isDeleted = true
             if (t1.save()) {
+                ResultGroup<?> resGroup = new ResultGroup<>()
                 // cancel all future messages
-                t1.record.getFutureMessages().each({ FutureMessage fMsg ->
-                    fMsg.cancel()
-                    fMsg.save()
-                })
-                resultFactory.success()
+                t1.record.getFutureMessages().each { FutureMessage fMsg ->
+                    resGroup << cancelFutureMessage(fMsg)
+                }
+                if (resGroup.anyFailures) {
+                    resultFactory.failWithGroup(resGroup)
+                }
+                else { resultFactory.success() }
             }
             else { resultFactory.failWithValidationErrors(t1.errors) }
     	}
@@ -125,5 +129,18 @@ class TagService {
     		resultFactory.failWithCodeAndStatus("tagService.delete.notFound",
                 ResultStatus.NOT_FOUND, [tId])
     	}
+    }
+
+    protected Result<?> cancelFutureMessage(FutureMessage fMsg) {
+        futureMessageJobService
+            .unschedule(fMsg)
+            .logFail("TagService.delete: unscheduling")
+            .then {
+                fMsg.isDone = true
+                if (fMsg.save()) {
+                    resultFactory.success(fMsg)
+                }
+                else { resultFactory.failWithValidationErrors(fMsg.errors) }
+            }
     }
 }

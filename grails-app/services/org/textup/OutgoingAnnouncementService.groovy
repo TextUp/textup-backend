@@ -17,17 +17,17 @@ class OutgoingAnnouncementService {
     TextService textService
 
     Result<FeaturedAnnouncement> send(Phone p1, String message, DateTime expiresAt, Staff staff) {
-        // collect relevant classes
-        List<IncomingSession> textSubs = IncomingSession.findAllByPhoneAndIsSubscribedToText(p1, true),
-            callSubs = IncomingSession.findAllByPhoneAndIsSubscribedToCall(p1, true)
-        String identifier = p1.name
         // build announcements class
         FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
             expiresAt:expiresAt, message:message)
         //mark as to-be-saved to avoid TransientObjectExceptions
         if (!announce.save()) {
-            resultFactory.failWithValidationErrors(announce.errors)
+            return resultFactory.failWithValidationErrors(announce.errors)
         }
+        // collect relevant classes
+        List<IncomingSession> textSubs = IncomingSession.findAllByPhoneAndIsSubscribedToText(p1, true),
+            callSubs = IncomingSession.findAllByPhoneAndIsSubscribedToCall(p1, true)
+        String identifier = p1.name
         // send announcements
         Map<String, Result<TempRecordReceipt>> textRes = sendTextAnnouncement(p1, message, identifier, textSubs, staff)
         Map<String, Result<TempRecordReceipt>> callRes = startCallAnnouncement(p1, message, identifier, callSubs, staff)

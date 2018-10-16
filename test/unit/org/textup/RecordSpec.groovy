@@ -23,6 +23,7 @@ class RecordSpec extends Specification {
 
 	def setup() {
         Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
 	}
 
     void "test adding items errors"() {

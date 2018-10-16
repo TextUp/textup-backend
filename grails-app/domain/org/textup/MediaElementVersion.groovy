@@ -60,10 +60,12 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
     // ---------------
 
     URL getLink() {
-        Result<URL> res = isPublic
-            ? storageService.generateAuthLink(versionId)
-            : storageService.generateLink(versionId)
-        res.logFail('MediaElementVersion.getLink')
-        res.success ? res.payload : null
+        if (versionId) {
+            Result<URL> res = isPublic
+                ? storageService.generateLink(versionId)
+                : storageService.generateAuthLink(versionId)
+            res.logFail('MediaElementVersion.getLink')
+            res.success ? res.payload : null
+        }
     }
 }

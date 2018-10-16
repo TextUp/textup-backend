@@ -38,6 +38,11 @@ class MediaInfoSpec extends Specification {
         mInfo.mediaElements.size() == 2
         mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES).size() == 2
 
+        and: "pass in a falsy value assumes all media elements"
+        mInfo.getMediaElementsByType().size() == 2
+        mInfo.getMediaElementsByType(null).size() == 2
+        mInfo.getMediaElementsByType([]).size() == 2
+
         when: "remove elements by uid"
         assert mInfo.removeMediaElement("nonexistent") == null
         assert mInfo.removeMediaElement(e1.uid) instanceof MediaElement
@@ -79,6 +84,51 @@ class MediaInfoSpec extends Specification {
         numBatches == 5 // up to 10 items per batch
     }
 
+    void "test iterating over batches where some media elements are missing send versions"() {
+        given:
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaElement e2 = TestHelpers.buildMediaElement()
+        MediaElement e3 = TestHelpers.buildMediaElement()
+        MediaElement e4 = TestHelpers.buildMediaElement()
+        e2.sendVersion = null
+        e3.sendVersion = null
+        MediaInfo mInfo = new MediaInfo()
+        [e1, e2, e3, e4].each { mInfo.addToMediaElements(it) }
+        assert mInfo.validate()
+        List<MediaElement> batch
+
+        when:
+        mInfo.forEachBatch { batch = it }
+
+        then: "media elements without send versions are ignored"
+        batch instanceof Collection
+        batch.size() == 2
+        batch.each { it == e1 || it == e4 }
+    }
+
+    void "test getting most recent media element by type"() {
+        given:
+        MediaInfo mInfo = new MediaInfo()
+        MediaElement mostRecent
+        DateTime dt = DateTime.now()
+        10.times {
+            mostRecent = TestHelpers.buildMediaElement()
+            mostRecent.sendVersion.type = MediaType.AUDIO_WEBM_OPUS
+            mostRecent.whenCreated = dt.plusMinutes(it)
+            mInfo.addToMediaElements(mostRecent)
+        }
+        assert mInfo.validate()
+
+        expect: "pass in a falsy value assumes all media elements"
+        mInfo.getMostRecentByType() == mostRecent
+        mInfo.getMostRecentByType(null) == mostRecent
+        mInfo.getMostRecentByType([]) == mostRecent
+
+        and:
+        mInfo.getMostRecentByType([MediaType.IMAGE_JPEG]) == null
+        mInfo.getMostRecentByType([MediaType.AUDIO_WEBM_OPUS]) == mostRecent
+    }
+
     void "test cascading validation"() {
         given: "empty obj"
         MediaInfo mInfo = new MediaInfo()
@@ -94,14 +144,14 @@ class MediaInfoSpec extends Specification {
         mInfo.validate() == true
 
         when: "add one invalid version"
-        e1.type = null
+        e1.sendVersion.type = null
 
         then: "validating parent reveals invalid version"
         mInfo.validate() == false
-        mInfo.errors.getFieldErrorCount("mediaElements.0.type") == 1
+        mInfo.errors.getFieldErrorCount("mediaElements.0.sendVersion.type") == 1
 
         when: "invalid version is fixed"
-        e1.type = MediaType.IMAGE_PNG
+        e1.sendVersion.type = MediaType.IMAGE_PNG
 
         then: "parent validates"
         mInfo.validate() == true

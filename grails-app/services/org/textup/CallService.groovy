@@ -71,6 +71,7 @@ class CallService {
         })
     }
 
+    // [UNTESTED] because of limitations in mocking
     // interrupt existing call with the following Twiml
     // see https://www.twilio.com/docs/voice/api/call#update-a-call-resource
     Result<Void> interrupt(String callId, Map afterPickup) {

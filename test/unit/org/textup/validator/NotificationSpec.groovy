@@ -32,7 +32,7 @@ class NotificationSpec extends CustomSpec {
 
 		then: "invalid"
 		notif.validate() == false
-		notif.errors.errorCount == 7
+		notif.errors.errorCount == 4
 
 		when: "fill out info"
 		notif.tokenId = 1L

@@ -1,12 +1,12 @@
 package org.textup.type
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.Constants
 
 // If changing the audio mime types here, make sure to also check AudioUtils to see if building
 // options from the MediaType should be updated too
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 enum MediaType {
     IMAGE_UNKNOWN(null),
     IMAGE_JPEG(["image/jpeg"]),
@@ -19,8 +19,12 @@ enum MediaType {
     AUDIO_WEBM_OPUS(["audio/webm;codecs=opus", "audio/webm; codecs=opus"])
 
     private final List<String> mimeTypes
-    MediaType(List<String> type) { this.mimeTypes = type }
-    String getMimeType() { this.mimeTypes[0] }
+
+    MediaType(List<String> possibleTypes) {
+        this.mimeTypes = possibleTypes
+    }
+
+    String getMimeType() { this.mimeTypes?.getAt(0) ?: "" }
 
     static HashSet<MediaType> IMAGE_TYPES = new HashSet<>([IMAGE_UNKNOWN, IMAGE_JPEG, IMAGE_PNG, IMAGE_GIF])
     static HashSet<MediaType> AUDIO_TYPES = new HashSet<>([AUDIO_MP3, AUDIO_OGG_VORBIS, AUDIO_OGG_OPUS,
@@ -29,7 +33,7 @@ enum MediaType {
     static MediaType convertMimeType(String inputType) {
         String lowerCased = inputType?.toLowerCase()
         if (lowerCased) {
-            MediaType.values().find { MediaType mType -> mType.mimeTypes.contains(lowerCased) }
+            MediaType.values().find { MediaType mType -> mType.mimeTypes?.contains(lowerCased) }
         }
     }
     static boolean isValidMimeType(String inputType) {

@@ -23,6 +23,12 @@ class Phone implements WithMedia {
     PhoneOwnership owner
 
     MediaInfo media
+
+    @RestApiObjectField(
+        description  = "Whether to use the voicemail recording for voicemails if available",
+        mandatory    = false,
+        allowedType  = "Boolean",
+        defaultValue = "false")
     boolean useVoicemailRecordingIfPresent = false
 
     @RestApiObjectField(
@@ -77,6 +83,11 @@ class Phone implements WithMedia {
             apiFieldName   = "others",
             description    = "READ ONLY, full availability information for other staff owners of this particular phone if this is a team phone.",
             allowedType    = "List<StaffPolicyAvailability>",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "voicemailRecording",
+            description    = "READ ONLY, stored voicemail recording, if available",
+            allowedType    = "MediaElement",
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName      = "requestVoicemailGreetingCall",

@@ -308,7 +308,7 @@ class Staff implements Schedulable {
 
     @GrailsTypeChecked
     String getChannelName() {
-        "private-${username}"
+        username ? "private-${username}" : ""
     }
 
     @GrailsTypeChecked

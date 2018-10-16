@@ -33,8 +33,8 @@ class CallServiceSpec extends Specification {
     }
 
     def setup() {
+        Helpers.metaClass."static".getLinkGenerator = { -> TestHelpers.mockLinkGenerator() }
     	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.grailsLinkGenerator = TestHelpers.mockLinkGenerator()
     	service.metaClass.doCall = { PhoneNumber fromNum, BasePhoneNumber toNum,
             Map afterPickup, String callback ->
 	        new Result(status:ResultStatus.OK, payload:[afterPickup:afterPickup, callback:callback])
@@ -43,7 +43,7 @@ class CallServiceSpec extends Specification {
 
     void "test starting a call to one or more numbers"() {
     	given:
-    	Map afterPickup = [id:UUID.randomUUID().toString()]
+    	Map afterPickup = [id: TestHelpers.randString()]
     	PhoneNumber fromNum = new PhoneNumber(number:"1112223333"),
     		toNum1 = new PhoneNumber(number:"1112223334"),
     		toNum2 = new PhoneNumber(number:"1112223335")
@@ -71,8 +71,8 @@ class CallServiceSpec extends Specification {
     @FreshRuntime
     void "test retrying a failed call"() {
     	given:
-    	String existingApiId = UUID.randomUUID().toString()
-    	String newApiId = UUID.randomUUID().toString()
+    	String existingApiId = TestHelpers.randString()
+    	String newApiId = TestHelpers.randString()
     	PhoneNumber fromNum = new PhoneNumber(number:"1112223333"),
     		toNum1 = new PhoneNumber(number:"1112223334"),
     		toNum2 = new PhoneNumber(number:"1112223335")
@@ -107,5 +107,16 @@ class CallServiceSpec extends Specification {
     	RecordItemReceipt.count() == rBaseline + 2
     	RecordItem.get(rItem1.id).receipts*.apiId.contains(newApiId)
     	RecordItem.get(rItem2.id).receipts*.apiId.contains(newApiId)
+    }
+
+    void "test interrupting existing call"() {
+        given:
+        String callId = TestHelpers.randString()
+
+        when:
+        Result<Void> res = service.interrupt(callId, [:])
+
+        then: "errors gracefully handled"
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
     }
 }

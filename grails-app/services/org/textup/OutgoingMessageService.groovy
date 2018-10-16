@@ -25,7 +25,7 @@ class OutgoingMessageService {
         tokenService.findDirectMessage(token).then({ Token tok1 ->
             Map<String, ?> data = tok1.data
             VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, data.language)
-            CallTwiml.directMessage(data.identifier as String, lang, data.message  as String)
+            CallTwiml.directMessage(data.identifier as String, data.message  as String, lang)
         }, { Result<Token> failRes ->
             failRes.logFail("OutgoingMessageService.directMessageCall")
             CallTwiml.error()
@@ -75,7 +75,7 @@ class OutgoingMessageService {
             return Tuple.create(failRes.toGroup(), future)
         }
         // step 1: create initial domain classes
-        ResultGroup<RecordItem> resGroup = buildMessages(msg1, staff.toAuthor())
+        ResultGroup<? extends RecordItem> resGroup = buildMessages(msg1, staff.toAuthor())
         if (!resGroup.anyFailures) {
             Map<Long, List<RecordItem>> recordIdToItems = [:].withDefault { [] as List<RecordItem> }
             resGroup.payload.each { RecordItem i1 -> recordIdToItems[i1.record.id] << i1 }
@@ -88,16 +88,17 @@ class OutgoingMessageService {
         Tuple.create(resGroup, future)
     }
 
-    protected ResultGroup<RecordItem> buildMessages(OutgoingMessage msg1, Author author1) {
-        ResultGroup<RecordItem> resGroup = new ResultGroup<>()
+    protected ResultGroup<? extends RecordItem> buildMessages(OutgoingMessage msg1, Author author1) {
+        ResultGroup<? extends RecordItem> resGroup = new ResultGroup<>()
         msg1.toRecordOwners().each { WithRecord recordOwner ->
-            resGroup << recordOwner
+            Result<? extends RecordItem> res = recordOwner
                 .tryGetRecord()
                 .then { Record rec1 ->
                     msg1.isText ?
                         rec1.storeOutgoingText(msg1.message, author1, msg1.media) :
                         rec1.storeOutgoingCall(author1, msg1.message, msg1.media)
                 }
+            resGroup << res
         }
         resGroup
     }
@@ -108,13 +109,15 @@ class OutgoingMessageService {
         if (mediaFuture) {
             Result<MediaInfo> mediaRes = mediaFuture.get()
             if (!mediaRes) {
-                return log.error("OutgoingMessageService.finishProcessingMessages: could not fetch media info \
-                    for media with id `${msg1.media?.id}`")
+                return resultFactory.failWithCodeAndStatus(
+                    "outgoingMediaService.finishProcessingMessages.futureMissingPayload",
+                    ResultStatus.INTERNAL_SERVER_ERROR,
+                    [msg1.media?.id, recordIdToItems?.keySet()]).toGroup()
             }
             mediaRes
                 .logFail("OutgoingMessageService.finishProcessingMessages: processing media")
-                .thenEnd { MediaInfo mInfo2 ->
-                    msg1.media = mInfo2
+                .thenEnd { MediaInfo mInfo ->
+                    msg1.media = mInfo
                     sendAndStore(recordIdToItems, phoneName, msg1)
                 }
         }
@@ -130,15 +133,13 @@ class OutgoingMessageService {
         // See `mediaService.sendWithMedia` to see how this is handled
         Token callToken = tokenService.tryBuildAndPersistCallToken(phoneName, msg1)
         ResultGroup<?> resGroup = new ResultGroup<>()
-        msg1.toRecipients().each { Contactable c1 ->
-            resGroup << outgoingMediaService
-                .send(c1.fromNum, c1.sortedNumbers, msg1.message, msg1.media, callToken)
-                .then { List<TempRecordReceipt> tempReceipts ->
-                    tryStoreReceipts(recordIdToItems, c1, tempReceipts)
-                        .logFail("OutgoingMessageService.finishProcessingMessages: contactable")
-                    contactIdToTags[c1.contactId]?.each { ContactTag ct1 ->
-                        tryStoreReceipts(recordIdToItems, ct1, tempReceipts)
-                            .logFail("OutgoingMessageService.finishProcessingMessages: tag")
+        msg1.toRecipients().each { Contactable cont1 ->
+            outgoingMediaService
+                .send(cont1.fromNum, cont1.sortedNumbers, msg1.message, msg1.media, callToken)
+                .thenEnd { List<TempRecordReceipt> tempReceipts ->
+                    resGroup << tryStoreReceipts(recordIdToItems, cont1, tempReceipts)
+                    contactIdToTags[cont1.contactId]?.each { ContactTag ct1 ->
+                        resGroup << tryStoreReceipts(recordIdToItems, ct1, tempReceipts)
                     }
                 }
         }

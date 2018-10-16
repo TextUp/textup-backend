@@ -62,7 +62,7 @@ class ImageUtils {
         finally { writer?.dispose() }
     }
 
-    protected Result<Tuple<byte[], BufferedImage>> tryCompress(MediaType type, byte[] data,
+    static Result<Tuple<byte[], BufferedImage>> tryCompress(MediaType type, byte[] data,
         BufferedImage image, long maxSizeInBytes) {
         // short circuit if invalid input or incompressible or if requested size is smaller than current
         if (maxSizeInBytes <= 0 || !ImageUtils.canCompress(type) || !data || data.size() <= maxSizeInBytes) {

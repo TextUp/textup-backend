@@ -1,18 +1,12 @@
 package org.textup
 
-import com.amazonaws.services.s3.model.PutObjectResult
-import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
-import grails.test.runtime.FreshRuntime
-import grails.validation.ValidationErrors
-import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.codec.digest.DigestUtils
-import org.codehaus.groovy.grails.commons.GrailsApplication
+import grails.test.runtime.*
+import java.util.concurrent.Future
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.textup.type.*
 import org.textup.util.*
@@ -34,8 +28,6 @@ class RecordServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        Helpers.metaClass.'static'.trySetOnRequest = { String key, Object obj -> new Result() }
-        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
 
@@ -46,282 +38,153 @@ class RecordServiceSpec extends CustomSpec {
     // Create
     // ------
 
-    void "test create overall"() {
+    void "test create error"() {
         given:
-        String didCall
-        service.metaClass.createText = { Phone p1, Map body -> didCall = "text"; new ResultGroup() }
-        service.metaClass.createCall = { Phone p1, Map body -> didCall = "call"; new Result() }
-        service.metaClass.createNote = { Phone p1, Map body -> didCall = "note"; new Result() }
+        service.authService = Mock(AuthService)
 
         when: "no phone"
-        ResultGroup resGroup = service.create(null, [:])
+        TypeConvertingMap params = [:]
+        ResultGroup resGroup = service.create(null, params)
 
         then:
+        0 * service.authService._
         resGroup.anySuccesses == false
         resGroup.failures.size() == 1
         resGroup.failures[0].errorMessages[0] == "recordService.create.noPhone"
         resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
-        null == didCall
 
-        when: "invalid entity"
-        resGroup = service.create(t1.phone.id, [:])
+        when: "not owner"
+        resGroup = service.create(t1.phone.id, params)
 
         then:
+        1 * service.authService.loggedInAndActive >> Mock(Staff)
         resGroup.anySuccesses == false
         resGroup.failures.size() == 1
-        resGroup.failures[0].errorMessages[0] == "recordService.create.unknownType"
+        resGroup.failures[0].errorMessages[0] == "phone.notOwner"
+        resGroup.failureStatus == ResultStatus.FORBIDDEN
+
+        when: "invalid entity"
+        resGroup = service.create(t1.phone.id, params)
+
+        then:
+        1 * service.authService.loggedInAndActive >> t1.phone.owner.all[0]
+        resGroup.anySuccesses == false
+        resGroup.failures.size() == 1
+        resGroup.failures[0].errorMessages[0] == "recordUtils.determineClass.unknownType"
         resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
-        null == didCall
+    }
+
+    @DirtiesRuntime
+    void "test create overall"() {
+        given:
+        Phone p1 = t1.phone
+        service.authService = Stub(AuthService) { getLoggedInAndActive() >> p1.owner.all[0] }
+        MockedMethod createText = TestHelpers.mock(service, "createText") { new ResultGroup() }
+        MockedMethod createCall = TestHelpers.mock(service, "createCall") { new Result() }
+        MockedMethod createNote = TestHelpers.mock(service, "createNote") { new Result() }
 
         when: "text"
-        Map itemInfo = [contents:"hi", sendToPhoneNumbers:["2223334444"],
-            sendToContacts:[tC1.id]]
-        service.create(t1.phone.id, itemInfo)
+        TypeConvertingMap itemInfo = new TypeConvertingMap(contents:"hi", sendToPhoneNumbers:["2223334444"],
+            sendToContacts:[tC1.id])
+        service.create(p1.id, itemInfo)
 
         then:
-        "text" == didCall
+        createText.callCount == 1
+        createCall.callCount == 0
+        createNote.callCount == 0
 
         when: "call"
-        itemInfo = [callContact:8L]
-        service.create(t1.phone.id, itemInfo)
+        itemInfo = new TypeConvertingMap(callContact:8L)
+        service.create(p1.id, itemInfo)
 
         then:
-        "call" == didCall
+        createText.callCount == 1
+        createCall.callCount == 1
+        createNote.callCount == 0
 
         when: "note"
-        itemInfo = [forContact:8L]
-        service.create(t1.phone.id, itemInfo)
+        itemInfo = new TypeConvertingMap(forContact:8L)
+        service.create(p1.id, itemInfo)
 
         then:
-        "note" == didCall
+        createText.callCount == 1
+        createCall.callCount == 1
+        createNote.callCount == 1
     }
 
-    void "test check outgoing message recipients"() {
+    @DirtiesRuntime
+    void "test creating text errors"() {
         given:
-        int maxNumRecips = 1
-        service.grailsApplication = Mock(GrailsApplication)
-        service.grailsApplication.flatConfig >> ["textup.maxNumText": maxNumRecips]
-        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
-
-        when: "no recipients"
-        Result<OutgoingMessage> res = service.checkOutgoingMessageRecipients(msg1)
-
-        then:
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "recordService.create.atLeastOneRecipient"
-
-        when: "too many recipients"
-        msg1.contacts.recipients = [c1, c1_1, c2]
-        res = service.checkOutgoingMessageRecipients(msg1)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "recordService.create.tooManyForText"
-
-        when: "valid number of recipients"
-        msg1.contacts.recipients = [c1]
-        res = service.checkOutgoingMessageRecipients(msg1)
-
-        then:
-        res.status == ResultStatus.OK
-    }
-
-    void "test building outgoing message"() {
-        given:
-        int cBaseline = Contact.count()
-        int cnBaseline = ContactNumber.count()
-
-        when: "contacts not belonging to me"
-        Map body = [contents: "hi", sendToContacts: [c2.id]]
-        assert c2.phone != p1
-        Result<OutgoingMessage> res = service.buildOutgoingMessage(p1, body, null)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "expired shared contacts"
-        assert sc2.sharedWith == p1
-        body = [contents: "hi", sendToSharedContacts: [sc2.contactId]]
-        sc2.stopSharing()
-        sc2.save(flush: true, failOnError: true)
-        res = service.buildOutgoingMessage(p1, body, null)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "not my tags"
-        body = [contents: "hi", sendToTags: [tag2.id]]
-        assert tag2.phone != p1
-        res = service.buildOutgoingMessage(p1, body, null)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "invalid phone numbers"
-        body = [contents: "hi", sendToPhoneNumbers: ["i am not a valid phone number"]]
-        res = service.buildOutgoingMessage(p1, body, null)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "valid, no recipients"
-        service.resultFactory.messageSource = TestHelpers.mockMessageSource()
-        body = [contents: "hi"]
-        res = service.buildOutgoingMessage(p1, body, null)
-
-        then: "valid, checking for number of recipients happens in a later step"
-        res.status == ResultStatus.OK
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "valid, with recipients"
-        sc2.startSharing(ContactStatus.ACTIVE, SharePermission.DELEGATE)
-        sc2.save(flush: true, failOnError: true)
-        body = [
-            contents: "hi",
-            sendToContacts: [c1.id],
-            sendToSharedContacts: [sc2.contactId],
-            sendToTags: [tag1.id],
-            sendToPhoneNumbers: [TestHelpers.randPhoneNumber()]
-        ]
-        res = service.buildOutgoingMessage(p1, body, null)
-        Contact.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        Contact.count() == cBaseline + 1
-        ContactNumber.count() == cnBaseline + 1
-    }
-
-    void "test create text"() {
-        given:
+        service.authService = Stub(AuthService)
         service.mediaService = Mock(MediaService)
-        service.storageService = Mock(StorageService)
-        service.authService = Mock(AuthService)
-        Phone mockPhone = Mock(Phone)
-        service.metaClass.buildOutgoingMessage = { Phone p1, Map body, MediaInfo mInfo = null ->
-            OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
-            msg1.contacts.recipients = [c1]
-            new Result(payload: msg1)
-        }
+        service.outgoingMessageService = Mock(OutgoingMessageService)
 
-        when: "no recipients"
-        service.createText(mockPhone, null)
-
-        then: "this class does not handle validation for number of recipients"
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        0 * service.mediaService.handleActions(*_)
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
-        1 * service.authService.loggedInAndActive
-        1 * mockPhone.sendMessage(*_) >> new ResultGroup()
-
-        when: "with media actions"
-        service.createText(mockPhone, null)
+        when: "has media + errors during processing"
+        ResultGroup<RecordItem> resGroup = service.createText(null, null)
 
         then:
         1 * service.mediaService.hasMediaActions(*_) >> true
-        1 * service.mediaService.handleActions(*_) >> new Result(payload: new MediaInfo())
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
-        1 * service.authService.loggedInAndActive
-        1 * mockPhone.sendMessage(*_) >> new ResultGroup()
+        1 * service.mediaService.tryProcess(*_) >> new Result(status: ResultStatus.FORBIDDEN)
+        0 * service.outgoingMessageService._
+        resGroup.anySuccesses == false
+        resGroup.failures.size() == 1
+        resGroup.failureStatus == ResultStatus.FORBIDDEN
+
+        when: "error when building target"
+        TestHelpers.mock(RecordUtils, "buildOutgoingMessageTarget")
+            { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
+        resGroup = service.createText(null, null)
+
+        then:
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        0 * service.outgoingMessageService._
+        resGroup.anySuccesses == false
+        resGroup.failures.size() == 1
+        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
     }
 
-    void "test create call"() {
+    @DirtiesRuntime
+    void "test creating text"() {
         given:
-        service.authService = Mock(AuthService)
-        int numTimesCalled = 0
-        service.metaClass.createCallHelper = { Phone p1, Contactable c1, Staff staff ->
-            numTimesCalled++; new Result();
-        }
+        service.authService = Stub(AuthService)
+        service.mediaService = Mock(MediaService)
+        service.outgoingMessageService = Mock(OutgoingMessageService)
+        MockedMethod buildOutgoingMessageTarget = TestHelpers
+            .mock(RecordUtils, "buildOutgoingMessageTarget") { new Result() }
 
-        when: "try to call none"
-        Map itemInfo = [:]
-        Result<RecordItem> res = service.createCall(s1.phone, itemInfo)
-
-        then:
-        res.success == false
-        res.errorMessages[0] == "recordService.create.atLeastOneRecipient"
-        res.status == ResultStatus.BAD_REQUEST
-        0 * service.authService.loggedInAndActive
-        0 == numTimesCalled
-
-        when: "try to call multiple"
-        itemInfo = [callSharedContact: sc2.id, callContact: c1.id]
-        service.createCall(s1.phone, itemInfo)
-
-        then: "valid because checking for multiple has already happened in the controller"
-        1 * service.authService.loggedInAndActive
-        1 == numTimesCalled
-
-        when: "call contact"
-        itemInfo = [callContact: c1.id]
-        service.createCall(s1.phone, itemInfo)
+        when: "no media"
+        ResultGroup<RecordItem> resGroup = service.createText(null, null)
 
         then:
-        1 * service.authService.loggedInAndActive
-        2 == numTimesCalled
+        1 * service.mediaService.hasMediaActions(*_) >> false
+        0 * service.mediaService.tryProcess(*_)
+        1 * service.outgoingMessageService.processMessage(*_) >> Tuple.create(null, null)
 
-        when: "call shared contact"
-        itemInfo = [callSharedContact: sc2.contact.id]
-        service.createCall(s1.phone, itemInfo)
+        when: "with media"
+        resGroup = service.createText(null, null)
 
         then:
-        1 * service.authService.loggedInAndActive
-        3 == numTimesCalled
+        1 * service.mediaService.hasMediaActions(*_) >> true
+        1 * service.mediaService.tryProcess(*_) >> new Result()
+        1 * service.outgoingMessageService.processMessage(*_) >> Tuple.create(null, null)
     }
 
-    void "test checking note target"() {
-        when: "no recipients"
-        Map body = [:]
-        Result<RecordItem> res = service.checkNoteTarget(t1.phone, body)
+    @DirtiesRuntime
+    void "test creating call"() {
+        given:
+        service.authService = Stub(AuthService)
+        service.outgoingMessageService = Mock(OutgoingMessageService)
+        RecordCall rCall = Mock()
+        MockedMethod buildOutgoingCallTarget = TestHelpers
+            .mock(RecordUtils, "buildOutgoingCallTarget") { new Result() }
 
-        then: "error"
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages.contains("recordService.create.atLeastOneRecipient")
-
-        when: "multiple recipients"
-        body = [forContact: tC1.id, forSharedContact: sc1.contactId]
-        res = service.checkNoteTarget(sc1.sharedWith, body)
-        RecordNote.withSession { it.flush() }
-
-        then: "arbitrarily choose one first, still valid, multiple recipients check happens in controller"
-        res.status == ResultStatus.OK
-        res.payload instanceof Record
-
-        when: "creating for a contact"
-        body = [forContact: tC1.id]
-        res = service.checkNoteTarget(t1.phone, body)
-        RecordNote.withSession { it.flush() }
+        when:
+        Result<RecordItem> res = service.createCall(null, null)
 
         then:
+        1 * service.outgoingMessageService.startBridgeCall(*_) >> new Result(payload: rCall)
         res.status == ResultStatus.OK
-        res.payload == tC1.record
-
-        when: "creating for a shared contact"
-        body = [forSharedContact: sc1.contactId]
-        res = service.checkNoteTarget(sc1.sharedWith, body)
-        RecordNote.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload == sc1.contact.record
-
-        when: "creating for a tag"
-        body = [forTag: tag1.id]
-        res = service.checkNoteTarget(tag1.phone, body)
-        RecordNote.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload == tag1.record
+        res.payload == rCall
     }
 
     void "test merging note for non-object fields"() {
@@ -332,21 +195,18 @@ class RecordServiceSpec extends CustomSpec {
         assert note1.validate()
         service.mediaService = Mock(MediaService)
         service.authService = Mock(AuthService)
-        service.storageService = Mock(StorageService)
 
         when:
-        Map body = [
-            after:DateTime.now().minusDays(2),
-            noteContents: UUID.randomUUID().toString(),
-            isDeleted: true
-        ]
-        Result<RecordNote> res = service.mergeNote(note1, body)
+        TypeConvertingMap body = new TypeConvertingMap(after:DateTime.now().minusDays(2),
+            noteContents: TestHelpers.randString(), isDeleted: true)
+        Result<RecordNote> res = service.mergeNote(note1, body, ResultStatus.CREATED)
 
         then:
-        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.mediaService.tryProcess(*_) >> { args ->
+            new Result(payload: Tuple.create(args[0], null))
+        }
         1 * service.authService.loggedInAndActive >> s1
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.CREATED
         res.payload == note1
         res.payload.whenCreated.isBeforeNow()
         res.payload.noteContents == body.noteContents
@@ -362,20 +222,19 @@ class RecordServiceSpec extends CustomSpec {
         assert note1.save(flush: true, failOnError: true)
         service.mediaService = Mock(MediaService)
         service.authService = Mock(AuthService)
-        service.storageService = Mock(StorageService)
         int lBaseline = Location.count()
         int mBaseline = MediaInfo.count()
 
         when: "with location"
-        Map body = [location: [address:"123 Main Street", lat:22G, lon:22G]]
+        TypeConvertingMap body = new TypeConvertingMap(location: [address:"123 Main Street", lat:22G, lon:22G])
         Result<RecordNote> res = service.mergeNote(note1, body)
         RecordNote.withSession { it.flush() }
 
         then:
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        0 * service.mediaService.handleActions(*_)
+        1 * service.mediaService.tryProcess(*_) >> { args ->
+            new Result(payload: Tuple.create(args[0], null))
+        }
         1 * service.authService.loggedInAndActive >> s1
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.status == ResultStatus.OK
         res.payload == note1
         res.payload.location instanceof Location
@@ -385,18 +244,17 @@ class RecordServiceSpec extends CustomSpec {
         MediaInfo.count() == mBaseline
 
         when: "with media"
-        res = service.mergeNote(note1, [:])
+        body = new TypeConvertingMap()
+        res = service.mergeNote(note1, body)
         RecordNote.withSession { it.flush() }
 
         then:
-        1 * service.mediaService.hasMediaActions(*_) >> true
-        1 * service.mediaService.handleActions(*_) >> { mInfo1, closure1, body1 ->
-            mInfo1.addToMediaElements(TestHelpers.buildMediaElement())
-            assert mInfo1.save()
-            new Result(payload: mInfo1)
+        1 * service.mediaService.tryProcess(*_) >> { args ->
+            args[0].media = new MediaInfo()
+            assert args[0].media.save()
+            new Result(payload: Tuple.create(args[0], null))
         }
         1 * service.authService.loggedInAndActive >> s1
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.status == ResultStatus.OK
         res.payload == note1
         res.payload.location instanceof Location
@@ -406,34 +264,45 @@ class RecordServiceSpec extends CustomSpec {
         MediaInfo.count() == mBaseline + 1
     }
 
+    void "test cancelling future processing if error during merging note"() {
+        given:
+        service.mediaService = Mock(MediaService)
+        service.authService = Mock(AuthService)
+        Future fut1 = Mock()
+
+        when:
+        TypeConvertingMap body = new TypeConvertingMap()
+        Result<RecordNote> res = service.mergeNote(null, body)
+
+        then:
+        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
+        1 * service.authService.loggedInAndActive >> s1
+        1 * fut1.cancel(true)
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+    }
+
     void "test creating note overall"() {
         given:
         service.mediaService   = Mock(MediaService)
         service.authService    = Mock(AuthService)
-        service.storageService = Mock(StorageService)
         int lBaseline          = Location.count()
         int mBaseline          = MediaInfo.count()
         int nBaseline          = RecordNote.count()
         int revBaseline        = RecordNoteRevision.count()
 
         when:
-        Map body = [
-            forContact: c1.id,
-            noteContents: UUID.randomUUID().toString(),
-            location: [address:"123 Main Street", lat:22G, lon:22G]
-            // mock having media actions
-        ]
+        TypeConvertingMap body = new TypeConvertingMap(forContact: c1.id,
+            noteContents: TestHelpers.randString(),
+            location: [address:"123 Main Street", lat:22G, lon:22G])
         Result<RecordItem> res = service.createNote(p1, body)
 
         then:
-        1 * service.mediaService.hasMediaActions(*_) >> true
-        1 * service.mediaService.handleActions(*_) >> { mInfo1, closure1, body1 ->
-            mInfo1.addToMediaElements(TestHelpers.buildMediaElement())
-            assert mInfo1.save()
-            new Result(payload: mInfo1)
+        1 * service.mediaService.tryProcess(*_) >> { args ->
+            args[0].media = new MediaInfo()
+            assert args[0].media.save()
+            new Result(payload: Tuple.create(args[0], null))
         }
         1 * service.authService.loggedInAndActive >> s1
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         Location.count()           == lBaseline + 1
         MediaInfo.count()          == mBaseline + 1
         RecordNote.count()         == nBaseline + 1
@@ -444,7 +313,6 @@ class RecordServiceSpec extends CustomSpec {
         given:
         service.mediaService                        = Mock(MediaService)
         service.authService                         = Mock(AuthService)
-        service.storageService                      = Mock(StorageService)
         Record rec                                  = new Record()
         assert rec.save(flush: true, failOnError: true)
         RecordNote note1 = new RecordNote(record:rec,
@@ -471,7 +339,7 @@ class RecordServiceSpec extends CustomSpec {
         when: "note is read only"
         note1.isReadOnly = true
         note1.save(flush:true, failOnError:true)
-        res = service.update(note1.id, [:])
+        res = service.update(note1.id, new TypeConvertingMap())
 
         then:
         res.status                 == ResultStatus.FORBIDDEN
@@ -484,13 +352,14 @@ class RecordServiceSpec extends CustomSpec {
         when: "no longer read only, toggle deleted flag"
         note1.isReadOnly = false
         note1.save(flush:true, failOnError:true)
-        Map body = [isDeleted: true]
+        TypeConvertingMap body = new TypeConvertingMap(isDeleted: true)
         res      = service.update(note1.id, body)
 
         then: "updated but no revisions"
-        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.mediaService.tryProcess(*_) >> { args ->
+            new Result(payload: Tuple.create(args[0], null))
+        }
         1 * service.authService.loggedInAndActive >> s1
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.status                 == ResultStatus.OK
         res.payload                == note1
         res.payload.isDeleted      == true
@@ -501,13 +370,14 @@ class RecordServiceSpec extends CustomSpec {
 
 
         when: "update contents"
-        body = [noteContents: UUID.randomUUID().toString()]
+        body = new TypeConvertingMap(noteContents: TestHelpers.randString())
         res  = service.update(note1.id, body)
 
         then:
-        1 * service.mediaService.hasMediaActions(*_) >> false
+        1 * service.mediaService.tryProcess(*_) >> { args ->
+            new Result(payload: Tuple.create(args[0], null))
+        }
         1 * service.authService.loggedInAndActive >> s1
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
         res.status                 == ResultStatus.OK
         res.payload                == note1
         res.payload.noteContents   == body.noteContents
@@ -558,69 +428,5 @@ class RecordServiceSpec extends CustomSpec {
         RecordNoteRevision.count() == rBaseline
         RecordNote.count() == nBaseline
         RecordNote.get(note1.id).isDeleted == true
-    }
-
-    // Identification
-    // --------------
-
-    void "test determine class"() {
-        when: "unknown entity"
-        Result res = service.determineClass([:])
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "recordService.create.unknownType"
-
-        when: "text"
-        res = service.determineClass([sendToContacts:[1]])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == RecordText
-
-        when: "note"
-        res = service.determineClass([forContact:1])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == RecordNote
-
-        when: "call"
-        res = service.determineClass([callContact:c1.id])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == RecordCall
-    }
-
-    void "test parsing types"() {
-        given: "a record with one of each type"
-        Record rec1 = new Record()
-        rec1.save(flush:true, failOnError:true)
-
-        RecordText rText1 = rec1.storeOutgoingText("hi").payload
-        RecordCall rCall1 = rec1.storeOutgoingCall().payload
-        RecordNote rNote1 = new RecordNote(record: rec1)
-        [rText1, rCall1, rNote1]*.save(flush:true, failOnError:true)
-
-        when:
-        List<Class<? extends RecordItem>> clazzes = service.parseTypes(typesFilter)
-
-        then:
-        clazzes.size() == numResults
-
-        where:
-        typesFilter              | numResults
-        ["call"]                 | 1
-        ["text"]                 | 1
-        ["note"]                 | 1
-        ["call", "text"]         | 2
-        ["text", "note"]         | 2
-        ["call", "text", "note"] | 3
-        ["BAD!", "text", "note"] | 2
     }
 }

@@ -2,19 +2,12 @@ package org.textup
 
 import com.amazonaws.services.cloudfront.CloudFrontUrlSigner.Protocol
 import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.ObjectMetadata
-import com.amazonaws.services.s3.model.PutObjectResult
+import com.amazonaws.services.s3.model.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
-import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.codec.digest.DigestUtils
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
-import org.springframework.context.MessageSource
 import org.textup.type.*
 import org.textup.util.TestHelpers
 import org.textup.validator.*
@@ -27,49 +20,40 @@ import spock.lang.Specification
 @TestMixin(HibernateTestMixin)
 class StorageServiceSpec extends Specification {
 
-	String _objectKey
-	Date _expiration
-    String _signedUrl
-    String _eTag = UUID.randomUUID().toString()
-
 	static doWithSpring = {
 		resultFactory(ResultFactory)
 	}
 
 	void setup() {
 		service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-		service.s3Service = [
-            putObject: { String bucket, String key, InputStream stream, ObjectMetadata meta ->
-                [getETag: { -> _eTag }] as PutObjectResult
-            }
-        ] as AmazonS3Client
-        service.grailsApplication = [
-            getFlatConfig: { ->
-                [
-                    "textup.media.bucketName": "testing-bucket",
-                    "textup.media.cdn.root": "testing.textup.org",
-                    "textup.media.cdn.keyId": "testingKey",
-                    "textup.media.cdn.privateKeyPath": "/test-key.der"
-                ]
-            }
-        ] as GrailsApplication
-        service.metaClass.getSignedLink = { Protocol protocol, String root, File keyFile,
-            String objectKey, String keyId, Date expiresAt ->
-            _objectKey = objectKey
-            _expiration = expiresAt
-            new URL(_signedUrl)
-        }
+        service.grailsApplication = grailsApplication
 	}
 
-    // Authenticated links
-    // -------------------
+    // Links
+    // -----
+
+    void "test generating public links"() {
+        given:
+        String root = grailsApplication.flatConfig["textup.media.cdn.root"]
+        String identifier = TestHelpers.randString()
+
+        expect:
+        service.generateLink(identifier).payload?.toString() == "https://${root}/${identifier}"
+    }
 
     void "test generating authenticated links"() {
+        given:
+        String objectKey = null
+        Date expiration = null
+        String signedUrl = "https://www.example.com"
+        service.metaClass.getSignedLink = { Protocol a1, String a2, File a3, String a4, String a5, Date a6 ->
+            objectKey = a4
+            expiration = a6
+            new URL(signedUrl)
+        }
+
     	when:
-        _objectKey = null
-        _expiration = null
-        _signedUrl = "https://www.example.com"
-    	String key = "mykey"
+    	String key = TestHelpers.randString()
     	DateTime expires = DateTime.now().plusDays(1)
     	Result<URL> res = service.generateAuthLink(key, expires)
 
@@ -77,9 +61,9 @@ class StorageServiceSpec extends Specification {
     	res.success == true
         res.status == ResultStatus.OK
     	res.payload instanceof URL
-    	_signedUrl == res.payload.toString()
-    	_objectKey == key
-    	expires.isEqual(_expiration.time)
+    	signedUrl == res.payload.toString()
+    	objectKey == key
+    	expires.isEqual(expiration.time)
     }
 
     // Uploading
@@ -87,53 +71,73 @@ class StorageServiceSpec extends Specification {
 
     void "test uploading"() {
         given:
+        service.s3Service = Mock(AmazonS3Client)
         UploadItem invalidItem = new UploadItem()
         assert invalidItem.validate() == false
 
         byte[] inputData1 = TestHelpers.getPngSampleData()
-        UploadItem validItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            type: MediaType.IMAGE_PNG,
-            data: inputData1)
+        UploadItem validItem = new UploadItem(type: MediaType.IMAGE_PNG, data: inputData1)
         assert validItem.validate() == true
 
         when: "try to upload an invalid upload item"
         Result<PutObjectResult> res = service.upload(invalidItem)
 
         then: "validation errors"
+        0 * service.s3Service._
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         res.errorMessages.size() == invalidItem.errors.errorCount
 
         when: "try to upload a valid upload item"
+        validItem.isPublic = false
         res = service.upload(validItem)
 
         then:
-        res.success == true
+        1 * service.s3Service.putObject(*_) >> { PutObjectRequest request ->
+            assert request.getCannedAcl() == null
+        }
         res.status == ResultStatus.OK
-        res.payload instanceof PutObjectResult
-        res.payload.getETag() == _eTag
+
+        when: "valid public upload item"
+        validItem.isPublic = true
+        res = service.upload(validItem)
+
+        then:
+        1 * service.s3Service.putObject(*_) >> { PutObjectRequest request ->
+            assert request.getCannedAcl() == CannedAccessControlList.PublicRead
+        }
+        res.status == ResultStatus.OK
 
         when: "try to upload by supplying each required piece of info"
-        res = service.upload(validItem.key, validItem.type.mimeType,
+        res = service.upload(validItem.key, validItem.type.mimeType, false,
             new ByteArrayInputStream(validItem.data))
 
         then:
-        res.success == true
+        1 * service.s3Service.putObject(*_) >> { PutObjectRequest request ->
+            assert request.getCannedAcl() == null
+        }
         res.status == ResultStatus.OK
-        res.payload instanceof PutObjectResult
-        res.payload.getETag() == _eTag
+
+        when: "upload as a public item"
+        res = service.upload(validItem.key, validItem.type.mimeType, true,
+            new ByteArrayInputStream(validItem.data))
+
+        then:
+        1 * service.s3Service.putObject(*_) >> { PutObjectRequest request ->
+            assert request.getCannedAcl() == CannedAccessControlList.PublicRead
+        }
+        res.status == ResultStatus.OK
     }
 
     void "test uploading batch of items asynchronously"() {
         given: "many upload items"
+        service.s3Service = Mock(AmazonS3Client)
         List<UploadItem> uItems = []
         int numSuccesses = 5
         int numFailures = 3
         byte[] inputData1 = TestHelpers.getPngSampleData()
         numSuccesses.times {
-            uItems << new UploadItem(mediaVersion: MediaVersion.SEND,
-                type: MediaType.IMAGE_PNG,
-                data: inputData1)
+            uItems << new UploadItem(type: MediaType.IMAGE_PNG, data: inputData1)
         }
         numFailures.times { uItems << new UploadItem() }
 
@@ -147,9 +151,8 @@ class StorageServiceSpec extends Specification {
         resGroup = service.uploadAsync(uItems)
 
         then:
-        resGroup.isEmpty == false
+        numSuccesses * service.s3Service.putObject(*_)
         resGroup.successes.size() == numSuccesses
-        resGroup.successes.every { it.payload instanceof PutObjectResult }
         resGroup.failures.size() == numFailures
     }
 }

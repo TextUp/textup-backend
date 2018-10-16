@@ -6,14 +6,10 @@ import grails.test.mixin.TestMixin
 import grails.test.runtime.DirtiesRuntime
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.atomic.AtomicInteger
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.codec.digest.DigestUtils
+import java.util.concurrent.*
 import org.apache.http.HttpStatus as ApacheHttpStatus
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
-import org.textup.rest.TwimlBuilder
+import org.textup.media.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -27,14 +23,19 @@ class MediaServiceSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
+        audioUtils(AudioUtils,
+            TestHelpers.config.textup.media.audio.executableDirectory,
+            TestHelpers.config.textup.media.audio.executableName,
+            TestHelpers.config.textup.tempDirectory)
     }
 
     def setup() {
+        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
 
-    // Media actions
-    // -------------
+    // Handling actions
+    // ----------------
 
     void "test for having media actions"() {
         expect:
@@ -43,112 +44,14 @@ class MediaServiceSpec extends Specification {
         true == service.hasMediaActions([doMediaActions:"blah"])
     }
 
-    void "test creating send version for #type"() {
-        given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
-
-        when: "invalid content type"
-        Result<UploadItem> res = service.createSendVersion(null, data)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("nullable")
-
-        when: "pass in content type and data"
-        res = service.createSendVersion(type, data)
-
-        then: "create send version with appropriate width and file size"
-        res.status == ResultStatus.OK
-        res.payload instanceof UploadItem
-        res.payload.type == type
-        res.payload.mediaVersion == MediaVersion.SEND
-
-        where:
-        type                 | _
-        MediaType.IMAGE_PNG  | _
-        MediaType.IMAGE_JPEG | _
-        MediaType.IMAGE_GIF  | _
-    }
-
-    void "test creating display versions for #type"() {
-        given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
-
-        when: "pass in image that is larger than the `large` max size"
-        Result<List<UploadItem>> res = service.createDisplayVersions(type, data)
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload.size() == 3
-        [MediaVersion.LARGE, MediaVersion.MEDIUM, MediaVersion.SMALL].every { mVers ->
-            res.payload.find { it.mediaVersion == mVers }
-        }
-        res.payload.every { it.type == type }
-
-        where:
-        type                 | _
-        MediaType.IMAGE_PNG  | _
-        MediaType.IMAGE_JPEG | _
-        MediaType.IMAGE_GIF  | _
-    }
-
-    void "test creating versions overall for #type"() {
-        given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
-
-        when: "pass in data"
-        Result<List<UploadItem>> res = service.createUploads(type, data)
-
-        then: "get back both send and display versions"
-        res.status == ResultStatus.OK
-        res.payload.size() == 4
-        MediaVersion.values().every { mVers -> res.payload.find { it.mediaVersion == mVers } }
-        res.payload.every { it.type == type }
-
-        where:
-        type                 | _
-        MediaType.IMAGE_PNG  | _
-        MediaType.IMAGE_JPEG | _
-        MediaType.IMAGE_GIF  | _
-    }
-
-    void "test adding media overall #type"() {
-        given:
-        MediaInfo mInfo = new MediaInfo()
-        mInfo.save(flush: true, failOnError: true)
-        List<UploadItem> uItems = []
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
-        int iBaseline = MediaInfo.count()
-        int eBaseline = MediaElement.count()
-        int vBaseline = MediaElementVersion.count()
-
-        when: "pass in data"
-        Result<MediaInfo> res = service.doAddMedia(mInfo, uItems.&addAll, type, data)
-        MediaInfo.withSession { it.flush() }
-
-        then: "media info has a new media element added to it"
-        uItems.size() == 4
-        res.status == ResultStatus.OK
-        res.payload == mInfo
-        MediaInfo.count() == iBaseline
-        MediaElement.count() == eBaseline + 1
-        MediaElementVersion.count() == vBaseline + 4
-
-        where:
-        type                 | _
-        MediaType.IMAGE_PNG  | _
-        MediaType.IMAGE_JPEG | _
-        MediaType.IMAGE_GIF  | _
-    }
-
     void "test handling media actions errors"() {
         given:
         String rawData = "I am some data*~~~~|||"
-        String encodedData = Base64.encodeBase64String(rawData.getBytes(StandardCharsets.UTF_8))
-        String checksum = DigestUtils.md5Hex(encodedData)
+        String encodedData = TestHelpers.encodeBase64String(rawData.bytes)
+        String checksum = TestHelpers.getChecksum(encodedData)
 
         when: "adding - invalid mime type"
-        Result<MediaInfo> res = service.handleActions(null, null, [doMediaActions:[
+        ResultGroup<UploadItem> resGroup = service.handleActions(null, [doMediaActions:[
             [
                 action: Constants.MEDIA_ACTION_ADD,
                 mimeType: "not a valid mime type",
@@ -158,11 +61,11 @@ class MediaServiceSpec extends Specification {
         ]])
 
         then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("actionContainer.invalidActions")
+        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
+        resGroup.failures[0].errorMessages.contains("actionContainer.invalidActions")
 
         when: "adding - improperly encoded data"
-        res = service.handleActions(null, null, [doMediaActions:[
+        resGroup = service.handleActions(null, [doMediaActions:[
             [
                 action: Constants.MEDIA_ACTION_ADD,
                 mimeType: MediaType.IMAGE_JPEG.mimeType,
@@ -172,11 +75,11 @@ class MediaServiceSpec extends Specification {
         ]])
 
         then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("actionContainer.invalidActions")
+        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
+        resGroup.failures[0].errorMessages.contains("actionContainer.invalidActions")
 
         when: "adding - missing checksum"
-        res = service.handleActions(null, null, [doMediaActions:[
+        resGroup = service.handleActions(null, [doMediaActions:[
             [
                 action: Constants.MEDIA_ACTION_ADD,
                 mimeType: MediaType.IMAGE_JPEG.mimeType,
@@ -185,71 +88,57 @@ class MediaServiceSpec extends Specification {
         ]])
 
         then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("actionContainer.invalidActions")
+        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
+        resGroup.failures[0].errorMessages.contains("actionContainer.invalidActions")
 
         when: "removing - missing uid"
-        res = service.handleActions(null, null, [doMediaActions:[
+        resGroup = service.handleActions(null, [doMediaActions:[
             [action:Constants.MEDIA_ACTION_REMOVE]
         ]])
 
         then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("actionContainer.invalidActions")
+        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
+        resGroup.failures[0].errorMessages.contains("actionContainer.invalidActions")
 
         when: "invalid action type"
-        res = service.handleActions(null, null, [doMediaActions:[
+        resGroup = service.handleActions(null, [doMediaActions:[
             [
                 action: "invalid"
             ]
         ]])
 
         then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("actionContainer.invalidActions")
+        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
+        resGroup.failures[0].errorMessages.contains("actionContainer.invalidActions")
 
         expect: "invalid for when the contains around the action items are invalid"
-        ResultStatus.UNPROCESSABLE_ENTITY == service.handleActions(null, null, null).status
-        ResultStatus.UNPROCESSABLE_ENTITY == service.handleActions(null, null, [:]).status
+        ResultStatus.UNPROCESSABLE_ENTITY == service.handleActions(null, null).failureStatus
+        ResultStatus.UNPROCESSABLE_ENTITY == service.handleActions(null, [:]).failureStatus
         ResultStatus.UNPROCESSABLE_ENTITY ==
-            service.handleActions(null, null, [doMediaActions:"not a list containing maps"]).status
+            service.handleActions(null, [doMediaActions:"not a list containing maps"]).failureStatus
         ResultStatus.UNPROCESSABLE_ENTITY ==
-            service.handleActions(null, null, [doMediaActions:["not a map"]]).status
+            service.handleActions(null, [doMediaActions:["not a map"]]).failureStatus
     }
 
     @DirtiesRuntime
     void "test adding and removing via media action"() {
         given:
-        List<UploadItem> uItems = []
-        Boolean hasAdded
-        service.metaClass.doAddMedia = { MediaInfo mInfo, Closure<Void> collectUploads,
-            MediaType type, byte[] data ->
-            hasAdded = true; new Result();
+        MediaPostProcessor.metaClass."static".buildInitialData = { MediaType type, byte[] data ->
+            new Result()
         }
         MediaInfo mInfo = Mock(MediaInfo)
 
         when: "add via media action"
-        String rawData = "I am some data*~~~~|||"
-        String encodedData = Base64.encodeBase64String(rawData.getBytes(StandardCharsets.UTF_8))
-        String checksum = DigestUtils.md5Hex(encodedData)
-        Result<MediaInfo> res = service.handleActions(mInfo, uItems.&addAll, [doMediaActions:[
-            [
-                action: Constants.MEDIA_ACTION_ADD,
-                mimeType: MediaType.IMAGE_JPEG.mimeType,
-                data: encodedData,
-                checksum: checksum
-            ]
-        ]])
+        Map addAction = TestHelpers.buildAddMediaAction(MediaType.IMAGE_PNG)
+        ResultGroup<UploadItem> resGroup = service.handleActions(mInfo, [doMediaActions:[addAction]])
 
         then: "add function is called"
         0 * mInfo.removeMediaElement(*_)
-        1 * mInfo.save() >> mInfo
-        true == hasAdded
-        res.status == ResultStatus.OK
-        res.payload instanceof MediaInfo
+        resGroup.isEmpty == false
+        resGroup.successes.size() == 1
 
         when: "remove via media action"
-        res = service.handleActions(mInfo, uItems.&addAll, [doMediaActions:[
+        resGroup = service.handleActions(mInfo, [doMediaActions:[
             [
                 action: Constants.MEDIA_ACTION_REMOVE,
                 uid: "a valid uid"
@@ -258,170 +147,265 @@ class MediaServiceSpec extends Specification {
 
         then:
         1 * mInfo.removeMediaElement(*_)
-        1 * mInfo.save() >> mInfo
-        res.status == ResultStatus.OK
-        res.payload instanceof MediaInfo
+        resGroup.isEmpty == true
     }
 
-    // Receiving media
-    // ---------------
+    // Finishing processing media
+    // --------------------------
 
-    void "test extracting media id from url"() {
-        expect:
-        service.extractMediaIdFromUrl("") == ""
-        service.extractMediaIdFromUrl(null) == ""
-        service.extractMediaIdFromUrl("hellothere/yes") == "yes"
-        service.extractMediaIdFromUrl("hello") == "hello"
-        service.extractMediaIdFromUrl("/") == ""
-        service.extractMediaIdFromUrl("    /") == ""
-        service.extractMediaIdFromUrl("  e  /  ") == "  "
-        service.extractMediaIdFromUrl(" / e  /  ") == "  "
-    }
-
-    @DirtiesRuntime
-    void "test downloading + building versions for incoming media"() {
+    void "test processing element"() {
         given:
-        int numTimesCalled = 0
-        service.metaClass.doAddMedia = { MediaInfo mInfo, Closure<Void> collectUploads,
-            MediaType type, byte[] data ->
-            numTimesCalled++; new Result();
+        UploadItem inputItem = TestHelpers.buildUploadItem()
+        UploadItem sendItem = TestHelpers.buildUploadItem()
+        UploadItem altItem = TestHelpers.buildUploadItem()
+        MediaPostProcessor.metaClass."static".process = { MediaType type, byte[] data ->
+            new Result(payload: Tuple.create(sendItem, [altItem]))
         }
-        String root = Constants.TEST_STATUS_ENDPOINT,
-            un = TestHelpers.randString(),
-            pwd = TestHelpers.randString()
-        service.grailsApplication = [
-            getFlatConfig: { ->
-                [
-                    ("textup.apiKeys.twilio.sid"): un,
-                    ("textup.apiKeys.twilio.authToken"): pwd
-                ]
-            }
-        ] as GrailsApplication
-        int failCode = ApacheHttpStatus.SC_REQUEST_TIMEOUT
+        MediaElement e1 = new MediaElement()
+        e1.save(flush: true, failOnError: true)
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
 
-        Map<String, String> invalidInfo = ["valid url here": "invalid mime type"],
-            failInfo = ["${root}/status/${failCode}": MediaType.IMAGE_JPEG.mimeType],
-            okInfo = ["${root}/basic-auth/${un}/${pwd}": MediaType.IMAGE_JPEG.mimeType]
-
-        when: "the response has an invalid mime type"
-        Result<MediaInfo> res = service.buildFromIncomingMedia(invalidInfo, { u1 -> }, { id -> })
-
-        then: "asset with invalid mime type is ignored"
-        0 == numTimesCalled
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("mediaService.buildFromIncomingMedia.invalidMimeType")
-
-        when: "response has a error status"
-        res = service.buildFromIncomingMedia(failInfo, { u1 -> }, { id -> })
+        when:
+        Result<Tuple<List<UploadItem>, MediaElement>> res = service.processElement(inputItem, e1)
+        MediaElement.withSession { it.flush() }
 
         then:
-        0 == numTimesCalled
-        res.status == ResultStatus.convert(failCode)
-        res.errorMessages.contains("mediaService.buildFromIncomingMedia.couldNotRetrieveMedia")
-
-        when: "response has a non-error status"
-        res = service.buildFromIncomingMedia(okInfo, { u1 -> }, { id -> })
-
-        then: "add function is called + media ids are extracted and collected"
-        1 == numTimesCalled
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline + 2
         res.status == ResultStatus.OK
+        res.payload.first.size() == 2
+        res.payload.first.every { it == sendItem || it == altItem }
+        res.payload.second == e1
+        res.payload.second.sendVersion.versionId == sendItem.key
+        res.payload.second.alternateVersions.size() == 1
+        res.payload.second.alternateVersions[0].versionId == altItem.key
     }
 
-    @DirtiesRuntime
-    void "test deleting media"() {
+    void "test finishing processing overall"() {
         given:
-        AtomicInteger timesCalled = new AtomicInteger()
-        service.metaClass.deleteMediaHelper = { String id1, String id2 ->
-            timesCalled.getAndIncrement(); new Result(payload: true);
+        service.storageService = Mock(StorageService)
+        UploadItem inputItem = TestHelpers.buildUploadItem()
+        UploadItem sendItem = TestHelpers.buildUploadItem()
+        UploadItem altItem = TestHelpers.buildUploadItem()
+        MediaPostProcessor.metaClass."static".process = { MediaType type, byte[] data ->
+            new Result(payload: Tuple.create(sendItem, [altItem]))
         }
-        Collection<String> mediaIds = []
-        50.times { mediaIds << UUID.randomUUID().toString() }
-
-        when: "given media ids to delete"
-        Result<Void> res = service.deleteMedia("messageId", mediaIds)
-
-        then: "all provided media is are deleted"
-        res.status == ResultStatus.NO_CONTENT
-        timesCalled.get() == mediaIds.size()
-    }
-
-    // Sending media
-    // -------------
-
-    void "test sending media for text"() {
-        given:
-        service.textService = Mock(TextService)
         MediaInfo mInfo = new MediaInfo()
-        (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
-            mInfo.addToMediaElements(TestHelpers.buildMediaElement())
+        MediaElement e1 = new MediaElement()
+        mInfo.addToMediaElements(e1)
+        mInfo.save(flush: true, failOnError: true)
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
+
+        when:
+        List<Tuple<UploadItem, MediaElement>> toProcess = [Tuple.create(inputItem, e1)]
+        Result<MediaInfo> res = service.tryFinishProcessing(mInfo, toProcess)
+        MediaInfo.withSession { it.flush() }
+
+        then: "re-adding the element to the parent does not result in a duplicate association"
+        1 * service.storageService.uploadAsync(*_) >> { args ->
+            assert args[0].size() == 2
+            assert args[0].every { it == sendItem || it == altItem }
+            new ResultGroup()
         }
-
-        when: "no media"
-        service.sendWithMediaForText(null, null, null, null)
-
-        then: "send without media"
-        1 * service.textService.send(*_) >> new Result()
-
-        when: "with media"
-        service.sendWithMediaForText(null, null, null, mInfo)
-
-        then: "send with media in batches"
-        (1.._) * service.textService.send(*_) >> new Result()
+        res.status == ResultStatus.OK
+        res.payload instanceof MediaInfo
+        res.payload.id == mInfo.id
+        res.payload.mediaElements.size() == 1
+        res.payload.mediaElements[0].sendVersion.versionId == sendItem.key
+        res.payload.mediaElements[0].alternateVersions.size() == 1
+        res.payload.mediaElements[0].alternateVersions[0].versionId == altItem.key
+        MediaInfo.count() == mBaseline
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline + 2
     }
 
-    void "test sending media for call"() {
+    // Processing media overall
+    // ------------------------
+
+    void "test processing with no media actions"() {
         given:
-        service.callService = Mock(CallService)
-        service.textService = Mock(TextService)
-        Token callToken = new Token(token: "valid token value")
         MediaInfo mInfo = new MediaInfo()
-        (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
-            mInfo.addToMediaElements(TestHelpers.buildMediaElement())
-        }
+        mInfo.save(flush: true, failOnError: true)
+        WithMedia withMedia = Mock(WithMedia)
 
-        when: "no media"
-        service.sendWithMediaForCall(null, null, callToken, null)
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
 
-        then: "only call"
-        1 * service.callService.start(*_) >> new Result()
-        0 * service.textService.send(*_)
+        when: "with media info"
+        Result<Tuple<MediaInfo, Future<Result<MediaInfo>>>> res1 = service.tryProcess(mInfo, null)
+        MediaInfo.withSession { it.flush() }
 
-        when: "with media"
-        service.sendWithMediaForCall(null, null, callToken, mInfo)
+        then:
+        res1.status == ResultStatus.OK
+        res1.payload.first == mInfo
+        res1.payload.second instanceof Future // this is a no-op future
+        MediaInfo.count() == mBaseline
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline
 
-        then: "send media via text message and also call"
-        1 * service.callService.start(*_) >> new Result()
-        (1.._) * service.textService.send(*_) >> new Result()
+        when: "with media owner"
+        Result<Tuple<WithMedia, Future<Result<MediaInfo>>>> res2 = service.tryProcess(withMedia, null)
+        MediaInfo.withSession { it.flush() }
+
+        then:
+        (1.._) * withMedia.getMedia()
+        0 * withMedia.setMedia(*_)
+        res2.status == ResultStatus.OK
+        res2.payload.first == withMedia
+        res2.payload.second instanceof Future // this is a no-op future
+        MediaInfo.count() == mBaseline
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline
     }
 
-    void "test sending with media overall"() {
+    @FreshRuntime
+    void "test processing an image given the media object"() {
         given:
-        service.callService = Mock(CallService)
-        service.textService = Mock(TextService)
-        Token callToken = new Token(token: "valid token value")
+        service.threadService = Mock(ThreadService)
+        service.storageService = Mock(StorageService)
+        MockedMethod trySetOnRequest = TestHelpers.mock(Helpers, "trySetOnRequest") { new Result() }
+        MediaInfo mInfo = new MediaInfo()
+        mInfo.save(flush: true, failOnError: true)
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
+        Closure finishProcessing
 
-        when: "without call token"
-        Result<List<TempRecordReceipt>> res = service.sendWithMedia(null, null, null, null, null)
+        when: "valid add and remove actions"
+        Map addAction = TestHelpers.buildAddMediaAction(MediaType.IMAGE_JPEG)
+        Map removeAction = [action: Constants.MEDIA_ACTION_REMOVE, uid: "a valid uid"]
+        Result<Tuple<MediaInfo, Future<Result<MediaInfo>>>> res = service.tryProcess(mInfo,
+            [doMediaActions: [addAction, removeAction]])
+        MediaInfo.withSession { it.flush() }
 
-        then: "send as text"
-        0 * service.callService.start(*_)
-        1 * service.textService.send(*_) >> new Result()
+        then: "after"
+        1 * service.threadService.submit(*_) >> { Closure action ->
+            finishProcessing = action
+            Helpers.noOpFuture()
+        }
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
+        trySetOnRequest.callCount == 1
         res.status == ResultStatus.OK
+        res.payload.first.id == mInfo.id
+        res.payload.first.mediaElements.size() == 1
+        res.payload.second instanceof Future // this is a no-op future -- see threadService stub
+        MediaInfo.count() == mBaseline
+        MediaElement.count() == eBaseline + 1
+        MediaElementVersion.count() == vBaseline + 1 // initial version
 
-        when: "with call token"
-        res = service.sendWithMedia(null, null, null, null, callToken)
+        when: "wait for asynchronous media processing to finish"
+        Result<MediaInfo> finishedRes = finishProcessing.call()
+        MediaInfo.withSession { it.flush() }
 
-        then: "send as call"
-        1 * service.callService.start(*_) >> new Result()
-        0 * service.textService.send(*_)
+        then:
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // again after finishing
+        trySetOnRequest.callCount == 1
+        finishedRes.status == ResultStatus.OK
+        finishedRes.payload.id == mInfo.id
+        finishedRes.payload.mediaElements.size() == 1
+        finishedRes.payload.mediaElements[0].sendVersion != null
+        finishedRes.payload.mediaElements[0].alternateVersions.size() == 4 // FOR IMAGES: initial version + 3 alternates for each screen size
+        MediaInfo.count() == mBaseline
+        MediaElement.count() == eBaseline + 1
+        MediaElementVersion.count() == vBaseline + 5 // initial version + send version + 3 alt versions
+    }
+
+    @FreshRuntime
+    void "test processing audio clip given the media owner withOUT existing media"() {
+        given:
+        service.threadService = Mock(ThreadService)
+        service.storageService = Mock(StorageService)
+        MockedMethod trySetOnRequest = TestHelpers.mock(Helpers, "trySetOnRequest") { new Result() }
+        WithMedia withMedia = Mock(WithMedia)
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
+        int numInTemp = TestHelpers.numInTempDirectory
+        Closure finishProcessing
+
+        when: "media owner does NOT have media"
+        Map addAction = TestHelpers.buildAddMediaAction(MediaType.AUDIO_WEBM_VORBIS)
+        Result<Tuple<WithMedia, Future<Result<MediaInfo>>>> res = service.tryProcess(withMedia,
+            [doMediaActions: [addAction]])
+        MediaInfo.withSession { it.flush() }
+
+        then: "one is created"
+        (1.._) * withMedia.getMedia() >> null
+        1 * withMedia.setMedia(*_) >> { MediaInfo mInfo ->
+            assert mInfo.mediaElements.size() == 1 // initial version
+        }
+        1 * service.threadService.submit(*_) >> { Closure action ->
+            finishProcessing = action
+            Helpers.noOpFuture()
+        }
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
+        trySetOnRequest.callCount == 1
         res.status == ResultStatus.OK
+        res.payload.first instanceof WithMedia
+        res.payload.second instanceof Future
+        MediaInfo.count() == mBaseline + 1
+        MediaElement.count() == eBaseline + 1
+        MediaElementVersion.count() == vBaseline + 1 // initial version
+        TestHelpers.numInTempDirectory == numInTemp
 
-        when: "has some errors"
-        res = service.sendWithMedia(null, null, null, null, callToken)
+        when: "wait for asynchronous media processing to finish"
+        Result<MediaInfo> finishedRes = finishProcessing.call()
+        MediaInfo.withSession { it.flush() }
 
-        then: "return error"
-        1 * service.callService.start(*_) >> new Result(status: ResultStatus.BAD_REQUEST)
-        0 * service.textService.send(*_)
-        res.status == ResultStatus.BAD_REQUEST
+        then:
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // again after finishing
+        trySetOnRequest.callCount == 1
+        finishedRes.status == ResultStatus.OK
+        finishedRes.payload instanceof MediaInfo
+        finishedRes.payload.mediaElements.size() == 1
+        finishedRes.payload.mediaElements[0].sendVersion != null
+        finishedRes.payload.mediaElements[0].alternateVersions.size() == 2 // FOR AUDIO: 1 alternate + initial
+        MediaInfo.count() == mBaseline + 1
+        MediaElement.count() == eBaseline + 1
+        MediaElementVersion.count() == vBaseline + 3 // FOR AUDIO: initial + send + 1 alternate
+        TestHelpers.numInTempDirectory == numInTemp
+    }
+
+    @FreshRuntime
+    void "test processing media for media owner WITH existing media"() {
+        given:
+        service.threadService = Mock(ThreadService)
+        service.storageService = Mock(StorageService)
+        MockedMethod trySetOnRequest = TestHelpers.mock(Helpers, "trySetOnRequest") { new Result() }
+        MediaInfo mInfo = new MediaInfo()
+        mInfo.save(flush: true, failOnError: true)
+        WithMedia withMedia = Mock(WithMedia)
+
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
+        int numInTemp = TestHelpers.numInTempDirectory
+
+        when:
+        Map addAction = TestHelpers.buildAddMediaAction(MediaType.AUDIO_WEBM_VORBIS)
+        Result<Tuple<WithMedia, Future<Result<MediaInfo>>>> res = service.tryProcess(withMedia,
+            [doMediaActions: [addAction]])
+        MediaInfo.withSession { it.flush() }
+
+        then: "no new media info object is created"
+        (1.._) * withMedia.getMedia() >> mInfo
+        1 * withMedia.setMedia(*_) >> { MediaInfo thisMediaInfo ->
+            assert thisMediaInfo.mediaElements.size() == 1 // initial version
+            assert thisMediaInfo.id == mInfo.id
+        }
+        1 * service.threadService.submit(*_) >> Helpers.noOpFuture()
+        1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
+        trySetOnRequest.callCount == 1
+        res.status == ResultStatus.OK
+        res.payload.first instanceof WithMedia
+        res.payload.second instanceof Future
+        MediaInfo.count() == mBaseline
+        MediaElement.count() == eBaseline + 1
+        MediaElementVersion.count() == vBaseline + 1 // initial version
+        TestHelpers.numInTempDirectory == numInTemp
     }
 }

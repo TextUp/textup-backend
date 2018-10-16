@@ -4,15 +4,9 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import groovy.json.JsonBuilder
-import groovy.xml.MarkupBuilder
-import javax.servlet.http.HttpServletRequest
 import org.joda.time.DateTime
-import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.type.ReceiptStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
 
@@ -28,81 +22,79 @@ class PasswordResetControllerSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    private String _username, _token
-
     def setup() {
-        super.setupData()
-        controller.tokenService = [requestReset:{ String un ->
-        	_username = un
-        	new Result(status:ResultStatus.NO_CONTENT, payload:null)
-    	}, resetPassword: { String token, String pwd ->
-    		_token = token
-    		new Result(status:ResultStatus.NO_CONTENT, payload:null)
-		}] as TokenService
-    }
-    def cleanup() {
-        super.cleanupData()
+        setupData()
     }
 
-    protected String toJson(Closure data) {
-    	JsonBuilder builder = new JsonBuilder()
-    	builder(data)
-    	builder.toString()
+    def cleanup() {
+        cleanupData()
     }
 
     // Request reset
     // -------------
 
     void "test request reset without username"() {
+        given:
+        controller.passwordResetService = Mock(PasswordResetService)
+
     	when:
     	request.method = "POST"
     	request.json = "{}"
     	controller.requestReset()
 
     	then:
+        0 * controller.passwordResetService._
     	response.status == SC_BAD_REQUEST
     }
 
     void "test request request success"() {
+        given:
+        String un = TestHelpers.randString()
+        controller.passwordResetService = Mock(PasswordResetService)
+
     	when:
     	request.method = "POST"
-    	request.json = toJson({
-    		username(s1.username)
-		})
+    	request.json = Helpers.toJsonString { username(un) }
     	controller.requestReset()
 
     	then:
+        1 * controller.passwordResetService.start(un) >> new Result(status: ResultStatus.NO_CONTENT)
     	response.status == SC_NO_CONTENT
-    	_username == s1.username
     }
 
     // Complete request
     // ----------------
 
     void "test complete request with missing info"() {
+        given:
+        controller.passwordResetService = Mock(PasswordResetService)
+
     	when:
     	request.method = "PUT"
     	request.json = "{}"
     	controller.resetPassword()
 
     	then:
+        0 * controller.passwordResetService._
     	response.status == SC_BAD_REQUEST
     }
 
     void "test complete request success"() {
     	given:
-    	String tok = "iamaspecialsnowflake"
+    	String tok = TestHelpers.randString()
+        String pwd = TestHelpers.randString()
+        controller.passwordResetService = Mock(PasswordResetService)
 
     	when:
     	request.method = "PUT"
-    	request.json = toJson({
+    	request.json = Helpers.toJsonString {
     		token(tok)
-    		password("sokewl")
-		})
+    		password(pwd)
+		}
     	controller.resetPassword()
 
     	then:
+        1 * controller.passwordResetService.finish(tok, pwd) >> new Result()
     	response.status == SC_NO_CONTENT
-    	 _token == tok
     }
 }

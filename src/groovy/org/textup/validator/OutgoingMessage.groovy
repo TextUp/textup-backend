@@ -24,7 +24,7 @@ class OutgoingMessage {
 
 	static constraints = {
 		// [SHARED maxSize] 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
-		message blank: true, nullable: true, maxSize:15000
+		message blank: true, nullable: true, maxSize: Constants.MAX_TEXT_COLUMN_SIZE
 		media nullable: true, validator: { MediaInfo mInfo, OutgoingMessage obj ->
 			// message must have at least one of text and media
 			if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }
@@ -37,23 +37,25 @@ class OutgoingMessage {
 	HashSet<Contactable> toRecipients() {
 		HashSet<Contactable> recipients = new HashSet<>()
         // add all contactables to a hashset to avoid duplication
-        recipients.addAll(contacts.recipients)
-        recipients.addAll(sharedContacts.recipients)
-        tags.recipients.each { ContactTag ct1 -> recipients.addAll(ct1.members ?: []) }
+        if (contacts) { recipients.addAll(contacts.recipients) }
+        if (sharedContacts) { recipients.addAll(sharedContacts.recipients) }
+        if (tags) {
+        	tags.recipients.each { ContactTag ct1 -> recipients.addAll(ct1.members ?: []) }
+        }
         recipients
 	}
 
 	HashSet<WithRecord> toRecordOwners() {
 		HashSet<WithRecord> recordOwners = new HashSet<>()
-		recordOwners.addAll(contacts.recipients)
-        recordOwners.addAll(sharedContacts.recipients)
-        recordOwners.addAll(tags.recipients)
+		if (contacts) { recordOwners.addAll(contacts.recipients) }
+        if (sharedContacts) { recordOwners.addAll(sharedContacts.recipients) }
+        if (tags) { recordOwners.addAll(tags.recipients) }
         recordOwners
 	}
 
 	Map<Long, List<ContactTag>> getContactIdToTags() {
 		Map<Long, List<ContactTag>> contactIdToTags = [:].withDefault { [] as List<ContactTag> }
-		tags.recipients.each { ContactTag ct1 ->
+		tags?.recipients?.each { ContactTag ct1 ->
 			ct1.members?.each { Contact c1 -> contactIdToTags[c1.id] << ct1 }
 		}
 		contactIdToTags

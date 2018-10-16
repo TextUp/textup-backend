@@ -22,7 +22,7 @@ class MediaPostProcessor {
                     .then { UploadItem sendVersion ->
                         ResultGroup<UploadItem> alternates = processor.createAlternateVersions()
                             .logFail("MediaPostProcessor: creating alternate versions")
-                        Helpers.resultFactory.success(sendVersion, alternates.successes)
+                        Helpers.resultFactory.success(sendVersion, alternates.payload)
                     }
             }
         }
@@ -38,7 +38,7 @@ class MediaPostProcessor {
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         // build processor
-        if (type in MediaType.IMAGE_TYPES) {
+        if (type in MediaType.IMAGE_TYPES && type != MediaType.IMAGE_UNKNOWN) {
             resultFactory.success(new ImagePostProcessor(type, data))
         }
         else if (type in MediaType.AUDIO_TYPES) {

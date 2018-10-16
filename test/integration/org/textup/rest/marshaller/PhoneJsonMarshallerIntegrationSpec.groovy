@@ -2,7 +2,7 @@ package org.textup.rest.marshaller
 
 import grails.converters.JSON
 import org.textup.*
-import org.textup.type.StaffStatus
+import org.textup.type.*
 import org.textup.util.*
 import spock.lang.Unroll
 
@@ -137,5 +137,50 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         json.availability.schedule == null
         json.others instanceof Collection
         json.others.size() == 0 // this is a personal TextUp phone
+    }
+
+    void "test marshal phone with various voicemail options"() {
+        given:
+        String customMsg = TestHelpers.randString()
+        p1.awayMessage = customMsg
+        p1.media = null
+        p1.useVoicemailRecordingIfPresent = false
+        p1.voice = VoiceType.FEMALE
+        p1.save(flush: true, failOnError: true)
+
+        when: "use robovoice to read away message -- no voicemail recording"
+        Map json
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = TestHelpers.jsonToMap(p1 as JSON)
+        }
+
+        then:
+        json.id == p1.id
+        json.awayMessage.contains(customMsg)
+        json.voice == VoiceType.FEMALE.toString()
+        json.useVoicemailRecordingIfPresent == false
+        json.voicemailRecording == null
+
+        when: "use voicemail recording"
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        e1.sendVersion.type = MediaType.AUDIO_MP3
+        p1.media = new MediaInfo()
+        p1.media.addToMediaElements(e1)
+        p1.useVoicemailRecordingIfPresent = true
+        p1.save(flush: true, failOnError: true)
+
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = TestHelpers.jsonToMap(p1 as JSON)
+        }
+
+        then:
+        json.id == p1.id
+        json.awayMessage.contains(customMsg)
+        json.voice == VoiceType.FEMALE.toString()
+        json.useVoicemailRecordingIfPresent == true
+        json.voicemailRecording instanceof Map
+        json.voicemailRecording.uid == e1.uid
+        json.voicemailRecording.versions instanceof Collection
+        json.voicemailRecording.versions*.type.every { it in MediaType.AUDIO_TYPES*.mimeType }
     }
 }

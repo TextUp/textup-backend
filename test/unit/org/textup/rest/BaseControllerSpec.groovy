@@ -139,8 +139,8 @@ class BaseControllerSpec extends CustomSpec {
 
     void "test building pagination options"() {
         given:
-        Integer defaultMax = config.textup.defaultMax
-        Integer largestMax = config.textup.largestMax
+        Integer defaultMax = Constants.DEFAULT_PAGINATION_MAX
+        Integer largestMax = Constants.MAX_PAGINATION_MAX
 
         expect:
         controller.buildPaginationOptions(null, null, null) == [defaultMax, 0, defaultMax]

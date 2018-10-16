@@ -9,7 +9,7 @@ import org.textup.validator.*
 import org.textup.validator.action.*
 
 @GrailsTypeChecked
-@Transactional(readOnly=true)
+@Transactional
 class NotificationService {
 
     GrailsApplication grailsApplication

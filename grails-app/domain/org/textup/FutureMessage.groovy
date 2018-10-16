@@ -24,7 +24,6 @@ import org.textup.validator.*
 class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
 
     Trigger trigger
-    FutureMessageService futureMessageService
 
     String keyName = UUID.randomUUID().toString()
     Record record
@@ -126,7 +125,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
             useForCreation    = false,
             presentInResponse = false)
     ])
-	static transients = ["trigger", "futureMessageService"]
+	static transients = ["trigger"]
     static constraints = {
         // removed the constraint the prohibited message from being null because a future message
         // can now have media so outgoing message can have either text only, media only, or both.
@@ -180,11 +179,6 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
     // Methods
     // -------
 
-    Result<Void> cancel() {
-        this.isDone = true
-        doUnschedule()
-    }
-
     void checkScheduleDaylightSavingsAdjustment(DateTimeZone zone1) {
         if (this.whenCreated && this.startDate && zone1?.isFixed() == false) {
             DateTime prevChangeDate = null,
@@ -214,9 +208,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
     // Helper Methods
     // --------------
 
-    protected Result<Void> doUnschedule() {
-        futureMessageService.unschedule(this).logFail("FutureMessage.cancel")
-    }
+
     protected void refreshTrigger() {
         this.trigger = Helpers.quartzScheduler.getTrigger(this.triggerKey)
     }
@@ -236,8 +228,10 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
 
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
 
-    OutgoingMessage toOutgoingMessage() {
-        Helpers.<OutgoingMessage>doWithoutFlush({
+    ReadOnlyRecord getReadOnlyRecord() { record }
+
+    Result<OutgoingMessage> tryGetOutgoingMessage() {
+        OutgoingMessage msg1 = Helpers.doWithoutFlush {
             // step 1: populate recipients
             ContactRecipients cRecip = new ContactRecipients()
             ContactTagRecipients ctRecip = new ContactTagRecipients()
@@ -248,15 +242,18 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
                 if (contact) { cRecip.recipients = [contact] }
             }
             // step 2: initialize classes
-            OutgoingMessage msg = new OutgoingMessage(
+            new OutgoingMessage(
                 message:this.message,
                 language:this.language,
                 type:this.type?.toRecordItemType(),
                 sharedContacts: new SharedContactRecipients(),
                 contacts: cRecip,
                 tags: ctRecip)
-            msg
-        })
+        }
+        if (msg1.validate()) {
+            Helpers.resultFactory.success(msg1)
+        }
+        else { Helpers.resultFactory.failWithValidationErrors(msg1.errors) }
     }
 
     DateTime getNextFireDate() {

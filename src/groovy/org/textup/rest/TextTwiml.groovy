@@ -19,8 +19,8 @@ class TextTwiml {
     // Errors
     // ------
 
-    static Result<Closure> invalidNumber() {
-        message("twimlBuilder.notFound")
+    static Result<Closure> invalid() {
+        message("twimlBuilder.invalidNumber")
     }
 
 
@@ -45,8 +45,8 @@ class TextTwiml {
 
     // TextResponse.SEE_ANNOUNCEMENTS
     static Result<Closure> seeAnnouncements(Collection<FeaturedAnnouncement> announces) {
-        if (!announces) {
-            return TwilioUtils.invalidTwimlInputs(TextResponse.SEE_ANNOUNCEMENTS)
+        if (announces == null) {
+            return TwilioUtils.invalidTwimlInputs(TextResponse.SEE_ANNOUNCEMENTS.toString())
         }
         build(TwilioUtils.formatAnnouncementsForRequest(announces))
     }
@@ -64,7 +64,7 @@ class TextTwiml {
     // Helpers
     // -------
 
-    protected static Result<Closure> message(String code, List<?> params) {
+    protected static Result<Closure> message(String code, List<?> params = []) {
         String msg = Helpers.getMessage(code, params)
         TwilioUtils.wrapTwiml { Message(msg) }
     }

@@ -3,9 +3,15 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import grails.util.Holders
+import java.util.concurrent.*
+import org.apache.http.client.methods.*
+import org.apache.http.HttpResponse
+import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
-import org.textup.type.CallResponse
-import org.textup.validator.PhoneNumber
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.Specification
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -17,6 +23,10 @@ class HelpersSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
     }
 
     void "test converting enums"() {
@@ -190,22 +200,6 @@ class HelpersSpec extends Specification {
         Helpers.appendGuaranteeLength("hello", "yes", 10) == "helloyes"
     }
 
-    void "test formatting number for say"() {
-        expect:
-        Helpers.formatNumberForSay("1---23asfas") == "1 2 3"
-        Helpers.formatNumberForSay(new PhoneNumber(number:"1---23asfas")) == "1 2 3"
-        Helpers.formatNumberForSay("1---23asfas222asdf8888") == "1 2 3 2 2 2 8 8 8 8"
-        Helpers.formatNumberForSay(new PhoneNumber(number:"1---23asfas222asdf8888")) == "1 2 3 2 2 2 8 8 8 8"
-    }
-
-    void "test formatting number only if phone number"() {
-        expect: "no formatting when argument is not a phone number"
-        Helpers.formatForSayIfPhoneNumber("1---23asfas") == "1---23asfas"
-
-        and: "formatted for say when argument is a valid phone number"
-        Helpers.formatForSayIfPhoneNumber("1---23asfas222asdf8888") == "1 2 3 2 2 2 8 8 8 8"
-    }
-
     void "test json operations"() {
         given:
         Map seedData = [hello:[1, 2, 3], goodbye: "hello"]
@@ -250,5 +244,136 @@ class HelpersSpec extends Specification {
         then: "IllegalStateException is caught and gracefully returned -- see mock"
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
         res.errorMessages[0].contains("No thread-bound request found")
+    }
+
+    void "test getting notification number"() {
+        when: "missing notification number"
+        Holders.metaClass.'static'.getFlatConfig = { ->
+            ["textup.apiKeys.twilio.notificationNumber": null]
+        }
+        Result<PhoneNumber> res = Helpers.tryGetNotificationNumber()
+
+        then:
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages[0] == "helpers.getNotificationNumber.missing"
+
+        when: "invalid notification number"
+        Holders.metaClass.'static'.getFlatConfig = { ->
+            ["textup.apiKeys.twilio.notificationNumber": "not a phone number"]
+        }
+        res = Helpers.tryGetNotificationNumber()
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.size() > 0
+
+        when: "valid notification number"
+        String notifNum = TestHelpers.randPhoneNumber()
+        Holders.metaClass.'static'.getFlatConfig = { ->
+            ["textup.apiKeys.twilio.notificationNumber": notifNum]
+        }
+        res = Helpers.tryGetNotificationNumber()
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload instanceof PhoneNumber
+        notifNum == res.payload.number
+    }
+
+    void "testing getting webhook link"() {
+        given:
+        Helpers.metaClass.'static'.getLinkGenerator = { ->
+            [link: { Map m -> m.toString() }] as LinkGenerator
+        }
+        String handle = TestHelpers.randString()
+
+        when:
+        String link = Helpers.getWebhookLink(handle: handle)
+
+        then: "test the stringified map"
+        link.contains(handle)
+        link.contains("handle")
+        link.contains("publicRecord")
+        link.contains("save")
+        link.contains("v1")
+    }
+
+    void "test resolving message"() {
+        given:
+        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
+
+        when: "from code"
+        String code = TestHelpers.randString()
+        String msg = Helpers.getMessage(code, [1, 2, 3])
+
+        then:
+        msg == code
+
+        when: "from resolvable object"
+        Location emptyLoc1 = new Location()
+        assert emptyLoc1.validate() == false
+        msg = Helpers.getMessage(emptyLoc1.errors.allErrors[0])
+
+        then:
+        msg instanceof String
+        msg != ""
+    }
+
+    void "test generating a no-op Future object"() {
+        when: "null payload"
+        Future<?> fut1 = Helpers.noOpFuture()
+
+        then:
+        fut1.cancel(true) == true
+        fut1.get() == null
+        fut1.get(1, TimeUnit.SECONDS) == null
+        fut1.isCancelled() == false
+        fut1.isDone() == true
+
+        when: "specified payload"
+        String msg = TestHelpers.randString()
+        Future<String> fut2 = Helpers.noOpFuture(msg)
+
+        then:
+        fut2.cancel(true) == true
+        fut2.get() == msg
+        fut2.get(1, TimeUnit.SECONDS) == msg
+        fut2.isCancelled() == false
+        fut2.isDone() == true
+    }
+
+    void "test executing basic auth request"() {
+        given:
+        String root = Constants.TEST_STATUS_ENDPOINT
+        String un = TestHelpers.randString()
+        String pwd = TestHelpers.randString()
+        HttpGet request = new HttpGet("${root}/basic-auth/${un}/${pwd}")
+        Integer statusCode
+
+        when: "body throws an exception"
+        Result<?> res = Helpers.executeBasicAuthRequest(null, null, request) { }
+
+        then: "exception is gracefully handled"
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+
+        when: "invalid credentials"
+        res = Helpers.executeBasicAuthRequest("incorrect", "incorrect", request) { HttpResponse resp ->
+            statusCode = resp.statusLine.statusCode
+            new Result()
+        }
+
+        then:
+        res.status == ResultStatus.OK
+        statusCode >= 400
+
+        when: "valid credentials"
+        res = Helpers.executeBasicAuthRequest(un, pwd, request) { HttpResponse resp ->
+            statusCode = resp.statusLine.statusCode
+            new Result()
+        }
+
+        then:
+        res.status == ResultStatus.OK
+        statusCode < 400
     }
 }

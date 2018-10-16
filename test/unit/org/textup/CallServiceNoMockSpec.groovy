@@ -33,11 +33,8 @@ class CallServiceNoMockSpec extends Specification {
     def setup() {
         def twilioTestConfig = grailsApplication.config.textup.apiKeys.twilio
         Twilio.init(twilioTestConfig.sid, twilioTestConfig.authToken)
-
+        Helpers.metaClass."static".getWebhookLink = { Map args = [:] -> "http://www.example.com" }
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.grailsLinkGenerator = [link: { Map m ->
-            "http://www.example.com"
-        }] as LinkGenerator
     }
 
     void "test starting a call to one or more numbers"() {

@@ -3,7 +3,6 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import groovy.transform.TypeCheckingMode
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.springframework.transaction.annotation.Propagation
@@ -15,7 +14,6 @@ import org.textup.validator.*
 @Transactional
 class TokenService {
 
-    GrailsApplication grailsApplication
     ResultFactory resultFactory
 
     // Initiate
@@ -67,28 +65,26 @@ class TokenService {
     // --------
 
     Result<Staff> findPasswordResetStaff(String token) {
-    	findToken(TokenType.PASSWORD_RESET, token).then({ Token resetToken ->
-            resetToken.timesAccessed++
-            if (!resetToken.save()) {
-                return resultFactory.failWithValidationErrors(resetToken.errors)
-            }
-    		Staff s1 = Staff.get(Helpers.to(Long, resetToken.data.toBeResetId))
-	        if (s1) {
-                resultFactory.success(s1)
-	        }
-            else {
-                log.error("tokenService.resetPassword: for token '$token' \
-                    with toBeResetId '${resetToken.data.toBeResetId}', \
-                    could not find a staff with that id")
-                resultFactory.failWithCodeAndStatus("tokenService.resetPassword.couldNotComplete",
-                    ResultStatus.INTERNAL_SERVER_ERROR)
-            }
-		})
+    	findToken(TokenType.PASSWORD_RESET, token)
+            .then { Token tok -> incrementTimesAccessed(tok) }
+            .then { Token resetToken ->
+        		Staff s1 = Staff.get(Helpers.to(Long, resetToken.data.toBeResetId))
+    	        if (s1) {
+                    resultFactory.success(s1)
+    	        }
+                else {
+                    log.error("tokenService.resetPassword: for token '$token' \
+                        with toBeResetId '${resetToken.data.toBeResetId}', \
+                        could not find a staff with that id")
+                    resultFactory.failWithCodeAndStatus("tokenService.resetPassword.couldNotComplete",
+                        ResultStatus.INTERNAL_SERVER_ERROR)
+                }
+    		}
     }
 
     Result<Void> verifyNumber(String token, PhoneNumber toVerify) {
-    	findToken(TokenType.VERIFY_NUMBER, token).then({ Token tok ->
-            PhoneNumber stored = new PhoneNumber(number:tok.data.toVerifyNumber?.toString())
+    	findToken(TokenType.VERIFY_NUMBER, token).then { Token tok ->
+            PhoneNumber stored = new PhoneNumber(number: tok.data.toVerifyNumber?.toString())
             if (!stored.validate()) {
                 log.error("tokenService.verifyNumber: for token '$token' \
                     with toVerifyNumber '${tok.data.toVerifyNumber}', \
@@ -100,25 +96,29 @@ class TokenService {
                 resultFactory.success() :
                 resultFactory.failWithCodeAndStatus("tokenService.verifyNumber.numbersNoMatch",
                     ResultStatus.NOT_FOUND)
-		})
+		}
     }
 
     Result<Token> findNotification(String token) {
-        findToken(TokenType.NOTIFY_STAFF, token).then { Token tok ->
-            tok.timesAccessed++
-            if (tok.save()) {
-                resultFactory.success(tok)
-            }
-            else { resultFactory.failWithValidationErrors(tok.errors) }
-        }
+        findToken(TokenType.NOTIFY_STAFF, token)
+            .then { Token tok -> incrementTimesAccessed(tok) }
     }
 
     Result<Token> findDirectMessage(String token) {
         findToken(TokenType.CALL_DIRECT_MESSAGE, token)
+            .then { Token tok -> incrementTimesAccessed(tok) }
     }
 
     // Helpers
     // -------
+
+    protected Result<Token> incrementTimesAccessed(Token tok) {
+        tok.timesAccessed++
+        if (tok.save()) {
+            resultFactory.success(tok)
+        }
+        else { resultFactory.failWithValidationErrors(tok.errors) }
+    }
 
     protected Result<Token> generate(TokenType type, Map data, Integer maxNumAccess = null) {
         Token token = new Token(type: type, maxNumAccess: maxNumAccess)
@@ -128,6 +128,7 @@ class TokenService {
         }
         else { resultFactory.failWithValidationErrors(token.errors) }
     }
+
     protected Result<Token> findToken(TokenType type, String token) {
     	Token t1 = Token.findByTypeAndToken(type, token)
         if (!t1) {

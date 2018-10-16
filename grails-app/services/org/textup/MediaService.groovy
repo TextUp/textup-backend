@@ -16,9 +16,6 @@ class MediaService {
     StorageService storageService
     ThreadService threadService
 
-    // Handling media actions
-    // ----------------------
-
     boolean hasMediaActions(Map body) { !!body?.doMediaActions }
     protected Object getMediaActions(Map body) { body?.doMediaActions }
 
@@ -29,7 +26,7 @@ class MediaService {
         tryProcess(withMedia.media ?: new MediaInfo(), body)
             .then { Tuple<MediaInfo, Future<?>> processed ->
                 withMedia.media = processed.first
-                resultFactory.success(processed)
+                resultFactory.success(withMedia, processed.second)
             }
     }
 

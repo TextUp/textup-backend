@@ -1,4 +1,4 @@
-package org.textup
+package org.textup.validator
 
 import com.twilio.rest.api.v2010.account.message.Media
 import com.twilio.rest.api.v2010.account.Recording
@@ -20,7 +20,6 @@ interface IsIncomingMedia {
     Errors getErrors()
 }
 
-// [UNTESTED] because of limitations in mocking
 @GrailsTypeChecked
 @Validateable
 @Log4j
@@ -31,6 +30,11 @@ class IncomingMediaInfo implements IsIncomingMedia {
     String mediaId
     boolean isPublic = false
 
+    static constraints = {
+        url url: true
+    }
+
+    // [UNTESTED] because of limitations in mocking
     Result<Boolean> delete() {
         try {
             Helpers.resultFactory.success(Media.deleter(messageId, mediaId).delete())
@@ -43,7 +47,6 @@ class IncomingMediaInfo implements IsIncomingMedia {
     }
 }
 
-// [UNTESTED] because of limitations in mocking
 @GrailsTypeChecked
 @Validateable
 @Log4j
@@ -53,6 +56,11 @@ class IncomingRecordingInfo implements IsIncomingMedia {
     String mediaId
     boolean isPublic = false
 
+    static constraints = {
+        url url: true
+    }
+
+    // [UNTESTED] because of limitations in mocking
     Result<Boolean> delete() {
         try {
             Helpers.resultFactory.success(Recording.deleter(mediaId).delete())

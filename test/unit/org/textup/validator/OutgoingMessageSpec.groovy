@@ -21,7 +21,6 @@ class OutgoingMessageSpec extends CustomSpec {
 	}
 	def setup() {
 		setupData()
-		Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
 	}
 	def cleanup() {
 		cleanupData()
@@ -54,13 +53,7 @@ class OutgoingMessageSpec extends CustomSpec {
 		msg1.errors.getFieldErrorCount("tags") == 0
 
 		when: "add media element to media so no longer empty"
-		MediaElement e1 = new MediaElement()
-        e1.type = MediaType.IMAGE_JPEG
-        e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
-            key: UUID.randomUUID().toString(),
-            sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
-            widthInPixels: 888)
-        msg1.media.addToMediaElements(e1)
+        msg1.media.addToMediaElements(TestHelpers.buildMediaElement())
 
 		then:
 		msg1.validate() == true
@@ -79,7 +72,7 @@ class OutgoingMessageSpec extends CustomSpec {
 		msg1.errors.getFieldErrorCount("tags") == 1
 
 		when: "add recipients + too-long message"
-		msg1.message = buildVeryLongString()
+		msg1.message = TestHelpers.buildVeryLongString()
 		msg1.contacts = new ContactRecipients()
 		msg1.sharedContacts = new SharedContactRecipients()
 		msg1.tags = new ContactTagRecipients()
@@ -175,12 +168,43 @@ class OutgoingMessageSpec extends CustomSpec {
 			msg1.contacts.recipients.size() + numUniqueContactables
 	}
 
-	// Helpers
-    // -------
+	void "test getting record owners"() {
+		when: "an empty outgoing msg"
+		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
 
-    protected String buildVeryLongString() {
-        StringBuilder sBuilder = new StringBuilder()
-        15000.times { it -> sBuilder << it }
-        sBuilder.toString()
-    }
+		then:
+		msg1.toRecordOwners().isEmpty() == true
+
+		when:
+		msg1.sharedContacts.recipients = [sc1, sc2]
+		msg1.contacts.recipients = [c1, c1_1]
+		msg1.tags.recipients = [tag1, tag1_1]
+
+		then:
+		msg1.toRecordOwners().size() == msg1.sharedContacts.recipients.size() +
+			msg1.contacts.recipients.size() + msg1.tags.recipients.size()
+	}
+
+	void "building map of contact ids to tags"() {
+		when: "an empty outgoing msg"
+		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
+
+		then:
+		msg1.contactIdToTags.isEmpty() == true
+
+		when: "has contacts but no tags"
+		msg1.contacts.recipients = [c1, c1_1]
+
+		then: "still nothing"
+		msg1.contactIdToTags.isEmpty() == true
+
+		when: "has tags"
+		msg1.tags.recipients = [tag1, tag1_1]
+
+		then: "populated -- this method just reformats the tags"
+		msg1.contactIdToTags.isEmpty() == false
+		msg1.contactIdToTags.keySet().every { Long cId ->
+			cId in tag1.members*.id || cId in tag1_1.members*.id
+		}
+	}
 }

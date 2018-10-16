@@ -5,17 +5,15 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
-import org.textup.type.NotificationLevel
-import org.textup.type.SharePermission
-import org.textup.type.StaffStatus
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.BasicNotification
+import org.textup.validator.*
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+    MediaInfo, MediaElement, MediaElementVersion, Token])
 @TestMixin(HibernateTestMixin)
 @TestFor(NotificationService)
 class NotificationServiceSpec extends CustomSpec {
@@ -344,5 +342,101 @@ class NotificationServiceSpec extends CustomSpec {
         phonesToCanNotify[s1.phone] instanceof List
         phonesToCanNotify[s1.phone].size() == 1
         phonesToCanNotify[s1.phone] == [s1]
+    }
+
+    // Sending notifications
+    // ---------------------
+
+    void "test sending for notification"() {
+        given:
+        service.tokenService = Mock(TokenService)
+        service.textService = Mock(TextService)
+        service.grailsApplication = grailsApplication
+
+        String contents = TestHelpers.randString()
+        String instr = TestHelpers.randString()
+        BasicNotification bn1 = [
+            owner: [phone: p1],
+            staff: s1,
+            record: c1.record
+        ] as BasicNotification
+        PhoneNumber personalNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+
+        when: "no personal phone"
+        bn1.staff.personalPhoneAsString = null
+        Result<Void> res = service.sendForNotification(bn1, true, contents, instr)
+
+        then:
+        0 * service.tokenService._
+        0 * service.textService._
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        bn1.staff.personalPhoneNumber = personalNum
+        res = service.sendForNotification(bn1, true, contents, instr)
+
+        then:
+        1 * service.tokenService.generateNotification(*_) >> new Result(payload: [token: "hi"] as Token)
+        1 * service.textService.send(*_) >> new Result()
+        res.success == true
+    }
+
+    void "test sending overall"() {
+        given:
+        service.tokenService = Mock(TokenService)
+        service.textService = Mock(TextService)
+        service.grailsApplication = grailsApplication
+
+        String contents = TestHelpers.randString()
+        String instr = TestHelpers.randString()
+        BasicNotification bn1 = [
+            owner: [phone: p1],
+            staff: s1,
+            record: c1.record
+        ] as BasicNotification
+        List<BasicNotification> notifs = []
+        10.times { notifs << bn1 }
+
+        when:
+        ResultGroup<Void> resGroup = service.send(notifs, true, contents, instr)
+
+        then:
+        notifs.size() * service.tokenService.generateNotification(*_) >>
+            new Result(payload: [token: "hi"] as Token)
+        notifs.size() * service.textService.send(*_) >> new Result()
+        resGroup.successes.size() == notifs.size()
+    }
+
+    // Showing notifications
+    // ---------------------
+
+    void "test showing notification"() {
+        given:
+        service.tokenService = Mock(TokenService)
+        String invalidTokenString = TestHelpers.randString()
+        Token tok1 = new Token(type: TokenType.NOTIFY_STAFF)
+        tok1.data = [
+            contents: "hi",
+            phoneId: p1.id,
+            outgoing: true,
+            recordId: c1.record.id
+        ]
+        tok1.save(flush: true, failOnError: true)
+
+        when: "data stored in token is invalid"
+        Result<Notification> res = service.show(invalidTokenString)
+
+        then:
+        1 * service.tokenService.findNotification(*_) >>
+            new Result(payload: [data: [:]] as Token)
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when: "token has valid data"
+        res = service.show(tok1.token)
+
+        then:
+        1 * service.tokenService.findNotification(*_) >> new Result(payload: tok1)
+        res.status == ResultStatus.OK
+        res.payload instanceof Notification
     }
 }

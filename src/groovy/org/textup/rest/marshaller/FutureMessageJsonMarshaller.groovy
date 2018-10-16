@@ -38,9 +38,9 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 			}
         }
         // find owner, may be a contact or a tag
-        json.contact = Contact.findByRecord(fMsg.record)?.id
+        json.contact = Contact.findByRecord(fMsg.readOnlyRecord)?.id
         if (!json.contact) {
-        	json.tag = ContactTag.findByRecord(fMsg.record)?.id
+        	json.tag = ContactTag.findByRecord(fMsg.readOnlyRecord)?.id
         }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"futureMessage", action:"show", id:fMsg.id, absolute:false)]

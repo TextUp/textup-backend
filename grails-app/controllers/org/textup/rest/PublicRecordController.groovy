@@ -27,7 +27,7 @@ class PublicRecordController extends BaseController {
 
     def save() {
         TypeConvertingMap paramsMap = Helpers.extractParams(params)
-        Result<Void> res = callbackService.validate(request, paramsMap)
+        Result<Void> res = TwilioUtils.validate(request, paramsMap)
         if (!res.success) {
             respondWithResult(Void, res)
         }

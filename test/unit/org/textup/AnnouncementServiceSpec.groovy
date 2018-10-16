@@ -6,9 +6,7 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
-import org.apache.commons.lang3.tuple.Pair
 import org.joda.time.DateTime
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -28,37 +26,67 @@ class AnnouncementServiceSpec extends CustomSpec {
     }
 
     def setup() {
-        super.setupData()
+        setupData()
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.authService = [getLoggedInAndActive:{ s1 }] as AuthService
-    	Phone.metaClass.sendAnnouncement = { String message,
-        	DateTime expiresAt, Staff staff ->
-        	new Result(status:ResultStatus.OK, payload:null)
-    	}
     }
 
     def cleanup() {
-        super.cleanupData()
+        cleanupData()
     }
 
     // CRUD
     // ----
 
     void "test create"() {
+        given:
+        service.outgoingAnnouncementService = Mock(OutgoingAnnouncementService)
+        service.authService = Mock(AuthService)
+
     	when: "no phone"
-    	Result<FeaturedAnnouncement> res = service.create(null, [:])
+        Map params = [:]
+    	Result<FeaturedAnnouncement> res = service.create(null, params)
 
     	then:
-    	res.success == false
+        0 * service.outgoingAnnouncementService._
     	res.status == ResultStatus.UNPROCESSABLE_ENTITY
     	res.errorMessages[0] == "announcementService.create.noPhone"
 
-    	when: "success, having mocked method on phone"
-    	res = service.create(p1, [message: "hi!", expiresAt:DateTime.now().toDate()])
+        when: "phone is inactive"
+        p1.numberAsString = null
+        res = service.create(p1, params)
 
-    	then:
-    	res.success == true
-        res.status == ResultStatus.CREATED
+        then:
+        0 * service.outgoingAnnouncementService._
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "phone.isInactive"
+
+        when: "expiration time is missing or in the past"
+        p1.numberAsString = TestHelpers.randPhoneNumber()
+        params.expiresAt = DateTime.now().minusDays(1).toDate()
+        res = service.create(p1, params)
+
+        then:
+        0 * service.outgoingAnnouncementService._
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "announcementService.create.expiresInPast"
+
+        when: "success, having mocked method on phone"
+        params.expiresAt = DateTime.now().plusDays(1).toDate()
+        res = service.create(p1, params)
+
+        then:
+        1 * service.outgoingAnnouncementService.send(*_) >> new Result()
+        1 * service.authService.loggedInAndActive >> p1.owner.all[0]
+        res.status == ResultStatus.OK
+
+        when: "currently logged-in user is not an owner for the passed-in phone"
+        res = service.create(p1, params)
+
+        then:
+        0 * service.outgoingAnnouncementService._
+        1 * service.authService.loggedInAndActive >> null
+        res.status == ResultStatus.FORBIDDEN
+        res.errorMessages[0] == "phone.notOwner"
     }
 
     void "test update"() {
@@ -75,6 +103,7 @@ class AnnouncementServiceSpec extends CustomSpec {
     	res.success == false
     	res.status == ResultStatus.NOT_FOUND
     	res.errorMessages[0] == "announcementService.update.notFound"
+        FeaturedAnnouncement.count() == aBaseline
 
     	when: "invalid expires at"
     	res = service.update(announce.id, [expiresAt:"invalid"])
@@ -83,208 +112,66 @@ class AnnouncementServiceSpec extends CustomSpec {
     	res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
     	res.errorMessages[0].contains("nullable")
+        FeaturedAnnouncement.count() == aBaseline
 
     	when: "valid"
     	DateTime newExpires = DateTime.now().plusMinutes(30)
-    	res = service.update(announce.id, [expiresAt:newExpires.toDate()])
+    	res = service.update(announce.id, [expiresAt: newExpires.toDate()])
 
     	then:
     	res.success == true
         res.status == ResultStatus.OK
     	res.payload instanceof FeaturedAnnouncement
     	res.payload.expiresAt == newExpires
-    }
-
-    // Outgoing
-    // --------
-
-    void "test starting text announcement"() {
-        given: "baselines"
-        int tBaseline = RecordText.count()
-        int rBaseline = RecordItemReceipt.count()
-        int cBaseline = Contact.count()
-        int nBaseline = ContactNumber.count()
-        IncomingSession session = new IncomingSession(phone:p1,
-            numberAsString:"1238470293")
-        assert IncomingSession.findByPhoneAndNumberAsString(p1,
-            session.numberAsString) == null
-        session.save(flush:true, failOnError:true)
-        // mock twimlbuilder to return a list of strings, as expected
-        service.twimlBuilder = [translate:{ code, params=[:] ->
-            new Result(status:ResultStatus.OK, payload:[params.message])
-        }] as TwimlBuilder
-        service.textService = [send:{ BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
-            String message ->
-
-            new Result(status: ResultStatus.OK,
-                payload: new TempRecordReceipt(apiId:"apiId", contactNumberAsString:toNums[0].number))
-        }] as TextService
-        service.socketService = [
-            sendContacts: { List<Contact> contacts -> new ResultGroup()}
-        ] as SocketService
-
-        when: "for session with no contacts"
-        String message = "hello"
-        String ident = "kiki bai"
-        Map<String, Result<TempRecordReceipt>> resMap = service.sendTextAnnouncement(p1, message, ident,
-            [session], s1)
-
-        then:
-        RecordText.count() == tBaseline + 1
-        RecordItemReceipt.count() == rBaseline + 1
-        Contact.count() == cBaseline + 1
-        ContactNumber.count() == nBaseline + 1
-        resMap[session.numberAsString].success == true
-        resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload.contactNumberAsString == session.numberAsString
-
-        when: "for session with multiple contacts"
-        resMap = service.sendTextAnnouncement(p1, message, ident, [session], s1)
-
-        then:
-        RecordText.count() == tBaseline + 2
-        RecordItemReceipt.count() == rBaseline + 2
-        Contact.count() == cBaseline + 1
-        ContactNumber.count() == nBaseline + 1
-        resMap[session.numberAsString].success == true
-        resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload.contactNumberAsString == session.numberAsString
-    }
-
-    void "test starting call announcement"() {
-        given: "baselines"
-        int iBaseline = RecordCall.count()
-        int rBaseline = RecordItemReceipt.count()
-        int cBaseline = Contact.count()
-        int nBaseline = ContactNumber.count()
-        IncomingSession session = new IncomingSession(phone:p1,
-            numberAsString:"1238470294")
-        assert IncomingSession.findByPhoneAndNumberAsString(p1,
-            session.numberAsString) == null
-        session.save(flush:true, failOnError:true)
-        service.callService = [start:{ PhoneNumber fromNum, PhoneNumber toNum, Map afterPickup ->
-            new Result(status: ResultStatus.OK,
-                payload: new TempRecordReceipt(apiId:"apiId", contactNumberAsString:toNum.number))
-        }] as CallService
-        service.socketService = [
-            sendContacts: { List<Contact> contacts -> new ResultGroup()}
-        ] as SocketService
-
-        when:
-        String message = "hello"
-        String ident = "kiki bai"
-        Map<String, Result<TempRecordReceipt>> resMap = service.startCallAnnouncement(p1, message, ident,
-            [session], s1)
-
-        then:
-        RecordCall.count() == iBaseline + 1
-        RecordItemReceipt.count() == rBaseline + 1
-        Contact.count() == cBaseline + 1
-        ContactNumber.count() == nBaseline + 1
-        resMap[session.numberAsString].success == true
-        resMap[session.numberAsString].payload instanceof TempRecordReceipt
-        resMap[session.numberAsString].payload.contactNumberAsString == session.numberAsString
+        FeaturedAnnouncement.count() == aBaseline
     }
 
     // Incoming
     // --------
 
-    @FreshRuntime
-    void "test handling incoming for text announcements"() {
+    void "test see announcement via text"() {
         given:
-        boolean didCallFallback = false
-        Closure<Result<Closure>> fallbackAction = {
-            didCallFallback = true
-            new Result()
+        Phone owner = Mock(Phone)
+        FeaturedAnnouncement fa1 = Mock(FeaturedAnnouncement) {
+            getWhenCreated() >> DateTime.now()
+            getOwner() >> owner
         }
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString:"5557778888")
-        session.save(flush:true, failOnError:true)
-        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-            message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-        announce.save(flush:true, failOnError:true)
-        service.twimlBuilder = [
-            build: { code, params = [:] -> new Result(status:ResultStatus.OK, payload:{ -> code }) }
-        ] as TwimlBuilder
+        IncomingSession sess1 = Mock(IncomingSession)
 
-        when: "message is not a valid keyword"
-        IncomingText text = new IncomingText(apiId:"apiId", numSegments: 88)
-        Result<Closure> res = service.handleAnnouncementText(p1, text, session, fallbackAction)
-
-        then: "relay text"
-        true == didCallFallback
-        res.success == true
-
-        when: "have announcements and see announcements"
-        didCallFallback = false
-        text.message = Constants.TEXT_SEE_ANNOUNCEMENTS
-        assert text.validate()
-        res = service.handleAnnouncementText(p1, text, session, fallbackAction)
+        when:
+        Result<Closure> res = service.textSeeAnnouncements([fa1], sess1)
 
         then:
-        res.success == true
+        1 * fa1.addToReceipts(RecordItemType.TEXT, sess1) >> new ResultGroup()
         res.status == ResultStatus.OK
-        res.payload instanceof Pair
-        res.payload.left instanceof Closure
-        res.payload.left.call() == TextResponse.SEE_ANNOUNCEMENTS
-        res.payload.right == []
-        false == didCallFallback
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.announcement")
+    }
 
-        when: "duplicate receipts are not added for same announcement and session"
-        int arBaseline = AnnouncementReceipt.count()
-        res = service.handleAnnouncementText(p1, text, session, fallbackAction)
+    void "test change announcement subscription for texts"() {
+        given:
+        IncomingSession sess1 = Mock(IncomingSession)
 
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Pair
-        res.payload.left instanceof Closure
-        res.payload.left.call() == TextResponse.SEE_ANNOUNCEMENTS
-        res.payload.right == []
-        AnnouncementReceipt.count() == arBaseline
-        false == didCallFallback
+        when: "is unsubscribed"
+        Result<Closure> res = service.textToggleSubscribe(sess1)
 
-        when: "have announcements, is NOT subscribed, toggle subscription"
-        session.isSubscribedToText = false
-        session.save(flush: true, failOnError: true)
-        text.message = Constants.TEXT_TOGGLE_SUBSCRIBE
-        assert text.validate()
-        res = service.handleAnnouncementText(p1, text, session, fallbackAction)
+        then: "subscribe"
+        1 * sess1.isSubscribedToText >> false
+        1 * sess1.setIsSubscribedToText(true)
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.text.subscribed")
 
-        then:
-        session.isSubscribedToText == true
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Pair
-        res.payload.left instanceof Closure
-        res.payload.left.call() == TextResponse.SUBSCRIBED
-        res.payload.right == []
-        false == didCallFallback
+        when: "is subscribed"
+        res = service.textToggleSubscribe(sess1)
 
-        when: "have announcementsm, is subscribed, toggle subscription"
-        session.isSubscribedToText = true
-        session.save(flush: true, failOnError: true)
-        text.message = Constants.TEXT_TOGGLE_SUBSCRIBE
-        assert text.validate()
-        res = service.handleAnnouncementText(p1, text, session, fallbackAction)
-
-        then:
-        session.isSubscribedToText == false
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Pair
-        res.payload.left instanceof Closure
-        res.payload.left.call() == TextResponse.UNSUBSCRIBED
-        res.payload.right == []
-        false == didCallFallback
+        then: "unsubscribe"
+        1 * sess1.isSubscribedToText >> true
+        1 * sess1.setIsSubscribedToText(false)
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.text.unsubscribed")
     }
 
     void "test try building text instructions"() {
         given:
         IncomingSession session = new IncomingSession(phone:p1, numberAsString:"1112223333")
         session.save(flush:true, failOnError:true)
-        service.twimlBuilder = [
-            translate: { code, params = [:] -> new Result(status:ResultStatus.OK, payload:[code]) }
-        ] as TwimlBuilder
 
         when: "no announcements"
         assert p1.countAnnouncements() == 0
@@ -315,7 +202,7 @@ class AnnouncementServiceSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        res.payload == [TextResponse.INSTRUCTIONS_SUBSCRIBED]
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.text.instructionsSubscribed")
     }
 
     @FreshRuntime
@@ -329,9 +216,6 @@ class AnnouncementServiceSpec extends CustomSpec {
         IncomingSession session = new IncomingSession(phone:p1, numberAsString:"1112223333")
         session.save(flush:true, failOnError:true)
         int aBaseline = AnnouncementReceipt.count()
-        service.twimlBuilder = [
-            build: { code, params = [:] -> new Result(status:ResultStatus.OK, payload:code) }
-        ] as TwimlBuilder
 
         when: "no digits or announcements"
         assert p1.countAnnouncements() == 0
@@ -352,7 +236,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         then:
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == CallResponse.ANNOUNCEMENT_GREETING
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.announcementGreetingWelcome")
         AnnouncementReceipt.count() == aBaseline
         false == didCallFallback
 
@@ -363,7 +247,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         then:
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == CallResponse.HEAR_ANNOUNCEMENTS
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.announcement")
         AnnouncementReceipt.count() == aBaseline + 1
         false == didCallFallback
 
@@ -376,7 +260,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         session.isSubscribedToCall == true
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == CallResponse.SUBSCRIBED
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.subscribed")
         false == didCallFallback
 
         when: "digits, is subscriber, toggle subscribe"
@@ -388,7 +272,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         session.isSubscribedToCall == false
         res.success == true
         res.status == ResultStatus.OK
-        res.payload == CallResponse.UNSUBSCRIBED
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.unsubscribed")
         false == didCallFallback
 
         when: "digits, no matching valid"
@@ -397,5 +281,28 @@ class AnnouncementServiceSpec extends CustomSpec {
         then: "fallback"
         res.success == true
         true == didCallFallback
+    }
+
+    void "test complete call announcement"() {
+        given:
+        IncomingSession session = Mock(IncomingSession)
+
+        when: "unsubscribe"
+        String digits = Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE
+        Result<Closure> res = service.completeCallAnnouncement(digits, null, null, session)
+
+        then:
+        1 * session.setIsSubscribedToCall(false)
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.unsubscribed")
+
+        when: "digits do not match unsubscribe"
+        digits = TestHelpers.randString()
+        res = service.completeCallAnnouncement(digits, "hi", "hi", session)
+
+        then:
+        0 * session._
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.announcementIntro")
     }
 }

@@ -4,7 +4,7 @@ import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
-import java.util.UUID
+import org.joda.time.DateTime
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -33,7 +33,7 @@ class RecordItemSpec extends Specification {
     	rItem.validate() == true
 
         when: "add a note contents that is too long"
-        rItem.noteContents = buildVeryLongString()
+        rItem.noteContents = TestHelpers.buildVeryLongString()
 
         then: "shared contraint on the noteContents field is executed"
         rItem.validate() == false
@@ -68,6 +68,49 @@ class RecordItemSpec extends Specification {
         rItem.receipts[0].apiId == temp1.apiId
         rItem.receipts[0].contactNumberAsString == temp1.contactNumberAsString
         rItem.receipts[0].numBillable == temp1.numSegments
+    }
+
+    void "test cascading validation and saving to media object"() {
+        given:
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaInfo mInfo = new MediaInfo()
+        mInfo.addToMediaElements(e1)
+        assert mInfo.validate()
+        Record rec = new Record()
+        rec.save(flush:true, failOnError:true)
+        RecordItem rItem = new RecordItem(record:rec)
+        assert rItem.validate()
+        int miBaseline = MediaInfo.count()
+        int meBaseline = MediaElement.count()
+        int riBaseline = RecordItem.count()
+
+        when:
+        rItem.media = mInfo
+
+        then:
+        rItem.validate() == true
+        MediaInfo.count() == miBaseline
+        MediaElement.count() == meBaseline
+        RecordItem.count() == riBaseline
+
+        when:
+        e1.whenCreated = null
+
+        then:
+        rItem.validate() == false
+        rItem.errors.getFieldErrorCount("media.mediaElements.0.whenCreated") == 1
+        MediaInfo.count() == miBaseline
+        MediaElement.count() == meBaseline
+        RecordItem.count() == riBaseline
+
+        when:
+        e1.whenCreated = DateTime.now()
+        assert rItem.save(flush: true, failOnError: true)
+
+        then:
+        MediaInfo.count() == miBaseline + 1
+        MediaElement.count() == meBaseline + 1
+        RecordItem.count() == riBaseline + 1
     }
 
     void "test adding author"() {
@@ -123,14 +166,5 @@ class RecordItemSpec extends Specification {
         then: "we are able to fetch these items back from the db"
         itemList.size() == 2
         itemList.every { it.id in targetIds }
-    }
-
-    // Helpers
-    // -------
-
-    protected String buildVeryLongString() {
-        StringBuilder sBuilder = new StringBuilder()
-        15000.times { it -> sBuilder << it }
-        sBuilder.toString()
     }
 }

@@ -33,9 +33,8 @@ class ContactServiceSpec extends CustomSpec {
     }
 
     def setup() {
-        super.setupData()
+        setupData()
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.messageSource = TestHelpers.mockMessageSource()
         service.authService = [
             getLoggedInAndActive: { -> s1 }
         ] as AuthService
@@ -47,7 +46,7 @@ class ContactServiceSpec extends CustomSpec {
     }
 
     def cleanup() {
-        super.cleanupData()
+        cleanupData()
     }
 
     // Create
@@ -459,8 +458,6 @@ class ContactServiceSpec extends CustomSpec {
         given:
         String code = "note.sharing.stop"
         int nBaseline = RecordNote.count()
-        service.messageSource = staticMessageSource
-        staticMessageSource.addMessage(code, Locale.default, code)
 
         when: "missing some information"
         HashSet<String> names = new HashSet<>(["name1", "name2", "name3"])
@@ -476,10 +473,10 @@ class ContactServiceSpec extends CustomSpec {
         when: "passing in an invalid code"
         res = service.recordSharingChangesHelper(c1.record, names, "invalid code", s1.toAuthor())
 
-        then: "error"
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages.size() == 1
-        RecordNote.count() == nBaseline
+        then: "error is logged but the record note is still created"
+        res.status == ResultStatus.OK
+        res.payload instanceof RecordNote
+        RecordNote.count() == nBaseline + 1
 
         when: "all valid info passed in"
         res = service.recordSharingChangesHelper(c1.record, names, code, s1.toAuthor())
@@ -487,7 +484,7 @@ class ContactServiceSpec extends CustomSpec {
         then: "a new record note is created"
         res.status == ResultStatus.OK
         res.payload instanceof RecordNote
-        RecordNote.count() == nBaseline + 1
+        RecordNote.count() == nBaseline + 2
     }
 
     void "test recording sharing changes"() {

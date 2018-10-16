@@ -97,13 +97,14 @@ class MediaInfo implements ReadOnlyMediaInfo {
         (mediaElements ?: Collections.emptySet()) != _originalMediaElements
     }
 
-    List<MediaElement> getMediaElementsByType(Collection<MediaType> typesToFind = []) {
+    // if we don't pass in types to filter by, we assume we want all MediaElements
+    List<MediaElement> getMediaElementsByType(Collection<MediaType> typesToFind = null) {
         Collection<MediaElement> elementCollection = typesToFind ?
             mediaElements?.findAll { MediaElement e1 -> e1.hasType(typesToFind) } : mediaElements
         elementCollection ? new ArrayList<MediaElement>(elementCollection) : []
     }
 
-    MediaElement getMostRecentByType(Collection<MediaType> typesToFind = []) {
+    MediaElement getMostRecentByType(Collection<MediaType> typesToFind = null) {
         getMediaElementsByType(typesToFind).max { MediaElement e1 -> e1.whenCreated }
     }
 

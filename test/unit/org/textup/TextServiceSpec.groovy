@@ -1,8 +1,6 @@
 package org.textup
 
 import com.twilio.Twilio
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
@@ -11,8 +9,6 @@ import org.textup.util.TestHelpers
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([Organization, Location, MediaInfo, MediaElement, MediaElementVersion])
-@TestMixin(HibernateTestMixin)
 @TestFor(TextService)
 class TextServiceSpec extends Specification {
 
@@ -21,10 +17,11 @@ class TextServiceSpec extends Specification {
     }
 
     def setup() {
-        def twilioTestConfig = grailsApplication.config.textup.apiKeys.twilio
-        Twilio.init(twilioTestConfig.sid, twilioTestConfig.authToken)
+        Helpers.metaClass."static".getLinkGenerator = { -> TestHelpers.mockLinkGenerator() }
+        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
+        Twilio.init(twilioConfig.sid, twilioConfig.authToken)
     	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.grailsLinkGenerator = TestHelpers.mockLinkGenerator()
     }
 
     void "test send"() {
@@ -76,22 +73,11 @@ class TextServiceSpec extends Specification {
         String msg = "hello there!!"
 
         and: "list of media elements"
-        int _numTimesCalledGetLink = 0
-        StorageService mockStorageService = [
-            generateAuthLink: { String key ->
-                _numTimesCalledGetLink++
-                new Result(status: ResultStatus.OK, payload: new URL("http://www.example.com"))
-            }
-        ] as StorageService
-        List<MediaElement> mElements = []
-        8.times {
-            MediaElement e1 = TestHelpers.buildMediaElement(10)
-            e1.sendVersion.storageService = mockStorageService
-            mElements << e1
-        }
+        Collection<URI> mediaLinks = []
+        8.times { mediaLinks << new URI("https://www.example.com/${TestHelpers.randString()}") }
 
         when:
-        Result res = service.send(fromNum, [toNum1, toNum2], msg, mElements)
+        Result res = service.send(fromNum, [toNum1, toNum2], msg, mediaLinks)
 
         then: "stop on first number + handle media normally"
         res.success == true
@@ -100,6 +86,5 @@ class TextServiceSpec extends Specification {
         res.payload.contactNumberAsString == toNum1.number
         res.payload.apiId != null
         res.payload.numSegments > 0
-        mElements.size() == _numTimesCalledGetLink
     }
 }

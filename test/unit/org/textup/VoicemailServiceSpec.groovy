@@ -4,8 +4,10 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
+import grails.test.runtime.*
 import org.joda.time.DateTime
 import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.Specification
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -29,86 +31,157 @@ class VoicemailServiceSpec extends CustomSpec {
         cleanupData()
     }
 
-    void "test getting voicemail url"() {
+    // Voicemail message
+    // -----------------
+
+    void "test updating record call with voicemail info"() {
         given:
-        service.storageService = [
-            generateAuthLink: { String apiId ->
-                new Result(payload: new URL("http://www.example.com?q=${apiId}"))
-            }
-        ] as StorageService
+        RecordCall rCall1 = new RecordCall(record: rText1.record)
+        rCall1.save(flush: true, failOnError: true)
+        DateTime originalActivityTimestamp = rCall1.record.lastRecordActivity
+        List<MediaElement> eList = []
+        10.times { eList << TestHelpers.buildMediaElement() }
+        eList*.save(flush: true, failOnError: true)
 
-        when: "null receipt"
-        String url = service.getVoicemailUrl(null)
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
+
+        when: "call does not have media already"
+        int duration = 888
+        Result<RecordCall> res = service.updateVoicemailForCall(rCall1, duration, eList)
+        RecordCall.withSession { it.flush() }
 
         then:
-        url == ""
+        res.status == ResultStatus.OK
+        res.payload.media != null
+        res.payload.hasAwayMessage == true
+        res.payload.voicemailInSeconds == duration
+        res.payload.record.lastRecordActivity.isAfter(originalActivityTimestamp)
+        MediaInfo.count() == mBaseline + 1
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline
 
-        when: "present receipt"
-        String uid = TestHelpers.randString()
-        url = service.getVoicemailUrl(uid)
+        when: "call has existing media"
+        duration = 1000
+        originalActivityTimestamp = res.payload.record.lastRecordActivity
+        res = service.updateVoicemailForCall(rCall1, duration, eList)
+        RecordCall.withSession { it.flush() }
 
         then:
-        url instanceof String
-        url.contains(uid)
+        res.status == ResultStatus.OK
+        res.payload.media != null
+        res.payload.hasAwayMessage == true
+        res.payload.voicemailInSeconds == duration
+        res.payload.record.lastRecordActivity.isAfter(originalActivityTimestamp)
+        MediaInfo.count() == mBaseline + 1
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline
     }
 
-    void "test storing voicemail"() {
-        given: "session with no corresponding contact"
-        int cBaseline = Contact.count()
-        int iBaseline = RecordCall.count()
-        int rBaseline = RecordItemReceipt.count()
-        service.socketService = [
-            sendItems:{ List<RecordItem> items -> new ResultGroup()}
-        ] as SocketService
+    @DirtiesRuntime
+    void "test processing voicemail message"() {
+        given:
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        e1.save(flush: true, failOnError: true)
+        RecordCall rCall1 = new RecordCall(record: rText1.record)
+        RecordItemReceipt rpt = TestHelpers.buildReceipt()
+        rCall1.addToReceipts(rpt)
+        rCall1.save(flush: true, failOnError: true)
 
-        when: "none voicemails found for apiId"
-        ResultGroup<RecordCall> resGroup = service.storeVoicemail("nonexistent", 12)
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
+        service.incomingMediaService = Mock(IncomingMediaService)
+        service.socketService = Mock(SocketService)
+        IncomingRecordingInfo ir1 = Mock(IncomingRecordingInfo)
+        MockedMethod updateVoicemailForCall = TestHelpers.mock(service, "updateVoicemailForCall")
+            { RecordCall call -> new Result(payload: call) }
 
-        then: "empty result list"
-        resGroup.isEmpty == true
-        Contact.count() == cBaseline
-        RecordCall.count() == iBaseline
-        RecordItemReceipt.count() == rBaseline
+        when: "incoming media service does not return any media elements"
+        ResultGroup<RecordCall> resGroup = service.processVoicemailMessage(rpt.apiId, 0, ir1)
+        RecordCall.withSession { it.flush() }
 
-        when: "apiId corresponds to NOT RecordCall"
-        String apiId = TestHelpers.randString()
-        rText1.addToReceipts(apiId:apiId, contactNumberAsString:"1234449309")
-        rText1.save(flush:true, failOnError:true)
-        iBaseline = RecordCall.count()
-        rBaseline = RecordItemReceipt.count()
-        resGroup = service.storeVoicemail(apiId, 12)
+        then: "recording info is marked as PRIVATE"
+        1 * ir1.setIsPublic(false)
+        1 * service.incomingMediaService.process(*_) >>
+            Result.createError(["hi"], ResultStatus.BAD_REQUEST).toGroup()
+        0 * service.socketService._
+        updateVoicemailForCall.callCount == 0
+        resGroup.anyFailures == true
+        MediaInfo.count() == mBaseline
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline
 
-        then: "empty result list"
-        resGroup.isEmpty == true
-        Contact.count() == cBaseline
-        RecordCall.count() == iBaseline
-        RecordItemReceipt.count() == rBaseline
+        when: "does return some processed media elements"
+        resGroup = service.processVoicemailMessage(rpt.apiId, 0, ir1)
+        RecordCall.withSession { it.flush() }
 
-        when: "apiId corresponds to multiple RecordCalls"
-        apiId = TestHelpers.randString()
-        RecordCall rCall1 = c1.record.storeOutgoingCall().payload,
-            rCall2 = c1.record.storeOutgoingCall().payload
-        [rCall1, rCall2].each {
-            it.addToReceipts(apiId:apiId, contactNumberAsString:"1234449309")
-            it.save(flush:true, failOnError:true)
-        }
-        int dur = 12
-        DateTime recAct = rCall1.record.lastRecordActivity
-        iBaseline = RecordCall.count()
-        rBaseline = RecordItemReceipt.count()
-        resGroup = service.storeVoicemail(apiId, dur)
+        then: "delegates to update call for voicemail helper method"
+        1 * ir1.setIsPublic(false)
+        1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
+        1 * service.socketService.sendItems(*_)
+        updateVoicemailForCall.callCount == 1
+        resGroup.payload.size() == 1
+        resGroup.payload[0].id == rCall1.id
+    }
+
+    // Voicemail greeting
+    // ------------------
+
+    void "test processing voicemail greeting"() {
+        given:
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        e1.save(flush: true, failOnError: true)
+
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
+        service.incomingMediaService = Mock(IncomingMediaService)
+        service.callService = Mock(CallService)
+        IncomingRecordingInfo ir1 = Mock(IncomingRecordingInfo)
+
+        when: "error in processing recordings"
+        Result<Void> res = service.finishedProcessingVoicemailGreeting(p1, null, ir1)
+        RecordCall.withSession { it.flush() }
+
+        then: "recordings are marked as PUBLIC"
+        1 * ir1.setIsPublic(true)
+        1 * service.incomingMediaService.process(*_) >>
+            Result.createError(["hi"], ResultStatus.BAD_REQUEST).toGroup()
+        0 * service.callService._
+        res.status == ResultStatus.BAD_REQUEST
+        p1.media == null
+        MediaInfo.count() == mBaseline
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline
+
+        when: "successfully processed recordings -- phone does not have existing media"
+        res = service.finishedProcessingVoicemailGreeting(p1, null, ir1)
+        RecordCall.withSession { it.flush() }
 
         then:
-        resGroup.anySuccesses == true
-        resGroup.successes.size() == 2
-        resGroup.payload.size() == 2
-        resGroup.payload.every { it instanceof RecordCall }
-        resGroup.payload.every { it.voicemailKey == apiId }
-        resGroup.payload.every { it.hasVoicemail }
-        resGroup.payload.every { it.voicemailInSeconds == dur }
-        resGroup.payload.every { it.record.lastRecordActivity.isAfter(recAct) }
-        Contact.count() == cBaseline
-        RecordCall.count() == iBaseline
-        RecordItemReceipt.count() == rBaseline
+        1 * ir1.setIsPublic(true)
+        1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
+        1 * service.callService.interrupt(*_) >> new Result()
+        res.status == ResultStatus.OK
+        p1.media != null
+        MediaInfo.count() == mBaseline + 1
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline
+
+        when: "successfully processed recordings -- phone has existing media"
+        res = service.finishedProcessingVoicemailGreeting(p1, null, ir1)
+        RecordCall.withSession { it.flush() }
+
+        then:
+        1 * ir1.setIsPublic(true)
+        1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
+        1 * service.callService.interrupt(*_) >> new Result()
+        res.status == ResultStatus.OK
+        p1.media != null
+        MediaInfo.count() == mBaseline + 1
+        MediaElement.count() == eBaseline
+        MediaElementVersion.count() == vBaseline
     }
 }

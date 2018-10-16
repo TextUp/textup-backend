@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import groovy.transform.TypeCheckingMode
@@ -13,7 +13,7 @@ import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.util.OptimisticLockingRetry
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="Record",description = "Operations on records of communications \
     belonging to staff and teams, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])

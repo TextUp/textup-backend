@@ -6,8 +6,8 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.test.runtime.DirtiesRuntime
 import grails.test.runtime.FreshRuntime
-import org.apache.commons.lang3.tuple.Pair
-import org.textup.rest.TwimlBuilder
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -24,14 +24,11 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
-        twimlBuilder(TwimlBuilder)
     }
 
     def setup() {
         setupData()
-        service.twimlBuilder = TestHelpers.getTwimlBuilder(grailsApplication)
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.messageSource = TestHelpers.mockMessageSource()
     }
 
     def cleanup() {
@@ -52,11 +49,11 @@ class IncomingMessageServiceSpec extends CustomSpec {
         [c1, c2, c3]*.save(flush: true, failOnError: true)
 
         when:
-        Pair<List<Contact>, List<Contact>> pair = service.getDeliverableContacts(p1, pNum)
+        Tuple<List<Contact>, List<Contact>> info = service.getDeliverableContacts(p1, pNum)
 
         then:
-        pair.left.size() == 3 // left is all matching contacts
-        pair.right.size() == 2 // right is not blocked contacts
+        info.first.size() == 3 // all matching contacts
+        info.second.size() == 2 // not blocked contacts
     }
 
     void "test storing and updating status for a single contact"() {
@@ -140,169 +137,6 @@ class IncomingMessageServiceSpec extends CustomSpec {
         sc1.status == ContactStatus.ARCHIVED
         c2.status == ContactStatus.UNREAD
         sc2.status == ContactStatus.BLOCKED
-    }
-
-    // Texts
-    // -----
-
-    void "test storing incoming text"() {
-        given:
-        IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
-        assert text.validate()
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString: "1112223333")
-        assert session.save(flush: true, failOnError: true)
-        RecordText rText1
-        Closure<Void> storeText = { rText1 = it }
-        int tBaseline = RecordText.count()
-        int rptBaseline = RecordItemReceipt.count()
-
-        when:
-        assert service.storeIncomingText(text, session, null, storeText, c1) == null
-        RecordText.withSession { it.flush() }
-
-        then: "new text created + closure called"
-        rText1 instanceof RecordText
-        RecordText.count() == tBaseline + 1
-        RecordItemReceipt.count() == rptBaseline + 1
-    }
-
-    @DirtiesRuntime
-    void "test after storing incoming text"() {
-        given:
-        Boolean hasNotifications
-        service.metaClass.handleNotificationsForIncomingText = { Phone p1, IncomingText text,
-            IncomingSession sess1, List<RecordText> rTexts, List<BasicNotification> notifs ->
-            hasNotifications = true; new Result();
-        }
-        service.metaClass.handleAwayForIncomingText = { Phone p1, IncomingSession sess1,
-            List<RecordText> rTexts ->
-            hasNotifications = false; new Result();
-        }
-        service.notificationService = Mock(NotificationService)
-
-        when: "all contacts are blocked"
-        Result<Pair> res = service.afterStoreForText(null, null, null, [rText1], [])
-
-        then:
-        hasNotifications == null
-        res.status == ResultStatus.OK
-        res.payload instanceof Pair
-        res.payload.left instanceof Closure
-        res.payload.right == [rText1]
-        TestHelpers.buildXml(res.payload.left) == TestHelpers.buildXml {
-            Response { Message("twimlBuilder.text.blocked") }
-        }
-
-        when: "no notifications built"
-        service.afterStoreForText(null, null, null, null, [c1])
-
-        then:
-        1 * service.notificationService.build(*_) >> []
-        hasNotifications == false
-
-        when: "some notifications built"
-        service.afterStoreForText(null, null, null, null, [c1])
-
-        then:
-        1 * service.notificationService.build(*_) >> [new BasicNotification()]
-        hasNotifications == true
-    }
-
-    void "test building response to incoming text"() {
-        given:
-        String randMsg1 = UUID.randomUUID().toString()
-        String randMsg2 = UUID.randomUUID().toString()
-        service.announcementService = Mock(AnnouncementService)
-        service.socketService = Mock(SocketService)
-
-        when:
-        Result<Pair> res = service.buildIncomingTextResponse(null, null, [rText1], [randMsg2])
-
-        then: "moved calling socket service over to callbackService to allow uploads to finish first"
-        1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload:[randMsg1])
-        0 * service.socketService.sendItems(*_)
-        res.status == ResultStatus.OK
-        res.payload instanceof Pair
-        res.payload.left instanceof Closure
-        res.payload.right == [rText1]
-        TestHelpers.buildXml(res.payload.left) == TestHelpers.buildXml {
-            Response {
-                Message(randMsg2)
-                Message(randMsg1)
-            }
-        }
-    }
-
-    @FreshRuntime
-    void "test handling notifications for incoming text"() {
-        given:
-        int numTimesNotifiedStaff = 0
-        service.metaClass.buildIncomingTextResponse = { Phone p1, IncomingSession sess1,
-            List<RecordText> rTexts, List<String> responses = [] ->
-            new Result()
-        }
-        service.tokenService = Mock(TokenService)
-        IncomingText text = new IncomingText(message: "hi")
-        List<BasicNotification> notifs = []
-        10.times { notifs << new BasicNotification() }
-
-        when:
-        rText1.numNotified = 0
-        service.handleNotificationsForIncomingText(null, text, null, [rText1], notifs)
-
-        then: "tokenService called for all notifications"
-        notifs.size() * service.tokenService.notifyStaff(*_) >> new Result()
-        rText1.numNotified == notifs.size()
-    }
-
-    @DirtiesRuntime
-    void "test handling away for incoming text"() {
-        given:
-        List<String> additionalMsgs
-        service.metaClass.buildIncomingTextResponse = { Phone p1, IncomingSession sess1,
-            List<RecordText> rTexts, List<String> responses = [] ->
-
-            additionalMsgs = responses; new Result();
-        }
-        List<RecordText> rTexts = [rText1, rText2, rTeText1, rTeText2, otherRText2, otherRTeText2]
-
-        when:
-        service.handleAwayForIncomingText(p1, null, rTexts)
-
-        then: "all texts have away message flag set"
-        [p1.awayMessage] == additionalMsgs
-        rTexts.every { it.hasAwayMessage }
-    }
-
-    @DirtiesRuntime
-    void "test relaying incoming text overall"() {
-        given:
-        String numAsString = TestHelpers.randPhoneNumber()
-        IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
-        assert text.validate()
-        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: numAsString)
-        assert sess1.save(flush: true, failOnError: true)
-        Contact c1 = p1.createContact([:], [numAsString]).payload
-        Contact c2 = p1.createContact([:], [numAsString]).payload
-        [c1, c2]*.save(flush: true, failOnError: true)
-        List<RecordText> rTexts
-        List<Contact> notBlockedContacts
-        service.metaClass.afterStoreForText = { Phone p2, IncomingText text2, IncomingSession sess2,
-            List<RecordText> tList, List<Contact> cList ->
-            rTexts = tList
-            notBlockedContacts = cList
-            new Result()
-        }
-        service.socketService = Mock(SocketService)
-
-        when:
-        service.relayText(p1, text, sess1, null)
-
-        then: "all texts collected when storing are passed to the after handler"
-        1 * service.socketService._
-        notBlockedContacts == [c1, c2]
-        rTexts.size() == 2
-        rTexts.every { it.record == c1.record || it.record == c2.record }
     }
 
     // Calls
@@ -393,11 +227,11 @@ class IncomingMessageServiceSpec extends CustomSpec {
         // need to test presence of number elements separately because we pass in a set, which
         // does not guaranteee iteration order
         TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
-            Number(statusCallback: service.twimlBuilder.buildChildCallStatus(firstNum),
+            Number(statusCallback: CallTwiml.childCallStatus(firstNum),
                 url: numParams.toString(), firstNum)
         })
         TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
-            Number(statusCallback: service.twimlBuilder.buildChildCallStatus(secondNum),
+            Number(statusCallback: CallTwiml.childCallStatus(secondNum),
                 url:numParams.toString(), secondNum)
         })
     }
@@ -409,21 +243,14 @@ class IncomingMessageServiceSpec extends CustomSpec {
         assert sess1.save(flush: true, failOnError: true)
         List<RecordCall> rCalls = []
         10.times { rCalls << c1.record.storeOutgoingCall().payload }
-        BasePhoneNumber fromNum
-        BasePhoneNumber toNum
-        ReceiptStatus status
-        p1.metaClass.tryStartVoicemail = { BasePhoneNumber f, BasePhoneNumber t, ReceiptStatus s ->
-            fromNum = f; toNum = t; status = s; new Result();
-        }
 
         when:
-        service.handleAwayForIncomingCall(p1, sess1, rCalls)
+        Result<Closure> res = service.handleAwayForIncomingCall(p1, sess1, rCalls)
 
         then: "all texts have away message flag set"
         rCalls.every { it.hasAwayMessage }
-        fromNum.number == sess1.numberAsString
-        toNum.number == p1.numberAsString
-        status == ReceiptStatus.PENDING
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.voicemailDirections")
     }
 
     @DirtiesRuntime
@@ -455,6 +282,47 @@ class IncomingMessageServiceSpec extends CustomSpec {
         rCalls.every { it.record == c1.record || it.record == c2.record }
     }
 
+    @DirtiesRuntime
+    void "test receiving call"() {
+        given:
+        MockedMethod handleSelfCall = TestHelpers.mock(service, "handleSelfCall") { new Result() }
+        MockedMethod relayCall = TestHelpers.mock(service, "relayCall") { new Result() }
+        service.announcementService = Mock(AnnouncementService)
+        Phone p1 = Mock(Phone)
+        String pNum = TestHelpers.randPhoneNumber()
+        IncomingSession sess1 = Stub(IncomingSession) { getNumberAsString() >> pNum }
+
+        when: "self call"
+        Result<Closure> res = service.receiveCall(p1, null, null, sess1)
+
+        then:
+        (1.._) * p1.owner >> Stub(PhoneOwnership) { getAll() >> [[personalPhoneAsString: pNum]] }
+        0 * service.announcementService._
+        handleSelfCall.callCount == 1
+        relayCall.callCount == 0
+
+        when: "announcement call with fallback to relaying call"
+        res = service.receiveCall(p1, null, null, sess1)
+
+        then:
+        (1.._) * p1.owner >> Stub(PhoneOwnership) { getAll() >> [[personalPhoneAsString: "other"]] }
+        (1.._) * p1.announcements >> [Mock(FeaturedAnnouncement)]
+        // check that the fallback closure passed in actually calls relayCall
+        1 * service.announcementService.handleAnnouncementCall(*_) >> { args -> args[3].call(); null; }
+        handleSelfCall.callCount == 1
+        relayCall.callCount == 1
+
+        when: "relaying call"
+        res = service.receiveCall(p1, null, null, sess1)
+
+        then:
+        (1.._) * p1.owner >> Stub(PhoneOwnership) { getAll() >> [[personalPhoneAsString: "other"]] }
+        (1.._) * p1.announcements >> []
+        0 * service.announcementService._
+        handleSelfCall.callCount == 1
+        relayCall.callCount == 2
+    }
+
     // Other call handlers
     // -------------------
 
@@ -468,17 +336,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
-            Response {
-                Gather(numDigits:"1", action:[handle:CallResponse.DO_NOTHING].toString()) {
-                    Pause(length:"1")
-                    Say("twimlBuilder.call.screenIncoming")
-                    Say("twimlBuilder.call.screenIncoming")
-                }
-                Say("twimlBuilder.call.goodbye")
-                Hangup()
-            }
-        }
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.screenIncoming")
     }
 
     void "test storing outgoing call"() {
@@ -513,9 +371,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
-            Gather(numDigits:10) { Say("twimlBuilder.call.selfGreeting") }
-        })
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.selfGreeting")
 
         when: "digits are an invalid phone number"
         res = service.handleSelfCall(p1, "apiId", "invalidNumber", s1)
@@ -526,9 +382,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
-            Say("twimlBuilder.call.selfInvalidDigits")
-        })
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.selfInvalidDigits")
 
         when: "valid phone number for missing apiId"
         res = service.handleSelfCall(p1, null, TestHelpers.randPhoneNumber(), s1)
@@ -539,13 +393,12 @@ class IncomingMessageServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
-            Say("twimlBuilder.error")
-        })
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.error")
 
         when: "valid phone number and valid apiId"
         String numAsString = TestHelpers.randPhoneNumber()
         res = service.handleSelfCall(p1, "apiId", numAsString, s1)
+        Phone.withSession { it.flush() }
 
         then:
         1 * service.socketService._
@@ -553,15 +406,196 @@ class IncomingMessageServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 1
         RecordItemReceipt.count() == rBaseline + 1
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
-            Response {
-                Say("twimlBuilder.call.selfConnecting")
-                Dial(callerId:p1.number.e164PhoneNumber) {
-                    Number(statusCallback: service.twimlBuilder.buildChildCallStatus(numAsString), numAsString)
-                }
-                Say("twimlBuilder.call.goodbye")
-                Hangup()
-            }
-        }
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.selfConnecting")
+    }
+
+    // Texts
+    // -----
+
+    void "test build texts helper"() {
+        given:
+        IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
+        assert text.validate()
+        IncomingSession session = new IncomingSession(phone:p1, numberAsString: "1112223333")
+        assert session.save(flush: true, failOnError: true)
+        RecordText rText1
+        Closure<Void> storeText = { rText1 = it }
+        int tBaseline = RecordText.count()
+        int rptBaseline = RecordItemReceipt.count()
+
+        when:
+        assert service.buildTextsHelper(text, session, storeText, c1) == null
+        RecordText.withSession { it.flush() }
+
+        then: "new text created + closure called"
+        rText1 instanceof RecordText
+        RecordText.count() == tBaseline + 1
+        RecordItemReceipt.count() == rptBaseline + 1
+    }
+
+    void "test building texts overall"() {
+        given:
+        service.socketService = Mock(SocketService)
+        Phone newPhone = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        newPhone.updateOwner(s1)
+        newPhone.save(flush:true, failOnError:true)
+        IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
+        assert text.validate()
+        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: "1112223333")
+        assert sess1.save(flush: true, failOnError: true)
+
+        int cBaseline = Contact.count()
+        int rBaseline = Record.count()
+        int tBaseline = RecordText.count()
+        int rptBaseline = RecordItemReceipt.count()
+
+        when:
+        Result<Tuple<List<RecordText>, List<Contact>>> res = service.buildTexts(newPhone, text, sess1)
+        Contact.withSession { it.flush() }
+
+        then: "new contact and text is created"
+        1 * service.socketService.sendContacts(*_)
+        res.status == ResultStatus.OK
+        res.payload.first.size() == 1
+        res.payload.first[0].contents == text.message
+        res.payload.second.size() == 1
+        res.payload.second[0].sortedNumbers[0].number == sess1.numberAsString
+        Contact.count() == cBaseline + 1
+        Record.count() == rBaseline + 1
+        RecordText.count() == tBaseline + 1
+        RecordItemReceipt.count() == rptBaseline + 1
+    }
+
+    void "test building response to incoming text"() {
+        given:
+        BasicNotification bn1 = Mock(BasicNotification)
+        RecordText rText = Mock(RecordText)
+        service.announcementService = Mock(AnnouncementService)
+        String msg = TestHelpers.randString()
+
+        when: "no notifications"
+        Result<Closure> res = service.buildTextResponse(p1, null, [rText], [])
+
+        then: "sends away message"
+        1 * rText.setHasAwayMessage(true)
+        1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload: [msg])
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml { Message(msg) })
+        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml { Message(p1.awayMessage) })
+
+        when: "has notifications"
+        res = service.buildTextResponse(p1, null, [rText], [bn1])
+
+        then:
+        0 * rText._
+        1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload: [msg])
+        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml { Message(msg) })
+        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml { Message(p1.awayMessage) }) == false
+    }
+
+    void "test finishing processing texts helper"() {
+        given:
+        service.notificationService = Mock(NotificationService)
+        service.socketService = Mock(SocketService)
+        IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
+        assert text.validate()
+        MediaInfo invalidMedia = new MediaInfo()
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        e1.sendVersion.type = null
+        invalidMedia.addToMediaElements(e1)
+        assert invalidMedia.validate() == false
+        List<Long> textIds = [rText1, rText2]*.id
+        List<BasicNotification> notifs = []
+
+        when: "has some errors"
+        Result<Void> res = service.finishProcessingTextHelper(text, textIds, notifs, invalidMedia)
+
+        then: "errors are bubbled up"
+        0 * service.notificationService._
+        0 * service.socketService._
+        res.status == ResultStatus.OK.UNPROCESSABLE_ENTITY
+
+        when: "no errors"
+        res = service.finishProcessingTextHelper(text, textIds, notifs, null)
+
+        then:
+        1 * service.notificationService.send(*_) >> new ResultGroup()
+        1 * service.socketService.sendItems(*_) >> new ResultGroup()
+        res.status == ResultStatus.NO_CONTENT
+    }
+
+    @DirtiesRuntime
+    void "test finishing processing texts overall"() {
+        given:
+        service.incomingMediaService = Mock(IncomingMediaService)
+        IncomingText text = Stub(IncomingText) { getApiId() >> "hi" }
+        TypeConvertingMap params = new TypeConvertingMap()
+        MediaElement e1 = TestHelpers.buildMediaElement()
+        MockedMethod finishProcessingTextHelper = TestHelpers
+            .mock(service, "finishProcessingTextHelper") { new Result() }
+        int mBaseline = MediaInfo.count()
+        int eBaseline = MediaElement.count()
+
+        when: "no media"
+        Result<Void> res = service.finishProcessingText(text, null, null, params)
+        MediaInfo.withSession { it.flush() }
+
+        then:
+        0 * service.incomingMediaService._
+        finishProcessingTextHelper.callCount == 1
+        res.status == ResultStatus.OK
+        MediaInfo.count() == mBaseline
+        MediaElement.count()  == eBaseline
+
+        when: "has media"
+        params.NumMedia = 8
+        res = service.finishProcessingText(text, null, null, params)
+        MediaInfo.withSession { it.flush() }
+
+        then:
+        1 * service.incomingMediaService.process(*_) >> new Result(payload: e1).toGroup()
+        finishProcessingTextHelper.callCount == 2
+        res.status == ResultStatus.OK
+        MediaInfo.count() == mBaseline + 1
+        MediaElement.count()  == eBaseline + 1
+    }
+
+    @DirtiesRuntime
+    void "test processing texts overall for blocked vs not blocked"() {
+        given:
+        service.notificationService = Mock(NotificationService)
+        service.threadService = Mock(ThreadService)
+        MockedMethod finishProcessingText = TestHelpers.mock(service, "finishProcessingText")
+            { new Result() }
+        MockedMethod buildTextResponse = TestHelpers.mock(service, "buildTextResponse")
+            { new Result() }
+
+        when: "blocked"
+        MockedMethod buildTexts = TestHelpers.mock(service, "buildTexts")
+            { new Result(payload: Tuple.create([], [])) }
+        Result<Closure> res = service.processText(null, null, null, null)
+
+        then:
+        buildTexts.callCount == 1
+        1 * service.notificationService.build(*_) >> []
+        1 * service.threadService.submit(*_) >> { args -> args[0].call(); null; }
+        finishProcessingText.callCount == 1
+        buildTextResponse.callCount == 0
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.text.blocked")
+
+        when: "not blocked"
+        buildTexts.restore()
+        buildTexts = TestHelpers.mock(service, "buildTexts")
+            { new Result(payload: Tuple.create([], [c1])) }
+        res = service.processText(null, null, null, null)
+
+        then:
+        buildTexts.callCount == 1
+        1 * service.notificationService.build(*_) >> []
+        1 * service.threadService.submit(*_) >> { args -> args[0].call(); null; }
+        finishProcessingText.callCount == 2
+        buildTextResponse.callCount == 1
+        res.status == ResultStatus.OK
     }
 }

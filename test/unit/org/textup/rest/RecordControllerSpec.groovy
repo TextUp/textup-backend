@@ -7,6 +7,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
@@ -29,13 +30,13 @@ class RecordControllerSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
     def setup() {
-        super.setupData()
+        setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
         controller.recordService = [parseTypes:{ Collection<?> rawTypes -> [] }] as RecordService
         controller.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
     def cleanup() {
-        super.cleanupData()
+        cleanupData()
     }
 
     // List
@@ -214,30 +215,30 @@ class RecordControllerSpec extends CustomSpec {
 
     void "test validating recipients in request body for save"() {
         expect: "no validation to happen for recipients for texts"
-        controller.validateCreateBody(RecordText, [:]) == true
+        controller.validateCreateBody(RecordText, new TypeConvertingMap([:])) == true
 
         and: "only one recipient allowed for calls"
-        controller.validateCreateBody(RecordCall, [:]) == false
-        controller.validateCreateBody(RecordCall, [callContact: 1]) == true
-        controller.validateCreateBody(RecordCall, [callSharedContact: 1]) == true
-        controller.validateCreateBody(RecordCall, [callContact: 1, callSharedContact: 1]) == false
+        controller.validateCreateBody(RecordCall, new TypeConvertingMap([:])) == false
+        controller.validateCreateBody(RecordCall, new TypeConvertingMap([callContact: 1])) == true
+        controller.validateCreateBody(RecordCall, new TypeConvertingMap([callSharedContact: 1])) == true
+        controller.validateCreateBody(RecordCall, new TypeConvertingMap([callContact: 1, callSharedContact: 1])) == false
 
         and: "only one recipient allowed for notes"
-        controller.validateCreateBody(RecordNote, [:]) == false
-        controller.validateCreateBody(RecordNote, [forContact: 1]) == true
-        controller.validateCreateBody(RecordNote, [forSharedContact: 1]) == true
-        controller.validateCreateBody(RecordNote, [forTag: 1]) == true
-        controller.validateCreateBody(RecordNote, [forContact: 1, forSharedContact: 1]) == false
-        controller.validateCreateBody(RecordNote, [forContact: 1, forTag: 1]) == false
-        controller.validateCreateBody(RecordNote, [forSharedContact: 1, forTag: 1]) == false
-        controller.validateCreateBody(RecordNote, [forContact: 1, forSharedContact: 1, forTag: 1]) == false
+        controller.validateCreateBody(RecordNote, new TypeConvertingMap([:])) == false
+        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forContact: 1])) == true
+        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forSharedContact: 1])) == true
+        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forTag: 1])) == true
+        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forContact: 1, forSharedContact: 1])) == false
+        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forContact: 1, forTag: 1])) == false
+        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forSharedContact: 1, forTag: 1])) == false
+        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forContact: 1, forSharedContact: 1, forTag: 1])) == false
     }
 
     protected void mockForSave(Class requestClass, boolean doesExist, boolean hasTeamPermissions, Staff authUser) {
+        RecordUtils.metaClass."static".determineClass = { Map body ->
+            new Result(status: ResultStatus.OK, payload:requestClass)
+        }
         controller.recordService = [
-            determineClass: { Map body ->
-                new Result(status: ResultStatus.OK, payload:requestClass)
-            },
             create:{ Long id, Map body ->
                 ResultGroup resGroup = new ResultGroup()
                 resGroup << new Result(status:ResultStatus.CREATED, payload:rText1)

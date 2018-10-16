@@ -13,7 +13,7 @@ import org.textup.*
 class FutureMessageJob implements Job {
 
 	@Autowired
-	FutureMessageService futureMessageService
+	FutureMessageJobService futureMessageJobService
 
     @Autowired
     ResultFactory resultFactory
@@ -24,17 +24,17 @@ class FutureMessageJob implements Job {
     void execute(JobExecutionContext context) {
         // first wait for 2 seconds to allow for the future message to be saved
         // if we are firing it immediately so we are able to find the future message
-        // when we are executing in the futureMessageService
+        // when we are executing in the futureMessageJobService
         TimeUnit.SECONDS.sleep(2)
         // after sleeping, then continue with execution
     	JobDataMap data = context.mergedJobDataMap
         String futureKey = Helpers.to(String, data.get(Constants.JOB_DATA_FUTURE_MESSAGE_KEY))
-        futureMessageService
+        futureMessageJobService
         	.execute(futureKey, Helpers.to(Long, data.get(Constants.JOB_DATA_STAFF_ID)))
             .logFail("FutureMessageJob.executing job")
         // try to mark done regardless of the execution succeeds or fails
         if (!context.trigger.mayFireAgain()) { // is last fire
-            futureMessageService.markDone(futureKey)
+            futureMessageJobService.markDone(futureKey)
                 .logFail("FutureMessageJob: marking done")
         }
     }

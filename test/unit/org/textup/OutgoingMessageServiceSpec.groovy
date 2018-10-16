@@ -6,7 +6,8 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.test.runtime.DirtiesRuntime
 import grails.test.runtime.FreshRuntime
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.Future
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -16,7 +17,7 @@ import spock.lang.*
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+    MediaInfo, MediaElement, MediaElementVersion, Token])
 @TestMixin(HibernateTestMixin)
 @TestFor(OutgoingMessageService)
 class OutgoingMessageServiceSpec extends CustomSpec {
@@ -36,6 +37,30 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     // Call
     // ----
 
+    void "test direct message call"() {
+        given:
+        service.tokenService = Mock(TokenService)
+        Token tok1 = new Token(type: TokenType.CALL_DIRECT_MESSAGE,
+            data: [message: "hi", identifier: "hi", language: null])
+        tok1.save(flush: true, failOnError: true)
+
+        when: "fail to find token"
+        Result<Closure> res = service.directMessageCall(null)
+
+        then:
+        1 * service.tokenService.findDirectMessage(*_) >> new Result(payload: tok1)
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.messageIntro")
+
+        when: "successfully finds token"
+        res = service.directMessageCall(null)
+
+        then:
+        1 * service.tokenService.findDirectMessage(*_) >> new Result(status: ResultStatus.BAD_REQUEST)
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.error")
+    }
+
     void "test handling after bridge call"() {
         given:
         TempRecordReceipt rpt = TestHelpers.buildTempReceipt()
@@ -52,6 +77,29 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         res.status == ResultStatus.CREATED
         res.payload instanceof RecordCall
         res.payload.outgoing == true
+    }
+
+    void "test starting bridge call errors"() {
+        given:
+        Phone p1 = Mock(Phone)
+        Staff s1 = Mock(Staff)
+
+        when: "phone is not active"
+        Result<RecordCall> res = service.startBridgeCall(p1, null, s1)
+
+        then:
+        1 * p1.isActive >> false
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "phone.isInactive"
+
+        when: "staff does not have personal phone"
+        res = service.startBridgeCall(p1, null, s1)
+
+        then:
+        _ * p1.isActive >> true
+        1 * s1.personalPhoneAsString >> null
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "outgoingMessageService.startBridgeCall.noPersonalNumber"
     }
 
     void "test starting bridge call"() {
@@ -75,241 +123,195 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         RecordItemReceipt.count() == rBaseline + 1
     }
 
+    void "test finishing bridge call"() {
+        given:
+        TypeConvertingMap params = new TypeConvertingMap(contactId: c1.id)
+
+        when:
+        Result<Closure> res = service.finishBridgeCall(params)
+
+        then:
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.bridgeNumberStart")
+    }
+
     // Text
     // ----
 
-    void "test sending outgoing message asynchronously"() {
+    void "test building outgoing messages"() {
         given:
-        AtomicInteger timesCalled = new AtomicInteger()
-        service.tokenService = Mock(TokenService)
-        service.mediaService = Mock(MediaService)
-        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
-        List<Contactable> recipients = []
-        50.times { recipients << p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload }
+        OutgoingMessage msg1 = Mock()
+        WithRecord recordOwner1 = Mock()
+        Record rec1 = Mock()
 
-        when:
-        Result<Map<Contactable, Result<List<TempRecordReceipt>>>> res = service.sendForContactables(
-            p1, recipients, msg1, null)
+        when: "is outgoing call"
+        ResultGroup<? extends RecordItem> resGroup = service.buildMessages(msg1, null)
 
-        then: "send to all recipients"
-        recipients.size() * service.mediaService.sendWithMedia(*_) >>
-            { timesCalled.getAndIncrement(); new Result(); }
-        timesCalled.get() == recipients.size()
-        res.status == ResultStatus.OK
-        res.payload.size() == recipients.size()
+        then:
+        1 * msg1.toRecordOwners() >> [recordOwner1]
+        1 * recordOwner1.tryGetRecord() >> new Result(payload: rec1)
+        1 * msg1.isText >> false
+        0 * rec1.storeOutgoingText(*_)
+        1 * rec1.storeOutgoingCall(*_) >> new Result()
+        resGroup.successes.size() == 1
+        resGroup.anyFailures == false
+
+        when: "is outgoing text"
+        resGroup = service.buildMessages(msg1, null)
+
+        then:
+        1 * msg1.toRecordOwners() >> [recordOwner1]
+        1 * recordOwner1.tryGetRecord() >> new Result(payload: rec1)
+        1 * msg1.isText >> true
+        1 * rec1.storeOutgoingText(*_) >> new Result()
+        0 * rec1.storeOutgoingCall(*_)
+        resGroup.successes.size() == 1
+        resGroup.anyFailures == false
     }
 
-    void "test storing for a single contactable"() {
+    void "test try storing receipts"() {
         given:
-        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
-        List<TempRecordReceipt> receipts = []
-        10.times { receipts << TestHelpers.buildTempReceipt() }
-        Closure<Void> doWhenAddingReceipt = { arg1, arg2 -> }
-        int rBaseline = RecordText.count()
-        int cBaseline = RecordCall.count()
-        int rptBaseline = RecordItemReceipt.count()
+        WithRecord owner = Mock()
+        Record rec1 = Mock()
+        RecordItem item1 = Mock()
+        Long recId = 88
 
-        when: "cannot get record"
-        sc1.stopSharing()
-        sc1.save(flush: true, failOnError: true)
-        Result<RecordItem> res = service.storeForSingleContactable(msg1, null, s1.toAuthor(),
-            doWhenAddingReceipt, sc1, receipts)
-
-        then: "short circuit"
-        res.status == ResultStatus.FORBIDDEN
-        RecordText.count() == rBaseline
-        RecordCall.count() == cBaseline
-        RecordItemReceipt.count() == rptBaseline
-
-        when: "message is text"
-        msg1.type = RecordItemType.TEXT
-        res = service.storeForSingleContactable(msg1, null, s1.toAuthor(), doWhenAddingReceipt,
-            c1, receipts)
-        RecordText.withSession { it.flush() }
+        when: "no items for a given record id"
+        Map<Long, List<RecordItem>> recordIdToItems = [:]
+        Result<Void> res = service.tryStoreReceipts(recordIdToItems, owner, [])
 
         then:
-        res.status == ResultStatus.CREATED
-        RecordText.count() == rBaseline + 1
-        RecordCall.count() == cBaseline
-        RecordItemReceipt.count() == rptBaseline + receipts.size()
+        1 * owner.tryGetRecord() >> new Result(payload: rec1)
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "outgoingMessageService.tryStoreReceipts.notFound"
 
-        when: "message is call"
-        msg1.type = RecordItemType.CALL
-        res = service.storeForSingleContactable(msg1, null, s1.toAuthor(), doWhenAddingReceipt,
-            c1, receipts)
-        RecordText.withSession { it.flush() }
+        when: "all records match up with items"
+        recordIdToItems = [(recId):[item1]]
+        res = service.tryStoreReceipts(recordIdToItems, owner, [])
 
         then:
-        res.status == ResultStatus.CREATED
-        RecordText.count() == rBaseline + 1
-        RecordCall.count() == cBaseline + 1
-        RecordItemReceipt.count() == rptBaseline + receipts.size() + receipts.size()
+        1 * owner.tryGetRecord() >> new Result(payload: rec1)
+        1 * rec1.id >> recId
+        1 * item1.addAllReceipts(*_)
+        res.status == ResultStatus.NO_CONTENT
     }
 
     @DirtiesRuntime
-    void "test storing for many contactables"() {
+    void "test sending outgoing messages and storing receipts"() {
         given:
-        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
-        Closure<Void> doWhenAddingReceipt = { arg1, arg2 -> }
-        Map<Contactable, Result<List<TempRecordReceipt>>> contactableToReceiptResults = [:]
-        5.times {
-            String num = TestHelpers.randPhoneNumber()
-            contactableToReceiptResults[p1.createContact([:], [num]).payload] = new Result(payload: [])
-        }
-        int numTimesCalled = 0
-        service.metaClass.storeForSingleContactable = { OutgoingMessage msg2, MediaInfo mInfo,
-            Author author1, Closure<Void> doWhenAddingReceipt2, Contactable c2,
-            List<TempRecordReceipt> receipts ->
-            numTimesCalled++; new Result();
-        }
+        OutgoingMessage msg1 = Mock()
+        Contactable cont1 = Mock()
+        ContactTag ct1 = Mock()
+        service.tokenService = Mock(TokenService)
+        service.outgoingMediaService = Mock(OutgoingMediaService)
+        MockedMethod tryStoreReceipts = TestHelpers.mock(service, "tryStoreReceipts") { new Result() }
+        Long cId = 88
 
         when:
-        ResultGroup<RecordItem> resGroup = service.storeForContactables(msg1, null, s1.toAuthor(),
-            doWhenAddingReceipt, contactableToReceiptResults)
+        ResultGroup<?> resGroup = service.sendAndStore(null, null, msg1)
 
         then:
-        resGroup.successes.size() == contactableToReceiptResults.size()
-        contactableToReceiptResults.size() == numTimesCalled
-    }
-
-    void "test storing for a single tag"() {
-        given:
-        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
-        int numTimesCalled = 0
-        Closure<List<TempRecordReceipt>> getReceiptsFromContactId = { Long cId ->
-            numTimesCalled++; [TestHelpers.buildTempReceipt()];
-        }
-        5.times { tag1.addToMembers(p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload) }
-        assert tag1.members.size() > 1
-        int rBaseline = RecordText.count()
-        int cBaseline = RecordCall.count()
-        int rptBaseline = RecordItemReceipt.count()
-
-        when: "message is text"
-        msg1.type = RecordItemType.TEXT
-        Result<RecordItem> res = service.storeForSingleTag(msg1, null, s1.toAuthor(),
-            getReceiptsFromContactId, tag1)
-        RecordText.withSession { it.flush() }
-
-        then:
-        tag1.members.size() == numTimesCalled
-        res.status == ResultStatus.CREATED
-        RecordText.count() == rBaseline + 1
-        RecordCall.count() == cBaseline
-        RecordItemReceipt.count() == rptBaseline + tag1.members.size()
-
-        when: "message is call"
-        msg1.type = RecordItemType.CALL
-        res = service.storeForSingleTag(msg1, null, s1.toAuthor(), getReceiptsFromContactId, tag1)
-        RecordText.withSession { it.flush() }
-
-        then:
-        tag1.members.size() * 2 == numTimesCalled
-        res.status == ResultStatus.CREATED
-        RecordText.count() == rBaseline + 1
-        RecordCall.count() == cBaseline + 1
-        RecordItemReceipt.count() == rptBaseline + tag1.members.size() + tag1.members.size()
-    }
-
-    @DirtiesRuntime
-    void "test storing for tags"() {
-        given:
-        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
-        15.times { msg1.tags.recipients << p1.createTag(name: UUID.randomUUID().toString()).payload }
-        Closure<List<TempRecordReceipt>> getReceiptsFromContactId = { Long cId -> [] }
-        ResultGroup<RecordItem> resGroup1 = new ResultGroup<>()
-        int numTimesCalled = 0
-        service.metaClass.storeForSingleTag = { OutgoingMessage msg2, MediaInfo mInfo, Author author1,
-            Closure<List<TempRecordReceipt>> getReceiptsFromContactId2, ContactTag ct2 ->
-            numTimesCalled++; new Result();
-        }
-
-        when: "result group has no successes"
-        assert resGroup1.anySuccesses == false
-        ResultGroup<RecordItem> resGroup2 = service.storeForTags(msg1, null, s1.toAuthor(),
-            getReceiptsFromContactId, resGroup1)
-
-        then: "short circuit"
-        0 == numTimesCalled
-        resGroup2.anySuccesses == false
-
-        when: "result group has some successes"
-        resGroup1 << new Result()
-        assert resGroup1.anySuccesses == true
-        resGroup2 = service.storeForTags(msg1, null, s1.toAuthor(), getReceiptsFromContactId, resGroup1)
-
-        then:
-        msg1.tags.recipients.size() == numTimesCalled
-    }
-
-    @Unroll
-    void "test sending message overall for #type"() {
-        given: "baselines"
-        service.tokenService = Mock(TokenService)
-        service.mediaService = Mock(MediaService)
-        OutgoingMessage msg = TestHelpers.buildOutgoingMessage()
-        msg.type = type
-        msg.contacts.recipients = [c1, c1_1, c1_2]
-        msg.sharedContacts.recipients = [sc2]
-        msg.tags.recipients = [tag1, tag1_1]
-        int iBaseline = RecordItem.count()
-        int rBaseline = RecordItemReceipt.count()
-
-        when: "we send to contacts, shared contacts and tags"
-        ResultGroup<RecordItem> resGroup = service.sendMessage(p1, msg, null, s1)
-        RecordItem.withSession { it.flush() }
-
-        HashSet<Contact> uniqueContacts = new HashSet<>(msg.contacts.recipients)
-        msg.tags.recipients.each { if (it.members) { uniqueContacts.addAll(it.members) } }
-        int totalTagMembers = msg.tags.recipients.collect { it.members.size() ?: 0 }.sum()
-
-        then: "no duplication, also stored in tags"
+        1 * msg1.getContactIdToTags() >> [(cId):[ct1, ct1]]
         1 * service.tokenService.tryBuildAndPersistCallToken(*_)
-        // mediaService method mock MUST be a function instead of just a value
-        // so that we can generate temp receipts with unique apiIds. We can't add
-        // receipts with duplicate apiIds so then our counts below will fail
-        msg.toRecipients().size() * service.mediaService.sendWithMedia(*_) >> {
-            new Result(payload: [TestHelpers.buildTempReceipt()])
-        }
-        !resGroup.isEmpty && resGroup.failures.isEmpty() == true // all successes
-        // one result for each contact
-        // one result for each shared contact
-        // one result for each tag
-        resGroup.successes.size() == uniqueContacts.size() +
-            msg.sharedContacts.recipients.size() + msg.tags.recipients.size()
-        resGroup.successes.each { it.payload instanceof RecordItem }
-        // one msg for each contact
-        // one msg for each shared contact
-        // one msg for each tag
-        RecordItem.count() == iBaseline + uniqueContacts.size() +
-            msg.sharedContacts.recipients.size() + msg.tags.recipients.size()
-        // one receipt for each contact
-        // one receipt for each shared contact
-        // one receipt for each member of each tag
-        RecordItemReceipt.count() == rBaseline + uniqueContacts.size() +
-            msg.sharedContacts.recipients.size() + totalTagMembers
-        // make sure that `storeMessageInTag` is storing appropriate record item type
-        // with appropriate contents
-        if (type == RecordItemType.TEXT) {
-            msg.tags.recipients.each { ContactTag ct1 ->
-                RecordItem latestItem = ct1.record.getItems([max:1])[0]
-                // if an outgoing text, latest item is a text with contents set to message
-                assert latestItem.instanceOf(RecordText)
-                assert latestItem.contents == msg.message
-            }
-        }
-        else {
-            msg.tags.recipients.each { ContactTag ct1 ->
-                RecordItem latestItem = ct1.record.getItems([max:1])[0]
-                // if an outgoing call, latest item is a call with noteContents set to message
-                assert latestItem.instanceOf(RecordCall)
-                assert latestItem.noteContents == msg.message
-            }
-        }
+        1 * msg1.toRecipients() >> [cont1]
+        1 * cont1.contactId >> cId
+        1 * service.outgoingMediaService.send(*_) >> new Result()
+        tryStoreReceipts.callCount == 3 // once for contactable + twice for two associated tags
+        resGroup.successes.size() == 3
+        resGroup.anyFailures == false
+    }
 
-        where:
-        type                | _
-        RecordItemType.TEXT | _
-        RecordItemType.CALL | _
+    @DirtiesRuntime
+    void "test finishing processing outgoing messages overall"() {
+        given:
+        OutgoingMessage msg1 = Mock()
+        Future<Result<MediaInfo>> mediaFuture = Mock()
+        MediaInfo mInfo = Mock()
+        MockedMethod sendAndStore = TestHelpers.mock(service, "sendAndStore") { new ResultGroup() }
+
+        when: "no media"
+        ResultGroup<?> resGroup = service.finishProcessingMessages(null, null, msg1)
+
+        then:
+        0 * mediaFuture._
+        sendAndStore.callCount == 1
+
+        when: "has media but future does NOT resolve to appropriate result"
+        resGroup = service.finishProcessingMessages(null, null, msg1, mediaFuture)
+
+        then:
+        1 * mediaFuture.get() >> null
+        sendAndStore.callCount == 1
+        resGroup.anySuccesses == false
+        resGroup.failures.size() == 1
+        resGroup.failures[0].status == ResultStatus.INTERNAL_SERVER_ERROR
+        resGroup.failures[0].errorMessages[0] == "outgoingMediaService.finishProcessingMessages.futureMissingPayload"
+
+        when: "has media and future resolves to appropriate result"
+        resGroup = service.finishProcessingMessages(null, null, msg1, mediaFuture)
+
+        then:
+        1 * mediaFuture.get() >> new Result(payload: mInfo)
+        1 * msg1.setMedia(mInfo)
+        sendAndStore.callCount == 2
+    }
+
+    @DirtiesRuntime
+    void "test processing outgoing messages overall"() {
+        given:
+        Phone phone = Mock()
+        Staff staff = Stub()
+        RecordItem i1 = Mock()
+        Future fut1 = Mock(Future)
+        service.threadService = Mock(ThreadService)
+        MockedMethod finishProcessingMessages = TestHelpers.mock(service, "finishProcessingMessages")
+            { new ResultGroup() }
+        Record rec1 = Mock()
+        Long recordId = 88
+
+        when: "phone is not active"
+        Tuple<ResultGroup<RecordItem>, Future<?>> tuple = service.processMessage(phone, null, staff, null)
+
+        then:
+        1 * phone.isActive >> false
+        0 * service.threadService._
+        finishProcessingMessages.callCount == 0
+        tuple.first.failures.size() == 1
+        tuple.first.failures[0].status == ResultStatus.NOT_FOUND
+        tuple.first.failures[0].errorMessages[0] == "phone.isInactive"
+        tuple.second instanceof Future // no-op future
+
+        when: "building messages yields some errors"
+        MockedMethod buildMessages = TestHelpers.mock(service, "buildMessages")
+            { new Result(status: ResultStatus.LOCKED).toGroup() }
+        tuple = service.processMessage(phone, null, staff, null)
+
+        then:
+        1 * phone.isActive >> true
+        0 * service.threadService._
+        buildMessages.callCount == 1
+        finishProcessingMessages.callCount == 0
+        tuple.first.failures.size() == 1
+        tuple.first.failures[0].status == ResultStatus.LOCKED
+        tuple.second instanceof Future // no-op future
+
+        when: "building messages is successful"
+        buildMessages.restore()
+        buildMessages = TestHelpers.mock(service, "buildMessages")
+            { new Result(payload: i1).toGroup() }
+        tuple = service.processMessage(phone, null, staff, null)
+
+        then:
+        1 * phone.isActive >> true
+        1 * service.threadService.submit(*_) >> { args -> args[0].call(); fut1; }
+        1 * i1.record >> rec1
+        1 * rec1.id >> recordId
+        buildMessages.callCount == 1
+        finishProcessingMessages.callCount == 1
+        // build map of record id to record items
+        finishProcessingMessages.callArguments[0][0][recordId].contains(i1)
+        tuple.first.anyFailures == false
+        tuple.first.successes.size() == 1
+        tuple.second == fut1
     }
 }

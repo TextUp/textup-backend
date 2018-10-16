@@ -22,12 +22,11 @@ class MediaElementSpec extends Specification {
         when: "empty obj"
         MediaElement e1 = new MediaElement()
 
-        then: "invalid"
-        e1.validate() == false
+        then: "send version is no longer mandatory because we asychronously process media"
+        e1.validate() == true
 
         when: "filled in"
-        e1.type = MediaType.IMAGE_JPEG
-        e1.sendVersion = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
+        e1.sendVersion = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
             versionId: UUID.randomUUID().toString(),
             sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
             widthInPixels: 888)
@@ -45,58 +44,70 @@ class MediaElementSpec extends Specification {
         e1.errors.getFieldErrorCount("sendVersion") == 1
     }
 
-    void "test adding and retrieving versions"() {
-        given: "empty obj"
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        MediaElement e1 = new MediaElement()
+    void "test getting types and versions"() {
+        given:
+        Helpers.metaClass."static".getResultFactory = TestHelpers.getResultFactory(grailsApplication)
         byte[] inputData1 = TestHelpers.getJpegSampleData512()
+        UploadItem uItem1 = new UploadItem(type: MediaType.IMAGE_JPEG, data: inputData1)
+
+        when: "empty obj"
+        MediaElement e1 = new MediaElement()
+
+        then:
+        e1.allTypes.isEmpty()
+        e1.allVersions == []
 
         when: "adding send version"
-        e1.addVersion([
-            new UploadItem(mediaVersion: MediaVersion.SEND,
-                type: MediaType.IMAGE_JPEG,
-                data: inputData1)
-        ])
+        e1.sendVersion = uItem1.toMediaElementVersion()
 
-        then: "obj's send version is set + versions for display falls back to send version"
+        then: "obj's send version is set + versions for alternate falls back to send version"
         e1.sendVersion != null
-        e1.displayVersions == null
-        e1.versionsForDisplay.size() == 1
-        e1.versionsForDisplay.containsKey(MediaVersion.LARGE)
-        e1.versionsForDisplay[MediaVersion.LARGE].mediaVersion == MediaVersion.SEND
+        e1.alternateVersions == null
+        e1.allVersions.size() == 1
 
-        when: "adding display version"
-        e1.addVersion([
-            new UploadItem(mediaVersion: MediaVersion.MEDIUM,
-                type: MediaType.IMAGE_JPEG,
-                data: inputData1)
-        ])
+        e1.allTypes.size() == 1
+        e1.allTypes.toArray()[0] == MediaType.IMAGE_JPEG
+        e1.hasType([MediaType.IMAGE_JPEG, MediaType.IMAGE_PNG]) == true
+        e1.hasType([MediaType.AUDIO_MP3]) == false
+        e1.hasType([]) == false
+        e1.hasType(null) == false
 
-        then: "added to display version relationship versions for display includes newly added"
-        e1.displayVersions.size() == 1
-        e1.versionsForDisplay.size() == 1
-        e1.versionsForDisplay.containsKey(MediaVersion.MEDIUM)
+        when: "adding alternate version"
+        e1.addToAlternateVersions(uItem1.toMediaElementVersion())
+        uItem1.type = MediaType.IMAGE_PNG
+        e1.addToAlternateVersions(uItem1.toMediaElementVersion())
+
+        then: "added to alternate version relationship versions for alternate includes newly added"
+        e1.alternateVersions.size() == 2
+        e1.allVersions.size() == 3
+
+        e1.allTypes.size() == 2
+        e1.allTypes.toArray().every { it == MediaType.IMAGE_JPEG || it == MediaType.IMAGE_PNG }
+        e1.hasType([MediaType.IMAGE_JPEG, MediaType.IMAGE_PNG]) == true
+        e1.hasType([MediaType.AUDIO_MP3]) == false
+        e1.hasType([]) == false
+        e1.hasType(null) == false
     }
 
     void "test cascading validation for single association"() {
         given: "obj with some versions"
-        MediaElementVersion mVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
+        MediaElementVersion mVers = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
             versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888)
         assert mVers.validate()
-        MediaElement e1 = new MediaElement(type: MediaType.IMAGE_JPEG, sendVersion: mVers)
+        MediaElement e1 = new MediaElement(sendVersion: mVers)
 
         when: "we make the version invalid"
-        mVers.mediaVersion = null
+        mVers.type = null
         assert mVers.validate() == false
 
         then: "validating parent reveals invalid version"
         e1.validate() == false
         e1.errors.errorCount == 1
-        e1.errors.getFieldErrorCount('sendVersion.mediaVersion') == 1
+        e1.errors.getFieldErrorCount("sendVersion.type") == 1
 
         when: "invalid version is fixed"
-        mVers.mediaVersion = MediaVersion.SEND
+        mVers.type = MediaType.IMAGE_JPEG
         assert mVers.validate()
 
         then: "parent validates"
@@ -105,28 +116,28 @@ class MediaElementSpec extends Specification {
 
     void "test cascading validation for hasMany association"() {
         given: "obj with some versions"
-        MediaElementVersion sVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
+        MediaElementVersion sVers = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
             versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888)
-        MediaElementVersion dVers = new MediaElementVersion(mediaVersion: MediaVersion.MEDIUM,
+        MediaElementVersion aVers1 = new MediaElementVersion(type: MediaType.IMAGE_PNG,
             versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888)
         assert sVers.validate()
-        assert dVers.validate()
-        MediaElement e1 = new MediaElement(type: MediaType.IMAGE_JPEG, sendVersion: sVers)
-        e1.addToDisplayVersions(dVers)
+        assert aVers1.validate()
+        MediaElement e1 = new MediaElement(sendVersion: sVers)
+        e1.addToAlternateVersions(aVers1)
 
         when: "we make the version invalid"
-        dVers.mediaVersion = null
-        assert dVers.validate() == false
+        aVers1.type = null
+        assert aVers1.validate() == false
 
         then: "validating parent reveals invalid version"
         e1.validate() == false
-        e1.errors.getFieldErrorCount('displayVersions.0.mediaVersion') == 1
+        e1.errors.getFieldErrorCount("alternateVersions.0.type") == 1
 
         when: "invalid version is fixed"
-        dVers.mediaVersion = MediaVersion.SEND
-        assert dVers.validate()
+        aVers1.type = MediaType.IMAGE_PNG
+        assert aVers1.validate()
 
         then: "parent validates"
         e1.validate() == true
@@ -134,28 +145,29 @@ class MediaElementSpec extends Specification {
 
     void "test static creation method"() {
         given:
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        UploadItem mockUploadItem = Mock(UploadItem)
+        Helpers.metaClass."static".getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+        UploadItem mockSendItem = Mock(UploadItem)
+        UploadItem mockAltItem = Mock(UploadItem)
 
         when: "create with no items"
-        Result<MediaElement> res = MediaElement.create(MediaType.IMAGE_PNG, [])
+        Result<MediaElement> res = MediaElement.create(null, null)
 
-        then: "invalid -- see mocks"
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "nullable"
+        then: "valid with no items"
+        res.status == ResultStatus.OK
+        res.payload instanceof MediaElement
+        res.payload.allVersions.isEmpty()
 
         when: "create with valid content type and a send version"
-        res = MediaElement.create(MediaType.IMAGE_JPEG, [mockUploadItem])
+        res = MediaElement.create(mockSendItem, [mockAltItem])
 
         then: "valid -- see mocks"
-        (1.._) * mockUploadItem.getMediaVersion() >> MediaVersion.SEND
-        1 * mockUploadItem.getKey() >> "key"
-        1 * mockUploadItem.getSizeInBytes() >> 88
-        1 * mockUploadItem.getWidthInPixels() >> 88
-        1 * mockUploadItem.getHeightInPixels() >> 88
+        1 * mockSendItem.toMediaElementVersion() >> TestHelpers.buildMediaElementVersion()
+        1 * mockAltItem.toMediaElementVersion() >> TestHelpers.buildMediaElementVersion()
         res.success == true
         res.payload instanceof MediaElement
         res.payload.validate()
+        res.payload.allVersions.size() == 2
         res.payload.sendVersion != null
+        res.payload.alternateVersions.size() == 1
     }
 }

@@ -9,6 +9,9 @@ class Constants {
 	static final int TEXT_LENGTH = 160
 	static final int MAX_NUM_TEXT_RECIPIENTS = 500
 
+	// 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
+	static final int MAX_TEXT_COLUMN_SIZE = 15000
+
 	static final int DIRECT_MESSAGE_MAX_REPEATS = 10
 
 	static final int DEFAULT_PAGINATION_MAX = 10

@@ -29,26 +29,9 @@ class TokenServiceSpec extends CustomSpec {
         resultFactory(ResultFactory)
     }
 
-    int _numTimesAccessNotification = 3
-
     def setup() {
         setupData()
-        service.grailsApplication = [getFlatConfig:{
-            [
-                "textup.resetTokenSize":10,
-                "textup.verifyTokenSize":5,
-                "textup.numTimesAccessNotification":_numTimesAccessNotification
-            ]
-        }] as GrailsApplication
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        service.messageSource = TestHelpers.mockMessageSource()
-        service.mailService = [notifyPasswordReset: { Staff s1, String token ->
-            new Result(status:ResultStatus.OK, payload:token)
-        }] as MailService
-        service.textService = [send: { BasePhoneNumber fromNum,
-            List<? extends BasePhoneNumber> toNums, String message ->
-            new Result(status:ResultStatus.OK)
-        }] as TextService
     }
 
     def cleanup() {
@@ -77,7 +60,7 @@ class TokenServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         res.payload instanceof Token
 
-        when: 'try to generate but invalid'
+        when: "try to generate but invalid"
         res = service.generate(TokenType.VERIFY_NUMBER, [randomStuff: 123])
 
         then:
@@ -91,7 +74,7 @@ class TokenServiceSpec extends CustomSpec {
         Token reset = new Token(type:TokenType.PASSWORD_RESET),
             verify = new Token(type:TokenType.VERIFY_NUMBER)
         reset.data = [toBeResetId:88L]
-        verify.data = [toVerifyNumber:'1112223333']
+        verify.data = [toVerifyNumber:"1112223333"]
         assert reset.save(failOnError:true)
         assert verify.save(failOnError:true, flush:true)
 
@@ -136,52 +119,32 @@ class TokenServiceSpec extends CustomSpec {
 
     void "test requesting number verification"() {
         given:
-        String nKey = "textup.apiKeys.twilio.notificationNumber"
-        PhoneNumber validNum = new PhoneNumber(number:"1112223333"),
-            invalidNum = new PhoneNumber(number:"123901")
+        PhoneNumber validNum = new PhoneNumber(number:"1112223333")
+        PhoneNumber invalidNum = new PhoneNumber(number:"123901")
         assert validNum.validate()
         assert invalidNum.validate() == false
+        int tBaseline = Token.count()
 
         when: "invalid number to validate"
-        Result<Staff> res = service.requestVerify(invalidNum)
+        Result<Staff> res = service.generateVerifyNumber(invalidNum)
 
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
+        then: "verification happens in calling service"
+        res.status == ResultStatus.OK
+        res.payload instanceof Token
+        res.payload.type == TokenType.VERIFY_NUMBER
+        res.payload.maxNumAccess == null
+        Token.count() == tBaseline + 1
 
-        when: "notification number missing"
-        service.grailsApplication = [getFlatConfig:{
-            [(nKey):null]
-        }] as GrailsApplication
-        res = service.requestVerify(validNum)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0] == "tokenService.requestVerify.notificationNumberMissing"
-
-        when: "invalid notification number"
-        service.grailsApplication = [getFlatConfig:{
-            [(nKey):"1230"]
-        }] as GrailsApplication
-        res = service.requestVerify(validNum)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
-
-        when: "validating a valid number with notification number present"
-        service.grailsApplication = [getFlatConfig:{
-            [(nKey):"1112223333"]
-        }] as GrailsApplication
-        res = service.requestVerify(validNum)
+        when: "validating a valid number"
+        res = service.generateVerifyNumber(validNum)
 
         then:
         res.success == true
-        res.status == ResultStatus.NO_CONTENT
-        res.payload == null
+        res.status == ResultStatus.OK
+        res.payload instanceof Token
+        res.payload.type == TokenType.VERIFY_NUMBER
+        res.payload.maxNumAccess == null
+        Token.count() == tBaseline + 2
     }
 
     void "test completing number verification"() {
@@ -209,6 +172,15 @@ class TokenServiceSpec extends CustomSpec {
         res.success == true
         res.status == ResultStatus.NO_CONTENT
         res.payload == null
+
+        when: "stored number to validate is invalid"
+        token.data = [toVerifyNumber: "invalid number"]
+        token.save(flush:true, failOnError:true)
+        res = service.verifyNumber(token.token, pNum)
+
+        then:
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages[0] == "tokenService.verifyNumber.couldNotComplete"
     }
 
     // Password reset
@@ -219,37 +191,41 @@ class TokenServiceSpec extends CustomSpec {
         int tBaseline = Token.count()
 
         when: "nonexisting username"
-        Result res = service.requestReset("invalid")
+        long invalidId = -88
+        Result<Token> res = service.generatePasswordReset(invalidId)
 
-        then:
-        res.success == false
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "tokenService.staffNotFound"
+        then: "username validation in calling service"
+        res.status == ResultStatus.OK
+        res.payload instanceof Token
+        res.payload.maxNumAccess == 1
+        Token.count() == tBaseline + 1
+        Token.list().last().data.toBeResetId == invalidId
 
         when:
-        res = service.requestReset(s1.username)
+        res = service.generatePasswordReset(s1.id)
 
         then:
-        res.success == true
-        res.status == ResultStatus.NO_CONTENT
-        res.payload == null
-        Token.count() == tBaseline + 1
+        res.status == ResultStatus.OK
+        res.payload instanceof Token
+        res.payload.maxNumAccess == 1
+        Token.count() == tBaseline + 2
         Token.list().last().data.toBeResetId == s1.id
     }
 
     void "test completing password reset"() {
         given: "tokens"
         Integer maxNumAccess = 1
-        Token tok1 = new Token(type:TokenType.PASSWORD_RESET,
-                maxNumAccess:maxNumAccess),
+        Token tok1 = new Token(type:TokenType.PASSWORD_RESET, maxNumAccess:maxNumAccess),
+            tok2 = new Token(type:TokenType.PASSWORD_RESET, maxNumAccess:maxNumAccess),
             expiredTok = new Token(type: TokenType.PASSWORD_RESET,
                 expires:DateTime.now().minusDays(1))
-        tok1.data = [toBeResetId:s1.id]
-        expiredTok.data = [toBeResetId:s1.id]
-        [tok1, expiredTok]*.save(flush:true, failOnError:true)
+        tok1.data = [toBeResetId: s1.id]
+        tok2.data = [toBeResetId: -88]
+        expiredTok.data = [toBeResetId: s1.id]
+        [tok1, tok2, expiredTok]*.save(flush:true, failOnError:true)
 
         when: "request with invalid token"
-        Result<Staff> res = service.resetPassword("whatisthis", "password")
+        Result<Staff> res = service.findPasswordResetStaff("whatisthis")
 
         then:
         res.success == false
@@ -257,7 +233,7 @@ class TokenServiceSpec extends CustomSpec {
         res.errorMessages[0] == "tokenService.tokenNotFound"
 
         when: "request with valid token but expired"
-        res = service.resetPassword(expiredTok.token, "password")
+        res = service.findPasswordResetStaff(expiredTok.token)
 
         then:
         res.success == false
@@ -265,24 +241,26 @@ class TokenServiceSpec extends CustomSpec {
         res.errorMessages[0] == "tokenService.tokenExpired"
 
         when: "valid token, invalid password"
-        res = service.resetPassword(tok1.token, "")
+        res = service.findPasswordResetStaff(tok1.token)
 
         then: "token not yet expired"
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Token.findByToken(tok1.token).isExpired == false
-
-        when: "try to reuse the same reset token"
-        String pwd = "iamsospecial!!!!"
-        res = service.resetPassword(tok1.token, pwd)
-
-        then: "still valid since invalid password before"
         res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof Staff
-        res.payload.password == pwd
-        // but the token is now expired for future attempts
-        Token.findByToken(tok1.token).isExpired == true
+
+        when: "try to reuse the same reset token"
+        res = service.findPasswordResetStaff(tok1.token)
+
+        then: "one-time use only"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "tokenService.tokenExpired"
+
+        when: "token has a nonexistent staff id"
+        res = service.findPasswordResetStaff(tok2.token)
+
+        then:
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages[0] == "tokenService.resetPassword.couldNotComplete"
     }
 
     // Notify staff
@@ -291,45 +269,22 @@ class TokenServiceSpec extends CustomSpec {
     void "test create notification"() {
         given: "no tokens"
         int tBaseline = Token.count()
-        DateTime plusOneDay = DateTime.now().plusDays(1).minusMinutes(1),
-            plusOneDayAndOneHour = DateTime.now().plusHours(25)
-        String contents = "contents"
-        String instructions = "instructions"
-        Boolean isOutgoing = true
-        Result res
 
         when: "staff without personal phone number"
-        assert s1.personalPhoneNumber.number != null
-        String personalPhoneNumber = s1.personalPhoneAsString
-        s1.personalPhoneAsString = ""
-        s1.save(flush:true, failOnError:true)
+        Result<Token> res = service.generateNotification(null)
 
-        BasicNotification bn1 = new BasicNotification(owner:p1.owner, record:c1.record, staff:s1)
-        assert bn1.validate() == true
-        res = service.notifyStaff(bn1, isOutgoing, contents, instructions)
-
-        then: "short circuited"
-        res.success == true
-        res.status == ResultStatus.NO_CONTENT
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
         Token.count() == tBaseline
 
         when: "staff with a personal phone number"
-        s1.personalPhoneAsString = personalPhoneNumber
-        s1.save(flush:true, failOnError:true)
-
-        res = service.notifyStaff(bn1, isOutgoing, contents, instructions)
-        assert Token.count() == tBaseline + 1
-        Token tok = Token.list().last()
+        res = service.generateNotification(recordId: 1, phoneId: 2, contents: 3, outgoing: 4)
 
         then: "notification created"
-        res.success == true
-        res.status == ResultStatus.NO_CONTENT
-        tok.data.phoneId == p1.id
-        tok.data.recordId == c1.record.id
-        tok.data.contents == contents
-        tok.data.outgoing == isOutgoing
-        tok.expires.isAfter(plusOneDay)
-        tok.expires.isBefore(plusOneDayAndOneHour)
+        Token.count() == tBaseline + 1
+        res.status == ResultStatus.OK
+        res.payload instanceof Token
+        Constants.MAX_NUM_ACCESS_NOTIFICATION_TOKEN == res.payload.maxNumAccess
     }
 
     void "test claim notification"() {
@@ -344,7 +299,7 @@ class TokenServiceSpec extends CustomSpec {
         [tok, expiredTok]*.save(flush:true, failOnError:true)
 
         when: "nonexistent token"
-        Result<Notification> res = service.showNotification("nonexistent")
+        Result<Notification> res = service.findNotification("nonexistent")
 
         then:
         res.success == false
@@ -352,7 +307,7 @@ class TokenServiceSpec extends CustomSpec {
         res.errorMessages[0] == "tokenService.tokenNotFound"
 
         when: "expired token"
-        res = service.showNotification(expiredTok.token)
+        res = service.findNotification(expiredTok.token)
 
         then:
         res.success == false
@@ -360,21 +315,18 @@ class TokenServiceSpec extends CustomSpec {
         res.errorMessages[0] == "tokenService.tokenExpired"
 
         when: "about-to-expire valid token"
-        res = service.showNotification(tok.token)
+        int originalTimesAccessed = tok.timesAccessed
+        res = service.findNotification(tok.token)
         Token.withSession { Session session -> session.flush() }
 
         then: "valid"
-        res.success == true
         res.status == ResultStatus.OK
-        res.payload instanceof Notification
-        res.payload.validate()
-        res.payload.contents == data.contents
-        res.payload.tag == null
-        res.payload.contact.id == c1.id
-        res.payload.owner.phone.id == p1.id
+        res.payload instanceof Token
+        res.payload.id == tok.id
+        res.payload.timesAccessed == originalTimesAccessed + 1
 
         when: "about-to-expire valid token again"
-        res = service.showNotification(tok.token)
+        res = service.findNotification(tok.token)
 
         then: "expired"
         res.success == false
@@ -412,74 +364,42 @@ class TokenServiceSpec extends CustomSpec {
         tok1.data.language == msg1.language?.toString()
     }
 
-    void "test building call closures"() {
-        when: "building call response"
-        Closure response = service.buildCallResponse("1", "2", VoiceLanguage.ENGLISH, "3")
-
-        then:
-        TestHelpers.buildXml(response) == TestHelpers.buildXml({
-            Say("1")
-            Pause(length:"1")
-            Say(language:VoiceLanguage.ENGLISH.toTwimlValue(), "2")
-            Redirect("3")
-        })
-
-        when: "building hangup"
-        response = service.buildCallEnd()
-
-        then:
-        TestHelpers.buildXml(response) == TestHelpers.buildXml({ Hangup() })
-    }
-
     void "test building call direct message body from token"() {
         given:
-        Collection<String> passedInArgs
-        Map passedInParams
-        Closure<String> getMessage = { String code, Collection<String> args = [] ->
-            passedInArgs = args
-            code
-        }
-        Closure<String> getLink = { Map params = [:] ->
-            passedInParams = params
-            "link"
-        }
-        Token tok1 = new Token(type:TokenType.CALL_DIRECT_MESSAGE)
+        Token tok1 = new Token(type:TokenType.CALL_DIRECT_MESSAGE, maxNumAccess: 1)
         tok1.data = [message: "hi", identifier: "Kiki", language: VoiceLanguage.ENGLISH.toString()]
         tok1.save(flush: true, failOnError: true)
 
         when: "null token"
-        Closure response = service.buildCallDirectMessageBody(getMessage, getLink, null, null)
+        Result<Token> res = service.findDirectMessage(null)
 
         then: "return null --> will trigger error in twimlBuilder"
-        null == response
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "tokenService.tokenNotFound"
 
         when: "nonexistent token"
-        response = service.buildCallDirectMessageBody(getMessage, getLink, "i don't exist", null)
+        res = service.findDirectMessage("i don't exist")
 
         then: "return null --> will trigger error in twimlBuilder"
-        null == response
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "tokenService.tokenNotFound"
 
         when: "existing token, but too many repeats"
-        response = service.buildCallDirectMessageBody(getMessage, getLink, tok1.token,
-            Constants.MAX_REPEATS * 2)
+        int originalTimesAccessed = tok1.timesAccessed
+        res = service.findDirectMessage(tok1.token)
+        Token.withSession { Session session -> session.flush() }
 
         then:
-        TestHelpers.buildXml(response) == TestHelpers.buildXml({ Hangup() })
-        null == passedInArgs
-        null == passedInParams
+        res.status == ResultStatus.OK
+        res.payload instanceof Token
+        res.payload.id == tok1.id
+        res.payload.timesAccessed == originalTimesAccessed + 1
 
-        when: "existing token, first time"
-        response = service.buildCallDirectMessageBody(getMessage, getLink, tok1.token, null)
-        Map<String, ?> tData = tok1.data
+        when:
+        res = service.findDirectMessage(tok1.token)
 
-        then: "repeat count initialized to 1"
-        TestHelpers.buildXml(response) == TestHelpers.buildXml({
-            Say("twimlBuilder.call.messageIntro")
-            Pause(length:"1")
-            Say(language:VoiceLanguage.ENGLISH.toTwimlValue(), tData.message)
-            Redirect("link")
-        })
-        passedInArgs == [tData.identifier]
-        passedInParams == [handle: CallResponse.DIRECT_MESSAGE, token: tok1.token, repeatCount: 1]
+        then:
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "tokenService.tokenExpired"
     }
 }

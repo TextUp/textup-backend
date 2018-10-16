@@ -42,7 +42,7 @@ interface ReadOnlyRecord {
 @GrailsTypeChecked
 interface ReadOnlyFutureMessage extends ReadOnlyWithMedia {
     Long getId()
-    ReadOnlyRecord getRecord()
+    ReadOnlyRecord getReadOnlyRecord()
     FutureMessageType getType()
 
     DateTime getWhenCreated()
@@ -79,7 +79,7 @@ interface ReadOnlyRecordCall {
 @GrailsTypeChecked
 interface ReadOnlyRecordItem extends Authorable, WithMedia {
     Long getId()
-    ReadOnlyRecord getRecord()
+    ReadOnlyRecord getReadOnlyRecord()
 
     DateTime getWhenCreated()
     boolean getOutgoing()

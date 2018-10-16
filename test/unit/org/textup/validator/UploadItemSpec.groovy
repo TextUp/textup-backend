@@ -1,6 +1,7 @@
 package org.textup.validator
 
-import grails.test.mixin.support.GrailsUnitTestMixin
+import grails.test.mixin.gorm.Domain
+import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import java.awt.Image
 import java.awt.image.BufferedImage
@@ -12,11 +13,13 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.io.IOUtils
 import org.springframework.validation.Errors
 import org.textup.*
+import org.textup.media.ImageUtils
 import org.textup.type.*
 import org.textup.util.TestHelpers
 import spock.lang.*
 
-@TestMixin(GrailsUnitTestMixin)
+@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@TestMixin(HibernateTestMixin)
 class UploadItemSpec extends Specification {
 
     static doWithSpring = {
@@ -29,309 +32,87 @@ class UploadItemSpec extends Specification {
 
         then:
         uItem.validate() == false
-        uItem.errors.errorCount == 3 // 3 props = mediaVersion, type, data
+        uItem.errors.errorCount == 2 // 2 props = type, data
 
         when: "invalidly encoded data"
-        uItem.mediaVersion = MediaVersion.SEND
         uItem.type = MediaType.IMAGE_JPEG
         uItem.data = "not actually an image".bytes
 
         then: "valid, assume data is valid, even if it isn't a valid image"
         uItem.validate() == true
-        uItem.widthInPixels == 0 // 0, not actually an image so can't process into image to find width
-        uItem.heightInPixels == 0 // 0, not actually an image so can't process into image to find width
+        uItem.widthInPixels == null // not actually an image so can't process into image to find width
+        uItem.heightInPixels == null // not actually an image so can't process into image to find width
     }
 
-    void "test getting writers for valid image types WITHOUT exception catching"() {
-        expect:
-        UploadItem.getWriter(type) != null
-
-        where:
-        type                 | _
-        MediaType.IMAGE_JPEG | _
-        MediaType.IMAGE_PNG  | _
-        MediaType.IMAGE_GIF  | _
-    }
-
-    void "test converting byte data to a BufferedImage WITHOUT exception catching"() {
-        given:
-        byte[] jpegTest = TestHelpers.getJpegSampleData512()
-        byte[] pngTest = TestHelpers.getPngSampleData()
-        assert jpegTest != null
-        assert pngTest != null
-
-        expect: "valid image input data to return a BufferedImage"
-        UploadItem.tryGetImageFromData(jpegTest) instanceof BufferedImage
-        UploadItem.tryGetImageFromData(pngTest) instanceof BufferedImage
-
-        and: "invalid image input data to return null"
-        UploadItem.tryGetImageFromData("not valid image data".bytes) == null
-    }
-
-    void "test converting Image to BufferedImage WITHOUT exception catching"() {
-        given: "an image"
-        BufferedImage bImg = new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB)
-
-        expect:
-        UploadItem.imageToBufferedImage(bImg) instanceof BufferedImage
-    }
-
-    void "test ability to compress various mime types"() {
-        expect:
-        UploadItem.canCompress(MediaType.IMAGE_JPEG) == true
-        UploadItem.canCompress(MediaType.IMAGE_PNG) == false
-        UploadItem.canCompress(MediaType.IMAGE_GIF) == true
-        UploadItem.canCompress(null) == false
-    }
-
-    // jpeg size fluctuates on decoding + encoding due to stripping of metadata and rounding errors
-    // during the forward and reverse processes. See https://stackoverflow.com/a/29274870
-    // The only want to ensure the exact same byte data is to copy byte by byte
-    void "test repeated encoding + decoding jpeg WITHOUT exception catching"() {
-        given: "encode our initial jpeg image from byte data"
-        ImageWriter writer = UploadItem.getWriter(MediaType.IMAGE_JPEG)
-        byte[] initialData = TestHelpers.getJpegSampleData512()
-        BufferedImage jpgImg = UploadItem.tryGetImageFromData(initialData)
-        assert jpgImg != null
-        ImageWriteParam param1 = writer.defaultWriteParam
-
-        when: "convert with default params (compresssion cannot be turned off for jpeg)"
-        byte[] convert1 = UploadItem.getDataFromImage(jpgImg, writer, param1)
-
-        then: "compression cannot be turned off + jpeg encoding/decoding has size fluctuations"
-        initialData.length > convert1.length
-
-        when: "convert a second time"
-        BufferedImage jpgImg2 = UploadItem.tryGetImageFromData(convert1)
-        byte[] convert2 = UploadItem.getDataFromImage(jpgImg2, writer, param1)
-
-        then: "similar size to first conversion within a wide band"
-        initialData.length > convert2.length
-        Math.abs(convert2.length - convert1.length) < 10000
-
-        when: "convert a third time"
-        BufferedImage jpgImg3 = UploadItem.tryGetImageFromData(convert2)
-        byte[] convert3 = UploadItem.getDataFromImage(jpgImg3, writer, param1)
-
-        then: "similar size to first two conversions within a wide band"
-        initialData.length > convert3.length
-        Math.abs(convert3.length - convert1.length) < 10000
-        Math.abs(convert3.length - convert2.length) < 10000
-    }
-
-    void "test decoding jpeg with compression"() {
-        given: "encode our initial jpeg image from byte data"
-        ImageWriter writer = UploadItem.getWriter(MediaType.IMAGE_JPEG)
-        byte[] initialData = TestHelpers.getJpegSampleData512()
-        BufferedImage jpgImg = UploadItem.tryGetImageFromData(initialData)
-        assert jpgImg != null
-
-        when: "convert with no compression (cannot turn compression off for jpeg)"
-        ImageWriteParam param1 = writer.defaultWriteParam
-        param1.setCompressionMode(ImageWriteParam.MODE_EXPLICIT)
-        param1.setCompressionQuality(1.0f)
-        byte[] convert1 = UploadItem.getDataFromImage(jpgImg, writer, param1)
-
-        then:
-        convert1 != null
-        initialData.length > convert1.length
-
-        when: "convert with compression params"
-        ImageWriteParam param2 = UploadItem.tryGetCompressionParamsForWriter(writer, 0.5f)
-        byte[] convert2 = UploadItem.getDataFromImage(jpgImg, writer, param2)
-
-        then: "byte result has a smaller size"
-        convert2 != null
-        convert1.length > convert2.length
-    }
-
-    void "test trying to compress png results in exception"() {
-        given: "encode our initial jpeg image from byte data"
-        ImageWriter writer = UploadItem.getWriter(MediaType.IMAGE_PNG)
-        byte[] initialData = TestHelpers.getPngSampleData()
-        BufferedImage pngImg = UploadItem.tryGetImageFromData(initialData)
-        assert pngImg != null
-
-        when: "try to convert png witout compression"
-        ImageWriteParam param1 = writer.defaultWriteParam
-        byte[] convert1 = UploadItem.getDataFromImage(pngImg, writer, param1)
-
-        then: "ok, but decoded byte data will not be same as the original"
-        convert1 != null
-        initialData.length != convert1.length
-
-        when: "when we try to convert png with compression"
-        ImageWriteParam param2 = UploadItem.tryGetCompressionParamsForWriter(writer, 0.5f)
-        byte[] convert2 = UploadItem.getDataFromImage(pngImg, writer, param2)
-
-        then: "compression not supported at all for png"
-        thrown UnsupportedOperationException
-    }
-
-    void "test trying to compress gif requires setting compression type"() {
-        given: "encode our initial jpeg image from byte data"
-        ImageWriter writer = UploadItem.getWriter(MediaType.IMAGE_GIF)
-        byte[] initialData = TestHelpers.getGifSampleData()
-        BufferedImage gifImg = UploadItem.tryGetImageFromData(initialData)
-        assert gifImg != null
-
-        when: "try to convert png witout compression"
-        ImageWriteParam param1 = writer.defaultWriteParam
-        byte[] convert1 = UploadItem.getDataFromImage(gifImg, writer, param1)
-
-        then: "ok, but decoded byte data will not be same as the original"
-        convert1 != null
-        initialData.length != convert1.length
-
-        when: "when we try to convert png with compression"
-        ImageWriteParam param2 = UploadItem.tryGetCompressionParamsForWriter(writer, 0.1f)
-        byte[] convert2 = UploadItem.getDataFromImage(gifImg, writer, param2)
-
-        then: "can be compressed, even if the compressed size is the same as the non-compressed"
-        convert2 != null
-    }
-
-    void "test custom getters"() {
+    void "test getting size in bytes"() {
         when: "obj with valid mime type"
         byte[] inputData1 = TestHelpers.getJpegSampleData512()
-        UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            type: MediaType.IMAGE_JPEG,
-            data: inputData1)
+        UploadItem uItem = new UploadItem(type: MediaType.IMAGE_JPEG, data: inputData1)
         assert uItem.validate()
 
         then: "can get MediaType enum"
         uItem.type == MediaType.IMAGE_JPEG
-        uItem.widthInPixels == 512
-        uItem.heightInPixels == 512
+        uItem.widthInPixels == null
+        uItem.heightInPixels == null
         uItem.sizeInBytes == inputData1.size()
 
         when: "setting data"
-        Long width1 = uItem.widthInPixels
         byte[] inputData2 = TestHelpers.getJpegSampleData256()
         assert inputData1.size() != inputData2.size()
         uItem.data = inputData2
 
-        then: "image private property is also implicitly set + can get file size and image width"
+        then: "file size is implicit from data but dimensions need to be manually set"
         uItem.sizeInBytes == inputData2.size()
-        uItem.widthInPixels != width1
-        uItem.widthInPixels == 256
-        uItem.heightInPixels == 256
+        uItem.widthInPixels == null
+        uItem.heightInPixels == null
     }
 
-    @Unroll
-    void "test resizing width for #type"() {
-        given: "obj with data"
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(type)
-        UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            type: type,
-            data: inputData1)
+    void "test setting properties via BufferedImage"() {
+        given:
+        byte[] inputData1 = TestHelpers.getJpegSampleData512()
+        byte[] inputData2 = TestHelpers.getGifSampleData()
+        BufferedImage image1 = ImageUtils.tryGetImageFromData(inputData1)
+        BufferedImage image2 = ImageUtils.tryGetImageFromData(inputData2)
+
+        UploadItem uItem = new UploadItem(type: MediaType.IMAGE_JPEG, data: inputData1)
         assert uItem.validate()
 
-        when: "resize to a zero width"
-        Result<UploadItem> res = uItem.tryResizeToWidth(0)
+        when:
+        uItem.image = image1
 
-        then: "short circuit -- see mock"
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "uploadItem.tryResizeToWidth.invalidWidth"
+        then:
+        uItem.heightInPixels != null
+        uItem.widthInPixels != null
+        uItem.heightInPixels == image1.height
+        uItem.widthInPixels == image1.width
 
-        when: "resize to a negative width"
-        res = uItem.tryResizeToWidth(-1)
+        when:
+        uItem.image = image2
 
-        then: "short circuit -- see mock"
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "uploadItem.tryResizeToWidth.invalidWidth"
-
-        when: "resize to a width larger than current width"
-        res = uItem.tryResizeToWidth(uItem.widthInPixels * 2)
-
-        then: "short circuit without changing width"
-        res.payload instanceof UploadItem
-        res.payload.widthInPixels == uItem.widthInPixels
-
-        when: "resize to a positive width"
-        float aspectRatio = 0.8
-        int targetWidth = Math.floor(uItem.widthInPixels * aspectRatio)
-        int originalHeight = uItem.heightInPixels
-        res = uItem.tryResizeToWidth(targetWidth)
-
-        then: "successfully do so while preserving the aspect ratio"
-        res.payload instanceof UploadItem
-        targetWidth == res.payload.widthInPixels
-        Math.floor(originalHeight * aspectRatio) == res.payload.heightInPixels
-
-        where:
-        type                 | _
-        MediaType.IMAGE_PNG  | _
-        MediaType.IMAGE_JPEG | _
-        MediaType.IMAGE_GIF  | _
+        then:
+        uItem.heightInPixels != null
+        uItem.widthInPixels != null
+        uItem.heightInPixels == image2.height
+        uItem.widthInPixels == image2.width
     }
 
-    void "test compression short circuiting"() {
-        given: "obj representing a PNG image (not compressible)"
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getPngSampleData()
-        UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            type: MediaType.IMAGE_PNG,
-            data: inputData1)
+    void "test converting to MediaElementVersion"() {
+        given:
+        byte[] inputData1 = TestHelpers.getJpegSampleData512()
+        UploadItem uItem = new UploadItem(type: MediaType.IMAGE_JPEG,
+            data: inputData1, isPublic: true, widthInPixels: 888, heightInPixels: 888)
         assert uItem.validate()
 
-        when: "compress to a zero size"
-        Result<UploadItem> res = uItem.tryCompress(0)
+        when:
+        MediaElementVersion mVers1 = uItem.toMediaElementVersion()
 
-        then: "short circuit without infinite loop"
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "uploadItem.tryCompress.invalidSize"
-
-        when: "compress to a negative size"
-        res = uItem.tryCompress(-1)
-
-        then: "short circuit without infinite loop"
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "uploadItem.tryCompress.invalidSize"
-    }
-
-    @Unroll
-    void "test compression for #type"() {
-        given: "obj with compressible data"
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(type)
-        UploadItem uItem = new UploadItem(mediaVersion: MediaVersion.SEND,
-            type: type,
-            data: inputData1)
-        assert uItem.validate()
-
-        when: "compress to impossibly small size"
-        int targetSize = 1
-        Result<UploadItem> res = uItem.tryCompress(targetSize)
-
-        then: "short circuit before hitting file size b/c of min quality standards"
-        res.success == true
-        res.payload instanceof UploadItem
-        if (UploadItem.canCompress(type)) {
-            assert res.payload.sizeInBytes < inputData1.length
-            assert res.payload.sizeInBytes > targetSize // impossibly small threshold
-        }
-        else { assert res.payload.sizeInBytes == inputData1.length }
-
-        when: "compress to more reasonable size"
-        uItem.data = inputData1
-        targetSize = inputData1.length * 0.8
-        res = uItem.tryCompress(targetSize)
-
-        then: "successfully compress to be smaller than the max size threshold"
-        res.success == true
-        res.payload instanceof UploadItem
-        if (UploadItem.canCompress(type)) {
-            assert res.payload.sizeInBytes < inputData1.length
-            assert res.payload.sizeInBytes <= targetSize
-        }
-        else { assert res.payload.sizeInBytes == inputData1.length }
-
-        where:
-        type                 | _
-        MediaType.IMAGE_PNG  | _
-        MediaType.IMAGE_JPEG | _
-        MediaType.IMAGE_GIF  | _
+        then:
+        mVers1.validate()
+        mVers1.type == uItem.type
+        mVers1.versionId == uItem.key
+        mVers1.sizeInBytes == inputData1.length
+        mVers1.widthInPixels == uItem.widthInPixels
+        mVers1.heightInPixels == uItem.heightInPixels
+        mVers1.isPublic == uItem.isPublic
     }
 }

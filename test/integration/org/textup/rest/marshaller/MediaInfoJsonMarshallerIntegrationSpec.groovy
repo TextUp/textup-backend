@@ -30,9 +30,16 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
 
         when: "some media elements"
         List<MediaElement> elements = []
-        int numElements = 4
-        numElements.times {
+        int numImages = 4
+        numImages.times {
             MediaElement e1 = TestHelpers.buildMediaElement(5)
+            mInfo.addToMediaElements(e1)
+            elements << e1
+        }
+        int numAudio = 2
+        numAudio.times {
+            MediaElement e1 = TestHelpers.buildMediaElement()
+            e1.sendVersion.type = MediaType.AUDIO_WEBM_OPUS
             mInfo.addToMediaElements(e1)
             elements << e1
         }
@@ -46,8 +53,11 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
         then:
         json.id == mInfo.id
         json.images instanceof Collection
-        json.images.size() == numElements
-        elements.every { e1 -> json.images.find { it.uid == e1.uid } }
+        json.images.size() == numImages
+        json.audio instanceof Collection
+        json.audio.size() == numAudio
+        json.images.every { elements.find { e1 -> it.uid == e1.uid } }
+        json.audio.every { elements.find { e1 -> it.uid == e1.uid } }
         json.uploadErrors instanceof List
         json.uploadErrors.size() == errorMessages.size()
         errorMessages.every { String msg -> json.uploadErrors.find { it.contains(msg) } }

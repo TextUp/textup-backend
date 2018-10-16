@@ -41,7 +41,7 @@ class RecordTextSpec extends Specification {
     	rText.validate() == true
 
         when: "we add contents longer than supported by text column type"
-        rText.noteContents = buildVeryLongString()
+        rText.noteContents = TestHelpers.buildVeryLongString()
 
         then: "shared contraint on the noteContents field is executed"
         rText.validate() == false
@@ -75,14 +75,5 @@ class RecordTextSpec extends Specification {
         then: "has number of segments greater than 0"
         rText.receipts.size() == 2
         rText.numSegments > 0
-    }
-
-    // Helpers
-    // -------
-
-    protected String buildVeryLongString() {
-        StringBuilder sBuilder = new StringBuilder()
-        15000.times { it -> sBuilder << it }
-        sBuilder.toString()
     }
 }

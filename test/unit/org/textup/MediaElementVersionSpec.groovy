@@ -7,46 +7,49 @@ import org.joda.time.DateTime
 import org.textup.type.*
 import spock.lang.*
 
+@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@TestMixin(HibernateTestMixin)
 class MediaElementVersionSpec extends Specification {
 
     void "test constraints + width and link custom getters"() {
         given: "storage service mock"
-        StorageService storageServiceMock = [
-            generateAuthLink: { String key ->
-                key ? new Result(success: true, payload: new URL("https://www.example.com")) :
-                    new Result(success: false, payload: null) as Result<URL>
-            }
-        ] as StorageService
+        StorageService storageServiceMock = Mock(StorageService)
 
         when: "empty obj"
         MediaElementVersion mVers = new MediaElementVersion()
         mVers.storageService = storageServiceMock
 
         then: "invalid + custom getters are null-safe"
+        0 * storageServiceMock._
         mVers.validate() == false
-        mVers.inherentWidth == null // null b/c no version set to fall back on
         mVers.link == null
 
         when: "filled in obj"
-        mVers.mediaVersion = MediaVersion.SEND
+        mVers.type = MediaType.IMAGE_JPEG
         mVers.versionId = UUID.randomUUID().toString()
         mVers.sizeInBytes = 888
+        String link = mVers.link?.toString()
 
-        then: "valid, width is not mandatory"
+        then: "valid, defaults to being private"
+        1 * storageServiceMock.generateAuthLink(*_) >> new Result(payload: new URL("https://www.example.com"))
+        0 * storageServiceMock.generateLink(*_)
         mVers.validate() == true
-        mVers.inherentWidth == MediaVersion.SEND.maxWidthInPixels
-        mVers.link?.toString() == "https://www.example.com"
+        link == "https://www.example.com"
 
-        when: "width is set"
-        mVers.widthInPixels = 12345
+        when: "is public"
+        mVers.isPublic = true
+        link = mVers.link?.toString()
 
-        then: "user custom set width instead of fallback MediaVersion width"
-        mVers.inherentWidth == 12345
+        then:
+        0 * storageServiceMock.generateAuthLink(*_)
+        1 * storageServiceMock.generateLink(*_) >> new Result(payload: new URL("https://www.example.com"))
+        mVers.validate() == true
+        link == "https://www.example.com"
     }
 
     void "test constraint errors"() {
         given: "a valid obj"
-        MediaElementVersion mVers = new MediaElementVersion(mediaVersion: MediaVersion.SEND,
+        MediaElementVersion mVers = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
             versionId: UUID.randomUUID().toString(),
             sizeInBytes: 888)
         assert mVers.validate()

@@ -18,73 +18,52 @@ class FutureMessageJobSpec extends Specification {
 
 	FutureMessageJob job
 
-	private boolean _shouldExecuteSuccessfully = true
-	private boolean _didMarkDone = false
-
-	private String _jobKey = "key"
-	private String _jobStaffId = "1"
-
     def setup() {
     	job = new FutureMessageJob()
     	job.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-    	job.futureMessageService = [
-    		execute: { String futureKey, Long staffId ->
-    			if (_shouldExecuteSuccessfully) {
-    				new Result(success:true).toGroup()
-    			}
-    			else { new Result(success:false).toGroup() }
-			},
-    		markDone: { String futureKey ->
-    			_didMarkDone = true
-    			new Result(success:true)
-    		}
-    	] as FutureMessageService
-    }
-
-    protected buildJobContext(boolean willFireAgain) {
-    	[
-    		getMergedJobDataMap: { ->
-    			[
-	    			(Constants.JOB_DATA_FUTURE_MESSAGE_KEY):_jobKey,
-	    			(Constants.JOB_DATA_STAFF_ID):_jobStaffId
-	    		] as JobDataMap
-    		},
-    		getTrigger: {
-    			[
-    				mayFireAgain: { ->
-    					willFireAgain
-    				}
-    			] as Trigger
-    		}
-    	] as JobExecutionContext
     }
 
     void "test mark done"() {
+        given:
+        job.futureMessageJobService = Mock(FutureMessageJobService)
+        JobExecutionContext context = Mock()
+        Trigger trig = Mock()
+        String key = TestHelpers.randString()
+        Long id = 88
+        Map data = [
+            (Constants.JOB_DATA_FUTURE_MESSAGE_KEY): key,
+            (Constants.JOB_DATA_STAFF_ID): id
+        ]
+
     	when: "execution does not succeed but will not fire again"
-    	boolean triggerWillFireAgain = false
-    	_shouldExecuteSuccessfully = false
-    	_didMarkDone = false
-    	job.execute(buildJobContext(triggerWillFireAgain))
+        job.execute(context)
 
     	then: "mark done regardless of execution success"
-    	_didMarkDone == true
+        1 * context.mergedJobDataMap >> new JobDataMap(data)
+        1 * context.trigger >> trig
+        1 * trig.mayFireAgain() >> false
+        1 * job.futureMessageJobService.execute(key, id) >>
+            new Result(status: ResultStatus.INTERNAL_SERVER_ERROR).toGroup()
+        1 * job.futureMessageJobService.markDone(key) >> new Result()
 
     	when: "execution succeeds but trigger may still fire again"
-    	triggerWillFireAgain = true
-    	_shouldExecuteSuccessfully = true
-    	_didMarkDone = false
-    	job.execute(buildJobContext(triggerWillFireAgain))
+    	job.execute(context)
 
     	then: "don't mark done"
-    	_didMarkDone == false
+    	1 * context.mergedJobDataMap >> new JobDataMap(data)
+        1 * context.trigger >> trig
+        1 * trig.mayFireAgain() >> true
+        1 * job.futureMessageJobService.execute(key, id) >> new ResultGroup()
+        0 * job.futureMessageJobService.markDone(*_)
 
     	when: "execution succeeds and trigger will not fire again"
-    	triggerWillFireAgain = false
-    	_shouldExecuteSuccessfully = true
-    	_didMarkDone = false
-    	job.execute(buildJobContext(triggerWillFireAgain))
+    	job.execute(context)
 
     	then: "mark done"
-    	_didMarkDone == true
+    	1 * context.mergedJobDataMap >> new JobDataMap(data)
+        1 * context.trigger >> trig
+        1 * trig.mayFireAgain() >> false
+        1 * job.futureMessageJobService.execute(key, id) >> new ResultGroup()
+        1 * job.futureMessageJobService.markDone(key) >> new Result()
     }
 }

@@ -8,7 +8,6 @@ import grails.test.runtime.DirtiesRuntime
 import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
-import org.textup.rest.TwimlBuilder
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -24,7 +23,6 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
-        twimlBuilder(TwimlBuilder)
     }
 
     def setup() {
@@ -282,29 +280,21 @@ class CallbackStatusServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test selecting update method from passed-in parameters"() {
         given:
-        int numText = 0
-        int numChildCall = 0
-        int numParentCall = 0
-        service.metaClass.handleUpdateForText = { String textId, ReceiptStatus status ->
-            numText++; new Result();
-        }
-        service.metaClass.handleUpdateForChildCall = { String parentId, String childId,
-            PhoneNumber childNumber, ReceiptStatus status, Integer duration ->
-            numChildCall++; new Result();
-        }
-        service.metaClass.handleUpdateForParentCall = { String callId, ReceiptStatus status,
-            Integer duration, TypeConvertingMap params ->
-            numParentCall++; new Result();
-        }
+        MockedMethod handleUpdateForText = TestHelpers.mock(service, "handleUpdateForText")
+            { new Result() }
+        MockedMethod handleUpdateForChildCall = TestHelpers.mock(service, "handleUpdateForChildCall")
+            { new Result() }
+        MockedMethod handleUpdateForParentCall = TestHelpers.mock(service, "handleUpdateForParentCall")
+            { new Result() }
 
         when: "empty input"
         TypeConvertingMap params = new TypeConvertingMap([:])
         service.process(params)
 
         then: "no method called"
-        0 == numText
-        0 == numChildCall
-        0 == numParentCall
+        0 == handleUpdateForText.callCount
+        0 == handleUpdateForChildCall.callCount
+        0 == handleUpdateForParentCall.callCount
 
         when: "call id but invalid status and duration"
         params = new TypeConvertingMap([
@@ -315,9 +305,9 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.process(params)
 
         then: "no method called"
-        0 == numText
-        0 == numChildCall
-        0 == numParentCall
+        0 == handleUpdateForText.callCount
+        0 == handleUpdateForChildCall.callCount
+        0 == handleUpdateForParentCall.callCount
 
         when: "parent call id, call id, valid status, valid duration, invalid child number"
         params = new TypeConvertingMap([
@@ -330,9 +320,9 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.process(params)
 
         then: "no method called"
-        0 == numText
-        0 == numChildCall
-        0 == numParentCall
+        0 == handleUpdateForText.callCount
+        0 == handleUpdateForChildCall.callCount
+        0 == handleUpdateForParentCall.callCount
 
         when: "text id but invalid status"
         params = new TypeConvertingMap([
@@ -342,9 +332,9 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.process(params)
 
         then: "no method called"
-        0 == numText
-        0 == numChildCall
-        0 == numParentCall
+        0 == handleUpdateForText.callCount
+        0 == handleUpdateForChildCall.callCount
+        0 == handleUpdateForParentCall.callCount
 
         when: "call id, valid status, valid duration"
         params = new TypeConvertingMap([
@@ -355,9 +345,9 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.process(params)
 
         then: "parent call"
-        0 == numText
-        0 == numChildCall
-        1 == numParentCall
+        0 == handleUpdateForText.callCount
+        0 == handleUpdateForChildCall.callCount
+        1 == handleUpdateForParentCall.callCount
 
         when: "parent call id, call id, valid status, valid duration, valid child number"
         params = new TypeConvertingMap([
@@ -370,9 +360,9 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.process(params)
 
         then: "child call"
-        0 == numText
-        1 == numChildCall
-        1 == numParentCall
+        0 == handleUpdateForText.callCount
+        1 == handleUpdateForChildCall.callCount
+        1 == handleUpdateForParentCall.callCount
 
         when: "text id, valid status"
         params = new TypeConvertingMap([
@@ -382,8 +372,8 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.process(params)
 
         then: "text message"
-        1 == numText
-        1 == numChildCall
-        1 == numParentCall
+        1 == handleUpdateForText.callCount
+        1 == handleUpdateForChildCall.callCount
+        1 == handleUpdateForParentCall.callCount
     }
 }

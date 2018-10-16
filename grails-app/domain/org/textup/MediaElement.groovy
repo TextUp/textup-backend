@@ -50,9 +50,11 @@ class MediaElement implements ReadOnlyMediaElement {
     // Static factory methods
     // ----------------------
 
-    static Result<MediaElement> create(UploadItem sVersion, List<UploadItem> alternates) {
-        MediaElement e1 = new MediaElement(sendVersion: sVersion.toMediaElementVersion())
-        alternates.each { UploadItem uItem -> addToAlternateVersions(uItem.toMediaElementVersion()) }
+    static Result<MediaElement> create(UploadItem sVersion, Collection<UploadItem> alternates) {
+        MediaElement e1 = new MediaElement(sendVersion: sVersion?.toMediaElementVersion())
+        alternates?.each { UploadItem uItem ->
+            e1.addToAlternateVersions(uItem.toMediaElementVersion())
+        }
 
         if (e1.save()) {
             Helpers.resultFactory.success(e1)
@@ -65,7 +67,7 @@ class MediaElement implements ReadOnlyMediaElement {
 
     boolean hasType(Collection<MediaType> typesToCheckFor) {
         HashSet<MediaType> allTypes = getAllTypes()
-        typesToCheckFor.any { MediaType t1 -> allTypes.contains(t1) }
+        typesToCheckFor?.any { MediaType t1 -> allTypes.contains(t1) }
     }
 
     // Property access

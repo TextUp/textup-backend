@@ -74,7 +74,7 @@ class IncomingMessageService {
     protected Result<Void> finishProcessingText(IncomingText text, List<Long> textIds,
         List<BasicNotification> notifs, TypeConvertingMap params) {
 
-        Integer numMedia = params.int("NumMedia")
+        Integer numMedia = params.int("NumMedia", 0)
         // if needed, process media, which includes generating versions, uploading versions,
         // and deleting copies stored by Twilio
         if (numMedia > 0) {
@@ -111,6 +111,7 @@ class IncomingMessageService {
             // to push record items to the frontend. However, for incoming texts
             // no status callback happens so we need to push the item here
             socketService.sendItems(rTexts)
+                .logFail("IncomingMessageService.finishProcessingTextHelper: sending via socket")
             resultFactory.success()
         }
         else { resultFactory.failWithGroup(outcomes) }

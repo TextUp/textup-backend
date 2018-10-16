@@ -14,7 +14,7 @@ class AudioPostProcessor implements CanProcessMedia {
 
     protected static final MediaType SEND_TYPE = MediaType.AUDIO_MP3
     protected static final MediaType ALT_TYPE = MediaType.AUDIO_WEBM_OPUS
-    protected static final long CONVERSION_TIMEOUT_IN_MILLIS = 15000
+    protected static final long CONVERSION_TIMEOUT_IN_MILLIS = 60000
 
     private final AudioUtils _audioUtils
     private final MediaType _type

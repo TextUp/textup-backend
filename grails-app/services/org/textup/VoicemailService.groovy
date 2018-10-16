@@ -25,11 +25,15 @@ class VoicemailService {
     // -----------------
 
     ResultGroup<RecordCall> processVoicemailMessage(String callId, int duration,
-        IncomingRecordingInfo im1) {
+        IncomingRecordingInfo ir1) {
 
+        ir1.isPublic = false
+        ResultGroup<MediaElement> processResultGroup = incomingMediaService.process([ir1])
+        if (processResultGroup.anyFailures) {
+            return processResultGroup
+        }
         ResultGroup<RecordCall> resGroup = new ResultGroup<>()
-        List<MediaElement> mediaElements = incomingMediaService.process([im1]).payload
-        if (mediaElements) { return resGroup }
+        List<MediaElement> mediaElements = processResultGroup.payload
         Collection<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(callId)
         receipts*.item
             .unique { RecordItem item -> item.id }
@@ -65,12 +69,12 @@ class VoicemailService {
     // ------------------
 
     Result<Void> finishedProcessingVoicemailGreeting(Phone p1, String callId,
-        IncomingRecordingInfo im1) {
+        IncomingRecordingInfo ir1) {
 
         // voicemail greetings are public so that Twilio can cache the object and because anyone
         // who calls the number and gets sent to voicemail will hear this greeting
-        im1.isPublic = true
-        ResultGroup<MediaElement> resGroup = incomingMediaService.process([im1])
+        ir1.isPublic = true
+        ResultGroup<MediaElement> resGroup = incomingMediaService.process([ir1])
         if (resGroup.anyFailures) {
             return resultFactory.failWithGroup(resGroup)
         }

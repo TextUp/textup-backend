@@ -1,6 +1,8 @@
 package org.textup
 
+import com.twilio.security.RequestValidator
 import grails.compiler.GrailsTypeChecked
+import grails.util.Holders
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import javax.servlet.http.HttpServletRequest
@@ -18,31 +20,23 @@ class TwilioUtils {
     // Processing request
     // ------------------
 
-    static String getBrowserURL(HttpServletRequest request) {
-        String browserURL = (request.requestURL.toString() - request.requestURI) +
-            TwilioUtils.getForwardURI(request)
-        request.queryString ? "$browserURL?${request.queryString}" : browserURL
-    }
-
-    static Map<String,String> extractTwilioParams(HttpServletRequest request,
-        TypeConvertingMap allParams) {
-
-        // step 1: build list of what to ignore. Params that should be ignored are query params
-        // that we append to the callback functions that should be factored into the validation
-        Collection<String> requestParamKeys = request.parameterMap.keySet(),
-            queryParams = []
-        request.queryString?.tokenize("&")?.each { queryParams << it.tokenize("=")[0] }
-        HashSet<String> ignoreParamKeys = new HashSet<>(queryParams),
-            keepParamKeys = new HashSet<>(requestParamKeys)
-        // step 2: collect params
-        Map<String,String> twilioParams = [:]
-        allParams.each {
-            String key = it.key, val = it.value
-            if (keepParamKeys.contains(key) && !ignoreParamKeys.contains(key)) {
-                twilioParams[key] = val
-            }
+    static Result<Void> validate(HttpServletRequest request, TypeConvertingMap params) {
+        // step 1: try to extract auth header
+        String errCode = "twilioUtils.validate.invalid",
+            authHeader = request.getHeader("x-twilio-signature")
+        if (!authHeader) {
+            return Helpers.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
         }
-        twilioParams
+        // step 2: build browser url and extract Twilio params
+        String url = TwilioUtils.getBrowserURL(request)
+        Map<String, String> twilioParams = TwilioUtils.extractTwilioParams(request, params)
+        // step 3: build and run request validator
+        String authToken = Holders.flatConfig["textup.apiKeys.twilio.authToken"]
+        RequestValidator validator = new RequestValidator(authToken)
+
+        validator.validate(url, twilioParams, authHeader) ?
+            Helpers.resultFactory.success() :
+            Helpers.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
     }
 
     static List<IncomingMediaInfo> buildIncomingMedia(int numMedia, String messageId,
@@ -91,13 +85,10 @@ class TwilioUtils {
     }
 
     static String say(String code, List<Object> args = []) {
-        separateDigits(Helpers.getMessage(code, args))
+        cleanForSay(Helpers.getMessage(code, args))
     }
     static String say(BasePhoneNumber pNum) {
-        separateDigits(pNum.number)
-    }
-    protected static String separateDigits(String msg) {
-        msg.replaceAll(/(\/|\-)/, "").replaceAll(/(\d)/, / $0 /)
+        cleanForSay(pNum.number)
     }
 
     static List<String> formatAnnouncementsForRequest(Collection<FeaturedAnnouncement> announces) {
@@ -121,9 +112,45 @@ class TwilioUtils {
     // Helpers
     // -------
 
+    protected static String getBrowserURL(HttpServletRequest request) {
+        String browserURL = (request.requestURL.toString() - request.requestURI) +
+            TwilioUtils.getForwardURI(request)
+        request.queryString ? "$browserURL?${request.queryString}" : browserURL
+    }
+
+    protected static Map<String,String> extractTwilioParams(HttpServletRequest request,
+        TypeConvertingMap allParams) {
+
+        // step 1: build list of what to ignore. Params that should be ignored are query params
+        // that we append to the callback functions that should be factored into the validation
+        Collection<String> requestParamKeys = request.parameterMap.keySet(),
+            queryParams = []
+        request.queryString?.tokenize("&")?.each { queryParams << it.tokenize("=")[0] }
+        HashSet<String> ignoreParamKeys = new HashSet<>(queryParams),
+            keepParamKeys = new HashSet<>(requestParamKeys)
+        // step 2: collect params
+        Map<String,String> twilioParams = [:]
+        allParams.each {
+            String key = it.key, val = it.value
+            if (keepParamKeys.contains(key) && !ignoreParamKeys.contains(key)) {
+                twilioParams[key] = val
+            }
+        }
+        twilioParams
+    }
+
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static String getForwardURI(HttpServletRequest request) {
         request.getForwardURI()
+    }
+
+    protected static String cleanForSay(String msg) {
+        String cleaned = msg
+            ?.replaceAll(/(\/|\-)/, "") // remove slashes and dashes because these are pronouned
+            ?.replaceAll(/(\d)/, / $0 /) // surround digits with spaces
+            ?.replaceAll(/\s+/, " ") // replace multiple sequential spaces with just one
+            ?.trim() // trim any surround whitespace
+        cleaned ?: ""
     }
 
     protected static String extractMediaIdFromUrl(String url) {

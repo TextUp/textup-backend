@@ -7,7 +7,7 @@ import org.textup.util.CustomSpec
 
 class SocketServiceIntegrationSpec extends CustomSpec {
 
-	def socketService
+	SocketService socketService
 
     def setup() {
     	setupIntegrationData()
@@ -31,16 +31,33 @@ class SocketServiceIntegrationSpec extends CustomSpec {
 
     @DirtiesRuntime
     void "test sending generic object with record"() {
+        given:
+        int numBatches = 3
+        Collection<?> toSend = []
+        (3 * Constants.SOCKET_PAYLOAD_BATCH_SIZE).times { toSend << c1 }
+
         when:
         String eventName = "Ting Ting"
-        ResultGroup<Staff> resGroup = socketService.send([c1.record], [c1], eventName)
+        ResultGroup<Staff> resGroup = socketService.send([c1.record], toSend, eventName)
 
         then:
-        resGroup.payload.size() == 1
-        resGroup.payload[0].staff == s1
-        resGroup.payload[0].eventName == eventName
-        resGroup.payload[0].data instanceof List
-        resGroup.payload[0].data.size() == 1
-        resGroup.payload[0].data[0].id == c1.id
+        resGroup.payload.size() == numBatches
+        resGroup.payload.every { it.staff == s1 }
+        resGroup.payload.every { it.eventName == eventName }
+        resGroup.payload.every { it.data instanceof List }
+        resGroup.payload.every { it.data.size() <= Constants.SOCKET_PAYLOAD_BATCH_SIZE }
+        resGroup.payload.every { it.data[0].id == c1.id }
+    }
+
+    void "test sending future messages"() {
+        given:
+        FutureMessage fMsg = Mock(FutureMessage)
+
+        when:
+        ResultGroup<Staff> resGroup = socketService.sendFutureMessages([fMsg])
+
+        then:
+        1 * fMsg.refreshTrigger()
+        resGroup.successes.size() == 1
     }
 }
