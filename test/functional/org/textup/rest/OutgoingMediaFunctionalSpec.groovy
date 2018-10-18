@@ -16,40 +16,6 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()
-        // override key service methods
-        remote.exec({
-            // override storage service so that media doesn't actually get uploaded
-            ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
-                new ResultGroup()
-            }
-            // ensure that callbackService validates all requests
-            ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                TypeConvertingMap params ->
-
-                ctx.resultFactory.success()
-            }
-            // override text service
-            ctx.textService.metaClass.send = { BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
-                String message, List<MediaElement> media = [] ->
-
-                assert toNums.isEmpty() == false
-                TempRecordReceipt temp = new TempRecordReceipt(apiId: TestHelpers.randString())
-                temp.contactNumber = toNums[0]
-                assert temp.validate()
-                ctx.resultFactory.success(temp)
-            }
-            // override call service
-            ctx.callService.metaClass.start = { BasePhoneNumber fromNum, BasePhoneNumber toNum,
-                Map afterPickup ->
-
-                TempRecordReceipt temp = new TempRecordReceipt(apiId: TestHelpers.randString())
-                temp.contactNumber = toNum
-                assert temp.validate()
-                // return temp
-                ctx.resultFactory.success(temp)
-            }
-            return
-        })
     }
 
     def cleanup() {
@@ -114,10 +80,11 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         response.json['future-message'].media?.images instanceof List
         response.json['future-message'].media?.images.size() == mediaActions.size()
         response.json['future-message'].media?.images.each {
-            assert it.small.link instanceof String
-            assert it.medium.link instanceof String
-            assert it.large.link instanceof String
+            assert it.versions.every {
+                it.type == MediaType.IMAGE_JPEG.mimeType && it.link instanceof String
+            }
         }
+        response.json['future-message'].media?.audio.isEmpty()
         afterCounts.numItems == beforeCounts.numItems
         afterCounts.numReceipts == beforeCounts.numReceipts
         afterCounts.numMediaInfo == beforeCounts.numMediaInfo + 1
@@ -180,10 +147,11 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         response.json.records[0].media?.images instanceof List
         response.json.records[0].media?.images.size() == mediaActions.size()
         response.json.records[0].media?.images.each {
-            assert it.small.link instanceof String
-            assert it.medium.link instanceof String
-            assert it.large.link instanceof String
+            assert it.versions.every {
+                it.type == MediaType.IMAGE_JPEG.mimeType && it.link instanceof String
+            }
         }
+        response.json.records[0].media?.audio.isEmpty()
         afterCounts.numItems == beforeCounts.numItems + 1
         afterCounts.numReceipts == beforeCounts.numReceipts +
             Math.ceil(mediaActions.size() / Constants.MAX_NUM_MEDIA_PER_MESSAGE)
@@ -194,7 +162,7 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         given: "re-override storage service to have some upload errors"
         String errorMsg = TestHelpers.randString()
         remote.exec({ thisError ->
-            ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
+            TestHelpers.forceMock(ctx.storageService, "uploadAsync") {
                 Result failRes = new Result(status: ResultStatus.BAD_REQUEST,
                     errorMessages: [thisError])
                 new ResultGroup([failRes])
@@ -258,10 +226,11 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         response.json.records[0].media.images instanceof List
         response.json.records[0].media.images.size() == mediaActions.size()
         response.json.records[0].media.images.each {
-            assert it.small.link instanceof String
-            assert it.medium.link instanceof String
-            assert it.large.link instanceof String
+            assert it.versions.every {
+                it.type == MediaType.IMAGE_JPEG.mimeType && it.link instanceof String
+            }
         }
+        response.json.records[0].media.audio.isEmpty()
         afterCounts.numItems == beforeCounts.numItems + 1
         afterCounts.numReceipts == beforeCounts.numReceipts +
             Math.ceil(mediaActions.size() / Constants.MAX_NUM_MEDIA_PER_MESSAGE)

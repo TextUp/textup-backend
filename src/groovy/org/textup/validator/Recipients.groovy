@@ -32,7 +32,7 @@ class Recipients<T, E> {
         this
     }
 
-    // should be overriden in subclasses
+    // should be overridden in subclasses
     protected List<E> buildRecipientsFromIds(List<T> ids) { Collections.emptyList() }
 
     // Property access

@@ -26,23 +26,6 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 	def setup() {
 		setupData()
 		(targetPhoneNumber, prevPersonalNumber) = remote.exec({ un ->
-            // ensure that callbackService validates all requests
-            ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                TypeConvertingMap params ->
-
-                ctx.resultFactory.success()
-            }
-            ctx.phoneService.metaClass.moveVoicemail = { String callId, String recordingId,
-                String voicemailUrl ->
-
-                ctx.resultFactory.success()
-            }
-            ctx.phoneService.metaClass.storeVoicemail = { String callId, int voicemailDuration ->
-                ctx.resultFactory.success().toGroup()
-            }
-            ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
-                new ResultGroup()
-            }
             // return TextUp phone number of the logged-in
             Staff s1 = Staff.findByUsername(un)
             String prevPersonalNumber = s1.personalPhoneAsString

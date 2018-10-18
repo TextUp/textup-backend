@@ -21,20 +21,21 @@ class IncomingMediaService {
     ResultFactory resultFactory
     StorageService storageService
 
-    @GrailsTypeChecked(groovy.transform.TypeCheckingMode.SKIP) // TODO
     ResultGroup<MediaElement> process(Collection<? extends IsIncomingMedia> incomingMediaList) {
         // step 1: fetch media from Twilio and build appropriate versions
-        ResultGroup<Tuple<List<UploadItem>, MediaElement>> outcomes = new ResultGroup<>()
-        incomingMediaList.each { IsIncomingMedia im1 -> outcomes << processElement(im1) }
-        outcomes.logFail("IncomingMediaService.process: processing elements")
+        ResultGroup<Tuple<List<UploadItem>, MediaElement>> tupleGroup = new ResultGroup<>()
+        incomingMediaList.each { IsIncomingMedia im1 -> tupleGroup << processElement(im1) }
+        tupleGroup.logFail("IncomingMediaService.process: processing elements")
         // step 2: upload to our media bucket and delete copy from Twilio
         Collection<UploadItem> toUpload = []
-        outcomes.payload.each { Tuple<List<UploadItem>, MediaElement> processed ->
+        ResultGroup<MediaElement> elementGroup = new ResultGroup<>()
+        tupleGroup.payload.each { Tuple<List<UploadItem>, MediaElement> processed ->
             toUpload.addAll(processed.first)
+            elementGroup << resultFactory.success(processed.second)
         }
         finishProcessingUploads(incomingMediaList, toUpload)
             .logFail("IncomingMediaService.process: updating and deleting")
-        outcomes
+        elementGroup
     }
 
     // Helpers

@@ -32,7 +32,6 @@ class CallbackServiceSpec extends CustomSpec {
 	}
 
     def setup() {
-        Helpers.metaClass."static".getLinkGenerator = { -> TestHelpers.mockLinkGenerator() }
     	setupData()
     	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
@@ -277,7 +276,7 @@ class CallbackServiceSpec extends CustomSpec {
         IncomingSession is1 = [number: TestHelpers.randPhoneNumber()] as IncomingSession
 
         when: "starting voicemail"
-        String clientNum = "1233834920"
+        String clientNum = URLEncoder.encode("+1233834920", "UTF-8")
         TypeConvertingMap params = new TypeConvertingMap(CallSid: "iamasid!!",
             handle: CallResponse.SCREEN_INCOMING.toString())
         // voicemail is inbound so from client to TextUp phone
@@ -320,7 +319,7 @@ class CallbackServiceSpec extends CustomSpec {
         res = service.processCall(p1, is1, null, params)
 
         then:
-        1 * service.threadService.submit(*_) >> { args -> args[2].call(); null; }
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * service.voicemailService.processVoicemailMessage(*_) >> new ResultGroup()
         res.status == ResultStatus.OK
         TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response { } }
@@ -377,7 +376,7 @@ class CallbackServiceSpec extends CustomSpec {
         res = service.processCall(p1, null, null, params)
 
         then:
-        1 * service.threadService.submit(*_) >> { args -> args[2].call(); null; }
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * service.voicemailService.finishedProcessingVoicemailGreeting(*_) >> new Result()
         res.status == ResultStatus.OK
         TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response { } }

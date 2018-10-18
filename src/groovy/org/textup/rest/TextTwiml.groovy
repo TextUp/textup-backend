@@ -31,18 +31,6 @@ class TextTwiml {
     // Announcements
     // -------------
 
-    // TextResponse.INSTRUCTIONS_UNSUBSCRIBED
-    static Result<Closure> afterUnsubscribing() {
-        message("twimlBuilder.text.instructionsUnsubscribed",
-            [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
-    }
-
-    // TextResponse.INSTRUCTIONS_SUBSCRIBED
-    static Result<Closure> afterSubscribing() {
-        message("twimlBuilder.text.instructionsSubscribed",
-            [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
-    }
-
     // TextResponse.SEE_ANNOUNCEMENTS
     static Result<Closure> seeAnnouncements(Collection<FeaturedAnnouncement> announces) {
         if (announces == null) {

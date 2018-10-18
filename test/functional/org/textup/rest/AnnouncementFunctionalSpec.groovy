@@ -19,15 +19,13 @@ class AnnouncementFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()
-        remote.exec({
+        remote.exec {
             app.config.callParamsList = []
             app.config.textRecipientList = []
 
-            String apiId = "iamsosospecial!"
-            ctx.textService.metaClass.send = { BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
-                String message, List<MediaElement> media = [] ->
+            TestHelpers.forceMock(ctx.textService, "send") { fromNum, toNums ->
                 assert toNums.isEmpty() == false
-                TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
+                TempRecordReceipt temp = TestHelpers.buildTempReceipt()
                 temp.contactNumber = toNums[0]
                 assert temp.validate()
                 // store recipient in list for later retrieval
@@ -35,31 +33,18 @@ class AnnouncementFunctionalSpec extends RestSpec {
                 // return temp
                 ctx.resultFactory.success(temp)
             }
-            ctx.callService.metaClass.start = { PhoneNumber fromNum, PhoneNumber toNum,
-                Map afterPickup ->
-                TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
-                temp.contactNumber = toNum
+            // can't use MockedMethod because incompatible overloading
+            ctx.callService.metaClass.start = { BasePhoneNumber from, BasePhoneNumber to, Map pickup ->
+                TempRecordReceipt temp = TestHelpers.buildTempReceipt()
+                temp.contactNumber = to
                 assert temp.validate()
                 // store params in config for later retrieval
-                app.config.callParamsList << afterPickup
+                app.config.callParamsList << pickup
                 // return temp
                 ctx.resultFactory.success(temp)
             }
-            ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                TypeConvertingMap params ->
-                ctx.resultFactory.success()
-            }
-            ctx.phoneService.metaClass.moveVoicemail = { String sid ->
-                ctx.resultFactory.success()
-            }
-            ctx.phoneService.metaClass.storeVoicemail = { String sid, int dur ->
-                ctx.resultFactory.success().toGroup()
-            }
-            ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
-                new ResultGroup()
-            }
             return
-        })
+        }
     }
 
     def cleanup() {

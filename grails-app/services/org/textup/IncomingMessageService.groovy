@@ -176,7 +176,7 @@ class IncomingMessageService {
                 numsToCall << s1.personalPhoneNumber.e164PhoneNumber
             }
         }
-        CallTwiml.connectIncoming(p1.number.e164PhoneNumber, sess1.number.e164PhoneNumber, numsToCall)
+        CallTwiml.connectIncoming(p1.number, sess1.number, numsToCall)
     }
 
     protected Result<Closure> handleAwayForIncomingCall(Phone p1, IncomingSession sess1,

@@ -19,7 +19,7 @@ class StaffJsonMarshallerIntegrationSpec extends CustomSpec {
 
     def cleanup() {
         cleanupIntegrationData()
-        // restore overriden methods
+        // restore overridden methods
         if (_originalIsLoggedIn) {
             authService.metaClass.isLoggedIn = _originalIsLoggedIn
             _originalIsLoggedIn = null

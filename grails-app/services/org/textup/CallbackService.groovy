@@ -74,8 +74,9 @@ class CallbackService {
         // when screening incoming calls, the From number is the TextUp phone,
         // the original caller is stored in the originalFrom parameter and the
         // To number is actually the staff member's personal phone number
-        else if (params.handle == CallResponse.SCREEN_INCOMING.toString()) {
-            sessionNum = new PhoneNumber(number:params.originalFrom as String)
+        else if (params.handle == CallResponse.SCREEN_INCOMING.toString() && params.originalFrom) {
+            String originalFrom = URLDecoder.decode(params.originalFrom as String, "UTF-8")
+            sessionNum = new PhoneNumber(number: originalFrom)
         }
         IncomingSession is1 = IncomingSession.findByPhoneAndNumberAsString(p1, sessionNum.number)
         // create session for this phone if one doesn't exist yet
@@ -148,7 +149,7 @@ class CallbackService {
                 // is completely done being stored before attempting to fetch it.
                 int duration = params.int("RecordingDuration", 0)
                 IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
-                threadService.submit(5, TimeUnit.SECONDS) {
+                threadService.delay(5, TimeUnit.SECONDS) {
                     voicemailService
                         .processVoicemailMessage(callId, duration, im1)
                         .logFail("CallbackService.processCall: VOICEMAIL_DONE")
@@ -160,7 +161,7 @@ class CallbackService {
                 break
             case CallResponse.VOICEMAIL_GREETING_PROCESSED.toString():
                 IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
-                threadService.submit(5, TimeUnit.SECONDS) {
+                threadService.delay(5, TimeUnit.SECONDS) {
                     voicemailService
                         .finishedProcessingVoicemailGreeting(p1, callId, im1)
                         .logFail("CallbackService.processCall: VOICEMAIL_GREETING_PROCESSED")

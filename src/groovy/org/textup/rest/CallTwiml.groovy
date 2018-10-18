@@ -116,10 +116,10 @@ class CallTwiml {
     // --------------
 
     // CallResponse.CONNECT_INCOMING
-    static Result<Closure> connectIncoming(String displayedNumber, String originalFrom,
+    static Result<Closure> connectIncoming(BasePhoneNumber displayed, BasePhoneNumber originalFrom,
         Collection<String> numsToCall) {
 
-        if (!displayedNumber || !originalFrom || !numsToCall) {
+        if (!displayed?.validate() || !originalFrom?.validate() || !numsToCall) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.CONNECT_INCOMING.toString())
         }
         String voicemailLink = Helpers.getWebhookLink(handle: CallResponse.CHECK_IF_VOICEMAIL),
@@ -128,7 +128,7 @@ class CallTwiml {
             // have a short timeout here because we want to avoid having one
             // of the TextUp user's personal phone voicemails pick up and
             // take the voicemail instead of TextUp storing the voicemail
-            Dial(callerId: displayedNumber, timeout: 15, answerOnBridge: true,
+            Dial(callerId: displayed.e164PhoneNumber, timeout: 15, answerOnBridge: true,
                 action: voicemailLink) {
                 numsToCall.each { String num ->
                     Number(statusCallback: CallTwiml.childCallStatus(num), url: screenLink, num)
@@ -138,8 +138,8 @@ class CallTwiml {
     }
 
     // CallResponse.SCREEN_INCOMING
-    static Map<String, String> infoForScreenIncoming(String originalFrom) {
-        [handle: CallResponse.SCREEN_INCOMING, originalFrom: originalFrom]
+    static Map<String, String> infoForScreenIncoming(BasePhoneNumber originalFrom) {
+        [handle: CallResponse.SCREEN_INCOMING, originalFrom: originalFrom.e164PhoneNumber]
     }
     static Result<Closure> screenIncoming(Collection<String> idents) {
         if (!idents) {

@@ -16,27 +16,17 @@ import static org.springframework.http.HttpStatus.*
 
 class OutgoingTextFunctionalSpec extends RestSpec {
 
-    String _apiId
     String prevPersonalNumber
 
     def setup() {
         setupData()
-        (_apiId, prevPersonalNumber) = remote.exec({ un ->
-            String apiId = "iamsosospecial!"
-            ctx.textService.metaClass.send = { BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
-                String message, List<MediaElement> media = [] ->
-                assert toNums.isEmpty() == false
-                TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
-                temp.contactNumber = toNums[0]
-                assert temp.validate()
-                ctx.resultFactory.success(temp)
-            }
+        prevPersonalNumber = remote.exec({ un ->
             // remove logged-in staff's personal phone number
             Staff s1 = Staff.findByUsername(un)
             String prevPersonalNumber = s1.personalPhoneAsString
             s1.personalPhoneAsString = ""
             s1.save(flush:true, failOnError:true)
-            return [apiId, prevPersonalNumber]
+            return prevPersonalNumber
         }.curry(loggedInUsername))
     }
 

@@ -68,7 +68,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.save()
 
         then:
-        1 * controller.threadService.submit(_ as Long, _ as TimeUnit, _ as Closure) >> { args ->
+        1 * controller.threadService.delay(_ as Long, _ as TimeUnit, _ as Closure) >> { args ->
             args[2](); return null;
         }
         1 * controller.callbackStatusService.process(*_)

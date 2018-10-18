@@ -44,7 +44,7 @@ class ThreadServiceSpec extends Specification {
 
     void "test wrapping action in new session with delayed execution"() {
         when:
-        ScheduledFuture<Boolean> schedFuture = service.submit(2, TimeUnit.SECONDS) {
+        ScheduledFuture<Boolean> schedFuture = service.delay(2, TimeUnit.SECONDS) {
             Boolean hasSession
             Organization.withSession { hasSession = !!it }
             hasSession

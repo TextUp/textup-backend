@@ -157,7 +157,7 @@ class CallbackStatusService {
             // attempting to send the items because, in the JSON marshaller, the receipts
             // sent are the PERSISTENT values. If the receipts in the current transaction haven't
             // saved yet, then we won't be sending any of the latest updates
-            threadService.submit(5, TimeUnit.SECONDS) {
+            threadService.delay(5, TimeUnit.SECONDS) {
                 //send items with updated status through socket
                 Collection<RecordItem> items = RecordItem.getAll(itemIds as Iterable<Serializable>)
                 socketService.sendItems(items)

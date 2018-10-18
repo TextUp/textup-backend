@@ -3,6 +3,7 @@ package org.textup.util
 import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import groovy.transform.TypeCheckingMode
+import groovy.util.logging.Log4j
 import groovy.xml.MarkupBuilder
 import java.nio.file.*
 import org.apache.commons.codec.binary.Base64
@@ -10,6 +11,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.io.IOUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
+import org.codehaus.groovy.reflection.*
 import org.quartz.*
 import org.springframework.context.MessageSource
 import org.textup.*
@@ -18,6 +20,7 @@ import org.textup.type.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
+@Log4j
 class TestHelpers {
 
     private static final Random RANDOM = new Random()
@@ -252,5 +255,13 @@ class TestHelpers {
 
     static MockedMethod mock(Object obj, String methodName, Closure action = null) {
         new MockedMethod(obj, methodName, action)
+    }
+    static MockedMethod forceMock(Object obj, String methodName, Closure action = null) {
+        try {
+            new MockedMethod(obj, methodName, action, true)
+        }
+        catch (IllegalArgumentException e) {
+            log.info("TestHelpers.forceMock: ${e.message}")
+        }
     }
 }

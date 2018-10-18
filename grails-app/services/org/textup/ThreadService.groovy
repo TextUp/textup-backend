@@ -58,7 +58,7 @@ class ThreadService {
         res
     }
 
-    public <T> ScheduledFuture<T> submit(long delay, TimeUnit unit, Closure<T> action) {
+    public <T> ScheduledFuture<T> delay(long delay, TimeUnit unit, Closure<T> action) {
         ScheduledFuture<T> res = _pool.schedule(wrapAsCallable(action), delay, unit)
         tryAdjustPoolSize()
         res
@@ -80,11 +80,7 @@ class ThreadService {
 
             newPoolSize = actualPoolSize + POOL_DELTA
         }
-        // [FUTURE] change log level to debug once we've determined an appropriate max size for the
-        // thread pool from logging real-world usage
         if (newPoolSize) {
-            log.error("Adjust core pool size: before ${_pool.corePoolSize}, after ${newPoolSize} \
-                actualPoolSize: ${actualPoolSize}, largestPoolSize: ${_pool.largestPoolSize}, queueSize: ${queueSize}")
             _pool.corePoolSize = newPoolSize
         }
     }

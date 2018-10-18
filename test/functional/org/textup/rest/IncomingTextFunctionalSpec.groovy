@@ -18,34 +18,6 @@ class IncomingTextFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()
-        remote.exec({
-            // ensure that callbackService validates all requests
-            ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                TypeConvertingMap params ->
-                ctx.resultFactory.success()
-            }
-            String apiId = "iamsosospecial!"
-            ctx.textService.metaClass.send = { BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
-                String message, List<MediaElement> media = [] ->
-
-                assert toNums.isEmpty() == false
-                TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
-                temp.contactNumber = toNums[0]
-                assert temp.validate()
-                ctx.resultFactory.success(temp)
-            }
-            ctx.mediaService.metaClass.buildFromIncomingMedia = { Map<String, String> urlToMimeType,
-                Closure<Void> collectUploads, Closure<Void> collectMediaIds ->
-
-                MediaInfo mInfo = new MediaInfo()
-                mInfo.save(failOnError: true)
-                ctx.resultFactory.success(mInfo)
-            }
-            ctx.storageService.metaClass.uploadAsync = { Collection<UploadItem> uItems ->
-                new ResultGroup()
-            }
-            return
-        })
     }
 
     def cleanup() {
@@ -205,7 +177,7 @@ class IncomingTextFunctionalSpec extends RestSpec {
         String checksum = TestHelpers.getChecksum(encodedData)
         PhoneNumber fromNum = new PhoneNumber(number:TestHelpers.randPhoneNumber())
         String sid = TestHelpers.randString()
-        String sampleUrl = "http://www.example.com"
+        String sampleUrl = "${Constants.TEST_HTTP_ENDPOINT}/image/jpeg"
         String toNum = remote.exec({ un ->
             Staff s1 = Staff.findByUsername(un)
             s1.manualSchedule = true

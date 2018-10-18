@@ -35,7 +35,7 @@ class PublicRecordController extends BaseController {
             // Moved creation of new thread to PublicRecordController to avoid self-calls.
             // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
             // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies
-            threadService.submit(5, TimeUnit.SECONDS) { callbackStatusService.process(paramsMap) }
+            threadService.delay(5, TimeUnit.SECONDS) { callbackStatusService.process(paramsMap) }
             respondWithResult(Closure, TwilioUtils.noResponseTwiml())
         }
         else {

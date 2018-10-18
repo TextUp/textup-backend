@@ -21,11 +21,12 @@ class MockedMethodSpec extends Specification {
     }
 
     @DirtiesRuntime
-    void "test mock instance method"() {
+    void "test mock instance method without forced override"() {
         given:
         Cat cat = new Cat()
-        String retVal = TestHelpers.randString()
-        Closure action = { retVal }
+        String originalVal = cat.meow()
+        String overrideVal = TestHelpers.randString()
+        Closure action = { overrideVal }
 
         when: "mock initially"
         MockedMethod meow = new MockedMethod(cat, "meow", action)
@@ -38,7 +39,8 @@ class MockedMethodSpec extends Specification {
         def meowValue = cat.meow()
 
         then:
-        meowValue == retVal
+        meowValue == overrideVal
+        meowValue != originalVal
         meow.callCount == 1
         meow.callArguments == [[null]]
 
@@ -48,8 +50,17 @@ class MockedMethodSpec extends Specification {
         then: "already mocked"
         thrown IllegalArgumentException
 
-        when: "restore then mock again"
+        when: "restore"
         meow.restore()
+        meowValue = cat.meow(8)
+
+        then: "mocked method not tracking calls anymore"
+        meowValue != overrideVal
+        meowValue == originalVal
+        meow.callCount == 0
+        meow.callArguments == []
+
+        when: "mock again"
         meow = new MockedMethod(cat, "meow", action)
 
         then:
@@ -58,10 +69,11 @@ class MockedMethodSpec extends Specification {
     }
 
     @DirtiesRuntime
-    void "test mock static method"() {
+    void "test mock static method with forced override"() {
         given:
-        String retVal = TestHelpers.randString()
-        Closure action = { retVal }
+        String originalVal = Cat.create()
+        String overrideVal = TestHelpers.randString()
+        Closure action = { overrideVal }
 
         when: "mock initially"
         MockedMethod create = new MockedMethod(Cat, "create", action)
@@ -74,7 +86,8 @@ class MockedMethodSpec extends Specification {
         def createValue = Cat.create()
 
         then:
-        createValue == retVal
+        createValue == overrideVal
+        createValue != originalVal
         create.callCount == 1
         create.callArguments == [[]]
 
@@ -84,13 +97,30 @@ class MockedMethodSpec extends Specification {
         then:
         thrown IllegalArgumentException
 
-        when: "restore then mock again"
-        create.restore()
-        create = new MockedMethod(Cat, "create")
+        when: "mock with a forced override"
+        create = new MockedMethod(Cat, "create", null, true)
 
         then:
         notThrown IllegalArgumentException
         create.callCount == 0
+
+        when:
+        createValue = Cat.create()
+
+        then:
+        createValue == null // because no closure specified, default value for instance types is null
+        create.callCount == 1
+        create.callArguments == [[]]
+
+        when: "finally restore"
+        create.restore()
+        createValue = Cat.create()
+
+        then: "mocked method not tracking calls anymore"
+        createValue != overrideVal
+        createValue == originalVal
+        create.callCount == 0
+        create.callArguments == []
     }
 
     // Test support classes
@@ -99,11 +129,11 @@ class MockedMethodSpec extends Specification {
     protected class Cat {
 
         static String create() {
-            "i am a cat"
+            "Cat.create"
         }
 
         String meow(Integer numTimes = 2) {
-            "meow"
+            "Cat.meow"
         }
     }
 }

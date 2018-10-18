@@ -109,7 +109,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.sendItemsThroughSocket(validRpts)
 
         then: "only one item passed to socket service"
-        1 * service.threadService.submit(_ as Long, _ as TimeUnit, _ as Closure) >> { args ->
+        1 * service.threadService.delay(_ as Long, _ as TimeUnit, _ as Closure) >> { args ->
             args[2](); return null;
         }
         1 * service.socketService.sendItems(*_) >> { args ->
@@ -199,7 +199,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         Result<Void> res = service.handleUpdateForText(validRpt.apiId, status)
 
         then:
-        1 * service.threadService.submit(*_)
+        1 * service.threadService.delay(*_)
         res.status == ResultStatus.NO_CONTENT
         RecordItemReceipt.get(validRpt.id).status == status
         RecordItemReceipt.count() == rptBaseline
@@ -224,7 +224,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             status, duration)
 
         then:
-        1 * service.threadService.submit(*_)
+        1 * service.threadService.delay(*_)
         res.status == ResultStatus.NO_CONTENT
         RecordItemReceipt.count() == rptBaseline + 1
         rText1.receipts.size() == originalNumReceipts + 1
@@ -256,7 +256,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             duration, params)
 
         then:
-        1 * service.threadService.submit(*_)
+        1 * service.threadService.delay(*_)
         0 * service.callService._
         res.status == ResultStatus.NO_CONTENT
         RecordItemReceipt.count() == rptBaseline
@@ -268,7 +268,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         res = service.handleUpdateForParentCall(validRpt.apiId, status, duration, params)
 
         then:
-        1 * service.threadService.submit(*_)
+        1 * service.threadService.delay(*_)
         1 * service.callService.retry(*_) >> new Result()
         res.status == ResultStatus.NO_CONTENT
         RecordItemReceipt.count() == rptBaseline

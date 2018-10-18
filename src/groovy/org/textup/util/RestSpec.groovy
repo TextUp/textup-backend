@@ -3,12 +3,14 @@ package org.textup.util
 import grails.plugin.remotecontrol.RemoteControl
 import grails.plugins.rest.client.RestBuilder
 import grails.plugins.rest.client.RestResponse
+import org.apache.http.HttpResponse
+import org.apache.http.impl.client.*
 import org.springframework.http.HttpStatus
 import org.textup.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
-import spock.lang.Shared
-import spock.lang.Specification
+import spock.lang.*
 
 //from AbstractRestSpec.groovy at https://github.com/alvarosanchez/grails-spring-security-rest
 //remote control from https://github.com/craigatk/grails-api-testing/
@@ -29,6 +31,8 @@ abstract class RestSpec extends Specification {
     String loggedInUsername
     String loggedInPassword
     String baseUrl = "http://localhost:8080"
+
+    final String MOCKED_METHODS_CONFIG_KEY = "_restSpecMockedMethods"
 
     // Helpers
     // -------
@@ -62,6 +66,59 @@ abstract class RestSpec extends Specification {
         long seed = Math.random() * Math.pow(10, 10)
         Random randomGenerator = new Random(seed)
         iterationCount = randomGenerator.nextInt(100000000)
+        // Shared overrides -- primarily to avoid triggering external events when running tests
+        remote.exec({ mockedMethodsKey ->
+            Collection mockedMethods = []
+
+            mockedMethods << TestHelpers.mock(TwilioUtils, "validate") { ctx.resultFactory.success() }
+            mockedMethods << TestHelpers.mock(ctx.threadService, "submit") { action ->
+                Helpers.noOpFuture(action())
+            }
+            mockedMethods << TestHelpers.mock(ctx.threadService, "delay") { delay, unit, action ->
+                Helpers.noOpFuture(action())
+            }
+            mockedMethods << TestHelpers.mock(Helpers, "executeBasicAuthRequest") { un, pwd, req, action ->
+                assert un != null
+                assert pwd != null
+                CloseableHttpClient client = HttpClients.createDefault()
+                client.withCloseable {
+                    HttpResponse resp = client.execute(req)
+                    resp.withCloseable { action(resp) }
+                }
+            }
+            mockedMethods << TestHelpers.mock(ctx.mailService, "sendMail") {
+                ctx.resultFactory.success()
+            }
+            mockedMethods << TestHelpers.mock(ctx.staffService, "verifyCreateRequest") {
+                ctx.resultFactory.success()
+            }
+
+            mockedMethods << TestHelpers.mock(ctx.storageService, "uploadAsync") {
+                new ResultGroup()
+            }
+            mockedMethods << TestHelpers.mock(ctx.incomingMediaService, "finishProcessingUploads") {
+                ctx.resultFactory.success()
+            }
+
+            mockedMethods << TestHelpers.mock(ctx.textService, "send") { fromNum, toNums ->
+                assert toNums.isEmpty() == false
+                TempRecordReceipt temp = TestHelpers.buildTempReceipt()
+                temp.contactNumber = toNums[0]
+                assert temp.validate()
+                // return temp
+                ctx.resultFactory.success(temp)
+            }
+            mockedMethods << TestHelpers.mock(ctx.callService, "doCall") { fromNum, toNum ->
+                TempRecordReceipt temp = TestHelpers.buildTempReceipt()
+                temp.contactNumber = toNum
+                assert temp.validate()
+                // return temp
+                ctx.resultFactory.success(temp)
+            }
+
+            app.config[mockedMethodsKey] = mockedMethods
+            return
+        }.curry(MOCKED_METHODS_CONFIG_KEY))
         // Pass these into the integration data setup because when we are using
         // the RemoteControl plugin to populate the remote server with test data,
         // we cannot access any of the Shared fields and must supply our own values
@@ -70,5 +127,11 @@ abstract class RestSpec extends Specification {
         loggedInPassword = data.loggedInPassword
     }
 
-    void cleanupData() {}
+    void cleanupData() {
+        remote.exec({ mockedMethodsKey ->
+            Collection mockedMethods = app.config[mockedMethodsKey]
+            mockedMethods.each { it.restore() }
+            return
+        }.curry(MOCKED_METHODS_CONFIG_KEY))
+    }
 }

@@ -23,8 +23,6 @@ class CallTwimlSpec extends CustomSpec {
     }
 
     def setup() {
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
-        Helpers.metaClass."static".getWebhookLink = { Map params = [:] -> params.toString() }
         setupData()
     }
 
@@ -256,8 +254,8 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "connect incoming valid"
-        String dispNum = TestHelpers.randPhoneNumber()
-        String originalFrom = TestHelpers.randPhoneNumber()
+        PhoneNumber dispNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber originalFrom = new PhoneNumber(number: TestHelpers.randPhoneNumber())
         String num = TestHelpers.randPhoneNumber()
         Map voicemailParams = [handle: CallResponse.CHECK_IF_VOICEMAIL]
         Map screenParams = CallTwiml.infoForScreenIncoming(originalFrom)
@@ -267,7 +265,7 @@ class CallTwimlSpec extends CustomSpec {
         res.status == ResultStatus.OK
         TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
             Response {
-                Dial(callerId: dispNum, timeout: 15, answerOnBridge: true,
+                Dial(callerId: dispNum.e164PhoneNumber, timeout: 15, answerOnBridge: true,
                     action: voicemailParams.toString()) {
                     Number(statusCallback: CallTwiml.childCallStatus(num),
                         url: screenParams.toString(), num)

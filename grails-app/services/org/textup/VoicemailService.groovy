@@ -28,8 +28,10 @@ class VoicemailService {
         IncomingRecordingInfo ir1) {
 
         ir1.isPublic = false
-        ResultGroup<MediaElement> processResultGroup = incomingMediaService.process([ir1])
-        if (processResultGroup.anyFailures) {
+        ResultGroup<MediaElement> processResultGroup = incomingMediaService
+            .process([ir1])
+            .logFail("VoicemailService.processVoicemailMessage")
+        if (!processResultGroup.anySuccesses) {
             return processResultGroup
         }
         ResultGroup<RecordCall> resGroup = new ResultGroup<>()
@@ -74,8 +76,10 @@ class VoicemailService {
         // voicemail greetings are public so that Twilio can cache the object and because anyone
         // who calls the number and gets sent to voicemail will hear this greeting
         ir1.isPublic = true
-        ResultGroup<MediaElement> resGroup = incomingMediaService.process([ir1])
-        if (resGroup.anyFailures) {
+        ResultGroup<MediaElement> resGroup = incomingMediaService
+            .process([ir1])
+            .logFail("VoicemailService.finishedProcessingVoicemailGreeting")
+        if (!resGroup.anySuccesses) {
             return resultFactory.failWithGroup(resGroup)
         }
         MediaInfo mInfo = p1.media ?: new MediaInfo()

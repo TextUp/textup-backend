@@ -17,28 +17,8 @@ import static org.springframework.http.HttpStatus.*
 
 class OutgoingCallFunctionalSpec extends RestSpec {
 
-    String _apiId
-
     def setup() {
         setupData()
-        _apiId = remote.exec({
-            // ensure that callbackService validates all requests
-            ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                TypeConvertingMap params ->
-                ctx.resultFactory.success()
-            }
-            String apiId = "iamsosospecial!"
-            ctx.callService.metaClass.start = { BasePhoneNumber fromNum, BasePhoneNumber toNum,
-                Map afterPickup ->
-
-                TempRecordReceipt temp = new TempRecordReceipt(apiId:apiId)
-                temp.contactNumber = toNum
-                assert temp.validate()
-                // return temp
-                ctx.resultFactory.success(temp)
-            }
-            return apiId
-        })
     }
 
     def cleanup() {

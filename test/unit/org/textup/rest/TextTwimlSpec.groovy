@@ -67,26 +67,8 @@ class TextTwimlSpec extends CustomSpec {
     }
 
     void "test texts"() {
-        when: "instructions unsubscribed"
-        Result<Closure> res = TextTwiml.afterUnsubscribing()
-
-        then:
-        res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
-            Response { Message("twimlBuilder.text.instructionsUnsubscribed") }
-        })
-
-        when: "instructions subscribed"
-        res = TextTwiml.afterSubscribing()
-
-        then:
-        res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
-            Response { Message("twimlBuilder.text.instructionsSubscribed") }
-        })
-
         when: "subscribed"
-        res = TextTwiml.subscribed()
+        Result<Closure> res = TextTwiml.subscribed()
 
         then:
         res.success == true

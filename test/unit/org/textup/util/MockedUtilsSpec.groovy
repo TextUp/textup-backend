@@ -197,6 +197,30 @@ class MockedUtilsSpec extends Specification {
         1 * callArgs.add({ it == [ResultStatus.OK] })
     }
 
+    void "test building closure with primitive array argument"() {
+        given:
+        List callArgs = Mock()
+        String retVal = TestHelpers.randString()
+        Closure action = { retVal }
+        ClassLoader loader = this.class.classLoader
+        byte[] game = TestHelpers.getJpegSampleData256()
+
+        when:
+        List<MetaMethod> metaMethods = dog.metaClass.respondsTo(dog, "play")
+        Closure override = MockedUtils.buildOverride(metaMethods, loader, callArgs, action)
+
+        then:
+        notThrown UnsupportedOperationException
+        override != null
+
+        when: "call without optional param"
+        def callResult = override(game)
+
+        then:
+        callResult == retVal
+        1 * callArgs.add({ it == [game] })
+    }
+
     // Test support classes
     // --------------------
 
@@ -231,6 +255,10 @@ class MockedUtilsSpec extends Specification {
 
         String nap(ResultStatus sleepQuality) {
             sleepQuality.toString()
+        }
+
+        String play(byte[] game) {
+            "this is fun"
         }
 
         double yelp() {

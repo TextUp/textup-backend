@@ -344,7 +344,7 @@ class HelpersSpec extends Specification {
 
     void "test executing basic auth request"() {
         given:
-        String root = Constants.TEST_STATUS_ENDPOINT
+        String root = Constants.TEST_HTTP_ENDPOINT
         String un = TestHelpers.randString()
         String pwd = TestHelpers.randString()
         HttpGet request = new HttpGet("${root}/basic-auth/${un}/${pwd}")

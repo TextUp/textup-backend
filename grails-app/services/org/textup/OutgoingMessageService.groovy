@@ -67,7 +67,6 @@ class OutgoingMessageService {
 
     Tuple<ResultGroup<RecordItem>, Future<?>> processMessage(Phone phone, OutgoingMessage msg1,
         Staff staff, Future<Result<MediaInfo>> mediaFuture = null) {
-
         Future<?> future = Helpers.noOpFuture()
         if (!phone.isActive) {
             Result<RecordItem> failRes = resultFactory
@@ -80,8 +79,14 @@ class OutgoingMessageService {
             Map<Long, List<RecordItem>> recordIdToItems = [:].withDefault { [] as List<RecordItem> }
             resGroup.payload.each { RecordItem i1 -> recordIdToItems[i1.record.id] << i1 }
             // step 2: finish all other long-running tasks asynchronously
+            // Spock integration tests are run inside of a transaction that is rolled back at the
+            // end of the test. This means that test data in the db is not accessible from another
+            // thread, so we need to make sure that we store the phone name before starting new thread.
+            // This seeems to be a limitation of the integration testing environment. We tested in
+            // the Grails console and we were able to access all data no matter which session or thread
+            String phoneName = phone.name
             future = threadService.submit {
-                finishProcessingMessages(recordIdToItems, phone.name, msg1, mediaFuture)
+                finishProcessingMessages(recordIdToItems, phoneName, msg1, mediaFuture)
                     .logFail("OutgoingMessageService.processMessage: finish processing")
             }
         }
@@ -105,7 +110,6 @@ class OutgoingMessageService {
 
     protected ResultGroup<?> finishProcessingMessages(Map<Long, List<RecordItem>> recordIdToItems,
         String phoneName, OutgoingMessage msg1, Future<Result<MediaInfo>> mediaFuture = null) {
-
         if (mediaFuture) {
             Result<MediaInfo> mediaRes = mediaFuture.get()
             if (!mediaRes) {
@@ -114,12 +118,11 @@ class OutgoingMessageService {
                     ResultStatus.INTERNAL_SERVER_ERROR,
                     [msg1.media?.id, recordIdToItems?.keySet()]).toGroup()
             }
-            mediaRes
-                .logFail("OutgoingMessageService.finishProcessingMessages: processing media")
-                .thenEnd { MediaInfo mInfo ->
-                    msg1.media = mInfo
-                    sendAndStore(recordIdToItems, phoneName, msg1)
-                }
+            if (mediaRes.success) {
+                msg1.media = mediaRes.payload
+                sendAndStore(recordIdToItems, phoneName, msg1)
+            }
+            else { mediaRes.toGroup() }
         }
         else { sendAndStore(recordIdToItems, phoneName, msg1) }
     }

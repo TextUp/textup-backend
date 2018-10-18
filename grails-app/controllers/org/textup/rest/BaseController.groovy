@@ -28,7 +28,7 @@ class BaseController {
     // Required method
     // ---------------
 
-    // will be overriden in classes that extend this base class
+    // will be overridden in classes that extend this base class
     // cannot be getNamespace() because that conflicts with the static property of the same name
     protected String getNamespaceAsString() { "v1" }
 

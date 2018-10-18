@@ -92,7 +92,7 @@ class StorageService {
             PutObjectRequest request = new PutObjectRequest(bucketName, identifier, stream, metadata)
             // Only set an object-level ACL if the object is public.
             // Don't specify an object-level ACL here for private items because when we adjust
-            // the bucket-level ACL its scope of effect will be overriden by these object-level ACLs
+            // the bucket-level ACL its scope of effect will be overridden by these object-level ACLs
             if (isPublic) { request.withCannedAcl(CannedAccessControlList.PublicRead) }
             resultFactory.success(s3Service.putObject(request))
         }

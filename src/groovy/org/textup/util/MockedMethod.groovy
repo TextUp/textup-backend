@@ -1,9 +1,12 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
-import groovy.transform.TypeCheckingMode
-import org.textup.*
 import org.codehaus.groovy.reflection.*
+import org.codehaus.groovy.runtime.MethodClosure
+import org.textup.*
+
+// [NOTE] this means that default values stored on the original method declarations will be lost.
+//      This is an existing limitation of this implementation.
 
 @GrailsTypeChecked
 class MockedMethod {
@@ -14,7 +17,9 @@ class MockedMethod {
     private final String methodName
     private final Closure action
 
-    MockedMethod(Object thisObj, String thisMethodName, Closure thisAction = null) {
+    MockedMethod(Object thisObj, String thisMethodName, Closure thisAction = null,
+        boolean overrideIfExistingMock = false) {
+
         obj = thisObj
         methodName = thisMethodName
         action = thisAction
@@ -22,7 +27,7 @@ class MockedMethod {
         if (!metaMethods) {
             throw new IllegalArgumentException("Cannot mock `${methodName}` on object of class `${obj?.class}`")
         }
-        if (isAlreadyOverridden()) {
+        if (overrideIfExistingMock == false && isAlreadyOverridden()) {
             throw new IllegalArgumentException("Method `${methodName}` on object of class `${obj?.class}` has already been overridden.")
         }
         startOverride(metaMethods)
@@ -46,20 +51,46 @@ class MockedMethod {
         reset()
     }
 
+    // Only store the original method once. We store the original method as another "expando" method
+    // on because storing closures as a metaproperty seems to make them unretrievable. Also, we no
+    // longer just store a reference to the original ExpandoMetaProperty because isn't actually
+    // the original method body, but rather a pointer to the method closure that we can override.
+    // It does not seem to be possible to determine the presence of a method on an object without
+    // actually calling it. Therefore, we also set primitives as expando metaproperties because
+    // these seem to be retrievable and allow us to track (1) whether or not this particular method
+    // is currently being mocked, and (2) whether or not we've already extracted and stored the
+    // original method as an expando metamethod
     protected void startOverride(List<MetaMethod> metaMethods) {
-        updateOriginalMethod(getTargetMethod())
-        setTargetMethod(MockedUtils
-            .buildOverride(metaMethods, this.class.classLoader, callArgs, action))
+        ClassLoader classLoader = this.class.classLoader
+        Boolean hasOriginalMethod = MockedUtils.getMetaClassProperty(obj, originalMethodStatusKey)
+        if (!hasOriginalMethod) {
+            Closure originalMethod = MockedUtils.extractOriginalMethod(metaMethods, classLoader)
+            MockedUtils.setMetaClassMethod(obj, originalMethodKey, originalMethod)
+            MockedUtils.setMetaClassProperty(obj, originalMethodStatusKey, true)
+        }
+        Closure overridingAction = MockedUtils.buildOverride(metaMethods, classLoader, callArgs, action)
+        MockedUtils.setMetaClassMethod(obj, methodName, overridingAction)
+        MockedUtils.setMetaClassProperty(obj, currentStatusKey, true)
     }
 
+    // Recall that we can't actually extract closures/methods that we store as expando metamethods
+    // or expando metaproperties. Therefore, we need to obtain a reference to the dynamically-added
+    // original method on the object itself and wrap this original method in a new closure
+    // that we then set on the original method name to effectively restore the original behavior.
+    // When we extract the original method, we always will pull the method variant that takes the
+    // largest number of inputs so when we are wrapping this original method, we will automatically
+    // pass in all possible arguments to the original method.
     protected void stopOverride() {
-        ExpandoMetaClass.ExpandoMetaProperty originalMethod = tryGetOriginalMethod()
-        if (originalMethod) {
-            setTargetMethod(originalMethod)
-            // reset the original method key after restoring so that when if we mock again in the
-            // future, we do not throw an "already mocked" exception
-            updateOriginalMethod(null)
-        }
+        // no need to stop override if we are not already overriding
+        if (!isAlreadyOverridden()) { return }
+
+        List<MetaMethod> metaMethods = getMetaMethods()
+        ClassLoader classLoader = this.class.classLoader
+        MethodClosure originalAction = obj.&"${originalMethodKey}" as MethodClosure
+        Closure wrappedOriginalAction = MockedUtils.buildOriginal(metaMethods, classLoader, originalAction)
+
+        MockedUtils.setMetaClassMethod(obj, methodName, wrappedOriginalAction)
+        MockedUtils.setMetaClassProperty(obj, currentStatusKey, false)
     }
 
     // Status
@@ -70,41 +101,21 @@ class MockedMethod {
     }
 
     protected boolean isAlreadyOverridden() {
-        tryGetOriginalMethod() != null
+        MockedUtils.getMetaClassProperty(obj, currentStatusKey)
     }
 
     // Property access
     // ---------------
 
+    protected String getCurrentStatusKey() {
+        methodName ? "currentMockStatus${methodName}" : ""
+    }
+
+    protected String getOriginalMethodStatusKey() {
+        methodName ? "originalMethodStatus${methodName}" : ""
+    }
+
     protected String getOriginalMethodKey() {
-        methodName ? "_original-${methodName}" : null
-    }
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected ExpandoMetaClass.ExpandoMetaProperty tryGetOriginalMethod() {
-        obj.metaClass.hasMetaProperty(originalMethodKey)
-            ? obj.metaClass.getMetaProperty(originalMethodKey).initialValue
-            : null
-    }
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected void updateOriginalMethod(Object originalMethod) {
-        obj.metaClass.setProperty(originalMethodKey, originalMethod)
-    }
-
-    // Helper methods
-    // --------------
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected ExpandoMetaClass.ExpandoMetaProperty getTargetMethod() {
-        obj instanceof Class ? obj.metaClass["static"][methodName] : obj.metaClass[methodName]
-    }
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected void setTargetMethod(Object overriden) {
-        if (obj instanceof Class) {
-            obj.metaClass["static"].setProperty(methodName, overriden)
-        }
-        else { obj.metaClass.setProperty(methodName, overriden) }
+        methodName ? "original${methodName}" : ""
     }
 }

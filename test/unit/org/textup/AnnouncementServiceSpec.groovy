@@ -202,7 +202,17 @@ class AnnouncementServiceSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.text.instructionsSubscribed")
+        res.payload == ["twimlBuilder.text.instructionsSubscribed"]
+
+        when: "has announcement and should send instructions"
+        session.isSubscribedToText = false
+        session.lastSentInstructions = DateTime.now().minusDays(2)
+        assert session.shouldSendInstructions == true
+        res = service.tryBuildTextInstructions(p1, session)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == ["twimlBuilder.text.instructionsUnsubscribed"]
     }
 
     @FreshRuntime

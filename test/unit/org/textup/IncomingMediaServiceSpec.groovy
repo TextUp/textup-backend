@@ -101,7 +101,7 @@ class IncomingMediaServiceSpec extends Specification {
         Result<Tuple<List<UploadItem>, MediaElement>> res = service.processElement(im1)
 
         then:
-        1 * im1.url >> Constants.TEST_STATUS_ENDPOINT
+        1 * im1.url >> Constants.TEST_HTTP_ENDPOINT
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
 
         when: "basic auth returns an error response code"
@@ -112,7 +112,7 @@ class IncomingMediaServiceSpec extends Specification {
         res = service.processElement(im1)
 
         then:
-        1 * im1.url >> "${Constants.TEST_STATUS_ENDPOINT}/basic-auth/${sid}/invalid-password"
+        1 * im1.url >> "${Constants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/invalid-password"
         res.status == ResultStatus.UNAUTHORIZED
         res.errorMessages[0] == "incomingMediaService.processElement.couldNotRetrieveMedia"
     }
@@ -124,7 +124,7 @@ class IncomingMediaServiceSpec extends Specification {
         IsIncomingMedia im1 = Mock(IsIncomingMedia) {
             validate() >> true
             getMimeType() >> MediaType.IMAGE_JPEG.mimeType
-            getUrl() >> "${Constants.TEST_STATUS_ENDPOINT}/basic-auth/${sid}/${authToken}"
+            getUrl() >> "${Constants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/${authToken}"
         }
         service.grailsApplication = Stub(GrailsApplication) {
             getFlatConfig() >> [
@@ -162,11 +162,12 @@ class IncomingMediaServiceSpec extends Specification {
     @DirtiesRuntime
     void "test processing overall"() {
         given: "override credentials so we're not sending actual credentials to testing endpoint"
+        MediaElement e1 = TestHelpers.buildMediaElement()
         UploadItem uItem = TestHelpers.buildUploadItem()
         Collection<IsIncomingMedia> incomingMedia = []
         5.times { incomingMedia << Mock(IsIncomingMedia) }
         MockedMethod processElement = TestHelpers.mock(service, "processElement")
-            { new Result(payload: Tuple.create([uItem], null)) }
+            { new Result(payload: Tuple.create([uItem], e1)) }
         MockedMethod finishProcessingUploads = TestHelpers.mock(service, "finishProcessingUploads")
             { new Result() }
 
@@ -179,5 +180,8 @@ class IncomingMediaServiceSpec extends Specification {
         finishProcessingUploads.callArguments.every { it[0] == incomingMedia }
         // in the processElement mock we return 1 UploadItem per call
         finishProcessingUploads.callArguments.every { it[1].size() == incomingMedia.size() }
+        resGroup.successes.size() == incomingMedia.size()
+        resGroup.anyFailures == false
+        resGroup.payload.every { it == e1 }
     }
 }

@@ -40,7 +40,7 @@ class RecipientsSpec extends Specification {
 
         then: "setting new ids attempts to build recipients from ids"
         [2, 4, 6] == recip.ids
-        Collections.emptyList() == recip.recipients // from non-overriden method
+        Collections.emptyList() == recip.recipients // from non-overridden method
     }
 
     void "test merging"() {

@@ -14,9 +14,7 @@ import org.textup.*
 import org.textup.job.FutureMessageJob
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.validator.*
 import static org.springframework.http.HttpStatus.*
 
 class CallRetryFunctionalSpec extends RestSpec {
@@ -26,28 +24,12 @@ class CallRetryFunctionalSpec extends RestSpec {
     List<String> _numbers = ["1112223333", "2223338888"]
 
     def setup() {
-        _firstApiId = UUID.randomUUID().toString()
-        _retryApiId = UUID.randomUUID().toString()
+        _firstApiId = TestHelpers.randString()
+        _retryApiId = TestHelpers.randString()
 
         setupData()
         remote.exec({ nums, apiId1, apiId2 ->
-            // ensure that callbackService validates all requests
-            ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                TypeConvertingMap params ->
-                ctx.resultFactory.success()
-            }
-            ctx.callService.metaClass.start = { PhoneNumber fromNum,
-                List<? extends BasePhoneNumber> toNums, Map afterPickup ->
-                String toNumAsString = toNums[0].number
-
-                String apiId = apiId1
-                ctx.resultFactory.success(new TempRecordReceipt(apiId:apiId,
-                    contactNumberAsString:toNumAsString))
-            }
-            ctx.callService.metaClass.retry = { PhoneNumber fromNum,
-                List<? extends BasePhoneNumber> toNums,
-                String existingApiId, Map afterPickup ->
-
+            TestHelpers.forceMock(ctx.callService, "retry") { from, toNums, existingApiId ->
                 String toNumAsString = toNums[0].number
                 String retryApiId = apiId2
                 TempRecordReceipt tempReceipt = new TempRecordReceipt(apiId:retryApiId,
@@ -58,9 +40,13 @@ class CallRetryFunctionalSpec extends RestSpec {
                 }
                 ctx.resultFactory.success(tempReceipt)
             }
-            // make threadService execute within this same thread synchronously for testing
-            ctx.threadService.metaClass.submit = { long delay, TimeUnit unit, Closure action ->
-                action(); return null;
+            ctx.callService.metaClass.start = { PhoneNumber fromNum,
+                List<? extends BasePhoneNumber> toNums, Map afterPickup ->
+
+                String toNumAsString = toNums[0].number
+                String apiId = apiId1
+                ctx.resultFactory.success(new TempRecordReceipt(apiId:apiId,
+                    contactNumberAsString:toNumAsString))
             }
             return
         }.curry(_numbers, _firstApiId, _retryApiId))
@@ -110,7 +96,7 @@ class CallRetryFunctionalSpec extends RestSpec {
         // quartz not started in test environment so we must manually trigger the job
         remote.exec({ String jobKey, Long staffId ->
             FutureMessageJob job = new FutureMessageJob()
-            job.futureMessageService = ctx.getBean("futureMessageService")
+            job.futureMessageJobService = ctx.getBean("futureMessageJobService")
             job.resultFactory = ctx.getBean("resultFactory")
             job.execute([
                 getMergedJobDataMap: { ->
@@ -125,6 +111,7 @@ class CallRetryFunctionalSpec extends RestSpec {
                     ] as Trigger
                 }
             ] as JobExecutionContext)
+            return
         }.curry(jKey, sId))
         // then mock the status callback
         MultiValueMap<String,String> form = new LinkedMultiValueMap<>()

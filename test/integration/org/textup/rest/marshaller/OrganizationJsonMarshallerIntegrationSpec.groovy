@@ -19,7 +19,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
 
     def cleanup() {
     	cleanupIntegrationData()
-        // restore overriden methods
+        // restore overridden methods
         if (_originalGetLoggedInAndActive) {
             authService.metaClass.getLoggedInAndActive = _originalGetLoggedInAndActive
             _originalGetLoggedInAndActive = null

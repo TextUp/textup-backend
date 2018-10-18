@@ -91,11 +91,19 @@ class AnnouncementService {
     }
 
     Result<List<String>> tryBuildTextInstructions(Phone phone, IncomingSession sess1) {
+        List<String> textInstructions = []
         if (phone.getAnnouncements() && sess1.shouldSendInstructions) {
             sess1.updateLastSentInstructions()
-            sess1.isSubscribedToText ? TextTwiml.afterSubscribing() : TextTwiml.afterUnsubscribing()
+            if (sess1.isSubscribedToText) {
+                textInstructions << Helpers.getMessage("twimlBuilder.text.instructionsSubscribed",
+                    [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
+            }
+            else {
+                textInstructions << Helpers.getMessage("twimlBuilder.text.instructionsUnsubscribed",
+                    [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
+            }
         }
-        else { resultFactory.success([]) }
+        resultFactory.success(textInstructions)
     }
 
     Result<Closure> handleAnnouncementCall(Phone phone, String digits, IncomingSession session,

@@ -7,8 +7,10 @@ import org.joda.time.DateTime
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
+import org.textup.media.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.validator.*
 import static org.springframework.http.HttpStatus.*
 
 class IncomingCallFunctionalSpec extends RestSpec {
@@ -17,21 +19,14 @@ class IncomingCallFunctionalSpec extends RestSpec {
 
     def setup() {
         setupData()
-        remote.exec({
-            // ensure that callbackService validates all requests
-            ctx.callbackService.metaClass.validate = { HttpServletRequest request,
-                TypeConvertingMap params ->
-                ctx.resultFactory.success()
-            }
-            ctx.phoneService.metaClass.moveVoicemail = { String callId, String recordingId,
-                String voicemailUrl ->
-                ctx.resultFactory.success()
-            }
-            ctx.phoneService.metaClass.storeVoicemail = { String callId, int voicemailDuration ->
-                ctx.resultFactory.success().toGroup()
+        remote.exec({ mockedMethodsKey ->
+            app.config[mockedMethodsKey] << TestHelpers.mock(MediaPostProcessor, "process") {
+                UploadItem uItem1 = TestHelpers.buildUploadItem(MediaType.AUDIO_MP3)
+                UploadItem uItem2 = TestHelpers.buildUploadItem(MediaType.AUDIO_WEBM_OPUS)
+                ctx.resultFactory.success(uItem1, [uItem2])
             }
             return
-        })
+        }.curry(MOCKED_METHODS_CONFIG_KEY))
     }
 
     def cleanup() {
@@ -225,7 +220,7 @@ class IncomingCallFunctionalSpec extends RestSpec {
         then:
         response.status == OK.value()
         response.xml != null
-        response.xml.Redirect.text() == requestUrl
+        response.xml.Gather.Say.@loop.toString().isInteger() == true
 
         when: "invalid entry"
         String invalidNums = "1234"

@@ -1,30 +1,26 @@
 package org.textup
 
-import grails.test.runtime.FreshRuntime
+import grails.test.runtime.*
+import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.UUID
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.textup.type.RecordItemType
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.OutgoingMessage
-import org.textup.validator.PhoneNumber
+import org.textup.validator.*
 import spock.lang.Unroll
 
 @Unroll
-class PhoneServiceIntegrationSpec extends CustomSpec {
+class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
 
     final int NUM_TAGS = 20
 
-    def phoneService
-    def grailsApplication
-
-    TextService textService
-    def _originalLinkForText
-    AtomicInteger _textSendInvokeCount
-
     CallService callService
-    def _originalLinkForCall
+    GrailsApplication grailsApplication
+    OutgoingMessageService outgoingMessageService
+    TextService textService
+
+    AtomicInteger _textSendInvokeCount
     AtomicInteger _callStartInvokeCount
 
     HashSet<String> _receipientNumbers
@@ -34,15 +30,14 @@ class PhoneServiceIntegrationSpec extends CustomSpec {
 
     def setup() {
         setupIntegrationData()
+        Helpers.metaClass.'static'.getLinkGenerator = { ->
+            [link: { Map m -> "https://www.example.com" }] as LinkGenerator
+        }
         // initializing variables
         _textSendInvokeCount = new AtomicInteger(0)
         _callStartInvokeCount = new AtomicInteger(0)
         // setting up textService
         textService = grailsApplication.mainContext.getBean("textService")
-        _originalLinkForText = textService.grailsLinkGenerator
-        textService.grailsLinkGenerator = [
-            link: { Map params -> "https://www.example.com" }
-        ] as LinkGenerator
         textService.metaClass.invokeMethod = { String name, Object args ->
             if (name == "send") {
                 _textSendInvokeCount.getAndIncrement()
@@ -53,10 +48,6 @@ class PhoneServiceIntegrationSpec extends CustomSpec {
         }
         // setting up callService
         callService = grailsApplication.mainContext.getBean("callService")
-        _originalLinkForCall = callService.grailsLinkGenerator
-        callService.grailsLinkGenerator = [
-            link: { Map params -> "https://www.example.com" }
-        ] as LinkGenerator
         callService.metaClass.invokeMethod = { String name, Object args ->
             if (name == "start") {
                 _callStartInvokeCount.getAndIncrement()
@@ -68,16 +59,10 @@ class PhoneServiceIntegrationSpec extends CustomSpec {
     }
     def cleanup() {
         cleanupIntegrationData()
-        if (_originalLinkForText) {
-            textService.grailsLinkGenerator = _originalLinkForText
-        }
-        if (_originalLinkForCall) {
-            callService.grailsLinkGenerator = _originalLinkForCall
-        }
     }
 
     def mockForOutgoing(String fromNum) {
-        int numContacts = grailsApplication.config.textup.maxNumText
+        int numContacts = Constants.MAX_NUM_TEXT_RECIPIENTS
         // initialize or refresh instane variables
         _phone = p1
         _receipientNumbers = new HashSet<>()
@@ -104,7 +89,7 @@ class PhoneServiceIntegrationSpec extends CustomSpec {
         _phone.save(flush:true, failOnError:true)
     }
 
-    @FreshRuntime
+    @DirtiesRuntime
     void "test sending out high volume of outgoing #type for one TextUp number"() {
         given:
         RecordItemType enumType = Helpers.convertEnum(RecordItemType, type)
@@ -130,12 +115,20 @@ class PhoneServiceIntegrationSpec extends CustomSpec {
         int numRecordTexts = RecordText.count()
         int numRecordCalls = RecordCall.count()
         int numRecordItems = RecordItem.count()
-        ResultGroup<RecordItem> resGroup = phoneService.sendMessage(_phone, msg1)
+        Tuple<ResultGroup<RecordItem>, Future<?>> tuple = outgoingMessageService.processMessage(_phone,
+            msg1, s1)
+        ResultGroup<RecordItem> resGroup = tuple.first
+        Future<?> fut1 = tuple.second
 
         then: "successful, no duplicates because all shared contacts resolved into contacts"
         resGroup.anySuccesses == true
         // double check this number with overall items counter to confirm only appropriate type were added
         RecordItem.count() == numRecordItems + resGroup.successes.size()
+
+        when: "we wait for the future to finish processing + send messages"
+        fut1.get()
+
+        then:
         if (isText) {
             // no calls made
             assert _callStartInvokeCount.intValue() == 0

@@ -16,7 +16,8 @@ env:
   - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.type.* org.textup.util.*'
   - TEST_SCOPE='"unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M*'
   - TEST_SCOPE='"unit:" org.textup.N* org.textup.O* org.textup.P* org.textup.Q* org.textup.R* org.textup.S* org.textup.T* org.textup.U* org.textup.V* org.textup.W* org.textup.X* org.textup.Y* org.textup.Z*'
-  - TEST_SCOPE='"unit:" org.textup.rest.* org.textup.media.*'
+  - TEST_SCOPE='"unit:" org.textup.media.*'
+  - TEST_SCOPE='"unit:" org.textup.rest.*'
 before_script:
 - chmod +x grailsw
 - "./grailsw clean"
