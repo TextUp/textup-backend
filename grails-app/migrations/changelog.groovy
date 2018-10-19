@@ -945,4 +945,14 @@ databaseChangeLog = {
 	include file: 'generalize-receipt-cost-tracking.groovy'
 
 	include file: 'migrate-existing-call-cost-tracking.groovy'
+
+	include file: 'call-direct-message-max-access.groovy'
+
+	include file: 'asynchronous-media-processing.groovy'
+
+	include file: 'move-media-type-to-version.groovy'
+
+	include file: 'consolidate-voicemails-to-media.groovy'
+
+	include file: 'recorded-voicemail-greeting.groovy'
 }
