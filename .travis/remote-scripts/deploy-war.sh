@@ -8,9 +8,9 @@ set -e
 WAR_NAME=$1
 
 cd /var/lib/tomcat7/webapps
-rm -f "${WAR_NAME}.backup"
-mv "${WAR_NAME}" "${WAR_NAME}.backup"
-mv "~/${WAR_NAME}" .
+[ -f "${WAR_NAME}.backup" ] && rm -f "${WAR_NAME}.backup"
+[ -f "${WAR_NAME}" ] && mv "${WAR_NAME}" "${WAR_NAME}.backup"
+mv ~/"${WAR_NAME}" .
 
 sudo service tomcat7 stop
 sudo rm -rf ROOT
