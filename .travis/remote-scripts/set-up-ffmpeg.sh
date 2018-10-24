@@ -16,7 +16,7 @@ fi
 # mark the ffmpeg executable as executable
 sudo cp -vf "${PATH_TO_VENDOR_COMMAND}" "${FFMPEG_DIRECTORY}/${FFMPEG_COMMAND}"
 sudo chmod -vR +x "${FFMPEG_DIRECTORY}/${FFMPEG_COMMAND}"
-sudo chown -vR "${EXEC_USERNAME}" "${FFMPEG_DIRECTORY}"
+sudo chown -vR "${EXEC_USERNAME}:${EXEC_USERNAME}" "${FFMPEG_DIRECTORY}"
 
 # cleanup
 rm -v "${PATH_TO_VENDOR_COMMAND}"

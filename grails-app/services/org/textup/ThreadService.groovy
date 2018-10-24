@@ -14,7 +14,7 @@ class ThreadService {
     private final int MIN_POOL_SIZE = 10
     private final int POOL_DELTA = 10
     private final int QUEUE_THRESHOLD = 10
-    private final int MAX_POOL_SIZE = 200
+    private final int MAX_POOL_SIZE = 250
 
     @PostConstruct
     // sometimes hot reloading will call the destroy hook so we need to make sure the initialization

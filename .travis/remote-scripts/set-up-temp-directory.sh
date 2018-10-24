@@ -10,5 +10,5 @@ if [ ! -d "${TEMP_DIRECTORY}" ] && [ ! -L "${TEMP_DIRECTORY}" ]; then
     sudo mkdir -pv "${TEMP_DIRECTORY}"
 fi
 
-sudo chmod -vR 660 "${TEMP_DIRECTORY}"
-sudo chown -vR "${EXEC_USERNAME}" "${TEMP_DIRECTORY}"
+sudo chmod -vR 770 "${TEMP_DIRECTORY}"
+sudo chown -vR "${EXEC_USERNAME}:${EXEC_USERNAME}" "${TEMP_DIRECTORY}"

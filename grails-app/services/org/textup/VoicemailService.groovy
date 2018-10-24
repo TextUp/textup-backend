@@ -4,6 +4,7 @@ import com.amazonaws.services.s3.model.PutObjectResult
 import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import java.util.concurrent.*
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.HttpResponse
 import org.apache.http.HttpStatus as ApacheHttpStatus
@@ -20,6 +21,7 @@ class VoicemailService {
     IncomingMediaService incomingMediaService
     ResultFactory resultFactory
     SocketService socketService
+    ThreadService threadService
 
     // Voicemail message
     // -----------------
@@ -93,7 +95,14 @@ class VoicemailService {
         p1.media = mInfo
         if (p1.save()) {
             socketService.sendPhone(p1)
-            callService.interrupt(callId, CallTwiml.infoForPlayVoicemailGreeting())
+            // delay interrupting the call to give this current transaction enough time to finish
+            // saving so that when this webhook is called, it will play the latest greeting instead
+            // of occasionally the one before
+            threadService.delay(3, TimeUnit.SECONDS) {
+                callService.interrupt(callId, CallTwiml.infoForPlayVoicemailGreeting())
+                    .logFail("VoicemailService.finishedProcessingVoicemailGreeting interrupt $callId")
+            }
+            resultFactory.success()
         }
         else { resultFactory.failWithValidationErrors(p1.errors) }
     }

@@ -1,6 +1,6 @@
 export TEXTUP_BACKEND_CDN_PRIVATE_KEY_PATH="/cloudfront-sep-2018-private.der"
 export TEXTUP_BACKEND_CDN_ROOT="staging-media.textup.org"
-export TEXTUP_BACKEND_ENABLE_QUARTZ="false"
+export TEXTUP_BACKEND_ENABLE_QUARTZ="true"
 export TEXTUP_BACKEND_SERVER_URL="https://dev.textup.org"
 export TEXTUP_BACKEND_STORAGE_BUCKET_NAME="staging-media-textup-org"
 export TEXTUP_BACKEND_TWILIO_NOTIFICATIONS_NUMBER="+14012878632"

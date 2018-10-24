@@ -140,6 +140,7 @@ class VoicemailServiceSpec extends CustomSpec {
         service.incomingMediaService = Mock(IncomingMediaService)
         service.callService = Mock(CallService)
         service.socketService = Mock(SocketService)
+        service.threadService = Mock(ThreadService)
         IncomingRecordingInfo ir1 = Mock()
 
         when:
@@ -158,7 +159,7 @@ class VoicemailServiceSpec extends CustomSpec {
         1 * service.incomingMediaService.process(*_) >>
             Result.createError(["hi"], ResultStatus.BAD_REQUEST).toGroup()
         0 * service.socketService._
-        0 * service.callService._
+        0 * service.threadService._
         res.status == ResultStatus.BAD_REQUEST
         p1.media == null
         MediaInfo.count() == mBaseline
@@ -173,8 +174,9 @@ class VoicemailServiceSpec extends CustomSpec {
         1 * ir1.setIsPublic(true)
         1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
         1 * service.socketService.sendPhone(*_)
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * service.callService.interrupt(*_) >> new Result()
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.NO_CONTENT
         p1.media != null
         MediaInfo.count() == mBaseline + 1
         MediaElement.count() == eBaseline
@@ -188,8 +190,9 @@ class VoicemailServiceSpec extends CustomSpec {
         1 * ir1.setIsPublic(true)
         1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
         1 * service.socketService.sendPhone(*_)
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * service.callService.interrupt(*_) >> new Result()
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.NO_CONTENT
         p1.media != null
         MediaInfo.count() == mBaseline + 1
         MediaElement.count() == eBaseline
