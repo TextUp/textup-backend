@@ -7,7 +7,7 @@ REMOTE_HOST=$2
 REMOTE_KEY=$3
 PATH_TO_ENV_VARIABLES=$4
 
-REMOTE_SCRIPT=".travis/remote/build-env-variables.sh"
+REMOTE_SCRIPT=".travis/remote-scripts/build-env-variables.sh"
 
 chmod +x "$REMOTE_SCRIPT"
 

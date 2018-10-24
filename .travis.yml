@@ -9,86 +9,47 @@ branches:
 cache:
   directories:
   - "$HOME/.m2"
-env:
-  - TEST_SCOPE="functional:"
-  - TEST_SCOPE='"integration:" org.textup.rest.marshaller.*'
-  - TEST_SCOPE='"integration:" org.textup.* org.textup.util.*'
-  - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.type.* org.textup.util.*'
-  - TEST_SCOPE='"unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M*'
-  - TEST_SCOPE='"unit:" org.textup.N* org.textup.O* org.textup.P* org.textup.Q* org.textup.R* org.textup.S* org.textup.T* org.textup.U* org.textup.V* org.textup.W* org.textup.X* org.textup.Y* org.textup.Z*'
-  - TEST_SCOPE='"unit:" org.textup.media.*'
-  - TEST_SCOPE='"unit:" org.textup.rest.*'
+# env:
+#   - TEST_SCOPE="functional:"
+#   - TEST_SCOPE='"integration:" org.textup.rest.marshaller.*'
+#   - TEST_SCOPE='"integration:" org.textup.* org.textup.util.*'
+#   - TEST_SCOPE='"unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.type.* org.textup.util.*'
+#   - TEST_SCOPE='"unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M*'
+#   - TEST_SCOPE='"unit:" org.textup.N* org.textup.O* org.textup.P* org.textup.Q* org.textup.R* org.textup.S* org.textup.T* org.textup.U* org.textup.V* org.textup.W* org.textup.X* org.textup.Y* org.textup.Z*'
+#   - TEST_SCOPE='"unit:" org.textup.media.*'
+#   - TEST_SCOPE='"unit:" org.textup.rest.*'
 before_script:
 - chmod +x grailsw
 - "./grailsw clean"
 - "./grailsw refresh-dependencies"
-script:
-- "./grailsw test-app $TEST_SCOPE"
+# script:
+# - "./grailsw test-app $TEST_SCOPE"
 jobs:
   include:
   - stage: deploy
     env: TEST_SCOPE="none"
     before_install:
-    - openssl aes-256-cbc -K $encrypted_8c97747a3917_key -iv $encrypted_8c97747a3917_iv
-      -in .travis/textup.pem.enc -out .travis/textup.pem -d
+    - openssl aes-256-cbc -K $encrypted_8c97747a3917_key -iv $encrypted_8c97747a3917_iv -in .travis/textup.pem.enc -out .travis/textup.pem -d
     script: skip
     after_success:
     - "./grailsw rest-api-doc"
     - "./grailsw prod war"
     before_deploy:
-    - chmod +x .travis/set-up-ffmpeg.sh
-    - chmod +x .travis/set-up-temp-directory.sh
-    - chmod +x .travis/build-env-variables.sh
-    - chmod +x .travis/deploy.sh
+    - chmod +x .travis/deploy-staging.sh
+    - chmod +x .travis/deploy-production.sh
+    - chmod +x .travis/scripts/set-up-ffmpeg.sh
+    - chmod +x .travis/scripts/set-up-temp-directory.sh
+    - chmod +x .travis/scripts/build-env-variables.sh
+    - chmod +x .travis/scripts/deploy-war.sh
     - chmod 400 .travis/textup.pem
     deploy:
     - provider: script
+      script: .travis/deploy-staging.sh
       skip_cleanup: true
       on:
         branch: dev
-      script:
-        - echo "export TEXTUP_BACKEND_AWS_ACCESS_KEY=${STAGING_AWS_ACCESS_KEY}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_AWS_SECRET_KEY=${STAGING_AWS_SECRET_KEY}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_CDN_KEY_ID=${STAGING_CDN_KEY_ID}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_DB_PASSWORD=${STAGING_DB_PASSWORD}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_DB_USERNAME=${STAGING_DB_USERNAME}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_EXEC_USERNAME=${STAGING_EXEC_USERNAME}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_FFMPEG_COMMAND=${STAGING_FFMPEG_COMMAND}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_FFMPEG_DIRECTORY=${STAGING_FFMPEG_DIRECTORY}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_PUSHER_API_KEY=${STAGING_PUSHER_API_KEY}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_PUSHER_API_SECRET=${STAGING_PUSHER_API_SECRET}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_RECAPTCHA_SECRET=${STAGING_RECAPTCHA_SECRET}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_SENDGRID_API_KEY=${STAGING_SENDGRID_API_KEY}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_TEMP_DIRECTORY=${STAGING_TEMP_DIRECTORY}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_TWILIO_AUTH=${STAGING_TWILIO_AUTH}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID=${STAGING_TWILIO_NUMBER_APP_ID}" >> .travis/env-variables/staging.sh
-        - echo "export TEXTUP_BACKEND_TWILIO_SID=${STAGING_TWILIO_SID}" >> .travis/env-variables/staging.sh
-        - .travis/set-up-ffmpeg.sh $DEPLOY_USER_STAGING $DEPLOY_HOSTNAME_STAGING .travis/textup.pem $STAGING_EXEC_USERNAME $STAGING_FFMPEG_DIRECTORY $STAGING_FFMPEG_COMMAND
-        - .travis/set-up-temp-directory.sh $DEPLOY_USER_STAGING $DEPLOY_HOSTNAME_STAGING .travis/textup.pem $STAGING_EXEC_USERNAME $STAGING_TEMP_DIRECTORY
-        - .travis/build-env-variables.sh $DEPLOY_USER_STAGING $DEPLOY_HOSTNAME_STAGING .travis/textup.pem .travis/env-variables/staging.sh
-        - .travis/deploy.sh $DEPLOY_USER_STAGING $DEPLOY_HOSTNAME_STAGING .travis/textup.pem target textup-backend.war
     - provider: script
+      script:  .travis/deploy-production.sh
       skip_cleanup: true
       on:
         branch: master
-      script:
-        - echo "export TEXTUP_BACKEND_AWS_ACCESS_KEY=${PROD_AWS_ACCESS_KEY}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_AWS_SECRET_KEY=${PROD_AWS_SECRET_KEY}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_CDN_KEY_ID=${PROD_CDN_KEY_ID}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_DB_PASSWORD=${PROD_DB_PASSWORD}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_DB_USERNAME=${PROD_DB_USERNAME}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_EXEC_USERNAME=${PROD_EXEC_USERNAME}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_FFMPEG_COMMAND=${PROD_FFMPEG_COMMAND}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_FFMPEG_DIRECTORY=${PROD_FFMPEG_DIRECTORY}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_PUSHER_API_KEY=${PROD_PUSHER_API_KEY}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_PUSHER_API_SECRET=${PROD_PUSHER_API_SECRET}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_RECAPTCHA_SECRET=${PROD_RECAPTCHA_SECRET}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_SENDGRID_API_KEY=${PROD_SENDGRID_API_KEY}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_TEMP_DIRECTORY=${PROD_TEMP_DIRECTORY}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_TWILIO_AUTH=${PROD_TWILIO_AUTH}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID=${PROD_TWILIO_NUMBER_APP_ID}" >> .travis/env-variables/production.sh
-        - echo "export TEXTUP_BACKEND_TWILIO_SID=${PROD_TWILIO_SID}" >> .travis/env-variables/production.sh
-        - .travis/set-up-ffmpeg.sh $DEPLOY_USER_PRODUCTION $DEPLOY_HOSTNAME_PRODUCTION .travis/textup.pem $PROD_EXEC_USERNAME $PROD_FFMPEG_DIRECTORY $PROD_FFMPEG_COMMAND
-        - .travis/set-up-temp-directory.sh $DEPLOY_USER_PRODUCTION $DEPLOY_HOSTNAME_PRODUCTION .travis/textup.pem $PROD_EXEC_USERNAME $PROD_TEMP_DIRECTORY
-        - .travis/build-env-variables.sh $DEPLOY_USER_PRODUCTION $DEPLOY_HOSTNAME_PRODUCTION .travis/textup.pem .travis/env-variables/production.sh
-        - .travis/deploy.sh $DEPLOY_USER_PRODUCTION $DEPLOY_HOSTNAME_PRODUCTION .travis/textup.pem target textup-backend.war

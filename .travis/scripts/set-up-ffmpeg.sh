@@ -9,7 +9,7 @@ EXEC_USERNAME=$4
 FFMPEG_DIRECTORY=$5
 FFMPEG_COMMAND=$6
 
-REMOTE_SCRIPT=".travis/remote/set-up-ffmpeg.sh"
+REMOTE_SCRIPT=".travis/remote-scripts/set-up-ffmpeg.sh"
 
 chmod +x "$REMOTE_SCRIPT"
 

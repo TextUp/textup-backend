@@ -10,7 +10,7 @@ REMOTE_KEY=$3
 WAR_DIRECTORY=$4
 WAR_NAME=$5
 
-REMOTE_SCRIPT=".travis/remote/deploy.sh"
+REMOTE_SCRIPT=".travis/remote-scripts/deploy-war.sh"
 
 chmod +x "$REMOTE_SCRIPT"
 
