@@ -57,6 +57,7 @@ class AudioUtilsSpec extends Specification {
 
     void "test storing data in temp file"() {
         given: "valid audio util object"
+        int tmpBaseline = TestHelpers.numInTempDirectory
         AudioUtils audioUtils = TestHelpers.getAudioUtils()
 
         when: "no data"
@@ -64,33 +65,34 @@ class AudioUtilsSpec extends Specification {
 
         then:
         path != null
-        TestHelpers.numInTempDirectory == 1
+        TestHelpers.numInTempDirectory == tmpBaseline + 1
 
         when: "has data"
         path = audioUtils.createTempFile("abc".bytes)
 
         then:
         path != null
-        TestHelpers.numInTempDirectory == 2
+        TestHelpers.numInTempDirectory == tmpBaseline + 2
     }
 
     void "test deleting file at the provided path"() {
         given: "valid audio util object"
+        int tmpBaseline = TestHelpers.numInTempDirectory
         AudioUtils audioUtils = TestHelpers.getAudioUtils()
         Path path = audioUtils.createTempFile()
-        assert TestHelpers.numInTempDirectory == 1
+        assert TestHelpers.numInTempDirectory == tmpBaseline + 1
 
         when: "invalid path"
         audioUtils.delete(Paths.get("invalid"))
 
         then:
-        TestHelpers.numInTempDirectory == 1
+        TestHelpers.numInTempDirectory == tmpBaseline + 1
 
         when: "valid path"
         audioUtils.delete(path)
 
         then:
-        TestHelpers.numInTempDirectory == 0
+        TestHelpers.numInTempDirectory == tmpBaseline + 0
     }
 
     void "test reading all bytes from file at provided path"() {
