@@ -578,7 +578,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         then:
         buildTexts.callCount == 1
         1 * service.notificationService.build(*_) >> []
-        1 * service.threadService.submit(*_) >> { args -> args[0].call(); null; }
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
         finishProcessingText.callCount == 1
         buildTextResponse.callCount == 0
         res.status == ResultStatus.OK
@@ -593,7 +593,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         then:
         buildTexts.callCount == 1
         1 * service.notificationService.build(*_) >> []
-        1 * service.threadService.submit(*_) >> { args -> args[0].call(); null; }
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
         finishProcessingText.callCount == 2
         buildTextResponse.callCount == 1
         res.status == ResultStatus.OK

@@ -168,23 +168,6 @@ class OutgoingMessageSpec extends CustomSpec {
 			msg1.contacts.recipients.size() + numUniqueContactables
 	}
 
-	void "test getting record owners"() {
-		when: "an empty outgoing msg"
-		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
-
-		then:
-		msg1.toRecordOwners().isEmpty() == true
-
-		when:
-		msg1.sharedContacts.recipients = [sc1, sc2]
-		msg1.contacts.recipients = [c1, c1_1]
-		msg1.tags.recipients = [tag1, tag1_1]
-
-		then:
-		msg1.toRecordOwners().size() == msg1.sharedContacts.recipients.size() +
-			msg1.contacts.recipients.size() + msg1.tags.recipients.size()
-	}
-
 	void "building map of contact ids to tags"() {
 		when: "an empty outgoing msg"
 		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")

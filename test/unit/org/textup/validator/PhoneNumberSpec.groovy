@@ -40,4 +40,16 @@ class PhoneNumberSpec extends Specification {
     	pNum.prettyPhoneNumber == "222 333 4444"
         tNum.endpoint == pNum.number
     }
+
+    void "test url decoding"() {
+        expect:
+        PhoneNumber.urlDecode(null).validate() == false
+        PhoneNumber.urlDecode("blah").validate() == false
+
+        PhoneNumber.urlDecode("+1 222 333 8888").validate()
+        PhoneNumber.urlDecode("+1 222 333 8888").number == "2223338888"
+
+        PhoneNumber.urlDecode("%2B1%20222%20333%208888").validate()
+        PhoneNumber.urlDecode("%2B1%20222%20333%208888").number == "2223338888"
+    }
 }

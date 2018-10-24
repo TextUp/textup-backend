@@ -22,6 +22,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             outgoing = item.outgoing
             hasAwayMessage = item.hasAwayMessage
             isAnnouncement = item.isAnnouncement
+            wasScheduled = item.wasScheduled
             receipts = item.groupReceiptsByStatus()
             media = item.readOnlyMedia
             if (item.authorName) { authorName = item.authorName }

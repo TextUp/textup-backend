@@ -49,9 +49,9 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
 
         when: "recording a voicemail greeting over the phone"
         MultiValueMap<String,String> form = new LinkedMultiValueMap<>()
-        form.add("CallSid", callId)
-        form.add("From", fromNum)
-        form.add("To", phoneNum)
+        form.set("CallSid", callId)
+        form.set("From", phoneNum)
+        form.set("To", fromNum)
         RestResponse response = rest.post("${baseUrl}/v1/public/records?handle=${CallResponse.VOICEMAIL_GREETING_RECORD}") {
             contentType("application/x-www-form-urlencoded")
             body(form)
@@ -64,6 +64,7 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
         response.xml.Record.@recordingStatusCallback.toString().contains(CallResponse.VOICEMAIL_GREETING_PROCESSED.toString())
 
         when: "processing"
+        // for VOICEMAIL_GREETING_PROCESSING is an anonymous call
         response = rest.post("${baseUrl}/v1/public/records?handle=${CallResponse.VOICEMAIL_GREETING_PROCESSING}") {
             contentType("application/x-www-form-urlencoded")
             body(form)
@@ -79,6 +80,7 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
         form.set("RecordingDuration", "1234")
         form.set("RecordingUrl", "http://www.example.com")
         form.set("RecordingSid", TestHelpers.randString())
+        // for VOICEMAIL_GREETING_PROCESSED from = phone and to = session
         response = rest.post("${baseUrl}/v1/public/records?handle=${CallResponse.VOICEMAIL_GREETING_PROCESSED}") {
             contentType("application/x-www-form-urlencoded")
             body(form)
@@ -90,10 +92,7 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
         response.xml.text() == ""
 
         when: "playing just processed voicemail greeting"
-        form = new LinkedMultiValueMap<>()
-        form.add("CallSid", callId)
-        form.add("From", fromNum)
-        form.add("To", phoneNum)
+        // for VOICEMAIL_GREETING_PLAY from = phone and to = session
         response = rest.post("${baseUrl}/v1/public/records?handle=${CallResponse.VOICEMAIL_GREETING_PLAY}") {
             contentType("application/x-www-form-urlencoded")
             body(form)

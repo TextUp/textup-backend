@@ -16,7 +16,7 @@ import org.textup.validator.Author
 @GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(name="Tag", description="A tag for grouping contacts")
-class ContactTag implements WithRecord {
+class ContactTag implements WithRecord, WithId {
 
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 

@@ -8,7 +8,7 @@ import groovy.transform.TypeCheckingMode
 
 @GrailsCompileStatic
 @EqualsAndHashCode(callSuper=true, includes=["number", "preference"])
-class ContactNumber extends BasePhoneNumber {
+class ContactNumber extends BasePhoneNumber implements WithId {
 
 	Integer preference
 

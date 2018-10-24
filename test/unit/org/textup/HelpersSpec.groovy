@@ -319,6 +319,23 @@ class HelpersSpec extends Specification {
         msg != ""
     }
 
+    void "test building id to object map"() {
+        given:
+        Location loc1 = TestHelpers.buildLocation()
+        Location loc2 = TestHelpers.buildLocation()
+
+        expect:
+        Helpers.buildIdToObjectMap(null) == [:]
+        Helpers.buildIdToObjectMap([]) == [:]
+
+        Helpers.buildIdToObjectMap([loc1, loc1]).size() == 1
+        Helpers.buildIdToObjectMap([loc1, loc1])[loc1.id] == loc1
+
+        Helpers.buildIdToObjectMap([loc1, null, loc2]).size() == 2
+        Helpers.buildIdToObjectMap([loc1, null, loc2])[loc1.id] == loc1
+        Helpers.buildIdToObjectMap([loc1, null, loc2])[loc2.id] == loc2
+    }
+
     void "test generating a no-op Future object"() {
         when: "null payload"
         Future<?> fut1 = Helpers.noOpFuture()

@@ -11,7 +11,7 @@ import org.textup.validator.PhoneNumber
 @EqualsAndHashCode
 @RestApiObject(name="Receipt", description="A receipt indicating the status \
     of a communication sent to a phone number.")
-class RecordItemReceipt {
+class RecordItemReceipt implements WithId {
 
     //unique id assigned to this record by the communications provider
     //used for finding the RecordItem in a StatusCallback

@@ -7,7 +7,7 @@ import org.textup.type.PhoneOwnershipType
 
 @GrailsCompileStatic
 @EqualsAndHashCode
-class PhoneOwnership {
+class PhoneOwnership implements WithId {
 
 	Phone phone
 	Long ownerId

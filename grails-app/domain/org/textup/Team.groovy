@@ -11,7 +11,7 @@ import org.textup.type.StaffStatus
 
 @EqualsAndHashCode
 @RestApiObject(name="Team", description="A team at an organization.")
-class Team {
+class Team implements WithId {
 
     boolean isDeleted = false
 

@@ -44,7 +44,7 @@ class PhoneService {
 
     protected Result<Phone> mergeHelper(Phone p1, Map body, String timezone) {
         Future<?> future
-        Result<Phone> res = mediaService.tryProcess(p1, body)
+        Result<Phone> res = mediaService.tryProcess(p1, body, true)
             .then { Tuple<WithMedia, Future<?>> processed ->
                 future = processed.second
                 handlePhoneActions(p1, body)
@@ -71,6 +71,10 @@ class PhoneService {
         }
         if (body.language) {
             p1.language = Helpers.convertEnum(VoiceLanguage, body.language)
+        }
+        if (body.useVoicemailRecordingIfPresent != null) {
+            p1.useVoicemailRecordingIfPresent = Helpers
+                .to(Boolean, body.useVoicemailRecordingIfPresent, p1.useVoicemailRecordingIfPresent)
         }
         if (p1.save()) {
             resultFactory.success(p1)

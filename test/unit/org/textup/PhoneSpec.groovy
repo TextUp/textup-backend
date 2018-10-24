@@ -3,14 +3,14 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import grails.test.runtime.*
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
-import spock.lang.Ignore
-import spock.lang.Shared
+import spock.lang.*
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
@@ -111,39 +111,44 @@ class PhoneSpec extends CustomSpec {
         MediaElement.count() == meBaseline + 1
     }
 
+    @DirtiesRuntime
     void "test getting voicemail greeting url"() {
         given:
-        StorageService storageService = Mock(StorageService)
         String link = "https://www.example.com/${TestHelpers.randString()}"
+        MockedMethod unsignedLink = TestHelpers.mock(LinkUtils, 'unsignedLink') { new URL(link) }
+        MockedMethod signedLink = TestHelpers.mock(LinkUtils, 'signedLink')
+
         MediaElement e1 = TestHelpers.buildMediaElement()
         e1.sendVersion.type = MediaType.IMAGE_JPEG
-        e1.sendVersion.storageService = storageService
         MediaElement e2 = TestHelpers.buildMediaElement()
         e2.sendVersion.type = MediaType.AUDIO_MP3
-        e2.sendVersion.storageService = storageService
+        e2.sendVersion.isPublic = true
 
         when: "phone with empty media"
         p1.media = null
+        p1.voicemailGreetingUrl
 
         then:
-        0 * storageService._
-        p1.voicemailGreetingUrl == null
+        unsignedLink.callCount == 0
+        signedLink.callCount == 0
 
         when: "has a non-audio media element"
         MediaInfo mInfo = new MediaInfo()
         mInfo.addToMediaElements(e1)
         p1.media = mInfo
+        p1.voicemailGreetingUrl
 
         then:
-        0 * storageService._
-        p1.voicemailGreetingUrl == null
+        unsignedLink.callCount == 0
+        signedLink.callCount == 0
 
         when: "has audio media element"
         mInfo.addToMediaElements(e2)
         URL greetingUrl = p1.voicemailGreetingUrl
 
         then:
-        1 * storageService.generateAuthLink(*_) >> new Result(payload: new URL(link))
+        unsignedLink.callCount == 1
+        signedLink.callCount == 0
         greetingUrl.toString() == link
     }
 

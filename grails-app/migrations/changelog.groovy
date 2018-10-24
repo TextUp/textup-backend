@@ -955,4 +955,6 @@ databaseChangeLog = {
 	include file: 'consolidate-voicemails-to-media.groovy'
 
 	include file: 'recorded-voicemail-greeting.groovy'
+
+	include file: 'store-scheduled-status-on-items.groovy'
 }

@@ -90,6 +90,7 @@ class Constants {
 	static final String SOCKET_EVENT_CONTACTS = "contacts"
 	static final String SOCKET_EVENT_FUTURE_MESSAGES = "futureMessages"
 	static final String SOCKET_EVENT_RECORDS = "records"
+	static final String SOCKET_EVENT_PHONES = "phones"
 
 	// Quartz jobs
 	// -----------

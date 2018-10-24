@@ -29,8 +29,8 @@ class CallbackService {
     Result<Closure> process(TypeConvertingMap params) {
         processAnonymousCall(params) {
             // step 1: check that both to and from numbers are valid US phone numbers
-            PhoneNumber fromNum = new PhoneNumber(number:params.From as String),
-                toNum = new PhoneNumber(number:params.To as String)
+            PhoneNumber fromNum = PhoneNumber.urlDecode(params.From as String),
+                toNum = PhoneNumber.urlDecode(params.To as String)
             if (!fromNum.validate() || !toNum.validate()) {
                 return params.CallSid ? CallTwiml.invalid() : TextTwiml.invalid()
             }
@@ -68,15 +68,17 @@ class CallbackService {
         // finish bridge is call from phone to personal phone
         // announcements are from phone to session (client)
         if (params.handle == CallResponse.FINISH_BRIDGE.toString() ||
-            params.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()) {
+            params.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS.toString() ||
+            params.handle == CallResponse.VOICEMAIL_GREETING_RECORD.toString() ||
+            params.handle == CallResponse.VOICEMAIL_GREETING_PROCESSED.toString() ||
+            params.handle == CallResponse.VOICEMAIL_GREETING_PLAY.toString()) {
             sessionNum = toNum
         }
         // when screening incoming calls, the From number is the TextUp phone,
         // the original caller is stored in the originalFrom parameter and the
         // To number is actually the staff member's personal phone number
         else if (params.handle == CallResponse.SCREEN_INCOMING.toString() && params.originalFrom) {
-            String originalFrom = URLDecoder.decode(params.originalFrom as String, "UTF-8")
-            sessionNum = new PhoneNumber(number: originalFrom)
+            sessionNum = PhoneNumber.urlDecode(params.originalFrom as String)
         }
         IncomingSession is1 = IncomingSession.findByPhoneAndNumberAsString(p1, sessionNum.number)
         // create session for this phone if one doesn't exist yet
@@ -92,18 +94,21 @@ class CallbackService {
 
         //usually handle incoming from session (client) to phone (staff)
         BasePhoneNumber phoneNum = toNum
-        // finish bridge is call from phone to personal phone
-        // announcements are from phone to session (client)
+        // (1) finish bridge is call from phone to personal phone
+        // (2) announcements are from phone to session (client)
+        // (3) when screening incoming calls, the From number is the TextUp phone,
+        //      the original caller is stored in the originalFrom parameter and the
+        //      To number is actually the staff member's personal phone number
+        // (4 + 5) recording voicemail greeting takes place when TextUp phone calls personal phone
         if (params.handle == CallResponse.FINISH_BRIDGE.toString() ||
-            params.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()) {
+            params.handle == CallResponse.ANNOUNCEMENT_AND_DIGITS.toString() ||
+            params.handle == CallResponse.SCREEN_INCOMING.toString() ||
+            params.handle == CallResponse.VOICEMAIL_GREETING_RECORD.toString() ||
+            params.handle == CallResponse.VOICEMAIL_GREETING_PROCESSED.toString() ||
+            params.handle == CallResponse.VOICEMAIL_GREETING_PLAY.toString()) {
             phoneNum = fromNum
         }
-        // when screening incoming calls, the From number is the TextUp phone,
-        // the original caller is stored in the originalFrom parameter and the
-        // To number is actually the staff member's personal phone number
-        else if (params.handle == CallResponse.SCREEN_INCOMING.toString()) {
-            phoneNum = fromNum
-        }
+
         phoneNum
     }
 
@@ -133,6 +138,7 @@ class CallbackService {
 
     protected Result<Closure> processCall(Phone p1, IncomingSession is1, String callId,
         TypeConvertingMap params) {
+
         String digits = params.Digits
         switch(params.handle) {
             case CallResponse.CHECK_IF_VOICEMAIL.toString():
@@ -157,13 +163,13 @@ class CallbackService {
                 TwilioUtils.noResponseTwiml()
                 break
             case CallResponse.VOICEMAIL_GREETING_RECORD.toString():
-                CallTwiml.recordVoicemailGreeting(p1.number)
+                CallTwiml.recordVoicemailGreeting(p1.number, is1.number)
                 break
             case CallResponse.VOICEMAIL_GREETING_PROCESSED.toString():
                 IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
                 threadService.delay(5, TimeUnit.SECONDS) {
                     voicemailService
-                        .finishedProcessingVoicemailGreeting(p1, callId, im1)
+                        .finishedProcessingVoicemailGreeting(p1.id, callId, im1)
                         .logFail("CallbackService.processCall: VOICEMAIL_GREETING_PROCESSED")
                 }
                 TwilioUtils.noResponseTwiml()
@@ -189,6 +195,7 @@ class CallbackService {
 
     protected Result<Closure> processText(Phone p1, IncomingSession sess1, String messageId,
         TypeConvertingMap params) {
+
         // step 1: store incoming text without media
         IncomingText text = new IncomingText(apiId: messageId, message: params.Body as String,
             numSegments: params.int("NumSegments"))

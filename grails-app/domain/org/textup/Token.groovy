@@ -11,7 +11,7 @@ import org.textup.type.TokenType
 
 @GrailsCompileStatic
 @EqualsAndHashCode
-class Token {
+class Token implements WithId {
 
     DateTime expires = DateTime.now(DateTimeZone.UTC).plusHours(1)
     String token

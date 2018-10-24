@@ -10,7 +10,7 @@ import org.textup.type.RecordItemType
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class FeaturedAnnouncement {
+class FeaturedAnnouncement implements WithId {
 
     Phone owner
 

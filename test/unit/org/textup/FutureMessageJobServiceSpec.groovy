@@ -120,6 +120,30 @@ class FutureMessageJobServiceSpec extends CustomSpec {
         res.status == ResultStatus.NO_CONTENT
     }
 
+    @DirtiesRuntime
+    void "test cancelling all"() {
+        given:
+        MockedMethod unschedule = TestHelpers.mock(service, 'unschedule') { new Result() }
+        FutureMessage fMsg = Mock()
+
+        when:
+        ResultGroup<FutureMessage> resGroup = service.cancelAll(null)
+
+        then:
+        resGroup.isEmpty
+        unschedule.callCount == 0
+
+        when:
+        resGroup = service.cancelAll([fMsg])
+
+        then:
+        1 * fMsg.setIsDone(true)
+        1 * fMsg.save() >> fMsg
+        resGroup.successes.size() == 1
+        resGroup.anyFailures == false
+        unschedule.callCount == 1
+    }
+
     // Job execution
     // -------------
 
@@ -177,7 +201,9 @@ class FutureMessageJobServiceSpec extends CustomSpec {
         Future fut1 = Mock()
         service.outgoingMessageService = Mock(OutgoingMessageService)
         service.notificationService = Mock(NotificationService)
+        service.threadService = Mock(ThreadService)
         FutureMessage.metaClass."static".findByKeyName = { String key -> fMsg }
+        Closure asyncAction
 
         when: "do not notify self"
         ResultGroup<RecordItem> resGroup = service.execute(null, s1.id)
@@ -189,6 +215,7 @@ class FutureMessageJobServiceSpec extends CustomSpec {
             Tuple.create(new Result(payload: rItem).toGroup(), fut1)
         1 * fMsg.notifySelf >> false
         0 * service.notificationService._
+        1 * rItem.setWasScheduled(true)
         resGroup.anyFailures == false
         resGroup.successes.size() == 1
         resGroup.payload[0] == rItem
@@ -202,15 +229,24 @@ class FutureMessageJobServiceSpec extends CustomSpec {
         1 * service.outgoingMessageService.processMessage(_, _, s1) >>
             Tuple.create(new Result(payload: rItem).toGroup(), fut1)
         1 * fMsg.notifySelf >> true
-        1 * fut1.get()
+        1 * rItem.setWasScheduled(true)
         1 * service.notificationService.build(*_) >> [Mock(BasicNotification)]
         1 * msg1.contacts >> Mock(Recipients)
         1 * msg1.tags >> Mock(Recipients)
-        1 * service.notificationService.send(*_) >> new ResultGroup()
-        1 * rItem.setNumNotified(1)
+        1 * service.threadService.submit(*_) >> { Closure action -> asyncAction = action; null; }
         resGroup.anyFailures == false
         resGroup.successes.size() == 1
         resGroup.payload[0] == rItem
+
+        when:
+        RecordItem.metaClass."static".getAll = { Iterable<Serializable> ids -> [rItem] }
+        asyncAction.call() // notify self closure
+
+        then:
+        1 * fut1.get()
+        1 * service.notificationService.send(*_) >> new ResultGroup()
+        1 * rItem.save() >> rItem // need to save so that re-fetched rItems persist
+        1 * rItem.setNumNotified(1)
     }
 
     @DirtiesRuntime

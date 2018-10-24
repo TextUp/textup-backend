@@ -85,6 +85,7 @@ interface ReadOnlyRecordItem extends Authorable, WithMedia {
     boolean getOutgoing()
     boolean getHasAwayMessage()
     boolean getIsAnnouncement()
+    boolean getWasScheduled()
 
     String getNoteContents()
     RecordItemStatus groupReceiptsByStatus()

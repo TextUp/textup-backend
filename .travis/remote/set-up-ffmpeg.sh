@@ -8,7 +8,7 @@ FFMPEG_DIRECTORY=$3
 FFMPEG_COMMAND=$4
 
 # check to see if ffmpeg directory exists + create if does not exist
-if [ -d "${FFMPEG_DIRECTORY}" ] && [ ! -L "${FFMPEG_DIRECTORY}" ]; then
+if [ ! -d "${FFMPEG_DIRECTORY}" ] && [ ! -L "${FFMPEG_DIRECTORY}" ]; then
     sudo mkdir -pv "${FFMPEG_DIRECTORY}"
 fi
 

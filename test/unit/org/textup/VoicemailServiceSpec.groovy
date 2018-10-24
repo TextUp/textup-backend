@@ -139,16 +139,25 @@ class VoicemailServiceSpec extends CustomSpec {
         int vBaseline = MediaElementVersion.count()
         service.incomingMediaService = Mock(IncomingMediaService)
         service.callService = Mock(CallService)
-        IncomingRecordingInfo ir1 = Mock(IncomingRecordingInfo)
+        service.socketService = Mock(SocketService)
+        IncomingRecordingInfo ir1 = Mock()
+
+        when:
+        Result<Void> res = service.finishedProcessingVoicemailGreeting(null, null, ir1)
+
+        then:
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "voicemailService.finishedProcessingVoicemailGreeting.phoneNotFound"
 
         when: "error in processing recordings"
-        Result<Void> res = service.finishedProcessingVoicemailGreeting(p1, null, ir1)
+        res = service.finishedProcessingVoicemailGreeting(p1.id, null, ir1)
         RecordCall.withSession { it.flush() }
 
         then: "recordings are marked as PUBLIC"
         1 * ir1.setIsPublic(true)
         1 * service.incomingMediaService.process(*_) >>
             Result.createError(["hi"], ResultStatus.BAD_REQUEST).toGroup()
+        0 * service.socketService._
         0 * service.callService._
         res.status == ResultStatus.BAD_REQUEST
         p1.media == null
@@ -157,12 +166,13 @@ class VoicemailServiceSpec extends CustomSpec {
         MediaElementVersion.count() == vBaseline
 
         when: "successfully processed recordings -- phone does not have existing media"
-        res = service.finishedProcessingVoicemailGreeting(p1, null, ir1)
+        res = service.finishedProcessingVoicemailGreeting(p1.id, null, ir1)
         RecordCall.withSession { it.flush() }
 
         then:
         1 * ir1.setIsPublic(true)
         1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
+        1 * service.socketService.sendPhone(*_)
         1 * service.callService.interrupt(*_) >> new Result()
         res.status == ResultStatus.OK
         p1.media != null
@@ -171,12 +181,13 @@ class VoicemailServiceSpec extends CustomSpec {
         MediaElementVersion.count() == vBaseline
 
         when: "successfully processed recordings -- phone has existing media"
-        res = service.finishedProcessingVoicemailGreeting(p1, null, ir1)
+        res = service.finishedProcessingVoicemailGreeting(p1.id, null, ir1)
         RecordCall.withSession { it.flush() }
 
         then:
         1 * ir1.setIsPublic(true)
         1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
+        1 * service.socketService.sendPhone(*_)
         1 * service.callService.interrupt(*_) >> new Result()
         res.status == ResultStatus.OK
         p1.media != null

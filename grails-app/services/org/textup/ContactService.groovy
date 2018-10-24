@@ -20,6 +20,7 @@ class ContactService {
 
     AuthService authService
     DuplicateService duplicateService
+    FutureMessageJobService futureMessageJobService
     NotificationService notificationService
     ResultFactory resultFactory
     SocketService socketService
@@ -290,15 +291,16 @@ class ContactService {
     @RollbackOnResultFailure
     Result<Void> delete(Long cId) {
         Contact c1 = Contact.get(cId)
+
         if (c1) {
             c1.isDeleted = true
             if (c1.save()) {
-                // cancel all future messages
-                c1.record.getFutureMessages().each({ FutureMessage fMsg ->
-                    fMsg.cancel()
-                    fMsg.save()
-                })
-                resultFactory.success()
+                Collection<FutureMessage> fMsgs = c1.record.getFutureMessages()
+                ResultGroup<?> resGroup = futureMessageJobService.cancelAll(fMsgs)
+                if (resGroup.anyFailures) {
+                    resultFactory.failWithGroup(resGroup)
+                }
+                else { resultFactory.success() }
             }
             else { resultFactory.failWithValidationErrors(c1.errors) }
         }

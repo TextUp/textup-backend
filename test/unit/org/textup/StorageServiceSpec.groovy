@@ -29,46 +29,6 @@ class StorageServiceSpec extends Specification {
         service.grailsApplication = grailsApplication
 	}
 
-    // Links
-    // -----
-
-    void "test generating public links"() {
-        given:
-        String root = grailsApplication.flatConfig["textup.media.cdn.root"]
-        String identifier = TestHelpers.randString()
-
-        expect:
-        service.generateLink(identifier).payload?.toString() == "https://${root}/${identifier}"
-    }
-
-    void "test generating authenticated links"() {
-        given:
-        String objectKey = null
-        Date expiration = null
-        String signedUrl = "https://www.example.com"
-        service.metaClass.getSignedLink = { Protocol a1, String a2, File a3, String a4, String a5, Date a6 ->
-            objectKey = a4
-            expiration = a6
-            new URL(signedUrl)
-        }
-
-    	when:
-    	String key = TestHelpers.randString()
-    	DateTime expires = DateTime.now().plusDays(1)
-    	Result<URL> res = service.generateAuthLink(key, expires)
-
-    	then:
-    	res.success == true
-        res.status == ResultStatus.OK
-    	res.payload instanceof URL
-    	signedUrl == res.payload.toString()
-    	objectKey == key
-    	expires.isEqual(expiration.time)
-    }
-
-    // Uploading
-    // ---------
-
     void "test uploading"() {
         given:
         service.s3Service = Mock(AmazonS3Client)

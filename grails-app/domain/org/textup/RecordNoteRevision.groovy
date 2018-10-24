@@ -13,7 +13,7 @@ import org.textup.validator.Author
 @RestApiObject(
     name        = "RecordNoteRevision",
     description = "Previous versions of the note.")
-class RecordNoteRevision implements ReadOnlyRecordNoteRevision {
+class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId {
 
     @RestApiObjectField(
         description    = "When this revision happened",

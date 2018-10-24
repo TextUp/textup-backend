@@ -13,7 +13,7 @@ import org.textup.validator.Author
 import org.textup.validator.TempRecordReceipt
 
 @EqualsAndHashCode
-class RecordItem implements ReadOnlyRecordItem {
+class RecordItem implements ReadOnlyRecordItem, WithId {
 
     @RestApiObjectField(
         description    = "Date this item was added to the record",
@@ -50,6 +50,12 @@ class RecordItem implements ReadOnlyRecordItem {
         allowedType    = "Boolean",
         useForCreation = false)
     boolean hasAwayMessage = false
+
+    @RestApiObjectField(
+        description    = "If this was originally a scheduled message",
+        allowedType    = "Boolean",
+        useForCreation = false)
+    boolean wasScheduled = false
 
     // Outgoing texts: # staff members who received notifications for this message
     // Outgoing future message: # staff who received "notify-me" notifications

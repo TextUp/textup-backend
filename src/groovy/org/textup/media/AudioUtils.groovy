@@ -48,6 +48,10 @@ class AudioUtils {
         }
     }
 
+    // Do not short circuit if input type = output type because this is the CONTAINER type.
+    // We want to normalize both container AND encoding. For example, Twilio returns audio with
+    // container of mp3, but the content is pcm. For this case, we need to encode to mp3 anyways
+    // or else using the Play verb won’t work.
     Result<byte[]> convert(long timeout, MediaType inputType, Path inputPath, MediaType outputType) {
         if (timeout < 0) {
             return Helpers.resultFactory.failWithCodeAndStatus("audioUtils.convert.timeoutIsNegative",
@@ -60,10 +64,6 @@ class AudioUtils {
         if (!Files.isReadable(inputPath)) {
             return Helpers.resultFactory.failWithCodeAndStatus("audioUtils.convert.inputPathInvalid",
                 ResultStatus.BAD_REQUEST)
-        }
-        // no need to process if input and output are of the same type
-        if (inputType == outputType) {
-            return readAllBytes(inputPath)
         }
         Path outputPath = createTempFile()
         StringBuilder sOut = new StringBuilder(),
@@ -78,7 +78,8 @@ class AudioUtils {
             }
         }
         else {
-            log.error("AudioUtils.convertData: ${process.exitValue()} \nout> $sOut \nerr> $sErr ")
+            delete(outputPath)
+            log.error("AudioUtils.convert: ${process.exitValue()} \nout> $sOut \nerr> $sErr ")
             Helpers.resultFactory.failWithCodeAndStatus("audioUtils.convert.failed",
                 ResultStatus.INTERNAL_SERVER_ERROR, [inputType, outputType])
         }
@@ -111,7 +112,7 @@ class AudioUtils {
     // Don't need to also include codec option for input because all audio data types we support
     // have native decoders built into ffMPEG
     protected List<String> formatInput(MediaType type, Path path) {
-        [getFormatFromType(type), "-i ${path.toAbsolutePath().toString()}"]
+        ["-i ${path.toAbsolutePath().toString()}"]
     }
 
     protected List<String> formatOutput(MediaType type, Path path) {

@@ -159,7 +159,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         json.awayMessage.contains(customMsg)
         json.voice == VoiceType.FEMALE.toString()
         json.useVoicemailRecordingIfPresent == false
-        json.voicemailRecording == null
+        json.media == null
 
         when: "use voicemail recording"
         MediaElement e1 = TestHelpers.buildMediaElement()
@@ -178,9 +178,12 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         json.awayMessage.contains(customMsg)
         json.voice == VoiceType.FEMALE.toString()
         json.useVoicemailRecordingIfPresent == true
-        json.voicemailRecording instanceof Map
-        json.voicemailRecording.uid == e1.uid
-        json.voicemailRecording.versions instanceof Collection
-        json.voicemailRecording.versions*.type.every { it in MediaType.AUDIO_TYPES*.mimeType }
+        json.media instanceof Map
+        json.media.id == p1.media.id
+        json.media.images == []
+        json.media.audio.size() == 1
+        json.media.audio[0].uid == e1.uid
+        json.media.audio[0].versions instanceof Collection
+        json.media.audio[0].versions*.type.every { it in MediaType.AUDIO_TYPES*.mimeType }
     }
 }

@@ -252,6 +252,11 @@ class TagServiceSpec extends CustomSpec {
     // ------
 
     void "test delete"() {
+        given:
+        service.futureMessageJobService = Stub(FutureMessageJobService) {
+            cancelAll(*_) >> new ResultGroup()
+        }
+
     	when: "we delete a nonexistent tag"
         Result res = service.delete(-88L)
 
@@ -285,7 +290,7 @@ class TagServiceSpec extends CustomSpec {
         ContactTag.withSession { it.flush() }
 
         then: "tag marked as deleted and all future messages cancelled"
-        numFutureMsgs * service.futureMessageJobService.unschedule(*_) >> new Result()
+        1 * service.futureMessageJobService.cancelAll({ it.size() == numFutureMsgs }) >> new ResultGroup()
         res.status == ResultStatus.NO_CONTENT
         tag1.isDeleted == true
     }

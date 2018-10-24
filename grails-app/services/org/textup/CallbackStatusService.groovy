@@ -27,8 +27,8 @@ class CallbackStatusService {
             Integer duration = Helpers.to(Integer, params.CallDuration)
             if (status && duration) {
                 if (params.ParentCallSid) {
-                    PhoneNumber childNumber = new PhoneNumber(
-                        number: params[Constants.CALLBACK_CHILD_CALL_NUMBER_KEY] as String)
+                    PhoneNumber childNumber = PhoneNumber
+                        .urlDecode(params[Constants.CALLBACK_CHILD_CALL_NUMBER_KEY] as String)
                     if (childNumber.validate()) {
                         handleUpdateForChildCall(params.ParentCallSid as String,
                                 params.CallSid as String, childNumber, status, duration)
@@ -65,6 +65,7 @@ class CallbackStatusService {
     // From statusCallback attribute on the Number verb
     protected Result<Void> handleUpdateForChildCall(String parentId, String childId,
         PhoneNumber childNumber, ReceiptStatus status, Integer duration) {
+
         createNewReceiptsWithStatus(parentId, childId, childNumber, status)
             .then { List<RecordItemReceipt> rpts -> updateDurationForCall(rpts, duration) }
             .then { List<RecordItemReceipt> rpts ->
@@ -76,6 +77,7 @@ class CallbackStatusService {
     // From the statusCallback attribute on the original POST request to the Call resource
     protected Result<Void> handleUpdateForParentCall(String callId, ReceiptStatus status,
         Integer duration, TypeConvertingMap params) {
+
         updateExistingReceiptsWithStatus(callId, status)
             .then { List<RecordItemReceipt> rpts -> updateDurationForCall(rpts, duration) }
             .then { List<RecordItemReceipt> rpts ->

@@ -28,6 +28,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         assert json.outgoing == item.outgoing
         assert json.hasAwayMessage == item.hasAwayMessage
         assert json.isAnnouncement == item.isAnnouncement
+        assert json.wasScheduled == item.wasScheduled
         assert json.receipts instanceof Map
         assert json.media instanceof Map
         assert json.authorName == item.authorName
@@ -49,7 +50,8 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
             authorName: "yes",
             authorId: 88L,
             authorType: AuthorType.STAFF,
-            media: new MediaInfo())
+            media: new MediaInfo(),
+            wasScheduled: true)
         RecordItemReceipt rpt1 = TestHelpers.buildReceipt(ReceiptStatus.BUSY)
         rpt1.numBillable = 88
         rCall1.addToReceipts(rpt1)

@@ -725,6 +725,11 @@ class ContactServiceSpec extends CustomSpec {
     // ------
 
     void "test delete"() {
+        given:
+        service.futureMessageJobService = Stub(FutureMessageJobService) {
+            cancelAll(*_) >> new ResultGroup()
+        }
+
         when: "deleting nonexistent contact"
         Result<Void> res = service.delete(-88L)
 

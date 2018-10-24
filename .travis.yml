@@ -1,6 +1,6 @@
 language: groovy
 jdk:
-- openjdk7
+  - openjdk7
 sudo: false
 branches:
   only:
@@ -43,6 +43,9 @@ jobs:
     - chmod 400 .travis/textup.pem
     deploy:
     - provider: script
+      skip_cleanup: true
+      on:
+        branch: dev
       script:
         - echo "export TEXTUP_BACKEND_AWS_ACCESS_KEY=${STAGING_AWS_ACCESS_KEY}" >> .travis/env-variables/staging.sh
         - echo "export TEXTUP_BACKEND_AWS_SECRET_KEY=${STAGING_AWS_SECRET_KEY}" >> .travis/env-variables/staging.sh
@@ -64,10 +67,10 @@ jobs:
         - .travis/set-up-temp-directory.sh $DEPLOY_USER_STAGING $DEPLOY_HOSTNAME_STAGING .travis/textup.pem $STAGING_EXEC_USERNAME $STAGING_TEMP_DIRECTORY
         - .travis/build-env-variables.sh $DEPLOY_USER_STAGING $DEPLOY_HOSTNAME_STAGING .travis/textup.pem .travis/env-variables/staging.sh
         - .travis/deploy.sh $DEPLOY_USER_STAGING $DEPLOY_HOSTNAME_STAGING .travis/textup.pem target textup-backend.war
+    - provider: script
       skip_cleanup: true
       on:
-        branch: dev
-    - provider: script
+        branch: master
       script:
         - echo "export TEXTUP_BACKEND_AWS_ACCESS_KEY=${PROD_AWS_ACCESS_KEY}" >> .travis/env-variables/production.sh
         - echo "export TEXTUP_BACKEND_AWS_SECRET_KEY=${PROD_AWS_SECRET_KEY}" >> .travis/env-variables/production.sh
@@ -89,6 +92,3 @@ jobs:
         - .travis/set-up-temp-directory.sh $DEPLOY_USER_PRODUCTION $DEPLOY_HOSTNAME_PRODUCTION .travis/textup.pem $PROD_EXEC_USERNAME $PROD_TEMP_DIRECTORY
         - .travis/build-env-variables.sh $DEPLOY_USER_PRODUCTION $DEPLOY_HOSTNAME_PRODUCTION .travis/textup.pem .travis/env-variables/production.sh
         - .travis/deploy.sh $DEPLOY_USER_PRODUCTION $DEPLOY_HOSTNAME_PRODUCTION .travis/textup.pem target textup-backend.war
-      skip_cleanup: true
-      on:
-        branch: master

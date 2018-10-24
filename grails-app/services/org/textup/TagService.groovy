@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.hibernate.Session
 import org.textup.type.VoiceLanguage
@@ -8,14 +8,14 @@ import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.ContactTagAction
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Transactional
 class TagService {
 
-    ResultFactory resultFactory
     AuthService authService
     FutureMessageJobService futureMessageJobService
     NotificationService notificationService
+    ResultFactory resultFactory
 
     // Create
     // ------
@@ -113,11 +113,8 @@ class TagService {
     	if (t1) {
 			t1.isDeleted = true
             if (t1.save()) {
-                ResultGroup<?> resGroup = new ResultGroup<>()
-                // cancel all future messages
-                t1.record.getFutureMessages().each { FutureMessage fMsg ->
-                    resGroup << cancelFutureMessage(fMsg)
-                }
+                Collection<FutureMessage> fMsgs = t1.record.getFutureMessages()
+                ResultGroup<?> resGroup = futureMessageJobService.cancelAll(fMsgs)
                 if (resGroup.anyFailures) {
                     resultFactory.failWithGroup(resGroup)
                 }
@@ -129,18 +126,5 @@ class TagService {
     		resultFactory.failWithCodeAndStatus("tagService.delete.notFound",
                 ResultStatus.NOT_FOUND, [tId])
     	}
-    }
-
-    protected Result<?> cancelFutureMessage(FutureMessage fMsg) {
-        futureMessageJobService
-            .unschedule(fMsg)
-            .logFail("TagService.delete: unscheduling")
-            .then {
-                fMsg.isDone = true
-                if (fMsg.save()) {
-                    resultFactory.success(fMsg)
-                }
-                else { resultFactory.failWithValidationErrors(fMsg.errors) }
-            }
     }
 }

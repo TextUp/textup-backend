@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import java.util.concurrent.TimeUnit
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.rest.*
 import org.textup.type.*
@@ -24,14 +25,17 @@ class IncomingMessageService {
 
     Result<Closure> processText(Phone p1, IncomingText text, IncomingSession sess1,
         TypeConvertingMap params) {
+
         // step 1: build texts
         buildTexts(p1, text, sess1)
             .then { Tuple<List<RecordText>, List<Contact>> processed ->
                 List<RecordText> rTexts = processed.first
                 List<Contact> notBlockedContacts = processed.second
                 List<BasicNotification> notifs = notificationService.build(p1, notBlockedContacts)
-                // step 2: in a new thread, handle long-running tasks
-                threadService.submit {
+                // step 2: in a new thread, handle long-running tasks. Delay required to allow texts
+                // created in this thread to save. Otherwise, when we try to get texts with the
+                // following ids, they will have be saved yet and we will get `null` in return
+                threadService.delay(5, TimeUnit.SECONDS) {
                     finishProcessingText(text, rTexts*.id, notifs, params)
                         .logFail("IncomingMessageService.processText: finishing processing")
                 }
@@ -94,13 +98,15 @@ class IncomingMessageService {
     protected Result<Void> finishProcessingTextHelper(IncomingText text, List<Long> textIds,
         List<BasicNotification> notifs, MediaInfo mInfo = null) {
 
-        Collection<RecordText> rTexts = RecordText.getAll(textIds as Iterable<Serializable>)
+        Collection<RecordText> rTexts = rebuildRecordTexts(textIds)
         int numNotified = notifs.size()
         ResultGroup<RecordText> outcomes = new ResultGroup<>()
         rTexts.each { RecordText rText ->
             rText.media = mInfo
             rText.numNotified = numNotified
-            if (!rText.save()) { outcomes << resultFactory.failWithValidationErrors(rText.errors) }
+            if (!rText.save()) {
+                outcomes << resultFactory.failWithValidationErrors(rText.errors)
+            }
         }
         if (!outcomes.anyFailures) {
             // send out notifications
@@ -115,6 +121,22 @@ class IncomingMessageService {
             resultFactory.success()
         }
         else { resultFactory.failWithGroup(outcomes) }
+    }
+    protected Collection<RecordText> rebuildRecordTexts(Collection<Long> textIds) {
+        Collection<RecordText> rTexts = []
+        boolean didFindAll = true
+        RecordText
+            .getAll(textIds as Iterable<Serializable>)
+            .each { RecordText rText ->
+                if (rText) {
+                    rTexts << rText
+                }
+                else { didFindAll = false }
+            }
+        if (!didFindAll) {
+            log.error("rebuildRecordTexts: not all texts found from ids `${textIds}`")
+        }
+        rTexts
     }
 
     // Calls

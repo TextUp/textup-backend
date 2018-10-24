@@ -182,6 +182,63 @@ class MediaServiceSpec extends Specification {
         res.payload.second.alternateVersions[0].versionId == altItem.key
     }
 
+    @Unroll
+    @DirtiesRuntime
+    void "test processing element with #visibilityLevel visibility "() {
+        given:
+        MediaElement el1 = TestHelpers.buildMediaElement()
+        el1.save(flush: true, failOnError: true)
+        UploadItem uItem = Mock()
+        UploadItem uItem1 = Mock() { toMediaElementVersion() >> TestHelpers.buildMediaElementVersion() }
+        UploadItem uItem2 = Mock() { toMediaElementVersion() >> TestHelpers.buildMediaElementVersion() }
+        MockedMethod process = TestHelpers.mock(MediaPostProcessor, "process") {
+            new Result(payload: Tuple.create(uItem1, [uItem2]))
+        }
+
+        when:
+        Result<Tuple<List<UploadItem>, MediaElement>> res = service.processElement(uItem, el1)
+
+        then:
+        (1.._) * uItem.isPublic >> publicSetting
+        1 * uItem1.setIsPublic(publicSetting)
+        1 * uItem2.setIsPublic(publicSetting)
+
+        where:
+        publicSetting | visibilityLevel
+        true          | "public"
+        false         | "private"
+    }
+
+    void "test finish processing overall errors"() {
+        when:
+        Result<MediaInfo> res = service.tryFinishProcessing(null, null)
+
+        then:
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "mediaService.tryFinishProcessing.mediaInfoNotFound"
+    }
+
+    void "test rebuilding elements to process"() {
+        given:
+        MediaElement el1 = TestHelpers.buildMediaElement()
+        el1.save(flush: true, failOnError: true)
+
+        when:
+        List<Tuple<UploadItem, Long>> toProcessIds = [Tuple.create(Mock(UploadItem), null)]
+        List<Tuple<UploadItem, MediaElement>> toProcess = service.rebuildElementsToProcess(toProcessIds)
+
+        then: "removes nulls"
+        toProcess == []
+
+        when:
+        toProcessIds = [Tuple.create(Mock(UploadItem), el1.id)]
+        toProcess = service.rebuildElementsToProcess(toProcessIds)
+
+        then:
+        toProcess.size() == 1
+        toProcess[0].second == el1
+    }
+
     void "test finishing processing overall"() {
         given:
         service.storageService = Mock(StorageService)
@@ -200,8 +257,8 @@ class MediaServiceSpec extends Specification {
         int vBaseline = MediaElementVersion.count()
 
         when:
-        List<Tuple<UploadItem, MediaElement>> toProcess = [Tuple.create(inputItem, e1)]
-        Result<MediaInfo> res = service.tryFinishProcessing(mInfo, toProcess)
+        List<Tuple<UploadItem, MediaElement>> toProcess = [Tuple.create(inputItem, e1.id)]
+        Result<MediaInfo> res = service.tryFinishProcessing(mInfo.id, toProcess)
         MediaInfo.withSession { it.flush() }
 
         then: "re-adding the element to the parent does not result in a duplicate association"
@@ -283,9 +340,9 @@ class MediaServiceSpec extends Specification {
         MediaInfo.withSession { it.flush() }
 
         then: "after"
-        1 * service.threadService.submit(*_) >> { Closure action ->
+        1 * service.threadService.delay(*_) >> { a1, a2, Closure action ->
             finishProcessing = action
-            Helpers.noOpFuture()
+            Helpers.noOpFuture() as ScheduledFuture
         }
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
         trySetOnRequest.callCount == 1
@@ -338,9 +395,9 @@ class MediaServiceSpec extends Specification {
         1 * withMedia.setMedia(*_) >> { MediaInfo mInfo ->
             assert mInfo.mediaElements.size() == 1 // initial version
         }
-        1 * service.threadService.submit(*_) >> { Closure action ->
+        1 * service.threadService.delay(*_) >> { a1, a2, Closure action ->
             finishProcessing = action
-            Helpers.noOpFuture()
+            Helpers.noOpFuture() as ScheduledFuture
         }
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
         trySetOnRequest.callCount == 1
@@ -397,7 +454,7 @@ class MediaServiceSpec extends Specification {
             assert thisMediaInfo.mediaElements.size() == 1 // initial version
             assert thisMediaInfo.id == mInfo.id
         }
-        1 * service.threadService.submit(*_) >> Helpers.noOpFuture()
+        1 * service.threadService.delay(*_) >> (Helpers.noOpFuture() as ScheduledFuture)
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
         trySetOnRequest.callCount == 1
         res.status == ResultStatus.OK
@@ -407,5 +464,45 @@ class MediaServiceSpec extends Specification {
         MediaElement.count() == eBaseline + 1
         MediaElementVersion.count() == vBaseline + 1 // initial version
         TestHelpers.numInTempDirectory == numInTemp
+    }
+
+    @Unroll
+    @DirtiesRuntime
+    void "test processing media with #visibilityLevel visibility "() {
+        given:
+        service.storageService = Stub(StorageService) {  uploadAsync(*_) >> new ResultGroup() }
+        service.threadService = Mock(ThreadService)
+        UploadItem uItem = Mock()
+        MockedMethod hasMediaActions = TestHelpers.mock(service, "hasMediaActions") { true }
+        MockedMethod handleActions = TestHelpers.mock(service, "handleActions") {
+            new Result(payload: uItem).toGroup()
+        }
+        MockedMethod tryFinishProcessing = TestHelpers.mock(service, "tryFinishProcessing")
+        MockedMethod trySetOnRequest = TestHelpers.forceMock(Helpers, "trySetOnRequest") { new Result() }
+        MediaInfo mInfo = new MediaInfo()
+        Closure delayedAction
+
+        when: "is public"
+        Result<Tuple<MediaInfo, Future<Result<MediaInfo>>>> res = service.tryProcess(mInfo, null, publicSetting)
+
+        then:
+        1 * uItem.setIsPublic(publicSetting)
+        1 * uItem.toMediaElementVersion() >> TestHelpers.buildMediaElementVersion()
+        1 * service.threadService.delay(*_) >> { a1, a2, Closure action -> action(); null; }
+        res.status == ResultStatus.OK
+
+        hasMediaActions.callCount == 1
+        handleActions.callCount == 1
+        tryFinishProcessing.callCount == 1
+        tryFinishProcessing.callArguments[0][0] == mInfo.id
+        tryFinishProcessing.callArguments[0][1] instanceof Collection
+        tryFinishProcessing.callArguments[0][1].each { Tuple<UploadItem, Long> processed ->
+            assert processed.first == uItem
+        }
+
+        where:
+        publicSetting | visibilityLevel
+        true          | "public"
+        false         | "private"
     }
 }

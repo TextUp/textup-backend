@@ -45,14 +45,6 @@ class OutgoingMessage {
         recipients
 	}
 
-	HashSet<WithRecord> toRecordOwners() {
-		HashSet<WithRecord> recordOwners = new HashSet<>()
-		if (contacts) { recordOwners.addAll(contacts.recipients) }
-        if (sharedContacts) { recordOwners.addAll(sharedContacts.recipients) }
-        if (tags) { recordOwners.addAll(tags.recipients) }
-        recordOwners
-	}
-
 	Map<Long, List<ContactTag>> getContactIdToTags() {
 		Map<Long, List<ContactTag>> contactIdToTags = [:].withDefault { [] as List<ContactTag> }
 		tags?.recipients?.each { ContactTag ct1 ->

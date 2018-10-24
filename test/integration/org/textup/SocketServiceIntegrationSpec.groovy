@@ -3,7 +3,7 @@ package org.textup
 import grails.test.runtime.DirtiesRuntime
 import org.textup.type.OrgStatus
 import org.textup.type.StaffStatus
-import org.textup.util.CustomSpec
+import org.textup.util.*
 
 class SocketServiceIntegrationSpec extends CustomSpec {
 
@@ -59,5 +59,27 @@ class SocketServiceIntegrationSpec extends CustomSpec {
         then:
         1 * fMsg.refreshTrigger()
         resGroup.successes.size() == 1
+    }
+
+    @DirtiesRuntime
+    void "test sending a phone"() {
+        given:
+        MockedMethod sendToDataToStaff = TestHelpers.mock(socketService, "sendToDataToStaff") {
+            new Result()
+        }
+
+        when:
+        ResultGroup<Staff> resGroup = socketService.sendPhone(null)
+
+        then:
+        resGroup.isEmpty == true
+        sendToDataToStaff.callCount == 0
+
+        when:
+        resGroup = socketService.sendPhone(p1)
+
+        then:
+        resGroup.successes.size() == p1.owner.all.size()
+        sendToDataToStaff.callCount == p1.owner.all.size()
     }
 }

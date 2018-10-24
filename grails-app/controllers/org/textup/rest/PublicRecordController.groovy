@@ -38,8 +38,6 @@ class PublicRecordController extends BaseController {
             threadService.delay(5, TimeUnit.SECONDS) { callbackStatusService.process(paramsMap) }
             respondWithResult(Closure, TwilioUtils.noResponseTwiml())
         }
-        else {
-            respondWithResult(Closure, callbackService.process(paramsMap))
-        }
+        else { respondWithResult(Closure, callbackService.process(paramsMap)) }
     }
 }

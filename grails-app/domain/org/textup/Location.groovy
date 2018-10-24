@@ -7,7 +7,7 @@ import org.restapidoc.annotation.*
 @GrailsCompileStatic
 @EqualsAndHashCode
 @RestApiObject(name="Location", description="A location")
-class Location implements ReadOnlyLocation {
+class Location implements ReadOnlyLocation, WithId {
 
     @RestApiObjectField(description = "Human readable address of the location")
 	String address

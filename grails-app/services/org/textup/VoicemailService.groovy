@@ -70,9 +70,15 @@ class VoicemailService {
     // Voicemail greeting
     // ------------------
 
-    Result<Void> finishedProcessingVoicemailGreeting(Phone p1, String callId,
+    Result<Void> finishedProcessingVoicemailGreeting(Long phoneId, String callId,
         IncomingRecordingInfo ir1) {
 
+        Phone p1 = Phone.get(phoneId)
+        if (!p1) {
+            return resultFactory.failWithCodeAndStatus(
+                "voicemailService.finishedProcessingVoicemailGreeting.phoneNotFound",
+                ResultStatus.NOT_FOUND, [phoneId])
+        }
         // voicemail greetings are public so that Twilio can cache the object and because anyone
         // who calls the number and gets sent to voicemail will hear this greeting
         ir1.isPublic = true
@@ -86,6 +92,7 @@ class VoicemailService {
         resGroup.payload.each { MediaElement e1 -> mInfo.addToMediaElements(e1) }
         p1.media = mInfo
         if (p1.save()) {
+            socketService.sendPhone(p1)
             callService.interrupt(callId, CallTwiml.infoForPlayVoicemailGreeting())
         }
         else { resultFactory.failWithValidationErrors(p1.errors) }

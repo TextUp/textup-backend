@@ -2,7 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import java.util.concurrent.Future
+import java.util.concurrent.*
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.rest.*
 import org.textup.type.*
@@ -76,8 +76,8 @@ class OutgoingMessageService {
         // step 1: create initial domain classes
         ResultGroup<? extends RecordItem> resGroup = buildMessages(msg1, staff.toAuthor())
         if (!resGroup.anyFailures) {
-            Map<Long, List<RecordItem>> recordIdToItems = [:].withDefault { [] as List<RecordItem> }
-            resGroup.payload.each { RecordItem i1 -> recordIdToItems[i1.record.id] << i1 }
+            Map<Long, List<Long>> recordIdToItemIds = [:].withDefault { [] as List<Long> }
+            resGroup.payload.each { RecordItem i1 -> recordIdToItemIds[i1.record.id] << i1.id }
             // step 2: finish all other long-running tasks asynchronously
             // Spock integration tests are run inside of a transaction that is rolled back at the
             // end of the test. This means that test data in the db is not accessible from another
@@ -85,8 +85,8 @@ class OutgoingMessageService {
             // This seeems to be a limitation of the integration testing environment. We tested in
             // the Grails console and we were able to access all data no matter which session or thread
             String phoneName = phone.name
-            future = threadService.submit {
-                finishProcessingMessages(recordIdToItems, phoneName, msg1, mediaFuture)
+            future = threadService.delay(5, TimeUnit.SECONDS) {
+                finishProcessingMessages(recordIdToItemIds, phoneName, msg1, mediaFuture)
                     .logFail("OutgoingMessageService.processMessage: finish processing")
             }
         }
@@ -95,21 +95,32 @@ class OutgoingMessageService {
 
     protected ResultGroup<? extends RecordItem> buildMessages(OutgoingMessage msg1, Author author1) {
         ResultGroup<? extends RecordItem> resGroup = new ResultGroup<>()
-        msg1.toRecordOwners().each { WithRecord recordOwner ->
-            Result<? extends RecordItem> res = recordOwner
-                .tryGetRecord()
-                .then { Record rec1 ->
-                    msg1.isText ?
-                        rec1.storeOutgoingText(msg1.message, author1, msg1.media) :
-                        rec1.storeOutgoingCall(author1, msg1.message, msg1.media)
-                }
-            resGroup << res
+        // need to build message for each Contactable recipient
+        msg1.toRecipients().each { Contactable cont1 ->
+            resGroup << buildMessageForRecordOwner(cont1, msg1, author1)
+        }
+        // also store a copy in any tags we are sending to as well
+        msg1.tags.recipients.each { ContactTag tag1 ->
+            resGroup << buildMessageForRecordOwner(tag1, msg1, author1)
         }
         resGroup
     }
+    protected Result<? extends RecordItem> buildMessageForRecordOwner(WithRecord recordOwner,
+        OutgoingMessage msg1, Author author1) {
 
-    protected ResultGroup<?> finishProcessingMessages(Map<Long, List<RecordItem>> recordIdToItems,
+        recordOwner
+            .tryGetRecord()
+            .then { Record rec1 ->
+                msg1.isText ?
+                    rec1.storeOutgoingText(msg1.message, author1, msg1.media) :
+                    rec1.storeOutgoingCall(author1, msg1.message, msg1.media)
+            }
+    }
+
+    protected ResultGroup<?> finishProcessingMessages(Map<Long, List<Long>> recordIdToItemIds,
         String phoneName, OutgoingMessage msg1, Future<Result<MediaInfo>> mediaFuture = null) {
+
+        Map<Long, List<RecordItem>> recordIdToItems = rebuildRecordIdToItemsMap(recordIdToItemIds)
         if (mediaFuture) {
             Result<MediaInfo> mediaRes = mediaFuture.get()
             if (!mediaRes) {
@@ -126,7 +137,27 @@ class OutgoingMessageService {
         }
         else { sendAndStore(recordIdToItems, phoneName, msg1) }
     }
-
+    protected Map<Long, List<RecordItem>> rebuildRecordIdToItemsMap(Map<Long, List<Long>> recordIdToItemIds) {
+        // step 1: collect all ids to fetch in one call from db
+        Iterable<Serializable> itemIds = []
+        recordIdToItemIds.each { Long recordId, List<Long> thisIds -> itemIds.addAll(thisIds) }
+        // step 2: after fetching from db, build a map of item id to object for efficient retrieval
+        Map<Long, RecordItem> idToObject = Helpers.buildIdToObjectMap(RecordItem.getAll(itemIds))
+        // step 3: replace item id with item object in the passed-in map
+        Map<Long, List<RecordItem>> recordIdToItems = [:]
+        recordIdToItemIds.each { Long recordId, List<Long> thisIds ->
+            List<RecordItem> thisItems = []
+            thisIds.every { Long thisId ->
+                RecordItem item = idToObject[thisId]
+                if (item) {
+                    thisItems << item
+                }
+                else { log.error("rebuildRecordIdToItemsMap: item `${thisId}` not found") }
+            }
+            recordIdToItems[recordId] = thisItems
+        }
+        recordIdToItems
+    }
     protected ResultGroup<?> sendAndStore(Map<Long, List<RecordItem>> recordIdToItems,
         String phoneName, OutgoingMessage msg1) {
 
@@ -155,9 +186,15 @@ class OutgoingMessageService {
 
         owner.tryGetRecord().then { Record rec1 ->
             Collection<RecordItem> items = recordIdToItems[rec1.id]
+            ResultGroup<?> failures = new ResultGroup<>()
             if (items) {
-                items.each { RecordItem item1 -> item1.addAllReceipts(tempReceipts) }
-                resultFactory.success()
+                items.each { RecordItem item1 ->
+                    item1.addAllReceipts(tempReceipts)
+                    if (!item1.save()) {
+                        failures << resultFactory.failWithValidationErrors(item1.errors)
+                    }
+                }
+                failures.isEmpty ? resultFactory.success() : resultFactory.failWithGroup(failures)
             }
             else {
                 resultFactory.failWithCodeAndStatus("outgoingMessageService.tryStoreReceipts.notFound",

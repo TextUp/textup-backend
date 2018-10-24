@@ -10,16 +10,16 @@ import org.textup.type.*
 @RestApiObject(
     name        = "MediaElementVersion",
     description = "A version of media optimized for either sending or displaying on a particular device size")
-class MediaElementVersion implements ReadOnlyMediaElementVersion {
-
-    StorageService storageService
+class MediaElementVersion implements ReadOnlyMediaElementVersion, WithId {
 
     String versionId
     Long sizeInBytes
     Integer widthInPixels
     Integer heightInPixels
 
-    // usually is false but is true for voicemail greetings
+    @RestApiObjectField(
+        description    = "Whether this asset is public or not",
+        allowedType    = "boolean")
     boolean isPublic = false
 
     @RestApiObjectField(
@@ -47,7 +47,6 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
             allowedType    = "Integer",
             useForCreation = false)
     ])
-    static transients = ["storageService"]
     static constraints = { // all nullable:false by default
         sizeInBytes min: 1l
         // inherent width in pixels for responsive media, intended for images
@@ -60,12 +59,6 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion {
     // ---------------
 
     URL getLink() {
-        if (versionId) {
-            Result<URL> res = isPublic
-                ? storageService.generateLink(versionId)
-                : storageService.generateAuthLink(versionId)
-            res.logFail('MediaElementVersion.getLink')
-            res.success ? res.payload : null
-        }
+        isPublic ? LinkUtils.unsignedLink(versionId) : LinkUtils.signedLink(versionId)
     }
 }

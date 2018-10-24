@@ -9,7 +9,7 @@ import grails.compiler.GrailsCompileStatic
 
 @GrailsCompileStatic
 @EqualsAndHashCode
-class Schedule {
+class Schedule implements WithId {
 
     static constraints = {
     }

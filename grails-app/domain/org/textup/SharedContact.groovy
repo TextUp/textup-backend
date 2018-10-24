@@ -18,7 +18,7 @@ import org.textup.validator.TempRecordReceipt
 @RestApiObject(
     name="SharedContact",
     description="Information on how you've shared a contact with another staff member")
-class SharedContact implements Contactable {
+class SharedContact implements Contactable, WithId {
 
     Phone sharedBy
     // Should not access contact object directly

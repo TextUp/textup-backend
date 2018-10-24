@@ -242,6 +242,24 @@ class CallTwimlSpec extends CustomSpec {
                 Hangup()
             }
         }
+
+        when: "has voicemail but chooses to use away message"
+        p1.useVoicemailRecordingIfPresent = false
+        res = CallTwiml.recordVoicemailMessage(p1, fromNum)
+
+        then:
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+            Response {
+                Pause(length: 1)
+                Say(voice: p1.voice.toTwimlValue(), p1.awayMessage)
+                Say("twimlBuilder.call.voicemailDirections")
+                Record(action: actionParams.toString(), maxLength: 160,
+                    recordingStatusCallback:callbackParams.toString())
+                Say("twimlBuilder.call.goodbye")
+                Hangup()
+            }
+        }
     }
 
     void "test connecting incoming calls"() {
@@ -551,17 +569,18 @@ class CallTwimlSpec extends CustomSpec {
 
     void "test recording voicemail greeting"() {
         when: "invalid"
-        Result<Closure> res = CallTwiml.recordVoicemailGreeting(null)
+        Result<Closure> res = CallTwiml.recordVoicemailGreeting(null, null)
 
         then:
         res.status == ResultStatus.BAD_REQUEST
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "valid"
-        PhoneNumber fromNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber phoneNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber sessNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
         Map processingParams = [handle: CallResponse.VOICEMAIL_GREETING_PROCESSING]
-        Map doneParams = CallTwiml.infoForVoicemailGreetingFinishedProcessing()
-        res = CallTwiml.recordVoicemailGreeting(fromNum)
+        Map doneParams = CallTwiml.infoForVoicemailGreetingFinishedProcessing(phoneNum, sessNum)
+        res = CallTwiml.recordVoicemailGreeting(phoneNum, sessNum)
 
         then:
         res.status == ResultStatus.OK

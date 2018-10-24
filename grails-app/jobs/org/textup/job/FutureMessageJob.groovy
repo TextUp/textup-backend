@@ -22,10 +22,12 @@ class FutureMessageJob implements Job {
     String group = Key.DEFAULT_GROUP
 
     void execute(JobExecutionContext context) {
-        // first wait for 2 seconds to allow for the future message to be saved
+        // first wait for 8 seconds to allow for the future message to be saved
         // if we are firing it immediately so we are able to find the future message
-        // when we are executing in the futureMessageJobService
-        TimeUnit.SECONDS.sleep(2)
+        // when we are executing in the futureMessageJobService. We extended this sleep time from
+        // 2 seconds to 8 seconds because media processing makes creating the future message take
+        // longer than it used to
+        TimeUnit.SECONDS.sleep(8)
         // after sleeping, then continue with execution
     	JobDataMap data = context.mergedJobDataMap
         String futureKey = Helpers.to(String, data.get(Constants.JOB_DATA_FUTURE_MESSAGE_KEY))

@@ -13,6 +13,10 @@ import spock.lang.Unroll
 @Unroll
 class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
 
+    // very important to set this to be false or else this ENTIRE TEST will run within
+    // ONE TRANSACTION and our assertions that are based on being able to re-fetch items from ids will fail
+    static transactional = false
+
     final int NUM_TAGS = 20
 
     CallService callService
@@ -59,6 +63,9 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
     }
     def cleanup() {
         cleanupIntegrationData()
+        // to avoid duplicate errors because we need to use fixed Twilio test numbers
+        _phone.numberAsString = TestHelpers.randPhoneNumber();
+        _phone.save(flush:true, failOnError:true)
     }
 
     def mockForOutgoing(String fromNum) {
@@ -79,7 +86,7 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
         _phone.save(flush:true, failOnError:true)
         // create tags and add some contacts to each tag
         NUM_TAGS.times {
-            ContactTag ct1 = _phone.createTag(name:UUID.randomUUID().toString()).payload
+            ContactTag ct1 = _phone.createTag(name: TestHelpers.randString()).payload
             _contacts[0..(TestHelpers.randIntegerUpTo(numContacts - 1))].each { Contact c1 ->
                 ct1.addToMembers(c1)
                 _receipientNumbers.addAll(c1.numbers*.e164PhoneNumber)
@@ -112,9 +119,9 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
         recips.size() == recips*.contactId.unique().size()
 
         when: "sending out to many contacts and tags without staff (for authorship)"
-        int numRecordTexts = RecordText.count()
-        int numRecordCalls = RecordCall.count()
-        int numRecordItems = RecordItem.count()
+        int tBaseline = RecordText.count()
+        int cBaseline = RecordCall.count()
+        int iBaseline = RecordItem.count()
         Tuple<ResultGroup<RecordItem>, Future<?>> tuple = outgoingMessageService.processMessage(_phone,
             msg1, s1)
         ResultGroup<RecordItem> resGroup = tuple.first
@@ -123,7 +130,7 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
         then: "successful, no duplicates because all shared contacts resolved into contacts"
         resGroup.anySuccesses == true
         // double check this number with overall items counter to confirm only appropriate type were added
-        RecordItem.count() == numRecordItems + resGroup.successes.size()
+        RecordItem.count() == iBaseline + resGroup.successes.size()
 
         when: "we wait for the future to finish processing + send messages"
         fut1.get()
@@ -132,20 +139,26 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
         if (isText) {
             // no calls made
             assert _callStartInvokeCount.intValue() == 0
-            // some of the results in the result group are from storing the message in tag records
+            assert _textSendInvokeCount.intValue() == _contacts.size()
+            // we are supposed to build a record item for each contactable and tag's record
+            // _textSendInvokeCount is the number of unique contactables and
+            // tags is the number of tags so the sum should be all the results in our group
             assert _textSendInvokeCount.intValue() + _tags.size() ==
                 resGroup.successes.size() + resGroup.failures.size()
             // each success is a new text stored in either a contactable or tag record
-            assert RecordText.count() == numRecordTexts + resGroup.successes.size()
+            assert RecordText.count() == tBaseline + resGroup.successes.size()
         }
         else {
             // no texts made
             assert _textSendInvokeCount.intValue() == 0
-            // some of the results in the result group are from storing the message in tag records
+            assert _callStartInvokeCount.intValue() == _contacts.size()
+            // we are supposed to build a record item for each contactable and tag's record
+            // _callStartInvokeCount is the number of unique contactables and
+            // tags is the number of tags so the sum should be all the results in our group
             assert _callStartInvokeCount.intValue() + _tags.size() ==
                 resGroup.successes.size() + resGroup.failures.size()
             // each success is a new text stored in either a contactable or tag record
-            assert RecordCall.count() == numRecordCalls + resGroup.successes.size()
+            assert RecordCall.count() == cBaseline + resGroup.successes.size()
         }
 
         where:

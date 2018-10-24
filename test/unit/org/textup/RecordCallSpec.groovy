@@ -90,7 +90,13 @@ class RecordCallSpec extends Specification {
         when: "call is outgoing"
         call.outgoing = true
 
-        then: "exclude receipt with the longest or null durations"
+        then: "exclude receipt with the longest or null durations b/c outgoing calls are bridged"
         call.groupReceiptsByStatus().pending.size() == 1 // exclude rp1 and rpt3
+
+        when: "call is outgoing and was also scheduled"
+        call.wasScheduled = true
+
+        then: "show all receipts because scheduled outgoing calls are direct messages"
+        call.groupReceiptsByStatus().pending.size() == 3
     }
 }

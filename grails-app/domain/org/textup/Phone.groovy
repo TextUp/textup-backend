@@ -13,7 +13,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes = "owner")
 @RestApiObject(name = "Phone", description = "A TextUp phone.")
-class Phone implements WithMedia {
+class Phone implements WithMedia, WithId {
 
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
@@ -22,6 +22,10 @@ class Phone implements WithMedia {
 	String numberAsString
     PhoneOwnership owner
 
+    @RestApiObjectField(
+        description    = "public media assets related to phone, for example, recorded voicemail greeting",
+        allowedType    = "MediaInfo",
+        useForCreation = false)
     MediaInfo media
 
     @RestApiObjectField(
@@ -83,11 +87,6 @@ class Phone implements WithMedia {
             apiFieldName   = "others",
             description    = "READ ONLY, full availability information for other staff owners of this particular phone if this is a team phone.",
             allowedType    = "List<StaffPolicyAvailability>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "voicemailRecording",
-            description    = "READ ONLY, stored voicemail recording, if available",
-            allowedType    = "MediaElement",
             useForCreation = false),
         @RestApiObjectField(
             apiFieldName      = "requestVoicemailGreetingCall",

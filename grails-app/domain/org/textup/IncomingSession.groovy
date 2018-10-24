@@ -15,7 +15,7 @@ import org.textup.validator.PhoneNumber
 @GrailsCompileStatic
 @Log4j
 @EqualsAndHashCode
-class IncomingSession {
+class IncomingSession implements WithId {
 
     Phone phone
     String numberAsString

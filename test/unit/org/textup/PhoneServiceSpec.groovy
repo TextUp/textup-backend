@@ -252,6 +252,45 @@ class PhoneServiceSpec extends CustomSpec {
         res.payload.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
     }
 
+    void "test updating useVoicemailRecordingIfPresent"() {
+        when:
+        boolean originalVal = s1.phone.useVoicemailRecordingIfPresent
+        Result<Phone> res = service.updateFields(s1.phone, [useVoicemailRecordingIfPresent: null])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Phone
+        res.payload.useVoicemailRecordingIfPresent == originalVal
+
+        when:
+        res = service.updateFields(s1.phone, [useVoicemailRecordingIfPresent: !originalVal])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Phone
+        res.payload.useVoicemailRecordingIfPresent == !originalVal
+
+        when:
+        res = service.updateFields(s1.phone, [useVoicemailRecordingIfPresent: originalVal])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Phone
+        res.payload.useVoicemailRecordingIfPresent == originalVal
+
+        when:
+        res = service.updateFields(s1.phone, [useVoicemailRecordingIfPresent: 'NOT A BOOL'])
+
+        then:
+        res.success == true
+        res.status == ResultStatus.OK
+        res.payload instanceof Phone
+        res.payload.useVoicemailRecordingIfPresent == originalVal
+    }
+
     void "test updating voice type"() {
         when: "invalid voice type"
         Result<Phone> res = service.updateFields(s1.phone, [voice:"invalid"])
@@ -458,7 +497,7 @@ class PhoneServiceSpec extends CustomSpec {
             getLoggedIn() >> s1
         }
         service.mediaService = Stub(MediaService) {
-            tryProcess(*_) >> new Result(payload: Tuple.create(null, null))
+            tryProcess(_, _, true) >> new Result(payload: Tuple.create(null, null))
         }
         Long staffId = 888L
         assert p1.owner.getPolicyForStaff(staffId) == null
@@ -506,7 +545,7 @@ class PhoneServiceSpec extends CustomSpec {
         Result<Phone> res = service.mergeHelper(null, null, null)
 
         then:
-        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
+        1 * service.mediaService.tryProcess(_, _, true) >> new Result(payload: Tuple.create(null, fut1))
         1 * fut1.cancel(true)
         handlePhoneActions.callCount == 1
         requestVoicemailGreetingCall.callCount == 0
@@ -530,7 +569,7 @@ class PhoneServiceSpec extends CustomSpec {
         Result<Phone> res = service.mergeHelper(null, null, null)
 
         then:
-        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
+        1 * service.mediaService.tryProcess(_, _, true) >> new Result(payload: Tuple.create(null, fut1))
         0 * fut1._
         handlePhoneActions.callCount == 1
         handleAvailability.callCount == 1

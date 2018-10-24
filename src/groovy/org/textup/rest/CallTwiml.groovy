@@ -167,13 +167,13 @@ class CallTwiml {
         }
         String directions = Helpers.getMessage("twimlBuilder.call.voicemailDirections"),
             goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
-            shouldUseRecording = p1.useVoicemailRecordingIfPresent,
             // no-op for Record Twiml verb to call because recording might not be ready
             actionWebhook = Helpers.getWebhookLink(handle: CallResponse.END_CALL),
             // need to population From and To parameters to help in finding
             // phone and session in the recording status hook
             callbackWebhook = Helpers.getWebhookLink(handle: CallResponse.VOICEMAIL_DONE,
                 From: fromNum.e164PhoneNumber, To: p1.number.e164PhoneNumber)
+        boolean shouldUseRecording = p1.useVoicemailRecordingIfPresent
         URL recordingUrl = p1.voicemailGreetingUrl
         TwilioUtils.wrapTwiml {
             Pause(length: 1)
@@ -237,14 +237,15 @@ class CallTwiml {
     static Map<String, String> infoForRecordVoicemailGreeting() {
         [handle: CallResponse.VOICEMAIL_GREETING_RECORD]
     }
-    static Result<Closure> recordVoicemailGreeting(BasePhoneNumber fromNum) {
-        if (!fromNum) {
+    static Result<Closure> recordVoicemailGreeting(BasePhoneNumber phoneNum, BasePhoneNumber sessNum) {
+        if (!phoneNum || !sessNum) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_RECORD.toString())
         }
-        String directions = TwilioUtils.say("twimlBuilder.call.recordVoicemailGreeting", [fromNum.number]),
+        String directions = TwilioUtils.say("twimlBuilder.call.recordVoicemailGreeting", [phoneNum.number]),
             goodbye = Helpers.getMessage("twimlBuilder.call.goodbye"),
             processingLink = Helpers.getWebhookLink(handle: CallResponse.VOICEMAIL_GREETING_PROCESSING),
-            doneLink = Helpers.getWebhookLink(CallTwiml.infoForVoicemailGreetingFinishedProcessing())
+            doneLink = Helpers.getWebhookLink(CallTwiml
+                .infoForVoicemailGreetingFinishedProcessing(phoneNum, sessNum))
         TwilioUtils.wrapTwiml {
             Pause(length: 1)
             Say(directions)
@@ -266,8 +267,14 @@ class CallTwiml {
     }
 
     // CallResponse.VOICEMAIL_GREETING_PROCESSED
-    static Map<String, String> infoForVoicemailGreetingFinishedProcessing() {
-        [handle: CallResponse.VOICEMAIL_GREETING_PROCESSED]
+    static Map<String, String> infoForVoicemailGreetingFinishedProcessing(BasePhoneNumber phoneNum,
+        BasePhoneNumber sessionNum) {
+
+        [
+            handle: CallResponse.VOICEMAIL_GREETING_PROCESSED,
+            To: sessionNum.number,
+            From: phoneNum.number
+        ]
     }
 
     // CallResponse.VOICEMAIL_GREETING_PLAY

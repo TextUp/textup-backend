@@ -4,9 +4,8 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
-import grails.test.runtime.DirtiesRuntime
-import grails.test.runtime.FreshRuntime
-import java.util.concurrent.Future
+import grails.test.runtime.*
+import java.util.concurrent.*
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.type.*
 import org.textup.util.*
@@ -141,15 +140,16 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     void "test building outgoing messages"() {
         given:
         OutgoingMessage msg1 = Mock()
-        WithRecord recordOwner1 = Mock()
+        Contactable cont1 = Mock()
         Record rec1 = Mock()
 
         when: "is outgoing call"
         ResultGroup<? extends RecordItem> resGroup = service.buildMessages(msg1, null)
 
         then:
-        1 * msg1.toRecordOwners() >> [recordOwner1]
-        1 * recordOwner1.tryGetRecord() >> new Result(payload: rec1)
+        1 * msg1.toRecipients() >> [cont1]
+        1 * msg1.tags >> Stub(Recipients) { getRecipients() >> [] }
+        1 * cont1.tryGetRecord() >> new Result(payload: rec1)
         1 * msg1.isText >> false
         0 * rec1.storeOutgoingText(*_)
         1 * rec1.storeOutgoingCall(*_) >> new Result()
@@ -160,13 +160,30 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         resGroup = service.buildMessages(msg1, null)
 
         then:
-        1 * msg1.toRecordOwners() >> [recordOwner1]
-        1 * recordOwner1.tryGetRecord() >> new Result(payload: rec1)
+        1 * msg1.toRecipients() >> [cont1]
+        1 * msg1.tags >> Stub(Recipients) { getRecipients() >> [] }
+        1 * cont1.tryGetRecord() >> new Result(payload: rec1)
         1 * msg1.isText >> true
         1 * rec1.storeOutgoingText(*_) >> new Result()
         0 * rec1.storeOutgoingCall(*_)
         resGroup.successes.size() == 1
         resGroup.anyFailures == false
+    }
+
+    void "test building messages for a tag also builds for the tag's members"() {
+        given:
+        Author author1 = Mock()
+        OutgoingMessage msg1 = Mock()
+        assert tag1.members.size() > 0
+
+        when:
+        ResultGroup<? extends RecordItem> resGroup = service.buildMessages(msg1, author1)
+
+        then:
+        1 * msg1.toRecipients() >> tag1.members
+        1 * msg1.tags >> Stub(Recipients) { getRecipients() >> [tag1] }
+        resGroup.anyFailures == false
+        resGroup.successes.size() == 1 + tag1.members.size()
     }
 
     void "test try storing receipts"() {
@@ -193,6 +210,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         1 * owner.tryGetRecord() >> new Result(payload: rec1)
         1 * rec1.id >> recId
         1 * item1.addAllReceipts(*_)
+        1 * item1.save() >> item1
         res.status == ResultStatus.NO_CONTENT
     }
 
@@ -219,6 +237,34 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         tryStoreReceipts.callCount == 3 // once for contactable + twice for two associated tags
         resGroup.successes.size() == 3
         resGroup.anyFailures == false
+    }
+
+    void "test rebuilding record id to items map"() {
+        when: "is empty"
+        Map<Long, List<Long>> recordIdToItemIds = [:]
+        Map<Long, List<RecordItem>> idToObjectMap = service.rebuildRecordIdToItemsMap(recordIdToItemIds)
+
+        then:
+        idToObjectMap == [:]
+
+        when: "has nulls"
+        recordIdToItemIds = [(rText1.record.id): [rText1.id, null, null]]
+        idToObjectMap = service.rebuildRecordIdToItemsMap(recordIdToItemIds)
+
+        then: "nulls are removed"
+        idToObjectMap.size() == 1
+        idToObjectMap[rText1.record.id].size() == 1
+        idToObjectMap[rText1.record.id][0] == rText1
+
+        when: "has duplicate item ids"
+        recordIdToItemIds = [(rText1.record.id): [rText1.id, rText1.id]]
+        idToObjectMap = service.rebuildRecordIdToItemsMap(recordIdToItemIds)
+
+        then: "those are unchanged"
+        idToObjectMap.size() == 1
+        idToObjectMap[rText1.record.id].size() == 2
+        idToObjectMap[rText1.record.id][0] == rText1
+        idToObjectMap[rText1.record.id][1] == rText1
     }
 
     @DirtiesRuntime
@@ -262,7 +308,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         Phone phone = Mock()
         Staff staff = Stub()
         RecordItem i1 = Mock()
-        Future fut1 = Mock(Future)
+        ScheduledFuture fut1 = Mock()
         service.threadService = Mock(ThreadService)
         MockedMethod finishProcessingMessages = TestHelpers.mock(service, "finishProcessingMessages")
             { new ResultGroup() }
@@ -303,13 +349,13 @@ class OutgoingMessageServiceSpec extends CustomSpec {
 
         then:
         1 * phone.isActive >> true
-        1 * service.threadService.submit(*_) >> { args -> args[0].call(); fut1; }
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); fut1; }
         1 * i1.record >> rec1
         1 * rec1.id >> recordId
         buildMessages.callCount == 1
         finishProcessingMessages.callCount == 1
         // build map of record id to record items
-        finishProcessingMessages.callArguments[0][0][recordId].contains(i1)
+        finishProcessingMessages.callArguments[0][0][recordId].contains(i1.id)
         tuple.first.anyFailures == false
         tuple.first.successes.size() == 1
         tuple.second == fut1

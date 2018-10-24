@@ -3,8 +3,10 @@ package org.textup
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import grails.test.runtime.*
 import org.joda.time.DateTime
 import org.textup.type.*
+import org.textup.util.*
 import spock.lang.*
 
 @Domain([MediaInfo, MediaElement, MediaElementVersion])
@@ -13,44 +15,46 @@ class MediaElementVersionSpec extends Specification {
 
     void "test constraints + width and link custom getters"() {
         given: "storage service mock"
-        StorageService storageServiceMock = Mock(StorageService)
+        MockedMethod unsignedLink = TestHelpers.mock(LinkUtils, 'unsignedLink')
+        MockedMethod signedLink = TestHelpers.mock(LinkUtils, 'signedLink')
 
         when: "empty obj"
         MediaElementVersion mVers = new MediaElementVersion()
-        mVers.storageService = storageServiceMock
 
         then: "invalid + custom getters are null-safe"
-        0 * storageServiceMock._
         mVers.validate() == false
         mVers.link == null
 
+        unsignedLink.callCount == 0
+        signedLink.callCount == 1
+
         when: "filled in obj"
         mVers.type = MediaType.IMAGE_JPEG
-        mVers.versionId = UUID.randomUUID().toString()
+        mVers.versionId = TestHelpers.randString()
         mVers.sizeInBytes = 888
-        String link = mVers.link?.toString()
+        mVers.link?.toString()
 
         then: "valid, defaults to being private"
-        1 * storageServiceMock.generateAuthLink(*_) >> new Result(payload: new URL("https://www.example.com"))
-        0 * storageServiceMock.generateLink(*_)
+        unsignedLink.callCount == 0
+        signedLink.callCount == 2
+        signedLink.callArguments[1][0] == mVers.versionId
         mVers.validate() == true
-        link == "https://www.example.com"
 
         when: "is public"
         mVers.isPublic = true
-        link = mVers.link?.toString()
+        mVers.link?.toString()
 
         then:
-        0 * storageServiceMock.generateAuthLink(*_)
-        1 * storageServiceMock.generateLink(*_) >> new Result(payload: new URL("https://www.example.com"))
+        unsignedLink.callCount == 1
+        unsignedLink.callArguments[0][0] == mVers.versionId
+        signedLink.callCount == 2
         mVers.validate() == true
-        link == "https://www.example.com"
     }
 
     void "test constraint errors"() {
         given: "a valid obj"
         MediaElementVersion mVers = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
-            versionId: UUID.randomUUID().toString(),
+            versionId: TestHelpers.randString(),
             sizeInBytes: 888)
         assert mVers.validate()
 

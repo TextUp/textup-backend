@@ -158,15 +158,13 @@ class AudioUtilsSpec extends Specification {
         List<String> args = audioUtils.formatInput(MediaType.IMAGE_JPEG, path)
 
         then:
-        args[0] == ""
-        args[1].contains(path.toAbsolutePath().toString())
+        args[0].contains(path.toAbsolutePath().toString())
 
         when:
         args = audioUtils.formatInput(MediaType.AUDIO_MP3, path)
 
         then:
-        args[0].contains("mp3")
-        args[1].contains(path.toAbsolutePath().toString())
+        args[0].contains(path.toAbsolutePath().toString())
     }
 
     void "test building output string for executable"() {

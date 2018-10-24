@@ -20,7 +20,7 @@ import org.textup.validator.TempRecordReceipt
 @Log4j
 @EqualsAndHashCode
 @RestApiObject(name="Contact", description="A contact")
-class Contact implements Contactable {
+class Contact implements Contactable, WithId {
 
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 

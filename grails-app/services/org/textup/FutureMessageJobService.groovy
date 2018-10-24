@@ -18,6 +18,7 @@ class FutureMessageJobService {
     ResultFactory resultFactory
     Scheduler quartzScheduler
     SocketService socketService
+    ThreadService threadService
 
     @Transactional(readOnly=true)
     Result<Void> schedule(FutureMessage fMsg) {
@@ -53,6 +54,23 @@ class FutureMessageJobService {
         catch (Throwable e) { resultFactory.failWithThrowable(e) }
     }
 
+    ResultGroup<FutureMessage> cancelAll(Collection<FutureMessage> fMsgs) {
+        ResultGroup<FutureMessage> resGroup = new ResultGroup<>()
+        fMsgs?.each { FutureMessage fMsg -> resGroup << cancel(fMsg) }
+        resGroup
+    }
+    protected Result<FutureMessage> cancel(FutureMessage fMsg) {
+        unschedule(fMsg)
+            .logFail("FutureMessageJobService.cancel")
+            .then {
+                fMsg.isDone = true
+                if (fMsg.save()) {
+                    resultFactory.success(fMsg)
+                }
+                else { resultFactory.failWithValidationErrors(fMsg.errors) }
+            }
+    }
+
     @RollbackOnResultFailure
     ResultGroup<RecordItem> execute(String futureKey, Long staffId) {
         FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
@@ -77,22 +95,50 @@ class FutureMessageJobService {
             .processMessage(p1, msg, Staff.get(staffId))
         ResultGroup<RecordItem> resGroup = processed.first
         Future<?> future = processed.second
+        // mark all these record items as having been scheduled originally
+        resGroup.payload.each { RecordItem item1 -> item1.wasScheduled = true }
         // notify staffs is any successes
         if (fMsg.notifySelf && resGroup.anySuccesses) {
-            // wait for processing and sending to finish. This Future SHOULD be resolve quickly
-            // because media processing already took place when creating the future message
-            // so in this future, we are simply sending and storing the outgoing message, including
-            // the already-processed media referred to in the `media` prop of the  OutgoingMessage
-            future.get()
-            String instr = Helpers.getMessage("futureMessageService.notifyStaff.notification")
             List<BasicNotification> notifs = notificationService
                 .build(p1, msg.contacts.recipients, msg.tags.recipients)
-            notificationService.send(notifs, true, fMsg.message, instr)
-                .logFail("FutureMessageService.execute: sending notifications")
-            int numNotified = notifs.size()
-            resGroup.payload.each { RecordItem rItem -> rItem.numNotified = numNotified }
+            // wait for the future to finish ASYNCHRONOUSLY to avoid blocking this method
+            // to allow the record items to save. Otherwise, when the future resolves, the ids
+            // will point to non-existent items because we blocked the parent method from saving here
+            threadService.submit {
+                notifySelf(future, resGroup.payload*.id, fMsg.message, notifs)
+                    .logFail("execute: notifying self")
+            }
         }
         resGroup
+    }
+
+    protected ResultGroup<RecordItem> notifySelf(Future<?> future, Collection<Long> itemIds,
+        String message, List<BasicNotification> notifs) {
+        // wait for processing and sending to finish. This Future SHOULD be resolve quickly
+        // because media processing already took place when creating the future message
+        // so in this future, we are simply sending and storing the outgoing message, including
+        // the already-processed media referred to in the `media` prop of the  OutgoingMessage
+        future.get()
+
+        String instr = Helpers.getMessage("futureMessageService.notifyStaff.notification")
+        notificationService.send(notifs, true, message, instr)
+            .logFail("FutureMessageService.execute: sending notifications")
+        int numNotified = notifs.size()
+
+        ResultGroup<RecordItem> saveFailiures = new ResultGroup<>()
+        boolean didFindAll = true
+        Collection<RecordItem> items = RecordItem.getAll(itemIds as Iterable<Serializable>)
+        items.each { RecordItem rItem ->
+            if (rItem) {
+                rItem.numNotified = numNotified
+                if (!rItem.save()) {
+                    saveFailiures << resultFactory.failWithValidationErrors(rItem.errors)
+                }
+            }
+            else { didFindAll = false }
+        }
+        if (!didFindAll) { log.error("notifySelf: did not find all items with ids: ${itemIds}") }
+        saveFailiures
     }
 
     @OptimisticLockingRetry

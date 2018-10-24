@@ -11,7 +11,7 @@ import org.textup.type.StaffStatus
 
 @EqualsAndHashCode
 @RestApiObject(name="Organization", description="An organization of staff members and teams.")
-class Organization {
+class Organization implements WithId {
 
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 

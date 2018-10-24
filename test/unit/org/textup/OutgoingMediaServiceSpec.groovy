@@ -17,20 +17,25 @@ class OutgoingMediaServiceSpec extends Specification {
         resultFactory(ResultFactory)
     }
 
+    MockedMethod unsignedLink
+    MockedMethod signedLink
+
     def setup() {
         service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        unsignedLink = TestHelpers.mock(LinkUtils, 'unsignedLink')
+        signedLink = TestHelpers.mock(LinkUtils, 'signedLink')
+    }
+    def cleanup() {
+        unsignedLink.restore()
+        signedLink.restore()
     }
 
     void "test sending media for text"() {
         given:
         service.textService = Mock(TextService)
-        StorageService storageService = Stub(StorageService) {
-            generateAuthLink(*_) >> new Result()
-        }
         MediaInfo mInfo = new MediaInfo()
         (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
             MediaElement e1 = TestHelpers.buildMediaElement()
-            e1.sendVersion.storageService = storageService
             mInfo.addToMediaElements(e1)
         }
 
@@ -51,14 +56,10 @@ class OutgoingMediaServiceSpec extends Specification {
         given:
         service.callService = Mock(CallService)
         service.textService = Mock(TextService)
-        StorageService storageService = Stub(StorageService) {
-            generateAuthLink(*_) >> new Result()
-        }
         Token callToken = new Token(token: "valid token value")
         MediaInfo mInfo = new MediaInfo()
         (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
             MediaElement e1 = TestHelpers.buildMediaElement()
-            e1.sendVersion.storageService = storageService
             mInfo.addToMediaElements(e1)
         }
 

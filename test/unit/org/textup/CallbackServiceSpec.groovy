@@ -160,6 +160,33 @@ class CallbackServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         res.payload.numberAsString == toNumber.number
 
+        when: "CallResponse.VOICEMAIL_GREETING_RECORD + existing phone number"
+        params.handle = CallResponse.VOICEMAIL_GREETING_RECORD.toString()
+        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
+
+        then:
+        IncomingSession.count() == iBaseline + 1
+        res.status == ResultStatus.OK
+        res.payload.numberAsString == toNumber.number
+
+        when: "CallResponse.VOICEMAIL_GREETING_PROCESSED + existing phone number"
+        params.handle = CallResponse.VOICEMAIL_GREETING_PROCESSED.toString()
+        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
+
+        then:
+        IncomingSession.count() == iBaseline + 1
+        res.status == ResultStatus.OK
+        res.payload.numberAsString == toNumber.number
+
+        when: "CallResponse.VOICEMAIL_GREETING_PLAY + existing phone number"
+        params.handle = CallResponse.VOICEMAIL_GREETING_PLAY.toString()
+        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
+
+        then:
+        IncomingSession.count() == iBaseline + 1
+        res.status == ResultStatus.OK
+        res.payload.numberAsString == toNumber.number
+
         when: "CallResponse.SCREEN_INCOMING + new phone number"
         params.handle = CallResponse.SCREEN_INCOMING.toString()
         res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
@@ -178,6 +205,27 @@ class CallbackServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         res.payload.numberAsString == fromNumber.number
     }
+
+    void "test getting number for phone"() {
+        given:
+        PhoneNumber fromNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber toNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+
+        expect:
+        service.getNumberForPhone(fromNum, toNum, new TypeConvertingMap(handle: handle)).number ==
+        phoneIsFromNumber ? fromNum.number : toNum.number
+
+        where:
+        handle                                               | phoneIsFromNumber
+        "anything"                                           | false
+        CallResponse.FINISH_BRIDGE.toString()                | true
+        CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()      | true
+        CallResponse.SCREEN_INCOMING.toString()              | true
+        CallResponse.VOICEMAIL_GREETING_RECORD.toString()    | true
+        CallResponse.VOICEMAIL_GREETING_PROCESSED.toString() | true
+        CallResponse.VOICEMAIL_GREETING_PLAY.toString()      | true
+    }
+
 
     void "processing valid inputs overall"() {
         given:
@@ -361,13 +409,16 @@ class CallbackServiceSpec extends CustomSpec {
         given:
         service.threadService = Mock(ThreadService)
         service.voicemailService = Mock(VoicemailService)
-        Phone thisPhone = Mock(Phone)
+        Phone thisPhone = Mock()
+        IncomingSession is1 = Mock()
 
         when: "recording voicemail greeting"
         TypeConvertingMap params = new TypeConvertingMap(handle: CallResponse.VOICEMAIL_GREETING_RECORD)
-        Result<Closure> res = service.processCall(p1, null, null, params)
+        Result<Closure> res = service.processCall(thisPhone, is1, null, params)
 
         then:
+        1 * thisPhone.number >> new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        1 * is1.number >> new PhoneNumber(number: TestHelpers.randPhoneNumber())
         res.status == ResultStatus.OK
         TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.recordVoicemailGreeting")
 

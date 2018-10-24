@@ -10,15 +10,28 @@ import org.textup.type.*
 @RestApiObject(
     name        = "MediaInfo",
     description = "Contains all media elements for a message or batch of messages")
-class MediaInfo implements ReadOnlyMediaInfo {
+class MediaInfo implements ReadOnlyMediaInfo, WithId {
 
     private Set<MediaElement> _originalMediaElements = Collections.emptySet()
 
-    @RestApiObjectField(
-        apiFieldName   = "elements",
-        description    = "Media of various types contained within this message",
-        allowedType    = "Set<MediaElement>",
-        useForCreation = false)
+    @RestApiObjectFields(params = [
+        @RestApiObjectField(
+            apiFieldName   = "audio",
+            description    = "Audio files",
+            allowedType    = "Set<MediaElement>",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName   = "images",
+            description    = "Images",
+            allowedType    = "Set<MediaElement>",
+            useForCreation = false),
+        @RestApiObjectField(
+            apiFieldName      = "doMediaActions",
+            description       = "Actions for adding and removing elements from this media object",
+            allowedType       = "Collection<[mediaAction]>",
+            useForCreation    = true,
+            presentInResponse = false ),
+    ])
     static transients = ['_originalMediaElements']
     static hasMany = [mediaElements: MediaElement]
     static constraints = { // all nullable:false by default

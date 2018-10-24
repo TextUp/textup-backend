@@ -186,6 +186,12 @@ class Helpers {
     // Async
     // -----
 
+    static <T extends WithId> Map<Long, T> buildIdToObjectMap(Collection<T> withIdObjects) {
+        Map<Long, T> idToObject = [:]
+        withIdObjects?.each { T obj -> if (obj) { idToObject[obj.id] = obj } }
+        idToObject
+    }
+
     static <T> Future<T> noOpFuture(T obj = null) {
         [
             cancel: { boolean b -> true },

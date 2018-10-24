@@ -21,7 +21,7 @@ import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class FutureMessage implements ReadOnlyFutureMessage, WithMedia {
+class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
 
     Trigger trigger
 

@@ -11,7 +11,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Record implements ReadOnlyRecord {
+class Record implements ReadOnlyRecord, WithId {
 
     DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
     VoiceLanguage language = VoiceLanguage.ENGLISH

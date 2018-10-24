@@ -1,9 +1,9 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 abstract class BasePhoneNumber {
 
     String number

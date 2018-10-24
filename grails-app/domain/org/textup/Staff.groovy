@@ -21,7 +21,7 @@ import org.textup.validator.ScheduleChange
 @RestApiObject(
     name        = "Staff",
     description = "A staff member at an organization.")
-class Staff implements Schedulable {
+class Staff implements Schedulable, WithId {
 
 	SpringSecurityService springSecurityService
     PasswordEncoder passwordEncoder
