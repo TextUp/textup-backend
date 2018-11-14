@@ -180,8 +180,6 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         json.useVoicemailRecordingIfPresent == true
         json.media instanceof Map
         json.media.id == p1.media.id
-        json.media.images == []
-        json.media.audio.size() == 1
         json.media.audio[0].uid == e1.uid
         json.media.audio[0].versions instanceof Collection
         json.media.audio[0].versions*.type.every { it in MediaType.AUDIO_TYPES*.mimeType }

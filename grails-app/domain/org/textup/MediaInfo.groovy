@@ -32,7 +32,7 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId {
             useForCreation    = true,
             presentInResponse = false ),
     ])
-    static transients = ['_originalMediaElements']
+    static transients = ["_originalMediaElements"]
     static hasMany = [mediaElements: MediaElement]
     static constraints = { // all nullable:false by default
         mediaElements cascadeValidation: true

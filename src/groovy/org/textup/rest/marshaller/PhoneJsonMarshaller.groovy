@@ -23,17 +23,7 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             mandatoryEmergencyMessage = Constants.AWAY_EMERGENCY_MESSAGE
             useVoicemailRecordingIfPresent = p1.useVoicemailRecordingIfPresent
             voice = p1.voice.toString()
-
-            // [FUTURE] come up with more elegant way of delivering just one media element
-            // while still being able to take advantage of the `doMediaActions` pattern of
-            // adding and removing media elements
-            if (p1.media) {
-                media = [
-                    id: p1.media.id,
-                    images: [],
-                    audio: [p1.media.getMostRecentByType(MediaType.AUDIO_TYPES)]
-                ]
-            }
+            media = p1.media
         }
 
         AuthService authService = grailsApplication.mainContext.getBean(AuthService)

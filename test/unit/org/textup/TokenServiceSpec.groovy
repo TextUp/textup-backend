@@ -338,6 +338,10 @@ class TokenServiceSpec extends CustomSpec {
     // -------------------
 
     void "test building call direct message token"() {
+        given:
+        MediaInfo mInfo = new MediaInfo()
+        mInfo.save(flush: true, failOnError: true)
+
         when: "no input data"
         Token tok1 = service.tryBuildAndPersistCallToken(null, null)
 
@@ -353,7 +357,7 @@ class TokenServiceSpec extends CustomSpec {
         then: "no result because no need to build call token for text message"
         tok1 == null
 
-        when: "valid call message"
+        when: "valid call message without media"
         msg1.type = RecordItemType.CALL
         tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
 
@@ -361,13 +365,44 @@ class TokenServiceSpec extends CustomSpec {
         tok1 instanceof Token
         tok1.data.identifier == "hi"
         tok1.data.message == msg1.message
+        tok1.data.mediaId == null
         tok1.data.language == msg1.language?.toString()
+
+        when: "valid call message with media"
+        msg1.type = RecordItemType.CALL
+        msg1.media = mInfo
+        tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
+
+        then: "token generated"
+        tok1 instanceof Token
+        tok1.data.identifier == "hi"
+        tok1.data.message == msg1.message
+        tok1.data.mediaId == mInfo.id
+        tok1.data.language == msg1.language?.toString()
+    }
+
+    void "test do not build call token when is call but insufficent info"() {
+        given:
+        MediaInfo mInfo = new MediaInfo()
+        mInfo.save(flush: true, failOnError: true)
+        OutgoingMessage msg1 = new OutgoingMessage(type: RecordItemType.CALL, media: mInfo)
+
+        when:
+        Token tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
+
+        then: "not returned because need a message or audio recording"
+        tok1 == null
     }
 
     void "test building call direct message body from token"() {
         given:
         Token tok1 = new Token(type:TokenType.CALL_DIRECT_MESSAGE, maxNumAccess: 1)
-        tok1.data = [message: "hi", identifier: "Kiki", language: VoiceLanguage.ENGLISH.toString()]
+        tok1.data = [
+            message: "hi",
+            identifier: "Kiki",
+            mediaId: null,
+            language: VoiceLanguage.ENGLISH.toString()
+        ]
         tok1.save(flush: true, failOnError: true)
 
         when: "null token"

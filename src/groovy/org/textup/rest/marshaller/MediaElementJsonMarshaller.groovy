@@ -10,6 +10,7 @@ class MediaElementJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { ReadOnlyMediaElement e1 ->
         Map json = [
             uid: e1.uid,
+            whenCreated: e1.whenCreated,
             versions: e1.allVersions.collect { ReadOnlyMediaElementVersion v1 ->
                 [
                     type   : v1.type.mimeType,

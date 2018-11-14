@@ -243,9 +243,10 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
             }
             // step 2: initialize classes
             new OutgoingMessage(
-                message:this.message,
-                language:this.language,
-                type:this.type?.toRecordItemType(),
+                message: this.message,
+                media: this.media,
+                language: this.language,
+                type: this.type?.toRecordItemType(),
                 sharedContacts: new SharedContactRecipients(),
                 contacts: cRecip,
                 tags: ctRecip)

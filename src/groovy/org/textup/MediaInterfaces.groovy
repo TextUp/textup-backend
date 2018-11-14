@@ -1,6 +1,7 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import org.joda.time.DateTime
 import org.textup.type.MediaType
 
 // The interfaces that define the contract for handling media
@@ -26,6 +27,7 @@ interface ReadOnlyMediaInfo {
 @GrailsTypeChecked
 interface ReadOnlyMediaElement {
     String getUid()
+    DateTime getWhenCreated()
     List<? extends ReadOnlyMediaElementVersion> getAllVersions()
 }
 

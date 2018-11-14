@@ -402,30 +402,16 @@ class CallTwimlSpec extends CustomSpec {
 
     void "test direct calls with parameters"() {
         when: "direct message invalid"
-        Result<Closure> res = CallTwiml.directMessage(null, null, null)
+        Result<Closure> res = CallTwiml.directMessage(null, null, null, null)
 
         then:
         res.success == false
         res.status == ResultStatus.BAD_REQUEST
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
-        when: "valid without language"
+        when: "valid without recording urls"
         String id = TestHelpers.randString()
         String msg = TestHelpers.randString()
-        res = CallTwiml.directMessage(id, msg, null)
-
-        then:
-        res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
-            Response {
-                Say("twimlBuilder.call.messageIntro")
-                Pause(length: 1)
-                Say(loop: Constants.DIRECT_MESSAGE_MAX_REPEATS, msg)
-                Hangup()
-            }
-        }
-
-        when: "valid with language"
         VoiceLanguage lang = VoiceLanguage.CHINESE
         res = CallTwiml.directMessage(id, msg, lang)
 
@@ -435,7 +421,30 @@ class CallTwimlSpec extends CustomSpec {
             Response {
                 Say("twimlBuilder.call.messageIntro")
                 Pause(length: 1)
-                Say(language: lang.toTwimlValue(), loop: Constants.DIRECT_MESSAGE_MAX_REPEATS, msg)
+                Constants.DIRECT_MESSAGE_MAX_REPEATS.times {
+                    Say(language: lang.toTwimlValue(), msg)
+                }
+                Hangup()
+            }
+        }
+
+        when: "valid with recording urls"
+        List<URL> recordingUrls = [
+            new URL("https://www.example.com/${TestHelpers.randString()}"),
+            new URL("https://www.example.com/${TestHelpers.randString()}")
+        ]
+        res = CallTwiml.directMessage(id, msg, lang, recordingUrls)
+
+        then:
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+            Response {
+                Say("twimlBuilder.call.messageIntro")
+                Pause(length: 1)
+                Constants.DIRECT_MESSAGE_MAX_REPEATS.times {
+                    Say(language: lang.toTwimlValue(), msg)
+                    recordingUrls.each { Play(it.toString()) }
+                }
                 Hangup()
             }
         }

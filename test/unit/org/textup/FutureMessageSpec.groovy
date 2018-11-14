@@ -83,6 +83,8 @@ class FutureMessageSpec extends CustomSpec {
     void "test converting to outgoing message for record"() {
     	given: "a valid future message"
     	def owner = (type == "contact") ? c1 : tag1
+        MediaInfo mInfo = new MediaInfo()
+        mInfo.save(flush: true, failOnError: true)
     	FutureMessage fMsg = new FutureMessage(
             type:FutureMessageType.CALL,
     		record:owner.record,
@@ -90,9 +92,10 @@ class FutureMessageSpec extends CustomSpec {
         )
     	assert fMsg.validate()
 
-    	when: "message is a text"
+    	when: "message is a text without media"
     	fMsg.type = FutureMessageType.TEXT
         fMsg.language = VoiceLanguage.CHINESE
+        fMsg.media = null
     	OutgoingMessage msg = fMsg.tryGetOutgoingMessage().payload
     	Collection hasMembers, noMembers
     	if (type == "contact") {
@@ -106,15 +109,17 @@ class FutureMessageSpec extends CustomSpec {
 
     	then: "make outgoing message without flushing"
     	msg.type == RecordItemType.TEXT
+        msg.media == null
         msg.language == VoiceLanguage.CHINESE
     	msg.message == fMsg.message
 		noMembers.isEmpty()
     	hasMembers.size() == 1
     	hasMembers[0].id == owner.id
 
-    	when: "message is a call"
+    	when: "message is a call with media"
     	fMsg.type = FutureMessageType.CALL
         fMsg.language = VoiceLanguage.ITALIAN
+        fMsg.media = mInfo
     	msg = fMsg.tryGetOutgoingMessage().payload
     	if (type == "contact") {
 			hasMembers = msg.contacts.recipients
@@ -127,6 +132,7 @@ class FutureMessageSpec extends CustomSpec {
 
     	then: "make outgoing message without flushing"
     	msg.type == RecordItemType.CALL
+        msg.media == mInfo
         msg.language == VoiceLanguage.ITALIAN
     	msg.message == fMsg.message
     	noMembers.isEmpty()

@@ -13,8 +13,9 @@ class CallTwiml {
     static Map<String, String> infoForDirectMessage(String token) {
         [handle: CallResponse.DIRECT_MESSAGE, token: token]
     }
-    static Result<Closure> directMessage(String ident, String message, VoiceLanguage lang = null) {
-        if (!ident || !message) {
+    static Result<Closure> directMessage(String ident, String message, VoiceLanguage lang,
+        List<URL> recordingUrls = []) {
+        if (!ident || !message || !lang || recordingUrls == null) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.DIRECT_MESSAGE.toString())
         }
         String messageIntro = Helpers.getMessage("twimlBuilder.call.messageIntro", [ident])
@@ -22,10 +23,10 @@ class CallTwiml {
         TwilioUtils.wrapTwiml {
             Say(messageIntro)
             Pause(length: 1)
-            if (lang) {
-                Say(language: lang.toTwimlValue(), loop: maxRepeats, message)
+            maxRepeats.times {
+                Say(language: lang.toTwimlValue(), message)
+                recordingUrls.each { URL url -> Play(url.toString()) }
             }
-            else { Say(loop: maxRepeats, message) }
             Hangup()
         }
     }

@@ -29,6 +29,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
 
         then:
         json.uid == e1.uid
+        json.whenCreated == e1.whenCreated.toString()
         json.versions.size() == 1
         json.versions[0] instanceof Map
         json.versions[0].type == sendVersion.type.mimeType
@@ -50,6 +51,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
 
         then:
         json.uid == e1.uid
+        json.whenCreated == e1.whenCreated.toString()
         json.versions.size() == 2
         json.versions.every { it instanceof Map }
         json.versions*.type.every { it in [sendVersion, altVersion]*.type*.mimeType }

@@ -40,15 +40,15 @@ class TokenService {
     // the transaction finishes and the token is saved
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     Token tryBuildAndPersistCallToken(String identifier, OutgoingMessage msg1) {
-        // [FUTURE] right now, the only available media type is `IMAGE` so if we have no images
-        // to send and only text, then even if the OutgoingMessage type is a call, we will still
-        // send as a text message. HOWEVER, in the future, when we add in audio recording
-        // capability, then we need to revisit this method because we will want to send the images
-        // as a text message and the audio recordings over phone call
-        if (identifier && !msg1.isText && msg1.message) {
+        // Store media id because we send the images as text and the audio over phone call
+        // Only need to start phone all if the message is a call that has either a
+        // written message read in a robo-voice or at least one audio recording
+        if (identifier && !msg1.isText &&
+            (msg1.message || msg1.media?.getMediaElementsByType(MediaType.AUDIO_TYPES))) {
             Result<Token> res = generate(TokenType.CALL_DIRECT_MESSAGE, [
                 identifier: identifier,
                 message: msg1.message,
+                mediaId: msg1.media?.id,
                 // cannot have language be of type VoiceLanguage because this hook is called
                 // after the the TextUp user picks up the call and we must serialize the
                 // parameters that are then passed back to TextUp by Twilio after pickup

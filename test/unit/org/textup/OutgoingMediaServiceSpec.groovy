@@ -5,6 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.textup.util.*
+import org.textup.type.*
 import org.textup.validator.*
 import spock.lang.Specification
 
@@ -34,22 +35,30 @@ class OutgoingMediaServiceSpec extends Specification {
         given:
         service.textService = Mock(TextService)
         MediaInfo mInfo = new MediaInfo()
-        (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
+        int numBatches = 2
+        (Constants.MAX_NUM_MEDIA_PER_MESSAGE * numBatches).times {
             MediaElement e1 = TestHelpers.buildMediaElement()
+            e1.sendVersion.type = MediaType.IMAGE_JPEG
             mInfo.addToMediaElements(e1)
         }
 
         when: "no media"
-        service.sendWithMediaForText(null, null, null, null)
+        service.sendWithMediaForText(null, null, null, null, null)
 
         then: "send without media"
         1 * service.textService.send(*_) >> new Result()
 
         when: "with media"
-        service.sendWithMediaForText(null, null, null, mInfo)
+        service.sendWithMediaForText(null, null, null, mInfo, null)
 
         then: "send with media in batches"
-        (1.._) * service.textService.send(*_) >> new Result()
+        numBatches * service.textService.send(*_) >> new Result()
+
+        when: "filtering media by certain types"
+        service.sendWithMediaForText(null, null, null, mInfo, MediaType.AUDIO_TYPES)
+
+        then:
+        0 * service.textService._
     }
 
     void "test sending media for call"() {
@@ -57,10 +66,16 @@ class OutgoingMediaServiceSpec extends Specification {
         service.callService = Mock(CallService)
         service.textService = Mock(TextService)
         Token callToken = new Token(token: "valid token value")
-        MediaInfo mInfo = new MediaInfo()
+        MediaInfo onlyAudioMedia = new MediaInfo()
+        MediaInfo onlyImageMedia = new MediaInfo()
         (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
-            MediaElement e1 = TestHelpers.buildMediaElement()
-            mInfo.addToMediaElements(e1)
+            MediaElement el1 = TestHelpers.buildMediaElement()
+            el1.sendVersion.type = MediaType.AUDIO_WEBM_VORBIS
+            onlyAudioMedia.addToMediaElements(el1)
+
+            MediaElement el2 = TestHelpers.buildMediaElement()
+            el2.sendVersion.type = MediaType.IMAGE_JPEG
+            onlyImageMedia.addToMediaElements(el2)
         }
 
         when: "no media"
@@ -68,14 +83,21 @@ class OutgoingMediaServiceSpec extends Specification {
 
         then: "only call"
         1 * service.callService.start(*_) >> new Result()
-        0 * service.textService.send(*_)
+        0 * service.textService._
 
-        when: "with media"
-        service.sendWithMediaForCall(null, null, callToken, mInfo)
+        when: "with images"
+        service.sendWithMediaForCall(null, null, callToken, onlyImageMedia)
 
-        then: "send media via text message and also call"
+        then: "send images via text message + message via call"
         1 * service.callService.start(*_) >> new Result()
         (1.._) * service.textService.send(*_) >> new Result()
+
+        when: "with audio"
+        service.sendWithMediaForCall(null, null, callToken, onlyAudioMedia)
+
+        then: "audio and message both send via call, only images sent via text"
+        1 * service.callService.start(*_) >> new Result()
+        0 * service.textService._
     }
 
     void "test sending with media overall"() {

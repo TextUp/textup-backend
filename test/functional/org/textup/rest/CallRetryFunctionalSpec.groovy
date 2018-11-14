@@ -97,6 +97,7 @@ class CallRetryFunctionalSpec extends RestSpec {
         remote.exec({ String jobKey, Long staffId ->
             FutureMessageJob job = new FutureMessageJob()
             job.futureMessageJobService = ctx.getBean("futureMessageJobService")
+            job.threadService = ctx.getBean("threadService")
             job.resultFactory = ctx.getBean("resultFactory")
             job.execute([
                 getMergedJobDataMap: { ->

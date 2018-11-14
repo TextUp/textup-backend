@@ -39,7 +39,7 @@ class TokenSpec extends Specification {
         token.stringData == customVal
     }
 
-    void "test data formatting"() {
+    void "test data formatting for TokenType.PASSWORD_RESET"() {
         when: "invalid data for password reset"
         Token token = new Token(type:TokenType.PASSWORD_RESET)
         token.data = [randomThing: 123]
@@ -53,9 +53,11 @@ class TokenSpec extends Specification {
 
         then:
         token.validate() == true
+    }
 
+    void "test data formatting for TokenType.VERIFY_NUMBER"() {
         when: "invalid data for verify number"
-        token = new Token(type:TokenType.VERIFY_NUMBER)
+        Token token = new Token(type:TokenType.VERIFY_NUMBER)
         token.data = [randomThing: 123]
 
         then:
@@ -69,9 +71,11 @@ class TokenSpec extends Specification {
 
         then:
         token.validate() == true
+    }
 
+    void "test data formatting for TokenType.NOTIFY_STAFF"() {
         when: "invalid data for notification"
-        token = new Token(type:TokenType.NOTIFY_STAFF)
+        Token token = new Token(type:TokenType.NOTIFY_STAFF)
         token.data = [randomThing: 123]
 
         then:
@@ -83,9 +87,11 @@ class TokenSpec extends Specification {
 
         then:
         token.validate() == true
+    }
 
+    void "test data formatting for TokenType.CALL_DIRECT_MESSAGE"() {
         when: "invalid data for call direct message"
-        token = new Token(type:TokenType.CALL_DIRECT_MESSAGE)
+        Token token = new Token(type:TokenType.CALL_DIRECT_MESSAGE)
         token.data = [randomThing: 123]
 
         then:
@@ -93,7 +99,12 @@ class TokenSpec extends Specification {
         token.errors.errorCount == 1
 
         when: "valid data for call direct message"
-        token.data = [message: "hi", identifier: "Kiki", language: VoiceLanguage.ENGLISH.toString()]
+        token.data = [
+            message: "hi",
+            identifier: "Kiki",
+            mediaId: 88,
+            language: VoiceLanguage.ENGLISH.toString()
+        ]
 
         then:
         token.validate() == true

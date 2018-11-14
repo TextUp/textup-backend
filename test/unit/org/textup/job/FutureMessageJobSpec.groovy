@@ -23,8 +23,9 @@ class FutureMessageJobSpec extends Specification {
     	job.resultFactory = TestHelpers.getResultFactory(grailsApplication)
     }
 
-    void "test mark done"() {
+    void "test executing then mark done"() {
         given:
+        job.threadService = Mock(ThreadService)
         job.futureMessageJobService = Mock(FutureMessageJobService)
         JobExecutionContext context = Mock()
         Trigger trig = Mock()
@@ -42,6 +43,7 @@ class FutureMessageJobSpec extends Specification {
         1 * context.mergedJobDataMap >> new JobDataMap(data)
         1 * context.trigger >> trig
         1 * trig.mayFireAgain() >> false
+        1 * job.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * job.futureMessageJobService.execute(key, id) >>
             new Result(status: ResultStatus.INTERNAL_SERVER_ERROR).toGroup()
         1 * job.futureMessageJobService.markDone(key) >> new Result()
@@ -53,6 +55,7 @@ class FutureMessageJobSpec extends Specification {
     	1 * context.mergedJobDataMap >> new JobDataMap(data)
         1 * context.trigger >> trig
         1 * trig.mayFireAgain() >> true
+        1 * job.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * job.futureMessageJobService.execute(key, id) >> new ResultGroup()
         0 * job.futureMessageJobService.markDone(*_)
 
@@ -63,6 +66,7 @@ class FutureMessageJobSpec extends Specification {
     	1 * context.mergedJobDataMap >> new JobDataMap(data)
         1 * context.trigger >> trig
         1 * trig.mayFireAgain() >> false
+        1 * job.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * job.futureMessageJobService.execute(key, id) >> new ResultGroup()
         1 * job.futureMessageJobService.markDone(key) >> new Result()
     }

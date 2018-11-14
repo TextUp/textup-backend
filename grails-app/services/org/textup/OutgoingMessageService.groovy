@@ -24,8 +24,22 @@ class OutgoingMessageService {
     Result<Closure> directMessageCall(String token) {
         tokenService.findDirectMessage(token).then({ Token tok1 ->
             Map<String, ?> data = tok1.data
+            String ident = data.identifier as String
+            String msg = data.message as String
             VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, data.language)
-            CallTwiml.directMessage(data.identifier as String, data.message  as String, lang)
+            List<URL> recordings = []
+            Long mediaId = Helpers.to(Long, data.mediaId)
+            if (mediaId) {
+                MediaInfo.get(mediaId)
+                    ?.getMediaElementsByType(MediaType.AUDIO_TYPES)
+                    ?.each { MediaElement el1 ->
+                        URL link = el1.sendVersion?.link
+                        if (link) {
+                            recordings << link
+                        }
+                    }
+            }
+            CallTwiml.directMessage(ident, msg, lang, recordings)
         }, { Result<Token> failRes ->
             failRes.logFail("OutgoingMessageService.directMessageCall")
             CallTwiml.error()
@@ -67,6 +81,7 @@ class OutgoingMessageService {
 
     Tuple<ResultGroup<RecordItem>, Future<?>> processMessage(Phone phone, OutgoingMessage msg1,
         Staff staff, Future<Result<MediaInfo>> mediaFuture = null) {
+
         Future<?> future = Helpers.noOpFuture()
         if (!phone.isActive) {
             Result<RecordItem> failRes = resultFactory

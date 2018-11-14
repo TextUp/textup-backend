@@ -23,6 +23,7 @@ enum TokenType {
 	]),
 	CALL_DIRECT_MESSAGE([
 		"message", // contents of the message to deliver as a call
+		"mediaId", // id of media info object to get audio recordings from
 		"identifier", // who to identify the message as being from
 		"language" // VoiceLanguage enum as string (NOT Twiml value) to read the message in
 	])

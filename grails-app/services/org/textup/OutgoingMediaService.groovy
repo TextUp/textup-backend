@@ -31,7 +31,8 @@ class OutgoingMediaService {
     // -------
 
     protected ResultGroup<TempRecordReceipt> sendWithMediaForText(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, String msg1, MediaInfo mInfo = null) {
+        List<? extends BasePhoneNumber> toNums, String msg1, MediaInfo mInfo = null,
+        Collection<MediaType> typesToFind = null) {
 
         ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
         // if no media, then just send message as a text
@@ -39,11 +40,11 @@ class OutgoingMediaService {
             resGroup << textService.send(fromNum, toNums, msg1)
         }
         else { // if yes media, then send media in as many batches as needed
-            mInfo.forEachBatch { List<MediaElement> batchSoFar ->
+            mInfo.forEachBatch({ List<MediaElement> batchSoFar ->
                 Collection<URI> mediaUrls = batchSoFar
                     .collect { MediaElement e1 -> e1.sendVersion?.link?.toURI() }
                 resGroup << textService.send(fromNum, toNums, msg1, mediaUrls)
-            }
+            }, typesToFind)
         }
         resGroup
     }
@@ -52,10 +53,11 @@ class OutgoingMediaService {
         List<? extends BasePhoneNumber> toNums, Token callToken, MediaInfo mInfo = null) {
 
         ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
-        // if this call has media (currently only images), send only media as a text
-        if (mInfo && !mInfo.isEmpty()) {
-            resGroup << sendWithMediaForText(fromNum, toNums, "", mInfo)
+        // if this call has images, send those via text
+        if (mInfo?.getMediaElementsByType(MediaType.IMAGE_TYPES)) {
+            resGroup << sendWithMediaForText(fromNum, toNums, "", mInfo, MediaType.IMAGE_TYPES)
         }
+        // message is read via robo-voice and any recordings are played over the phone
         resGroup << callService.start(fromNum, toNums, CallTwiml.infoForDirectMessage(callToken.token))
         resGroup
     }

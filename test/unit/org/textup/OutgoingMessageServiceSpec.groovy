@@ -39,19 +39,45 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     void "test direct message call"() {
         given:
         service.tokenService = Mock(TokenService)
+        MediaInfo mInfo = new MediaInfo()
+        MediaElement el1 = TestHelpers.buildMediaElement()
+        el1.sendVersion.type = MediaType.AUDIO_MP3
+        mInfo.addToMediaElements(el1)
+        mInfo.save(flush: true, failOnError: true)
         Token tok1 = new Token(type: TokenType.CALL_DIRECT_MESSAGE,
-            data: [message: "hi", identifier: "hi", language: null])
+            data: [
+                message: "hi",
+                identifier: "hi",
+                mediaId: null,
+                language: VoiceLanguage.ENGLISH.toString()
+            ])
         tok1.save(flush: true, failOnError: true)
 
-        when: "fail to find token"
+        when: "successfully finds token with message without media"
         Result<Closure> res = service.directMessageCall(null)
 
         then:
         1 * service.tokenService.findDirectMessage(*_) >> new Result(payload: tok1)
         res.status == ResultStatus.OK
         TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.messageIntro")
+        TestHelpers.buildXml(res.payload).contains("Say") == true
+        TestHelpers.buildXml(res.payload).contains("Play") == false
 
-        when: "successfully finds token"
+        when: "successfully finds token with message and media"
+        Map tokData = tok1.data
+        tokData.mediaId = mInfo.id
+        tok1.data = tokData
+        tok1.save(flush: true, failOnError: true)
+        res = service.directMessageCall(null)
+
+        then:
+        1 * service.tokenService.findDirectMessage(*_) >> new Result(payload: tok1)
+        res.status == ResultStatus.OK
+        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.messageIntro")
+        TestHelpers.buildXml(res.payload).contains("Say") == true
+        TestHelpers.buildXml(res.payload).contains("Play") == true
+
+        when: "fail to find token"
         res = service.directMessageCall(null)
 
         then:
