@@ -11,12 +11,21 @@
 //= require bootstrap
 //= require docs
 
-if (typeof jQuery !== 'undefined') {
-    (function($) {
-        $('#spinner').ajaxStart(function() {
-            $(this).fadeIn();
-        }).ajaxStop(function() {
-            $(this).fadeOut();
-        });
-    })(jQuery);
+if (typeof jQuery !== "undefined") {
+  (function($) {
+    $("#spinner")
+      .ajaxStart(function() {
+        $(this).fadeIn();
+      })
+      .ajaxStop(function() {
+        $(this).fadeOut();
+      });
+
+    $(document).ready(function() {
+      $("table").DataTable({
+        pageLength: 25,
+        dom: "Bfrtip"
+      });
+    });
+  })(jQuery);
 }

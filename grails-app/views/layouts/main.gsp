@@ -9,7 +9,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <asset:stylesheet src="application.css"/>
-    <g:layoutHead/>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs/dt-1.10.18/b-1.5.4/b-html5-1.5.4/datatables.min.css"/>
+     <g:layoutHead/>
 </head>
 <body>
 	<nav class="navbar navbar-default">
@@ -18,9 +19,10 @@
                 <g:img dir="images" file="logo.png" alt="TextUp" height="40"/>
             </a>
             <sec:ifAllGranted roles="ROLE_ADMIN">
-                <g:link controller="super" action="index" class="navbar-text"><b>Super Dashboard</b></g:link>
+                <g:link controller="super" class="navbar-text"><b>Super Dashboard</b></g:link>
                 <g:link controller="super" action="rejected" class="navbar-text"><b>Rejected</b></g:link>
                 <g:link controller="super" action="approved" class="navbar-text"><b>Approved</b></g:link>
+                <g:link controller="usage" class="navbar-text"><b>Usage</b></g:link>
             </sec:ifAllGranted>
             <sec:ifNotGranted roles="ROLE_ADMIN">
                 <a class="navbar-text" href="/">
@@ -39,9 +41,15 @@
             </sec:ifNotGranted>
 		</div>
 	</nav>
-	<main>
+	<main class="container">
 		<g:layoutBody/>
 	</main>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
+        integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+        crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/v/bs/dt-1.10.18/b-1.5.4/b-html5-1.5.4/datatables.min.js"></script>
     <asset:javascript src="application.js"/>
 </body>
 </html>
