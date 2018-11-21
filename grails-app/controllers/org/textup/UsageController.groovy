@@ -23,7 +23,9 @@ class UsageController {
             teamOrgs = usageService.getOverallPhoneActivity(dt, PhoneOwnershipType.GROUP)
         [
             *: buildTimeframeParams(dt),
-            *: buildContext(staffOrgs, teamOrgs),
+            *: buildContext(getNumPhones(staffOrgs), staffOrgs, getNumPhones(teamOrgs), teamOrgs),
+            numActiveStaffPhones: getNumActivePhones(staffOrgs),
+            numActiveTeamPhones: getNumActivePhones(teamOrgs),
             staffOrgs: staffOrgs,
             teamOrgs: teamOrgs
         ]
@@ -39,7 +41,7 @@ class UsageController {
         List<UsageService.Team> teams = usageService.getTeamPhoneActivity(dt, orgId)
         [
             *: buildTimeframeParams(dt),
-            *: buildContext(staffs, teams),
+            *: buildContext(staffs.size() as BigDecimal, staffs, teams.size() as BigDecimal, teams),
             org: Organization.get(orgId),
             staffs: staffs,
             teams: teams
@@ -104,35 +106,40 @@ class UsageController {
         UsageUtils.getAvailableMonthStrings().findIndexOf { String m1 -> m1 == currentMonthString }
     }
 
-    protected Map buildContext(Collection<? extends UsageService.HasActivity> staffList,
-        Collection<? extends UsageService.HasActivity> teamList) {
+    protected Map buildContext(BigDecimal numStaffPhones,
+        Collection<? extends UsageService.HasActivity> staffList,
+        BigDecimal numTeamPhones, Collection<? extends UsageService.HasActivity> teamList) {
 
         [
-            numStaffPhones: staffList.size(),
+            numStaffPhones: numStaffPhones,
             numStaffSegments: getNumSegments(staffList),
             numStaffMinutes: getNumMinutes(staffList),
-            numTeamPhones: teamList.size(),
+            numTeamPhones: numTeamPhones,
             numTeamSegments: getNumSegments(teamList),
             numTeamMinutes: getNumMinutes(teamList),
             currentTime: UsageUtils.dateTimeToTimestamp(DateTime.now())
         ]
     }
-    protected BigDecimal getNumSegments(Collection<? extends UsageService.HasActivity> activityOwners) {
-        BigDecimal numSegments = 0
-        activityOwners?.each { UsageService.HasActivity a1 ->
-            if (a1.activity.numBillableSegments) {
-                numSegments += a1.activity.numBillableSegments
-            }
+    protected BigDecimal getNumSegments(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.activity.numBillableSegments
         }
-        numSegments
     }
-    protected BigDecimal getNumMinutes(Collection<? extends UsageService.HasActivity> activityOwners) {
-        BigDecimal numMinutes = 0
-        activityOwners?.each { UsageService.HasActivity a1 ->
-            if (a1.activity.numBillableMinutes) {
-                numMinutes += a1.activity.numBillableMinutes
-            }
+    protected BigDecimal getNumMinutes(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.activity.numBillableMinutes
         }
-        numMinutes
+    }
+
+    protected BigDecimal getNumPhones(Collection<UsageService.Organization> orgs) {
+        UsageUtils.sumProperty(orgs) { UsageService.Organization o1 ->
+            o1.totalNumPhones as BigDecimal
+        }
+    }
+    // numActivePhones is really only meaningful in an organizational context
+    protected BigDecimal getNumActivePhones(Collection<UsageService.Organization> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.Organization a1 ->
+            a1.activity.numActivePhones as BigDecimal
+        }
     }
 }

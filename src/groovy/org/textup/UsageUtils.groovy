@@ -65,6 +65,18 @@ class UsageUtils {
         normalized
     }
 
+    static <T> BigDecimal sumProperty(Collection<? extends T> objList,
+        Closure<BigDecimal> doGetProperty) {
+        BigDecimal runningTotal = 0
+        objList?.each { T obj ->
+            BigDecimal propVal = doGetProperty(obj)
+            if (propVal) {
+                runningTotal += propVal
+            }
+        }
+        runningTotal
+    }
+
     // Display helpers
     // ---------------
 

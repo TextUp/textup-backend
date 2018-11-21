@@ -26,6 +26,7 @@
                 </div>
                 <div class="usage-header__item">
                     <tmpl:context numPhones="${numStaffPhones}"
+                        numActivePhones="${numActiveStaffPhones}"
                         numSegments="${numStaffSegments}"
                         numMinutes="${numStaffMinutes}" />
                 </div>
@@ -46,6 +47,7 @@
                 </div>
                 <div class="usage-header__item">
                     <tmpl:context numPhones="${numTeamPhones}"
+                        numActivePhones="${numActiveTeamPhones}"
                         numSegments="${numTeamSegments}"
                         numMinutes="${numTeamMinutes}" />
                 </div>

@@ -1,6 +1,8 @@
 <ul class="usage-context-list">
     <li class="usage-context-list__item">
-        <strong>${numPhones}</strong> phones
+        <strong>${numPhones}</strong> phones<g:if test="${numActivePhones != null}">,
+            <strong>${numActivePhones}</strong> active
+        </g:if>
     </li>
     <li class="usage-context-list__item">
         <strong>${numSegments}</strong> segments
