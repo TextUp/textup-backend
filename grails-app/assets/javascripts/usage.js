@@ -3,23 +3,25 @@ $(document).ready(function() {
     HEX_COLOR_2 = "#ff7600",
     charts = [],
     $chartSelector = $(".chart-type-selector"),
-    orgId = $chartSelector.data("orgId");
+    orgId = $chartSelector.data("orgId"),
+    cellToggleSelector = "td.number-detail";
   // tables
   if ($("table").DataTable) {
-    $("table").DataTable({
-      pageLength: 10,
-      dom:
-        "<'row'<'col-sm-6'B><'col-sm-6 flex flex--align-center flex-justify-end'<'margin-r'f>l>>" +
-        "<'row'<'col-sm-12'tr>>" +
-        "<'row'<'col-sm-5'i><'col-sm-7'p>>",
-      lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]]
-    });
+    $("table")
+      .DataTable({
+        pageLength: 10,
+        dom:
+          "<'row'<'col-sm-6'B><'col-sm-6 flex flex--align-center flex-justify-end'<'margin-r'f>l>>" +
+          "<'row'<'col-sm-12'tr>>" +
+          "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]]
+      })
+      .on("draw", onTableDraw);
   }
   // charts
-  $(".number-detail").on("click", toggleChildChart);
+  $("table").on("click", cellToggleSelector, toggleChildChart);
   if ($chartSelector.length) {
     $chartSelector.on("click", changeChartDisplay);
-
     fetchDataAndBuildChart(buildTopLevelCharts, { orgId: orgId });
   }
 
@@ -62,11 +64,7 @@ $(document).ready(function() {
     } else {
       if (rowObj.child() && rowObj.child().length) {
         rowObj.child.show();
-        // force redraw after opening to ensure that chart is appropriately resized
-        var chartObj = retrieveChartObjOnTableCell($target);
-        if (chartObj) {
-          chartObj.flush();
-        }
+        redrawNumbersChart($target);
       } else {
         var divEl = document.createElement("div");
         rowObj.child(divEl).show();
@@ -101,8 +99,24 @@ $(document).ready(function() {
     }
   }
 
+  function onTableDraw(event) {
+    setTimeout(function() {
+      var $table = $(event.target);
+      $table.find(cellToggleSelector).each(function() {
+        redrawNumbersChart($(this));
+      });
+    }, 100);
+  }
+
   // Helpers
   // -------
+
+  function redrawNumbersChart($cell) {
+    var chartObj = retrieveChartObjOnTableCell($cell);
+    if (chartObj) {
+      chartObj.flush();
+    }
+  }
 
   function storeChartObjOnTableCell($cell, chartObj) {
     $cell.data("c3-chart", chartObj);
