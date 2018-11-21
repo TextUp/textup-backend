@@ -1,21 +1,40 @@
-.date-picker-form select {
-    display: inline-block;
-    width: auto;
-    vertical-align: middle;
-    height: 34px;
-    padding: 6px 12px;
-    font-size: 14px;
-    line-height: 1.42857143;
-    color: #555;
-    background-color: #fff;
-    background-image: none;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-    -webkit-transition: border-color ease-in-out 0.15s, -webkit-box-shadow ease-in-out 0.15s;
-    -o-transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
-    transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+.margin-r {
+    margin-right: 1rem;
+}
+
+.chart-current-month {
+    width: 20px;
+    transform: translateX(-10px);
+}
+
+td.number-detail {
+    background: url("/images/plus.svg") no-repeat center center;
+    cursor: pointer;
+    width: 2rem;
+}
+tr.number-detail-expanded,
+tr.number-detail-expanded + tr {
+    background-color: #fbfbfb;
+}
+tr.number-detail-expanded td.number-detail {
+    background: url("/images/minus.svg") no-repeat center center;
+}
+td.number-detail,
+tr.number-detail-expanded td.number-detail {
+    background-size: 30%;
+}
+tr.number-detail-expanded + tr > td {
+    border-top-width: 0;
+}
+
+.flex {
+    display: flex;
+}
+.flex--align-center {
+    align-items: center;
+}
+.flex-justify-end {
+    justify-content: flex-end;
 }
 
 .usage-header {
@@ -23,8 +42,15 @@
     justify-content: space-between;
     align-items: baseline;
 }
-.usage-header--main {
-    margin: 1rem 0 3rem;
+.usage-header--sticky {
+    -webkit-position: sticky;
+    position: sticky;
+    top: 0;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    background-color: white;
+    border-bottom: 1px solid lightgray;
+    z-index: 10;
 }
 .usage-header__item {
     min-width: 0;

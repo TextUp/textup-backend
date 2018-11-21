@@ -2,7 +2,12 @@
     <div class="table-responsive">
         <table class="table"
             data-order='[[2, "desc"]]'
-            data-buttons='[{ "extend": "pdfHtml5", "title": "${title}", "messageTop": "${messageTop}" }]'
+            data-buttons='[{
+                "extend": "pdfHtml5",
+                "text": "Download table data",
+                "title": "${title}",
+                "messageTop": "${messageTop}"
+            }]'
             data-columns='[
                 null,
                 { "className": "text-right" },

@@ -1,9 +1,20 @@
 <g:if test="${teams}">
     <div class="table-responsive">
         <table class="table"
-            data-order='[[1, "desc"]]'
-            data-buttons='[{ "extend": "pdfHtml5", "title": "${title}", "messageTop": "${messageTop}" }]'
+            data-order='[[2, "desc"]]'
+            data-buttons='[{
+                "extend": "pdfHtml5",
+                "text": "Download table data",
+                "title": "${title}",
+                "messageTop": "${messageTop}"
+            }]'
             data-columns='[
+                {
+                    "className": "number-detail",
+                    "orderable": false,
+                    "data": null,
+                    "defaultContent": ""
+                },
                 null,
                 { "className": "text-right" },
                 null,
@@ -13,6 +24,7 @@
                 { "className": "text-right" }]'>
             <thead>
                 <tr>
+                    <th></th>
                     <th>Name</th>
                     <th># staff</th>
                     <th>TextUp phone</th>
@@ -25,6 +37,7 @@
             <tbody>
                 <g:each var="team" in="${teams}">
                     <tr>
+                        <td data-number="${team.number}"></td>
                         <td>${team.name}</td>
                         <td>${team.numStaff}</td>
                         <td>${team.phoneNumber}</td>

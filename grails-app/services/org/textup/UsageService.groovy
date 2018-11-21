@@ -12,15 +12,37 @@ import org.textup.validator.*
 @Transactional
 final class UsageService {
 
+    final String ACTIVITY_QUERY = """
+        SUM(CASE WHEN i.class = "org.textup.RecordText" THEN 1 ELSE 0 END) AS numTexts,
+        SUM(CASE WHEN i.class = "org.textup.RecordText" THEN rir.num_billable ELSE 0 END) AS numBillableSegments,
+        SUM(CASE WHEN i.class = "org.textup.RecordCall" THEN 1 ELSE 0 END) AS numCalls,
+        (SUM(CASE WHEN i.class = "org.textup.RecordCall" THEN rir.num_billable ELSE 0 END) / 60) AS numBillableMinutes
+    """
+    final String ACTIVE_PHONES_QUERY = "COUNT(DISTINCT(p.id)) AS numActivePhones"
+    final String ACTIVITY_QUERY_SOURCE = """
+        FROM record_item AS i
+        JOIN record_item_receipt AS rir ON rir.item_id = i.id
+        JOIN contact AS c ON c.record_id = i.record_id
+        JOIN phone AS p ON c.phone_id = p.id
+    """
+
     SessionFactory sessionFactory
 
     public static class ActivityRecord {
         BigInteger ownerId
+        String monthString
         BigInteger numActivePhones = 0
         BigDecimal numTexts = 0
         BigDecimal numBillableSegments = 0
         BigDecimal numCalls = 0
         BigDecimal numBillableMinutes = 0
+
+        void setMonthString(String queryMonth) {
+            this.monthString = UsageUtils.queryMonthToMonthString(queryMonth)
+        }
+        void setMonthStringDirectly(String monthString) {
+            this.monthString = monthString
+        }
     }
 
     public static class HasActivity {
@@ -71,7 +93,19 @@ final class UsageService {
             getActivityForOrg(dt, orgId, PhoneOwnershipType.GROUP))
     }
 
-    // Helpers
+    List<UsageService.ActivityRecord> getActivity(PhoneOwnershipType type) {
+        UsageUtils.ensureMonths(getActivityOverTime(type))
+    }
+
+    List<UsageService.ActivityRecord> getActivityForOrg(PhoneOwnershipType type, Long orgId) {
+        UsageUtils.ensureMonths(getActivityOverTimeForOrg(type, orgId))
+    }
+
+    List<UsageService.ActivityRecord> getActivityForNumber(String number) {
+        UsageUtils.ensureMonths(getActivityOverTimeForNumber(number))
+    }
+
+    // Details
     // -------
 
     protected List<UsageService.Organization> getAllOrgs(DateTime dt, PhoneOwnershipType type) {
@@ -92,36 +126,6 @@ final class UsageService {
                 ORDER BY count(*) DESC;
             """.toString()).with {
                 setResultTransformer(Transformers.aliasToBean(UsageService.Organization.class))
-                setString("type", type.toString())
-                setInteger("year", dt.year)
-                setInteger("month", dt.monthOfYear)
-                list()
-            }
-    }
-
-    protected List<UsageService.ActivityRecord> getAllActivity(DateTime dt, PhoneOwnershipType type) {
-        sessionFactory.currentSession
-            .createSQLQuery("""
-                SELECT org.id as ownerId,
-                    COUNT(DISTINCT(p.id)) AS numActivePhones,
-                    SUM(CASE WHEN i.class = "org.textup.RecordText" THEN 1 ELSE 0 END) AS numTexts,
-                    SUM(CASE WHEN i.class = "org.textup.RecordText" THEN rir.num_billable ELSE 0 END) AS numBillableSegments,
-                    SUM(CASE WHEN i.class = "org.textup.RecordCall" THEN 1 ELSE 0 END) AS numCalls,
-                    (SUM(CASE WHEN i.class = "org.textup.RecordCall" THEN rir.num_billable ELSE 0 END) / 60) AS numBillableMinutes
-                FROM record_item AS i
-                JOIN record_item_receipt AS rir ON rir.item_id = i.id
-                JOIN contact AS c ON c.record_id = i.record_id
-                JOIN phone AS p ON c.phone_id = p.id
-                JOIN phone_ownership AS o ON p.owner_id = o.id
-                JOIN ${UsageUtils.getTableName(type)} AS m ON m.id = o.owner_id
-                JOIN organization AS org ON m.org_id = org.id
-                WHERE EXTRACT(YEAR FROM i.when_created) = :year
-                    AND EXTRACT(MONTH FROM i.when_created) = :month
-                    AND o.type = :type
-                GROUP BY org.id
-                ORDER BY COUNT(DISTINCT(p.id)) DESC;
-            """.toString()).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
                 setString("type", type.toString())
                 setInteger("year", dt.year)
                 setInteger("month", dt.monthOfYear)
@@ -183,19 +187,40 @@ final class UsageService {
             }
     }
 
+    // Point-in-time activity
+    // ----------------------
+
+    protected List<UsageService.ActivityRecord> getAllActivity(DateTime dt, PhoneOwnershipType type) {
+        sessionFactory.currentSession
+            .createSQLQuery("""
+                SELECT org.id as ownerId,
+                    ${ACTIVE_PHONES_QUERY},
+                    ${ACTIVITY_QUERY}
+                ${ACTIVITY_QUERY_SOURCE}
+                JOIN phone_ownership AS o ON p.owner_id = o.id
+                JOIN ${UsageUtils.getTableName(type)} AS m ON m.id = o.owner_id
+                JOIN organization AS org ON m.org_id = org.id
+                WHERE EXTRACT(YEAR FROM i.when_created) = :year
+                    AND EXTRACT(MONTH FROM i.when_created) = :month
+                    AND o.type = :type
+                GROUP BY org.id
+                ORDER BY COUNT(DISTINCT(p.id)) DESC;
+            """.toString()).with {
+                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setString("type", type.toString())
+                setInteger("year", dt.year)
+                setInteger("month", dt.monthOfYear)
+                list()
+            }
+    }
+
     protected List<UsageService.ActivityRecord> getActivityForOrg(DateTime dt, Long orgId, PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT m.id AS ownerId,
                     1 as numActivePhones,
-                    SUM(CASE WHEN i.class = "org.textup.RecordText" THEN 1 ELSE 0 END) AS numTexts,
-                    SUM(CASE WHEN i.class = "org.textup.RecordText" THEN rir.num_billable ELSE 0 END) AS numBillableSegments,
-                    SUM(CASE WHEN i.class = "org.textup.RecordCall" THEN 1 ELSE 0 END) AS numCalls,
-                    (SUM(CASE WHEN i.class = "org.textup.RecordCall" THEN rir.num_billable ELSE 0 END) / 60) AS numBillableMinutes
-                FROM record_item AS i
-                JOIN record_item_receipt AS rir ON rir.item_id = i.id
-                JOIN contact AS c ON c.record_id = i.record_id
-                JOIN phone AS p ON c.phone_id = p.id
+                    ${ACTIVITY_QUERY}
+                ${ACTIVITY_QUERY_SOURCE}
                 JOIN phone_ownership AS o ON p.owner_id = o.id
                 JOIN ${UsageUtils.getTableName(type)} AS m ON m.id = o.owner_id
                 WHERE EXTRACT(YEAR FROM i.when_created) = :year
@@ -211,6 +236,72 @@ final class UsageService {
                 setInteger("year", dt.year)
                 setInteger("month", dt.monthOfYear)
                 setLong("orgId", orgId)
+                list()
+            }
+    }
+
+    // Activity over time
+    // ------------------
+
+    protected List<UsageService.ActivityRecord> getActivityOverTime(PhoneOwnershipType type) {
+        sessionFactory.currentSession
+            .createSQLQuery("""
+                SELECT LEFT(i.when_created, 7) AS monthString,
+                    ${ACTIVE_PHONES_QUERY},
+                    ${ACTIVITY_QUERY}
+                ${ACTIVITY_QUERY_SOURCE}
+                JOIN phone_ownership AS o ON p.owner_id = o.id
+                JOIN ${UsageUtils.getTableName(type)} AS m ON m.id = o.owner_id
+                JOIN organization AS org ON m.org_id = org.id
+                WHERE o.type = :type
+                GROUP BY LEFT(i.when_created, 7)
+                ORDER BY LEFT(i.when_created, 7) ASC;
+            """.toString()).with {
+                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setString("type", type.toString())
+                list()
+            }
+    }
+
+    protected List<UsageService.ActivityRecord> getActivityOverTimeForOrg(PhoneOwnershipType type,
+        Long orgId) {
+
+        sessionFactory.currentSession
+            .createSQLQuery("""
+                SELECT LEFT(i.when_created, 7) AS monthString,
+                    ${ACTIVE_PHONES_QUERY},
+                    ${ACTIVITY_QUERY}
+                ${ACTIVITY_QUERY_SOURCE}
+                JOIN phone_ownership AS o ON p.owner_id = o.id
+                JOIN ${UsageUtils.getTableName(type)} AS m ON m.id = o.owner_id
+                WHERE o.type = :type
+                    AND m.org_id = :orgId
+                GROUP BY LEFT(i.when_created, 7)
+                ORDER BY LEFT(i.when_created, 7) ASC;
+            """.toString()).with {
+                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setString("type", type.toString())
+                setLong("orgId", orgId)
+                list()
+            }
+    }
+
+    protected List<UsageService.ActivityRecord> getActivityOverTimeForNumber(String number) {
+        sessionFactory.currentSession
+            .createSQLQuery("""
+                SELECT LEFT(i.when_created, 7) AS monthString,
+                    ${ACTIVE_PHONES_QUERY},
+                    ${ACTIVITY_QUERY}
+                FROM record_item AS i
+                JOIN record_item_receipt AS rir ON rir.item_id = i.id
+                JOIN contact AS c ON c.record_id = i.record_id
+                JOIN phone AS p ON c.phone_id = p.id
+                WHERE p.number_as_string = :number
+                GROUP BY LEFT(i.when_created, 7)
+                ORDER BY LEFT(i.when_created, 7) ASC;
+            """.toString()).with {
+                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setString("number", number)
                 list()
             }
     }

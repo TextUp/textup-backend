@@ -8,9 +8,9 @@
     <li class="usage-context-list__item">
         <strong>
             <g:formatNumber number="${numMinutes}"
-                        type="number"
-                        minFractionDigits="2"
-                        maxFractionDigits="2" />
+                type="number"
+                minFractionDigits="2"
+                maxFractionDigits="2" />
         </strong>
         minutes
     </li>

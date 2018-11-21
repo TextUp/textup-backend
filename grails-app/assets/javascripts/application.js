@@ -20,12 +20,5 @@ if (typeof jQuery !== "undefined") {
       .ajaxStop(function() {
         $(this).fadeOut();
       });
-
-    $(document).ready(function() {
-      $("table").DataTable({
-        pageLength: 25,
-        dom: "Bfrtip"
-      });
-    });
   })(jQuery);
 }

@@ -9,7 +9,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <asset:stylesheet src="application.css"/>
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs/dt-1.10.18/b-1.5.4/b-html5-1.5.4/datatables.min.css"/>
      <g:layoutHead/>
 </head>
 <body>
@@ -41,15 +40,13 @@
             </sec:ifNotGranted>
 		</div>
 	</nav>
-	<main class="container">
+	<main>
 		<g:layoutBody/>
 	</main>
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"
         integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
         crossorigin="anonymous"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
-    <script type="text/javascript" src="https://cdn.datatables.net/v/bs/dt-1.10.18/b-1.5.4/b-html5-1.5.4/datatables.min.js"></script>
     <asset:javascript src="application.js"/>
+    <g:pageProperty name="page.assets"/>
 </body>
 </html>
