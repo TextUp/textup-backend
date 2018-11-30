@@ -168,7 +168,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
     // --------------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<FutureMessage> buildForRecords(Collection<Record> records) {
+    static DetachedCriteria<FutureMessage> forRecords(Collection<Record> records) {
         new DetachedCriteria(FutureMessage)
             .build {
                 if (records) { "in"("record", records) }
@@ -210,7 +210,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
 
 
     protected void refreshTrigger() {
-        this.trigger = Helpers.quartzScheduler.getTrigger(this.triggerKey)
+        this.trigger = IOCUtils.quartzScheduler.getTrigger(this.triggerKey)
     }
     protected TriggerKey getTriggerKey() {
         String recordId = this.record?.id?.toString()
@@ -231,7 +231,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
     ReadOnlyRecord getReadOnlyRecord() { record }
 
     Result<OutgoingMessage> tryGetOutgoingMessage() {
-        OutgoingMessage msg1 = Helpers.doWithoutFlush {
+        OutgoingMessage msg1 = Utils.doWithoutFlush {
             // step 1: populate recipients
             ContactRecipients cRecip = new ContactRecipients()
             ContactTagRecipients ctRecip = new ContactTagRecipients()
@@ -252,9 +252,9 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
                 tags: ctRecip)
         }
         if (msg1.validate()) {
-            Helpers.resultFactory.success(msg1)
+            IOCUtils.resultFactory.success(msg1)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(msg1.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(msg1.errors) }
     }
 
     DateTime getNextFireDate() {

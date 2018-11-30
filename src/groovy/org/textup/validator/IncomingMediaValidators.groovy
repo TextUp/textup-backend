@@ -37,12 +37,12 @@ class IncomingMediaInfo implements IsIncomingMedia {
     // [UNTESTED] because of limitations in mocking
     Result<Boolean> delete() {
         try {
-            Helpers.resultFactory.success(Media.deleter(messageId, mediaId).delete())
+            IOCUtils.resultFactory.success(Media.deleter(messageId, mediaId).delete())
         }
         catch (Throwable e) {
             log.error("SmsMediaDeleter.delete: ${e.message}")
             e.printStackTrace()
-            Helpers.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
 }
@@ -63,12 +63,12 @@ class IncomingRecordingInfo implements IsIncomingMedia {
     // [UNTESTED] because of limitations in mocking
     Result<Boolean> delete() {
         try {
-            Helpers.resultFactory.success(Recording.deleter(mediaId).delete())
+            IOCUtils.resultFactory.success(Recording.deleter(mediaId).delete())
         }
         catch (Throwable e) {
             log.error("CallRecordingDeleter.delete: ${e.message}")
             e.printStackTrace()
-            Helpers.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
 }

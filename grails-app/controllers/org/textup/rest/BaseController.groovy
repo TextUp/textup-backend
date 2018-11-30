@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import groovy.transform.TypeCheckingMode
 import javax.servlet.http.HttpServletRequest
@@ -17,7 +17,7 @@ import org.textup.validator.*
 // section are called by other classes. We have designated all methods are protected in order to
 // prevent them from being considered as controller action methods accessible via url
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class BaseController {
 
     static allowedMethods = [index:"GET", save:"POST", show:"GET", update:"PUT", delete:"DELETE"]
@@ -46,7 +46,7 @@ class BaseController {
                 if (json == null || json[requiredRoot] == null) {
                     badRequest(); return null;
                 }
-                else { return Helpers.to(Map, json[requiredRoot]) }
+                else { return TypeConversionUtils.to(Map, json[requiredRoot]) }
             }
             else { // no required root so just make sure json is not null
                 if (json == null) {
@@ -69,7 +69,7 @@ class BaseController {
     // (2) The reason we need to skip type checking here is that Grails dynamically adds
     // additional properties to `HttpServletRequest` and, because these properties are dynamic,
     // they are not added to the interface and the compiler fails
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected Map getRequestJson(HttpServletRequest req) {
         req.JSON
     }
@@ -78,18 +78,16 @@ class BaseController {
     // -------
 
     protected <T> void respondWithMany(Class<T> clazz, Closure<Integer> count,
-        Closure<? extends Collection<T>> list, Map<String,? extends Object> params = [:],
-        boolean isPublic = false) {
-        Integer max = Helpers.to(Integer, params.max),
-            offset = Helpers.to(Integer, params.offset),
-            total = count(params)
-        Map<String,? extends Object> linkParams = [
+        Closure<? extends Collection<T>> list, Map params = [:], boolean isPublic = false) {
+
+        Integer total = count(params)
+        Map<String, ?> linkParams = [
                 namespace:getNamespaceAsString(),
                 resource:resolveClassToResourceName(clazz, isPublic),
                 action: "index",
                 absolute:false
             ],
-            options = handlePagination(max, offset, total, linkParams)
+            options = handlePagination(params, total, linkParams)
         // ensure that list has reconciled max and offset values
         params.max = (options.meta as Map)?.max
         params.offset = (options.meta as Map)?.offset
@@ -163,6 +161,20 @@ class BaseController {
             respond(responseObj, responseInfo)
         }
     }
+    protected void respondWithPDF(String fileName, Result<byte[]> pdfRes) {
+        if (pdfRes.success) {
+            withPDFFormat {
+                InputStream iStream = new ByteArrayInputStream(pdfRes.payload)
+                iStream.withCloseable {
+                    render(file: iStream, fileName: fileName, contentType: "application/pdf")
+                }
+            }
+        }
+        else {
+            render(status:pdfRes.status.apiStatus)
+            respond(errors:buildErrorObj([pdfRes]))
+        }
+    }
 
     // Render statuses
     // ---------------
@@ -198,20 +210,26 @@ class BaseController {
     // Skip type-checking helpers
     // --------------------------
 
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected void withJsonFormat(Closure doJson) {
         withFormat {
             json(doJson)
         }
     }
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    protected void withPDFFormat(Closure doPDF) {
+        withFormat {
+            pdf(doPDF)
+        }
+    }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected String createLink(Map<?,?> linkParams) {
         // the generated link must be provided with the CONTROLLER name as the resource
         // NOT the pluralized resource name. Also, must specify the action and for each action
         // must provide all necessary information (e.g., id for show/update/delete)
         g.createLink(linkParams)
     }
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected Long getId(Object obj) {
         Long thisId
         try {
@@ -264,6 +282,7 @@ class BaseController {
             case Organization: return "organization"
             case Phone: return "phone"
             case RecordItem: return "record"
+            case RecordItemRequest: return "recordItemRequest"
             case RecordItemStatus: return "recordItemStatus"
             case RecordNoteRevision: return "revision"
             case Schedule: return "schedule"
@@ -289,14 +308,14 @@ class BaseController {
         }
     }
 
-    protected Map<String,? extends Object> handlePagination(Integer optMax, Integer optOffset,
-        Integer optTotal, Map<String,? extends Object> linkParams = [:]) {
-        List<Integer> paginationOptions = buildPaginationOptions(optMax, optOffset, optTotal)
-        Integer max = paginationOptions[0]
-        Integer offset = paginationOptions[1]
-        Integer total = paginationOptions[2]
-        Map<String,String> links = [:]
+    protected Map<String, ?> handlePagination(Map params, Integer optTotal,
+        Map<String, ?> linkParams = [:]) {
 
+        List<Integer> normalized = Utils.normalizePagination(params.offset, params.max)
+        Integer offset = normalized[0],
+            max = normalized[1],
+            total = (optTotal >= 0) ? optTotal : max
+        Map<String, String> links = [:]
         // if there is an offset, then we need to include previous link
         if (offset > 0) {
             int prevOffset = offset - max
@@ -308,18 +327,10 @@ class BaseController {
             int nextOffset = offset + max
             links.next = createLink(linkParams + [params:[max:max, offset:nextOffset]])
         }
-        Map<String,? extends Object> results = [meta:[max:max, offset:offset, total:total]]
+        Map<String, ?> results = [meta:[max:max, offset:offset, total:total]]
         if (links) {
             results.links = links
         }
         results
-    }
-    protected List<Integer> buildPaginationOptions(Integer optMax, Integer optOffset, Integer optTotal) {
-        Integer defaultMax = Constants.DEFAULT_PAGINATION_MAX,
-            largestMax = Constants.MAX_PAGINATION_MAX,
-            offset = (optOffset > 0) ? optOffset : 0,
-            max = Math.min((optMax > 0) ? optMax : defaultMax, largestMax),
-            total = (optTotal >= 0) ? optTotal : max
-        [max, offset, total]
     }
 }

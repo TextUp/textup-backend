@@ -2,11 +2,11 @@ package org.textup
 
 import groovy.transform.EqualsAndHashCode
 import org.textup.validator.BasePhoneNumber
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.hibernate.Session
 import groovy.transform.TypeCheckingMode
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true, includes=["number", "preference"])
 class ContactNumber extends BasePhoneNumber implements WithId {
 
@@ -19,7 +19,7 @@ class ContactNumber extends BasePhoneNumber implements WithId {
         }
     }
 
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static Map<String,List<Contact>> getContactsForPhoneAndNumbers(Phone p1,
         Collection<String> nums) {
         List<ContactNumber> cNums = ContactNumber.createCriteria().list {

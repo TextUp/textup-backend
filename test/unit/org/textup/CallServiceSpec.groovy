@@ -8,7 +8,7 @@ import grails.test.runtime.FreshRuntime
 import java.util.UUID
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.context.MessageSource
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
@@ -33,8 +33,8 @@ class CallServiceSpec extends Specification {
     }
 
     def setup() {
-        Helpers.metaClass."static".getLinkGenerator = { -> TestHelpers.mockLinkGenerator() }
-    	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
+    	service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     	service.metaClass.doCall = { PhoneNumber fromNum, BasePhoneNumber toNum,
             Map afterPickup, String callback ->
 	        new Result(status:ResultStatus.OK, payload:[afterPickup:afterPickup, callback:callback])
@@ -43,7 +43,7 @@ class CallServiceSpec extends Specification {
 
     void "test starting a call to one or more numbers"() {
     	given:
-    	Map afterPickup = [id: TestHelpers.randString()]
+    	Map afterPickup = [id: TestUtils.randString()]
     	PhoneNumber fromNum = new PhoneNumber(number:"1112223333"),
     		toNum1 = new PhoneNumber(number:"1112223334"),
     		toNum2 = new PhoneNumber(number:"1112223335")
@@ -60,7 +60,7 @@ class CallServiceSpec extends Specification {
     	when: "we start a call with multiple 'to' numbers"
     	callback = [handle:Constants.CALLBACK_STATUS,
     		remaining:[toNum2.e164PhoneNumber],
-    		afterPickup:Helpers.toJsonString(afterPickup)]
+    		afterPickup:DataFormatUtils.toJsonString(afterPickup)]
     	res = service.start(fromNum, [toNum1, toNum2], afterPickup)
 
     	then:
@@ -71,8 +71,8 @@ class CallServiceSpec extends Specification {
     @FreshRuntime
     void "test retrying a failed call"() {
     	given:
-    	String existingApiId = TestHelpers.randString()
-    	String newApiId = TestHelpers.randString()
+    	String existingApiId = TestUtils.randString()
+    	String newApiId = TestUtils.randString()
     	PhoneNumber fromNum = new PhoneNumber(number:"1112223333"),
     		toNum1 = new PhoneNumber(number:"1112223334"),
     		toNum2 = new PhoneNumber(number:"1112223335")
@@ -111,7 +111,7 @@ class CallServiceSpec extends Specification {
 
     void "test interrupting existing call"() {
         given:
-        String callId = TestHelpers.randString()
+        String callId = TestUtils.randString()
 
         when:
         Result<Void> res = service.interrupt(callId, [:])

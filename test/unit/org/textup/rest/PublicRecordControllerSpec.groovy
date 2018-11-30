@@ -38,7 +38,7 @@ class PublicRecordControllerSpec extends CustomSpec {
     @DirtiesRuntime
     void "test invalid request"() {
         given:
-        MockedMethod validate = TestHelpers.mock(TwilioUtils, "validate")
+        MockedMethod validate = TestUtils.mock(TwilioUtils, "validate")
             { new Result(status: ResultStatus.BAD_REQUEST) }
         controller.callbackService = Mock(CallbackService)
         controller.threadService = Mock(ThreadService)
@@ -60,7 +60,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.callbackService = Mock(CallbackService)
         controller.callbackStatusService = Mock(CallbackStatusService)
         controller.threadService = Mock(ThreadService)
-        MockedMethod validate = TestHelpers.mock(TwilioUtils, "validate") { new Result() }
+        MockedMethod validate = TestUtils.mock(TwilioUtils, "validate") { new Result() }
 
         when:
         request.method = "POST"
@@ -84,7 +84,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         given:
         controller.callbackService = Mock(CallbackService)
         controller.threadService = Mock(ThreadService)
-        MockedMethod validate = TestHelpers.mock(TwilioUtils, "validate") { new Result() }
+        MockedMethod validate = TestUtils.mock(TwilioUtils, "validate") { new Result() }
 
         when:
         request.method = "POST"

@@ -132,7 +132,7 @@ class Result<T> {
         }
         int maxNumArgs = action.maximumNumberOfParameters
         List<Object> builtArgs = buildArgs(maxNumArgs, args)
-        Helpers.callClosure(action, builtArgs.toArray())
+        Utils.callClosure(action, builtArgs.toArray())
     }
     protected List<Object> buildArgs(int maxNumArgs, List<Object> args) {
         int numArgs = args.size()

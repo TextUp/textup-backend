@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
@@ -11,7 +11,7 @@ import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="FutureMessage",description = "Operations on messages (call or text) to be \
 	send in the future for staff or teams, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
@@ -46,7 +46,7 @@ class FutureMessageController extends BaseController {
     ])
 	@Transactional(readOnly=true)
     def index() {
-    	if (!Helpers.exactly(1, ["contactId", "tagId"], params)) {
+    	if (!MapUtils.exactly(1, ["contactId", "tagId"], params)) {
     		badRequest()
 		}
     	else if (params.long("contactId")) {
@@ -141,7 +141,7 @@ class FutureMessageController extends BaseController {
         Map fInfo = getJsonPayload(FutureMessage, request)
         if (fInfo == null) { return }
         String tz = params.timezone as String
-        if (!Helpers.exactly(1, ["contactId", "tagId"], params)) {
+        if (!MapUtils.exactly(1, ["contactId", "tagId"], params)) {
             badRequest()
         }
         else if (params.long("contactId")) {

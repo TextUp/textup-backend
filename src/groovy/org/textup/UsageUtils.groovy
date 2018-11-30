@@ -8,14 +8,6 @@ import org.textup.type.*
 @GrailsTypeChecked
 class UsageUtils {
 
-    static final String QUERY_MONTH_FORMAT = "yyyy-MM"
-    static final String DISPLAYED_MONTH_FORMAT = "MMM yyyy"
-    static final String CURRENT_TIME_FORMAT = "MMM dd, y h:mm a"
-
-    static final DateTimeFormatter queryMonthFormat = DateTimeFormat.forPattern(QUERY_MONTH_FORMAT)
-    static final DateTimeFormatter displayedMonthFormat = DateTimeFormat.forPattern(DISPLAYED_MONTH_FORMAT)
-    static final DateTimeFormatter currentTimeFormat = DateTimeFormat.forPattern(CURRENT_TIME_FORMAT)
-
     // Query helpers
     // -------------
 
@@ -98,7 +90,7 @@ class UsageUtils {
             return null
         }
         try {
-            DateTime dt = queryMonthFormat.parseDateTime(queryMonth)
+            DateTime dt = DateTimeUtils.queryMonthFormat.parseDateTime(queryMonth)
             dateTimeToMonthString(dt)
         }
         catch (IllegalArgumentException e) {
@@ -110,14 +102,14 @@ class UsageUtils {
         if (!dt) {
             return ""
         }
-        currentTimeFormat.print(dt)
+        DateTimeUtils.currentTimeFormat.print(dt)
     }
 
     static String dateTimeToMonthString(DateTime dt) {
         if (!dt) {
             return ""
         }
-        displayedMonthFormat.print(dt)
+        DateTimeUtils.displayedMonthFormat.print(dt)
     }
 
     static DateTime monthStringToDateTime(String monthString) {
@@ -125,7 +117,7 @@ class UsageUtils {
             return null
         }
         try {
-            displayedMonthFormat.parseDateTime(monthString)
+            DateTimeUtils.displayedMonthFormat.parseDateTime(monthString)
         }
         catch (IllegalArgumentException e) {
             return null

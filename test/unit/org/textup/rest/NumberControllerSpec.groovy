@@ -32,7 +32,7 @@ class NumberControllerSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        controller.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        controller.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -119,11 +119,11 @@ class NumberControllerSpec extends CustomSpec {
     void "test request verify success"() {
         given:
         controller.numberService = Mock(NumberService)
-        String num = TestHelpers.randPhoneNumber()
+        String num = TestUtils.randPhoneNumber()
 
         when:
         request.method = "POST"
-        request.json = Helpers.toJsonString { phoneNumber(num) }
+        request.json = Utils.toJsonString { phoneNumber(num) }
         controller.save()
 
         then:
@@ -140,12 +140,12 @@ class NumberControllerSpec extends CustomSpec {
     void "test complete verify success"() {
         given:
         controller.numberService = Mock(NumberService)
-        String tok = TestHelpers.randString()
-        String num = TestHelpers.randPhoneNumber()
+        String tok = TestUtils.randString()
+        String num = TestUtils.randPhoneNumber()
 
         when:
         request.method = "POST"
-        request.json = Helpers.toJsonString {
+        request.json = Utils.toJsonString {
             token(tok)
             phoneNumber(num)
         }

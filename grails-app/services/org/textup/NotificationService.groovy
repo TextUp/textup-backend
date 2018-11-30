@@ -46,14 +46,14 @@ class NotificationService {
 	}
 
     Result<NotificationPolicy> update(NotificationPolicy np1, Map body, String timezone) {
-        if (Helpers.to(Boolean, body.useStaffAvailability) != null) {
-            np1.useStaffAvailability = Helpers.to(Boolean, body.useStaffAvailability)
+        if (TypeConversionUtils.to(Boolean, body.useStaffAvailability) != null) {
+            np1.useStaffAvailability = TypeConversionUtils.to(Boolean, body.useStaffAvailability)
         }
-        if (Helpers.to(Boolean, body.manualSchedule) != null) {
-            np1.manualSchedule = Helpers.to(Boolean, body.manualSchedule)
+        if (TypeConversionUtils.to(Boolean, body.manualSchedule) != null) {
+            np1.manualSchedule = TypeConversionUtils.to(Boolean, body.manualSchedule)
         }
-        if (Helpers.to(Boolean, body.isAvailable) != null) {
-            np1.isAvailable = Helpers.to(Boolean, body.isAvailable)
+        if (TypeConversionUtils.to(Boolean, body.isAvailable) != null) {
+            np1.isAvailable = TypeConversionUtils.to(Boolean, body.isAvailable)
         }
         if (body.schedule instanceof Map) {
             Result<Schedule> res = np1.updateSchedule(body.schedule as Map, timezone)
@@ -94,10 +94,10 @@ class NotificationService {
         tokenService.findNotification(token).then { Token tok ->
             Map data = tok.data
             Notification notif = new Notification(contents:data.contents as String,
-                owner:Phone.get(Helpers.to(Long, data.phoneId))?.owner,
-                outgoing:Helpers.to(Boolean, data.outgoing),
-                tokenId:Helpers.to(Long, tok.id))
-            notif.record = Record.get(Helpers.to(Long, data.recordId))
+                owner:Phone.get(TypeConversionUtils.to(Long, data.phoneId))?.owner,
+                outgoing:TypeConversionUtils.to(Boolean, data.outgoing),
+                tokenId:TypeConversionUtils.to(Long, tok.id))
+            notif.record = Record.get(TypeConversionUtils.to(Long, data.recordId))
             if (notif.validate()) {
                 resultFactory.success(notif)
             }

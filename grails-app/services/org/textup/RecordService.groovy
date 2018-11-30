@@ -92,7 +92,7 @@ class RecordService {
                 future = processed.second
                 TempRecordNote tempNote = new TempRecordNote(info: body,
                     note: note2,
-                    after: body.after ? Helpers.toDateTimeWithZone(body.after) : null)
+                    after: body.after ? DateTimeUtils.toDateTimeWithZone(body.after) : null)
                 tempNote.toNote(authService.loggedInAndActive.toAuthor())
             }
             .then { RecordNote note2 -> note2.tryCreateRevision() }

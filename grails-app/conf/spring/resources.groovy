@@ -126,6 +126,17 @@ beans = {
 		namespace = v1Namespace
 	}
 
+	recordItemRequestRenderer(ApiJsonRenderer, RecordItemRequest) {
+		label = tRestConfig.v1.recordItemRequest.singular
+	}
+	recordItemRequestCollectionRenderer(ApiJsonCollectionRenderer, RecordItemRequest) {
+		label = tRestConfig.v1.recordItemRequest.plural
+	}
+	recordItemRequestJsonMarshaller(RecordItemRequestJsonMarshaller) {
+		name = tRestConfig.defaultLabel
+		namespace = v1Namespace
+	}
+
 	revisionRenderer(ApiJsonRenderer, ReadOnlyRecordNoteRevision) {
 		label = tRestConfig.v1.revision.singular
 	}

@@ -34,13 +34,13 @@ class CustomSpec extends Specification {
     // ----
 
     void setupData() {
-        iterNum = TestHelpers.randIntegerUpTo(100000000)
+        iterNum = TestUtils.randIntegerUpTo(100000000)
         setupData(iterNum)
     }
     void setupData(int iterNum) {
-        Helpers.metaClass.'static'.getLinkGenerator = { -> TestHelpers.mockLinkGenerator() }
-        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
 
         loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"
@@ -59,7 +59,7 @@ class CustomSpec extends Specification {
     // -----------
 
     void setupIntegrationData() {
-        iterNum = TestHelpers.randIntegerUpTo(100000000)
+        iterNum = TestUtils.randIntegerUpTo(100000000)
         setupIntegrationData(iterNum)
     }
     // Allow passing in these to integration data because when we are using
@@ -85,10 +85,10 @@ class CustomSpec extends Specification {
     // ----------
 
     protected void organizations(int iterNum) {
-        BigDecimal randLat1 = TestHelpers.randIntegerUpTo(90),
-            randLat2 = TestHelpers.randIntegerUpTo(90),
-            randLon1 = TestHelpers.randIntegerUpTo(180),
-            randLon2 = TestHelpers.randIntegerUpTo(180)
+        BigDecimal randLat1 = TestUtils.randIntegerUpTo(90),
+            randLat2 = TestUtils.randIntegerUpTo(90),
+            randLon1 = TestUtils.randIntegerUpTo(180),
+            randLon2 = TestUtils.randIntegerUpTo(180)
         //our org
         org = new Organization(name:"1organiz$iterNum", status:OrgStatus.APPROVED)
         org.location = new Location(address:"Testing Address", lat:randLat1, lon:randLon1)
@@ -109,10 +109,10 @@ class CustomSpec extends Specification {
         t2.save(flush:true, failOnError:true)
 
         //add team phones
-        tPh1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        tPh1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         tPh1.updateOwner(t1)
         tPh1.save(flush:true, failOnError:true)
-        tPh2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        tPh2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         tPh2.updateOwner(t2)
         tPh2.save(flush:true, failOnError:true)
 
@@ -124,10 +124,10 @@ class CustomSpec extends Specification {
         otherT1.save(flush:true, failOnError:true)
         otherT2.save(flush:true, failOnError:true)
         //add a team phone
-        otherTPh1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        otherTPh1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         otherTPh1.updateOwner(otherT1)
         otherTPh1.save(flush:true, failOnError:true)
-        otherTPh2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        otherTPh2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         otherTPh2.updateOwner(otherT2)
         otherTPh2.save(flush:true, failOnError:true)
     }
@@ -152,13 +152,13 @@ class CustomSpec extends Specification {
         s3.save(flush:true, failOnError:true)
 
         //phone numbers for staff at our org
-        p1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        p1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         p1.updateOwner(s1)
         p1.save(flush:true, failOnError:true)
-        p2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        p2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         p2.updateOwner(s2)
         p2.save(flush:true, failOnError:true)
-        p3 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        p3 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         p3.updateOwner(s3)
         p3.save(flush:true, failOnError:true)
 
@@ -179,13 +179,13 @@ class CustomSpec extends Specification {
         otherS2.save(flush:true, failOnError:true)
         otherS3.save(flush:true, failOnError:true)
         //phone numbers for staff at our org
-        otherP1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        otherP1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         otherP1.updateOwner(otherS1)
         otherP1.save(flush:true, failOnError:true)
-        otherP2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        otherP2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         otherP2.updateOwner(otherS2)
         otherP2.save(flush:true, failOnError:true)
-        otherP3 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        otherP3 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         otherP3.updateOwner(otherS3)
         otherP3.save(flush:true, failOnError:true)
         // staff roles

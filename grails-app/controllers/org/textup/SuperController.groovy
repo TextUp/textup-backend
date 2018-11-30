@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.plugin.springsecurity.SpringSecurityUtils
 import grails.transaction.Transactional
@@ -8,7 +8,7 @@ import org.springframework.security.access.annotation.Secured
 import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.type.OrgStatus
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Secured("ROLE_ADMIN")
 @Transactional
 class SuperController {

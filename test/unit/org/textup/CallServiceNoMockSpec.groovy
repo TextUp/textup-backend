@@ -33,17 +33,17 @@ class CallServiceNoMockSpec extends Specification {
     def setup() {
         def twilioTestConfig = grailsApplication.config.textup.apiKeys.twilio
         Twilio.init(twilioTestConfig.sid, twilioTestConfig.authToken)
-        Helpers.metaClass."static".getWebhookLink = { Map args = [:] -> "http://www.example.com" }
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getWebhookLink = { Map args = [:] -> "http://www.example.com" }
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     void "test starting a call to one or more numbers"() {
         given:
-        PhoneNumber invalidFrom1 = new PhoneNumber(number:Constants.TEST_CALL_FROM_NOT_VALID)
-        PhoneNumber fromNum1 = new PhoneNumber(number:Constants.TEST_CALL_FROM_VALID),
+        PhoneNumber invalidFrom1 = new PhoneNumber(number:TestConstants.TEST_CALL_FROM_NOT_VALID)
+        PhoneNumber fromNum1 = new PhoneNumber(number:TestConstants.TEST_CALL_FROM_VALID),
             toNum1 = new PhoneNumber(number:"+16262223334"),
             toNum2 = new PhoneNumber(number:"+16262223335"),
-            invalidNum1 = new PhoneNumber(number:Constants.TEST_CALL_TO_NOT_VALID)
+            invalidNum1 = new PhoneNumber(number:TestConstants.TEST_CALL_TO_NOT_VALID)
         assert [invalidFrom1, fromNum1, toNum1, toNum2, invalidNum1].each { it.validate() }
 
         when: "we try to call with an invalid 'from' number"

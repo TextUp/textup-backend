@@ -1,9 +1,9 @@
 package org.textup.type
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.type.RecordItemType
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 enum FutureMessageType {
 	CALL(RecordItemType.CALL),
 	TEXT(RecordItemType.TEXT)

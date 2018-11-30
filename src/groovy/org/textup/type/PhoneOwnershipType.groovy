@@ -1,8 +1,8 @@
 package org.textup.type
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 enum PhoneOwnershipType {
 	INDIVIDUAL,
 	GROUP

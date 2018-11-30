@@ -3,10 +3,10 @@ package org.textup.validator
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import com.sendgrid.Email
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @ToString
 @Validateable

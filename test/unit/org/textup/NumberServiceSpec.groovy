@@ -13,14 +13,14 @@ class NumberServiceSpec extends Specification {
     }
 
     def setup() {
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     void "test start verifying ownership"() {
         given:
         PhoneNumber invalidNum = new PhoneNumber(number: "abc")
-        PhoneNumber validNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber validNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
         assert invalidNum.validate() == false
         assert validNum.validate()
         service.tokenService = Mock(TokenService)
@@ -35,7 +35,7 @@ class NumberServiceSpec extends Specification {
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when:
-        Helpers.metaClass."static".tryGetNotificationNumber = { ->
+        Utils.metaClass."static".tryGetNotificationNumber = { ->
             new Result(payload: new PhoneNumber())
         }
         res = service.startVerifyOwnership(validNum)

@@ -1,10 +1,10 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @RestApiObject(name="Location", description="A location")
 class Location implements ReadOnlyLocation, WithId {

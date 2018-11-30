@@ -1,16 +1,14 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.textup.Constants
-import org.textup.Helpers
-import org.textup.Staff
+import org.textup.*
 import org.textup.type.NotificationLevel
 
 // documented as [notificationAction] in CustomApiDocs.groovy
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class NotificationPolicyAction extends BaseAction {
@@ -20,7 +18,7 @@ class NotificationPolicyAction extends BaseAction {
 
 	static constraints = {
 		id validator: { Long staffId ->
-			if (staffId && !Helpers.<Boolean>doWithoutFlush({ Staff.exists(staffId) })) {
+			if (staffId && !Utils.<Boolean>doWithoutFlush({ Staff.exists(staffId) })) {
 				["doesNotExist"]
 			}
 		}
@@ -30,7 +28,7 @@ class NotificationPolicyAction extends BaseAction {
 					return ["requiredForChangingDefault"]
 				}
 				Collection<String> options = NotificationLevel.values().collect { it.toString() }
-				if (!Helpers.inListIgnoreCase(level, options)) {
+				if (!CollectionUtils.inListIgnoreCase(level, options)) {
 					return ["invalid", options]
 				}
 			}
@@ -50,6 +48,6 @@ class NotificationPolicyAction extends BaseAction {
 	// -------
 
 	NotificationLevel getLevelAsEnum() {
-		Helpers.<NotificationLevel>convertEnum(NotificationLevel, this.level)
+		TypeConversionUtils.convertEnum(NotificationLevel, this.level)
 	}
 }

@@ -32,7 +32,7 @@ class FutureMessageControllerSpec extends CustomSpec {
     def setup() {
         super.setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
-        Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
+        IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
         fMsg1 = new FutureMessage(record: c1.record, type:FutureMessageType.CALL, message:"hi")
         fMsg1.save(flush:true, failOnError:true)
     }

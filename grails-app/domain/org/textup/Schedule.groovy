@@ -5,9 +5,9 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.ScheduleStatus
 import org.textup.validator.ScheduleChange
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 class Schedule implements WithId {
 
@@ -18,7 +18,7 @@ class Schedule implements WithId {
     // ------------
 
     boolean isAvailableAt(DateTime dt) {
-        Helpers.resultFactory.success(false)
+        IOCUtils.resultFactory.success(false)
     }
     boolean isAvailableNow() {
         isAvailableAt(DateTime.now(DateTimeZone.UTC))
@@ -28,20 +28,20 @@ class Schedule implements WithId {
     // --------------
 
     Result<ScheduleChange> nextChange(String timezone=null) {
-        Helpers.resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
+        IOCUtils.resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
             when:DateTime.now(DateTimeZone.UTC).minusDays(1)))
     }
     Result<DateTime> nextAvailable(String timezone=null) {
-        Helpers.resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
+        IOCUtils.resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
     }
     Result<DateTime> nextUnavailable(String timezone=null) {
-        Helpers.resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
+        IOCUtils.resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
     }
 
     // Modify the Schedule
     // -------------------
 
     Result<Schedule> update(Map params) {
-        Helpers.resultFactory.success(this)
+        IOCUtils.resultFactory.success(this)
     }
 }

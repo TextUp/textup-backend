@@ -1,14 +1,14 @@
 package org.textup.validator
 
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
-import org.joda.time.LocalTime
 import org.joda.time.Interval
+import org.joda.time.LocalTime
 import org.joda.time.Minutes
-import grails.compiler.GrailsCompileStatic
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @ToString
 @Validateable

@@ -38,8 +38,8 @@ class ImageUtilsSpec extends Specification {
 
     void "test converting byte data to a BufferedImage WITHOUT exception catching"() {
         given:
-        byte[] jpegTest = TestHelpers.getJpegSampleData512()
-        byte[] pngTest = TestHelpers.getPngSampleData()
+        byte[] jpegTest = TestUtils.getJpegSampleData512()
+        byte[] pngTest = TestUtils.getPngSampleData()
         assert jpegTest != null
         assert pngTest != null
 
@@ -65,7 +65,7 @@ class ImageUtilsSpec extends Specification {
     void "test repeated encoding + decoding jpeg WITHOUT exception catching"() {
         given: "encode our initial jpeg image from byte data"
         ImageWriter writer = ImageUtils.getWriter(MediaType.IMAGE_JPEG)
-        byte[] initialData = TestHelpers.getJpegSampleData512()
+        byte[] initialData = TestUtils.getJpegSampleData512()
         BufferedImage jpgImg = ImageUtils.tryGetImageFromData(initialData)
         assert jpgImg != null
         ImageWriteParam param1 = writer.defaultWriteParam
@@ -97,7 +97,7 @@ class ImageUtilsSpec extends Specification {
     void "test decoding jpeg with compression"() {
         given: "encode our initial jpeg image from byte data"
         ImageWriter writer = ImageUtils.getWriter(MediaType.IMAGE_JPEG)
-        byte[] initialData = TestHelpers.getJpegSampleData512()
+        byte[] initialData = TestUtils.getJpegSampleData512()
         BufferedImage jpgImg = ImageUtils.tryGetImageFromData(initialData)
         assert jpgImg != null
 
@@ -123,7 +123,7 @@ class ImageUtilsSpec extends Specification {
     void "test trying to compress png results in exception"() {
         given: "encode our initial jpeg image from byte data"
         ImageWriter writer = ImageUtils.getWriter(MediaType.IMAGE_PNG)
-        byte[] initialData = TestHelpers.getPngSampleData()
+        byte[] initialData = TestUtils.getPngSampleData()
         BufferedImage pngImg = ImageUtils.tryGetImageFromData(initialData)
         assert pngImg != null
 
@@ -146,7 +146,7 @@ class ImageUtilsSpec extends Specification {
     void "test trying to compress gif requires setting compression type"() {
         given: "encode our initial jpeg image from byte data"
         ImageWriter writer = ImageUtils.getWriter(MediaType.IMAGE_GIF)
-        byte[] initialData = TestHelpers.getGifSampleData()
+        byte[] initialData = TestUtils.getGifSampleData()
         BufferedImage gifImg = ImageUtils.tryGetImageFromData(initialData)
         assert gifImg != null
 
@@ -169,8 +169,8 @@ class ImageUtilsSpec extends Specification {
     @Unroll
     void "test resizing width for #type"() {
         given: "obj with data"
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(type)
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
+        byte[] inputData1 = TestUtils.getSampleDataForMimeType(type)
         BufferedImage image1 = ImageUtils.tryGetImageFromData(inputData1)
 
         when: "resize to a zero width"
@@ -220,8 +220,8 @@ class ImageUtilsSpec extends Specification {
 
     void "test compression short circuiting"() {
         given: "obj representing a PNG image (not compressible)"
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getPngSampleData()
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
+        byte[] inputData1 = TestUtils.getPngSampleData()
         BufferedImage image1 = ImageUtils.tryGetImageFromData(inputData1)
 
         when: "compress to a zero size"
@@ -245,8 +245,8 @@ class ImageUtilsSpec extends Specification {
     @Unroll
     void "test compression for #type"() {
         given: "obj with compressible data"
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getSampleDataForMimeType(type)
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
+        byte[] inputData1 = TestUtils.getSampleDataForMimeType(type)
         BufferedImage image1 = ImageUtils.tryGetImageFromData(inputData1)
 
         when: "compress to impossibly small size"

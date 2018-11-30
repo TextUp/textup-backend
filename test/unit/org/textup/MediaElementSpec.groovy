@@ -6,7 +6,7 @@ import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.springframework.validation.Errors
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import org.textup.validator.UploadItem
 import spock.lang.*
 
@@ -46,8 +46,8 @@ class MediaElementSpec extends Specification {
 
     void "test getting types and versions"() {
         given:
-        Helpers.metaClass."static".getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        byte[] inputData1 = TestHelpers.getJpegSampleData512()
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
+        byte[] inputData1 = TestUtils.getJpegSampleData512()
         UploadItem uItem1 = new UploadItem(type: MediaType.IMAGE_JPEG, data: inputData1)
 
         when: "empty obj"
@@ -145,7 +145,7 @@ class MediaElementSpec extends Specification {
 
     void "test static creation method"() {
         given:
-        Helpers.metaClass."static".getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
         UploadItem mockSendItem = Mock(UploadItem)
         UploadItem mockAltItem = Mock(UploadItem)
 
@@ -161,8 +161,8 @@ class MediaElementSpec extends Specification {
         res = MediaElement.create(mockSendItem, [mockAltItem])
 
         then: "valid -- see mocks"
-        1 * mockSendItem.toMediaElementVersion() >> TestHelpers.buildMediaElementVersion()
-        1 * mockAltItem.toMediaElementVersion() >> TestHelpers.buildMediaElementVersion()
+        1 * mockSendItem.toMediaElementVersion() >> TestUtils.buildMediaElementVersion()
+        1 * mockAltItem.toMediaElementVersion() >> TestUtils.buildMediaElementVersion()
         res.success == true
         res.payload instanceof MediaElement
         res.payload.validate()

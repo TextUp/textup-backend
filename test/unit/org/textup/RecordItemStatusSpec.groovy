@@ -5,7 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.type.ReceiptStatus
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.*
 
 class RecordItemStatusSpec extends Specification {
@@ -19,10 +19,10 @@ class RecordItemStatusSpec extends Specification {
         int numPending = 4
         int numBusy = 8
         int numSuccess = 3
-        numFailed.times { rStat1.add(TestHelpers.buildReceipt(ReceiptStatus.FAILED)) }
-        numPending.times { rStat1.add(TestHelpers.buildReceipt(ReceiptStatus.PENDING)) }
-        numBusy.times { rStat1.add(TestHelpers.buildReceipt(ReceiptStatus.BUSY)) }
-        numSuccess.times { rStat1.add(TestHelpers.buildReceipt(ReceiptStatus.SUCCESS)) }
+        numFailed.times { rStat1.add(TestUtils.buildReceipt(ReceiptStatus.FAILED)) }
+        numPending.times { rStat1.add(TestUtils.buildReceipt(ReceiptStatus.PENDING)) }
+        numBusy.times { rStat1.add(TestUtils.buildReceipt(ReceiptStatus.BUSY)) }
+        numSuccess.times { rStat1.add(TestUtils.buildReceipt(ReceiptStatus.SUCCESS)) }
 
         then: "can retrieve added receipts grouped by status"
         rStat1.failed.every { it instanceof String }

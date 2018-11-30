@@ -40,7 +40,7 @@ class ResultFactory {
     }
 
     public <T> Result<T> failWithCodeAndStatus(String code, ResultStatus status, List params = []) {
-        Result.<T>createError([Helpers.getMessage(code, params)], status)
+        Result.<T>createError([IOCUtils.getMessage(code, params)], status)
     }
 
 	public <T> Result<T> failWithThrowable(Throwable t) {
@@ -54,7 +54,7 @@ class ResultFactory {
     public <T> Result<T> failWithManyValidationErrors(Collection<Errors> manyErrors) {
         List<String> messages = []
     	manyErrors.each { Errors errors ->
-    		messages.addAll(errors.allErrors.collect { ObjectError e1 -> Helpers.getMessage(e1) })
+    		messages.addAll(errors.allErrors.collect { ObjectError e1 -> IOCUtils.getMessage(e1) })
 		}
     	Result.<T>createError(messages, ResultStatus.UNPROCESSABLE_ENTITY)
     }

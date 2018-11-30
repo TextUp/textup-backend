@@ -1,10 +1,10 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import org.springframework.http.HttpStatus
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Log4j
 enum ResultStatus {
 	ACCEPTED(HttpStatus.ACCEPTED),

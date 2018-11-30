@@ -9,7 +9,7 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import org.textup.validator.*
 import spock.lang.Specification
 
@@ -25,7 +25,7 @@ class StorageServiceSpec extends Specification {
 	}
 
 	void setup() {
-		service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+		service.resultFactory = TestUtils.getResultFactory(grailsApplication)
         service.grailsApplication = grailsApplication
 	}
 
@@ -35,7 +35,7 @@ class StorageServiceSpec extends Specification {
         UploadItem invalidItem = new UploadItem()
         assert invalidItem.validate() == false
 
-        byte[] inputData1 = TestHelpers.getPngSampleData()
+        byte[] inputData1 = TestUtils.getPngSampleData()
         UploadItem validItem = new UploadItem(type: MediaType.IMAGE_PNG, data: inputData1)
         assert validItem.validate() == true
 
@@ -95,7 +95,7 @@ class StorageServiceSpec extends Specification {
         List<UploadItem> uItems = []
         int numSuccesses = 5
         int numFailures = 3
-        byte[] inputData1 = TestHelpers.getPngSampleData()
+        byte[] inputData1 = TestUtils.getPngSampleData()
         numSuccesses.times {
             uItems << new UploadItem(type: MediaType.IMAGE_PNG, data: inputData1)
         }

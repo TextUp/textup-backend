@@ -34,7 +34,7 @@ class ContactServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
         service.authService = [
             getLoggedInAndActive: { -> s1 }
         ] as AuthService
@@ -148,7 +148,7 @@ class ContactServiceSpec extends CustomSpec {
 
         when: "we successfully update a shared contact"
         assert sc1.canModify
-        String name2 = TestHelpers.randString()
+        String name2 = TestUtils.randString()
         res = service.update(sc1.contactId, [name: name2], sc1.id)
 
         then:
@@ -217,7 +217,7 @@ class ContactServiceSpec extends CustomSpec {
             note: UUID.randomUUID().toString(),
             status: ContactStatus.ARCHIVED.toString()
         ]
-        ContactStatus newStatus1 = Helpers.convertEnum(ContactStatus, updateInfo.status)
+        ContactStatus newStatus1 = TypeConversionUtils.convertEnum(ContactStatus, updateInfo.status)
         Result res = service.updateContactInfo(contact1, updateInfo, sc1)
 
         then: "all field updated except for the status, which is updated on shared contact"
@@ -244,7 +244,7 @@ class ContactServiceSpec extends CustomSpec {
             note: UUID.randomUUID().toString(),
             status: ContactStatus.BLOCKED.toString()
         ]
-        newStatus1 = Helpers.convertEnum(ContactStatus, updateInfo.status)
+        newStatus1 = TypeConversionUtils.convertEnum(ContactStatus, updateInfo.status)
         res = service.updateContactInfo(contact1, updateInfo, sc1)
 
         then: "only status flag is respected"

@@ -49,12 +49,12 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     void "test request request success"() {
         given:
-        String un = TestHelpers.randString()
+        String un = TestUtils.randString()
         controller.passwordResetService = Mock(PasswordResetService)
 
     	when:
     	request.method = "POST"
-    	request.json = Helpers.toJsonString { username(un) }
+    	request.json = Utils.toJsonString { username(un) }
     	controller.requestReset()
 
     	then:
@@ -81,13 +81,13 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     void "test complete request success"() {
     	given:
-    	String tok = TestHelpers.randString()
-        String pwd = TestHelpers.randString()
+    	String tok = TestUtils.randString()
+        String pwd = TestUtils.randString()
         controller.passwordResetService = Mock(PasswordResetService)
 
     	when:
     	request.method = "PUT"
-    	request.json = Helpers.toJsonString {
+    	request.json = Utils.toJsonString {
     		token(tok)
     		password(pwd)
 		}

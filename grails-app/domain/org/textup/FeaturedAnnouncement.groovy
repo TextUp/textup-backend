@@ -142,10 +142,10 @@ class FeaturedAnnouncement implements WithId {
                     _receiptsToBeSaved = _receiptsToBeSaved ?:
                         new ArrayList<AnnouncementReceipt>()
                     _receiptsToBeSaved << receipt
-                    resGroup << Helpers.resultFactory.success(receipt)
+                    resGroup << IOCUtils.resultFactory.success(receipt)
                 }
                 else {
-                    resGroup << Helpers.resultFactory.failWithValidationErrors(receipt.errors)
+                    resGroup << IOCUtils.resultFactory.failWithValidationErrors(receipt.errors)
                 }
             }
         }
@@ -153,7 +153,7 @@ class FeaturedAnnouncement implements WithId {
     }
     protected HashSet<Long> repeatsForTypeAndSessions(RecordItemType type,
         Collection<IncomingSession> sessions) {
-        Helpers.<HashSet<Long>>doWithoutFlush({
+        Utils.<HashSet<Long>>doWithoutFlush({
             Collection<AnnouncementReceipt> repeats = _receiptsToBeSaved?.findAll {
                 it.type == type && it.session in sessions
             } ?: new ArrayList<AnnouncementReceipt>()

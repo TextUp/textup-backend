@@ -26,8 +26,8 @@ class IncomingMediaValidatorsSpec extends Specification {
         when: "invalid"
         media1.mimeType = MediaType.AUDIO_MP3.mimeType
         media1.url = "not a url"
-        media1.messageId = TestHelpers.randString()
-        media1.mediaId = TestHelpers.randString()
+        media1.messageId = TestUtils.randString()
+        media1.mediaId = TestUtils.randString()
         media1.isPublic = true
 
         then:
@@ -46,8 +46,8 @@ class IncomingMediaValidatorsSpec extends Specification {
         given: "valid incoming media"
         IncomingMediaInfo media1 = new IncomingMediaInfo(mimeType: MediaType.AUDIO_MP3.mimeType,
             url: "https://www.example.com",
-            messageId: TestHelpers.randString(),
-            mediaId: TestHelpers.randString(),
+            messageId: TestUtils.randString(),
+            mediaId: TestUtils.randString(),
             isPublic: true)
         assert media1.validate()
 
@@ -69,7 +69,7 @@ class IncomingMediaValidatorsSpec extends Specification {
         when: "invalid"
         recording1.mimeType = MediaType.AUDIO_MP3.mimeType
         recording1.url = "not a url"
-        recording1.mediaId = TestHelpers.randString()
+        recording1.mediaId = TestUtils.randString()
         recording1.isPublic = true
 
         then:
@@ -88,7 +88,7 @@ class IncomingMediaValidatorsSpec extends Specification {
         given: "valid incoming media"
         IncomingRecordingInfo recording1 = new IncomingRecordingInfo(mimeType: MediaType.AUDIO_MP3.mimeType,
             url: "https://www.example.com",
-            mediaId: TestHelpers.randString(),
+            mediaId: TestUtils.randString(),
             isPublic: true)
         assert recording1.validate()
 

@@ -1,9 +1,9 @@
 package org.textup.type
 
 import com.twilio.twiml.Say.Language
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 enum VoiceLanguage {
     CHINESE(Language.ZH_CN),
     ENGLISH(Language.EN_US),

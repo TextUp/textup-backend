@@ -110,7 +110,7 @@ class IncomingMessageService {
         }
         if (!outcomes.anyFailures) {
             // send out notifications
-            String instr = Helpers.getMessage("incomingMessageService.notifyStaff.notification")
+            String instr = IOCUtils.getMessage("incomingMessageService.notifyStaff.notification")
             notificationService.send(notifs, false, text.message, instr)
                 .logFail("IncomingMessageService.finishProcessingTextHelper: notifying staff")
             // For outgoing messages and all calls, we rely on status callbacks

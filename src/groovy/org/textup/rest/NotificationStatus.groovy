@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.ToString
 import org.textup.Staff
@@ -8,7 +8,7 @@ import org.textup.Staff
 // Container class to enable customized json output from the API endpoint
 // Custom marshalled JSON documented as [notificationStatus] in CustomApiDocs.groovy
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @ToString
 @Validateable
 class NotificationStatus {

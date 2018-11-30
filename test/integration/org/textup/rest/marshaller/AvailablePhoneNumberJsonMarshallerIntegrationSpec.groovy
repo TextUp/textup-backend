@@ -36,7 +36,7 @@ class AvailablePhoneNumberJsonMarshallerIntegrationSpec extends CustomSpec {
         when: "a number with a sid"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(sidNum as JSON)
+            json = TestUtils.jsonToMap(sidNum as JSON)
         }
 
         then:
@@ -45,7 +45,7 @@ class AvailablePhoneNumberJsonMarshallerIntegrationSpec extends CustomSpec {
 
         when: "a number with a region"
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(regionNum as JSON)
+            json = TestUtils.jsonToMap(regionNum as JSON)
         }
 
         then:

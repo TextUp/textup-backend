@@ -138,11 +138,11 @@ class ContactTagSpec extends CustomSpec {
 
     void "test static finders"() {
         when: "tags and contacts all not deleted"
-        Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
-        Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
-        Contact contact3 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
-        ContactTag tag1 = p1.createTag([name:TestHelpers.randPhoneNumber()]).payload
-        ContactTag tag2 = p1.createTag([name:TestHelpers.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact2 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact3 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        ContactTag tag1 = p1.createTag([name:TestUtils.randPhoneNumber()]).payload
+        ContactTag tag2 = p1.createTag([name:TestUtils.randPhoneNumber()]).payload
 
         tag1.addToMembers(contact1)
         tag1.addToMembers(contact2)

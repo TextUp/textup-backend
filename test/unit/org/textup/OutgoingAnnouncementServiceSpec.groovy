@@ -27,7 +27,7 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -135,8 +135,8 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test announcement none reached"() {
         given: "phone and incoming sessions, some coinciding with contacts"
-        MockedMethod sendTextAnnouncement = TestHelpers.mock(service, "sendTextAnnouncement") { [:] }
-        MockedMethod startCallAnnouncement = TestHelpers.mock(service, "startCallAnnouncement") { [:] }
+        MockedMethod sendTextAnnouncement = TestUtils.mock(service, "sendTextAnnouncement") { [:] }
+        MockedMethod startCallAnnouncement = TestUtils.mock(service, "startCallAnnouncement") { [:] }
 
         when: "none reached with no subscribers"
         Result<FeaturedAnnouncement> res = service.send(p1, "hello", DateTime.now().plusDays(1), s1)
@@ -174,9 +174,9 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
             isSubscribedToText:true, isSubscribedToCall:true)
         sess.save(flush:true, failOnError:true)
         // mock helper methods
-        MockedMethod sendTextAnnouncement = TestHelpers.mock(service, "sendTextAnnouncement")
+        MockedMethod sendTextAnnouncement = TestUtils.mock(service, "sendTextAnnouncement")
             { [(subNum): new Result(status:ResultStatus.OK)] }
-        MockedMethod startCallAnnouncement = TestHelpers.mock(service, "startCallAnnouncement")
+        MockedMethod startCallAnnouncement = TestUtils.mock(service, "startCallAnnouncement")
             { [(subNum): new Result(status:ResultStatus.OK)] }
         // baselines
         int featBaseline = FeaturedAnnouncement.count(),

@@ -132,7 +132,7 @@ class MailService {
         }
         // build the email
         ASM asm = new ASM()
-        Integer groupId = Helpers.to(Integer, config("textup.apiKeys.sendGrid.groupIds.account"))
+        Integer groupId = TypeConversionUtils.to(Integer, config("textup.apiKeys.sendGrid.groupIds.account"))
         if (groupId != null) {
             asm.setGroupId(groupId)
         }

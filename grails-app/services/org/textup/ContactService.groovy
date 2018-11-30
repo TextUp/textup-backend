@@ -94,7 +94,7 @@ class ContactService {
             // since we are updating an existing contact, we can be sure that this contact's
             // record has already been initialized
             if (body.language) {
-                c1.record.language = Helpers.convertEnum(VoiceLanguage, body.language)
+                c1.record.language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
                 if (!c1.record.save()) {
                     return resultFactory.failWithValidationErrors(c1.record.errors)
                 }
@@ -104,7 +104,7 @@ class ContactService {
         // if updating the status, update on the shared contact if available to avoid overwriting
         // the status on the original contact
         if (body.status) {
-            ContactStatus newStat1 = Helpers.convertEnum(ContactStatus, body.status)
+            ContactStatus newStat1 = TypeConversionUtils.convertEnum(ContactStatus, body.status)
             if (sc1) {
                 sc1.status = newStat1
                 sc1.lastTouched = DateTime.now()
@@ -230,8 +230,8 @@ class ContactService {
     protected Result<RecordNote> recordSharingChangesHelper(Record rec, HashSet<String> names,
         String code, Author auth) {
         List<String> namesList = new ArrayList<>(names)
-        String namesString = Helpers.joinWithDifferentLast(namesList, ", ", ", and "),
-            contents = Helpers.getMessage(code, [namesString])
+        String namesString = CollectionUtils.joinWithDifferentLast(namesList, ", ", ", and "),
+            contents = IOCUtils.getMessage(code, [namesString])
         RecordNote rNote1 = new RecordNote(record:rec, isReadOnly:true, noteContents:contents)
         rNote1.author = auth
         if (rNote1.save()) {

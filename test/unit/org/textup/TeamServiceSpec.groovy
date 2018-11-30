@@ -27,7 +27,7 @@ class TeamServiceSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
         service.phoneService = [
             mergePhone: { Team t1, Map body, String timezone ->
                 new Result(success:ResultStatus.OK, payload:t1)

@@ -1,10 +1,10 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
-import org.textup.Helpers
+import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Validateable
 abstract class BaseAction {
 
@@ -15,7 +15,7 @@ abstract class BaseAction {
 	static constraints =  {
 		action validator:{ String action, BaseAction obj ->
 			Collection<String> options = obj.getAllowedActions()
-			if (!Helpers.inListIgnoreCase(action, options)) {
+			if (!CollectionUtils.inListIgnoreCase(action, options)) {
 				["invalid", options]
 			}
 		}
@@ -27,7 +27,7 @@ abstract class BaseAction {
 	abstract Collection<String> getAllowedActions()
 
 	boolean matches(String toMatch) {
-		Helpers.toLowerCaseString(action) == Helpers.toLowerCaseString(toMatch)
+		StringUtils.toLowerCaseString(action) == StringUtils.toLowerCaseString(toMatch)
 	}
 
 	// enable use of this class in switch statements

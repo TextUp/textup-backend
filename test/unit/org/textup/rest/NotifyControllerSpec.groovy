@@ -14,7 +14,7 @@ class NotifyControllerSpec extends Specification {
         given:
         controller.notificationService = Mock(NotificationService)
         Notification notif = Mock()
-        String tokenId = TestHelpers.randString()
+        String tokenId = TestUtils.randString()
 
     	when:
     	request.method = "GET"

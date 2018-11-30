@@ -1,12 +1,12 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class TeamJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, Team t1 ->

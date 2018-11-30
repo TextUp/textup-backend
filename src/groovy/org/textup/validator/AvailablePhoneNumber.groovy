@@ -1,10 +1,10 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class AvailablePhoneNumber extends BasePhoneNumber {

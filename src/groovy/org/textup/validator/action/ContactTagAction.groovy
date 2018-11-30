@@ -1,15 +1,15 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.Constants
 import org.textup.Contact
-import org.textup.Helpers
+import org.textup.Utils
 
 // documented as [tagAction] in CustomApiDocs.groovy
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class ContactTagAction extends BaseAction {
@@ -18,7 +18,7 @@ class ContactTagAction extends BaseAction {
 
 	static constraints = {
 		id validator: { Long contactId ->
-			if (!Helpers.<Boolean>doWithoutFlush({ Contact.exists(contactId) })) {
+			if (!Utils.<Boolean>doWithoutFlush({ Contact.exists(contactId) })) {
 				["doesNotExist"]
 			}
 		}

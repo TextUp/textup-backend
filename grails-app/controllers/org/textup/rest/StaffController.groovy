@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import javax.servlet.http.HttpServletRequest
@@ -11,7 +11,7 @@ import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="Staff", description = "Operations on staff members after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class StaffController extends BaseController {
@@ -65,7 +65,7 @@ class StaffController extends BaseController {
         if (params.search) {
             listSearch(params)
         }
-        else if (Helpers.exactly(1, ["organizationId", "teamId", "canShareStaffId"], params)) {
+        else if (MapUtils.exactly(1, ["organizationId", "teamId", "canShareStaffId"], params)) {
             if (params.organizationId) {
                 listForOrg(params)
             }

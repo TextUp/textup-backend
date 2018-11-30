@@ -1,12 +1,12 @@
 package org.textup.rest
 
+import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import org.restapidoc.annotation.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import grails.compiler.GrailsCompileStatic
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="[Public] Staff", description = "Creating new staff members only. Accessible to all.")
 @Secured("permitAll")
 class PublicStaffController extends StaffController {

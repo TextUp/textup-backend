@@ -47,7 +47,7 @@ class TeamControllerSpec extends CustomSpec {
         request.method = "GET"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allTo(Long, loggedIn.teams*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.teams*.id)
 
         then:
         response.status == SC_OK
@@ -72,7 +72,7 @@ class TeamControllerSpec extends CustomSpec {
         request.method = "GET"
         params.organizationId = org.id
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, org.teams*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, org.teams*.id)
 
         then:
         response.status == SC_OK

@@ -1,6 +1,6 @@
 package org.textup.util
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.TypeCheckingMode
 import org.codehaus.groovy.grails.validation.AbstractVetoingConstraint
 import org.springframework.validation.BindingResult
@@ -12,7 +12,7 @@ import org.springframework.validation.FieldError
 // Plugin adapted from blog post --> https://github.com/Grails-Plugin-Consortium/grails-cascade-validation
 // AbstractVetoingConstraint --> https://github.com/grails/grails-core/blob/fa4a156a1a9da0a238a1a82e05a2a4880e0511a9/grails-validation/src/main/groovy/grails/validation/AbstractVetoingConstraint.java
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class CascadeValidationConstraint extends AbstractVetoingConstraint {
 
     static final String NAME = "cascadeValidation"
@@ -76,10 +76,10 @@ class CascadeValidationConstraint extends AbstractVetoingConstraint {
         true // true = should veto because we have validation errors here
     }
 
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected Errors getErrorsHelper(Object obj) { obj.errors }
 
-    @GrailsCompileStatic(TypeCheckingMode.SKIP)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected boolean doValidateHelper(Object propertyValue) {
         if (!propertyValue.respondsTo('validate')) {
             throw new NoSuchMethodException("""Error validating property [$constraintPropertyName].

@@ -1,9 +1,9 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.type.AuthorType
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface Authorable {
     String getAuthorName()
     Long getAuthorId()

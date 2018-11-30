@@ -1,9 +1,9 @@
 package org.textup.type
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.Constants
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 enum TokenType {
 	PASSWORD_RESET([
 		"toBeResetId" // id of the staff to allow password reset for

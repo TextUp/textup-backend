@@ -39,7 +39,7 @@ class TempRecordNote {
 	// This method will update fields and will NOT handle media or revisions
 	Result<RecordNote> toNote(Author auth) {
 		if (!this.validate()) {
-            return Helpers.resultFactory.failWithValidationErrors(this.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(this.errors)
         }
 		RecordNote note1 = note
 		// we manually associate note with record and author instead of using
@@ -52,9 +52,9 @@ class TempRecordNote {
 		tryModifyWhenCreated(note1, this.after)
         // cascades validation and saving to location -- see `cascadeValidation: true` in constraints
         if (note1.save() && (!note1.location || note1.location.save())) {
-            Helpers.resultFactory.success(note1)
+            IOCUtils.resultFactory.success(note1)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(note1.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(note1.errors) }
 	}
 
 	protected RecordNote updateFields(RecordNote note1, Author auth) {
@@ -62,12 +62,12 @@ class TempRecordNote {
 			return note1
 		}
 		note1.author = auth
-		Boolean isDeleted = Helpers.to(Boolean, info.isDeleted)
+		Boolean isDeleted = TypeConversionUtils.to(Boolean, info.isDeleted)
 		if (isDeleted != null) {
 			note1.isDeleted = isDeleted
 		}
 		if (info.noteContents != null) {
-			note1.noteContents = Helpers.to(String, info.noteContents)
+			note1.noteContents = TypeConversionUtils.to(String, info.noteContents)
 		}
 		if (info.location instanceof Map) {
 			// no need to create a separate location because the process of creating
@@ -75,16 +75,17 @@ class TempRecordNote {
 			Location loc = note1.getLocation() ?: new Location()
 			Map lInfo = info.location as Map
 			if (lInfo.address) { loc.address = lInfo.address }
-            if (lInfo.lat) { loc.lat = Helpers.to(BigDecimal, lInfo.lat) }
-            if (lInfo.lon) { loc.lon = Helpers.to(BigDecimal, lInfo.lon) }
+            if (lInfo.lat) { loc.lat = TypeConversionUtils.to(BigDecimal, lInfo.lat) }
+            if (lInfo.lon) { loc.lon = TypeConversionUtils.to(BigDecimal, lInfo.lon) }
             note1.location = loc
 		}
 		note1
 	}
 
 	protected RecordNote tryModifyWhenCreated(RecordNote note1, DateTime afterTime) {
-		RecordItem beforeItem = afterTime ?
-			note1.record?.getSince(afterTime, [max:1])[0] : null
+		RecordItem beforeItem = afterTime
+			? RecordItem.forRecordIdsWithOptions(true, [note1.record?.id], afterTime).list(max:1)[0]
+			: null
 		if (beforeItem) {
 			BigDecimal midpointMillis  = (new Duration(afterTime,
 				beforeItem.whenCreated).millis / 2)
@@ -94,7 +95,7 @@ class TempRecordNote {
 			// and the time that we need to be before (to avoid passing next item)
 			// BUT this # must be between the specified lower and upper bounds
 			long plusAmount = Math.max(lowerBound,
-				Math.min(Helpers.to(Long, midpointMillis), upperBound))
+				Math.min(TypeConversionUtils.to(Long, midpointMillis), upperBound))
 			// set note's whenCreated to the DateTime we need to be after plus an offset
 			note1.whenCreated = afterTime.plus(plusAmount)
 		}

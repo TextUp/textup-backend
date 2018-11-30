@@ -22,7 +22,7 @@ class MediaPostProcessor {
                     .then { UploadItem sendVersion ->
                         ResultGroup<UploadItem> alternates = processor.createAlternateVersions()
                             .logFail("MediaPostProcessor: creating alternate versions")
-                        Helpers.resultFactory.success(sendVersion, alternates.payload)
+                        IOCUtils.resultFactory.success(sendVersion, alternates.payload)
                     }
             }
         }
@@ -32,7 +32,7 @@ class MediaPostProcessor {
     // -------
 
     protected static Result<CanProcessMedia> getProcessor(MediaType type, byte[] data) {
-        ResultFactory resultFactory = Helpers.resultFactory
+        ResultFactory resultFactory = IOCUtils.resultFactory
         if (!type || !data) {
             return resultFactory.failWithCodeAndStatus("mediaPostProcessor.missingInfo",
                 ResultStatus.UNPROCESSABLE_ENTITY)

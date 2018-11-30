@@ -62,7 +62,7 @@ class OrganizationControllerSpec extends CustomSpec {
         then:
         response.status == SC_OK
         response.json.organizations.size() ==
-            Organization.countSearch(Helpers.toQuery(params.search))
+            Organization.countSearch(StringUtils.toQuery(params.search))
     }
 
     void "test list with unsuccessful search"() {

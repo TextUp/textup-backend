@@ -20,9 +20,9 @@ class IncomingCallFunctionalSpec extends RestSpec {
     def setup() {
         setupData()
         remote.exec({ mockedMethodsKey ->
-            app.config[mockedMethodsKey] << TestHelpers.mock(MediaPostProcessor, "process") {
-                UploadItem uItem1 = TestHelpers.buildUploadItem(MediaType.AUDIO_MP3)
-                UploadItem uItem2 = TestHelpers.buildUploadItem(MediaType.AUDIO_WEBM_OPUS)
+            app.config[mockedMethodsKey] << TestUtils.mock(MediaPostProcessor, "process") {
+                UploadItem uItem1 = TestUtils.buildUploadItem(MediaType.AUDIO_MP3)
+                UploadItem uItem2 = TestUtils.buildUploadItem(MediaType.AUDIO_WEBM_OPUS)
                 ctx.resultFactory.success(uItem1, [uItem2])
             }
             return

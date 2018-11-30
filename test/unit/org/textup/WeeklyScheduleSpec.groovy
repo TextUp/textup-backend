@@ -29,8 +29,8 @@ class WeeklyScheduleSpec extends Specification {
 	}
 
 	def setup() {
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
 	}
 
     void "test constraints and deletion"() {

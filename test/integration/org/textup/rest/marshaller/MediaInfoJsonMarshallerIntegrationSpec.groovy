@@ -3,7 +3,7 @@ package org.textup.rest.marshaller
 import grails.converters.JSON
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.*
 
 class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
@@ -19,7 +19,7 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
         when: "empty"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(mInfo as JSON)
+            json = TestUtils.jsonToMap(mInfo as JSON)
         }
 
         then:
@@ -32,22 +32,22 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
         List<MediaElement> elements = []
         int numImages = 4
         numImages.times {
-            MediaElement e1 = TestHelpers.buildMediaElement(5)
+            MediaElement e1 = TestUtils.buildMediaElement(5)
             mInfo.addToMediaElements(e1)
             elements << e1
         }
         int numAudio = 2
         numAudio.times {
-            MediaElement e1 = TestHelpers.buildMediaElement()
+            MediaElement e1 = TestUtils.buildMediaElement()
             e1.sendVersion.type = MediaType.AUDIO_WEBM_OPUS
             mInfo.addToMediaElements(e1)
             elements << e1
         }
         Collection<String> errorMessages = ["errors1", "errors2"]
-        Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMessages)
+        Utils.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMessages)
 
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(mInfo as JSON)
+            json = TestUtils.jsonToMap(mInfo as JSON)
         }
 
         then:

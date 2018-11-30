@@ -173,11 +173,11 @@ class IncomingTextFunctionalSpec extends RestSpec {
 
     void "test incoming media via text message"() {
         given: "new phone number + media item + staff is available"
-        String encodedData = TestHelpers.encodeBase64String(TestHelpers.getJpegSampleData512())
-        String checksum = TestHelpers.getChecksum(encodedData)
-        PhoneNumber fromNum = new PhoneNumber(number:TestHelpers.randPhoneNumber())
-        String sid = TestHelpers.randString()
-        String sampleUrl = "${Constants.TEST_HTTP_ENDPOINT}/image/jpeg"
+        String encodedData = TestUtils.encodeBase64String(TestUtils.getJpegSampleData512())
+        String checksum = TestUtils.getChecksum(encodedData)
+        PhoneNumber fromNum = new PhoneNumber(number:TestUtils.randPhoneNumber())
+        String sid = TestUtils.randString()
+        String sampleUrl = "${TestConstants.TEST_HTTP_ENDPOINT}/image/jpeg"
         String toNum = remote.exec({ un ->
             Staff s1 = Staff.findByUsername(un)
             s1.manualSchedule = true

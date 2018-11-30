@@ -68,7 +68,7 @@ class TokenService {
     	findToken(TokenType.PASSWORD_RESET, token)
             .then { Token tok -> incrementTimesAccessed(tok) }
             .then { Token resetToken ->
-        		Staff s1 = Staff.get(Helpers.to(Long, resetToken.data.toBeResetId))
+        		Staff s1 = Staff.get(TypeConversionUtils.to(Long, resetToken.data.toBeResetId))
     	        if (s1) {
                     resultFactory.success(s1)
     	        }

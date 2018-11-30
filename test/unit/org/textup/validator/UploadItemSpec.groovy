@@ -15,7 +15,7 @@ import org.springframework.validation.Errors
 import org.textup.*
 import org.textup.media.ImageUtils
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.*
 
 @Domain([MediaInfo, MediaElement, MediaElementVersion])
@@ -46,7 +46,7 @@ class UploadItemSpec extends Specification {
 
     void "test getting size in bytes"() {
         when: "obj with valid mime type"
-        byte[] inputData1 = TestHelpers.getJpegSampleData512()
+        byte[] inputData1 = TestUtils.getJpegSampleData512()
         UploadItem uItem = new UploadItem(type: MediaType.IMAGE_JPEG, data: inputData1)
         assert uItem.validate()
 
@@ -57,7 +57,7 @@ class UploadItemSpec extends Specification {
         uItem.sizeInBytes == inputData1.size()
 
         when: "setting data"
-        byte[] inputData2 = TestHelpers.getJpegSampleData256()
+        byte[] inputData2 = TestUtils.getJpegSampleData256()
         assert inputData1.size() != inputData2.size()
         uItem.data = inputData2
 
@@ -69,8 +69,8 @@ class UploadItemSpec extends Specification {
 
     void "test setting properties via BufferedImage"() {
         given:
-        byte[] inputData1 = TestHelpers.getJpegSampleData512()
-        byte[] inputData2 = TestHelpers.getGifSampleData()
+        byte[] inputData1 = TestUtils.getJpegSampleData512()
+        byte[] inputData2 = TestUtils.getGifSampleData()
         BufferedImage image1 = ImageUtils.tryGetImageFromData(inputData1)
         BufferedImage image2 = ImageUtils.tryGetImageFromData(inputData2)
 
@@ -98,7 +98,7 @@ class UploadItemSpec extends Specification {
 
     void "test converting to MediaElementVersion"() {
         given:
-        byte[] inputData1 = TestHelpers.getJpegSampleData512()
+        byte[] inputData1 = TestUtils.getJpegSampleData512()
         UploadItem uItem = new UploadItem(type: MediaType.IMAGE_JPEG,
             data: inputData1, isPublic: true, widthInPixels: 888, heightInPixels: 888)
         assert uItem.validate()

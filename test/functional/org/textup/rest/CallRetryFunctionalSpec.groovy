@@ -24,12 +24,12 @@ class CallRetryFunctionalSpec extends RestSpec {
     List<String> _numbers = ["1112223333", "2223338888"]
 
     def setup() {
-        _firstApiId = TestHelpers.randString()
-        _retryApiId = TestHelpers.randString()
+        _firstApiId = TestUtils.randString()
+        _retryApiId = TestUtils.randString()
 
         setupData()
         remote.exec({ nums, apiId1, apiId2 ->
-            TestHelpers.forceMock(ctx.callService, "retry") { from, toNums, existingApiId ->
+            TestUtils.forceMock(ctx.callService, "retry") { from, toNums, existingApiId ->
                 String toNumAsString = toNums[0].number
                 String retryApiId = apiId2
                 TempRecordReceipt tempReceipt = new TempRecordReceipt(apiId:retryApiId,

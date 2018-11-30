@@ -5,18 +5,14 @@ import grails.plugin.springsecurity.rest.token.AccessToken
 import grails.plugin.springsecurity.rest.token.rendering.AccessTokenJsonRenderer
 import groovy.json.JsonSlurper
 import groovy.util.logging.Log4j
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.util.Assert
-import org.textup.Staff
+import org.textup.*
 
 @Log4j
 class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
-
-    @Autowired
-    GrailsApplication grailsApplication
 
     Boolean useBearerToken
     String authoritiesPropertyName
@@ -35,12 +31,7 @@ class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
         ]
         // add additional information about the staff
         Staff.withNewSession {
-            Staff staff = Staff.get(userDetails.id)
-            if (staff) {
-                JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
-                    result.staff = new JsonSlurper().parseText((staff as JSON).toString())
-                }
-            }
+            result.staff = DataFormatUtils.jsonToObject(Staff.get(userDetails.id))
         }
         // add token information
         if (useBearerToken) {

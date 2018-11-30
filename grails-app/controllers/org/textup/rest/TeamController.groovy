@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
@@ -9,7 +9,7 @@ import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="Team", description = "Operations on teams after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class TeamController extends BaseController {

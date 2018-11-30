@@ -20,7 +20,7 @@ class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestHelpers.jsonToMap(t1 as JSON)
+    		json = TestUtils.jsonToMap(t1 as JSON)
     	}
 
     	then:
@@ -42,7 +42,7 @@ class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(t1 as JSON)
+            json = TestUtils.jsonToMap(t1 as JSON)
         }
 
         then:
@@ -65,7 +65,7 @@ class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(team1 as JSON)
+            json = TestUtils.jsonToMap(team1 as JSON)
         }
 
         then:

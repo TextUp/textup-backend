@@ -21,7 +21,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
-class TestHelpers {
+class TestUtils {
 
     private static final Random RANDOM = new Random()
     private static final MockMessageSource MESSAGE_SOURCE = new MockMessageSource()
@@ -33,7 +33,7 @@ class TestHelpers {
     // -------
 
     static Map jsonToMap(JSON json) {
-        Helpers.toJson(json.toString()) as Map
+        DataFormatUtils.jsonToObject(json.toString()) as Map
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -56,8 +56,8 @@ class TestHelpers {
         randNumber
     }
     private static String generatePhoneNumber() {
-        int randString = TestHelpers.randIntegerUpTo(Math.pow(10, 10) as Integer)
-        "${Constants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
+        int randString = TestUtils.randIntegerUpTo(Math.pow(10, 10) as Integer)
+        "${TestConstants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
     }
 
     static int randIntegerUpTo(Integer max) {
@@ -88,34 +88,34 @@ class TestHelpers {
     static byte[] getSampleDataForMimeType(MediaType type) {
         switch (type) {
             case MediaType.IMAGE_PNG:
-                return TestHelpers.getPngSampleData()
+                return TestUtils.getPngSampleData()
             case MediaType.IMAGE_JPEG:
-                return TestHelpers.getJpegSampleData512()
+                return TestUtils.getJpegSampleData512()
             case MediaType.IMAGE_GIF:
-                return TestHelpers.getGifSampleData()
+                return TestUtils.getGifSampleData()
             case MediaType.AUDIO_MP3:
-                return TestHelpers.getSampleData("audio.mp3")
+                return TestUtils.getSampleData("audio.mp3")
             case MediaType.AUDIO_OGG_VORBIS:
-                return TestHelpers.getSampleData("audio-vorbis.ogg")
+                return TestUtils.getSampleData("audio-vorbis.ogg")
             case MediaType.AUDIO_OGG_OPUS:
-                return TestHelpers.getSampleData("audio-opus.ogg")
+                return TestUtils.getSampleData("audio-opus.ogg")
             case MediaType.AUDIO_WEBM_VORBIS:
-                return TestHelpers.getSampleData("audio-vorbis.webm")
+                return TestUtils.getSampleData("audio-vorbis.webm")
             case MediaType.AUDIO_WEBM_OPUS:
-                return TestHelpers.getSampleData("audio-opus.webm")
+                return TestUtils.getSampleData("audio-opus.webm")
             default:
                 return [] as byte[]
         }
     }
 
     static Map buildAddMediaAction(MediaType type) {
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
-        String encodedData = TestHelpers.encodeBase64String(data)
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
+        String encodedData = TestUtils.encodeBase64String(data)
         [
             action: Constants.MEDIA_ACTION_ADD,
             mimeType: type.mimeType,
             data: encodedData,
-            checksum: TestHelpers.getChecksum(encodedData)
+            checksum: TestUtils.getChecksum(encodedData)
         ]
     }
 
@@ -146,16 +146,16 @@ class TestHelpers {
     // -----
 
     static void clearTempDirectory() {
-        TestHelpers.tempDirectory.toFile().listFiles().each { File file -> file.delete() }
+        TestUtils.tempDirectory.toFile().listFiles().each { File file -> file.delete() }
     }
 
     static int getNumInTempDirectory() {
-        TestHelpers.tempDirectory.toFile().listFiles().length
+        TestUtils.tempDirectory.toFile().listFiles().length
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static Path getTempDirectory() {
-        String tempDirectory = TestHelpers.config.textup.tempDirectory
+        String tempDirectory = TestUtils.config.textup.tempDirectory
         Paths.get(tempDirectory)
     }
 
@@ -173,14 +173,14 @@ class TestHelpers {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static AudioUtils getAudioUtils() {
-        String executableDirectory = TestHelpers.config.textup.media.audio.executableDirectory
-        String executableName = TestHelpers.config.textup.media.audio.executableName
-        String tempDirectory = TestHelpers.config.textup.tempDirectory
+        String executableDirectory = TestUtils.config.textup.media.audio.executableDirectory
+        String executableName = TestUtils.config.textup.media.audio.executableName
+        String tempDirectory = TestUtils.config.textup.tempDirectory
         new AudioUtils(executableDirectory, executableName, tempDirectory)
     }
 
     static ResultFactory getResultFactory(GrailsApplication grailsApplication) {
-        TestHelpers.getBean(grailsApplication, ResultFactory)
+        TestUtils.getBean(grailsApplication, ResultFactory)
     }
 
     static LinkGenerator mockLinkGenerator() {
@@ -205,7 +205,7 @@ class TestHelpers {
 
     static MediaElement buildMediaElement(BigDecimal sendSize = 88) {
         MediaElement e1 = new MediaElement()
-        e1.sendVersion = TestHelpers.buildMediaElementVersion(sendSize)
+        e1.sendVersion = TestUtils.buildMediaElementVersion(sendSize)
         assert e1.validate()
         e1
     }
@@ -227,16 +227,16 @@ class TestHelpers {
 
     static RecordItemReceipt buildReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
         RecordItemReceipt rpt = new RecordItemReceipt(status: status,
-            contactNumberAsString: TestHelpers.randPhoneNumber(),
+            contactNumberAsString: TestUtils.randPhoneNumber(),
             apiId: UUID.randomUUID().toString())
         rpt
     }
 
     static TempRecordReceipt buildTempReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
         TempRecordReceipt rpt = new TempRecordReceipt(status: status,
-            contactNumberAsString: TestHelpers.randPhoneNumber(),
+            contactNumberAsString: TestUtils.randPhoneNumber(),
             apiId: UUID.randomUUID().toString(),
-            numSegments: TestHelpers.randIntegerUpTo(10))
+            numSegments: TestUtils.randIntegerUpTo(10))
         assert rpt.validate()
         rpt
     }
@@ -261,7 +261,7 @@ class TestHelpers {
             new MockedMethod(obj, methodName, action, true)
         }
         catch (IllegalArgumentException e) {
-            log.info("TestHelpers.forceMock: ${e.message}")
+            log.info("TestUtils.forceMock: ${e.message}")
         }
     }
 }

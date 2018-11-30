@@ -57,9 +57,9 @@ class MediaElement implements ReadOnlyMediaElement, WithId {
         }
 
         if (e1.save()) {
-            Helpers.resultFactory.success(e1)
+            IOCUtils.resultFactory.success(e1)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(e1.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(e1.errors) }
     }
 
     // Methods

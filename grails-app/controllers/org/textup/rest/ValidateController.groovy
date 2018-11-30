@@ -1,12 +1,12 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="Validate", description = "Validates login credentials and lock codes")
 @Secured("permitAll")
 class ValidateController extends BaseController {

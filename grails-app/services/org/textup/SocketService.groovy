@@ -8,12 +8,10 @@ import grails.converters.JSON
 import grails.transaction.Transactional
 import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
-import org.codehaus.groovy.grails.commons.GrailsApplication
 
 @Transactional(readOnly=true)
 class SocketService {
 
-    GrailsApplication grailsApplication
     Pusher pusherService
     ResultFactory resultFactory
 
@@ -49,10 +47,7 @@ class SocketService {
         if (!p1) {
             return resGroup
         }
-        Collection serialized
-        JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
-            serialized = new JsonSlurper().parseText(([p1] as JSON).toString())
-        }
+        Collection serialized = DataFormatUtils.jsonToObject([p1])
         p1.owner.all.each { Staff s1 ->
             resGroup << sendToDataToStaff(s1, Constants.SOCKET_EVENT_PHONES, serialized)
         }
@@ -68,10 +63,7 @@ class SocketService {
         toSend
             .collate(Constants.SOCKET_PAYLOAD_BATCH_SIZE) // prevent exceeding payload max size
             .each { Collection<?> batch ->
-                Collection serialized
-                JSON.use(grailsApplication.flatConfig["textup.rest.defaultLabel"]) {
-                    serialized = new JsonSlurper().parseText((batch as JSON).toString())
-                }
+                Collection serialized = DataFormatUtils.jsonToObject(batch)
                 getStaffsForRecords(recs).each { Staff s1 ->
                     resGroup << sendToDataToStaff(s1, event, serialized)
                 }
@@ -98,7 +90,7 @@ class SocketService {
             return resultFactory.failForPusher(pRes)
         }
         try {
-            Map channelInfo = Helpers.toJson(pRes.message) as Map
+            Map channelInfo = DataFormatUtils.jsonToObject(pRes.message) as Map
             if (!channelInfo.occupied) {
                 return resultFactory.success(s1)
             }

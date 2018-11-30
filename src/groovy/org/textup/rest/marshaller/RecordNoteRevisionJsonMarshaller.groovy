@@ -1,10 +1,10 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.*
 import org.textup.rest.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { ReadOnlyRecordNoteRevision rev ->
 

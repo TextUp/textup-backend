@@ -26,7 +26,7 @@ class AnnouncementJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestHelpers.jsonToMap(announce as JSON)
+    		json = TestUtils.jsonToMap(announce as JSON)
     	}
 
     	then:

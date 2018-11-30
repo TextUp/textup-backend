@@ -26,7 +26,7 @@ class OrganizationSpec extends Specification {
     }
 
     def setup() {
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     void "test constraints"() {

@@ -54,15 +54,15 @@ class AudioUtils {
     // or else using the Play verb won’t work.
     Result<byte[]> convert(long timeout, MediaType inputType, Path inputPath, MediaType outputType) {
         if (timeout < 0) {
-            return Helpers.resultFactory.failWithCodeAndStatus("audioUtils.convert.timeoutIsNegative",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.convert.timeoutIsNegative",
                 ResultStatus.BAD_REQUEST)
         }
         if (!MediaType.AUDIO_TYPES.contains(inputType) || !MediaType.AUDIO_TYPES.contains(outputType)) {
-            return Helpers.resultFactory.failWithCodeAndStatus("audioUtils.convert.typesMustBeAudio",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.convert.typesMustBeAudio",
                 ResultStatus.BAD_REQUEST)
         }
         if (!Files.isReadable(inputPath)) {
-            return Helpers.resultFactory.failWithCodeAndStatus("audioUtils.convert.inputPathInvalid",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.convert.inputPathInvalid",
                 ResultStatus.BAD_REQUEST)
         }
         Path outputPath = createTempFile()
@@ -74,13 +74,13 @@ class AudioUtils {
         if (process.exitValue() == 0) {
             readAllBytes(outputPath).then { byte[] newData ->
                 delete(outputPath)
-                Helpers.resultFactory.success(newData)
+                IOCUtils.resultFactory.success(newData)
             }
         }
         else {
             delete(outputPath)
             log.error("AudioUtils.convert: ${process.exitValue()} \nout> $sOut \nerr> $sErr ")
-            Helpers.resultFactory.failWithCodeAndStatus("audioUtils.convert.failed",
+            IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.convert.failed",
                 ResultStatus.INTERNAL_SERVER_ERROR, [inputType, outputType])
         }
     }
@@ -90,11 +90,11 @@ class AudioUtils {
 
     protected Result<byte[]> readAllBytes(Path path) {
         try {
-            Helpers.resultFactory.success(Files.readAllBytes(path))
+            IOCUtils.resultFactory.success(Files.readAllBytes(path))
         }
         catch(Throwable e) {
             log.error("AudioUtils.readAllBytes: ${path}, ${e}, ${e.message}")
-            Helpers.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
 

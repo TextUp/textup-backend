@@ -1,11 +1,11 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.*
 import org.textup.rest.*
 import org.textup.validator.Notification
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class NotificationJsonMarshaller extends JsonNamedMarshaller {
 
 	static final Closure marshalClosure = { Notification notif ->

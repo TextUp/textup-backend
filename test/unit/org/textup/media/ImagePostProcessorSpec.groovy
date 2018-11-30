@@ -18,7 +18,7 @@ class ImagePostProcessorSpec extends Specification {
     @Unroll
     void "test creating initial version for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
         ImagePostProcessor processor = new ImagePostProcessor(type, data)
 
         when:
@@ -41,7 +41,7 @@ class ImagePostProcessorSpec extends Specification {
     @Unroll
     void "test creating send version for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
         ImagePostProcessor processor = new ImagePostProcessor(type, data)
 
         when: "pass in content type and data"
@@ -66,7 +66,7 @@ class ImagePostProcessorSpec extends Specification {
     @Unroll
     void "test creating display versions for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
         ImagePostProcessor processor = new ImagePostProcessor(type, data)
 
         when:

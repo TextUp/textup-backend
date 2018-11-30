@@ -18,12 +18,12 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
     def setup() {
         setupData()
         remote.exec({ mockedMethodsKey ->
-            app.config[mockedMethodsKey] << TestHelpers.mock(MediaPostProcessor, "process") {
-                UploadItem uItem1 = TestHelpers.buildUploadItem(MediaType.AUDIO_MP3)
-                UploadItem uItem2 = TestHelpers.buildUploadItem(MediaType.AUDIO_WEBM_OPUS)
+            app.config[mockedMethodsKey] << TestUtils.mock(MediaPostProcessor, "process") {
+                UploadItem uItem1 = TestUtils.buildUploadItem(MediaType.AUDIO_MP3)
+                UploadItem uItem2 = TestUtils.buildUploadItem(MediaType.AUDIO_WEBM_OPUS)
                 ctx.resultFactory.success(uItem1, [uItem2])
             }
-            app.config[mockedMethodsKey] << TestHelpers.mock(ctx.callService, "interrupt") {
+            app.config[mockedMethodsKey] << TestUtils.mock(ctx.callService, "interrupt") {
                 ctx.resultFactory.success()
             }
             return
@@ -36,8 +36,8 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
 
     void "test recording and reviewing new voicemail greeting over the phone"() {
         given:
-        String callId = TestHelpers.randString()
-        String fromNum = TestHelpers.randPhoneNumber()
+        String callId = TestUtils.randString()
+        String fromNum = TestUtils.randPhoneNumber()
         String phoneNum = remote.exec({ un, fNum ->
             Staff s1 = Staff.findByUsername(un)
             s1.manualSchedule = true
@@ -79,7 +79,7 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
         when: "done processing"
         form.set("RecordingDuration", "1234")
         form.set("RecordingUrl", "http://www.example.com")
-        form.set("RecordingSid", TestHelpers.randString())
+        form.set("RecordingSid", TestUtils.randString())
         // for VOICEMAIL_GREETING_PROCESSED from = phone and to = session
         response = rest.post("${baseUrl}/v1/public/records?handle=${CallResponse.VOICEMAIL_GREETING_PROCESSED}") {
             contentType("application/x-www-form-urlencoded")

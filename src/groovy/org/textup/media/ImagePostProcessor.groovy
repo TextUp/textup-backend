@@ -58,18 +58,18 @@ class ImagePostProcessor implements CanProcessMedia {
                     uItem.image = after.second
                 }
             if (uItem.validate()) {
-                Helpers.resultFactory.success(uItem)
+                IOCUtils.resultFactory.success(uItem)
             }
-            else { Helpers.resultFactory.failWithValidationErrors(uItem.errors) }
+            else { IOCUtils.resultFactory.failWithValidationErrors(uItem.errors) }
         }
     }
 
     protected Result<UploadItem> getInitialUploadItem() {
         UploadItem uItem = new UploadItem(type: _type, data: _data, image: _image)
         if (uItem.validate()) {
-            Helpers.resultFactory.success(uItem)
+            IOCUtils.resultFactory.success(uItem)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(uItem.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(uItem.errors) }
     }
 
     protected static class ImageData {

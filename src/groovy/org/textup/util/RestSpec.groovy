@@ -70,14 +70,14 @@ abstract class RestSpec extends Specification {
         remote.exec({ mockedMethodsKey ->
             Collection mockedMethods = []
 
-            mockedMethods << TestHelpers.mock(TwilioUtils, "validate") { ctx.resultFactory.success() }
-            mockedMethods << TestHelpers.mock(ctx.threadService, "submit") { action ->
-                Helpers.noOpFuture(action())
+            mockedMethods << TestUtils.mock(TwilioUtils, "validate") { ctx.resultFactory.success() }
+            mockedMethods << TestUtils.mock(ctx.threadService, "submit") { action ->
+                AsyncUtils.noOpFuture(action())
             }
-            mockedMethods << TestHelpers.mock(ctx.threadService, "delay") { delay, unit, action ->
-                Helpers.noOpFuture(action())
+            mockedMethods << TestUtils.mock(ctx.threadService, "delay") { delay, unit, action ->
+                AsyncUtils.noOpFuture(action())
             }
-            mockedMethods << TestHelpers.mock(Helpers, "executeBasicAuthRequest") { un, pwd, req, action ->
+            mockedMethods << TestUtils.mock(HttpUtils, "executeBasicAuthRequest") { un, pwd, req, action ->
                 assert un != null
                 assert pwd != null
                 CloseableHttpClient client = HttpClients.createDefault()
@@ -86,30 +86,30 @@ abstract class RestSpec extends Specification {
                     resp.withCloseable { action(resp) }
                 }
             }
-            mockedMethods << TestHelpers.mock(ctx.mailService, "sendMail") {
+            mockedMethods << TestUtils.mock(ctx.mailService, "sendMail") {
                 ctx.resultFactory.success()
             }
-            mockedMethods << TestHelpers.mock(ctx.staffService, "verifyCreateRequest") {
+            mockedMethods << TestUtils.mock(ctx.staffService, "verifyCreateRequest") {
                 ctx.resultFactory.success()
             }
 
-            mockedMethods << TestHelpers.mock(ctx.storageService, "uploadAsync") {
+            mockedMethods << TestUtils.mock(ctx.storageService, "uploadAsync") {
                 new ResultGroup()
             }
-            mockedMethods << TestHelpers.mock(ctx.incomingMediaService, "finishProcessingUploads") {
+            mockedMethods << TestUtils.mock(ctx.incomingMediaService, "finishProcessingUploads") {
                 ctx.resultFactory.success()
             }
 
-            mockedMethods << TestHelpers.mock(ctx.textService, "send") { fromNum, toNums ->
+            mockedMethods << TestUtils.mock(ctx.textService, "send") { fromNum, toNums ->
                 assert toNums.isEmpty() == false
-                TempRecordReceipt temp = TestHelpers.buildTempReceipt()
+                TempRecordReceipt temp = TestUtils.buildTempReceipt()
                 temp.contactNumber = toNums[0]
                 assert temp.validate()
                 // return temp
                 ctx.resultFactory.success(temp)
             }
-            mockedMethods << TestHelpers.mock(ctx.callService, "doCall") { fromNum, toNum ->
-                TempRecordReceipt temp = TestHelpers.buildTempReceipt()
+            mockedMethods << TestUtils.mock(ctx.callService, "doCall") { fromNum, toNum ->
+                TempRecordReceipt temp = TestUtils.buildTempReceipt()
                 temp.contactNumber = toNum
                 assert temp.validate()
                 // return temp

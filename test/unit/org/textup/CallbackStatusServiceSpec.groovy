@@ -27,8 +27,8 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -42,8 +42,8 @@ class CallbackStatusServiceSpec extends CustomSpec {
         given: "lists of valid and invalid receipts"
         List<RecordItemReceipt> validRpts = [], invalidRpts = []
         8.times {
-            RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING),
-                invalidRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
+            RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING),
+                invalidRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
             rText1.addToReceipts(validRpt)
             assert validRpt.validate()
             assert !invalidRpt.validate()
@@ -91,7 +91,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.threadService = Mock(ThreadService)
         List<RecordItemReceipt> validRpts = []
         8.times {
-            RecordItemReceipt validRpt = TestHelpers.buildReceipt()
+            RecordItemReceipt validRpt = TestUtils.buildReceipt()
             rText1.addToReceipts(validRpt)
             assert validRpt.validate()
             validRpts << validRpt
@@ -121,12 +121,12 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
     void "test creating new receipt with status"() {
         given: "an existing parent id and valid child number"
-        RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
+        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
         rText1.addToReceipts(validRpt)
         [validRpt, rText1]*.save(flush: true, failOnError: true)
-        PhoneNumber childNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
         assert childNumber.validate()
-        String childId = TestHelpers.randString()
+        String childId = TestUtils.randString()
         ReceiptStatus status = ReceiptStatus.BUSY
         int rptBaseline = RecordItemReceipt.count()
 
@@ -145,7 +145,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
     void "test finding and updating existing receipts with status"() {
         given: "an existing api id"
-        RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
+        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
         rText1.addToReceipts(validRpt)
         [validRpt, rText1]*.save(flush: true, failOnError: true)
         int rptBaseline = RecordItemReceipt.count()
@@ -176,7 +176,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         0 * service.callService._
 
         when: "has remaining numbers"
-        params = new TypeConvertingMap([remaining:[TestHelpers.randPhoneNumber()]])
+        params = new TypeConvertingMap([remaining:[TestUtils.randPhoneNumber()]])
         service.tryRetryParentCall(null, params)
 
         then:
@@ -189,7 +189,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
     void "test handling update for text, child calls, and parent calls"() {
         given:
         service.threadService = Mock(ThreadService)
-        RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
+        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
         rText1.addToReceipts(validRpt)
         [validRpt, rText1]*.save(flush: true, failOnError: true)
         int rptBaseline = RecordItemReceipt.count()
@@ -208,14 +208,14 @@ class CallbackStatusServiceSpec extends CustomSpec {
     void "test handling update for child calls"() {
         given:
         service.threadService = Mock(ThreadService)
-        RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
+        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
         rText1.addToReceipts(validRpt)
         [validRpt, rText1]*.save(flush: true, failOnError: true)
         int rptBaseline = RecordItemReceipt.count()
         ReceiptStatus status = ReceiptStatus.BUSY
-        String childId = TestHelpers.randString()
+        String childId = TestUtils.randString()
         Integer duration = 88
-        PhoneNumber childNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
         assert childNumber.validate()
         int originalNumReceipts = rText1.receipts.size()
 
@@ -241,14 +241,14 @@ class CallbackStatusServiceSpec extends CustomSpec {
         given:
         service.threadService = Mock(ThreadService)
         service.callService = Mock(CallService)
-        RecordItemReceipt validRpt = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
+        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
         rText1.addToReceipts(validRpt)
         [validRpt, rText1]*.save(flush: true, failOnError: true)
         int rptBaseline = RecordItemReceipt.count()
         ReceiptStatus status = ReceiptStatus.BUSY
         Integer duration = 88
         TypeConvertingMap params = new TypeConvertingMap([
-            remaining:[TestHelpers.randPhoneNumber()]
+            remaining:[TestUtils.randPhoneNumber()]
         ])
 
         when: "call status is not failed"
@@ -280,11 +280,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test selecting update method from passed-in parameters"() {
         given:
-        MockedMethod handleUpdateForText = TestHelpers.mock(service, "handleUpdateForText")
+        MockedMethod handleUpdateForText = TestUtils.mock(service, "handleUpdateForText")
             { new Result() }
-        MockedMethod handleUpdateForChildCall = TestHelpers.mock(service, "handleUpdateForChildCall")
+        MockedMethod handleUpdateForChildCall = TestUtils.mock(service, "handleUpdateForChildCall")
             { new Result() }
-        MockedMethod handleUpdateForParentCall = TestHelpers.mock(service, "handleUpdateForParentCall")
+        MockedMethod handleUpdateForParentCall = TestUtils.mock(service, "handleUpdateForParentCall")
             { new Result() }
 
         when: "empty input"
@@ -355,7 +355,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             CallStatus: ReceiptStatus.PENDING.statuses[0],
             CallDuration: "88",
             ParentCallSid: "yes",
-            (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): TestHelpers.randPhoneNumber()
+            (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): TestUtils.randPhoneNumber()
         ])
         service.process(params)
 

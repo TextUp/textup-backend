@@ -1,10 +1,10 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.textup.util.RollbackOnResultFailure
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Transactional
 class OrganizationService {
 
@@ -18,15 +18,15 @@ class OrganizationService {
                 ResultStatus.NOT_FOUND, [orgId])
     	}
         if (body.name) { org.name = body.name }
-        if (Helpers.to(Integer, body.timeout) != null) {
-            org.timeout = Helpers.to(Integer, body.timeout)
+        if (TypeConversionUtils.to(Integer, body.timeout) != null) {
+            org.timeout = TypeConversionUtils.to(Integer, body.timeout)
         }
     	if (body.location instanceof Map) {
     		Map l = body.location as Map
     		org.location.with {
     			if (l.address) address = l.address
-                if (l.lat) lat = Helpers.to(BigDecimal, l.lat)
-                if (l.lon) lon = Helpers.to(BigDecimal, l.lon)
+                if (l.lat) lat = TypeConversionUtils.to(BigDecimal, l.lat)
+                if (l.lon) lon = TypeConversionUtils.to(BigDecimal, l.lon)
     		}
             if (!org.location.save()) {
                 return resultFactory.failWithValidationErrors(org.location.errors)

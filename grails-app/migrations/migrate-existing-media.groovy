@@ -100,7 +100,7 @@ def rollbackDropImageKeys(Sql sql, String tableName) {
 }
 
 protected Long copyImageKeysToMedia(Sql sql, Long id, String serializedData) {
-    Object dataObj = Helpers.toJson(serializedData)
+    Object dataObj = DataFormatUtils.jsonToObject(serializedData)
     if (!id || !(dataObj instanceof List)) {
         return
     }

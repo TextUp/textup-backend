@@ -4,7 +4,7 @@ import grails.converters.JSON
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import org.textup.validator.*
 import spock.lang.*
 
@@ -31,7 +31,7 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends Specification {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestHelpers.jsonToMap(rev1 as JSON)
+    		json = TestUtils.jsonToMap(rev1 as JSON)
     	}
 
     	then:

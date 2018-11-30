@@ -5,7 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.*
 
 @Domain([MediaInfo, MediaElement, MediaElementVersion])
@@ -26,8 +26,8 @@ class MediaInfoSpec extends Specification {
         MediaInfo mInfo = new MediaInfo()
 
         when: "adding elements, with some that are duplicates"
-        MediaElement e1 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
-        MediaElement e2 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
+        MediaElement e1 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
+        MediaElement e2 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
         mInfo.addToMediaElements(e1)
         mInfo.addToMediaElements(e1)
         mInfo.addToMediaElements(e1)
@@ -54,10 +54,10 @@ class MediaInfoSpec extends Specification {
 
     void "test iterating over elements in batches by file size"() {
         given: "valid obj with elements"
-        MediaElement e1 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
-        MediaElement e2 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
-        MediaElement e3 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
-        MediaElement e4 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
+        MediaElement e1 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
+        MediaElement e2 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
+        MediaElement e3 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
+        MediaElement e4 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
         MediaInfo mInfo = new MediaInfo()
         [e1, e2, e3, e4].each(mInfo.&addToMediaElements)
         assert mInfo.validate()
@@ -73,7 +73,7 @@ class MediaInfoSpec extends Specification {
     void "test iterating over elements in batches by number of files"() {
         given: "valid obj with elements"
         MediaInfo mInfo = new MediaInfo()
-        45.times { mInfo.addToMediaElements(TestHelpers.buildMediaElement(5)) }
+        45.times { mInfo.addToMediaElements(TestUtils.buildMediaElement(5)) }
         assert mInfo.validate()
 
         when: "looping over batches"
@@ -86,10 +86,10 @@ class MediaInfoSpec extends Specification {
 
     void "test iterating over batches where some media elements are missing send versions"() {
         given:
-        MediaElement e1 = TestHelpers.buildMediaElement()
-        MediaElement e2 = TestHelpers.buildMediaElement()
-        MediaElement e3 = TestHelpers.buildMediaElement()
-        MediaElement e4 = TestHelpers.buildMediaElement()
+        MediaElement e1 = TestUtils.buildMediaElement()
+        MediaElement e2 = TestUtils.buildMediaElement()
+        MediaElement e3 = TestUtils.buildMediaElement()
+        MediaElement e4 = TestUtils.buildMediaElement()
         e2.sendVersion = null
         e3.sendVersion = null
         MediaInfo mInfo = new MediaInfo()
@@ -112,7 +112,7 @@ class MediaInfoSpec extends Specification {
         MediaElement mostRecent
         DateTime dt = DateTime.now()
         10.times {
-            mostRecent = TestHelpers.buildMediaElement()
+            mostRecent = TestUtils.buildMediaElement()
             mostRecent.sendVersion.type = MediaType.AUDIO_WEBM_OPUS
             mostRecent.whenCreated = dt.plusMinutes(it)
             mInfo.addToMediaElements(mostRecent)
@@ -134,10 +134,10 @@ class MediaInfoSpec extends Specification {
         MediaInfo mInfo = new MediaInfo()
 
         when: "valid obj with all valid elements"
-        MediaElement e1 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
-        MediaElement e2 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
-        MediaElement e3 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
-        MediaElement e4 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
+        MediaElement e1 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
+        MediaElement e2 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
+        MediaElement e3 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
+        MediaElement e4 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
         [e1, e2, e3, e4].each(mInfo.&addToMediaElements)
 
         then: "parent is valid"
@@ -176,10 +176,10 @@ class MediaInfoSpec extends Specification {
         dupInfo == null
 
         when: "add elements and then persist"
-        MediaElement e1 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
-        MediaElement e2 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
-        MediaElement e3 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
-        MediaElement e4 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
+        MediaElement e1 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
+        MediaElement e2 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2)
+        MediaElement e3 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
+        MediaElement e4 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
         List<MediaElement> originalElements = [e1, e2, e3, e4]
         originalElements.each(mInfo.&addToMediaElements)
         assert mInfo.isDirty() == true
@@ -195,7 +195,7 @@ class MediaInfoSpec extends Specification {
         mInfo.mediaElements == dupInfo.mediaElements // same because not actually dirty
 
         when: "we make some changes by adding + removing from elements"
-        MediaElement e5 = TestHelpers.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
+        MediaElement e5 = TestUtils.buildMediaElement(Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 0.75)
         mInfo.addToMediaElements(e5)
         mInfo.removeFromMediaElements(e3)
         mInfo.removeFromMediaElements(e4)

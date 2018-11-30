@@ -65,10 +65,10 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
             // create revision of persistent values
             RecordNoteRevision rev = this.createRevision()
             if (!rev.save()) {
-                return Helpers.resultFactory.failWithValidationErrors(rev.errors)
+                return IOCUtils.resultFactory.failWithValidationErrors(rev.errors)
             }
         }
-        Helpers.resultFactory.success(this)
+        IOCUtils.resultFactory.success(this)
     }
 
     @GrailsTypeChecked

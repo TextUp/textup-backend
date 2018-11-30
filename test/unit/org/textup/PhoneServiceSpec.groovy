@@ -47,7 +47,7 @@ class PhoneServiceSpec extends CustomSpec {
         service.numberService = Mock(NumberService)
 
         when:
-        p1.apiId = TestHelpers.randString()
+        p1.apiId = TestUtils.randString()
         p1.save(flush: true, failOnError: true)
         Result<Phone> res = service.deactivatePhone(p1)
 
@@ -62,7 +62,7 @@ class PhoneServiceSpec extends CustomSpec {
     void "test updating phone number given a phone number error conditions"() {
         given: "baseline"
         int baseline = Phone.count()
-        String oldApiId = TestHelpers.randString()
+        String oldApiId = TestUtils.randString()
         s1.phone.apiId = oldApiId
         s1.phone.save(flush:true, failOnError:true)
 
@@ -99,8 +99,8 @@ class PhoneServiceSpec extends CustomSpec {
     void "test updating phone number given an api id error conditions"() {
         given: "baseline"
         int baseline = Phone.count()
-        String oldApiId = TestHelpers.randString(),
-            anotherApiId = TestHelpers.randString()
+        String oldApiId = TestUtils.randString(),
+            anotherApiId = TestUtils.randString()
         s1.phone.apiId = oldApiId
         s2.phone.apiId = anotherApiId
         [s1, s2]*.save(flush:true, failOnError:true)
@@ -165,10 +165,10 @@ class PhoneServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test handling phone actions overall"() {
         given:
-        MockedMethod deactivatePhone = TestHelpers.mock(service, "deactivatePhone") { new Result() }
-        MockedMethod transferPhone = TestHelpers.mock(service, "transferPhone") { new Result() }
-        MockedMethod updatePhoneForNumber = TestHelpers.mock(service, "updatePhoneForNumber") { new Result() }
-        MockedMethod updatePhoneForApiId = TestHelpers.mock(service, "updatePhoneForApiId") { new Result() }
+        MockedMethod deactivatePhone = TestUtils.mock(service, "deactivatePhone") { new Result() }
+        MockedMethod transferPhone = TestUtils.mock(service, "transferPhone") { new Result() }
+        MockedMethod updatePhoneForNumber = TestUtils.mock(service, "updatePhoneForNumber") { new Result() }
+        MockedMethod updatePhoneForApiId = TestUtils.mock(service, "updatePhoneForApiId") { new Result() }
 
         when: "no phone actions"
         Result<Phone> res = service.handlePhoneActions(p1, [:])
@@ -211,7 +211,7 @@ class PhoneServiceSpec extends CustomSpec {
         res = service.handlePhoneActions(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_NUM,
-                number: TestHelpers.randPhoneNumber()
+                number: TestUtils.randPhoneNumber()
             ]
         ]])
 
@@ -225,7 +225,7 @@ class PhoneServiceSpec extends CustomSpec {
         res = service.handlePhoneActions(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_ID,
-                numberId: TestHelpers.randString()
+                numberId: TestUtils.randString()
             ]
         ]])
 
@@ -333,12 +333,12 @@ class PhoneServiceSpec extends CustomSpec {
         given:
         service.notificationService = Mock(NotificationService)
         service.authService = Mock(AuthService)
-        Staff staff1 = new Staff(username: TestHelpers.randString(),
+        Staff staff1 = new Staff(username: TestUtils.randString(),
             password: "password",
             name: "hi",
             email:"hi@textup.org",
             org: org,
-            personalPhoneAsString: TestHelpers.randPhoneNumber(),
+            personalPhoneAsString: TestUtils.randPhoneNumber(),
             lockCode:Constants.DEFAULT_LOCK_CODE)
         staff1.save(flush: true, failOnError: true)
         int npBaseline = NotificationPolicy.count()
@@ -369,8 +369,8 @@ class PhoneServiceSpec extends CustomSpec {
 
     void "test getting number to call for voicemail greeting"() {
         given:
-        String randNum1 = TestHelpers.randPhoneNumber()
-        String randNum2 = TestHelpers.randPhoneNumber()
+        String randNum1 = TestUtils.randPhoneNumber()
+        String randNum2 = TestUtils.randPhoneNumber()
         service.authService = Mock(AuthService)
 
         when: "fall back to personal phone"
@@ -392,7 +392,7 @@ class PhoneServiceSpec extends CustomSpec {
         given:
         service.callService = Mock(CallService)
         Phone p1 = Mock(Phone)
-        String randNum1 = TestHelpers.randPhoneNumber()
+        String randNum1 = TestUtils.randPhoneNumber()
 
         when: "not requesting voicemail greeting"
         Result<?> res = service.requestVoicemailGreetingCall(p1, [:])
@@ -422,7 +422,7 @@ class PhoneServiceSpec extends CustomSpec {
     void "test short circuiting when logged-in user is not active"() {
         given:
         service.authService = Mock(AuthService)
-        MockedMethod mergeHelper = TestHelpers.mock(service, "mergeHelper") { new Result() }
+        MockedMethod mergeHelper = TestUtils.mock(service, "mergeHelper") { new Result() }
 
         when: "merge for staff"
         Result<Staff> staffRes = service.mergePhone(s1, [phone: [awayMessage: "hi"]], null)
@@ -451,19 +451,19 @@ class PhoneServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test merging phone creates a new phone if no phone"() {
         given: "staff and team with no phone"
-        Staff staff1 = new Staff(username: TestHelpers.randString(),
+        Staff staff1 = new Staff(username: TestUtils.randString(),
             password: "password",
             name: "hi",
             email:"hi@textup.org",
             org: org,
-            personalPhoneAsString: TestHelpers.randPhoneNumber(),
+            personalPhoneAsString: TestUtils.randPhoneNumber(),
             lockCode:Constants.DEFAULT_LOCK_CODE)
-        Team team1 = new Team(name: TestHelpers.randString(),
+        Team team1 = new Team(name: TestUtils.randString(),
             org: org,
             location: new Location(address: "address", lat: 8G, lon: 10G))
         [staff1, team1]*.save(flush: true, failOnError: true)
         service.authService = Stub(AuthService) { getIsActive() >> true }
-        MockedMethod mergeHelper = TestHelpers.mock(service, "mergeHelper")
+        MockedMethod mergeHelper = TestUtils.mock(service, "mergeHelper")
             { Phone p1 -> p1.save(); new Result(); }
         int pBaseline = Phone.count()
         int oBaseline = PhoneOwnership.count()
@@ -536,9 +536,9 @@ class PhoneServiceSpec extends CustomSpec {
     void "test cancelling future processing if error during merging"() {
         given:
         service.mediaService = Mock(MediaService)
-        MockedMethod handlePhoneActions = TestHelpers.mock(service, "handlePhoneActions")
+        MockedMethod handlePhoneActions = TestUtils.mock(service, "handlePhoneActions")
             { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
-        MockedMethod requestVoicemailGreetingCall = TestHelpers.mock(service, "requestVoicemailGreetingCall")
+        MockedMethod requestVoicemailGreetingCall = TestUtils.mock(service, "requestVoicemailGreetingCall")
         Future fut1 = Mock()
 
         when:
@@ -555,13 +555,13 @@ class PhoneServiceSpec extends CustomSpec {
     void "test requesting voicemail greeting call during merging"() {
         given:
         service.mediaService = Mock(MediaService)
-        MockedMethod handlePhoneActions = TestHelpers.mock(service, "handlePhoneActions")
+        MockedMethod handlePhoneActions = TestUtils.mock(service, "handlePhoneActions")
             { new Result() }
-        MockedMethod handleAvailability = TestHelpers.mock(service, "handleAvailability")
+        MockedMethod handleAvailability = TestUtils.mock(service, "handleAvailability")
             { new Result() }
-        MockedMethod updateFields = TestHelpers.mock(service, "updateFields")
+        MockedMethod updateFields = TestUtils.mock(service, "updateFields")
             { new Result() }
-        MockedMethod requestVoicemailGreetingCall = TestHelpers.mock(service, "requestVoicemailGreetingCall")
+        MockedMethod requestVoicemailGreetingCall = TestUtils.mock(service, "requestVoicemailGreetingCall")
             { new Result() }
         Future fut1 = Mock()
 

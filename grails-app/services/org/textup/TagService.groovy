@@ -62,7 +62,7 @@ class TagService {
         ct1.with {
             if (body.name) name = body.name
             if (body.hexColor) hexColor = body.hexColor
-            if (body.language) language = Helpers.convertEnum(VoiceLanguage, body.language)
+            if (body.language) language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
         }
         if (ct1.save()) {
             resultFactory.success(ct1)

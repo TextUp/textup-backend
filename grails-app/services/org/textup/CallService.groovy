@@ -14,7 +14,7 @@ class CallService {
     ResultFactory resultFactory
 
     Result<TempRecordReceipt> start(BasePhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup) {
-        String callback = Helpers.getWebhookLink(handle: Constants.CALLBACK_STATUS)
+        String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS)
         doCall(fromNum, toNum, afterPickup, callback)
     }
     Result<TempRecordReceipt> start(BasePhoneNumber fromNum,
@@ -32,9 +32,9 @@ class CallService {
             List<String> toPhoneNums = toNums
                 .collect { BasePhoneNumber pNum -> pNum.e164PhoneNumber }
             int numRemaining = toNums.size() - 1
-            String afterPickupJson = Helpers.toJsonString(afterPickup)
+            String afterPickupJson = DataFormatUtils.toJsonString(afterPickup)
             for (int i = numRemaining; i >= 0 ; i--) {
-                List<String> remaining = Helpers.takeRight(toPhoneNums, i)
+                List<String> remaining = CollectionUtils.takeRight(toPhoneNums, i)
                 BasePhoneNumber toNum = toNums[numRemaining - i]
                 // If we are on the last number in the list of numbers because all of the
                 // previous numbers have IMMEDIATELY failed for whatever reason, then this
@@ -47,7 +47,7 @@ class CallService {
                 // started. If it IMMEDIATELY fails, then we move onto the next number to use
                 // to try to start this call.
                 else {
-                    String callback = Helpers.getWebhookLink(handle: Constants.CALLBACK_STATUS,
+                    String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS,
                         remaining: remaining, afterPickup: afterPickupJson)
                     Result<TempRecordReceipt> res = doCall(fromNum, toNum, afterPickup, callback)
                     if (res.success) {
@@ -77,8 +77,8 @@ class CallService {
     Result<Void> interrupt(String callId, Map afterPickup) {
         try {
             Call.updater(callId)
-                .setUrl(Helpers.getWebhookLink(afterPickup))
-                .setStatusCallback(Helpers.getWebhookLink(handle: Constants.CALLBACK_STATUS))
+                .setUrl(IOCUtils.getWebhookLink(afterPickup))
+                .setStatusCallback(IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS))
                 .update()
             resultFactory.success()
         }
@@ -94,7 +94,7 @@ class CallService {
             resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
                 ResultStatus.UNPROCESSABLE_ENTITY, null)
         }
-        String afterLink = Helpers.getWebhookLink(afterPickup)
+        String afterLink = IOCUtils.getWebhookLink(afterPickup)
         try {
             Call call = Call
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), new URI(afterLink))

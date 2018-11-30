@@ -15,7 +15,7 @@ class ResultSpec extends Specification {
 
     void "test static creators"() {
     	given: "a valid location"
-    	Location loc1 = TestHelpers.buildLocation()
+    	Location loc1 = TestUtils.buildLocation()
 
     	when: "creating success"
     	Result<Location> res = Result.<Location>createSuccess(loc1, ResultStatus.CREATED)
@@ -42,7 +42,7 @@ class ResultSpec extends Specification {
     	given: "one success and one failure result"
     	String msg = "I am an error"
     	Result<Location> failRes = Result.<Location>createError([msg], ResultStatus.UNPROCESSABLE_ENTITY)
-    	Result<Location> successRes = Result.<Location>createSuccess(TestHelpers.buildLocation(), ResultStatus.CREATED)
+    	Result<Location> successRes = Result.<Location>createSuccess(TestUtils.buildLocation(), ResultStatus.CREATED)
 
     	when: "for failed result"
     	int numTimesFailed = 0
@@ -78,7 +78,7 @@ class ResultSpec extends Specification {
         Closure failCounter = { failTimesCalled++ }
 
         String msg = "hi"
-        Result<Location> successRes = Result.<Location>createSuccess(TestHelpers.buildLocation(), ResultStatus.CREATED)
+        Result<Location> successRes = Result.<Location>createSuccess(TestUtils.buildLocation(), ResultStatus.CREATED)
         Result<Location> failRes = Result.<Location>createError([msg], ResultStatus.UNPROCESSABLE_ENTITY)
 
         when:
@@ -100,11 +100,11 @@ class ResultSpec extends Specification {
 
     void "test currying arguments for success when chaining"() {
         given:
-        Result<Location> thisLocRes = new Result<>(payload: TestHelpers.buildLocation())
+        Result<Location> thisLocRes = new Result<>(payload: TestUtils.buildLocation())
         Integer curry1 = 88
         String curry2 = "hi"
         Result<Location> successRes = Result
-            .<Location>createSuccess(TestHelpers.buildLocation(), ResultStatus.CREATED)
+            .<Location>createSuccess(TestUtils.buildLocation(), ResultStatus.CREATED)
             .curry(curry1, curry2)
 
         when: "subsequent handler with zero arguments"
@@ -145,7 +145,7 @@ class ResultSpec extends Specification {
 
     void "test ensure that array type one-argument handlers are properly unwrapped"() {
         given:
-        Result<byte[]> returnValue = new Result(payload: TestHelpers.randString().bytes)
+        Result<byte[]> returnValue = new Result(payload: TestUtils.randString().bytes)
         Result<byte[]> successRes = Result.createSuccess("hi".bytes, ResultStatus.OK)
 
         expect:
@@ -154,10 +154,10 @@ class ResultSpec extends Specification {
 
     void "test currying arguments for failure when chaining"() {
         given:
-        Result<Location> thisLocRes = new Result<>(payload: TestHelpers.buildLocation())
+        Result<Location> thisLocRes = new Result<>(payload: TestUtils.buildLocation())
         Integer curry1 = 88
         String curry2 = "hi"
-        String msg = TestHelpers.randString()
+        String msg = TestUtils.randString()
         Result<Location> failRes = Result
             .<Location>createError([msg], ResultStatus.UNPROCESSABLE_ENTITY)
             .curry(curry1, curry2)
@@ -200,7 +200,7 @@ class ResultSpec extends Specification {
 
     void "test currying and clearing currying"() {
         given:
-        Result<Location> thisLocRes = new Result<>(payload: TestHelpers.buildLocation())
+        Result<Location> thisLocRes = new Result<>(payload: TestUtils.buildLocation())
         Integer curry1 = 88
         String successCurry1 = "hi"
         Boolean failCurry1 = true

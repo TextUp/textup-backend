@@ -24,14 +24,14 @@ class MediaServiceSpec extends Specification {
     static doWithSpring = {
         resultFactory(ResultFactory)
         audioUtils(AudioUtils,
-            TestHelpers.config.textup.media.audio.executableDirectory,
-            TestHelpers.config.textup.media.audio.executableName,
-            TestHelpers.config.textup.tempDirectory)
+            TestUtils.config.textup.media.audio.executableDirectory,
+            TestUtils.config.textup.media.audio.executableName,
+            TestUtils.config.textup.tempDirectory)
     }
 
     def setup() {
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     // Handling actions
@@ -47,8 +47,8 @@ class MediaServiceSpec extends Specification {
     void "test handling media actions errors"() {
         given:
         String rawData = "I am some data*~~~~|||"
-        String encodedData = TestHelpers.encodeBase64String(rawData.bytes)
-        String checksum = TestHelpers.getChecksum(encodedData)
+        String encodedData = TestUtils.encodeBase64String(rawData.bytes)
+        String checksum = TestUtils.getChecksum(encodedData)
 
         when: "adding - invalid mime type"
         ResultGroup<UploadItem> resGroup = service.handleActions(null, [doMediaActions:[
@@ -129,7 +129,7 @@ class MediaServiceSpec extends Specification {
         MediaInfo mInfo = Mock(MediaInfo)
 
         when: "add via media action"
-        Map addAction = TestHelpers.buildAddMediaAction(MediaType.IMAGE_PNG)
+        Map addAction = TestUtils.buildAddMediaAction(MediaType.IMAGE_PNG)
         ResultGroup<UploadItem> resGroup = service.handleActions(mInfo, [doMediaActions:[addAction]])
 
         then: "add function is called"
@@ -155,9 +155,9 @@ class MediaServiceSpec extends Specification {
 
     void "test processing element"() {
         given:
-        UploadItem inputItem = TestHelpers.buildUploadItem()
-        UploadItem sendItem = TestHelpers.buildUploadItem()
-        UploadItem altItem = TestHelpers.buildUploadItem()
+        UploadItem inputItem = TestUtils.buildUploadItem()
+        UploadItem sendItem = TestUtils.buildUploadItem()
+        UploadItem altItem = TestUtils.buildUploadItem()
         MediaPostProcessor.metaClass."static".process = { MediaType type, byte[] data ->
             new Result(payload: Tuple.create(sendItem, [altItem]))
         }
@@ -186,12 +186,12 @@ class MediaServiceSpec extends Specification {
     @DirtiesRuntime
     void "test processing element with #visibilityLevel visibility "() {
         given:
-        MediaElement el1 = TestHelpers.buildMediaElement()
+        MediaElement el1 = TestUtils.buildMediaElement()
         el1.save(flush: true, failOnError: true)
         UploadItem uItem = Mock()
-        UploadItem uItem1 = Mock() { toMediaElementVersion() >> TestHelpers.buildMediaElementVersion() }
-        UploadItem uItem2 = Mock() { toMediaElementVersion() >> TestHelpers.buildMediaElementVersion() }
-        MockedMethod process = TestHelpers.mock(MediaPostProcessor, "process") {
+        UploadItem uItem1 = Mock() { toMediaElementVersion() >> TestUtils.buildMediaElementVersion() }
+        UploadItem uItem2 = Mock() { toMediaElementVersion() >> TestUtils.buildMediaElementVersion() }
+        MockedMethod process = TestUtils.mock(MediaPostProcessor, "process") {
             new Result(payload: Tuple.create(uItem1, [uItem2]))
         }
 
@@ -220,7 +220,7 @@ class MediaServiceSpec extends Specification {
 
     void "test rebuilding elements to process"() {
         given:
-        MediaElement el1 = TestHelpers.buildMediaElement()
+        MediaElement el1 = TestUtils.buildMediaElement()
         el1.save(flush: true, failOnError: true)
 
         when:
@@ -242,9 +242,9 @@ class MediaServiceSpec extends Specification {
     void "test finishing processing overall"() {
         given:
         service.storageService = Mock(StorageService)
-        UploadItem inputItem = TestHelpers.buildUploadItem()
-        UploadItem sendItem = TestHelpers.buildUploadItem()
-        UploadItem altItem = TestHelpers.buildUploadItem()
+        UploadItem inputItem = TestUtils.buildUploadItem()
+        UploadItem sendItem = TestUtils.buildUploadItem()
+        UploadItem altItem = TestUtils.buildUploadItem()
         MediaPostProcessor.metaClass."static".process = { MediaType type, byte[] data ->
             new Result(payload: Tuple.create(sendItem, [altItem]))
         }
@@ -324,7 +324,7 @@ class MediaServiceSpec extends Specification {
         given:
         service.threadService = Mock(ThreadService)
         service.storageService = Mock(StorageService)
-        MockedMethod trySetOnRequest = TestHelpers.mock(Helpers, "trySetOnRequest") { new Result() }
+        MockedMethod trySetOnRequest = TestUtils.mock(Utils, "trySetOnRequest") { new Result() }
         MediaInfo mInfo = new MediaInfo()
         mInfo.save(flush: true, failOnError: true)
         int mBaseline = MediaInfo.count()
@@ -333,7 +333,7 @@ class MediaServiceSpec extends Specification {
         Closure finishProcessing
 
         when: "valid add and remove actions"
-        Map addAction = TestHelpers.buildAddMediaAction(MediaType.IMAGE_JPEG)
+        Map addAction = TestUtils.buildAddMediaAction(MediaType.IMAGE_JPEG)
         Map removeAction = [action: Constants.MEDIA_ACTION_REMOVE, uid: "a valid uid"]
         Result<Tuple<MediaInfo, Future<Result<MediaInfo>>>> res = service.tryProcess(mInfo,
             [doMediaActions: [addAction, removeAction]])
@@ -342,7 +342,7 @@ class MediaServiceSpec extends Specification {
         then: "after"
         1 * service.threadService.delay(*_) >> { a1, a2, Closure action ->
             finishProcessing = action
-            Helpers.noOpFuture() as ScheduledFuture
+            AsyncUtils.noOpFuture() as ScheduledFuture
         }
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
         trySetOnRequest.callCount == 1
@@ -376,16 +376,16 @@ class MediaServiceSpec extends Specification {
         given:
         service.threadService = Mock(ThreadService)
         service.storageService = Mock(StorageService)
-        MockedMethod trySetOnRequest = TestHelpers.mock(Helpers, "trySetOnRequest") { new Result() }
+        MockedMethod trySetOnRequest = TestUtils.mock(Utils, "trySetOnRequest") { new Result() }
         WithMedia withMedia = Mock(WithMedia)
         int mBaseline = MediaInfo.count()
         int eBaseline = MediaElement.count()
         int vBaseline = MediaElementVersion.count()
-        int numInTemp = TestHelpers.numInTempDirectory
+        int numInTemp = TestUtils.numInTempDirectory
         Closure finishProcessing
 
         when: "media owner does NOT have media"
-        Map addAction = TestHelpers.buildAddMediaAction(MediaType.AUDIO_WEBM_VORBIS)
+        Map addAction = TestUtils.buildAddMediaAction(MediaType.AUDIO_WEBM_VORBIS)
         Result<Tuple<WithMedia, Future<Result<MediaInfo>>>> res = service.tryProcess(withMedia,
             [doMediaActions: [addAction]])
         MediaInfo.withSession { it.flush() }
@@ -397,7 +397,7 @@ class MediaServiceSpec extends Specification {
         }
         1 * service.threadService.delay(*_) >> { a1, a2, Closure action ->
             finishProcessing = action
-            Helpers.noOpFuture() as ScheduledFuture
+            AsyncUtils.noOpFuture() as ScheduledFuture
         }
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
         trySetOnRequest.callCount == 1
@@ -407,7 +407,7 @@ class MediaServiceSpec extends Specification {
         MediaInfo.count() == mBaseline + 1
         MediaElement.count() == eBaseline + 1
         MediaElementVersion.count() == vBaseline + 1 // initial version
-        TestHelpers.numInTempDirectory == numInTemp
+        TestUtils.numInTempDirectory == numInTemp
 
         when: "wait for asynchronous media processing to finish"
         Result<MediaInfo> finishedRes = finishProcessing.call()
@@ -424,7 +424,7 @@ class MediaServiceSpec extends Specification {
         MediaInfo.count() == mBaseline + 1
         MediaElement.count() == eBaseline + 1
         MediaElementVersion.count() == vBaseline + 3 // FOR AUDIO: initial + send + 1 alternate
-        TestHelpers.numInTempDirectory == numInTemp
+        TestUtils.numInTempDirectory == numInTemp
     }
 
     @FreshRuntime
@@ -432,7 +432,7 @@ class MediaServiceSpec extends Specification {
         given:
         service.threadService = Mock(ThreadService)
         service.storageService = Mock(StorageService)
-        MockedMethod trySetOnRequest = TestHelpers.mock(Helpers, "trySetOnRequest") { new Result() }
+        MockedMethod trySetOnRequest = TestUtils.mock(Utils, "trySetOnRequest") { new Result() }
         MediaInfo mInfo = new MediaInfo()
         mInfo.save(flush: true, failOnError: true)
         WithMedia withMedia = Mock(WithMedia)
@@ -440,10 +440,10 @@ class MediaServiceSpec extends Specification {
         int mBaseline = MediaInfo.count()
         int eBaseline = MediaElement.count()
         int vBaseline = MediaElementVersion.count()
-        int numInTemp = TestHelpers.numInTempDirectory
+        int numInTemp = TestUtils.numInTempDirectory
 
         when:
-        Map addAction = TestHelpers.buildAddMediaAction(MediaType.AUDIO_WEBM_VORBIS)
+        Map addAction = TestUtils.buildAddMediaAction(MediaType.AUDIO_WEBM_VORBIS)
         Result<Tuple<WithMedia, Future<Result<MediaInfo>>>> res = service.tryProcess(withMedia,
             [doMediaActions: [addAction]])
         MediaInfo.withSession { it.flush() }
@@ -454,7 +454,7 @@ class MediaServiceSpec extends Specification {
             assert thisMediaInfo.mediaElements.size() == 1 // initial version
             assert thisMediaInfo.id == mInfo.id
         }
-        1 * service.threadService.delay(*_) >> (Helpers.noOpFuture() as ScheduledFuture)
+        1 * service.threadService.delay(*_) >> (AsyncUtils.noOpFuture() as ScheduledFuture)
         1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
         trySetOnRequest.callCount == 1
         res.status == ResultStatus.OK
@@ -463,7 +463,7 @@ class MediaServiceSpec extends Specification {
         MediaInfo.count() == mBaseline
         MediaElement.count() == eBaseline + 1
         MediaElementVersion.count() == vBaseline + 1 // initial version
-        TestHelpers.numInTempDirectory == numInTemp
+        TestUtils.numInTempDirectory == numInTemp
     }
 
     @Unroll
@@ -473,12 +473,12 @@ class MediaServiceSpec extends Specification {
         service.storageService = Stub(StorageService) {  uploadAsync(*_) >> new ResultGroup() }
         service.threadService = Mock(ThreadService)
         UploadItem uItem = Mock()
-        MockedMethod hasMediaActions = TestHelpers.mock(service, "hasMediaActions") { true }
-        MockedMethod handleActions = TestHelpers.mock(service, "handleActions") {
+        MockedMethod hasMediaActions = TestUtils.mock(service, "hasMediaActions") { true }
+        MockedMethod handleActions = TestUtils.mock(service, "handleActions") {
             new Result(payload: uItem).toGroup()
         }
-        MockedMethod tryFinishProcessing = TestHelpers.mock(service, "tryFinishProcessing")
-        MockedMethod trySetOnRequest = TestHelpers.forceMock(Helpers, "trySetOnRequest") { new Result() }
+        MockedMethod tryFinishProcessing = TestUtils.mock(service, "tryFinishProcessing")
+        MockedMethod trySetOnRequest = TestUtils.forceMock(Utils, "trySetOnRequest") { new Result() }
         MediaInfo mInfo = new MediaInfo()
         Closure delayedAction
 
@@ -487,7 +487,7 @@ class MediaServiceSpec extends Specification {
 
         then:
         1 * uItem.setIsPublic(publicSetting)
-        1 * uItem.toMediaElementVersion() >> TestHelpers.buildMediaElementVersion()
+        1 * uItem.toMediaElementVersion() >> TestUtils.buildMediaElementVersion()
         1 * service.threadService.delay(*_) >> { a1, a2, Closure action -> action(); null; }
         res.status == ResultStatus.OK
 

@@ -26,7 +26,7 @@ class PublicRecordController extends BaseController {
     def delete() { notAllowed() }
 
     def save() {
-        TypeConvertingMap paramsMap = Helpers.extractParams(params)
+        TypeConvertingMap paramsMap = TypeConversionUtils.extractParams(params)
         Result<Void> res = TwilioUtils.validate(request, paramsMap)
         if (!res.success) {
             respondWithResult(Void, res)

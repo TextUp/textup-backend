@@ -26,7 +26,7 @@ class TagServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
         service.notificationService = [
             handleNotificationActions: { Phone p1, Long recordId, Object rawActions ->
                 new Result(status:ResultStatus.NO_CONTENT, payload:null)

@@ -1,11 +1,11 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.ToString
 import org.textup.type.AuthorType
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @ToString
 @Validateable
 class Author {

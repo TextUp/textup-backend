@@ -27,8 +27,8 @@ class FutureMessageJobServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -43,10 +43,10 @@ class FutureMessageJobServiceSpec extends CustomSpec {
         service.authService = Mock(AuthService)
         TriggerBuilder builder = TriggerBuilder.newTrigger()
         FutureMessage fMsg = Mock()
-        String keyName = TestHelpers.randString()
+        String keyName = TestUtils.randString()
         DateTime startDate = DateTime.now().plusDays(1)
         DateTime endDate = DateTime.now().plusDays(8)
-        TriggerKey trigKey = TriggerKey.triggerKey(TestHelpers.randString())
+        TriggerKey trigKey = TriggerKey.triggerKey(TestUtils.randString())
 
         when:
         Trigger trigger = service.buildTrigger(trigKey, builder, fMsg)
@@ -68,7 +68,7 @@ class FutureMessageJobServiceSpec extends CustomSpec {
         given:
         service.quartzScheduler = Mock(Scheduler)
         FutureMessage fMsg = Mock()
-        MockedMethod buildTrigger = TestHelpers.mock(service, "buildTrigger")
+        MockedMethod buildTrigger = TestUtils.mock(service, "buildTrigger")
 
         when: "error scheduling job"
         Result<Void> res = service.schedule(fMsg)
@@ -123,7 +123,7 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test cancelling all"() {
         given:
-        MockedMethod unschedule = TestHelpers.mock(service, 'unschedule') { new Result() }
+        MockedMethod unschedule = TestUtils.mock(service, 'unschedule') { new Result() }
         FutureMessage fMsg = Mock()
 
         when:

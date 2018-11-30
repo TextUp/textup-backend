@@ -75,7 +75,7 @@ class ContactTag implements WithRecord, WithId {
                 ContactTag tag = ContactTag.findByPhoneAndNameAndIsDeleted(obj.phone, val, false)
                 tag && tag.id != obj.id
             }
-            if (val && Helpers.<Boolean>doWithoutFlush(sameTagExists)) { ["duplicate"] }
+            if (val && Utils.<Boolean>doWithoutFlush(sameTagExists)) { ["duplicate"] }
         }
     	hexColor blank:false, nullable:false, validator:{ String val, ContactTag obj ->
             //String must be a valid hex color
@@ -120,7 +120,10 @@ class ContactTag implements WithRecord, WithId {
     // ---------------
 
     Result<Record> tryGetRecord() {
-        Helpers.resultFactory.success(this.record)
+        IOCUtils.resultFactory.success(this.record)
+    }
+    Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
+        IOCUtils.resultFactory.success(this.record)
     }
 
     void setRecord(Record r) {
@@ -147,7 +150,7 @@ class ContactTag implements WithRecord, WithId {
     Collection<Contact> getMembersByStatus(Collection statuses=[]) {
         if (statuses) {
             HashSet<ContactStatus> findStatuses =
-                new HashSet<>(Helpers.<ContactStatus>toEnumList(ContactStatus, statuses))
+                new HashSet<>(TypeConversionUtils.toEnumList(ContactStatus, statuses))
             this.members.findAll { Contact c1 ->
                 c1.status in findStatuses
             }

@@ -33,7 +33,7 @@ class RecordControllerSpec extends CustomSpec {
         setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
         controller.recordService = [parseTypes:{ Collection<?> rawTypes -> [] }] as RecordService
-        controller.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        controller.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
     def cleanup() {
         cleanupData()
@@ -102,7 +102,7 @@ class RecordControllerSpec extends CustomSpec {
         when:
         request.method = "GET"
         controller.listForRecord(c1.record, params)
-        List<Long> ids = Helpers.allTo(Long, c1.record.items*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, c1.record.items*.id)
 
         then:
         response.status == SC_OK
@@ -119,7 +119,7 @@ class RecordControllerSpec extends CustomSpec {
             hasPermissionsForContact:{ Long id -> false },
             getSharedContactIdForContact:{ Long cId -> sc1.id }
         ] as AuthService
-        List<Long> ids = Helpers.allTo(Long, sc1.tryGetReadOnlyRecord().payload.items*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, sc1.tryGetReadOnlyRecord().payload.items*.id)
 
         when:
         request.method = "GET"
@@ -138,7 +138,7 @@ class RecordControllerSpec extends CustomSpec {
         request.method = "GET"
         params.since = since.toDate()
         controller.listForRecord(c1.record, params)
-        List<Long> ids = Helpers.allTo(Long, c1.record.getSince(since)*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, c1.record.getSince(since)*.id)
 
         then:
         response.status == SC_OK
@@ -154,7 +154,7 @@ class RecordControllerSpec extends CustomSpec {
         params.since = since.toDate()
         params.before = before.toDate()
         controller.listForRecord(c1.record, params)
-        List<Long> ids = Helpers.allTo(Long, c1.record.getBetween(since, before)*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, c1.record.getBetween(since, before)*.id)
 
         then:
         response.status == SC_OK

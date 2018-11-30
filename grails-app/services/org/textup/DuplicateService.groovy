@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.commons.lang3.tuple.Pair
 import org.springframework.transaction.annotation.Propagation
@@ -48,12 +48,12 @@ class DuplicateService {
                 filterAction()
             }
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
 	protected Map<Long, HashSet<String>> buildContactsData(List<Object[]> contactsData) {
         Map<String, HashSet<Long>> numToContactIds = new HashMap<>()
 		contactsData.each { Object[] itemWrapper ->
 			Object[] items = itemWrapper[0] as Object[] // each item is a 1-item array, inner is a 2-item array
-			Long id = Helpers.to(Long, items[0]) // inner array has contact id as first element
+			Long id = TypeConversionUtils.to(Long, items[0]) // inner array has contact id as first element
 			String num = items[1] as String // inner array has phone number as second element
 			if (numToContactIds.containsKey(num)) {
                 numToContactIds[num] << id
@@ -63,7 +63,7 @@ class DuplicateService {
 		}
 		numToContactIds
 	}
-    @GrailsCompileStatic
+    @GrailsTypeChecked
 	protected Result<List<MergeGroup>> findDuplicatesHelper(Map<String, HashSet<Long>> numToContactIds) {
 		buildPossibleMerges(numToContactIds)
 			.then({ Pair<Map<Long, Collection<String>>, Collection<String>> pair ->
@@ -75,7 +75,7 @@ class DuplicateService {
 				buildMergeGroups(numToContactIds, targetIdToConfirmedNums)
 			})
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected Result<Pair<Map<Long, Collection<String>>, Collection<String>>> buildPossibleMerges(
     	Map<String, HashSet<Long>> numToContactIds) {
 
@@ -97,7 +97,7 @@ class DuplicateService {
 		}
 		resultFactory.success(Pair.of(contactIdToMergeNums, possibleMergeNums))
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected Result<Map<Long,Collection<String>>> confirmPossibleMerges(
         Map<String, HashSet<Long>> numToContactIds, Map<Long, Collection<String>> contactIdToMergeNums,
         Collection<String> possibleMergeNums) {
@@ -132,7 +132,7 @@ class DuplicateService {
 		}
 		resultFactory.success(targetIdToConfirmedNums)
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected Result<List<MergeGroup>> buildMergeGroups(Map<String, HashSet<Long>> numToContactIds,
     	Map<Long,Collection<String>> targetIdToConfirmedNums) {
 
@@ -166,7 +166,7 @@ class DuplicateService {
     // the interceptor and this merge method will execute in the same transaction. This is the
     // behavior of the underlying Spring Transaction abstraction. See
     // http://www.tothenew.com/blog/grails-transactions-using-transactional-annotations-and-propagation-requires_new/
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     @RollbackOnResultFailure
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     Result<Contact> merge(Contact targetContact, Collection<Contact> toMergeIn) {
@@ -213,7 +213,7 @@ class DuplicateService {
         }
         else { resultFactory.failWithValidationErrors(targetContact.record.errors) }
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected ContactStatus findMostPermissibleStatus(Collection<ContactStatus> statuses) {
     	if ([ContactStatus.UNREAD, ContactStatus.ACTIVE].any { ContactStatus s -> s in statuses }) {
     		ContactStatus.ACTIVE
@@ -223,7 +223,7 @@ class DuplicateService {
     	}
     	else { ContactStatus.BLOCKED }
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected Result<Void> mergeNumbers(Contact targetContact, Collection<ContactNumber> mergeNums) {
     	for (ContactNumber num in mergeNums) {
     		Result<ContactNumber> res = targetContact.mergeNumber(num.number, [preference:num.preference])
@@ -233,7 +233,7 @@ class DuplicateService {
     	}
     	resultFactory.success()
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected Result<Void> mergeTags(Contact targetContact, Collection<ContactTag> mergeContactTags,
         Collection<Contact> mergeContacts) {
         try {
@@ -255,7 +255,7 @@ class DuplicateService {
             resultFactory.failWithThrowable(e)
         }
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected Result<Void> mergeSharedContacts(Contact targetContact, Collection<Contact> mergeContacts) {
         try {
             SharedContact
@@ -269,14 +269,14 @@ class DuplicateService {
             resultFactory.failWithThrowable(e)
         }
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     protected Result<Void> mergeRecords(Record targetRecord, Collection<Record> toMergeRecords) {
         try {
             RecordItem
-                .buildForRecords(toMergeRecords)
+                .forRecords(toMergeRecords)
                 .updateAll(record:targetRecord)
             FutureMessage
-                .buildForRecords(toMergeRecords)
+                .forRecords(toMergeRecords)
                 .updateAll(record:targetRecord)
             resultFactory.success()
         }

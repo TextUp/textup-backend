@@ -148,17 +148,17 @@ class WeeklySchedule extends Schedule {
     Result<DateTime> nextAvailable(String timezone=null) {
         Result<ScheduleChange> res = nextChangeForType(ScheduleStatus.AVAILABLE, timezone)
         if (res.success) {
-            Helpers.resultFactory.success(res.payload.when)
+            IOCUtils.resultFactory.success(res.payload.when)
         }
-        else { Helpers.resultFactory.failWithResultsAndStatus([res], res.status) }
+        else { IOCUtils.resultFactory.failWithResultsAndStatus([res], res.status) }
     }
     @Override
     Result<DateTime> nextUnavailable(String timezone=null) {
         Result<ScheduleChange> res = nextChangeForType(ScheduleStatus.UNAVAILABLE, timezone)
         if (res.success) {
-            Helpers.resultFactory.success(res.payload.when)
+            IOCUtils.resultFactory.success(res.payload.when)
         }
-        else { Helpers.resultFactory.failWithResultsAndStatus([res], res.status) }
+        else { IOCUtils.resultFactory.failWithResultsAndStatus([res], res.status) }
     }
     @Override
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -170,23 +170,23 @@ class WeeklySchedule extends Schedule {
                 if (!li.validate()) { errors = li.errors; break; }
             }
             if (errors) {
-                Helpers.resultFactory.failWithValidationErrors(errors)
+                IOCUtils.resultFactory.failWithValidationErrors(errors)
             }
             else {
                 params.each { String key, List<LocalInterval> intervals ->
                     this."$key" = intervals.isEmpty() ? "" :
                         dehydrateLocalIntervals(cleanLocalIntervals(intervals))
                 }
-                Helpers.resultFactory.success(this)
+                IOCUtils.resultFactory.success(this)
             }
         }
         catch (Throwable e) {
             log.debug("WeeklySchedule.update: ${e.message}")
-            Helpers.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
     Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params, String timezone="UTC") {
-        DateTimeZone zone = Helpers.getZoneFromId(timezone)
+        DateTimeZone zone = DateTimeUtils.getZoneFromId(timezone)
         List<String> daysOfWeek = Constants.DAYS_OF_WEEK
         int numDaysPerWeek = daysOfWeek.size()
         //parse interval strings into a list of UTC intervals where sunday corresponds to
@@ -205,7 +205,7 @@ class WeeklySchedule extends Schedule {
                     else { return res }
                 }
                 else {
-                    return Helpers.resultFactory.failWithCodeAndStatus("weeklySchedule.strIntsNotList",
+                    return IOCUtils.resultFactory.failWithCodeAndStatus("weeklySchedule.strIntsNotList",
                         ResultStatus.UNPROCESSABLE_ENTITY, [intStrings])
                 }
             }
@@ -219,7 +219,7 @@ class WeeklySchedule extends Schedule {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     Map<String,List<LocalInterval>> getAllAsLocalIntervals(String timezone="UTC") {
-        DateTimeZone zone = Helpers.getZoneFromId(timezone)
+        DateTimeZone zone = DateTimeUtils.getZoneFromId(timezone)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(_timeFormat).withZoneUTC()
         List<String> daysOfWeek = Constants.DAYS_OF_WEEK
         //rehydrate the strings as INTERVALS where sunday corresponds to TODAY, monday corresponds
@@ -245,10 +245,10 @@ class WeeklySchedule extends Schedule {
                     // should add wraparound on Saturday
                     else if (dayOfWeek == daysOfWeek.last()) {
                         if (hasWraparound && times[1] == "2359") {
-                            DateTime start = Helpers
+                            DateTime start = DateTimeUtils
                                 .toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
                                 .plusDays(addDays)
-                            DateTime end = Helpers
+                            DateTime end = DateTimeUtils
                                 .toDateTimeTodayWithZone(dtf.parseLocalTime(firstDayWrappedEnd), zone)
                                 .plusDays(addDays + 1)
                             intervalsForDay << new Interval(start, end)
@@ -300,9 +300,9 @@ class WeeklySchedule extends Schedule {
     protected addToIntervalsHelper(DateTimeFormatter dtf, DateTimeZone zone,
         List<Interval> intervalsForDay, List<String> times, int addDays) {
 
-        DateTime start = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
+        DateTime start = DateTimeUtils.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
             .plusDays(addDays)
-        DateTime end = Helpers.toDateTimeTodayWithZone(dtf.parseLocalTime(times[1]), zone)
+        DateTime end = DateTimeUtils.toDateTimeTodayWithZone(dtf.parseLocalTime(times[1]), zone)
             .plusDays(addDays)
         intervalsForDay << new Interval(start, end)
     }
@@ -338,10 +338,10 @@ class WeeklySchedule extends Schedule {
             }
         }
         //If sChange is not null, then we found an interval that contains initialDt
-        if (sChange) { Helpers.resultFactory.success(sChange) }
+        if (sChange) { IOCUtils.resultFactory.success(sChange) }
         //Otherwise, we need to find the nearest upcoming interval
         else if (closestUpcoming && !intervals.isEmpty()) {
-            Helpers.resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
+            IOCUtils.resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
                 when:closestUpcoming, timezone:timezone))
         }
         //If no upcoming intervals on this day, check the next day
@@ -351,7 +351,7 @@ class WeeklySchedule extends Schedule {
                 nextChangeForDateTime(dt.plusDays(1), initialDt, timezone)
             }
             else {
-                Helpers.resultFactory.failWithCodeAndStatus("weeklySchedule.nextChangeNotFound",
+                IOCUtils.resultFactory.failWithCodeAndStatus("weeklySchedule.nextChangeNotFound",
                     ResultStatus.NOT_FOUND)
             }
         }
@@ -368,10 +368,10 @@ class WeeklySchedule extends Schedule {
         Map<String,List<LocalInterval>> localIntervals = daysOfWeek.collectEntries { [(it):[]] }
         DateTime today = DateTime.now(DateTimeZone.UTC)
         intervals.each { Interval interval ->
-            int startDayOfWeek = Helpers
-                    .getDayOfWeekIndex(Helpers.getDaysBetween(today, interval.start)),
-                endDayOfWeek = Helpers
-                    .getDayOfWeekIndex(Helpers.getDaysBetween(today, interval.end))
+            int startDayOfWeek = DateTimeUtils
+                    .getDayOfWeekIndex(DateTimeUtils.getDaysBetween(today, interval.start)),
+                endDayOfWeek = DateTimeUtils
+                    .getDayOfWeekIndex(DateTimeUtils.getDaysBetween(today, interval.end))
             String startDay = daysOfWeek[startDayOfWeek],
                     endDay = daysOfWeek[endDayOfWeek]
             //if interval does not span two days
@@ -397,15 +397,15 @@ class WeeklySchedule extends Schedule {
         // order of the arguments in this call is very important
         // we put the zone first so that the result number is the modifier that we
         // can use to scale the addDays amount by.
-        int daysBetween = Helpers.getDaysBetween(zoneToday, today)
+        int daysBetween = DateTimeUtils.getDaysBetween(zoneToday, today)
 
         for (str in intStrings) {
             try {
                 List<String> times = str.tokenize(_restDelimiter)
                 if (times.size() == 2) {
-                    DateTime start = Helpers
+                    DateTime start = DateTimeUtils
                             .toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[0]), zone),
-                        end = Helpers
+                        end = DateTimeUtils
                             .toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[1]), zone)
                     //add days until we've reached the desired offset from today
                     //we use the start date as reference and increment the end date
@@ -422,17 +422,17 @@ class WeeklySchedule extends Schedule {
                     result << new Interval(start, end)
                 }
                 else {
-                    return Helpers.resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
+                    return IOCUtils.resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
                         ResultStatus.UNPROCESSABLE_ENTITY, [str])
                 }
             }
             catch (e) {
                 log.debug("WeeklyScheduleSpec.parseIntervalStrings: ${e.message}")
-                return Helpers.resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
+                return IOCUtils.resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
                     ResultStatus.UNPROCESSABLE_ENTITY, [str])
             }
         }
-        Helpers.resultFactory.success(result)
+        IOCUtils.resultFactory.success(result)
     }
 
     // Dehydrate, rehydrate and validate intervals

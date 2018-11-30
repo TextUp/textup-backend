@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
@@ -62,7 +62,7 @@ class Organization implements WithId {
                 // then we have a duplicate
                 !orgs.isEmpty() && orgs.any { Organization org -> org.id != obj.id }
             }
-    		if (val && obj.location && Helpers.<Boolean>doWithoutFlush(hasNameAndLocation)) {
+    		if (val && obj.location && Utils.<Boolean>doWithoutFlush(hasNameAndLocation)) {
                 ["duplicate", obj.location?.address]
             }
     	}
@@ -110,7 +110,7 @@ class Organization implements WithId {
      * @return        Result object containing the new Staff is success,
      *                ValidationError otherwise
      */
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     Result<Staff> addStaff(Map params) {
         Staff s = new Staff()
         //prevent intervening on these internal fields
@@ -120,75 +120,75 @@ class Organization implements WithId {
         s.properties = params
         s.personalPhoneAsString = params.personalPhoneAsString
         s.org = this
-        if (s.save()) { Helpers.resultFactory.success(s) }
-        else { Helpers.resultFactory.failWithValidationErrors(s.errors) }
+        if (s.save()) { IOCUtils.resultFactory.success(s) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(s.errors) }
     }
 
     // Teams
     // -----
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     Result<Team> addTeam(Map params) {
         Team t = new Team()
         t.properties = params
         t.org = this
-        if (t.save()) { Helpers.resultFactory.success(t) }
-        else { Helpers.resultFactory.failWithValidationErrors(t.errors) }
+        if (t.save()) { IOCUtils.resultFactory.success(t) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(t.errors) }
     }
 
     // Property Access
     // ---------------
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     void setLocation(Location l) {
         this.location = l
         l.save()
     }
     int countStaff(String searchString) {
-        Staff.ilikeForOrgAndQuery(this, Helpers.toQuery(searchString)).count()
+        Staff.ilikeForOrgAndQuery(this, StringUtils.toQuery(searchString)).count()
     }
     List<Staff> getStaff(String searchString, Map params = [:]) {
-        Staff.ilikeForOrgAndQuery(this, Helpers.toQuery(searchString)).list(params)
+        Staff.ilikeForOrgAndQuery(this, StringUtils.toQuery(searchString)).list(params)
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<Staff> getAdmins(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.ADMIN]])
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<Staff> getStaff(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.STAFF]])
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<Staff> getPending(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.PENDING]])
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<Staff> getBlocked(Map params=[:]) {
         getPeople(params + [statuses:[StaffStatus.BLOCKED]])
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     int countPeople(Map params) {
         List<StaffStatus> statusEnums =
-            Helpers.<StaffStatus>toEnumList(StaffStatus, params.statuses)
+            TypeConversionUtils.toEnumList(StaffStatus, params.statuses)
         if (statusEnums) {
             Staff.countByOrgAndStatusInList(this, statusEnums)
         }
         else { Staff.countByOrg(this) }
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<Staff> getPeople(Map params=[:]) {
         List<StaffStatus> statusEnums =
-            Helpers.<StaffStatus>toEnumList(StaffStatus, params.statuses)
+            TypeConversionUtils.toEnumList(StaffStatus, params.statuses)
         if (statusEnums) {
             Staff.findAllByOrgAndStatusInList(this, statusEnums, params)
         }
         else { Staff.findAllByOrg(this, params) }
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     int countTeams() {
         Team.countByOrgAndIsDeleted(this, false)
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<Team> getTeams(Map params=[:]) {
         Team.findAllByOrgAndIsDeleted(this, false, params)
     }

@@ -17,18 +17,18 @@ class AudioUtilsSpec extends Specification {
     }
 
     def setup() {
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
     }
 
     def cleanup() {
-        TestHelpers.clearTempDirectory()
+        TestUtils.clearTempDirectory()
     }
 
     void "test constructor"() {
         given:
-        String executableDirectory = TestHelpers.config.textup.media.audio.executableDirectory
-        String executableName = TestHelpers.config.textup.media.audio.executableName
-        String tempDirectory = TestHelpers.config.textup.tempDirectory
+        String executableDirectory = TestUtils.config.textup.media.audio.executableDirectory
+        String executableName = TestUtils.config.textup.media.audio.executableName
+        String tempDirectory = TestUtils.config.textup.tempDirectory
 
         when: "empty"
         AudioUtils audioUtils = new AudioUtils(null, null, null)
@@ -57,47 +57,47 @@ class AudioUtilsSpec extends Specification {
 
     void "test storing data in temp file"() {
         given: "valid audio util object"
-        int tmpBaseline = TestHelpers.numInTempDirectory
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
+        int tmpBaseline = TestUtils.numInTempDirectory
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
 
         when: "no data"
         Path path = audioUtils.createTempFile()
 
         then:
         path != null
-        TestHelpers.numInTempDirectory == tmpBaseline + 1
+        TestUtils.numInTempDirectory == tmpBaseline + 1
 
         when: "has data"
         path = audioUtils.createTempFile("abc".bytes)
 
         then:
         path != null
-        TestHelpers.numInTempDirectory == tmpBaseline + 2
+        TestUtils.numInTempDirectory == tmpBaseline + 2
     }
 
     void "test deleting file at the provided path"() {
         given: "valid audio util object"
-        int tmpBaseline = TestHelpers.numInTempDirectory
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
+        int tmpBaseline = TestUtils.numInTempDirectory
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
         Path path = audioUtils.createTempFile()
-        assert TestHelpers.numInTempDirectory == tmpBaseline + 1
+        assert TestUtils.numInTempDirectory == tmpBaseline + 1
 
         when: "invalid path"
         audioUtils.delete(Paths.get("invalid"))
 
         then:
-        TestHelpers.numInTempDirectory == tmpBaseline + 1
+        TestUtils.numInTempDirectory == tmpBaseline + 1
 
         when: "valid path"
         audioUtils.delete(path)
 
         then:
-        TestHelpers.numInTempDirectory == tmpBaseline + 0
+        TestUtils.numInTempDirectory == tmpBaseline + 0
     }
 
     void "test reading all bytes from file at provided path"() {
         given: "valid audio util object"
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
         byte[] data = "abc".bytes
         Path path = audioUtils.createTempFile(data)
 
@@ -117,7 +117,7 @@ class AudioUtilsSpec extends Specification {
 
     void "test getting executing command string"() {
         given: "valid audio util object"
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
 
         when:
         String command = audioUtils.command
@@ -130,7 +130,7 @@ class AudioUtilsSpec extends Specification {
 
     void "test getting executable options from mime type"() {
         given: "valid audio util object"
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
 
         expect: "non-audio types return an empty string"
         audioUtils.getCodecFromType(null) == ""
@@ -153,7 +153,7 @@ class AudioUtilsSpec extends Specification {
 
     void "test building input string for executable"() {
         given: "valid audio util object"
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
         Path path = Paths.get("testing")
 
         when: "input validation happens in public-facing method"
@@ -171,7 +171,7 @@ class AudioUtilsSpec extends Specification {
 
     void "test building output string for executable"() {
         given: "valid audio util object"
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
         Path path = Paths.get("testing")
 
         when: "input validation happens in public-facing method"
@@ -195,7 +195,7 @@ class AudioUtilsSpec extends Specification {
 
     void "test converting handling invalid inputs"() {
         given: "valid audio util object"
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
         Path tempFile = audioUtils.createTempFile()
         Path invalidFile = Paths.get("invalid")
 
@@ -237,19 +237,19 @@ class AudioUtilsSpec extends Specification {
     @Unroll
     void "test converting #inputType to #outputType"() {
         given: "valid audio util object"
-        AudioUtils audioUtils = TestHelpers.getAudioUtils()
-        byte[] inputData = TestHelpers.getSampleDataForMimeType(inputType)
+        AudioUtils audioUtils = TestUtils.getAudioUtils()
+        byte[] inputData = TestUtils.getSampleDataForMimeType(inputType)
         Path inputPath = audioUtils.createTempFile(inputData)
         long timeout = AudioPostProcessor.CONVERSION_TIMEOUT_IN_MILLIS
 
         when:
-        int numTempFiles = TestHelpers.numInTempDirectory
+        int numTempFiles = TestUtils.numInTempDirectory
         Result<byte[]> res = audioUtils.convert(timeout, inputType, inputPath, outputType)
 
         then: "converted and any created temp files are cleaned up"
         res.status == ResultStatus.OK
         res.payload instanceof byte[]
-        TestHelpers.numInTempDirectory == numTempFiles
+        TestUtils.numInTempDirectory == numTempFiles
 
         where:
         inputType                   | outputType

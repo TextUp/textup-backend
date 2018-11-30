@@ -1,13 +1,13 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.Constants
 import org.textup.validator.PhoneNumber
 
 // documented as [numberAction] in CustomApiDocs.groovy
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class ContactNumberAction extends BaseAction {

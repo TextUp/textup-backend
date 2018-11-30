@@ -295,16 +295,16 @@ class SharedContactSpec extends CustomSpec {
 
     void "test static finders for contact deletion"() {
         given: "two valid phones"
-        Phone phone1 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        Phone phone1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         phone1.updateOwner(s1)
         phone1.save(flush:true, failOnError:true)
-        Phone phone2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        Phone phone2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         phone2.updateOwner(s2)
         phone2.save(flush:true, failOnError:true)
         assert phone1.canShare(phone2) == true
 
         when: "valid contacts and shared contacts"
-        Contact contact1 = phone1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+        Contact contact1 = phone1.createContact([:], [TestUtils.randPhoneNumber()]).payload
         SharedContact sc1 = phone1.share(contact1, phone2, SharePermission.DELEGATE).payload
         SharedContact.withSession { it.flush() }
 
@@ -369,8 +369,8 @@ class SharedContactSpec extends CustomSpec {
 
     void "test building detached criteria for records"() {
         given: "valid contacts and shared contacts"
-        Contact contact1 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
-        Contact contact2 = p1.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact2 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
 
         SharedContact sc1 = p1.share(contact1, p2, SharePermission.DELEGATE).payload
         SharedContact sc2 = p1.share(contact2, p2, SharePermission.DELEGATE).payload

@@ -46,7 +46,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestHelpers.jsonToMap(c1 as JSON)
+    		json = TestUtils.jsonToMap(c1 as JSON)
     	}
 
     	then:
@@ -76,7 +76,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(sc2 as JSON)
+            json = TestUtils.jsonToMap(sc2 as JSON)
         }
 
         then:
@@ -102,7 +102,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         when: "we marshal this contactable"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(c1 as JSON)
+            json = TestUtils.jsonToMap(c1 as JSON)
         }
 
         then: "detailed unread info DOES NOT show up because status is not unread"
@@ -112,7 +112,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         c1.status = ContactStatus.UNREAD
         c1.save(flush: true, failOnError: true)
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(c1 as JSON)
+            json = TestUtils.jsonToMap(c1 as JSON)
         }
 
         then: "detailed unread info shows up"
@@ -125,7 +125,7 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         c1.lastTouched = dtInFuture.plusDays(2)
         c1.save(flush: true, failOnError: true)
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(c1 as JSON)
+            json = TestUtils.jsonToMap(c1 as JSON)
         }
 
         then: "no detailed unread info even if status is unread"

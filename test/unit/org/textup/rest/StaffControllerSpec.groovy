@@ -74,7 +74,7 @@ class StaffControllerSpec extends CustomSpec {
         request.method = "GET"
         params.organizationId = org.id
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, org.people*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, org.people*.id)
 
         then:
         response.status == SC_OK
@@ -88,7 +88,7 @@ class StaffControllerSpec extends CustomSpec {
         request.method = "GET"
         params.teamId = t1.id
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, t1.members*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, t1.members*.id)
 
         then:
         response.status == SC_OK
@@ -102,7 +102,7 @@ class StaffControllerSpec extends CustomSpec {
         request.method = "GET"
         params.canShareStaffId = s1.id
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, s1.teams.members*.id.flatten())
+        List<Long> ids = TypeConversionUtils.allTo(Long, s1.teams.members*.id.flatten())
         ids.remove(s1.id)
 
         then:
@@ -117,7 +117,7 @@ class StaffControllerSpec extends CustomSpec {
         request.method = "GET"
         params.search = "demo"
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, org.getStaff(params.search)*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, org.getStaff(params.search)*.id)
 
         then:
         response.status == SC_OK

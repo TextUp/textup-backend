@@ -1,10 +1,10 @@
 package org.textup
 
 import org.springframework.security.access.annotation.Secured
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.commons.GrailsApplication
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Secured("permitAll")
 class DocController {
 
@@ -19,7 +19,7 @@ class DocController {
             // when running functional tests on CI server, this file isn't generated until deployment
             // therefore, just return an empty JSON string if no output file yet
             String stringData = input ? input.text : ""
-            Helpers.toJson(stringData)
+            DataFormatUtils.jsonToObject(stringData)
         }
         finally {
             input?.close()

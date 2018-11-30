@@ -19,8 +19,8 @@ class StorageService {
         if (!uItems) {
             return new ResultGroup<PutObjectResult>()
         }
-        List<Result<PutObjectResult>> resList = Helpers.<UploadItem>doAsyncInBatches(uItems,
-            this.&upload, Constants.CONCURRENT_UPLOAD_BATCH_SIZE)
+        List<Result<PutObjectResult>> resList = AsyncUtils.<UploadItem>doAsyncInBatches(uItems,
+            this.&upload, AsyncUtils.UPLOAD_BATCH_SIZE)
         new ResultGroup<PutObjectResult>(resList)
     }
     Result<PutObjectResult> upload(UploadItem uItem) {

@@ -20,7 +20,7 @@ class TeamService {
 
     @RollbackOnResultFailure
     Result<Team> create(Map body, String timezone) {
-        Organization o1 = Organization.get(Helpers.to(Long, body.org))
+        Organization o1 = Organization.get(TypeConversionUtils.to(Long, body.org))
         if (!o1) {
             return resultFactory.failWithCodeAndStatus("teamService.create.orgNotFound",
                 ResultStatus.NOT_FOUND, [body.org])
@@ -37,8 +37,8 @@ class TeamService {
             Location loc = t1.location ?: new Location()
             loc.with {
                 if (l.address) address = l.address
-                if (l.lat) lat = Helpers.to(BigDecimal, l.lat)
-                if (l.lon) lon = Helpers.to(BigDecimal, l.lon)
+                if (l.lat) lat = TypeConversionUtils.to(BigDecimal, l.lat)
+                if (l.lon) lon = TypeConversionUtils.to(BigDecimal, l.lon)
             }
             t1.location = loc
             if (!loc.save()) {

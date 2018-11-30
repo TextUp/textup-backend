@@ -85,7 +85,7 @@ class BaseControllerSpec extends CustomSpec {
 
     void "test building errors"() {
         given: "error results"
-        ResultFactory fac = TestHelpers.getResultFactory(grailsApplication)
+        ResultFactory fac = TestUtils.getResultFactory(grailsApplication)
         String errorCode = "I am an a valid error code"
         Collection<Result<?>> manyErrorRes = []
         Location loc1 = new Location()

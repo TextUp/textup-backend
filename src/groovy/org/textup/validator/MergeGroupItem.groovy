@@ -1,10 +1,10 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Validateable
 class MergeGroupItem {
 

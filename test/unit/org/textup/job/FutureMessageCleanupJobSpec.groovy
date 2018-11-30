@@ -7,7 +7,7 @@ import org.joda.time.DateTime
 import org.quartz.Scheduler
 import org.textup.*
 import org.textup.type.FutureMessageType
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.Specification
 
 @Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage,
@@ -17,7 +17,7 @@ class FutureMessageCleanupJobSpec extends Specification {
 
     void "test cleaning up completed messages not marked as such"() {
         given: "a future message not properly marked as done"
-        Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
+        IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
         Record rec1 = new Record()
         rec1.save(flush:true, failOnError:true)
         // started today or earlier and is NOT done

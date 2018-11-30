@@ -40,7 +40,7 @@ class VoicemailServiceSpec extends CustomSpec {
         rCall1.save(flush: true, failOnError: true)
         DateTime originalActivityTimestamp = rCall1.record.lastRecordActivity
         List<MediaElement> eList = []
-        10.times { eList << TestHelpers.buildMediaElement() }
+        10.times { eList << TestUtils.buildMediaElement() }
         eList*.save(flush: true, failOnError: true)
 
         int mBaseline = MediaInfo.count()
@@ -82,10 +82,10 @@ class VoicemailServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test processing voicemail message"() {
         given:
-        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaElement e1 = TestUtils.buildMediaElement()
         e1.save(flush: true, failOnError: true)
         RecordCall rCall1 = new RecordCall(record: rText1.record)
-        RecordItemReceipt rpt = TestHelpers.buildReceipt()
+        RecordItemReceipt rpt = TestUtils.buildReceipt()
         rCall1.addToReceipts(rpt)
         rCall1.save(flush: true, failOnError: true)
 
@@ -95,7 +95,7 @@ class VoicemailServiceSpec extends CustomSpec {
         service.incomingMediaService = Mock(IncomingMediaService)
         service.socketService = Mock(SocketService)
         IncomingRecordingInfo ir1 = Mock(IncomingRecordingInfo)
-        MockedMethod updateVoicemailForCall = TestHelpers.mock(service, "updateVoicemailForCall")
+        MockedMethod updateVoicemailForCall = TestUtils.mock(service, "updateVoicemailForCall")
             { RecordCall call -> new Result(payload: call) }
 
         when: "incoming media service does not return any media elements"
@@ -131,7 +131,7 @@ class VoicemailServiceSpec extends CustomSpec {
 
     void "test processing voicemail greeting"() {
         given:
-        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaElement e1 = TestUtils.buildMediaElement()
         e1.save(flush: true, failOnError: true)
 
         int mBaseline = MediaInfo.count()

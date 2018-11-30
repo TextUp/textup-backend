@@ -65,7 +65,7 @@ class NotificationPolicy implements Schedulable, WithId {
         if (!schedule) {
             schedule = new WeeklySchedule([:])
             if (!schedule.save()) {
-                return Helpers.resultFactory.failWithValidationErrors(schedule.errors)
+                return IOCUtils.resultFactory.failWithValidationErrors(schedule.errors)
             }
         }
         if (schedule.instanceOf(WeeklySchedule)) {
@@ -159,8 +159,8 @@ class NotificationPolicy implements Schedulable, WithId {
     		return hydrated
     	}
     	try {
-    		(Helpers.toJson(data) as Collection).each { Object val ->
-    			Long recordId = Helpers.to(Long, val)
+    		(DataFormatUtils.jsonToObject(data) as Collection).each { Object val ->
+    			Long recordId = TypeConversionUtils.to(Long, val)
     			if (recordId) { hydrated.add(recordId) }
     		}
     	}
@@ -171,6 +171,6 @@ class NotificationPolicy implements Schedulable, WithId {
     	hydrated
     }
     protected String dehydrateList(HashSet<Long> data) {
-    	data ? Helpers.toJsonString(data) : ""
+    	data ? DataFormatUtils.toJsonString(data) : ""
     }
 }

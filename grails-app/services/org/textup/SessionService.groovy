@@ -1,11 +1,11 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.textup.util.RollbackOnResultFailure
 import org.textup.validator.PhoneNumber
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Transactional
 class SessionService {
 
@@ -61,10 +61,10 @@ class SessionService {
 
 	protected Result<IncomingSession> updateFields(IncomingSession s1, Map body) {
 		if (body.isSubscribedToText != null) {
-			s1.isSubscribedToText = Helpers.to(Boolean, body.isSubscribedToText)
+			s1.isSubscribedToText = TypeConversionUtils.to(Boolean, body.isSubscribedToText)
 		}
 		if (body.isSubscribedToCall != null) {
-			s1.isSubscribedToCall = Helpers.to(Boolean, body.isSubscribedToCall)
+			s1.isSubscribedToCall = TypeConversionUtils.to(Boolean, body.isSubscribedToCall)
 		}
 
 		if (s1.save()) {

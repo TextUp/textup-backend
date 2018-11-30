@@ -21,7 +21,7 @@ class PasswordResetServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -43,7 +43,7 @@ class PasswordResetServiceSpec extends CustomSpec {
         res.errorMessages[0] == "passwordResetService.start.staffNotFound"
 
         when: "username is nonexistent"
-        res = service.start(TestHelpers.randString())
+        res = service.start(TestUtils.randString())
 
         then:
         0 * service.tokenService._

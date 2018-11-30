@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
@@ -230,14 +230,14 @@ class SharedContact implements Contactable, WithId {
     // Sharing
     // -------
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     SharedContact startSharing(ContactStatus cStatus1, SharePermission perm) {
         this.status = cStatus1
         this.permission = perm
         this.dateExpired = null
         this
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     SharedContact stopSharing() {
         this.dateExpired = DateTime.now(DateTimeZone.UTC)
         this
@@ -246,18 +246,18 @@ class SharedContact implements Contactable, WithId {
     // Status
     // ------
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     boolean getIsActive() {
         this.canModify || this.canView
     }
     //Can modify if not yet expired, and with delegate permissions
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     boolean getCanModify() {
         (this.dateExpired == null || this.dateExpired?.isAfterNow()) &&
             this.permission == SharePermission.DELEGATE
     }
     //Can view if not yet expired and with delegate or view persmissions
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     boolean getCanView() {
         this.canModify || ((this.dateExpired == null || this.dateExpired?.isAfterNow()) &&
             this.permission == SharePermission.VIEW)
@@ -266,31 +266,31 @@ class SharedContact implements Contactable, WithId {
     // Contactable methods
     // -------------------
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     Long getContactId() {
         this.canView ? this.contact.contactId : null
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     PhoneNumber getFromNum() {
         this.canView ? this.sharedBy.number : null
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     String getName() {
-        this.canView ? this.contact.name : null
+        this.canView ? this.contact.nameOrNumber : null
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     String getNote() {
         this.canView ? this.contact.note : null
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<ContactNumber> getNumbers() {
         this.canView ? this.contact.numbers : null
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<ContactNumber> getSortedNumbers() {
         this.canView ? this.contact.sortedNumbers : null
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<NotificationStatus> getNotificationStatuses() {
         // If we are modifying through a shared contact in contactService, we use the contact id
         // so it's indistinguishable whether we own the contact being updated or we are a collaborator
@@ -304,18 +304,18 @@ class SharedContact implements Contactable, WithId {
         else { [] }
     }
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     Result<Record> tryGetRecord() {
         this.canModify ?
-            Helpers.resultFactory.success(this.contact.record) :
-            Helpers.resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
+            IOCUtils.resultFactory.success(this.contact.record) :
+            IOCUtils.resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
                 ResultStatus.FORBIDDEN)
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
         this.isActive ?
-            Helpers.resultFactory.success(this.contact.record) :
-            Helpers.resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
+            IOCUtils.resultFactory.success(this.contact.record) :
+            IOCUtils.resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
                 ResultStatus.FORBIDDEN)
     }
 }

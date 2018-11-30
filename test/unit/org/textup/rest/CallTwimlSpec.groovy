@@ -36,7 +36,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Say("twimlBuilder.invalidNumber")
                 Hangup()
@@ -48,7 +48,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Say("twimlBuilder.notFound")
                 Hangup()
@@ -60,7 +60,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Say("twimlBuilder.error")
                 Hangup()
@@ -70,7 +70,7 @@ class CallTwimlSpec extends CustomSpec {
 
     void "test building child call status callback"() {
         when:
-        String randString = TestHelpers.randString()
+        String randString = TestUtils.randString()
         String link = CallTwiml.childCallStatus(randString)
 
         then:
@@ -86,7 +86,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Hangup() }
         })
 
@@ -95,7 +95,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Reject(reason:"rejected") }
         })
     }
@@ -106,7 +106,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Gather(numDigits: 10) {
                     Say(loop: 20, "twimlBuilder.call.selfGreeting")
@@ -121,7 +121,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Say("twimlBuilder.call.unsubscribed")
                 Say("twimlBuilder.call.goodbye")
@@ -134,7 +134,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Say("twimlBuilder.call.subscribed")
                 Say("twimlBuilder.call.goodbye")
@@ -159,7 +159,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Say("twimlBuilder.call.selfConnecting")
                 Dial(callerId: displayNum) {
@@ -185,7 +185,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Say("twimlBuilder.call.selfInvalidDigits")
                 Redirect("[:]")
@@ -203,7 +203,7 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "voicemail -- robot reading away message"
-        PhoneNumber fromNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
         Map callbackParams = [handle: CallResponse.VOICEMAIL_DONE, From: fromNum.e164PhoneNumber,
             To: p1.number.e164PhoneNumber]
         Map actionParams = [handle: CallResponse.END_CALL]
@@ -211,7 +211,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Pause(length: 1)
                 Say(voice: p1.voice.toTwimlValue(), p1.awayMessage)
@@ -224,14 +224,14 @@ class CallTwimlSpec extends CustomSpec {
         }
 
         when: "voicemail -- playing pre-recorded message"
-        String greetingUrl = "http://www.example.com/${TestHelpers.randString()}"
+        String greetingUrl = "http://www.example.com/${TestUtils.randString()}"
         p1.useVoicemailRecordingIfPresent = true
         p1.metaClass.getVoicemailGreetingUrl = { -> new URL(greetingUrl) }
         res = CallTwiml.recordVoicemailMessage(p1, fromNum)
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Pause(length: 1)
                 Play(greetingUrl)
@@ -249,7 +249,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Pause(length: 1)
                 Say(voice: p1.voice.toTwimlValue(), p1.awayMessage)
@@ -272,16 +272,16 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "connect incoming valid"
-        PhoneNumber dispNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-        PhoneNumber originalFrom = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-        String num = TestHelpers.randPhoneNumber()
+        PhoneNumber dispNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber originalFrom = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        String num = TestUtils.randPhoneNumber()
         Map voicemailParams = [handle: CallResponse.CHECK_IF_VOICEMAIL]
         Map screenParams = CallTwiml.infoForScreenIncoming(originalFrom)
         res = CallTwiml.connectIncoming(dispNum, originalFrom, [num])
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Dial(callerId: dispNum.e164PhoneNumber, timeout: 15, answerOnBridge: true,
                     action: voicemailParams.toString()) {
@@ -309,7 +309,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Gather(numDigits: 1, action: finishScreenParams.toString()) {
                     Pause(length: 1)
@@ -340,7 +340,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Pause(length: 1)
                 Say("twimlBuilder.call.bridgeNoNumbers")
@@ -355,7 +355,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Pause(length: 1)
                 Say("twimlBuilder.call.bridgeNumberStart")
@@ -377,7 +377,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Pause(length: 1)
                 Say("twimlBuilder.call.bridgeNumberStart")
@@ -410,14 +410,14 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "valid without recording urls"
-        String id = TestHelpers.randString()
-        String msg = TestHelpers.randString()
+        String id = TestUtils.randString()
+        String msg = TestUtils.randString()
         VoiceLanguage lang = VoiceLanguage.CHINESE
         res = CallTwiml.directMessage(id, msg, lang)
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Say("twimlBuilder.call.messageIntro")
                 Pause(length: 1)
@@ -430,14 +430,14 @@ class CallTwimlSpec extends CustomSpec {
 
         when: "valid with recording urls"
         List<URL> recordingUrls = [
-            new URL("https://www.example.com/${TestHelpers.randString()}"),
-            new URL("https://www.example.com/${TestHelpers.randString()}")
+            new URL("https://www.example.com/${TestUtils.randString()}"),
+            new URL("https://www.example.com/${TestUtils.randString()}")
         ]
         res = CallTwiml.directMessage(id, msg, lang, recordingUrls)
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Say("twimlBuilder.call.messageIntro")
                 Pause(length: 1)
@@ -464,7 +464,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Gather(numDigits: 1) {
                     Say("twimlBuilder.call.announcementGreetingWelcome")
@@ -480,7 +480,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Gather(numDigits: 1) {
                     Say("twimlBuilder.call.announcementGreetingWelcome")
@@ -515,7 +515,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Gather(numDigits: 1) {
                     Say("twimlBuilder.announcement")
@@ -532,7 +532,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Gather(numDigits: 1) {
                     Say("twimlBuilder.announcement")
@@ -555,15 +555,15 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "announcement and digits valid"
-        String identifier = TestHelpers.randString()
-        String msg = TestHelpers.randString()
+        String identifier = TestUtils.randString()
+        String msg = TestUtils.randString()
         Map repeatParams = [handle: CallResponse.ANNOUNCEMENT_AND_DIGITS,
             identifier: identifier, message: msg]
         res = CallTwiml.announcementAndDigits(identifier, msg)
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Say("twimlBuilder.call.announcementIntro")
                 Gather(numDigits: 1) {
@@ -585,15 +585,15 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "valid"
-        PhoneNumber phoneNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-        PhoneNumber sessNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber phoneNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber sessNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
         Map processingParams = [handle: CallResponse.VOICEMAIL_GREETING_PROCESSING]
         Map doneParams = CallTwiml.infoForVoicemailGreetingFinishedProcessing(phoneNum, sessNum)
         res = CallTwiml.recordVoicemailGreeting(phoneNum, sessNum)
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Pause(length: 1)
                 Say("twimlBuilder.call.recordVoicemailGreeting")
@@ -611,7 +611,7 @@ class CallTwimlSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Say(loop: 2, "twimlBuilder.call.processingVoicemailGreeting")
                 Play(Constants.CALL_HOLD_MUSIC_URL)
@@ -630,14 +630,14 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "valid"
-        PhoneNumber fromNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-        URL greetingLink = new URL("http://www.example.com/${TestHelpers.randString()}")
+        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        URL greetingLink = new URL("http://www.example.com/${TestUtils.randString()}")
         Map recordParams = CallTwiml.infoForRecordVoicemailGreeting()
         res = CallTwiml.playVoicemailGreeting(fromNum, greetingLink)
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Gather(numDigits: 1, action: recordParams.toString()) {
                     Say("twimlBuilder.call.finishedVoicemailGreeting")

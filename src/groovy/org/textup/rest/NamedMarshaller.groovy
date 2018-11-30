@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.converters.configuration.DefaultConverterConfiguration
 import org.codehaus.groovy.grails.web.converters.Converter
@@ -9,7 +9,7 @@ import org.codehaus.groovy.grails.web.converters.marshaller.ObjectMarshaller
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.beans.factory.annotation.Autowired
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class NamedMarshaller {
 
     @Autowired

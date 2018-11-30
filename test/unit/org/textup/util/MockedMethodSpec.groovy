@@ -25,7 +25,7 @@ class MockedMethodSpec extends Specification {
         given:
         Cat cat = new Cat()
         String originalVal = cat.meow()
-        String overrideVal = TestHelpers.randString()
+        String overrideVal = TestUtils.randString()
         Closure action = { overrideVal }
 
         when: "mock initially"
@@ -72,7 +72,7 @@ class MockedMethodSpec extends Specification {
     void "test mock static method with forced override"() {
         given:
         String originalVal = Cat.create()
-        String overrideVal = TestHelpers.randString()
+        String overrideVal = TestUtils.randString()
         Closure action = { overrideVal }
 
         when: "mock initially"

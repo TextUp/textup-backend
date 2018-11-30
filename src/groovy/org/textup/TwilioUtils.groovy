@@ -25,7 +25,7 @@ class TwilioUtils {
         String errCode = "twilioUtils.validate.invalid",
             authHeader = request.getHeader("x-twilio-signature")
         if (!authHeader) {
-            return Helpers.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
+            return IOCUtils.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
         }
         // step 2: build browser url and extract Twilio params
         String url = TwilioUtils.getBrowserURL(request)
@@ -35,8 +35,8 @@ class TwilioUtils {
         RequestValidator validator = new RequestValidator(authToken)
 
         validator.validate(url, twilioParams, authHeader) ?
-            Helpers.resultFactory.success() :
-            Helpers.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
+            IOCUtils.resultFactory.success() :
+            IOCUtils.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
     }
 
     static List<IncomingMediaInfo> buildIncomingMedia(int numMedia, String messageId,
@@ -65,7 +65,7 @@ class TwilioUtils {
 
     static Result<Closure> invalidTwimlInputs(String code) {
         log.error("TwilioUtils.invalidTwimlInputs: invalid inputs in callback for $code")
-        Helpers.resultFactory.failWithCodeAndStatus("twimlBuilder.invalidCode",
+        IOCUtils.resultFactory.failWithCodeAndStatus("twimlBuilder.invalidCode",
             ResultStatus.BAD_REQUEST, [code])
     }
 
@@ -76,7 +76,7 @@ class TwilioUtils {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static Result<Closure> wrapTwiml(Closure body) {
-        Helpers.resultFactory.success {
+        IOCUtils.resultFactory.success {
             Response {
                 body.delegate = delegate
                 body()
@@ -85,7 +85,7 @@ class TwilioUtils {
     }
 
     static String say(String code, List<Object> args = []) {
-        cleanForSay(Helpers.getMessage(code, args))
+        cleanForSay(IOCUtils.getMessage(code, args))
     }
     static String say(BasePhoneNumber pNum) {
         cleanForSay(pNum.number)
@@ -97,14 +97,14 @@ class TwilioUtils {
                 TwilioUtils.formatAnnouncementForRequest(a1.whenCreated, a1.owner.name, a1.message)
             }
         }
-        else { [Helpers.getMessage("twimlBuilder.noAnnouncements")] }
+        else { [IOCUtils.getMessage("twimlBuilder.noAnnouncements")] }
     }
     static String formatAnnouncementForRequest(DateTime dt, String identifier, String msg) {
         String timeAgo = new PrettyTime(LCH.getLocale()).format(dt.toDate())
-        Helpers.getMessage("twimlBuilder.announcement", [timeAgo, identifier, msg])
+        IOCUtils.getMessage("twimlBuilder.announcement", [timeAgo, identifier, msg])
     }
     static String formatAnnouncementForSend(String identifier, String message) {
-        String unsubscribe = Helpers.getMessage("twimlBuilder.text.announcementUnsubscribe",
+        String unsubscribe = IOCUtils.getMessage("twimlBuilder.text.announcementUnsubscribe",
             [Constants.TEXT_TOGGLE_SUBSCRIBE])
         "${identifier}: ${message}. ${unsubscribe}"
     }

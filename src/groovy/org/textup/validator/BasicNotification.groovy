@@ -1,12 +1,12 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.ToString
 import org.textup.*
 import org.textup.type.PhoneOwnershipType
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Validateable
 @ToString
 class BasicNotification {

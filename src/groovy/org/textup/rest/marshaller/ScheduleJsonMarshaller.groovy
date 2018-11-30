@@ -1,6 +1,6 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import javax.servlet.http.HttpServletRequest
 import org.joda.time.DateTime
 import org.textup.*
@@ -8,12 +8,12 @@ import org.textup.rest.*
 import org.textup.type.LogLevel
 import org.textup.validator.LocalInterval
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { Schedule sched ->
         Map json = [:]
 
-        Result<String> res = Helpers.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
+        Result<String> res = Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
             .logFail("ScheduleJsonMarshaller: no available request", LogLevel.DEBUG)
         String tz = res.success ? res.payload : null
 
@@ -28,7 +28,7 @@ class ScheduleJsonMarshaller extends JsonNamedMarshaller {
         if (sched.instanceOf(WeeklySchedule)) {
             WeeklySchedule.get(sched.id)?.getAllAsLocalIntervals(tz).each {
                 String day, List<LocalInterval> intervals ->
-                json["${day}"] = intervals.collect(Helpers.&printLocalInterval)
+                json["${day}"] = intervals.collect(DateTimeUtils.&printLocalInterval)
             }
         }
         json

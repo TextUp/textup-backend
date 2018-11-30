@@ -33,8 +33,8 @@ class ContactControllerSpec extends CustomSpec {
         JodaConverters.registerJsonAndXmlMarshallers()
 
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        Contact cont1 = loggedIn.phone.createContact([:], [TestHelpers.randPhoneNumber()]).payload
-        Contact cont2 = loggedIn.phone.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+        Contact cont1 = loggedIn.phone.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact cont2 = loggedIn.phone.createContact([:], [TestUtils.randPhoneNumber()]).payload
         [cont1, cont2]*.save(flush:true, failOnError:true)
         assert loggedIn.phone.countContacts() > 0
     }
@@ -60,7 +60,7 @@ class ContactControllerSpec extends CustomSpec {
         request.method = "GET"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.getContacts()*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.phone.getContacts()*.id)
 
         then: "return contacts for currently logged in staff"
         response.status == SC_OK
@@ -86,7 +86,7 @@ class ContactControllerSpec extends CustomSpec {
         request.method = "GET"
         params.tagId = tag1.id
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, tag1.members*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, tag1.members*.id)
 
         then:
         response.status == SC_OK
@@ -102,7 +102,7 @@ class ContactControllerSpec extends CustomSpec {
         params.shareStatus = "invalid"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.getContacts()*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.phone.getContacts()*.id)
 
         then: "return contacts for currently logged in staff"
         response.status == SC_OK
@@ -118,7 +118,7 @@ class ContactControllerSpec extends CustomSpec {
         params["status[]"] = [ContactStatus.UNREAD, ContactStatus.ACTIVE]
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.getSharedByMe()*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.phone.getSharedByMe()*.id)
 
         then: "status[] param is overshadowed"
         response.status == SC_OK
@@ -133,7 +133,7 @@ class ContactControllerSpec extends CustomSpec {
         params.shareStatus = "sharedWithMe"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.getSharedWithMe()*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.phone.getSharedWithMe()*.id)
 
         then:
         response.status == SC_OK
@@ -148,7 +148,7 @@ class ContactControllerSpec extends CustomSpec {
         request.method = "GET"
         params.teamId = t1.id
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, t1.phone.getContacts()*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, t1.phone.getContacts()*.id)
 
         then:
         response.status == SC_OK
@@ -163,7 +163,7 @@ class ContactControllerSpec extends CustomSpec {
         params.teamId = t1.id
         params.search = "1222333"
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, t1.phone.getContacts(params.search)*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, t1.phone.getContacts(params.search)*.id)
 
         then:
         response.status == SC_OK

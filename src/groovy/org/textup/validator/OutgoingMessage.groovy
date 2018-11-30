@@ -22,13 +22,16 @@ class OutgoingMessage {
 	Recipients<Long, SharedContact> sharedContacts
 	Recipients<Long, ContactTag> tags
 
-	static constraints = {
+	static constraints = { // default nullable: false
 		// [SHARED maxSize] 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
 		message blank: true, nullable: true, maxSize: Constants.MAX_TEXT_COLUMN_SIZE
 		media nullable: true, validator: { MediaInfo mInfo, OutgoingMessage obj ->
 			// message must have at least one of text and media
 			if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }
 		}
+		contacts cascadeValidation: true
+        sharedContacts cascadeValidation: true
+        tags cascadeValidation: true
 	}
 
 	// Methods
@@ -36,6 +39,9 @@ class OutgoingMessage {
 
 	HashSet<Contactable> toRecipients() {
 		HashSet<Contactable> recipients = new HashSet<>()
+		if (hasErrors()) {
+			return recipients
+		}
         // add all contactables to a hashset to avoid duplication
         if (contacts) { recipients.addAll(contacts.recipients) }
         if (sharedContacts) { recipients.addAll(sharedContacts.recipients) }
@@ -47,6 +53,9 @@ class OutgoingMessage {
 
 	Map<Long, List<ContactTag>> getContactIdToTags() {
 		Map<Long, List<ContactTag>> contactIdToTags = [:].withDefault { [] as List<ContactTag> }
+		if (hasErrors()) {
+			return contactIdToTags
+		}
 		tags?.recipients?.each { ContactTag ct1 ->
 			ct1.members?.each { Contact c1 -> contactIdToTags[c1.id] << ct1 }
 		}
@@ -58,21 +67,23 @@ class OutgoingMessage {
 
 	// called during validation so needs to null-safe
 	String getName() {
-		if (!contacts || !tags) {
+		if (hasErrors()) {
 			return ""
 		}
-		Long id = contacts.recipients?.find { Contact c1 -> c1.id }?.id
+		Long id = contacts.recipients.find { Contact c1 -> c1.id }?.id
 		if (id) { // don't return contact name, instead id, for PHI
-			Helpers.getMessage("outgoingMessage.getName.contactId", [id])
+			IOCUtils.getMessage("outgoingMessage.getName.contactId", [id])
 		}
-		else { tags.recipients?.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
+		else { tags.recipients.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
     }
 
-	boolean getIsText() { type == RecordItemType.TEXT }
+	boolean getIsText() {
+		hasErrors() ? false : type == RecordItemType.TEXT
+	}
 
 	HashSet<Phone> getPhones() {
 		HashSet<Phone> phones = new HashSet<>()
-		if (!contacts || !sharedContacts || !tags) {
+		if (hasErrors()) {
 			return phones
 		}
 		phones.addAll(contacts.recipients*.phone)

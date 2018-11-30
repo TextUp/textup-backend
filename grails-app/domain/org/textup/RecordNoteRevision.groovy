@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
@@ -66,9 +66,9 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId {
         media lazy: false, cascade: "save-update"
     }
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     ReadOnlyLocation getReadOnlyLocation() { location }
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
 }

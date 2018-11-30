@@ -27,7 +27,7 @@ class AnnouncementServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -61,7 +61,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         res.errorMessages[0] == "phone.isInactive"
 
         when: "expiration time is missing or in the past"
-        p1.numberAsString = TestHelpers.randPhoneNumber()
+        p1.numberAsString = TestUtils.randPhoneNumber()
         params.expiresAt = DateTime.now().minusDays(1).toDate()
         res = service.create(p1, params)
 
@@ -144,7 +144,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         then:
         1 * fa1.addToReceipts(RecordItemType.TEXT, sess1) >> new ResultGroup()
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.announcement")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.announcement")
     }
 
     void "test change announcement subscription for texts"() {
@@ -157,7 +157,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         then: "subscribe"
         1 * sess1.isSubscribedToText >> false
         1 * sess1.setIsSubscribedToText(true)
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.text.subscribed")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.text.subscribed")
 
         when: "is subscribed"
         res = service.textToggleSubscribe(sess1)
@@ -165,7 +165,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         then: "unsubscribe"
         1 * sess1.isSubscribedToText >> true
         1 * sess1.setIsSubscribedToText(false)
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.text.unsubscribed")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.text.unsubscribed")
     }
 
     void "test try building text instructions"() {
@@ -246,7 +246,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         then:
         res.success == true
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.announcementGreetingWelcome")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.announcementGreetingWelcome")
         AnnouncementReceipt.count() == aBaseline
         false == didCallFallback
 
@@ -257,7 +257,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         then:
         res.success == true
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.announcement")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.announcement")
         AnnouncementReceipt.count() == aBaseline + 1
         false == didCallFallback
 
@@ -270,7 +270,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         session.isSubscribedToCall == true
         res.success == true
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.subscribed")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.subscribed")
         false == didCallFallback
 
         when: "digits, is subscriber, toggle subscribe"
@@ -282,7 +282,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         session.isSubscribedToCall == false
         res.success == true
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.unsubscribed")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.unsubscribed")
         false == didCallFallback
 
         when: "digits, no matching valid"
@@ -304,15 +304,15 @@ class AnnouncementServiceSpec extends CustomSpec {
         then:
         1 * session.setIsSubscribedToCall(false)
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.unsubscribed")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.unsubscribed")
 
         when: "digits do not match unsubscribe"
-        digits = TestHelpers.randString()
+        digits = TestUtils.randString()
         res = service.completeCallAnnouncement(digits, "hi", "hi", session)
 
         then:
         0 * session._
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.announcementIntro")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.announcementIntro")
     }
 }

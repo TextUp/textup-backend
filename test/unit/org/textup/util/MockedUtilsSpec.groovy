@@ -57,7 +57,7 @@ class MockedUtilsSpec extends Specification {
     void "test building closure for method with no args"() {
         given:
         List callArgs = Mock()
-        String retVal = TestHelpers.randString()
+        String retVal = TestUtils.randString()
         Closure action = { retVal }
         ClassLoader loader = this.class.classLoader
 
@@ -80,7 +80,7 @@ class MockedUtilsSpec extends Specification {
     void "test building closure for method one signature that contains a primitive"() {
         given:
         List callArgs = Mock()
-        String retVal = TestHelpers.randString()
+        String retVal = TestUtils.randString()
         Closure action = { retVal }
         ClassLoader loader = this.class.classLoader
 
@@ -103,10 +103,10 @@ class MockedUtilsSpec extends Specification {
     void "test building closure for method with optional args that is a reference type"() {
         given:
         List callArgs = Mock()
-        String retVal = TestHelpers.randString()
+        String retVal = TestUtils.randString()
         Closure action = { retVal }
         ClassLoader loader = this.class.classLoader
-        String path = TestHelpers.randString()
+        String path = TestUtils.randString()
 
         when:
         List<MetaMethod> metaMethods = dog.metaClass.respondsTo(dog, "walk")
@@ -134,10 +134,10 @@ class MockedUtilsSpec extends Specification {
     void "test passing in overriding action closure with incorrect parameter types throws exception"() {
         given:
         List callArgs = Mock()
-        String retVal = TestHelpers.randString()
+        String retVal = TestUtils.randString()
         Closure invalidAction = { BigDecimal numTimes -> retVal }
         ClassLoader loader = this.class.classLoader
-        String path = TestHelpers.randString()
+        String path = TestUtils.randString()
 
         when:
         List<MetaMethod> metaMethods = dog.metaClass.respondsTo(dog, "sniff")
@@ -157,9 +157,9 @@ class MockedUtilsSpec extends Specification {
     void "test not passing in an overriding action just returns a default value based on the return type"() {
         given:
         List callArgs = Mock()
-        String retVal = TestHelpers.randString()
+        String retVal = TestUtils.randString()
         ClassLoader loader = this.class.classLoader
-        String path = TestHelpers.randString()
+        String path = TestUtils.randString()
 
         when:
         List<MetaMethod> metaMethods = dog.metaClass.respondsTo(dog, "yelp")
@@ -176,10 +176,10 @@ class MockedUtilsSpec extends Specification {
     void "test classloading for custom classes"() {
         given:
         List callArgs = Mock()
-        String retVal = TestHelpers.randString()
+        String retVal = TestUtils.randString()
         Closure action = { retVal }
         ClassLoader loader = this.class.classLoader
-        String path = TestHelpers.randString()
+        String path = TestUtils.randString()
 
         when:
         List<MetaMethod> metaMethods = dog.metaClass.respondsTo(dog, "nap")
@@ -200,10 +200,10 @@ class MockedUtilsSpec extends Specification {
     void "test building closure with primitive array argument"() {
         given:
         List callArgs = Mock()
-        String retVal = TestHelpers.randString()
+        String retVal = TestUtils.randString()
         Closure action = { retVal }
         ClassLoader loader = this.class.classLoader
-        byte[] game = TestHelpers.getJpegSampleData256()
+        byte[] game = TestUtils.getJpegSampleData256()
 
         when:
         List<MetaMethod> metaMethods = dog.metaClass.respondsTo(dog, "play")

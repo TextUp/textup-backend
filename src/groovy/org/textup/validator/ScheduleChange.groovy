@@ -1,6 +1,6 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.ToString
 import groovy.util.logging.Log4j
@@ -8,7 +8,7 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.ScheduleStatus
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @ToString
 @Validateable
 @Log4j

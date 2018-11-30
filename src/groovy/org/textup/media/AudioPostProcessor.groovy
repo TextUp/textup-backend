@@ -49,7 +49,7 @@ class AudioPostProcessor implements CanProcessMedia {
 
     protected Result<UploadItem> convertData(MediaType outputType) {
         if (!_temp) {
-            return Helpers.resultFactory.failWithCodeAndStatus("audioPostProcessor.convertData.missingTemp",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("audioPostProcessor.convertData.missingTemp",
                 ResultStatus.INTERNAL_SERVER_ERROR, [_type])
         }
         _audioUtils
@@ -60,8 +60,8 @@ class AudioPostProcessor implements CanProcessMedia {
     protected Result<UploadItem> buildUploadItem(MediaType type, byte[] data) {
         UploadItem uItem = new UploadItem(type: type, data: data)
         if (uItem.validate()) {
-            Helpers.resultFactory.success(uItem)
+            IOCUtils.resultFactory.success(uItem)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(uItem.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(uItem.errors) }
     }
 }

@@ -95,10 +95,10 @@ class ResultGroup<T> {
 	}
 
 	ResultStatus getSuccessStatus() {
-		Helpers.findHighestValue(successStatusToCount)?.key
+		MapUtils.findHighestValue(successStatusToCount)?.key
 	}
 	ResultStatus getFailureStatus() {
-		Helpers.findHighestValue(failureStatusToCount)?.key
+		MapUtils.findHighestValue(failureStatusToCount)?.key
 	}
 
 	ResultGroup<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {

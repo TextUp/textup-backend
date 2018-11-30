@@ -31,7 +31,7 @@ class NumberToContactRecipients extends Recipients<String, Contact> {
             }
             PhoneNumber pNum = new PhoneNumber(number:num)
             if (!pNum.validate()) {
-                msgs += Helpers.resultFactory.failWithValidationErrors(pNum.errors).errorMessages
+                msgs += IOCUtils.resultFactory.failWithValidationErrors(pNum.errors).errorMessages
                 continue
             }
             // add existing contacts to recipients

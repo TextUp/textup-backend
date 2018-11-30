@@ -53,7 +53,7 @@ class OutgoingMessageSpec extends CustomSpec {
 		msg1.errors.getFieldErrorCount("tags") == 0
 
 		when: "add media element to media so no longer empty"
-        msg1.media.addToMediaElements(TestHelpers.buildMediaElement())
+        msg1.media.addToMediaElements(TestUtils.buildMediaElement())
 
 		then:
 		msg1.validate() == true
@@ -72,7 +72,7 @@ class OutgoingMessageSpec extends CustomSpec {
 		msg1.errors.getFieldErrorCount("tags") == 1
 
 		when: "add recipients + too-long message"
-		msg1.message = TestHelpers.buildVeryLongString()
+		msg1.message = TestUtils.buildVeryLongString()
 		msg1.contacts = new ContactRecipients()
 		msg1.sharedContacts = new SharedContactRecipients()
 		msg1.tags = new ContactTagRecipients()
@@ -93,7 +93,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test getting name"() {
 		when: "empty outgoing message"
-		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
+		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage("hello")
 
 		then:
 		msg1.name == ""
@@ -119,7 +119,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test getting phones"() {
 		when: "empty outgoing message"
-		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
+		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage("hello")
 
 		then:
 		msg1.phones.isEmpty() == true
@@ -148,7 +148,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test generating recipients"() {
 		when: "an empty outgoing msg"
-		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
+		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage("hello")
 
 		then: "no recipients"
 		msg1.toRecipients().isEmpty() == true
@@ -170,7 +170,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "building map of contact ids to tags"() {
 		when: "an empty outgoing msg"
-		OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage("hello")
+		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage("hello")
 
 		then:
 		msg1.contactIdToTags.isEmpty() == true

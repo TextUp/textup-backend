@@ -3,7 +3,7 @@ package org.textup.rest.marshaller
 import grails.converters.JSON
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.*
 
 class RecordItemStatusJsonMarshallerIntegrationSpec extends Specification {
@@ -17,7 +17,7 @@ class RecordItemStatusJsonMarshallerIntegrationSpec extends Specification {
         when: "empty"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(rStat1 as JSON)
+            json = TestUtils.jsonToMap(rStat1 as JSON)
         }
 
         then:
@@ -33,10 +33,10 @@ class RecordItemStatusJsonMarshallerIntegrationSpec extends Specification {
         when: "populated with receipts of varying statuses"
         int numFailed = 2
         int numSuccess = 3
-        numFailed.times { rStat1.add(TestHelpers.buildReceipt(ReceiptStatus.FAILED)) }
-        numSuccess.times { rStat1.add(TestHelpers.buildReceipt(ReceiptStatus.SUCCESS)) }
+        numFailed.times { rStat1.add(TestUtils.buildReceipt(ReceiptStatus.FAILED)) }
+        numSuccess.times { rStat1.add(TestUtils.buildReceipt(ReceiptStatus.SUCCESS)) }
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(rStat1 as JSON)
+            json = TestUtils.jsonToMap(rStat1 as JSON)
         }
 
         then:

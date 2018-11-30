@@ -37,7 +37,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestHelpers.jsonToMap(org as JSON)
+    		json = TestUtils.jsonToMap(org as JSON)
     	}
 
     	then:
@@ -65,7 +65,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(org as JSON)
+            json = TestUtils.jsonToMap(org as JSON)
         }
 
         then:
@@ -90,7 +90,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(org as JSON)
+            json = TestUtils.jsonToMap(org as JSON)
         }
 
         then:

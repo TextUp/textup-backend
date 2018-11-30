@@ -53,7 +53,7 @@ class TextTwiml {
     // -------
 
     protected static Result<Closure> message(String code, List<?> params = []) {
-        String msg = Helpers.getMessage(code, params)
+        String msg = IOCUtils.getMessage(code, params)
         TwilioUtils.wrapTwiml { Message(msg) }
     }
 }

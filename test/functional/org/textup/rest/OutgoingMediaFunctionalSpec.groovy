@@ -25,9 +25,9 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
     void "test scheduling a future message call with media"() {
         given:
         String authToken = getAuthToken()
-        String thisMessage = TestHelpers.randString()
-        String thisData = TestHelpers.encodeBase64String(TestHelpers.getJpegSampleData256())
-        String thisChecksum = TestHelpers.getChecksum(thisData)
+        String thisMessage = TestUtils.randString()
+        String thisData = TestUtils.encodeBase64String(TestUtils.getJpegSampleData256())
+        String thisChecksum = TestUtils.getChecksum(thisData)
         Long cId = remote.exec({ un ->
             Phone p1 = Staff.findByUsername(un).phone
             return Contact.findAllByPhone(p1)[0].id
@@ -94,9 +94,9 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
     void "test sending outgoing media via a text message"() {
         given:
         String authToken = getAuthToken()
-        String thisMessage = TestHelpers.randString()
-        String thisData = TestHelpers.encodeBase64String(TestHelpers.getJpegSampleData256())
-        String thisChecksum = TestHelpers.getChecksum(thisData)
+        String thisMessage = TestUtils.randString()
+        String thisData = TestUtils.encodeBase64String(TestUtils.getJpegSampleData256())
+        String thisChecksum = TestUtils.getChecksum(thisData)
         Long cId = remote.exec({ un ->
             Phone p1 = Staff.findByUsername(un).phone
             return Contact.findAllByPhone(p1)[0].id
@@ -160,9 +160,9 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
 
     void "test upload outgoing media with some upload errors"() {
         given: "re-override storage service to have some upload errors"
-        String errorMsg = TestHelpers.randString()
+        String errorMsg = TestUtils.randString()
         remote.exec({ thisError ->
-            TestHelpers.forceMock(ctx.storageService, "uploadAsync") {
+            TestUtils.forceMock(ctx.storageService, "uploadAsync") {
                 Result failRes = new Result(status: ResultStatus.BAD_REQUEST,
                     errorMessages: [thisError])
                 new ResultGroup([failRes])
@@ -172,9 +172,9 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
 
         and: "set up other necessary info to create outgoing message"
         String authToken = getAuthToken()
-        String thisMessage = TestHelpers.randString()
-        String thisData = TestHelpers.encodeBase64String(TestHelpers.getJpegSampleData256())
-        String thisChecksum = TestHelpers.getChecksum(thisData)
+        String thisMessage = TestUtils.randString()
+        String thisData = TestUtils.encodeBase64String(TestUtils.getJpegSampleData256())
+        String thisChecksum = TestUtils.getChecksum(thisData)
         Long cId = remote.exec({ un ->
             Phone p1 = Staff.findByUsername(un).phone
             return Contact.findAllByPhone(p1)[0].id

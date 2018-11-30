@@ -22,12 +22,32 @@ hibernate {
 environments {
     development {
         dataSource {
-            driverClassName = "org.h2.Driver"
-            dialect = "org.textup.util.ImprovedH2Dialect"
-            username = "sa"
-            password = ""
-            dbCreate = "create-drop" // one of 'create', 'create-drop', 'update', 'validate', ''
-            url = "jdbc:h2:mem:devDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE"
+            // driverClassName = "org.h2.Driver"
+            // dialect = "org.textup.util.ImprovedH2Dialect"
+            // username = "sa"
+            // password = ""
+            // dbCreate = "create-drop" // one of 'create', 'create-drop', 'update', 'validate', ''
+            // url = "jdbc:h2:mem:devDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE"
+
+            // TODO
+            driverClassName = "com.mysql.jdbc.Driver"
+            dialect = "org.textup.util.MySQL5UTF8MB4InnoDBDialect"
+            // url CANNOT HAVE characterEncoding=utf8 because that will
+            // override our settings in /etc/mysql/my.cnf to set the character
+            // encoding to utf8mb4
+            url = "jdbc:mysql://localhost/prodDb?useUnicode=true"
+            username = System.getenv("TEXTUP_BACKEND_DB_USERNAME") ?: System.getProperty("TEXTUP_BACKEND_DB_USERNAME")
+            password = System.getenv("TEXTUP_BACKEND_DB_PASSWORD") ?: System.getProperty("TEXTUP_BACKEND_DB_PASSWORD")
+
+            properties {
+                minEvictableIdleTimeMillis = 180000
+                timeBetweenEvictionRunsMillis = 180000
+                numTestsPerEvictionRun = 3
+                testOnBorrow = true
+                testWhileIdle = true
+                testOnReturn = true
+                validationQuery = "SELECT 1"
+            }
         }
     }
     test {

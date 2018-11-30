@@ -1,9 +1,9 @@
 package org.textup.type
 
 import com.twilio.twiml.Say.Voice
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 enum VoiceType {
     MALE(Voice.MAN),
     FEMALE(Voice.WOMAN)

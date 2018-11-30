@@ -24,15 +24,15 @@ class IncomingMediaServiceSpec extends Specification {
     }
 
     def setup() {
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     void "test finish processing uploads"() {
         given:
         service.storageService = Mock(StorageService)
         IsIncomingMedia iMedia = Mock(IsIncomingMedia)
-        UploadItem uItem = TestHelpers.buildUploadItem()
+        UploadItem uItem = TestUtils.buildUploadItem()
 
         when: "no items to upload"
         Result<Void> res = service.finishProcessingUploads([iMedia], null)
@@ -88,8 +88,8 @@ class IncomingMediaServiceSpec extends Specification {
             validate() >> true
             getMimeType() >> MediaType.IMAGE_JPEG.mimeType
         }
-        String sid = TestHelpers.randString()
-        String authToken = TestHelpers.randString()
+        String sid = TestUtils.randString()
+        String authToken = TestUtils.randString()
 
         when: "basic auth is missing credentials"
         service.grailsApplication = Stub(GrailsApplication) {
@@ -101,7 +101,7 @@ class IncomingMediaServiceSpec extends Specification {
         Result<Tuple<List<UploadItem>, MediaElement>> res = service.processElement(im1)
 
         then:
-        1 * im1.url >> Constants.TEST_HTTP_ENDPOINT
+        1 * im1.url >> TestConstants.TEST_HTTP_ENDPOINT
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
 
         when: "basic auth returns an error response code"
@@ -112,19 +112,19 @@ class IncomingMediaServiceSpec extends Specification {
         res = service.processElement(im1)
 
         then:
-        1 * im1.url >> "${Constants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/invalid-password"
+        1 * im1.url >> "${TestConstants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/invalid-password"
         res.status == ResultStatus.UNAUTHORIZED
         res.errorMessages[0] == "incomingMediaService.processElement.couldNotRetrieveMedia"
     }
 
     void "test processing element"() {
         given: "override credentials so we're not sending actual credentials to testing endpoint"
-        String sid = TestHelpers.randString()
-        String authToken = TestHelpers.randString()
+        String sid = TestUtils.randString()
+        String authToken = TestUtils.randString()
         IsIncomingMedia im1 = Mock(IsIncomingMedia) {
             validate() >> true
             getMimeType() >> MediaType.IMAGE_JPEG.mimeType
-            getUrl() >> "${Constants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/${authToken}"
+            getUrl() >> "${TestConstants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/${authToken}"
         }
         service.grailsApplication = Stub(GrailsApplication) {
             getFlatConfig() >> [
@@ -132,8 +132,8 @@ class IncomingMediaServiceSpec extends Specification {
                 "textup.apiKeys.twilio.authToken": authToken
             ]
         }
-        UploadItem sendVersion = TestHelpers.buildUploadItem()
-        UploadItem altVersion = TestHelpers.buildUploadItem()
+        UploadItem sendVersion = TestUtils.buildUploadItem()
+        UploadItem altVersion = TestUtils.buildUploadItem()
         MediaPostProcessor.metaClass."static".process = { MediaType type, byte[] data ->
             new Result(payload: Tuple.create(sendVersion, [altVersion]))
         }
@@ -162,13 +162,13 @@ class IncomingMediaServiceSpec extends Specification {
     @DirtiesRuntime
     void "test processing overall"() {
         given: "override credentials so we're not sending actual credentials to testing endpoint"
-        MediaElement e1 = TestHelpers.buildMediaElement()
-        UploadItem uItem = TestHelpers.buildUploadItem()
+        MediaElement e1 = TestUtils.buildMediaElement()
+        UploadItem uItem = TestUtils.buildUploadItem()
         Collection<IsIncomingMedia> incomingMedia = []
         5.times { incomingMedia << Mock(IsIncomingMedia) }
-        MockedMethod processElement = TestHelpers.mock(service, "processElement")
+        MockedMethod processElement = TestUtils.mock(service, "processElement")
             { new Result(payload: Tuple.create([uItem], e1)) }
-        MockedMethod finishProcessingUploads = TestHelpers.mock(service, "finishProcessingUploads")
+        MockedMethod finishProcessingUploads = TestUtils.mock(service, "finishProcessingUploads")
             { new Result() }
 
         when: "is a public asset"

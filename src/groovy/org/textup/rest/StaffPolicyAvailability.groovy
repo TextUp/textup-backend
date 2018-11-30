@@ -1,9 +1,9 @@
 package org.textup.rest
 
 import org.textup.*
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class StaffPolicyAvailability {
 
     String jointId

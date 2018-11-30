@@ -15,9 +15,9 @@ class ResultGroupSpec extends Specification {
     void "test adding items and composition"() {
         when: "group is empty"
         ResultGroup<Location> resGroup = new ResultGroup<>()
-        Result<Location> succ1 = Result.createSuccess(TestHelpers.buildLocation(), ResultStatus.CREATED)
-        Result<Location> succ2 = Result.createSuccess(TestHelpers.buildLocation(), ResultStatus.CREATED)
-        Result<Location> succ3 = Result.createSuccess(TestHelpers.buildLocation(), ResultStatus.OK)
+        Result<Location> succ1 = Result.createSuccess(TestUtils.buildLocation(), ResultStatus.CREATED)
+        Result<Location> succ2 = Result.createSuccess(TestUtils.buildLocation(), ResultStatus.CREATED)
+        Result<Location> succ3 = Result.createSuccess(TestUtils.buildLocation(), ResultStatus.OK)
         Result<Location> fail1 = Result.createError(["could not create!"], ResultStatus.UNPROCESSABLE_ENTITY)
         Result<Location> fail2 = Result.createError(["could not create!"], ResultStatus.BAD_REQUEST)
         Result<Location> fail3 = Result.createError(["could not create!"], ResultStatus.UNPROCESSABLE_ENTITY)

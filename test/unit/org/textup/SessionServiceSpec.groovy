@@ -24,7 +24,7 @@ class SessionServiceSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
         service.authService = [getLoggedInAndActive:{
 			s1
     	}] as AuthService

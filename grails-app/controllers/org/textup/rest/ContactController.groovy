@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
@@ -12,7 +12,7 @@ import org.textup.*
 import org.textup.util.OptimisticLockingRetry
 import org.textup.validator.MergeGroup
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="Contact", description="Operations on contacts, after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class ContactController extends BaseController {
@@ -68,7 +68,7 @@ class ContactController extends BaseController {
         if (params.list("ids[]")) {
             listForIds(params)
         }
-        else if (Helpers.exactly(2, ["teamId", "tagId"], params)) {
+        else if (MapUtils.exactly(2, ["teamId", "tagId"], params)) {
             badRequest()
         }
         else if (params.teamId) {
@@ -148,7 +148,7 @@ class ContactController extends BaseController {
         respondWithMany(MergeGroup, count, list, params)
     }
     protected def listForIds(GrailsParameterMap params) {
-        Collection<Long> ids = Helpers.allTo(Long, Helpers.to(Collection, params.list("ids[]"))),
+        Collection<Long> ids = TypeConversionUtils.allTo(Long, TypeConversionUtils.to(Collection, params.list("ids[]"))),
             cIds = [],
             scIds = []
         ids.each { Long id ->

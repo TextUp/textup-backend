@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.joda.time.DateTime
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -24,17 +25,17 @@ class RecordUtils {
 
     static Result<Class<RecordItem>> determineClass(Map body) {
         if (body.callContact || body.callSharedContact) {
-            Helpers.resultFactory.success(RecordCall)
+            IOCUtils.resultFactory.success(RecordCall)
         }
         else if (body.sendToPhoneNumbers || body.sendToContacts ||
             body.sendToSharedContacts || body.sendToTags) {
-            Helpers.resultFactory.success(RecordText)
+            IOCUtils.resultFactory.success(RecordText)
         }
         else if (body.forContact || body.forSharedContact || body.forTag) {
-            Helpers.resultFactory.success(RecordNote)
+            IOCUtils.resultFactory.success(RecordNote)
         }
         else {
-            Helpers.resultFactory.failWithCodeAndStatus("recordUtils.determineClass.unknownType",
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.determineClass.unknownType",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
     }
@@ -42,38 +43,48 @@ class RecordUtils {
     // Building targets
     // ----------------
 
+    static Result<RecordItemRequest> buildRecordItemRequest(Phone p1, TypeConvertingMap body,
+        boolean groupByEntity) {
+        Collection<Class<? extends RecordItem>> types = RecordUtils.parseTypes(body.list("types[]"))
+        DateTime start = DateTimeUtils.toUTCDateTime(body.since),
+            end = DateTimeUtils.toUTCDateTime(body.before)
+        RecordItemRequest itemRequest = new RecordItemRequest(phone: p1,
+            types: types,
+            start: start,
+            end: end,
+            groupByEntity: groupByEntity,
+            contacts: new ContactRecipients(phone: p1,
+                ids: TypeConversionUtils.allTo(Long, body.list("contactIds"))),
+            sharedContacts: new SharedContactRecipients(phone: p1,
+                ids: TypeConversionUtils.allTo(Long, body.list("sharedContactIds"))),
+            tags: new ContactTagRecipients(phone: p1,
+                ids: TypeConversionUtils.allTo(Long, body.list("tagIds"))))
+        if (itemRequest.validate()) {
+            IOCUtils.resultFactory.success(itemRequest)
+        }
+        else { IOCUtils.resultFactory.failWithValidationErrors(itemRequest.errors) }
+    }
+
     static Result<OutgoingMessage> buildOutgoingMessageTarget(Phone p1, TypeConvertingMap body,
         MediaInfo mInfo = null) {
 
         // step 1: create each type of recipient
         ContactRecipients contacts = new ContactRecipients(phone: p1,
-            ids: Helpers.allTo(Long, body.list("sendToContacts")))
-        SharedContactRecipients sharedContacts = new SharedContactRecipients(phone: p1,
-            ids: Helpers.allTo(Long, body.list("sendToSharedContacts")))
-        ContactTagRecipients tags = new ContactTagRecipients(phone: p1,
-            ids: Helpers.allTo(Long, body.list("sendToTags")))
+            ids: TypeConversionUtils.allTo(Long, body.list("sendToContacts")))
         NumberToContactRecipients numToContacts = new NumberToContactRecipients(phone: p1,
-            ids: Helpers.allTo(String, body.list("sendToPhoneNumbers")))
-        ResultGroup<RecordItem> resGroup = new ResultGroup<>()
-        [contacts, sharedContacts, tags, numToContacts].each { Recipients<?,?> recips ->
-            if (!recips.validate()) {
-                resGroup << Helpers.resultFactory.failWithValidationErrors(recips.errors)
-            }
-        }
-        if (resGroup.anyFailures) {
-            return Helpers.resultFactory.failWithResultsAndStatus(resGroup.failures,
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
+            ids: TypeConversionUtils.allTo(String, body.list("sendToPhoneNumbers")))
         // step 2: build outgoing msg
         OutgoingMessage msg1 = new OutgoingMessage(message: body.contents as String,
             media: mInfo,
             contacts: contacts.mergeRecipients(numToContacts),
-            sharedContacts: sharedContacts,
-            tags: tags)
+            sharedContacts: new SharedContactRecipients(phone: p1,
+                ids: TypeConversionUtils.allTo(Long, body.list("sendToSharedContacts"))),
+            tags: new ContactTagRecipients(phone: p1,
+                ids: TypeConversionUtils.allTo(Long, body.list("sendToTags"))))
         if (msg1.validate()) {
             RecordUtils.checkOutgoingMessageRecipients(msg1)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(msg1.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(msg1.errors) }
     }
 
     static Result<Contactable> buildOutgoingCallTarget(Phone p1, TypeConvertingMap body) {
@@ -86,17 +97,17 @@ class RecordUtils {
             recips = new SharedContactRecipients(phone: p1, ids: [body.long("callSharedContact")])
         }
         if (!recips.validate()) {
-            return Helpers.resultFactory.failWithValidationErrors(recips.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(recips.errors)
         }
         // step 2: ensure that we have at least one contactable to send to.
         // That is, ensure that the provided id actually resolved to a contactable as the check
         // in the RecordController only checks for the form of the body
         Contactable cont1 = recips.recipients[0] as Contactable
         if (cont1) {
-            Helpers.resultFactory.success(cont1)
+            IOCUtils.resultFactory.success(cont1)
         }
         else {
-            Helpers.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -114,7 +125,7 @@ class RecordUtils {
             recips = new ContactTagRecipients(phone: p1, ids: [body.long("forTag")])
         }
         if (!recips.validate()) {
-            return Helpers.resultFactory.failWithValidationErrors(recips.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(recips.errors)
         }
         // step 2: ensure that we have at least one entity to add the note to
         // That is, ensure that the provided id actually resolved to a entity as the check
@@ -124,7 +135,7 @@ class RecordUtils {
             with1.tryGetRecord()
         }
         else {
-            Helpers.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -135,14 +146,14 @@ class RecordUtils {
     protected static Result<OutgoingMessage> checkOutgoingMessageRecipients(OutgoingMessage msg1) {
         Collection<Contactable> recipients = msg1.toRecipients()
         if (recipients.size() > Constants.MAX_NUM_TEXT_RECIPIENTS) {
-            Helpers.resultFactory.failWithCodeAndStatus(
+            IOCUtils.resultFactory.failWithCodeAndStatus(
                 "recordUtils.checkOutgoingMessageRecipients.tooMany",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         else if (recipients.isEmpty()) {
-            Helpers.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
                 ResultStatus.BAD_REQUEST)
         }
-        else { Helpers.resultFactory.success(msg1) }
+        else { IOCUtils.resultFactory.success(msg1) }
     }
 }

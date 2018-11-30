@@ -34,7 +34,7 @@ class StaffPolicyAvailabilityJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(spa1 as JSON)
+            json = TestUtils.jsonToMap(spa1 as JSON)
         }
 
         then:

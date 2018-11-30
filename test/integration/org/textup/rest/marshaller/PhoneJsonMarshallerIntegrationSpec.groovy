@@ -56,7 +56,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(p1 as JSON)
+            json = TestUtils.jsonToMap(p1 as JSON)
         }
 
         then:
@@ -114,7 +114,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(p1 as JSON)
+            json = TestUtils.jsonToMap(p1 as JSON)
         }
 
         then: "default to staff availability and do not show policy-level availability info"
@@ -141,7 +141,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
 
     void "test marshal phone with various voicemail options"() {
         given:
-        String customMsg = TestHelpers.randString()
+        String customMsg = TestUtils.randString()
         p1.awayMessage = customMsg
         p1.media = null
         p1.useVoicemailRecordingIfPresent = false
@@ -151,7 +151,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         when: "use robovoice to read away message -- no voicemail recording"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(p1 as JSON)
+            json = TestUtils.jsonToMap(p1 as JSON)
         }
 
         then:
@@ -162,7 +162,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         json.media == null
 
         when: "use voicemail recording"
-        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaElement e1 = TestUtils.buildMediaElement()
         e1.sendVersion.type = MediaType.AUDIO_MP3
         p1.media = new MediaInfo()
         p1.media.addToMediaElements(e1)
@@ -170,7 +170,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         p1.save(flush: true, failOnError: true)
 
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(p1 as JSON)
+            json = TestUtils.jsonToMap(p1 as JSON)
         }
 
         then:

@@ -14,14 +14,14 @@ class MediaPostProcessorSpec extends Specification {
     static doWithSpring = {
         resultFactory(ResultFactory)
         audioUtils(AudioUtils,
-            TestHelpers.config.textup.media.audio.executableDirectory,
-            TestHelpers.config.textup.media.audio.executableName,
-            TestHelpers.config.textup.tempDirectory)
+            TestUtils.config.textup.media.audio.executableDirectory,
+            TestUtils.config.textup.media.audio.executableName,
+            TestUtils.config.textup.tempDirectory)
     }
 
     void "test getting processor given invalid type"() {
         given:
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
 
         when: "missing data"
         Result<CanProcessMedia> res = MediaPostProcessor.getProcessor(null, null)
@@ -62,14 +62,14 @@ class MediaPostProcessorSpec extends Specification {
     @Unroll
     void "test building initial versions for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
-        int numTempFiles = TestHelpers.numInTempDirectory
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
+        int numTempFiles = TestUtils.numInTempDirectory
 
         when:
         Result<UploadItem> res = MediaPostProcessor.buildInitialData(type, data)
 
         then:
-        TestHelpers.numInTempDirectory == numTempFiles
+        TestUtils.numInTempDirectory == numTempFiles
         res.status == ResultStatus.OK
         res.payload.type == type
         res.payload.data == data
@@ -89,14 +89,14 @@ class MediaPostProcessorSpec extends Specification {
     @Unroll
     void "test creating versions overall for image of #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
-        int numTempFiles = TestHelpers.numInTempDirectory
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
+        int numTempFiles = TestUtils.numInTempDirectory
 
         when: "pass in data"
         Result<Tuple<UploadItem, List<UploadItem>>> res = MediaPostProcessor.process(type, data)
 
         then: "get back both send and alternate versions"
-        TestHelpers.numInTempDirectory == numTempFiles
+        TestUtils.numInTempDirectory == numTempFiles
         res.status == ResultStatus.OK
         res.payload.first.type == type
         res.payload.first.sizeInBytes < data.length
@@ -113,14 +113,14 @@ class MediaPostProcessorSpec extends Specification {
     @Unroll
     void "test creating versions overall for audio of #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
-        int numTempFiles = TestHelpers.numInTempDirectory
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
+        int numTempFiles = TestUtils.numInTempDirectory
 
         when: "pass in data"
         Result<Tuple<UploadItem, List<UploadItem>>> res = MediaPostProcessor.process(type, data)
 
         then: "get back both send and alternate versions"
-        TestHelpers.numInTempDirectory == numTempFiles
+        TestUtils.numInTempDirectory == numTempFiles
         res.payload.first.type == AudioPostProcessor.SEND_TYPE
         res.payload.second.size() == 1
         res.payload.second.every { it.type == AudioPostProcessor.ALT_TYPE }

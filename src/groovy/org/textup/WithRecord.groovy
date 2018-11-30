@@ -1,8 +1,9 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface WithRecord {
     Result<Record> tryGetRecord()
+    Result<ReadOnlyRecord> tryGetReadOnlyRecord()
 }

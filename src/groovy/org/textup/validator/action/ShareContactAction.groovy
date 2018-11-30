@@ -1,16 +1,14 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.textup.Constants
-import org.textup.Helpers
-import org.textup.Phone
+import org.textup.*
 import org.textup.type.SharePermission
 
 // documented as [shareAction] in CustomApiDocs.groovy
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class ShareContactAction extends BaseAction {
@@ -20,14 +18,14 @@ class ShareContactAction extends BaseAction {
 
 	static constraints = {
 		id validator: { Long phoneId, ShareContactAction ->
-			if (!Helpers.<Boolean>doWithoutFlush({ Phone.exists(phoneId) })) {
+			if (!Utils.<Boolean>doWithoutFlush({ Phone.exists(phoneId) })) {
 				["doesNotExist"]
 			}
 		}
 		permission nullable:true, blank:true, validator: { String permission, ShareContactAction obj ->
 			if (obj.matches(Constants.SHARE_ACTION_MERGE)) {
 				Collection<String> options = SharePermission.values().collect { it.toString() }
-				if (!Helpers.inListIgnoreCase(permission, options)) {
+				if (!CollectionUtils.inListIgnoreCase(permission, options)) {
 					["invalid", options]
 				}
 			}
@@ -46,7 +44,7 @@ class ShareContactAction extends BaseAction {
 	// -------
 
 	SharePermission getPermissionAsEnum() {
-		Helpers.<SharePermission>convertEnum(SharePermission, this.permission)
+		TypeConversionUtils.convertEnum(SharePermission, this.permission)
 	}
 	Phone getPhone() {
 		this.id ? Phone.get(this.id) : null

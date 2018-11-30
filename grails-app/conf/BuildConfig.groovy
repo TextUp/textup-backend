@@ -83,6 +83,10 @@ grails.project.dependency.resolution = {
         // for spring security rest 1.5.3
         compile "xml-apis:xml-apis:1.4.01"
 
+        // for pdf exporting
+        compile "org.apache.xmlgraphics:fop:2.3"
+        compile "net.sf.saxon:Saxon-HE:9.8.0-14"
+
         // for encrypted jwts, exclude outdated dependencies to prevent conflict
         // see Token Storage section of spring-security-rest docs for 1.5.3
         // build("com.lowagie:itext:2.0.8") {

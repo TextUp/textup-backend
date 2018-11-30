@@ -28,7 +28,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -40,7 +40,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test getting deliverable contacts"() {
         given: "blocked and non-blocked contacts for a single phone number within a TextUp phone"
-        String numAsString = TestHelpers.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumber()
         PhoneNumber pNum = new PhoneNumber(number: numAsString)
         assert pNum.validate()
         Contact c1 = p1.createContact([status: "blocked"], [numAsString]).payload
@@ -58,7 +58,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test storing and updating status for a single contact"() {
         given:
-        String numAsString = TestHelpers.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumber()
         Contact c1 = p1.createContact([:], [numAsString]).payload
         SharedContact sc1 = p1.share(c1, p2, SharePermission.DELEGATE).payload
         [c1, sc1]*.save(flush: true, failOnError: true)
@@ -92,7 +92,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         ] as SocketService
         int cBaseline = Contact.count()
         int cnBaseline = ContactNumber.count()
-        String numAsString = TestHelpers.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumber()
         PhoneNumber pNum = new PhoneNumber(number: numAsString)
         assert pNum.validate()
 
@@ -112,7 +112,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         service.socketService = [
             sendContacts: { List<Contact> contacts -> new ResultGroup() }
         ] as SocketService
-        String numAsString = TestHelpers.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumber()
         PhoneNumber pNum = new PhoneNumber(number: numAsString)
         assert pNum.validate()
         Contact c1 = p1.createContact([status: "blocked"], [numAsString]).payload
@@ -144,7 +144,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test storing incoming call"() {
         given:
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString: TestHelpers.randPhoneNumber())
+        IncomingSession session = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumber())
         assert session.save(flush: true, failOnError: true)
         RecordCall rCall1
         Closure<Void> storeCall = { rCall1 = it }
@@ -184,7 +184,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         then:
         hasNotifications == null
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response { Reject(reason:"rejected") }
         }
 
@@ -209,11 +209,11 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test handling notifications for incoming call"() {
         given:
-        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestHelpers.randPhoneNumber())
+        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumber())
         assert sess1.save(flush: true, failOnError: true)
         List<BasicNotification> notifs = []
-        notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestHelpers.randPhoneNumber()))
-        notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestHelpers.randPhoneNumber()))
+        notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestUtils.randPhoneNumber()))
+        notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestUtils.randPhoneNumber()))
 
         when:
         Result<Closure> res = service.handleNotificationsForIncomingCall(p1, sess1, notifs)
@@ -226,11 +226,11 @@ class IncomingMessageServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         // need to test presence of number elements separately because we pass in a set, which
         // does not guaranteee iteration order
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml {
             Number(statusCallback: CallTwiml.childCallStatus(firstNum),
                 url: numParams.toString(), firstNum)
         })
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml {
             Number(statusCallback: CallTwiml.childCallStatus(secondNum),
                 url:numParams.toString(), secondNum)
         })
@@ -239,7 +239,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test handling away for incoming call"() {
         given:
-        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestHelpers.randPhoneNumber())
+        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumber())
         assert sess1.save(flush: true, failOnError: true)
         List<RecordCall> rCalls = []
         10.times { rCalls << c1.record.storeOutgoingCall().payload }
@@ -250,13 +250,13 @@ class IncomingMessageServiceSpec extends CustomSpec {
         then: "all texts have away message flag set"
         rCalls.every { it.hasAwayMessage }
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.voicemailDirections")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.voicemailDirections")
     }
 
     @DirtiesRuntime
     void "test relaying incoming call overall"() {
         given:
-        String numAsString = TestHelpers.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumber()
         IncomingSession session = new IncomingSession(phone:p1, numberAsString: numAsString)
         assert session.save(flush: true, failOnError: true)
         Contact c1 = p1.createContact([:], [numAsString]).payload
@@ -285,11 +285,11 @@ class IncomingMessageServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test receiving call"() {
         given:
-        MockedMethod handleSelfCall = TestHelpers.mock(service, "handleSelfCall") { new Result() }
-        MockedMethod relayCall = TestHelpers.mock(service, "relayCall") { new Result() }
+        MockedMethod handleSelfCall = TestUtils.mock(service, "handleSelfCall") { new Result() }
+        MockedMethod relayCall = TestUtils.mock(service, "relayCall") { new Result() }
         service.announcementService = Mock(AnnouncementService)
         Phone p1 = Mock(Phone)
-        String pNum = TestHelpers.randPhoneNumber()
+        String pNum = TestUtils.randPhoneNumber()
         IncomingSession sess1 = Stub(IncomingSession) { getNumberAsString() >> pNum }
 
         when: "self call"
@@ -336,14 +336,14 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.screenIncoming")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.screenIncoming")
     }
 
     void "test storing outgoing call"() {
         given:
         int iBaseline = RecordCall.count()
         int rBaseline = RecordItemReceipt.count()
-        TempRecordReceipt rpt = TestHelpers.buildTempReceipt()
+        TempRecordReceipt rpt = TestUtils.buildTempReceipt()
 
         when:
         assert service.storeOutgoingCall(s1, rpt, c1) == null
@@ -371,7 +371,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.selfGreeting")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.selfGreeting")
 
         when: "digits are an invalid phone number"
         res = service.handleSelfCall(p1, "apiId", "invalidNumber", s1)
@@ -382,10 +382,10 @@ class IncomingMessageServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.selfInvalidDigits")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.selfInvalidDigits")
 
         when: "valid phone number for missing apiId"
-        res = service.handleSelfCall(p1, null, TestHelpers.randPhoneNumber(), s1)
+        res = service.handleSelfCall(p1, null, TestUtils.randPhoneNumber(), s1)
 
         then:
         0 * service.socketService._
@@ -393,10 +393,10 @@ class IncomingMessageServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline
         RecordItemReceipt.count() == rBaseline
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.error")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.error")
 
         when: "valid phone number and valid apiId"
-        String numAsString = TestHelpers.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumber()
         res = service.handleSelfCall(p1, "apiId", numAsString, s1)
         Phone.withSession { it.flush() }
 
@@ -406,7 +406,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         RecordCall.count() == iBaseline + 1
         RecordItemReceipt.count() == rBaseline + 1
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.selfConnecting")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.selfConnecting")
     }
 
     // Texts
@@ -436,7 +436,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
     void "test building texts overall"() {
         given:
         service.socketService = Mock(SocketService)
-        Phone newPhone = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        Phone newPhone = new Phone(numberAsString:TestUtils.randPhoneNumber())
         newPhone.updateOwner(s1)
         newPhone.save(flush:true, failOnError:true)
         IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
@@ -471,7 +471,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         BasicNotification bn1 = Mock(BasicNotification)
         RecordText rText = Mock(RecordText)
         service.announcementService = Mock(AnnouncementService)
-        String msg = TestHelpers.randString()
+        String msg = TestUtils.randString()
 
         when: "no notifications"
         Result<Closure> res = service.buildTextResponse(p1, null, [rText], [])
@@ -480,8 +480,8 @@ class IncomingMessageServiceSpec extends CustomSpec {
         1 * rText.setHasAwayMessage(true)
         1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload: [msg])
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml { Message(msg) })
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml { Message(p1.awayMessage) })
+        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(msg) })
+        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(p1.awayMessage) })
 
         when: "has notifications"
         res = service.buildTextResponse(p1, null, [rText], [bn1])
@@ -489,8 +489,8 @@ class IncomingMessageServiceSpec extends CustomSpec {
         then:
         0 * rText._
         1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload: [msg])
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml { Message(msg) })
-        TestHelpers.buildXml(res.payload).contains(TestHelpers.buildXml { Message(p1.awayMessage) }) == false
+        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(msg) })
+        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(p1.awayMessage) }) == false
     }
 
     void "test finishing processing texts helper"() {
@@ -500,7 +500,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
         assert text.validate()
         MediaInfo invalidMedia = new MediaInfo()
-        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaElement e1 = TestUtils.buildMediaElement()
         e1.sendVersion.type = null
         invalidMedia.addToMediaElements(e1)
         assert invalidMedia.validate() == false
@@ -530,8 +530,8 @@ class IncomingMessageServiceSpec extends CustomSpec {
         service.incomingMediaService = Mock(IncomingMediaService)
         IncomingText text = Stub(IncomingText) { getApiId() >> "hi" }
         TypeConvertingMap params = new TypeConvertingMap()
-        MediaElement e1 = TestHelpers.buildMediaElement()
-        MockedMethod finishProcessingTextHelper = TestHelpers
+        MediaElement e1 = TestUtils.buildMediaElement()
+        MockedMethod finishProcessingTextHelper = TestUtils
             .mock(service, "finishProcessingTextHelper") { new Result() }
         int mBaseline = MediaInfo.count()
         int eBaseline = MediaElement.count()
@@ -565,13 +565,13 @@ class IncomingMessageServiceSpec extends CustomSpec {
         given:
         service.notificationService = Mock(NotificationService)
         service.threadService = Mock(ThreadService)
-        MockedMethod finishProcessingText = TestHelpers.mock(service, "finishProcessingText")
+        MockedMethod finishProcessingText = TestUtils.mock(service, "finishProcessingText")
             { new Result() }
-        MockedMethod buildTextResponse = TestHelpers.mock(service, "buildTextResponse")
+        MockedMethod buildTextResponse = TestUtils.mock(service, "buildTextResponse")
             { new Result() }
 
         when: "blocked"
-        MockedMethod buildTexts = TestHelpers.mock(service, "buildTexts")
+        MockedMethod buildTexts = TestUtils.mock(service, "buildTexts")
             { new Result(payload: Tuple.create([], [])) }
         Result<Closure> res = service.processText(null, null, null, null)
 
@@ -582,11 +582,11 @@ class IncomingMessageServiceSpec extends CustomSpec {
         finishProcessingText.callCount == 1
         buildTextResponse.callCount == 0
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.text.blocked")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.text.blocked")
 
         when: "not blocked"
         buildTexts.restore()
-        buildTexts = TestHelpers.mock(service, "buildTexts")
+        buildTexts = TestUtils.mock(service, "buildTexts")
             { new Result(payload: Tuple.create([], [c1])) }
         res = service.processText(null, null, null, null)
 

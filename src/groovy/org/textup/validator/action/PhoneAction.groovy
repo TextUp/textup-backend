@@ -1,19 +1,16 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.textup.Constants
-import org.textup.Helpers
-import org.textup.Result
-import org.textup.ResultFactory
+import org.textup.*
 import org.textup.type.PhoneOwnershipType
 import org.textup.validator.PhoneNumber
 
 // documented as [phoneAction] in CustomApiDocs.groovy
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class PhoneAction extends BaseAction {
@@ -38,7 +35,7 @@ class PhoneAction extends BaseAction {
 					return ["requiredForTransfer"]
 				}
 				Collection<String> options = PhoneOwnershipType.values().collect { it.toString() }
-				if (!Helpers.inListIgnoreCase(val, options)) {
+				if (!CollectionUtils.inListIgnoreCase(val, options)) {
 					return ["invalid", options]
 				}
 			}
@@ -50,7 +47,7 @@ class PhoneAction extends BaseAction {
 				}
 				PhoneNumber pNum = new PhoneNumber(number:val)
 				if (!pNum.validate()) {
-					Result res = Helpers.resultFactory.failWithValidationErrors(pNum.errors)
+					Result res = IOCUtils.resultFactory.failWithValidationErrors(pNum.errors)
 					return ["invalid", res.errorMessages]
 				}
 			}
@@ -75,7 +72,7 @@ class PhoneAction extends BaseAction {
 	// -------
 
 	PhoneOwnershipType getTypeAsEnum() {
-		Helpers.<PhoneOwnershipType>convertEnum(PhoneOwnershipType, this.type)
+		TypeConversionUtils.convertEnum(PhoneOwnershipType, this.type)
 	}
 
 	PhoneNumber getPhoneNumber() {

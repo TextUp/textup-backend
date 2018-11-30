@@ -24,7 +24,7 @@ class OrganizationServiceSpec extends CustomSpec {
     }
     def setup() {
         super.setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
     def cleanup() {
         super.cleanupData()

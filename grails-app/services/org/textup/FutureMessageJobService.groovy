@@ -120,7 +120,7 @@ class FutureMessageJobService {
         // the already-processed media referred to in the `media` prop of the  OutgoingMessage
         future.get()
 
-        String instr = Helpers.getMessage("futureMessageService.notifyStaff.notification")
+        String instr = IOCUtils.getMessage("futureMessageService.notifyStaff.notification")
         notificationService.send(notifs, true, message, instr)
             .logFail("FutureMessageService.execute: sending notifications")
         int numNotified = notifs.size()

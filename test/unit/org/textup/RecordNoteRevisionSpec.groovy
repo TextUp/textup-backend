@@ -39,7 +39,7 @@ class RecordNoteRevisionSpec extends Specification {
         rev1.validate() == true
 
         when: "noteContents too long"
-        rev1.noteContents = TestHelpers.buildVeryLongString()
+        rev1.noteContents = TestUtils.buildVeryLongString()
 
         then:
         rev1.validate() == false

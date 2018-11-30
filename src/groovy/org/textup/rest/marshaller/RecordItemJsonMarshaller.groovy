@@ -49,9 +49,13 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             }
         }
         // find owner, may be a contact or a tag
-        json.contact = Contact.findByRecord(item.readOnlyRecord)?.id
+        Contact c1 = Contact.findByRecord(item.readOnlyRecord)
+        json.contact = c1?.id
+        json.ownerName = c1?.nameOrNumber
         if (!json.contact) {
-            json.tag = ContactTag.findByRecord(item.readOnlyRecord)?.id
+            ContactTag ct1 = ContactTag.findByRecord(item.readOnlyRecord)
+            json.tag = ct1?.id
+            json.ownerName = ct1?.name
         }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,
             resource:"record", action:"show", id:item.id, absolute:false)]

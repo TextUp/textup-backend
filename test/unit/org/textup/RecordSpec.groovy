@@ -6,7 +6,7 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import org.textup.validator.IncomingText
 import spock.lang.Shared
 import spock.lang.Specification
@@ -22,8 +22,8 @@ class RecordSpec extends Specification {
     }
 
 	def setup() {
-        Helpers.metaClass.'static'.getResultFactory = TestHelpers.getResultFactory(grailsApplication)
-        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
 	}
 
     void "test adding items errors"() {

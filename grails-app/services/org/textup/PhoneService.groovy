@@ -21,7 +21,7 @@ class PhoneService {
     ResultFactory resultFactory
 
     Result<Staff> mergePhone(Staff s1, Map body, String timezone) {
-        if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
+        if (body.phone instanceof Map && Utils.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = s1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(s1)
             mergeHelper(p1, body.phone as Map, timezone)
@@ -30,7 +30,7 @@ class PhoneService {
         else { resultFactory.success(s1) }
     }
     Result<Team> mergePhone(Team t1, Map body, String timezone) {
-        if (body.phone instanceof Map && Helpers.<Boolean>doWithoutFlush{ authService.isActive }) {
+        if (body.phone instanceof Map && Utils.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = t1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(t1)
             mergeHelper(p1, body.phone as Map, timezone)
@@ -67,13 +67,13 @@ class PhoneService {
             p1.awayMessage = body.awayMessage
         }
         if (body.voice) {
-            p1.voice = Helpers.convertEnum(VoiceType, body.voice)
+            p1.voice = TypeConversionUtils.convertEnum(VoiceType, body.voice)
         }
         if (body.language) {
-            p1.language = Helpers.convertEnum(VoiceLanguage, body.language)
+            p1.language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
         }
         if (body.useVoicemailRecordingIfPresent != null) {
-            p1.useVoicemailRecordingIfPresent = Helpers
+            p1.useVoicemailRecordingIfPresent = TypeConversionUtils
                 .to(Boolean, body.useVoicemailRecordingIfPresent, p1.useVoicemailRecordingIfPresent)
         }
         if (p1.save()) {
@@ -164,7 +164,7 @@ class PhoneService {
         if (pNum.number == p1.numberAsString) {
             return resultFactory.success(p1)
         }
-        if (Helpers.<Boolean>doWithoutFlush({ Phone.countByNumberAsString(pNum.number) > 0 })) {
+        if (Utils.<Boolean>doWithoutFlush({ Phone.countByNumberAsString(pNum.number) > 0 })) {
             return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
@@ -176,7 +176,7 @@ class PhoneService {
         if (apiId == p1.apiId) {
             return resultFactory.success(p1)
         }
-        if (Helpers.<Boolean>doWithoutFlush({ Phone.countByApiId(apiId) > 0 })) {
+        if (Utils.<Boolean>doWithoutFlush({ Phone.countByApiId(apiId) > 0 })) {
             return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }

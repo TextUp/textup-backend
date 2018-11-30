@@ -23,7 +23,7 @@ class LocationJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(loc as JSON)
+            json = TestUtils.jsonToMap(loc as JSON)
         }
 
         then:

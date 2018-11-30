@@ -32,7 +32,7 @@ class StaffServiceSpec extends CustomSpec {
 
     def setup() {
         super.setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
         service.mailService = [
             notifyAboutPendingStaff: { Staff s1, List<Staff> admins ->
                 new Result(status:ResultStatus.OK, payload:null)

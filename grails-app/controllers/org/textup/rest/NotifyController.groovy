@@ -1,13 +1,13 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.validator.Notification
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="Notification", description="Claim notifications")
 @Secured("permitAll")
 class NotifyController extends BaseController {

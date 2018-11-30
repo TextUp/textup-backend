@@ -1,6 +1,6 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
@@ -8,7 +8,7 @@ import org.textup.*
 import org.textup.rest.*
 import org.textup.type.ContactStatus
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Log4j
 class ContactableJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
@@ -35,13 +35,8 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         json.status = c1.status?.toString()
         // when manually marking as unread, a contact that is unread may not
         // have any unread counts to report
-        if (c1.status == ContactStatus.UNREAD && rec1.countSince(c1.lastTouched) > 0) {
-            Map<String, Integer> unreadInfo = [
-                numTexts: rec1.countSince(c1.lastTouched, [RecordText]),
-                numCalls: rec1.countCallsSince(c1.lastTouched, false),
-                numVoicemails: rec1.countCallsSince(c1.lastTouched, true)
-            ]
-            json.unreadInfo = unreadInfo
+        if (c1.status == ContactStatus.UNREAD && rec1.hasUnreadInfo(c1.lastTouched)) {
+            json.unreadInfo = rec1.getUnreadInfo(c1.lastTouched)
         }
         // add fields specific to Contacts or SharedContacts
         if (c1.instanceOf(Contact)) {

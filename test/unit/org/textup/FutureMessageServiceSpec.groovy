@@ -29,8 +29,8 @@ class FutureMessageServiceSpec extends CustomSpec {
 
     def setup() {
     	setupData()
-        Helpers.metaClass.'static'.getQuartzScheduler = { -> TestHelpers.mockScheduler() }
-    	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
+    	service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -294,7 +294,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         when: "creating withOUT specified language"
         Map info = [
             type: FutureMessageType.CALL.toString(),
-            message: TestHelpers.randString(),
+            message: TestUtils.randString(),
             startDate: DateTime.now().plusDays(2)
         ]
         Result<FutureMessage> res = service.create(c1.record, info)
@@ -317,7 +317,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.language == VoiceLanguage.SPANISH
 
         when: "updating without specified language"
-        info = [message: TestHelpers.randString()]
+        info = [message: TestUtils.randString()]
         VoiceLanguage originalLang = res.payload.language
         res = service.update(res.payload.id, info)
 
@@ -329,7 +329,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         res.payload.language == originalLang
 
         when: "updating with specified language"
-        info = [message: TestHelpers.randString(), language: VoiceLanguage.CHINESE.toString()]
+        info = [message: TestUtils.randString(), language: VoiceLanguage.CHINESE.toString()]
         res = service.update(res.payload.id, info)
 
         then: "update the language"
@@ -389,7 +389,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         given:
         service.mediaService = Mock(MediaService)
         Future fut1 = Mock()
-        MockedMethod setFromBody = TestHelpers.mock(service, "setFromBody")
+        MockedMethod setFromBody = TestUtils.mock(service, "setFromBody")
             { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
 
         when: "error during creation"

@@ -47,7 +47,7 @@ class RecordCallSpec extends Specification {
         call.showOnlyContactReceipts() == []
 
         when: "one receipt without numBillable"
-        RecordItemReceipt rpt1 = TestHelpers.buildReceipt()
+        RecordItemReceipt rpt1 = TestUtils.buildReceipt()
         rpt1.numBillable = null
         call.addToReceipts(rpt1)
 
@@ -56,9 +56,9 @@ class RecordCallSpec extends Specification {
         call.showOnlyContactReceipts() == []
 
         when: "multiple receipts with varying numBillable"
-        RecordItemReceipt rpt2 = TestHelpers.buildReceipt()
+        RecordItemReceipt rpt2 = TestUtils.buildReceipt()
         rpt2.numBillable = 12
-        RecordItemReceipt rpt3 = TestHelpers.buildReceipt()
+        RecordItemReceipt rpt3 = TestUtils.buildReceipt()
         rpt3.numBillable = 88
         [rpt2, rpt3].each(call.&addToReceipts)
 
@@ -73,9 +73,9 @@ class RecordCallSpec extends Specification {
         Record rec = new Record()
         assert rec.save(flush:true, failOnError:true)
         RecordCall call = new RecordCall(record:rec)
-        RecordItemReceipt rpt1 = TestHelpers.buildReceipt(ReceiptStatus.PENDING),
-            rpt2 = TestHelpers.buildReceipt(ReceiptStatus.PENDING),
-            rpt3 = TestHelpers.buildReceipt(ReceiptStatus.PENDING)
+        RecordItemReceipt rpt1 = TestUtils.buildReceipt(ReceiptStatus.PENDING),
+            rpt2 = TestUtils.buildReceipt(ReceiptStatus.PENDING),
+            rpt3 = TestUtils.buildReceipt(ReceiptStatus.PENDING)
         rpt1.numBillable = null
         rpt2.numBillable = 12
         rpt3.numBillable = 88

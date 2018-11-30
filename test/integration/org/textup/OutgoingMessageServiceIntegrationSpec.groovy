@@ -34,7 +34,7 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
 
     def setup() {
         setupIntegrationData()
-        Helpers.metaClass.'static'.getLinkGenerator = { ->
+        IOCUtils.metaClass."static".getLinkGenerator = { ->
             [link: { Map m -> "https://www.example.com" }] as LinkGenerator
         }
         // initializing variables
@@ -64,7 +64,7 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
     def cleanup() {
         cleanupIntegrationData()
         // to avoid duplicate errors because we need to use fixed Twilio test numbers
-        _phone.numberAsString = TestHelpers.randPhoneNumber();
+        _phone.numberAsString = TestUtils.randPhoneNumber();
         _phone.save(flush:true, failOnError:true)
     }
 
@@ -79,15 +79,15 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
         _phone.number = new PhoneNumber(number:fromNum)
         // create contacts
         numContacts.times {
-            Contact c1 = _phone.createContact([:], [TestHelpers.randPhoneNumber()]).payload
+            Contact c1 = _phone.createContact([:], [TestUtils.randPhoneNumber()]).payload
             _receipientNumbers.addAll(c1.numbers*.e164PhoneNumber)
             _contacts << c1
         }
         _phone.save(flush:true, failOnError:true)
         // create tags and add some contacts to each tag
         NUM_TAGS.times {
-            ContactTag ct1 = _phone.createTag(name: TestHelpers.randString()).payload
-            _contacts[0..(TestHelpers.randIntegerUpTo(numContacts - 1))].each { Contact c1 ->
+            ContactTag ct1 = _phone.createTag(name: TestUtils.randString()).payload
+            _contacts[0..(TestUtils.randIntegerUpTo(numContacts - 1))].each { Contact c1 ->
                 ct1.addToMembers(c1)
                 _receipientNumbers.addAll(c1.numbers*.e164PhoneNumber)
             }
@@ -99,14 +99,14 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
     @DirtiesRuntime
     void "test sending out high volume of outgoing #type for one TextUp number"() {
         given:
-        RecordItemType enumType = Helpers.convertEnum(RecordItemType, type)
+        RecordItemType enumType = TypeConversionUtils.convertEnum(RecordItemType, type)
         boolean isText = (enumType == RecordItemType.TEXT)
         _textSendInvokeCount.getAndSet(0)
         _callStartInvokeCount.getAndSet(0)
-        mockForOutgoing(isText ? Constants.TEST_SMS_FROM_VALID : Constants.TEST_CALL_FROM_VALID)
+        mockForOutgoing(isText ? TestConstants.TEST_SMS_FROM_VALID : TestConstants.TEST_CALL_FROM_VALID)
 
         when: "an outgoing message as text"
-        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
+        OutgoingMessage msg1 = TestUtils.buildOutgoingMessage()
         msg1.message = "hello world"
         msg1.type = enumType
         msg1.contacts.recipients = _contacts

@@ -26,9 +26,9 @@ class OutgoingMessageService {
             Map<String, ?> data = tok1.data
             String ident = data.identifier as String
             String msg = data.message as String
-            VoiceLanguage lang = Helpers.convertEnum(VoiceLanguage, data.language)
+            VoiceLanguage lang = TypeConversionUtils.convertEnum(VoiceLanguage, data.language)
             List<URL> recordings = []
-            Long mediaId = Helpers.to(Long, data.mediaId)
+            Long mediaId = TypeConversionUtils.to(Long, data.mediaId)
             if (mediaId) {
                 MediaInfo.get(mediaId)
                     ?.getMediaElementsByType(MediaType.AUDIO_TYPES)
@@ -82,7 +82,7 @@ class OutgoingMessageService {
     Tuple<ResultGroup<RecordItem>, Future<?>> processMessage(Phone phone, OutgoingMessage msg1,
         Staff staff, Future<Result<MediaInfo>> mediaFuture = null) {
 
-        Future<?> future = Helpers.noOpFuture()
+        Future<?> future = AsyncUtils.noOpFuture()
         if (!phone.isActive) {
             Result<RecordItem> failRes = resultFactory
                 .failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
@@ -157,7 +157,7 @@ class OutgoingMessageService {
         Iterable<Serializable> itemIds = []
         recordIdToItemIds.each { Long recordId, List<Long> thisIds -> itemIds.addAll(thisIds) }
         // step 2: after fetching from db, build a map of item id to object for efficient retrieval
-        Map<Long, RecordItem> idToObject = Helpers.buildIdToObjectMap(RecordItem.getAll(itemIds))
+        Map<Long, RecordItem> idToObject = AsyncUtils.idMap(RecordItem.getAll(itemIds))
         // step 3: replace item id with item object in the passed-in map
         Map<Long, List<RecordItem>> recordIdToItems = [:]
         recordIdToItemIds.each { Long recordId, List<Long> thisIds ->

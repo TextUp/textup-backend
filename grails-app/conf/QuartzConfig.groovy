@@ -1,4 +1,4 @@
-import org.textup.Helpers
+import org.textup.*
 
 //
 // NOTE:
@@ -12,7 +12,7 @@ import org.textup.Helpers
 def shouldEnable = System.getenv("TEXTUP_BACKEND_ENABLE_QUARTZ") ?: System.getProperty("TEXTUP_BACKEND_ENABLE_QUARTZ")
 
 quartz {
-    autoStartup = Helpers.to(boolean, shouldEnable, false)
+    autoStartup = TypeConversionUtils.to(boolean, shouldEnable, false)
     jdbcStore = false
     waitForJobsToCompleteOnShutdown = true
     exposeSchedulerInRepository = false

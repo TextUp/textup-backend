@@ -1,11 +1,11 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
 
     static final Closure marshalClosure = { ReadOnlyMediaInfo mInfo ->
@@ -16,7 +16,7 @@ class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
             audio  : mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES)
         ]
         // Display upload error from uploading the initial versions
-        Result<?> res = Helpers.tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
+        Result<?> res = Utils.tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
             .logFail("MediaInfoJsonMarshaller: no available request", LogLevel.DEBUG)
         if (res.success) { json.uploadErrors = res.payload }
 

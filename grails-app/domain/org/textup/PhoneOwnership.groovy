@@ -1,11 +1,11 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.textup.rest.NotificationStatus
 import org.textup.type.PhoneOwnershipType
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 class PhoneOwnership implements WithId {
 
@@ -18,7 +18,7 @@ class PhoneOwnership implements WithId {
             Closure<Boolean> doesOwnerExist = {
                 (obj.type == PhoneOwnershipType.INDIVIDUAL) ? Staff.exists(val) : Team.exists(val)
             }
-            if (obj.type && val && !Helpers.<Boolean>doWithoutFlush(doesOwnerExist)) {
+            if (obj.type && val && !Utils.<Boolean>doWithoutFlush(doesOwnerExist)) {
                 ["invalidId"]
             }
     	}

@@ -24,7 +24,7 @@ class CallbackStatusService {
     void process(TypeConvertingMap params) {
         if (params?.CallSid) {
             ReceiptStatus status = ReceiptStatus.translate(params.CallStatus as String)
-            Integer duration = Helpers.to(Integer, params.CallDuration)
+            Integer duration = TypeConversionUtils.to(Integer, params.CallDuration)
             if (status && duration) {
                 if (params.ParentCallSid) {
                     PhoneNumber childNumber = PhoneNumber
@@ -179,7 +179,7 @@ class CallbackStatusService {
             return
         }
         try {
-            Map afterPickup = (Helpers.toJson(params.afterPickup) ?: [:]) as Map
+            Map afterPickup = (DataFormatUtils.jsonToObject(params.afterPickup) ?: [:]) as Map
             callService
                 .retry(fromNum, toNums, callId, afterPickup)
                 .logFail("CallbackStatusService: retrying call: params: ${params}")

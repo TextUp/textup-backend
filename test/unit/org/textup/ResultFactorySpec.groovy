@@ -7,7 +7,7 @@ import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.springframework.context.NoSuchMessageException
 import org.springframework.context.support.StaticMessageSource
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.*
 
 @Domain([Organization, Location])
@@ -17,14 +17,14 @@ class ResultFactorySpec extends Specification {
     ResultFactory resultFactory
 
     def setup() {
-        Helpers.metaClass.'static'.getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
         resultFactory = new ResultFactory()
     }
 
     void "test success"() {
     	given:
-    	Location loc1 = TestHelpers.buildLocation()
-        Location loc2 = TestHelpers.buildLocation()
+    	Location loc1 = TestUtils.buildLocation()
+        Location loc2 = TestUtils.buildLocation()
 
     	when: "without specifying payload"
     	Result<Location> res = resultFactory.<Location>success()
@@ -81,7 +81,7 @@ class ResultFactorySpec extends Specification {
 
     void "test fail for code and status"() {
         given:
-        String code = TestHelpers.randString()
+        String code = TestUtils.randString()
         ResultStatus stat1 = ResultStatus.LOCKED
 
         when:
@@ -96,7 +96,7 @@ class ResultFactorySpec extends Specification {
 
     void "test fail for throwable"() {
         given:
-        String msg = TestHelpers.randString()
+        String msg = TestUtils.randString()
 
         when:
         Result res = resultFactory.failWithThrowable(new Throwable(msg))

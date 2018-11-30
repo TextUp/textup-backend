@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
@@ -70,7 +70,7 @@ class Team implements WithId {
                 t1 != null && t1.id != obj.id
             }
             //within an Org, team name must be unique
-            if (val && Helpers.<Boolean>doWithoutFlush(hasExistingTeamName)) {
+            if (val && Utils.<Boolean>doWithoutFlush(hasExistingTeamName)) {
                 ["duplicate", obj.org?.name]
             }
         }
@@ -101,17 +101,17 @@ class Team implements WithId {
     // Members
     // -------
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     List<Staff> getActiveMembers() {
         (this.members?.findAll { Staff s1 ->
             s1.status == StaffStatus.STAFF || s1.status == StaffStatus.ADMIN
         } ?: []) as List<Staff>
     }
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     Collection<Staff> getMembersByStatus(Collection statuses=[]) {
         if (statuses) {
             HashSet<StaffStatus> findStatuses =
-                new HashSet<>(Helpers.toEnumList(StaffStatus, statuses))
+                new HashSet<>(TypeConversionUtils.toEnumList(StaffStatus, statuses))
             this.members.findAll { Staff s1 ->
                 s1.status in findStatuses
             }
@@ -122,7 +122,7 @@ class Team implements WithId {
     // Property Access
     // ---------------
 
-    @GrailsCompileStatic
+    @GrailsTypeChecked
     void setLocation(Location l) {
         this.location = l
         this.location?.save()

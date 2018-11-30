@@ -15,8 +15,8 @@ class MediaElementVersionSpec extends Specification {
 
     void "test constraints + width and link custom getters"() {
         given: "storage service mock"
-        MockedMethod unsignedLink = TestHelpers.mock(LinkUtils, 'unsignedLink')
-        MockedMethod signedLink = TestHelpers.mock(LinkUtils, 'signedLink')
+        MockedMethod unsignedLink = TestUtils.mock(LinkUtils, 'unsignedLink')
+        MockedMethod signedLink = TestUtils.mock(LinkUtils, 'signedLink')
 
         when: "empty obj"
         MediaElementVersion mVers = new MediaElementVersion()
@@ -30,7 +30,7 @@ class MediaElementVersionSpec extends Specification {
 
         when: "filled in obj"
         mVers.type = MediaType.IMAGE_JPEG
-        mVers.versionId = TestHelpers.randString()
+        mVers.versionId = TestUtils.randString()
         mVers.sizeInBytes = 888
         mVers.link?.toString()
 
@@ -54,7 +54,7 @@ class MediaElementVersionSpec extends Specification {
     void "test constraint errors"() {
         given: "a valid obj"
         MediaElementVersion mVers = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
-            versionId: TestHelpers.randString(),
+            versionId: TestUtils.randString(),
             sizeInBytes: 888)
         assert mVers.validate()
 

@@ -28,7 +28,7 @@ class RecordServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -79,9 +79,9 @@ class RecordServiceSpec extends CustomSpec {
         given:
         Phone p1 = t1.phone
         service.authService = Stub(AuthService) { getLoggedInAndActive() >> p1.owner.all[0] }
-        MockedMethod createText = TestHelpers.mock(service, "createText") { new ResultGroup() }
-        MockedMethod createCall = TestHelpers.mock(service, "createCall") { new Result() }
-        MockedMethod createNote = TestHelpers.mock(service, "createNote") { new Result() }
+        MockedMethod createText = TestUtils.mock(service, "createText") { new ResultGroup() }
+        MockedMethod createCall = TestUtils.mock(service, "createCall") { new Result() }
+        MockedMethod createNote = TestUtils.mock(service, "createNote") { new Result() }
 
         when: "text"
         TypeConvertingMap itemInfo = new TypeConvertingMap(contents:"hi", sendToPhoneNumbers:["2223334444"],
@@ -131,7 +131,7 @@ class RecordServiceSpec extends CustomSpec {
         resGroup.failureStatus == ResultStatus.FORBIDDEN
 
         when: "error when building target"
-        TestHelpers.mock(RecordUtils, "buildOutgoingMessageTarget")
+        TestUtils.mock(RecordUtils, "buildOutgoingMessageTarget")
             { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
         resGroup = service.createText(null, null)
 
@@ -149,7 +149,7 @@ class RecordServiceSpec extends CustomSpec {
         service.authService = Stub(AuthService)
         service.mediaService = Mock(MediaService)
         service.outgoingMessageService = Mock(OutgoingMessageService)
-        MockedMethod buildOutgoingMessageTarget = TestHelpers
+        MockedMethod buildOutgoingMessageTarget = TestUtils
             .mock(RecordUtils, "buildOutgoingMessageTarget") { new Result() }
 
         when: "no media"
@@ -175,7 +175,7 @@ class RecordServiceSpec extends CustomSpec {
         service.authService = Stub(AuthService)
         service.outgoingMessageService = Mock(OutgoingMessageService)
         RecordCall rCall = Mock()
-        MockedMethod buildOutgoingCallTarget = TestHelpers
+        MockedMethod buildOutgoingCallTarget = TestUtils
             .mock(RecordUtils, "buildOutgoingCallTarget") { new Result() }
 
         when:
@@ -198,7 +198,7 @@ class RecordServiceSpec extends CustomSpec {
 
         when:
         TypeConvertingMap body = new TypeConvertingMap(after:DateTime.now().minusDays(2),
-            noteContents: TestHelpers.randString(), isDeleted: true)
+            noteContents: TestUtils.randString(), isDeleted: true)
         Result<RecordNote> res = service.mergeNote(note1, body, ResultStatus.CREATED)
 
         then:
@@ -292,7 +292,7 @@ class RecordServiceSpec extends CustomSpec {
 
         when:
         TypeConvertingMap body = new TypeConvertingMap(forContact: c1.id,
-            noteContents: TestHelpers.randString(),
+            noteContents: TestUtils.randString(),
             location: [address:"123 Main Street", lat:22G, lon:22G])
         Result<RecordItem> res = service.createNote(p1, body)
 
@@ -370,7 +370,7 @@ class RecordServiceSpec extends CustomSpec {
 
 
         when: "update contents"
-        body = new TypeConvertingMap(noteContents: TestHelpers.randString())
+        body = new TypeConvertingMap(noteContents: TestUtils.randString())
         res  = service.update(note1.id, body)
 
         then:

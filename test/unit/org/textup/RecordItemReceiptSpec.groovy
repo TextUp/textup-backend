@@ -5,7 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.type.ReceiptStatus
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import org.textup.validator.PhoneNumber
 import spock.lang.*
 
@@ -72,9 +72,9 @@ class RecordItemReceiptSpec extends Specification {
 			numFailed = 3,
 			numPending = 4,
 			numSuccess = 5
-		numFailed.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.FAILED)) }
-        numPending.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.PENDING)) }
-        numSuccess.times { rItem.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.SUCCESS)) }
+		numFailed.times { rItem.addToReceipts(TestUtils.buildReceipt(ReceiptStatus.FAILED)) }
+        numPending.times { rItem.addToReceipts(TestUtils.buildReceipt(ReceiptStatus.PENDING)) }
+        numSuccess.times { rItem.addToReceipts(TestUtils.buildReceipt(ReceiptStatus.SUCCESS)) }
         rItem.save(flush: true, failOnError: true)
 
 		then:

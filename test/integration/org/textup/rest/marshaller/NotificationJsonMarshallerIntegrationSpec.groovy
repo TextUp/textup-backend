@@ -29,7 +29,7 @@ class NotificationJsonMarshallerIntegrationSpec extends CustomSpec {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestHelpers.jsonToMap(notif as JSON)
+    		json = TestUtils.jsonToMap(notif as JSON)
     	}
 
     	then:

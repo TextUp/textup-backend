@@ -33,7 +33,7 @@ class CallbackServiceSpec extends CustomSpec {
 
     def setup() {
     	setupData()
-    	service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+    	service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -52,7 +52,7 @@ class CallbackServiceSpec extends CustomSpec {
 
     	then:
     	res.success == true
-    	TestHelpers.buildXml(res.payload).contains("twimlBuilder.notFound")
+    	TestUtils.buildXml(res.payload).contains("twimlBuilder.notFound")
 
     	when: "neither messageSid nor callSid specified"
     	params = new TypeConvertingMap(To:p1.numberAsString, From:"1112223333")
@@ -71,7 +71,7 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Message("twimlBuilder.invalidNumber")
             }
@@ -83,7 +83,7 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml {
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Say("twimlBuilder.invalidNumber")
                 Hangup()
@@ -110,7 +110,7 @@ class CallbackServiceSpec extends CustomSpec {
         then:
         0 * service.outgoingMessageService._
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response { } }
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
 
         when: "hanging up"
         params = new TypeConvertingMap([handle:CallResponse.END_CALL.toString()])
@@ -119,7 +119,7 @@ class CallbackServiceSpec extends CustomSpec {
         then:
         0 * service.outgoingMessageService._
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response { Hangup() } }
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { Hangup() } }
 
         when: "voicemail greeting response"
         params = new TypeConvertingMap([handle:CallResponse.VOICEMAIL_GREETING_PROCESSING.toString()])
@@ -128,15 +128,15 @@ class CallbackServiceSpec extends CustomSpec {
         then:
         0 * service.outgoingMessageService._
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.processingVoicemailGreeting")
-        TestHelpers.buildXml(res.payload).contains(Constants.CALL_HOLD_MUSIC_URL)
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.processingVoicemailGreeting")
+        TestUtils.buildXml(res.payload).contains(Constants.CALL_HOLD_MUSIC_URL)
     }
 
     void "test handling sessions"() {
         given:
-        PhoneNumber originalFromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-        PhoneNumber fromNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-        PhoneNumber toNumber = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber originalFromNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber fromNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber toNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
         [originalFromNumber, fromNumber, toNumber].each { assert it.validate() }
         TypeConvertingMap params = new TypeConvertingMap([originalFrom: originalFromNumber.number])
         int iBaseline = IncomingSession.count()
@@ -208,8 +208,8 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test getting number for phone"() {
         given:
-        PhoneNumber fromNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
-        PhoneNumber toNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
 
         expect:
         service.getNumberForPhone(fromNum, toNum, new TypeConvertingMap(handle: handle)).number ==
@@ -321,7 +321,7 @@ class CallbackServiceSpec extends CustomSpec {
         service.announcementService = Mock(AnnouncementService)
         service.outgoingMessageService = Mock(OutgoingMessageService)
         service.incomingMessageService = Mock(IncomingMessageService)
-        IncomingSession is1 = [number: TestHelpers.randPhoneNumber()] as IncomingSession
+        IncomingSession is1 = [number: TestUtils.randPhoneNumber()] as IncomingSession
 
         when: "starting voicemail"
         String clientNum = URLEncoder.encode("+1233834920", "UTF-8")
@@ -349,7 +349,7 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.voicemailDirections")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.voicemailDirections")
 
         when:
         params.DialCallStatus = "delivered"
@@ -357,7 +357,7 @@ class CallbackServiceSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response { } }
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
 
         when: "completing voicemail"
         params.handle = CallResponse.VOICEMAIL_DONE.toString()
@@ -370,7 +370,7 @@ class CallbackServiceSpec extends CustomSpec {
         1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * service.voicemailService.processVoicemailMessage(*_) >> new ResultGroup()
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response { } }
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
 
         when: "unspecified or invalid"
         params.handle = "blahblahinvalid"
@@ -417,10 +417,10 @@ class CallbackServiceSpec extends CustomSpec {
         Result<Closure> res = service.processCall(thisPhone, is1, null, params)
 
         then:
-        1 * thisPhone.number >> new PhoneNumber(number: TestHelpers.randPhoneNumber())
-        1 * is1.number >> new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        1 * thisPhone.number >> new PhoneNumber(number: TestUtils.randPhoneNumber())
+        1 * is1.number >> new PhoneNumber(number: TestUtils.randPhoneNumber())
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.recordVoicemailGreeting")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.recordVoicemailGreeting")
 
         when: "finished processing voicemail greeting"
         params.handle = CallResponse.VOICEMAIL_GREETING_PROCESSED
@@ -430,16 +430,16 @@ class CallbackServiceSpec extends CustomSpec {
         1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * service.voicemailService.finishedProcessingVoicemailGreeting(*_) >> new Result()
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml { Response { } }
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
 
         when: "playing voicemail greeting"
         params.handle = CallResponse.VOICEMAIL_GREETING_PLAY
         res = service.processCall(thisPhone, null, null, params)
 
         then:
-        1 * thisPhone.number >> new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        1 * thisPhone.number >> new PhoneNumber(number: TestUtils.randPhoneNumber())
         1 * thisPhone.voicemailGreetingUrl >> new URL("https://www.example.com")
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.finishedVoicemailGreeting")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.finishedVoicemailGreeting")
     }
 }

@@ -108,7 +108,7 @@ class Phone implements WithMedia, WithId {
                 Phone ph = Phone.findByNumberAsString(new PhoneNumber(number:num).number)
                 ph && ph.id != obj.id
             }
-            if (Helpers.<Boolean>doWithoutFlush(existsWithSameNumber)) {
+            if (Utils.<Boolean>doWithoutFlush(existsWithSameNumber)) {
                 return ["duplicate"]
             }
             if (!(num.toString() ==~ /^(\d){10}$/)) {
@@ -138,7 +138,7 @@ class Phone implements WithMedia, WithId {
             awayMsg = this.awayMessage ?: ""
         int maxLen = Constants.TEXT_LENGTH
         if (!awayMsg.contains(mandatoryMsg)) {
-            this.awayMessage = Helpers.appendGuaranteeLength(awayMsg, mandatoryMsg, maxLen).trim()
+            this.awayMessage = StringUtils.appendGuaranteeLength(awayMsg, mandatoryMsg, maxLen).trim()
         }
     }
 
@@ -195,16 +195,16 @@ class Phone implements WithMedia, WithId {
             otherOwn.type = own.type
             otherOwn.ownerId = own.ownerId
             if (!otherOwn.save()) {
-                return Helpers.resultFactory.failWithValidationErrors(otherOwn.errors)
+                return IOCUtils.resultFactory.failWithValidationErrors(otherOwn.errors)
             }
         }
         // then associate this phone with new owner
         own.type = type
         own.ownerId = id
         if (own.save()) {
-            Helpers.resultFactory.success(own)
+            IOCUtils.resultFactory.success(own)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(own.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(own.errors) }
     }
 
     // Tags
@@ -221,15 +221,15 @@ class Phone implements WithMedia, WithId {
         if (tag.validate()) {
             // don't need null-check because withDefault uses the phone's language
             // if the provided value is null
-            tag.language = Helpers.withDefault(
-                Helpers.convertEnum(VoiceLanguage, params.language),
+            tag.language = Utils.withDefault(
+                TypeConversionUtils.convertEnum(VoiceLanguage, params.language),
                 this.language
             )
             if (tag.save()) {
-                return Helpers.resultFactory.success(tag, ResultStatus.CREATED)
+                return IOCUtils.resultFactory.success(tag, ResultStatus.CREATED)
             }
         }
-        Helpers.resultFactory.failWithValidationErrors(tag.errors)
+        IOCUtils.resultFactory.failWithValidationErrors(tag.errors)
     }
 
     // Contacts
@@ -240,11 +240,11 @@ class Phone implements WithMedia, WithId {
         contact.phone = this
         if (params.name) contact.name = params.name
         if (params.note) contact.note = params.note
-        if (params.status) contact.status = Helpers.convertEnum(ContactStatus, params.status)
+        if (params.status) contact.status = TypeConversionUtils.convertEnum(ContactStatus, params.status)
         if (params.isDeleted != null) contact.isDeleted = params.isDeleted
         // if language is provided but record is not initialized yet, need to do so in order
         // to set the language on the record object
-        VoiceLanguage lang = Helpers.withDefault(Helpers.convertEnum(VoiceLanguage, params.language),
+        VoiceLanguage lang = Utils.withDefault(TypeConversionUtils.convertEnum(VoiceLanguage, params.language),
             this.language)
         if (!contact.record) {
             contact.record = new Record(language: lang)
@@ -252,7 +252,7 @@ class Phone implements WithMedia, WithId {
         else { contact.record.language = lang }
         // need to save once language is modified so record will be persisted at the end of transaction
         if (!contact.record.save()) {
-            return Helpers.resultFactory.failWithValidationErrors(contact.record.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(contact.record.errors)
         }
         // need to save contact before adding numbers so that the contact domain is assigned an
         // ID to be associated with the ContactNumbers to avoid a TransientObjectException
@@ -266,9 +266,9 @@ class Phone implements WithMedia, WithId {
                     return res
                 }
             }
-            return Helpers.resultFactory.success(contact, ResultStatus.CREATED)
+            return IOCUtils.resultFactory.success(contact, ResultStatus.CREATED)
         }
-        Helpers.resultFactory.failWithValidationErrors(contact.errors)
+        IOCUtils.resultFactory.failWithValidationErrors(contact.errors)
     }
 
     // Sharing
@@ -283,11 +283,11 @@ class Phone implements WithMedia, WithId {
     }
     Result<SharedContact> share(Contact c1, Phone sWith, SharePermission perm) {
         if (c1?.phone?.id != this.id) {
-            return Helpers.resultFactory.failWithCodeAndStatus("phone.contactNotMine",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("phone.contactNotMine",
                 ResultStatus.BAD_REQUEST, [c1?.name])
         }
         if (!canShare(sWith)) {
-            return Helpers.resultFactory.failWithCodeAndStatus("phone.share.cannotShare",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("phone.share.cannotShare",
                 ResultStatus.FORBIDDEN, [sWith?.name])
         }
         //check to see that there isn't already an active shared contact
@@ -299,33 +299,33 @@ class Phone implements WithMedia, WithId {
             sc = new SharedContact(contact:c1, sharedBy:this, sharedWith:sWith, permission:perm)
         }
         if (sc.save()) {
-            Helpers.resultFactory.success(sc)
+            IOCUtils.resultFactory.success(sc)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(sc.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(sc.errors) }
     }
     Result<Void> stopShare(Phone sWith) {
         List<SharedContact> shareds = SharedContact.listForSharedByAndSharedWith(this, sWith)
         shareds.each { SharedContact sc -> sc.stopSharing() }
-        Helpers.resultFactory.success()
+        IOCUtils.resultFactory.success()
     }
     Result<Void> stopShare(Contact c1, Phone sWith) {
         SharedContact sc1 = SharedContact.listForContactAndSharedWith(c1, sWith, [max:1])[0]
         if (sc1) {
             sc1.stopSharing()
         }
-        Helpers.resultFactory.success()
+        IOCUtils.resultFactory.success()
     }
     Result<Void> stopShare(Contact contact) {
         // Hibernate proxying magic sometimes results in either contact,phone or this phone being
         // a proxy and therefore not equal to each other when they should be. We get around this
         // problem by comparing the ids of the two objects to ascertain identity
         if (contact?.phone?.id != this.id) {
-            return Helpers.resultFactory.failWithCodeAndStatus("phone.contactNotMine",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("phone.contactNotMine",
                 ResultStatus.BAD_REQUEST, [contact?.getNameOrNumber()])
         }
         List<SharedContact> shareds = SharedContact.listForContact(contact)
         shareds?.each { SharedContact sc -> sc.stopSharing() }
-        Helpers.resultFactory.success()
+        IOCUtils.resultFactory.success()
     }
 
     // Property Access
@@ -356,7 +356,7 @@ class Phone implements WithMedia, WithId {
             return 0
         }
         Contact.countForPhoneAndStatuses(this,
-            Helpers.toEnumList(ContactStatus, params.statuses, ContactStatus.ACTIVE_STATUSES))
+            TypeConversionUtils.toEnumList(ContactStatus, params.statuses, ContactStatus.ACTIVE_STATUSES))
     }
     //Optional specify 'status' corresponding to valid contact statuses
     List<Contactable> getContacts(Map params=[:]) {
@@ -364,7 +364,7 @@ class Phone implements WithMedia, WithId {
             return []
         }
         Collection<ContactStatus> statusEnums =
-            Helpers.toEnumList(ContactStatus, params.statuses, ContactStatus.ACTIVE_STATUSES)
+            TypeConversionUtils.toEnumList(ContactStatus, params.statuses, ContactStatus.ACTIVE_STATUSES)
         //get contacts, both mine and those shared with me
         List<Contact> contactList = Contact.listForPhoneAndStatuses(this, statusEnums, params)
         replaceContactsWithShared(contactList)
@@ -373,14 +373,14 @@ class Phone implements WithMedia, WithId {
         if (query == null) {
             return 0
         }
-        Contact.countForPhoneAndSearch(this, Helpers.toQuery(query))
+        Contact.countForPhoneAndSearch(this, StringUtils.toQuery(query))
     }
     List<Contactable> getContacts(String query, Map params=[:]) {
         if (query == null) {
             return []
         }
         //get contacts, both mine and those shared with me
-        replaceContactsWithShared(Contact.listForPhoneAndSearch(this, Helpers.toQuery(query), params))
+        replaceContactsWithShared(Contact.listForPhoneAndSearch(this, StringUtils.toQuery(query), params))
     }
     int countSharedWithMe() {
         SharedContact.countSharedWithMe(this)
@@ -485,8 +485,8 @@ class Phone implements WithMedia, WithId {
         own.phone = this
         this.owner = own
         if (own.save()) {
-            Helpers.resultFactory.success(own)
+            IOCUtils.resultFactory.success(own)
         }
-        else { Helpers.resultFactory.failWithValidationErrors(own.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(own.errors) }
     }
 }

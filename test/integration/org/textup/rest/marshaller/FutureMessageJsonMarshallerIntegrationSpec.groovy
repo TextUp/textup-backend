@@ -5,7 +5,7 @@ import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.FutureMessageType
 import org.textup.type.VoiceLanguage
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.*
 
 class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
@@ -52,7 +52,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
         when: "we marshal this message"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(fMsg as JSON)
+            json = TestUtils.jsonToMap(fMsg as JSON)
         }
 
         then:
@@ -78,7 +78,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
         sMsg.save(flush:true, failOnError:true)
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(sMsg as JSON)
+            json = TestUtils.jsonToMap(sMsg as JSON)
         }
 
         then:
@@ -93,9 +93,9 @@ class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
         sMsg.repeatCount = null
         sMsg.endDate = DateTime.now().plusDays(1)
         sMsg.save(flush:true, failOnError:true)
-        Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, ["errors1", "errors2"])
+        Utils.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, ["errors1", "errors2"])
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(sMsg as JSON)
+            json = TestUtils.jsonToMap(sMsg as JSON)
         }
 
         then: "no upload errors here -- see MediaInfo json marshaller"

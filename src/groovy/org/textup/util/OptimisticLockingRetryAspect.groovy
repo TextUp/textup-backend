@@ -1,6 +1,6 @@
 package org.textup.util
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
@@ -9,7 +9,7 @@ import org.hibernate.StaleObjectStateException
 import org.springframework.core.Ordered
 import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Log4j
 @Aspect
 class OptimisticLockingRetryAspect implements Ordered {

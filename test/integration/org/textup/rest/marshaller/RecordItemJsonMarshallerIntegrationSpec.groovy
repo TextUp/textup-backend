@@ -7,7 +7,7 @@ import org.textup.*
 import org.textup.type.AuthorType
 import org.textup.type.ReceiptStatus
 import org.textup.type.RecordItemType
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import org.textup.validator.Author
 import org.textup.validator.TempRecordReceipt
 import spock.lang.*
@@ -52,7 +52,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
             authorType: AuthorType.STAFF,
             media: new MediaInfo(),
             wasScheduled: true)
-        RecordItemReceipt rpt1 = TestHelpers.buildReceipt(ReceiptStatus.BUSY)
+        RecordItemReceipt rpt1 = TestUtils.buildReceipt(ReceiptStatus.BUSY)
         rpt1.numBillable = 88
         rCall1.addToReceipts(rpt1)
         rCall1.save(flush:true, failOnError:true)
@@ -60,7 +60,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
     	when:
     	Map json
     	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestHelpers.jsonToMap(rCall1 as JSON)
+    		json = TestUtils.jsonToMap(rCall1 as JSON)
     	}
 
     	then:
@@ -80,7 +80,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
             authorId: 88L,
             authorType: AuthorType.STAFF,
             media: new MediaInfo())
-        RecordItemReceipt rpt1 = TestHelpers.buildReceipt(ReceiptStatus.BUSY)
+        RecordItemReceipt rpt1 = TestUtils.buildReceipt(ReceiptStatus.BUSY)
         rpt1.numBillable = 88
         rCall1.addToReceipts(rpt1)
         rCall1.save(flush:true, failOnError:true)
@@ -88,7 +88,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(rCall1 as JSON)
+            json = TestUtils.jsonToMap(rCall1 as JSON)
         }
 
         then:
@@ -107,13 +107,13 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
             authorId: 88L,
             authorType: AuthorType.STAFF,
             media: new MediaInfo())
-        rText1.addToReceipts(TestHelpers.buildReceipt(ReceiptStatus.BUSY))
+        rText1.addToReceipts(TestUtils.buildReceipt(ReceiptStatus.BUSY))
         rText1.save(flush:true, failOnError:true)
 
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(rText1 as JSON)
+            json = TestUtils.jsonToMap(rText1 as JSON)
         }
 
         then:
@@ -144,7 +144,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(note1 as JSON)
+            json = TestUtils.jsonToMap(note1 as JSON)
         }
 
         then: "no upload errors shown here -- see MediaInfo json marshaller"

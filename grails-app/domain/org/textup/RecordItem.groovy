@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -12,6 +13,7 @@ import org.textup.type.ReceiptStatus
 import org.textup.validator.Author
 import org.textup.validator.TempRecordReceipt
 
+@GrailsTypeChecked
 @EqualsAndHashCode
 class RecordItem implements ReadOnlyRecordItem, WithId {
 
@@ -114,41 +116,10 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
         whenCreated type: PersistentDateTime
         noteContents type: "text"
     }
-    static namedQueries = {
-        forRecord { Record rec, Collection<Class<? extends RecordItem>> types = [] ->
-            eq("record", rec)
-            if (types) {
-                "in"("class", types*.canonicalName)
-            }
-            // from newer to older so we return more recent messages first
-            order("whenCreated", "desc")
-        }
-        forRecordDateSince { Record rec, DateTime s, Collection<Class<? extends RecordItem>> types = [] ->
-            eq("record", rec)
-            ge("whenCreated", s)
-            if (types) {
-                "in"("class", types*.canonicalName)
-            }
-            // from newer to older so we return more recent messages first
-            order("whenCreated", "desc")
-        }
-        forRecordDateBetween { Record rec, DateTime s, DateTime e,
-            Collection<Class<? extends RecordItem>> types = [] ->
-
-            eq("record", rec)
-            between("whenCreated", s, e)
-            if (types) {
-                "in"("class", types*.canonicalName)
-            }
-            // from newer to older so we return more recent messages first
-            order("whenCreated", "desc")
-        }
-    }
 
     // Static Finders
     // --------------
 
-    @GrailsTypeChecked
     static List<RecordItem> findEveryByApiId(String apiId) {
         List<RecordItem> results = []
         HashSet<Long> itemIds = new HashSet<>()
@@ -161,7 +132,9 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
         }
         results
     }
-    static DetachedCriteria<RecordItem> buildForRecords(Collection<Record> records) {
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static DetachedCriteria<RecordItem> forRecords(Collection<Record> records) {
         new DetachedCriteria(RecordItem)
             .build {
                 if (records) { "in"("record", records) }
@@ -169,16 +142,87 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
             }
     }
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static DetachedCriteria<RecordItem> forPhoneIdWithOptions(boolean recentFirst,
+        Long phoneId, DateTime start = null, DateTime end = null,
+        Collection<Class<? extends RecordItem>> types = null) {
+
+        new DetachedCriteria(RecordItem)
+            .build {
+                or {
+                    "in"("record.id", RecordOwner.forRecordOwnerPhone(phoneId))
+                    "in"("record.id", RecordOwner.forRecordOwnerPhone(phoneId))
+                }
+            }
+            .build(RecordItem.buildForOptionalDates(start, end))
+            .build(RecordItem.buildForOptionalTypes(types))
+            .build(RecordItem.buildForSort(recentFirst))
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static DetachedCriteria<RecordItem> forRecordIdsWithOptions(boolean recentFirst,
+        Collection<Long> recIds, DateTime start = null, DateTime end = null,
+        Collection<Class<? extends RecordItem>> types = null) {
+
+        new DetachedCriteria(RecordItem)
+            .build {
+                if (recIds) {
+                    "in"("record.id", recIds)
+                }
+                else { eq("record.id", null) }
+            }
+            .build(RecordItem.buildForOptionalDates(start, end))
+            .build(RecordItem.buildForOptionalTypes(types))
+            .build(RecordItem.buildForSort(recentFirst))
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    protected static DetachedCriteria<Long> forRecordOwnerPhone(Class<? extends WithRecord> ownerClass,
+        Long phoneId) {
+
+        return new DetachedCriteria(ownerClass).build {
+            projections { property("record.id") }
+            eq("phone.id", phoneId)
+        }
+    }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    protected static Closure buildForOptionalDates(DateTime s = null, DateTime e = null) {
+        return {
+            if (s && e) {
+                between("whenCreated", s, e)
+            }
+            else if (s) {
+                ge("whenCreated", s)
+            }
+        }
+    }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    protected static Closure buildForOptionalTypes(Collection<Class<? extends RecordItem>> types = null) {
+        return {
+            if (types) {
+                "in"("class", types*.canonicalName)
+            }
+        }
+    }
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    protected static Closure buildForSort(boolean recentFirst) {
+        return {
+            if (recentFirst) {
+                // from newer (larger # millis) to older (smaller $ millis)
+                order("whenCreated", "desc")
+            }
+            else { order("whenCreated", "asc") }
+        }
+    }
+
     // Methods
     // -------
 
-    @GrailsTypeChecked
     RecordItem addAllReceipts(Collection<TempRecordReceipt> receipts) {
         receipts.each { TempRecordReceipt r1 -> addReceipt(r1) }
         this
     }
 
-    @GrailsTypeChecked
     RecordItem addReceipt(TempRecordReceipt r1) {
         RecordItemReceipt receipt = new RecordItemReceipt(status: r1.status, apiId: r1.apiId,
             contactNumberAsString: r1.contactNumberAsString, numBillable: r1.numSegments)
@@ -189,23 +233,18 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
     // Property Access
     // ---------------
 
-    @GrailsTypeChecked
     List<RecordItemReceipt> getReceiptsByStatus(ReceiptStatus stat) {
         RecordItemReceipt.findAllByItemAndStatus(this, stat)
     }
 
-    @GrailsTypeChecked
     RecordItemStatus groupReceiptsByStatus() {
         new RecordItemStatus(this.receipts)
     }
 
-    @GrailsTypeChecked
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
 
-    @GrailsTypeChecked
     ReadOnlyRecord getReadOnlyRecord() { record }
 
-    @GrailsTypeChecked
     void setAuthor(Author author) {
         if (author?.validate()) {
             this.with {
@@ -215,7 +254,6 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
             }
         }
     }
-    @GrailsTypeChecked
     Author getAuthor() {
         new Author(name:this.authorName, id:this.authorId, type:this.authorType)
     }

@@ -157,7 +157,7 @@ class FutureMessageSpec extends CustomSpec {
         }
 
         when: "build detached criteria for these items"
-        DetachedCriteria<FutureMessage> detachedCrit = FutureMessage.buildForRecords([rec])
+        DetachedCriteria<FutureMessage> detachedCrit = FutureMessage.forRecords([rec])
         List<FutureMessage> fMsgList = detachedCrit.list()
         Collection<Long> targetIds = [fm1, fm2]*.id
 

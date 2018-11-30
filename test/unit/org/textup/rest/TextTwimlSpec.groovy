@@ -22,7 +22,7 @@ class TextTwimlSpec extends CustomSpec {
     }
 
     def setup() {
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
         setupData()
     }
 
@@ -38,7 +38,7 @@ class TextTwimlSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Message(msg2)
                 Message(msg1)
@@ -52,7 +52,7 @@ class TextTwimlSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Message("twimlBuilder.invalidNumber") }
         })
 
@@ -61,7 +61,7 @@ class TextTwimlSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Message("twimlBuilder.notFound") }
         })
     }
@@ -72,7 +72,7 @@ class TextTwimlSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Message("twimlBuilder.text.subscribed") }
         })
 
@@ -81,7 +81,7 @@ class TextTwimlSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Message("twimlBuilder.text.unsubscribed") }
         })
 
@@ -90,7 +90,7 @@ class TextTwimlSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Message("twimlBuilder.text.blocked") }
         })
     }
@@ -109,7 +109,7 @@ class TextTwimlSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Message("twimlBuilder.noAnnouncements") }
         })
 
@@ -127,7 +127,7 @@ class TextTwimlSpec extends CustomSpec {
 
         then:
         res.success == true
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response {
                 Message("twimlBuilder.announcement")
                 Message("twimlBuilder.announcement")

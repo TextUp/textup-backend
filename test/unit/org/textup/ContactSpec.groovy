@@ -47,7 +47,7 @@ class ContactSpec extends CustomSpec {
 
     	when: "we add a tag membership and define a too-long note"
     	c1.save(flush:true, failOnError:true)
-    	c1.note =  TestHelpers.buildVeryLongString()
+    	c1.note =  TestUtils.buildVeryLongString()
 
     	then:
     	c1.validate() == false
@@ -147,7 +147,7 @@ class ContactSpec extends CustomSpec {
 
     void "test getting name or number"() {
         given:
-        String name = TestHelpers.randString()
+        String name = TestUtils.randString()
 
         when: "contact has name"
         c1.name = name
@@ -164,8 +164,8 @@ class ContactSpec extends CustomSpec {
 
     void "test static finders"() {
         given: "a phone with contacts"
-        Phone phone1 = new Phone(numberAsString:TestHelpers.randPhoneNumber()),
-            phone2 = new Phone(numberAsString:TestHelpers.randPhoneNumber())
+        Phone phone1 = new Phone(numberAsString:TestUtils.randPhoneNumber()),
+            phone2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
         phone1.updateOwner(s1)
         phone2.updateOwner(s2)
         phone1.save(failOnError:true)
@@ -175,8 +175,8 @@ class ContactSpec extends CustomSpec {
         Map<ContactStatus,String> statusToContactNum = [:]
         Map<ContactStatus,String> statusToSharedContactNum = [:]
         ContactStatus.values().each { ContactStatus cStatus ->
-            String strNum1 = TestHelpers.randPhoneNumber()
-            String strNum2 = TestHelpers.randPhoneNumber()
+            String strNum1 = TestUtils.randPhoneNumber()
+            String strNum2 = TestUtils.randPhoneNumber()
             // creating contacts
             statusToContactNum[cStatus] = strNum1
             contacts << phone1.createContact([status:cStatus], [strNum1]).payload
@@ -203,7 +203,7 @@ class ContactSpec extends CustomSpec {
                 assert otherContact.sharedContacts.isEmpty() == true
             }
         }
-        String otherNum = TestHelpers.randPhoneNumber()
+        String otherNum = TestUtils.randPhoneNumber()
 
         expect:
         Contact.countForPhoneAndSearch(phone1, otherNum) == 0

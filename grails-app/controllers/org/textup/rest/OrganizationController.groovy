@@ -1,6 +1,6 @@
 package org.textup.rest
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
@@ -10,7 +10,7 @@ import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.type.OrgStatus
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @RestApi(name="Organization", description = "Operations on organizations after logging in.")
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class OrganizationController extends BaseController {
@@ -46,12 +46,12 @@ class OrganizationController extends BaseController {
         Closure<Integer> count = { Organization.count() }
         Closure<List<Organization>> list = { Map params -> Organization.list(params) }
         if (params.search) {
-            String query = Helpers.toQuery(params.search)
+            String query = StringUtils.toQuery(params.search)
             count = { Organization.countSearch(query) }
             list = { Map params -> Organization.search(query, params) }
         }
         else {
-            List<OrgStatus> statusEnums = Helpers.toEnumList(OrgStatus, params.list("status[]"))
+            List<OrgStatus> statusEnums = TypeConversionUtils.toEnumList(OrgStatus, params.list("status[]"))
             if (statusEnums) {
                 count = { Organization.countByStatusInList(statusEnums) }
                 list = { Map params -> Organization.findAllByStatusInList(statusEnums, params) }

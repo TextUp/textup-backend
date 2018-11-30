@@ -1,11 +1,11 @@
 package org.textup.rest.marshaller
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import org.textup.*
 import org.textup.rest.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Log4j
 class StaffPolicyAvailabilityJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { StaffPolicyAvailability sp1 ->

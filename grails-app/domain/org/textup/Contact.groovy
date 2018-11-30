@@ -205,7 +205,7 @@ class Contact implements Contactable, WithId {
                 // an empty string and transforming this to a query string will
                 // yield '%' which matches all results
                 if (tempNum.number) {
-                    numbers { ilike('number', Helpers.toQuery(tempNum.number)) }
+                    numbers { ilike('number', StringUtils.toQuery(tempNum.number)) }
                 }
             }
         }
@@ -285,9 +285,9 @@ class Contact implements Contactable, WithId {
             thisNum.properties = params
             thisNum.number = num
             if (thisNum.save()) {
-                Helpers.resultFactory.success(thisNum)
+                IOCUtils.resultFactory.success(thisNum)
             }
-            else { Helpers.resultFactory.failWithValidationErrors(thisNum.errors) }
+            else { IOCUtils.resultFactory.failWithValidationErrors(thisNum.errors) }
         }
         else {
             thisNum = new ContactNumber()
@@ -296,9 +296,9 @@ class Contact implements Contactable, WithId {
             this.addToNumbers(thisNum)
             handleNumberPreferences()
             if (thisNum.save()) {
-                Helpers.resultFactory.success(thisNum)
+                IOCUtils.resultFactory.success(thisNum)
             }
-            else { Helpers.resultFactory.failWithValidationErrors(thisNum.errors) }
+            else { IOCUtils.resultFactory.failWithValidationErrors(thisNum.errors) }
         }
     }
     @GrailsTypeChecked
@@ -326,10 +326,10 @@ class Contact implements Contactable, WithId {
         if (number) {
             this.removeFromNumbers(number)
             number.delete()
-            Helpers.resultFactory.success()
+            IOCUtils.resultFactory.success()
         }
         else {
-            Helpers.resultFactory.failWithCodeAndStatus("contact.numberNotFound",
+            IOCUtils.resultFactory.failWithCodeAndStatus("contact.numberNotFound",
                 ResultStatus.NOT_FOUND, [number])
         }
     }
@@ -355,11 +355,11 @@ class Contact implements Contactable, WithId {
     }
     @GrailsTypeChecked
     Result<Record> tryGetRecord() {
-        Helpers.resultFactory.success(this.record)
+        IOCUtils.resultFactory.success(this.record)
     }
     @GrailsTypeChecked
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
-        Helpers.resultFactory.success(this.record)
+        IOCUtils.resultFactory.success(this.record)
     }
 
     // Property Access

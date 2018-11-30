@@ -5,10 +5,10 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.RecordItemType
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.TypeCheckingMode
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 class AnnouncementReceipt implements WithId {
 

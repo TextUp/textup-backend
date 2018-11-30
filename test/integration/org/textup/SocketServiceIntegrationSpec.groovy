@@ -64,7 +64,7 @@ class SocketServiceIntegrationSpec extends CustomSpec {
     @DirtiesRuntime
     void "test sending a phone"() {
         given:
-        MockedMethod sendToDataToStaff = TestHelpers.mock(socketService, "sendToDataToStaff") {
+        MockedMethod sendToDataToStaff = TestUtils.mock(socketService, "sendToDataToStaff") {
             new Result()
         }
 

@@ -14,7 +14,7 @@ class LinkUtilsSpec extends Specification {
     void "test generating public links"() {
         given:
         String bucketName = grailsApplication.flatConfig["textup.media.bucketName"]
-        String ident = TestHelpers.randString()
+        String ident = TestUtils.randString()
 
         when:
         URL link = LinkUtils.unsignedLink(ident)
@@ -31,9 +31,9 @@ class LinkUtilsSpec extends Specification {
     @DirtiesRuntime
     void "test generating authenticated links"() {
         given:
-        String ident = TestHelpers.randString()
+        String ident = TestUtils.randString()
         String signedUrl = "https://www.example.com"
-        MockedMethod getSignedLink = TestHelpers.mock(LinkUtils, "getSignedLink") {
+        MockedMethod getSignedLink = TestUtils.mock(LinkUtils, "getSignedLink") {
             new URL(signedUrl)
         }
 

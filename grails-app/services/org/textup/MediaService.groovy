@@ -23,7 +23,7 @@ class MediaService {
         boolean isPublic = false) {
 
         if (!hasMediaActions(body)) {
-            return resultFactory.success(withMedia, Helpers.noOpFuture(withMedia.media))
+            return resultFactory.success(withMedia, AsyncUtils.noOpFuture(withMedia.media))
         }
         tryProcess(withMedia.media ?: new MediaInfo(), body, isPublic)
             .then { Tuple<MediaInfo, Future<?>> processed ->
@@ -36,7 +36,7 @@ class MediaService {
         boolean isPublic = false) {
 
         if (!hasMediaActions(body)) {
-            return resultFactory.success(mInfo, Helpers.noOpFuture(mInfo))
+            return resultFactory.success(mInfo, AsyncUtils.noOpFuture(mInfo))
         }
         ResultGroup<UploadItem> uploadGroup = handleActions(mInfo, body)
             .logFail("MediaService.tryProcess: building initial version")
@@ -60,7 +60,7 @@ class MediaService {
                 .logFail("MediaService.tryProcess: uploading initial media")
                 .failures
                 .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-            Helpers.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
+            Utils.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
                 .logFail("MediaService.tryProcess: setting upload errors on request")
             Future<Result<MediaInfo>> fut = threadService.delay(5, TimeUnit.SECONDS) {
                 tryFinishProcessing(mInfo.id, toProcessIds)
@@ -128,7 +128,7 @@ class MediaService {
         Iterable<Serializable> elIds = []
         toProcessIds.each { Tuple<UploadItem, Long> processed -> elIds << processed.second }
         // step 2: fetch from ids and build as map for efficient retrieval
-        Map<Long, MediaElement> idToObject = Helpers.buildIdToObjectMap(MediaElement.getAll(elIds))
+        Map<Long, MediaElement> idToObject = AsyncUtils.idMap(MediaElement.getAll(elIds))
         // step 3: replace ids with objects in passed-in list of tuples
         List<Tuple<UploadItem, MediaElement>> toProcess = []
         toProcessIds.each { Tuple<UploadItem, Long> processed ->

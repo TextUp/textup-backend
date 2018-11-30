@@ -52,8 +52,8 @@ class Record implements ReadOnlyRecord, WithId {
                 numBillable: text.numSegments)
             receipt.contactNumber = session1.number
             rText1.addToReceipts(receipt)
-            rText1.save() ? Helpers.resultFactory.success(rText1) :
-                Helpers.resultFactory.failWithValidationErrors(rText1.errors)
+            rText1.save() ? IOCUtils.resultFactory.success(rText1) :
+                IOCUtils.resultFactory.failWithValidationErrors(rText1.errors)
         }
     }
     Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session1) {
@@ -63,8 +63,8 @@ class Record implements ReadOnlyRecord, WithId {
                 apiId: apiId)
             receipt.contactNumber = session1.number
             rCall1.addToReceipts(receipt)
-            rCall1.save() ? Helpers.resultFactory.success(rCall1) :
-                Helpers.resultFactory.failWithValidationErrors(rCall1.errors)
+            rCall1.save() ? IOCUtils.resultFactory.success(rCall1) :
+                IOCUtils.resultFactory.failWithValidationErrors(rCall1.errors)
         }
     }
 
@@ -77,82 +77,41 @@ class Record implements ReadOnlyRecord, WithId {
             item.record = this
             if (item.save()) {
                 this.updateLastRecordActivity()
-                Helpers.resultFactory.success(item, ResultStatus.CREATED)
+                IOCUtils.resultFactory.success(item, ResultStatus.CREATED)
             }
-            else { Helpers.resultFactory.failWithValidationErrors(item.errors) }
+            else { IOCUtils.resultFactory.failWithValidationErrors(item.errors) }
         }
-        else { Helpers.resultFactory.failWithCodeAndStatus("record.noRecordItem", ResultStatus.BAD_REQUEST) }
+        else { IOCUtils.resultFactory.failWithCodeAndStatus("record.noRecordItem", ResultStatus.BAD_REQUEST) }
     }
 
     // Property Access
     // ---------------
 
-    List<RecordItem> getItems(Map params=[:]) {
-        getItems([], params)
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    List<RecordItem> getItems(Collection<Class<? extends RecordItem>> types, Map params=[:]) {
-        RecordItem.forRecord(this, types).list(params)
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    int countItems(Collection<Class<? extends RecordItem>> types = []) {
-        RecordItem.forRecord(this, types).count()
+    boolean hasUnreadInfo(DateTime lastTouched) {
+        RecordItem.forRecordIdsWithOptions(true, [this.id], lastTouched).count() > 0
     }
 
-    List<RecordItem> getSince(DateTime since, Map params=[:]) {
-        getSince(since, [], params)
-    }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    List<RecordItem> getSince(DateTime since, Collection<Class<? extends RecordItem>> types,
-        Map params=[:]) {
-
-        if (!since) { return [] }
-        RecordItem.forRecordDateSince(this, since, types).list(params) ?: []
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    int countSince(DateTime since, Collection<Class<? extends RecordItem>> types = []) {
-        if (!since) { return 0 }
-        Helpers.<Integer>doWithoutFlush { RecordItem.forRecordDateSince(this, since, types).count() }
-    }
-    // specialized version of countSince that distinguishes between calls that have a voicemail
-    // and calls that do not have a voicemail
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    int countCallsSince(DateTime since, boolean hasVoicemail = false) {
-        if (!since) { return 0 }
-        Helpers.<Integer>doWithoutFlush {
-            RecordItem.forRecordDateSince(this, since, [RecordCall]).count {
-                if (hasVoicemail) {
-                    gt("voicemailInSeconds", 0)
-                }
-                else { eq("voicemailInSeconds", 0) }
-            }
+    UnreadInfo getUnreadInfo(DateTime lastTouched) {
+        Closure notOutgoing = { eq("outgoing", false) }
+        UnreadInfo uInfo = new UnreadInfo()
+        uInfo.with {
+            numTexts = RecordItem
+                .forRecordIdsWithOptions(true, [this.id], lastTouched, null, [RecordText])
+                .build(notOutgoing)
+                .count()
+            numCalls = RecordItem
+                .forRecordIdsWithOptions(true, [this.id], lastTouched, null, [RecordCall])
+                .build(notOutgoing)
+                .build { eq("voicemailInSeconds", 0) }
+                .count()
+            numVoicemails = RecordItem
+                .forRecordIdsWithOptions(true, [this.id], lastTouched, null, [RecordCall])
+                .build(notOutgoing)
+                .build { gt("voicemailInSeconds", 0) }
+                .count()
         }
-    }
-
-    List<RecordItem> getBetween(DateTime start, DateTime end, Map params=[:]) {
-        getBetween(start, end, [], params)
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    List<RecordItem> getBetween(DateTime start, DateTime end, Collection<Class<? extends RecordItem>> types,
-        Map params=[:]) {
-
-        if (!start || !end) { return [] }
-        if (end.isBefore(start)) {
-            DateTime exchange = start
-            start = end
-            end = exchange
-        }
-        RecordItem.forRecordDateBetween(this, start, end, types).list(params) ?: []
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    int countBetween(DateTime start, DateTime end, Collection<Class<? extends RecordItem>> types = []) {
-        if (!start || !end) { return 0 }
-        if (end.isBefore(start)) {
-            DateTime exchange = start
-            start = end
-            end = exchange
-        }
-        RecordItem.forRecordDateBetween(this, start, end, types).count()
+        uInfo
     }
 
     List<FutureMessage> getFutureMessages(Map params=[:]) {

@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.util.logging.Log4j
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
@@ -12,7 +12,7 @@ import org.textup.validator.Author
 import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Log4j
 @EqualsAndHashCode
 class IncomingSession implements WithId {

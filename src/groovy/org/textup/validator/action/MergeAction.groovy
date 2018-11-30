@@ -1,15 +1,13 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.textup.Constants
-import org.textup.Contact
-import org.textup.Helpers
+import org.textup.*
 
 // documented as [mergeAction] in CustomApiDocs.groovy
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class MergeAction extends BaseAction {
@@ -23,11 +21,11 @@ class MergeAction extends BaseAction {
 
 	static constraints = {
 		mergeIds validator:{ Object val, MergeAction obj ->
-			Collection<?> idObjs = Helpers.to(Collection, val)
+			Collection<?> idObjs = TypeConversionUtils.to(Collection, val)
 			if (!idObjs) {
 				return ["emptyOrNotACollection"]
 			}
-			List<Long> castIds = Helpers.allTo(Long, idObjs)
+			List<Long> castIds = TypeConversionUtils.allTo(Long, idObjs)
 			if (castIds.size() != obj.ids.size()) {
 				return ["notAllNumbers"]
 			}
@@ -66,10 +64,10 @@ class MergeAction extends BaseAction {
 
 	void setMergeIds(Object mIds) {
 		this.mergeIds = mIds
-		Collection<?> idObjs = Helpers.to(Collection, mIds)
+		Collection<?> idObjs = TypeConversionUtils.to(Collection, mIds)
 		if (idObjs) {
 			List<Long> thisIds = []
-			Helpers.allTo(Long, idObjs)
+			TypeConversionUtils.allTo(Long, idObjs)
 				.each { Long id -> if (id) { thisIds << id } }
 			this.ids = thisIds
 			this.contacts = []

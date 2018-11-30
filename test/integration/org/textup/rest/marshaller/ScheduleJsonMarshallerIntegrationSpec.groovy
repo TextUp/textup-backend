@@ -27,7 +27,7 @@ class ScheduleJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(sched1 as JSON)
+            json = TestUtils.jsonToMap(sched1 as JSON)
         }
 
     	then:

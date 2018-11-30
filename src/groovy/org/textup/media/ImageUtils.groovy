@@ -44,7 +44,7 @@ class ImageUtils {
 
         // short circuit if target width is invalid or if present width is already smaller than target width
         if (maxWidthInPixels <= 0 || image?.width < maxWidthInPixels) {
-            return Helpers.resultFactory.success(data, image)
+            return IOCUtils.resultFactory.success(data, image)
         }
         ImageWriter writer
         try {
@@ -53,11 +53,11 @@ class ImageUtils {
             Image resizedImg = image.getScaledInstance(maxWidthInPixels, -1, Image.SCALE_DEFAULT)
             BufferedImage newImage = ImageUtils.imageToBufferedImage(resizedImg)
             byte[] newData = ImageUtils.getDataFromImage(newImage, writer, writer.defaultWriteParam)
-            Helpers.resultFactory.success(newData, newImage)
+            IOCUtils.resultFactory.success(newData, newImage)
         }
         catch (Throwable e) {
             log.error("ImageUtils.tryResizeToWidth: maxWidthInPixels: ${maxWidthInPixels}, ${e.message}")
-            Helpers.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
         finally { writer?.dispose() }
     }
@@ -66,7 +66,7 @@ class ImageUtils {
         BufferedImage image, long maxSizeInBytes) {
         // short circuit if invalid input or incompressible or if requested size is smaller than current
         if (maxSizeInBytes <= 0 || !ImageUtils.canCompress(type) || !data || data.size() <= maxSizeInBytes) {
-            return Helpers.resultFactory.success(data, image)
+            return IOCUtils.resultFactory.success(data, image)
         }
         ImageWriter writer
         try {
@@ -85,11 +85,11 @@ class ImageUtils {
                 currentQuality -= qualityStep
             }
             // step 3: after breaking out of the loop, return the newly-compressed values
-            return Helpers.resultFactory.success(currData, currImage)
+            return IOCUtils.resultFactory.success(currData, currImage)
         }
         catch (Throwable e) {
             log.error("ImageUtils.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
-            Helpers.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
         finally { writer?.dispose() }
     }

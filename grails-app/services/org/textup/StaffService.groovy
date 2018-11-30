@@ -124,7 +124,7 @@ class StaffService {
             // is not pending
             if (body.status && o1.id && authService.isAdminAt(o1.id) &&
                 o1.status != OrgStatus.PENDING) {
-                s1.status = Helpers.convertEnum(StaffStatus, body.status)
+                s1.status = TypeConversionUtils.convertEnum(StaffStatus, body.status)
             }
             // initially save first so we know that staff is valid
             // before trying to send out email notification and adding a phone
@@ -145,7 +145,7 @@ class StaffService {
         Organization org
         //if we specify id then we must be associating with existing
         if (orgInfo.id) { // existing organization
-            org = Organization.get(Helpers.to(Long, orgInfo.id))
+            org = Organization.get(TypeConversionUtils.to(Long, orgInfo.id))
             if (!org) {
                 return resultFactory.failWithCodeAndStatus("staffService.create.orgNotFound",
                     ResultStatus.NOT_FOUND, [orgInfo.id])
@@ -227,7 +227,7 @@ class StaffService {
     protected Result<Staff> tryUpdateStatus(Staff s1, Map body) {
         //can only update status if you are an admin
         if (body.status && authService.isAdminAtSameOrgAs(s1.id)) {
-            s1.status = Helpers.convertEnum(StaffStatus, body.status)
+            s1.status = TypeConversionUtils.convertEnum(StaffStatus, body.status)
         }
         if (s1.save()) {
             resultFactory.success(s1)

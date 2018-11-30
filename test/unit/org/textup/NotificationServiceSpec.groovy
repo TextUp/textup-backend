@@ -24,7 +24,7 @@ class NotificationServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -353,14 +353,14 @@ class NotificationServiceSpec extends CustomSpec {
         service.textService = Mock(TextService)
         service.grailsApplication = grailsApplication
 
-        String contents = TestHelpers.randString()
-        String instr = TestHelpers.randString()
+        String contents = TestUtils.randString()
+        String instr = TestUtils.randString()
         BasicNotification bn1 = [
             owner: [phone: p1],
             staff: s1,
             record: c1.record
         ] as BasicNotification
-        PhoneNumber personalNum = new PhoneNumber(number: TestHelpers.randPhoneNumber())
+        PhoneNumber personalNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
 
         when: "no personal phone"
         bn1.staff.personalPhoneAsString = null
@@ -387,8 +387,8 @@ class NotificationServiceSpec extends CustomSpec {
         service.textService = Mock(TextService)
         service.grailsApplication = grailsApplication
 
-        String contents = TestHelpers.randString()
-        String instr = TestHelpers.randString()
+        String contents = TestUtils.randString()
+        String instr = TestUtils.randString()
         BasicNotification bn1 = [
             owner: [phone: p1],
             staff: s1,
@@ -413,7 +413,7 @@ class NotificationServiceSpec extends CustomSpec {
     void "test showing notification"() {
         given:
         service.tokenService = Mock(TokenService)
-        String invalidTokenString = TestHelpers.randString()
+        String invalidTokenString = TestUtils.randString()
         Token tok1 = new Token(type: TokenType.NOTIFY_STAFF)
         tok1.data = [
             contents: "hi",

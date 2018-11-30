@@ -24,7 +24,7 @@ class RecordUtilsSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
     }
 
     def cleanup() {
@@ -101,7 +101,7 @@ class RecordUtilsSpec extends CustomSpec {
     @DirtiesRuntime
     void "test check outgoing message recipients"() {
         given:
-        OutgoingMessage msg1 = TestHelpers.buildOutgoingMessage()
+        OutgoingMessage msg1 = TestUtils.buildOutgoingMessage()
 
         when: "no recipients"
         Result<OutgoingMessage> res = RecordUtils.checkOutgoingMessageRecipients(msg1)
@@ -118,7 +118,7 @@ class RecordUtilsSpec extends CustomSpec {
         res.status == ResultStatus.OK
 
         when: "too many recipients"
-        TestHelpers.mock(msg1, "toRecipients") {
+        TestUtils.mock(msg1, "toRecipients") {
             Collection<Contactable> recipients = []
             (Constants.MAX_NUM_TEXT_RECIPIENTS + 1).times { recipients << c1 }
             recipients
@@ -193,7 +193,7 @@ class RecordUtilsSpec extends CustomSpec {
             sendToContacts: [c1.id],
             sendToSharedContacts: [sc2.contactId],
             sendToTags: [tag1.id],
-            sendToPhoneNumbers: [TestHelpers.randPhoneNumber()])
+            sendToPhoneNumbers: [TestUtils.randPhoneNumber()])
         res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
         Contact.withSession { it.flush() }
 

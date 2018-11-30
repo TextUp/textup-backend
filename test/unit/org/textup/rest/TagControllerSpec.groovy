@@ -47,7 +47,7 @@ class TagControllerSpec extends CustomSpec {
         request.method = "GET"
         controller.index()
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = Helpers.allTo(Long, loggedIn.phone.tags*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.phone.tags*.id)
 
         then:
         response.status == SC_OK
@@ -61,7 +61,7 @@ class TagControllerSpec extends CustomSpec {
         params.teamId = t1.id
         request.method = "GET"
         controller.index()
-        List<Long> ids = Helpers.allTo(Long, t1.phone.tags*.id)
+        List<Long> ids = TypeConversionUtils.allTo(Long, t1.phone.tags*.id)
 
         then:
         response.status == SC_OK

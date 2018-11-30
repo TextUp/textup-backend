@@ -1,8 +1,8 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 interface Schedulable {
 
     boolean isAvailableNow()

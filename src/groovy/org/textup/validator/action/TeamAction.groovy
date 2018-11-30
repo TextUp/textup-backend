@@ -1,15 +1,15 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.Constants
-import org.textup.Helpers
+import org.textup.Utils
 import org.textup.Staff
 
 // documented as [teamAction] in CustomApiDocs.groovy
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class TeamAction extends BaseAction {
@@ -18,7 +18,7 @@ class TeamAction extends BaseAction {
 
 	static constraints = {
 		id validator: { Long staffId ->
-			if (!Helpers.<Boolean>doWithoutFlush({ Staff.exists(staffId) })) {
+			if (!Utils.<Boolean>doWithoutFlush({ Staff.exists(staffId) })) {
 				["doesNotExist"]
 			}
 		}

@@ -40,7 +40,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         given:
         service.tokenService = Mock(TokenService)
         MediaInfo mInfo = new MediaInfo()
-        MediaElement el1 = TestHelpers.buildMediaElement()
+        MediaElement el1 = TestUtils.buildMediaElement()
         el1.sendVersion.type = MediaType.AUDIO_MP3
         mInfo.addToMediaElements(el1)
         mInfo.save(flush: true, failOnError: true)
@@ -59,9 +59,9 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         then:
         1 * service.tokenService.findDirectMessage(*_) >> new Result(payload: tok1)
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.messageIntro")
-        TestHelpers.buildXml(res.payload).contains("Say") == true
-        TestHelpers.buildXml(res.payload).contains("Play") == false
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.messageIntro")
+        TestUtils.buildXml(res.payload).contains("Say") == true
+        TestUtils.buildXml(res.payload).contains("Play") == false
 
         when: "successfully finds token with message and media"
         Map tokData = tok1.data
@@ -73,9 +73,9 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         then:
         1 * service.tokenService.findDirectMessage(*_) >> new Result(payload: tok1)
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.messageIntro")
-        TestHelpers.buildXml(res.payload).contains("Say") == true
-        TestHelpers.buildXml(res.payload).contains("Play") == true
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.messageIntro")
+        TestUtils.buildXml(res.payload).contains("Say") == true
+        TestUtils.buildXml(res.payload).contains("Play") == true
 
         when: "fail to find token"
         res = service.directMessageCall(null)
@@ -83,12 +83,12 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         then:
         1 * service.tokenService.findDirectMessage(*_) >> new Result(status: ResultStatus.BAD_REQUEST)
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.error")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.error")
     }
 
     void "test handling after bridge call"() {
         given:
-        TempRecordReceipt rpt = TestHelpers.buildTempReceipt()
+        TempRecordReceipt rpt = TestUtils.buildTempReceipt()
         int cBaseline = RecordCall.count()
         int rptBaseline = RecordItemReceipt.count()
 
@@ -129,7 +129,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
 
     void "test starting bridge call"() {
         given: "baselines"
-        TempRecordReceipt rpt = TestHelpers.buildTempReceipt()
+        TempRecordReceipt rpt = TestUtils.buildTempReceipt()
         service.callService = Mock(CallService)
         int cBaseline = RecordCall.count()
         int rBaseline = RecordItemReceipt.count()
@@ -157,7 +157,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
 
         then:
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload).contains("twimlBuilder.call.bridgeNumberStart")
+        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.bridgeNumberStart")
     }
 
     // Text
@@ -248,7 +248,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         ContactTag ct1 = Mock()
         service.tokenService = Mock(TokenService)
         service.outgoingMediaService = Mock(OutgoingMediaService)
-        MockedMethod tryStoreReceipts = TestHelpers.mock(service, "tryStoreReceipts") { new Result() }
+        MockedMethod tryStoreReceipts = TestUtils.mock(service, "tryStoreReceipts") { new Result() }
         Long cId = 88
 
         when:
@@ -299,7 +299,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         OutgoingMessage msg1 = Mock()
         Future<Result<MediaInfo>> mediaFuture = Mock()
         MediaInfo mInfo = Mock()
-        MockedMethod sendAndStore = TestHelpers.mock(service, "sendAndStore") { new ResultGroup() }
+        MockedMethod sendAndStore = TestUtils.mock(service, "sendAndStore") { new ResultGroup() }
 
         when: "no media"
         ResultGroup<?> resGroup = service.finishProcessingMessages(null, null, msg1)
@@ -336,7 +336,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         RecordItem i1 = Mock()
         ScheduledFuture fut1 = Mock()
         service.threadService = Mock(ThreadService)
-        MockedMethod finishProcessingMessages = TestHelpers.mock(service, "finishProcessingMessages")
+        MockedMethod finishProcessingMessages = TestUtils.mock(service, "finishProcessingMessages")
             { new ResultGroup() }
         Record rec1 = Mock()
         Long recordId = 88
@@ -354,7 +354,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         tuple.second instanceof Future // no-op future
 
         when: "building messages yields some errors"
-        MockedMethod buildMessages = TestHelpers.mock(service, "buildMessages")
+        MockedMethod buildMessages = TestUtils.mock(service, "buildMessages")
             { new Result(status: ResultStatus.LOCKED).toGroup() }
         tuple = service.processMessage(phone, null, staff, null)
 
@@ -369,7 +369,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
 
         when: "building messages is successful"
         buildMessages.restore()
-        buildMessages = TestHelpers.mock(service, "buildMessages")
+        buildMessages = TestUtils.mock(service, "buildMessages")
             { new Result(payload: i1).toGroup() }
         tuple = service.processMessage(phone, null, staff, null)
 

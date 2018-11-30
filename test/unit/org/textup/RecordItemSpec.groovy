@@ -33,7 +33,7 @@ class RecordItemSpec extends Specification {
     	rItem.validate() == true
 
         when: "add a note contents that is too long"
-        rItem.noteContents = TestHelpers.buildVeryLongString()
+        rItem.noteContents = TestUtils.buildVeryLongString()
 
         then: "shared contraint on the noteContents field is executed"
         rItem.validate() == false
@@ -53,7 +53,7 @@ class RecordItemSpec extends Specification {
         Record rec = new Record()
         RecordItem rItem = new RecordItem(record:rec)
         assert rItem.validate()
-        TempRecordReceipt temp1 = TestHelpers.buildTempReceipt()
+        TempRecordReceipt temp1 = TestUtils.buildTempReceipt()
 
         when:
         rItem.addReceipt(temp1)
@@ -72,7 +72,7 @@ class RecordItemSpec extends Specification {
 
     void "test cascading validation and saving to media object"() {
         given:
-        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaElement e1 = TestUtils.buildMediaElement()
         MediaInfo mInfo = new MediaInfo()
         mInfo.addToMediaElements(e1)
         assert mInfo.validate()
@@ -159,7 +159,7 @@ class RecordItemSpec extends Specification {
         [rItem1, rItem2]*.save(flush:true, failOnError:true)
 
         when: "build detached criteria for these items"
-        DetachedCriteria<RecordItem> detachedCrit = RecordItem.buildForRecords([rec])
+        DetachedCriteria<RecordItem> detachedCrit = RecordItem.forRecords([rec])
         List<RecordItem> itemList = detachedCrit.list()
         Collection<Long> targetIds = [rItem1, rItem2]*.id
 

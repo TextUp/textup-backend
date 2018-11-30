@@ -77,7 +77,7 @@ class PhoneSpec extends CustomSpec {
 
     void "test cascading validation and saving to media object"() {
         given:
-        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaElement e1 = TestUtils.buildMediaElement()
         MediaInfo mInfo = new MediaInfo()
         mInfo.addToMediaElements(e1)
         assert mInfo.validate()
@@ -114,13 +114,13 @@ class PhoneSpec extends CustomSpec {
     @DirtiesRuntime
     void "test getting voicemail greeting url"() {
         given:
-        String link = "https://www.example.com/${TestHelpers.randString()}"
-        MockedMethod unsignedLink = TestHelpers.mock(LinkUtils, 'unsignedLink') { new URL(link) }
-        MockedMethod signedLink = TestHelpers.mock(LinkUtils, 'signedLink')
+        String link = "https://www.example.com/${TestUtils.randString()}"
+        MockedMethod unsignedLink = TestUtils.mock(LinkUtils, 'unsignedLink') { new URL(link) }
+        MockedMethod signedLink = TestUtils.mock(LinkUtils, 'signedLink')
 
-        MediaElement e1 = TestHelpers.buildMediaElement()
+        MediaElement e1 = TestUtils.buildMediaElement()
         e1.sendVersion.type = MediaType.IMAGE_JPEG
-        MediaElement e2 = TestHelpers.buildMediaElement()
+        MediaElement e2 = TestUtils.buildMediaElement()
         e2.sendVersion.type = MediaType.AUDIO_MP3
         e2.sendVersion.isPublic = true
 
@@ -200,7 +200,7 @@ class PhoneSpec extends CustomSpec {
 
     void "test owner and availability"() {
         given: "a phone belonging to a team with no policies"
-        Phone p1 = new Phone(numberAsString: TestHelpers.randPhoneNumber())
+        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumber())
         p1.updateOwner(t1)
         p1.save(flush:true, failOnError:true)
         assert p1.owner.policies == null

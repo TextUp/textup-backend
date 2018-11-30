@@ -33,7 +33,7 @@ class AnnouncementService {
                 ResultStatus.UNPROCESSABLE_ENTITY)
 		}
         String msg = body.message as String
-        DateTime expires = Helpers.toUTCDateTime(body.expiresAt)
+        DateTime expires = DateTimeUtils.toUTCDateTime(body.expiresAt)
         Staff loggedIn = authService.loggedInAndActive
         if (!p1.isActive) {
             return resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
@@ -60,7 +60,7 @@ class AnnouncementService {
     		return resultFactory.failWithCodeAndStatus("announcementService.update.notFound",
                 ResultStatus.NOT_FOUND, [aId])
     	}
-        announce.expiresAt = Helpers.toUTCDateTime(body.expiresAt)
+        announce.expiresAt = DateTimeUtils.toUTCDateTime(body.expiresAt)
         if (announce.save()) {
             resultFactory.success(announce)
         }
@@ -95,11 +95,11 @@ class AnnouncementService {
         if (phone.getAnnouncements() && sess1.shouldSendInstructions) {
             sess1.updateLastSentInstructions()
             if (sess1.isSubscribedToText) {
-                textInstructions << Helpers.getMessage("twimlBuilder.text.instructionsSubscribed",
+                textInstructions << IOCUtils.getMessage("twimlBuilder.text.instructionsSubscribed",
                     [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
             }
             else {
-                textInstructions << Helpers.getMessage("twimlBuilder.text.instructionsUnsubscribed",
+                textInstructions << IOCUtils.getMessage("twimlBuilder.text.instructionsUnsubscribed",
                     [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
             }
         }

@@ -204,10 +204,10 @@ class Staff implements Schedulable, WithId {
     @GrailsTypeChecked
     Result<Boolean> isAvailableAt(DateTime dt) {
         if (!manualSchedule) {
-            Helpers.resultFactory.success(schedule.isAvailableAt(dt))
+            IOCUtils.resultFactory.success(schedule.isAvailableAt(dt))
         }
         else {
-            Helpers.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+            IOCUtils.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -217,7 +217,7 @@ class Staff implements Schedulable, WithId {
             schedule.nextChange(timezone)
         }
         else {
-            Helpers.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+            IOCUtils.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -227,7 +227,7 @@ class Staff implements Schedulable, WithId {
             schedule.nextAvailable(timezone)
         }
         else {
-            Helpers.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+            IOCUtils.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
                 ResultStatus.BAD_REQUEST)
         }
     }
@@ -237,7 +237,7 @@ class Staff implements Schedulable, WithId {
             schedule.nextUnavailable(timezone)
         }
         else {
-            Helpers.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
+            IOCUtils.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
                 ResultStatus.BAD_REQUEST)
         }
     }

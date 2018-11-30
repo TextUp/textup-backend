@@ -49,7 +49,7 @@ class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureM
     ])
 	static transients = ["repeatIntervalInDays"]
     static constraints = {
-        repeatIntervalInMillis min:Helpers.to(Long, TimeUnit.DAYS.toMillis(1))
+        repeatIntervalInMillis min:TypeConversionUtils.to(Long, TimeUnit.DAYS.toMillis(1))
 		repeatCount nullable:true, validator:{ Integer rNum, SimpleFutureMessage msg ->
 			if (rNum == SimpleTrigger.REPEAT_INDEFINITELY && !msg.endDate) {
 				["unboundedNeedsEndDate"]

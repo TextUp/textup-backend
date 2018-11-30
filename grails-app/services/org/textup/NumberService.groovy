@@ -33,11 +33,11 @@ class NumberService {
         if (!toNum.validate()) {
             return resultFactory.failWithValidationErrors(toNum.errors)
         }
-        Helpers
+        Utils
             .tryGetNotificationNumber()
             .then { PhoneNumber fromNum -> tokenService.generateVerifyNumber(toNum).curry(fromNum) }
             .then { PhoneNumber fromNum, Token tok1 ->
-                String msg = Helpers.getMessage("numberService.startVerifyOwnership.message", [tok1.token])
+                String msg = IOCUtils.getMessage("numberService.startVerifyOwnership.message", [tok1.token])
                 textService
                     .send(fromNum, [toNum], msg)
                     .logFail("NumberService.startVerifyOwnership from $fromNum to $toNum")

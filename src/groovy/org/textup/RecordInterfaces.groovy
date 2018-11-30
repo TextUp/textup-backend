@@ -7,32 +7,13 @@ import org.textup.type.FutureMessageType
 
 @GrailsTypeChecked
 interface ReadOnlyRecord {
+
+    Long getId()
     DateTime getLastRecordActivity()
     VoiceLanguage getLanguage()
 
-    int countCallsSince(DateTime since)
-    int countCallsSince(DateTime since, boolean hasVoicemail)
-
-    int countItems()
-    int countItems(Collection<Class<? extends RecordItem>> types)
-    List<? extends ReadOnlyRecordItem> getItems()
-    List<? extends ReadOnlyRecordItem> getItems(Map params)
-    List<? extends ReadOnlyRecordItem> getItems(Collection<Class<? extends RecordItem>> types)
-    List<? extends ReadOnlyRecordItem> getItems(Collection<Class<? extends RecordItem>> types, Map params)
-
-    int countSince(DateTime since)
-    int countSince(DateTime since, Collection<Class<? extends RecordItem>> types)
-    List<? extends ReadOnlyRecordItem> getSince(DateTime since)
-    List<? extends ReadOnlyRecordItem> getSince(DateTime since, Map params)
-    List<? extends ReadOnlyRecordItem> getSince(DateTime since, Collection<Class<? extends RecordItem>> types)
-    List<? extends ReadOnlyRecordItem> getSince(DateTime since, Collection<Class<? extends RecordItem>> types, Map params)
-
-    int countBetween(DateTime start, DateTime end)
-    int countBetween(DateTime start, DateTime end, Collection<Class<? extends RecordItem>> types)
-    List<? extends ReadOnlyRecordItem> getBetween(DateTime start, DateTime end)
-    List<? extends ReadOnlyRecordItem> getBetween(DateTime start, DateTime end, Map params)
-    List<? extends ReadOnlyRecordItem> getBetween(DateTime start, DateTime end, Collection<Class<? extends RecordItem>> types)
-    List<? extends ReadOnlyRecordItem> getBetween(DateTime start, DateTime end, Collection<Class<? extends RecordItem>> types, Map params)
+    boolean hasUnreadInfo(DateTime lastTouched)
+    UnreadInfo getUnreadInfo(DateTime lastTouched)
 
     int countFutureMessages()
     List<? extends ReadOnlyFutureMessage> getFutureMessages()

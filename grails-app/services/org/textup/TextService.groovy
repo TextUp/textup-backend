@@ -23,7 +23,7 @@ class TextService {
             if (res.success) {
                 Message tMessage = res.payload
                 TempRecordReceipt receipt = new TempRecordReceipt(apiId:tMessage.sid,
-                    numSegments: Helpers.to(Integer, tMessage.numSegments))
+                    numSegments: TypeConversionUtils.to(Integer, tMessage.numSegments))
                 receipt.contactNumber = toNum
                 if (receipt.validate()) {
                     return resultFactory.success(receipt)
@@ -44,7 +44,7 @@ class TextService {
     protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         String message, Collection<URI> mediaUrls) {
 
-        String callback = Helpers.getWebhookLink(handle: Constants.CALLBACK_STATUS)
+        String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS)
         try {
             Message msg1 = Message
                 .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), message)

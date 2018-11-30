@@ -1,13 +1,11 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.textup.Helpers
-import org.textup.Result
-import org.textup.ResultFactory
+import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
 class ActionContainer {
@@ -21,7 +19,7 @@ class ActionContainer {
 	static constraints = {
 		data validator: { Object data ->
 			if (data instanceof Collection) {
-				Collection dataCollection = Helpers.to(Collection, data)
+				Collection dataCollection = TypeConversionUtils.to(Collection, data)
 				for (Object dataObj in dataCollection) {
 					if (!(dataObj instanceof Map)) {
 						return ["emptyOrNotAMap"]
@@ -43,11 +41,11 @@ class ActionContainer {
 		if (!clazz) { // even if clazz is null, we still want to validate
 			return actions
 		}
-		Collection dataCollection = Helpers.to(Collection, data)
+		Collection dataCollection = TypeConversionUtils.to(Collection, data)
 		List<String> errorMessages = []
 		if (dataCollection) {
 			for (Object dataObj in dataCollection) {
-				Map dataMap = Helpers.to(Map, dataObj)
+				Map dataMap = TypeConversionUtils.to(Map, dataObj)
 				if (dataMap) {
 					T action = (clazz.newInstance() as T)
 					// set properties from map, ignoring the nonexistent properties
@@ -57,12 +55,12 @@ class ActionContainer {
 						String kStr = k?.toString()
 						MetaProperty propertyInfo = action.hasProperty(kStr)
 						if (propertyInfo) {
-							action[kStr] = Helpers.to(propertyInfo.type, v)
+							action[kStr] = TypeConversionUtils.to(propertyInfo.type, v)
 						}
 					}
 					if (action.validate()) { actions << action }
 					else {
-						Result res = Helpers.resultFactory.failWithValidationErrors(action.errors)
+						Result res = IOCUtils.resultFactory.failWithValidationErrors(action.errors)
 						errorMessages += res.errorMessages
 					}
 				}

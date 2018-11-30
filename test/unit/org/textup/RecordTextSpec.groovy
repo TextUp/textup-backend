@@ -41,7 +41,7 @@ class RecordTextSpec extends Specification {
     	rText.validate() == true
 
         when: "we add contents longer than supported by text column type"
-        rText.noteContents = TestHelpers.buildVeryLongString()
+        rText.noteContents = TestUtils.buildVeryLongString()
 
         then: "shared contraint on the noteContents field is executed"
         rText.validate() == false
@@ -59,7 +59,7 @@ class RecordTextSpec extends Specification {
         rText.numSegments == 0
 
         when: "some receipts all without segments"
-        TempRecordReceipt temp1 = TestHelpers.buildTempReceipt()
+        TempRecordReceipt temp1 = TestUtils.buildTempReceipt()
         temp1.numSegments = null
         rText.addReceipt(temp1)
 
@@ -68,7 +68,7 @@ class RecordTextSpec extends Specification {
         rText.numSegments == 0
 
         when: "some receipts with segments"
-        TempRecordReceipt temp2 = TestHelpers.buildTempReceipt()
+        TempRecordReceipt temp2 = TestUtils.buildTempReceipt()
         temp2.numSegments = 88
         rText.addReceipt(temp2)
 

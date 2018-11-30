@@ -3,7 +3,7 @@ package org.textup.rest.marshaller
 import grails.converters.JSON
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.TestHelpers
+import org.textup.util.TestUtils
 import spock.lang.*
 
 class MediaElementJsonMarshallerIntegrationSpec extends Specification {
@@ -13,7 +13,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
     void "test marshalling element"() {
         given:
         MediaElementVersion sendVersion = new MediaElementVersion(type: MediaType.IMAGE_PNG,
-            versionId: TestHelpers.randString(),
+            versionId: TestUtils.randString(),
             sizeInBytes: 888,
             widthInPixels: 12345,
             heightInPixels: 34567)
@@ -24,7 +24,7 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
         when: "element with only send version"
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(e1 as JSON)
+            json = TestUtils.jsonToMap(e1 as JSON)
         }
 
         then:
@@ -39,14 +39,14 @@ class MediaElementJsonMarshallerIntegrationSpec extends Specification {
 
         when: "element with array of display versions"
         MediaElementVersion altVersion = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
-            versionId: TestHelpers.randString(),
+            versionId: TestUtils.randString(),
             sizeInBytes: 888,
             widthInPixels: 12345,
             heightInPixels: 34567)
         assert altVersion.validate()
         e1.addToAlternateVersions(altVersion)
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(e1 as JSON)
+            json = TestUtils.jsonToMap(e1 as JSON)
         }
 
         then:

@@ -20,7 +20,7 @@ class FutureMessageJobSpec extends Specification {
 
     def setup() {
     	job = new FutureMessageJob()
-    	job.resultFactory = TestHelpers.getResultFactory(grailsApplication)
+    	job.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     void "test executing then mark done"() {
@@ -29,7 +29,7 @@ class FutureMessageJobSpec extends Specification {
         job.futureMessageJobService = Mock(FutureMessageJobService)
         JobExecutionContext context = Mock()
         Trigger trig = Mock()
-        String key = TestHelpers.randString()
+        String key = TestUtils.randString()
         Long id = 88
         Map data = [
             (Constants.JOB_DATA_FUTURE_MESSAGE_KEY): key,

@@ -1,7 +1,6 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
-import org.textup.type.ContactStatus
 
 @GrailsTypeChecked
 class Constants {
@@ -15,7 +14,7 @@ class Constants {
 	static final int DIRECT_MESSAGE_MAX_REPEATS = 5
 
 	static final int DEFAULT_PAGINATION_MAX = 10
-	static final int MAX_PAGINATION_MAX = 100
+	static final int MAX_PAGINATION_MAX = 10000
 
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
 	// keep the space before the away message to aid in appropriate spacing when appending to ensure
@@ -37,15 +36,10 @@ class Constants {
 
 	static final String REQUEST_TIMEZONE = "timezone"
 	static final String REQUEST_UPLOAD_ERRORS = "uploadErrors"
+	static final String REQUEST_PAGINATION_OPTIONS = "paginationOptions"
 
 	static final String PROTOCOL_HTTP = "http"
 	static final String PROTOCOL_HTTPS = "https"
-
-	// Concurrency
-	// -----------
-
-	static final int CONCURRENT_SEND_BATCH_SIZE = 20
-	static final int CONCURRENT_UPLOAD_BATCH_SIZE = 8
 
 	// Lock code
 	// ---------
@@ -141,25 +135,4 @@ class Constants {
 
 	static final String MEDIA_ACTION_REMOVE = "remove"
 	static final String MEDIA_ACTION_ADD = "add"
-
-	// Testing constants
-	// -----------------
-
-	static final String TEST_DEFAULT_AREA_CODE = "626"
-	static final String TEST_HTTP_ENDPOINT = "https://httpbin.org"
-
-	// Twilio test API numbers
-	// -----------------------
-
-	static final String TEST_SMS_FROM_VALID = "+15005550006"
-	static final String TEST_SMS_TO_NOT_VALID = "+15005550001"
-	static final String TEST_SMS_TO_BLACKLISTED = "+15005550004"
-
-	static final String TEST_CALL_FROM_NOT_VALID = "+15005550001"
-	static final String TEST_CALL_FROM_VALID = "+15005550006"
-	static final String TEST_CALL_TO_NOT_VALID = "+15005550001"
-
-	static final String TEST_NUMBER_NOT_AVAILABLE = "+15005550000"
-	static final String TEST_NUMBER_INVALID = "+15005550001"
-	static final String TEST_NUMBER_AVAILABLE = "+15005550006"
 }

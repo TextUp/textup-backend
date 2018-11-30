@@ -104,32 +104,32 @@ class FutureMessageService {
         fMsg.with {
             if (body.notifySelf != null) notifySelf = body.notifySelf
             if (body.type) {
-                type = Helpers.convertEnum(FutureMessageType, body.type)
+                type = TypeConversionUtils.convertEnum(FutureMessageType, body.type)
             }
             if (body.message) message = body.message
             // optional properties
             if (body.startDate) {
-                startDate = Helpers.toDateTimeWithZone(body.startDate, timezone)
+                startDate = DateTimeUtils.toDateTimeWithZone(body.startDate, timezone)
             }
             if (body.language) {
-                language = Helpers.convertEnum(VoiceLanguage, body.language)
+                language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
             }
             // don't wrap endDate setter in if statement because we want to support nulling
             // endDate by omitting it from the passed-in body
-            endDate = Helpers.toDateTimeWithZone(body.endDate, timezone)
+            endDate = DateTimeUtils.toDateTimeWithZone(body.endDate, timezone)
         }
         if (fMsg.instanceOf(SimpleFutureMessage)) {
             SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage
             // repeat count is nullable!
-            sMsg.repeatCount = Helpers.to(Integer, body.repeatCount)
+            sMsg.repeatCount = TypeConversionUtils.to(Integer, body.repeatCount)
             if (body.repeatIntervalInDays) {
-                sMsg.repeatIntervalInDays = Helpers.to(Integer, body.repeatIntervalInDays)
+                sMsg.repeatIntervalInDays = TypeConversionUtils.to(Integer, body.repeatIntervalInDays)
             }
         }
         // if timezone is provided, determine if we need to schedule a date to adjust to
         // account for daylight savings time
         if (timezone) {
-            fMsg.checkScheduleDaylightSavingsAdjustment(Helpers.getZoneFromId(timezone))
+            fMsg.checkScheduleDaylightSavingsAdjustment(DateTimeUtils.getZoneFromId(timezone))
         }
         // for some reason, calling save here instantly persists the message
         if (fMsg.validate()) {

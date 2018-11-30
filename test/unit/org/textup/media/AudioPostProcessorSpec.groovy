@@ -14,36 +14,36 @@ class AudioPostProcessorSpec extends Specification {
     static doWithSpring = {
         resultFactory(ResultFactory)
         audioUtils(AudioUtils,
-            TestHelpers.config.textup.media.audio.executableDirectory,
-            TestHelpers.config.textup.media.audio.executableName,
-            TestHelpers.config.textup.tempDirectory)
+            TestUtils.config.textup.media.audio.executableDirectory,
+            TestUtils.config.textup.media.audio.executableName,
+            TestUtils.config.textup.tempDirectory)
     }
 
     def cleanup() {
-        TestHelpers.clearTempDirectory()
+        TestUtils.clearTempDirectory()
     }
 
     void "test closing audio post processor triggers appropriate cleanup"() {
         given:
-        int numTempFiles = TestHelpers.numInTempDirectory
+        int numTempFiles = TestUtils.numInTempDirectory
 
         when:
         AudioPostProcessor processor = new AudioPostProcessor(null, null)
 
         then:
-        TestHelpers.numInTempDirectory == numTempFiles + 1
+        TestUtils.numInTempDirectory == numTempFiles + 1
 
         when:
         processor.close()
 
         then:
-        TestHelpers.numInTempDirectory == numTempFiles
+        TestUtils.numInTempDirectory == numTempFiles
     }
 
     @Unroll
     void "test creating initial version for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
         AudioPostProcessor processor = new AudioPostProcessor(type, data)
 
         when:
@@ -67,7 +67,7 @@ class AudioPostProcessorSpec extends Specification {
     @Unroll
     void "test creating send version for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
         AudioPostProcessor processor = new AudioPostProcessor(type, data)
 
         when: "pass in content type and data"
@@ -94,7 +94,7 @@ class AudioPostProcessorSpec extends Specification {
     @Unroll
     void "test creating display versions for #type"() {
         given:
-        byte[] data = TestHelpers.getSampleDataForMimeType(type)
+        byte[] data = TestUtils.getSampleDataForMimeType(type)
         AudioPostProcessor processor = new AudioPostProcessor(type, data)
 
         when:

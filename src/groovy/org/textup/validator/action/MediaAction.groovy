@@ -1,6 +1,6 @@
 package org.textup.validator.action
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.apache.commons.codec.binary.Base64
@@ -11,7 +11,7 @@ import org.textup.validator.UploadItem
 
 // documented as [mediaAction] in CustomApiDocs.groovy
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
 class MediaAction extends BaseAction {

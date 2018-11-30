@@ -1,10 +1,10 @@
 package org.textup.validator
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Validateable
 class MergeGroup {
 
@@ -13,7 +13,7 @@ class MergeGroup {
 
 	static constraints = {
 		targetContactId validator:{ Long id ->
-			if (id && !Helpers.<Boolean>doWithoutFlush({ Contact.exists(id) })) {
+			if (id && !Utils.<Boolean>doWithoutFlush({ Contact.exists(id) })) {
 				["doesNotExist"]
 			}
 		}
@@ -34,7 +34,7 @@ class MergeGroup {
 				}
 			}
 			// batch check existence
-			Collection<Contact> found = Helpers.<Collection<Contact>>doWithoutFlush({
+			Collection<Contact> found = Utils.<Collection<Contact>>doWithoutFlush({
 				Contact
 					.getAll(allToBeMerged as Iterable<Serializable>)
 					.findAll { Contact c1 -> c1 != null }
@@ -54,7 +54,7 @@ class MergeGroup {
 		this.possibleMerges.each { MergeGroupItem i1 ->
 			if (!i1.validate()) {
 				isAllSuccess = false
-				errorMessages += Helpers.resultFactory.failWithValidationErrors(i1.errors).errorMessages
+				errorMessages += IOCUtils.resultFactory.failWithValidationErrors(i1.errors).errorMessages
 			}
 		}
 		if (errorMessages) {

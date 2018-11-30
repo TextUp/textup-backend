@@ -55,7 +55,7 @@ class TwilioUtilsSpec extends Specification {
 
     void "test validating request from twilio"() {
         given:
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
         HttpServletRequest mockRequest = GroovyMock(HttpServletRequest) // to mock forwardURI
         RequestValidator allValidators = GroovySpy(RequestValidator,
             constructorArgs: ["valid auth token"], global: true)
@@ -114,8 +114,8 @@ class TwilioUtilsSpec extends Specification {
 
     void "test building incoming media"() {
         given:
-        String messageId = TestHelpers.randString()
-        String mediaId = TestHelpers.randString()
+        String messageId = TestUtils.randString()
+        String mediaId = TestUtils.randString()
         TwilioUtils.metaClass."static".extractMediaIdFromUrl = { String url -> mediaId }
 
         TypeConvertingMap params = new TypeConvertingMap([:])
@@ -148,8 +148,8 @@ class TwilioUtilsSpec extends Specification {
 
     void "test building incoming recording"() {
         given:
-        String url = TestHelpers.randString()
-        String sid = TestHelpers.randString()
+        String url = TestUtils.randString()
+        String sid = TestUtils.randString()
         TypeConvertingMap params = new TypeConvertingMap(RecordingUrl: url, RecordingSid: sid)
 
         when:
@@ -166,7 +166,7 @@ class TwilioUtilsSpec extends Specification {
 
     void "test responding to invalid twiml inputs"() {
         given:
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
 
         when:
         Result<Closure> res = TwilioUtils.invalidTwimlInputs("hi")
@@ -184,12 +184,12 @@ class TwilioUtilsSpec extends Specification {
         then:
         res.success == true
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({ Response { } })
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({ Response { } })
     }
 
     void "test wrappng twiml closure"() {
         given:
-        String msg = TestHelpers.randString()
+        String msg = TestUtils.randString()
 
         when:
         Result<Closure> res = TwilioUtils.wrapTwiml { Say(msg) }
@@ -197,7 +197,7 @@ class TwilioUtilsSpec extends Specification {
         then:
         res.success == true
         res.status == ResultStatus.OK
-        TestHelpers.buildXml(res.payload) == TestHelpers.buildXml({ Response { Say(msg) } })
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml({ Response { Say(msg) } })
     }
 
     void "test inserting space between digits in strings passed to Say Twiml verb"() {
@@ -211,7 +211,7 @@ class TwilioUtilsSpec extends Specification {
 
     void "test saying code with args"() {
         given:
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
 
         when:
         String code = "hi"
@@ -250,10 +250,10 @@ class TwilioUtilsSpec extends Specification {
 
     void "test formatting announcements for Twiml"() {
         given:
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
         DateTime dt = DateTime.now()
-        String id = TestHelpers.randString()
-        String msg = TestHelpers.randString()
+        String id = TestUtils.randString()
+        String msg = TestUtils.randString()
         Phone mockPhone = Mock(Phone)
 
         when: "no announcements"
@@ -279,9 +279,9 @@ class TwilioUtilsSpec extends Specification {
 
     void "test building announcement for sending via text"() {
         given:
-        Helpers.metaClass."static".getMessageSource = { -> TestHelpers.mockMessageSource() }
-        String id = TestHelpers.randString()
-        String msg = TestHelpers.randString()
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        String id = TestUtils.randString()
+        String msg = TestUtils.randString()
 
         when:
         String formatted = TwilioUtils.formatAnnouncementForSend(id, msg)

@@ -1,7 +1,7 @@
 package org.textup.rest
 
 import com.pusher.rest.Pusher
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
@@ -12,7 +12,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.core.userdetails.UserDetails
 import org.textup.*
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @Secured(["ROLE_ADMIN", "ROLE_USER"])
 class SocketController extends BaseController {
 
@@ -37,7 +37,7 @@ class SocketController extends BaseController {
             String authResult = pusherService.authenticate(socketId, channelName)
             try {
                 render status:ResultStatus.OK.apiStatus
-                respond(Helpers.toJson(authResult))
+                respond(DataFormatUtils.jsonToObject(authResult))
             }
             catch (Throwable e) {
                 log.error("SocketController.save: could not parse authResult: \

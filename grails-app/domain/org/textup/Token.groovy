@@ -1,6 +1,6 @@
 package org.textup
 
-import grails.compiler.GrailsCompileStatic
+import grails.compiler.GrailsTypeChecked
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.transform.EqualsAndHashCode
@@ -9,7 +9,7 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.TokenType
 
-@GrailsCompileStatic
+@GrailsTypeChecked
 @EqualsAndHashCode
 class Token implements WithId {
 
@@ -46,12 +46,12 @@ class Token implements WithId {
     protected void generateToken() {
         // can't flush in GORM event hooks and calling dynamic finders
         // auto-flushes by default
-        Helpers.doWithoutFlush({
+        Utils.doWithoutFlush({
             Integer tokenSize = this.type?.tokenSize ?: Constants.DEFAULT_TOKEN_LENGTH
-            String tokenString = Helpers.randomAlphanumericString(tokenSize)
+            String tokenString = StringUtils.randomAlphanumericString(tokenSize)
             //ensure that our generated token is unique
             while (Token.countByToken(tokenString) != 0) {
-                tokenString = Helpers.randomAlphanumericString(tokenSize)
+                tokenString = StringUtils.randomAlphanumericString(tokenSize)
             }
             this.token = tokenString
         })
@@ -72,7 +72,7 @@ class Token implements WithId {
 
     void setData(Map p) {
         if (p != null) {
-            this.stringData = Helpers.toJsonString(p)
+            this.stringData = DataFormatUtils.toJsonString(p)
         }
     }
 
@@ -81,7 +81,7 @@ class Token implements WithId {
         	return [:]
     	}
         try {
-            Helpers.toJson(this.stringData) as Map
+            DataFormatUtils.jsonToObject(this.stringData) as Map
         }
         catch (Throwable e) {
             log.error("Token.getData: invalid json string '${this.stringData}'")

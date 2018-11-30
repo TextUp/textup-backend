@@ -23,9 +23,9 @@ class AnnouncementFunctionalSpec extends RestSpec {
             app.config.callParamsList = []
             app.config.textRecipientList = []
 
-            TestHelpers.forceMock(ctx.textService, "send") { fromNum, toNums ->
+            TestUtils.forceMock(ctx.textService, "send") { fromNum, toNums ->
                 assert toNums.isEmpty() == false
-                TempRecordReceipt temp = TestHelpers.buildTempReceipt()
+                TempRecordReceipt temp = TestUtils.buildTempReceipt()
                 temp.contactNumber = toNums[0]
                 assert temp.validate()
                 // store recipient in list for later retrieval
@@ -35,7 +35,7 @@ class AnnouncementFunctionalSpec extends RestSpec {
             }
             // can't use MockedMethod because incompatible overloading
             ctx.callService.metaClass.start = { BasePhoneNumber from, BasePhoneNumber to, Map pickup ->
-                TempRecordReceipt temp = TestHelpers.buildTempReceipt()
+                TempRecordReceipt temp = TestUtils.buildTempReceipt()
                 temp.contactNumber = to
                 assert temp.validate()
                 // store params in config for later retrieval

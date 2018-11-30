@@ -22,9 +22,9 @@ class OutgoingMediaServiceSpec extends Specification {
     MockedMethod signedLink
 
     def setup() {
-        service.resultFactory = TestHelpers.getResultFactory(grailsApplication)
-        unsignedLink = TestHelpers.mock(LinkUtils, 'unsignedLink')
-        signedLink = TestHelpers.mock(LinkUtils, 'signedLink')
+        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
+        unsignedLink = TestUtils.mock(LinkUtils, 'unsignedLink')
+        signedLink = TestUtils.mock(LinkUtils, 'signedLink')
     }
     def cleanup() {
         unsignedLink.restore()
@@ -37,7 +37,7 @@ class OutgoingMediaServiceSpec extends Specification {
         MediaInfo mInfo = new MediaInfo()
         int numBatches = 2
         (Constants.MAX_NUM_MEDIA_PER_MESSAGE * numBatches).times {
-            MediaElement e1 = TestHelpers.buildMediaElement()
+            MediaElement e1 = TestUtils.buildMediaElement()
             e1.sendVersion.type = MediaType.IMAGE_JPEG
             mInfo.addToMediaElements(e1)
         }
@@ -69,11 +69,11 @@ class OutgoingMediaServiceSpec extends Specification {
         MediaInfo onlyAudioMedia = new MediaInfo()
         MediaInfo onlyImageMedia = new MediaInfo()
         (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
-            MediaElement el1 = TestHelpers.buildMediaElement()
+            MediaElement el1 = TestUtils.buildMediaElement()
             el1.sendVersion.type = MediaType.AUDIO_WEBM_VORBIS
             onlyAudioMedia.addToMediaElements(el1)
 
-            MediaElement el2 = TestHelpers.buildMediaElement()
+            MediaElement el2 = TestUtils.buildMediaElement()
             el2.sendVersion.type = MediaType.IMAGE_JPEG
             onlyImageMedia.addToMediaElements(el2)
         }

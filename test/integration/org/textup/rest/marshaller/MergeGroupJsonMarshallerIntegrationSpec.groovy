@@ -28,7 +28,7 @@ class MergeGroupJsonMarshallerIntegrationSpec extends CustomSpec {
         when:
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestHelpers.jsonToMap(mGroup as JSON)
+            json = TestUtils.jsonToMap(mGroup as JSON)
         }
 
         then:
