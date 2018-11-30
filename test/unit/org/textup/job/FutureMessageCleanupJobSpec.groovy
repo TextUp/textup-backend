@@ -1,5 +1,6 @@
 package org.textup.job
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -7,7 +8,6 @@ import org.joda.time.DateTime
 import org.quartz.Scheduler
 import org.textup.*
 import org.textup.type.FutureMessageType
-import org.textup.util.TestUtils
 import spock.lang.Specification
 
 @Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage,

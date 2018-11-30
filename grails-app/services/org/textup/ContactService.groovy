@@ -4,14 +4,9 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.hibernate.Session
 import org.joda.time.DateTime
-import org.textup.type.ContactStatus
-import org.textup.type.SharePermission
-import org.textup.type.VoiceLanguage
-import org.textup.util.RollbackOnResultFailure
-import org.textup.validator.action.ActionContainer
-import org.textup.validator.action.ContactNumberAction
-import org.textup.validator.action.MergeAction
-import org.textup.validator.action.ShareContactAction
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.action.*
 import org.textup.validator.Author
 
 @GrailsTypeChecked

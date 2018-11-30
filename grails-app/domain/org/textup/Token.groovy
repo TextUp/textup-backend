@@ -8,6 +8,7 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.TokenType
+import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode

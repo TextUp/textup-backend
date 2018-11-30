@@ -1,5 +1,6 @@
 package org.textup
 
+import org.textup.test.*
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -13,7 +14,6 @@ import org.springframework.context.MessageSource
 import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.*
 import org.textup.type.OrgStatus
-import org.textup.util.CustomSpec
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
 

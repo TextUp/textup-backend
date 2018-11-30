@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import org.textup.test.*
 import grails.plugin.jodatime.converters.JodaConverters
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
@@ -11,7 +12,6 @@ import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.*
 import org.textup.type.OrgStatus
-import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*

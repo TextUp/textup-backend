@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import org.textup.test.*
 import grails.test.mixin.TestFor
 import org.textup.*
 import org.textup.util.*

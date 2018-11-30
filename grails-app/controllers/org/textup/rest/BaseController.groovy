@@ -10,6 +10,8 @@ import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 
 // Methods in this base controller are utility methods abstracting out functionality needed by

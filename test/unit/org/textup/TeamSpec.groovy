@@ -1,5 +1,6 @@
 package org.textup
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -11,7 +12,6 @@ import org.joda.time.LocalTime
 import org.springframework.context.MessageSource
 import spock.lang.Ignore
 import spock.lang.Shared
-import org.textup.util.CustomSpec
 import org.textup.type.StaffStatus
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,

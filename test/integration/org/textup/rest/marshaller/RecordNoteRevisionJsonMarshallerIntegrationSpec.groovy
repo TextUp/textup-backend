@@ -1,10 +1,10 @@
 package org.textup.rest.marshaller
 
 import grails.converters.JSON
+import org.textup.test.*
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.TestUtils
 import org.textup.validator.*
 import spock.lang.*
 

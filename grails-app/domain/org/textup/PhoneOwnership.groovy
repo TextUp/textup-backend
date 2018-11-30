@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.textup.rest.NotificationStatus
 import org.textup.type.PhoneOwnershipType
+import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode

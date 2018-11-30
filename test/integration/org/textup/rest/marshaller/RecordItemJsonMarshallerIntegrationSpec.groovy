@@ -1,13 +1,13 @@
 package org.textup.rest.marshaller
 
 import grails.converters.JSON
+import org.textup.test.*
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.type.AuthorType
 import org.textup.type.ReceiptStatus
 import org.textup.type.RecordItemType
-import org.textup.util.TestUtils
 import org.textup.validator.Author
 import org.textup.validator.TempRecordReceipt
 import spock.lang.*

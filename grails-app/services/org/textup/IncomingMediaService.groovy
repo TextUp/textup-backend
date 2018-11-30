@@ -11,6 +11,7 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.media.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

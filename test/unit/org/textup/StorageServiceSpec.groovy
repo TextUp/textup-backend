@@ -1,5 +1,6 @@
 package org.textup
 
+import org.textup.test.*
 import com.amazonaws.services.cloudfront.CloudFrontUrlSigner.Protocol
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.*
@@ -9,7 +10,6 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.type.*
-import org.textup.util.TestUtils
 import org.textup.validator.*
 import spock.lang.Specification
 

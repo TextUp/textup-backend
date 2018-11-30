@@ -10,6 +10,8 @@ import com.sendgrid.SendGrid
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.EmailEntity
 
 @GrailsTypeChecked

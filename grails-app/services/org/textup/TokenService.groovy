@@ -7,7 +7,7 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.springframework.transaction.annotation.Propagation
 import org.textup.type.*
-import org.textup.util.RollbackOnResultFailure
+import org.textup.util.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

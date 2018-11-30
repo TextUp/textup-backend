@@ -9,13 +9,9 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
 import org.springframework.security.authentication.encoding.PasswordEncoder
-import org.textup.type.AuthorType
-import org.textup.type.PhoneOwnershipType
-import org.textup.type.StaffStatus
-import org.textup.validator.Author
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
-import org.textup.validator.ScheduleChange
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @EqualsAndHashCode
 @RestApiObject(

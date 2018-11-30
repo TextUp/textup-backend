@@ -1,12 +1,12 @@
 package org.textup.validator
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.CustomSpec
 import spock.lang.Ignore
 import spock.lang.Shared
 

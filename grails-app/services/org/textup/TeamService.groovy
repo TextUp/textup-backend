@@ -2,7 +2,8 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.textup.util.RollbackOnResultFailure
+import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.action.ActionContainer
 import org.textup.validator.action.TeamAction
 import org.textup.validator.PhoneNumber

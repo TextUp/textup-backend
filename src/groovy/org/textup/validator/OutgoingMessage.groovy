@@ -7,6 +7,7 @@ import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.type.RecordItemType
 import org.textup.type.VoiceLanguage
+import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode

@@ -4,7 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.type.*
-import org.textup.util.RollbackOnResultFailure
+import org.textup.util.*
 import org.textup.validator.*
 import org.textup.validator.action.*
 

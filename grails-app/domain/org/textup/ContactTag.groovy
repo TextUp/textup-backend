@@ -11,6 +11,7 @@ import org.textup.rest.NotificationStatus
 import org.textup.type.AuthorType
 import org.textup.type.ContactStatus
 import org.textup.type.VoiceLanguage
+import org.textup.util.*
 import org.textup.validator.Author
 
 @GrailsTypeChecked

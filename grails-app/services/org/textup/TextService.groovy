@@ -4,7 +4,9 @@ import com.twilio.exception.ApiException
 import com.twilio.rest.api.v2010.account.Message
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.type.*
 import org.textup.validator.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Transactional

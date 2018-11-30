@@ -1,5 +1,6 @@
 package org.textup.job
 
+import org.textup.test.*
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import org.quartz.JobDataMap

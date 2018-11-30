@@ -1,5 +1,6 @@
 package org.textup
 
+import org.textup.test.*
 import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -10,7 +11,6 @@ import org.joda.time.DateTimeZone
 import org.textup.type.FutureMessageType
 import org.textup.type.RecordItemType
 import org.textup.type.VoiceLanguage
-import org.textup.util.CustomSpec
 import org.textup.validator.OutgoingMessage
 import spock.lang.Ignore
 import spock.lang.Shared

@@ -8,6 +8,7 @@ import grails.converters.JSON
 import grails.transaction.Transactional
 import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
+import org.textup.util.*
 
 @Transactional(readOnly=true)
 class SocketService {

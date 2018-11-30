@@ -1,6 +1,6 @@
 package org.textup
 
-import org.textup.util.CustomSpec
+import org.textup.test.*
 
 class AuthServiceIntegrationSpec extends CustomSpec {
 

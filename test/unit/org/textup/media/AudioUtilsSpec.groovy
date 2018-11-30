@@ -1,5 +1,6 @@
 package org.textup.media
 
+import org.textup.test.*
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import java.nio.file.*

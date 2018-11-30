@@ -7,7 +7,8 @@ import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.springframework.context.NoSuchMessageException
 import org.springframework.context.support.StaticMessageSource
-import org.textup.util.TestUtils
+import org.textup.test.*
+import org.textup.type.*
 import spock.lang.*
 
 @Domain([Organization, Location])

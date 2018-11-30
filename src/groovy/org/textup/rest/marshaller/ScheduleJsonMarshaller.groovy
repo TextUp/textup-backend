@@ -6,6 +6,7 @@ import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.LogLevel
+import org.textup.util.*
 import org.textup.validator.LocalInterval
 
 @GrailsTypeChecked

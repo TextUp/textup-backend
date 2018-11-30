@@ -4,6 +4,7 @@ import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.ScheduleStatus
+import org.textup.util.*
 import org.textup.validator.ScheduleChange
 import grails.compiler.GrailsTypeChecked
 

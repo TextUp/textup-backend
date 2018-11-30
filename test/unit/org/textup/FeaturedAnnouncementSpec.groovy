@@ -1,5 +1,6 @@
 package org.textup
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -9,7 +10,6 @@ import org.springframework.context.MessageSource
 import org.textup.type.PhoneOwnershipType
 import org.textup.type.RecordItemType
 import org.textup.type.StaffStatus
-import org.textup.util.CustomSpec
 import spock.lang.Ignore
 import spock.lang.Shared
 

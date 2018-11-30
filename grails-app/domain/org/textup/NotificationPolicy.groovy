@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.textup.type.NotificationLevel
+import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode

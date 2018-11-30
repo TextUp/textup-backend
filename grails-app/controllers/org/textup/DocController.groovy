@@ -3,6 +3,7 @@ package org.textup
 import org.springframework.security.access.annotation.Secured
 import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Secured("permitAll")

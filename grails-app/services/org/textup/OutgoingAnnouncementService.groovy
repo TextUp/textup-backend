@@ -5,6 +5,7 @@ import grails.transaction.Transactional
 import org.joda.time.DateTime
 import org.textup.rest.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

@@ -3,6 +3,7 @@ package org.textup.validator.action
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Validateable

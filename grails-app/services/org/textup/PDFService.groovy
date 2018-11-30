@@ -14,6 +14,7 @@ import javax.xml.transform.Transformer
 import javax.xml.transform.TransformerFactory
 import org.apache.fop.apps.*
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.textup.util.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

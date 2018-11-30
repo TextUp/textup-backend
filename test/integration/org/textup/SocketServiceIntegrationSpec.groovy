@@ -1,6 +1,7 @@
 package org.textup
 
 import grails.test.runtime.DirtiesRuntime
+import org.textup.test.*
 import org.textup.type.OrgStatus
 import org.textup.type.StaffStatus
 import org.textup.util.*

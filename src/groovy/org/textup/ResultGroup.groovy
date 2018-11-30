@@ -2,7 +2,8 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.ToString
-import org.textup.type.LogLevel
+import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @ToString

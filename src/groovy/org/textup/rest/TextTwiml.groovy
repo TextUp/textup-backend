@@ -2,6 +2,7 @@ package org.textup.rest
 
 import org.textup.*
 import org.textup.type.*
+import org.textup.util.*
 
 // Not type checked because of our use of Closures as a DSL for building Twiml.
 

@@ -5,6 +5,7 @@ import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.type.SharePermission
+import org.textup.util.*
 
 // documented as [shareAction] in CustomApiDocs.groovy
 

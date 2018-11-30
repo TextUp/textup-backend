@@ -5,6 +5,7 @@ import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*

@@ -12,6 +12,7 @@ import javax.imageio.ImageWriter
 import javax.imageio.stream.ImageOutputStream
 import org.textup.*
 import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Log4j

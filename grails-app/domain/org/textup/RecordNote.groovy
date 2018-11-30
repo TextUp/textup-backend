@@ -6,6 +6,7 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.restapidoc.annotation.*
+import org.textup.util.*
 
 @EqualsAndHashCode(callSuper=true)
 @RestApiObject(name="RecordNote", description="Notes that are part of the record.")

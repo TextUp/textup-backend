@@ -4,7 +4,8 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
 import groovy.util.logging.Log4j
-import org.textup.type.LogLevel
+import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Log4j

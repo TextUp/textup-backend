@@ -1,5 +1,6 @@
 package org.textup
 
+import org.textup.test.*
 import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin

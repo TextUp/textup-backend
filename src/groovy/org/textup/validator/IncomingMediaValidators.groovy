@@ -7,6 +7,7 @@ import grails.validation.Validateable
 import groovy.util.logging.Log4j
 import org.springframework.validation.Errors
 import org.textup.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 interface IsIncomingMedia {

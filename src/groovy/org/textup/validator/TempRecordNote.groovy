@@ -7,6 +7,7 @@ import org.hibernate.Session
 import org.joda.time.DateTime
 import org.joda.time.Duration
 import org.textup.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode

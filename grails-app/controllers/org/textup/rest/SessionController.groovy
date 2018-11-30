@@ -8,6 +8,7 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.type.*
 
 @GrailsTypeChecked
 @RestApi(name="Session", description="Operations on sessions, after logging in.")

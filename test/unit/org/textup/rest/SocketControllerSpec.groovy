@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
@@ -13,8 +14,6 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.core.userdetails.UserDetails
 import org.textup.*
 import org.textup.type.OrgStatus
-import org.textup.util.CustomSpec
-import org.textup.util.PusherTester
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
 

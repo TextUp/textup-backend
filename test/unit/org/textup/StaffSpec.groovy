@@ -1,5 +1,6 @@
 package org.textup
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -11,7 +12,6 @@ import org.joda.time.LocalTime
 import org.springframework.context.MessageSource
 import org.textup.type.AuthorType
 import org.textup.type.ScheduleStatus
-import org.textup.util.CustomSpec
 import org.textup.validator.Author
 import org.textup.validator.LocalInterval
 import org.textup.validator.ScheduleChange

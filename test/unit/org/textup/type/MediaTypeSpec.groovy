@@ -1,6 +1,7 @@
 package org.textup.type
 
 import spock.lang.*
+import org.textup.test.*
 
 class MediaTypeSpec extends Specification {
 

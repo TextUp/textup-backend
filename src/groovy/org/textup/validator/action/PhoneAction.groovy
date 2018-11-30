@@ -6,6 +6,7 @@ import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.type.PhoneOwnershipType
+import org.textup.util.*
 import org.textup.validator.PhoneNumber
 
 // documented as [phoneAction] in CustomApiDocs.groovy

@@ -1,11 +1,11 @@
 package org.textup
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import spock.lang.Ignore
 import spock.lang.Shared
-import org.textup.util.CustomSpec
 import spock.lang.Unroll
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,

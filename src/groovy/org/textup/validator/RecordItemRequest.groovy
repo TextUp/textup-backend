@@ -6,6 +6,7 @@ import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.util.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked

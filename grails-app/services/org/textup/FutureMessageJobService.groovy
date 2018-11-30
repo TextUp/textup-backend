@@ -7,6 +7,7 @@ import org.quartz.*
 import org.textup.job.*
 import org.textup.util.*
 import org.textup.validator.*
+import org.textup.type.*
 
 @GrailsTypeChecked
 @Transactional

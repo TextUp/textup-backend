@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import org.textup.*
 import org.textup.type.*
 import org.textup.validator.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 class MediaPostProcessor {

@@ -1,11 +1,11 @@
 package org.textup.validator
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
 import org.textup.type.PhoneOwnershipType
-import org.textup.util.CustomSpec
 import spock.lang.Shared
 import spock.lang.Specification
 

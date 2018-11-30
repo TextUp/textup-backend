@@ -5,6 +5,7 @@ import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.type.NotificationLevel
+import org.textup.util.*
 
 // documented as [notificationAction] in CustomApiDocs.groovy
 

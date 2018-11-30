@@ -12,7 +12,8 @@ import org.joda.time.Interval
 import org.joda.time.LocalTime
 import org.restapidoc.annotation.*
 import org.springframework.validation.Errors
-import org.textup.type.ScheduleStatus
+import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.LocalInterval
 import org.textup.validator.ScheduleChange
 

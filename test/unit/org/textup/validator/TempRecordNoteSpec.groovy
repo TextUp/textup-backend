@@ -1,5 +1,6 @@
 package org.textup.validator
 
+import org.textup.test.*
 import com.amazonaws.services.s3.model.PutObjectResult
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -12,7 +13,6 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
-import org.textup.util.CustomSpec
 import org.textup.validator.UploadItem
 import spock.lang.Shared
 import spock.lang.Specification

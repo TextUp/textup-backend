@@ -10,7 +10,7 @@ import com.twilio.rest.lookups.v1.PhoneNumber as LookupPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.textup.util.RollbackOnResultFailure
+import org.textup.util.*
 import org.textup.validator.*
 
 // [UNTESTED] cannot mock for testing because all Twilio SDK methods are final

@@ -8,7 +8,8 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import org.textup.type.OrgStatus
+import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @RestApi(name="Organization", description = "Operations on organizations after logging in.")

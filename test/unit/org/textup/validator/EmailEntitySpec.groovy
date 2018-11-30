@@ -1,5 +1,6 @@
 package org.textup.validator
 
+import org.textup.test.*
 import com.sendgrid.Email
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin

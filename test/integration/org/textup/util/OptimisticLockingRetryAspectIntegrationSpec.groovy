@@ -9,6 +9,7 @@ import org.springframework.beans.factory.support.AbstractBeanDefinition
 import org.springframework.beans.factory.support.GenericBeanDefinition
 import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.textup.*
+import org.textup.test.*
 import spock.lang.*
 
 class OptimisticLockingRetryAspectIntegrationSpec extends Specification {

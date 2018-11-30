@@ -10,6 +10,8 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @RestApi(name="Staff", description = "Operations on staff members after logging in.")

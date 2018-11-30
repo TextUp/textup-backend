@@ -7,6 +7,7 @@ import org.hibernate.transform.Transformers
 import org.joda.time.*
 import org.textup.type.*
 import org.textup.validator.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Transactional

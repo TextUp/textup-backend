@@ -1,5 +1,7 @@
 package org.textup.util
 
+import org.textup.*
+import org.textup.test.*
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.Validateable

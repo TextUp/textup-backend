@@ -7,7 +7,7 @@ import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.*
-import org.textup.util.RollbackOnResultFailure
+import org.textup.util.*
 import org.textup.validator.*
 import org.textup.validator.action.*
 

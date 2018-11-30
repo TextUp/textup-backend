@@ -1,11 +1,11 @@
 package org.textup
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.type.*
-import org.textup.util.TestUtils
 import spock.lang.*
 
 @Domain([MediaInfo, MediaElement, MediaElementVersion])

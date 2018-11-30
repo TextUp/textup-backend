@@ -12,7 +12,8 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import org.textup.util.OptimisticLockingRetry
+import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

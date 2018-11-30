@@ -4,8 +4,8 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.apache.commons.lang3.tuple.Pair
 import org.springframework.transaction.annotation.Propagation
-import org.textup.type.ContactStatus
-import org.textup.util.RollbackOnResultFailure
+import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.MergeGroup
 import org.textup.validator.PhoneNumber
 

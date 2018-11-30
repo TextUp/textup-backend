@@ -1,5 +1,6 @@
 package org.textup
 
+import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -8,7 +9,6 @@ import org.joda.time.DateTime
 import org.quartz.SimpleTrigger
 import org.textup.type.FutureMessageType
 import org.textup.type.RecordItemType
-import org.textup.util.CustomSpec
 import org.textup.validator.OutgoingMessage
 import spock.lang.Ignore
 import spock.lang.Shared

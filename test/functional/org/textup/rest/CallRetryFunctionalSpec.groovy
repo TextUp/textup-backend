@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import org.textup.test.*
 import grails.plugins.rest.client.RestResponse
 import java.util.concurrent.TimeUnit
 import java.util.UUID

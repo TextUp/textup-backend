@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import org.textup.test.*
 import grails.converters.JSON
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -13,7 +14,6 @@ import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.type.ReceiptStatus
-import org.textup.util.CustomSpec
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
 

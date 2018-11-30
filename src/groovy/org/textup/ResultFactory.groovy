@@ -6,6 +6,8 @@ import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import org.springframework.validation.Errors
 import org.springframework.validation.ObjectError
+import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Log4j

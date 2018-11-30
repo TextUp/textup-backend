@@ -6,6 +6,7 @@ import groovy.transform.EqualsAndHashCode
 import java.nio.file.*
 import org.textup.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 
 @EqualsAndHashCode

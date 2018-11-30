@@ -7,6 +7,7 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

@@ -1,11 +1,11 @@
 package org.textup
 
+import org.textup.test.*
 import com.twilio.Twilio
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.context.MessageSource
-import org.textup.util.TestUtils
 import org.textup.validator.*
 import spock.lang.*
 

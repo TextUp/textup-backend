@@ -1,5 +1,6 @@
 package org.textup.rest.marshaller
 
+import org.textup.test.*
 import org.textup.util.*
 import grails.converters.JSON
 import org.textup.*

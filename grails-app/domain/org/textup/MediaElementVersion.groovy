@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.restapidoc.annotation.*
 import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode

@@ -8,6 +8,7 @@ import org.quartz.JobExecutionContext
 import org.quartz.utils.Key
 import org.springframework.beans.factory.annotation.Autowired
 import org.textup.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 class FutureMessageJob implements Job {

@@ -1,5 +1,6 @@
 package org.textup.validator
 
+import org.textup.test.*
 import org.joda.time.LocalTime
 import spock.lang.Specification
 import grails.test.mixin.support.GrailsUnitTestMixin
