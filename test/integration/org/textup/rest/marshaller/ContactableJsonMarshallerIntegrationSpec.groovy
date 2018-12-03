@@ -1,10 +1,10 @@
 package org.textup.rest.marshaller
 
 import grails.converters.JSON
-import org.textup.test.*
 import org.joda.time.DateTime
 import org.textup.*
-import org.textup.type.ContactStatus
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 
 class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
@@ -97,6 +97,8 @@ class ContactableJsonMarshallerIntegrationSpec extends CustomSpec {
         DateTime dtInFuture = DateTime.now().plusDays(2)
         RecordText rText1 = c1.record.storeOutgoingText("text").payload
         RecordCall rCall1 = c1.record.storeOutgoingCall().payload
+        rText1.outgoing = false
+        rCall1.outgoing = false
         rCall1.whenCreated = dtInFuture
         [c1, rText1, rCall1]*.save(flush: true, failOnError: true)
 

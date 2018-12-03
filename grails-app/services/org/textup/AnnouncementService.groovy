@@ -33,7 +33,7 @@ class AnnouncementService {
                 ResultStatus.UNPROCESSABLE_ENTITY)
 		}
         String msg = body.message as String
-        DateTime expires = DateTimeUtils.toUTCDateTime(body.expiresAt)
+        DateTime expires = DateTimeUtils.toDateTimeWithZone(body.expiresAt)
         Staff loggedIn = authService.loggedInAndActive
         if (!p1.isActive) {
             return resultFactory.failWithCodeAndStatus("phone.isInactive", ResultStatus.NOT_FOUND)
@@ -60,7 +60,7 @@ class AnnouncementService {
     		return resultFactory.failWithCodeAndStatus("announcementService.update.notFound",
                 ResultStatus.NOT_FOUND, [aId])
     	}
-        announce.expiresAt = DateTimeUtils.toUTCDateTime(body.expiresAt)
+        announce.expiresAt = DateTimeUtils.toDateTimeWithZone(body.expiresAt)
         if (announce.save()) {
             resultFactory.success(announce)
         }

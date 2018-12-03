@@ -2,12 +2,14 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import groovy.transform.AutoClone
+import groovy.transform.Sortable
 import org.hibernate.*
 import org.hibernate.transform.Transformers
 import org.joda.time.*
 import org.textup.type.*
-import org.textup.validator.*
 import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
@@ -45,9 +47,11 @@ final class UsageService {
 
     SessionFactory sessionFactory
 
+    @Sortable(includes = ["monthObj"])
     public static class ActivityRecord {
         BigInteger ownerId
         String monthString
+        DateTime monthObj
         BigInteger numActivePhones = 0
 
         BigDecimal numNotificationTexts = 0
@@ -69,6 +73,7 @@ final class UsageService {
 
         void setMonthString(String queryMonth) {
             this.monthString = UsageUtils.queryMonthToMonthString(queryMonth)
+            this.monthObj = UsageUtils.monthStringToDateTime(this.monthString)
         }
         void setMonthStringDirectly(String monthString) {
             this.monthString = monthString
@@ -93,6 +98,7 @@ final class UsageService {
         }
     }
 
+    @AutoClone
     public static class HasActivity {
         BigInteger id
         UsageService.ActivityRecord activity = new ActivityRecord()
@@ -165,6 +171,13 @@ final class UsageService {
     // Details
     // -------
 
+    // NOTE for speed, we wrote the queries in raw SQL. For compatibility between MySQL (prod)
+    // and H2 (testing),
+    //
+    // (1) do not use backticks to enclose column aliases, AND make sure to append
+    //      ";DATABASE_TO_UPPER=FALSE" to the H2 URL do it does not auto-capitalize
+    // (2) use single quotes to enclose string literals
+
     protected List<UsageService.Organization> getAllOrgs(DateTime dt, PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
@@ -193,8 +206,8 @@ final class UsageService {
     protected List<UsageService.Staff> getStaffForOrg(DateTime dt, Long orgId) {
         sessionFactory.currentSession
             .createSQLQuery("""
-                SELECT m.id as `id`,
-                    m.name AS `name`,
+                SELECT m.id as id,
+                    m.name AS name,
                     m.username AS username,
                     m.email AS email,
                     p.number_as_string AS number
@@ -203,7 +216,7 @@ final class UsageService {
                 JOIN staff AS m ON m.id = o.owner_id
                 WHERE (EXTRACT(YEAR FROM p.when_created) < :year
                         OR (EXTRACT(YEAR FROM p.when_created) = :year AND EXTRACT(MONTH FROM p.when_created) <= :month))
-                    AND o.type = "INDIVIDUAL"
+                    AND o.type = 'INDIVIDUAL'
                     AND m.org_id = :orgId
                     AND p.number_as_string IS NOT NULL
                 GROUP BY p.number_as_string
@@ -220,8 +233,8 @@ final class UsageService {
     protected List<UsageService.Team> getTeamsForOrg(DateTime dt, Long orgId) {
         sessionFactory.currentSession
             .createSQLQuery("""
-                SELECT m.id as `id`,
-                    m.name AS `name`,
+                SELECT m.id as id,
+                    m.name AS name,
                     COUNT(DISTINCT(ts.staff_id)) AS numStaff,
                     p.number_as_string AS number
                 FROM phone AS p
@@ -230,7 +243,7 @@ final class UsageService {
                 JOIN team_staff AS ts ON ts.team_members_id = m.id
                 WHERE (EXTRACT(YEAR FROM p.when_created) < :year
                         OR (EXTRACT(YEAR FROM p.when_created) = :year AND EXTRACT(MONTH FROM p.when_created) <= :month))
-                    AND o.type = "GROUP"
+                    AND o.type = 'GROUP'
                     AND m.org_id = :orgId
                     AND p.number_as_string IS NOT NULL
                 GROUP BY p.number_as_string

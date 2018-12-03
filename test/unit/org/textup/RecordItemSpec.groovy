@@ -1,22 +1,35 @@
 package org.textup
 
-import org.textup.test.*
 import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
+import spock.lang.*
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText, RecordNote,
+    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
+    Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
+    AnnouncementReceipt, Role, StaffRole, NotificationPolicy, RecordNoteRevision,
     MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class RecordItemSpec extends Specification {
+class RecordItemSpec extends CustomSpec {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        setupData()
+    }
+
+    def cleanup() {
+        cleanupData()
+    }
 
     void "test constraints"() {
     	when: "we have a record item"
@@ -167,5 +180,203 @@ class RecordItemSpec extends Specification {
         then: "we are able to fetch these items back from the db"
         itemList.size() == 2
         itemList.every { it.id in targetIds }
+    }
+
+    void "test retrieving items from a record"() {
+        given: "a record with items of various ages"
+        Record rec = new Record()
+        rec.save(flush:true, failOnError:true)
+        RecordItem nowItem = rec.add(new RecordItem(), null).payload,
+            lWkItem = rec.add(new RecordItem(), null).payload,
+            yestItem = rec.add(new RecordItem(), null).payload,
+            twoDItem = rec.add(new RecordItem(), null).payload,
+            thrDItem = rec.add(new RecordItem(), null).payload
+        rec.save(flush:true, failOnError:true)
+        assert RecordItem.countByRecord(rec) == 5
+        //can't set the whenCreated in the constructor
+        lWkItem.whenCreated = DateTime.now().minusWeeks(1)
+        yestItem.whenCreated = DateTime.now().minusDays(1)
+        twoDItem.whenCreated = DateTime.now().minusDays(2)
+        thrDItem.whenCreated = DateTime.now().minusDays(3)
+        thrDItem.save(flush:true, failOnError:true)
+
+        when: "we get items between a date range"
+        List<RecordItem> items = RecordItem
+            .forRecordIdsWithOptions([rec.id], DateTime.now().minusDays(4), DateTime.now().minusHours(22))
+            .build(RecordItem.buildForSort())
+            .list(max:2, offset:1)
+
+        then:
+        items.size() == 2 // notice offset 1
+        items[0] == twoDItem // newer item
+        items[1] == thrDItem // older item
+
+        when: "we get items since a certain date"
+        items = RecordItem
+            .forRecordIdsWithOptions([rec.id], DateTime.now().minusWeeks(4))
+            .build(RecordItem.buildForSort())
+            .list(max:3, offset:1)
+
+        then:
+        items.size() == 3 // notice offset 1
+        items[0] == yestItem // newer item
+        items[1] == twoDItem
+        items[2] == thrDItem // older item
+    }
+
+    void "test getting items a record by type"() {
+        given: "record with items of all types"
+        Record rec1 = new Record()
+        rec1.save(flush:true, failOnError:true)
+
+        RecordText rText1 = rec1.storeOutgoingText("hello").payload
+        RecordCall rCall1 = rec1.storeOutgoingCall().payload,
+            rCall2 = rec1.storeOutgoingCall().payload
+        rCall2.voicemailInSeconds = 22
+        rCall2.hasAwayMessage = true
+        RecordNote rNote1 = new RecordNote(record:rec1)
+        [rText1, rCall1, rCall2, rNote1]*.save(flush:true, failOnError:true)
+
+        DateTime afterDt = DateTime.now().minusWeeks(3)
+        DateTime beforeDt = DateTime.now().plusWeeks(3)
+
+        expect:
+        RecordItem.forRecordIdsWithOptions([rec1.id])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
+
+        RecordItem.forRecordIdsWithOptions([rec1.id], null, null, [RecordCall])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rCall1, rCall2]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], null, null, [RecordText])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], null, null, [RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rNote1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], null, null, [RecordCall, RecordText])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rCall1, rCall2]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], null, null, [RecordText, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rNote1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], null, null, [RecordCall, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rCall1, rNote1, rCall2]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], null, null, [RecordCall, RecordText, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
+
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, null, [RecordCall])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rCall1, rCall2]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, null, [RecordText])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, null, [RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rNote1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, null, [RecordCall, RecordText])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rCall1, rCall2]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, null, [RecordText, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rNote1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, null, [RecordCall, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rCall1, rCall2, rNote1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, null, [RecordCall, RecordText, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
+
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, beforeDt, [RecordCall])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rCall1, rCall2]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, beforeDt, [RecordText])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, beforeDt, [RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rNote1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, beforeDt, [RecordCall, RecordText])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rCall1, rCall2]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, beforeDt, [RecordText, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rNote1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, beforeDt, [RecordCall, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rCall1, rCall2, rNote1]*.id }
+        RecordItem.forRecordIdsWithOptions([rec1.id], afterDt, beforeDt, [RecordCall, RecordText, RecordNote])
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
+    }
+
+    void "test fetching records sort order"() {
+        given: "records"
+        Record rec1 = new Record()
+        rec1.save(flush: true, failOnError: true)
+
+        RecordItem rItem1 = new RecordItem(record: rec1, whenCreated: DateTime.now())
+        RecordItem rItem2 = new RecordItem(record: rec1, whenCreated: DateTime.now().plusDays(1))
+        RecordItem rItem3 = new RecordItem(record: rec1, whenCreated: DateTime.now().plusDays(2))
+        [rItem1, rItem2, rItem3]*.save(flush: true, failOnError: true)
+
+        expect:
+        RecordItem.forRecordIdsWithOptions([rec1.id])
+            .build(RecordItem.buildForSort())
+            .list()*.id == [rItem3, rItem2, rItem1]*.id
+        RecordItem.forRecordIdsWithOptions([rec1.id])
+            .build(RecordItem.buildForSort(false))
+            .list()*.id == [rItem1, rItem2, rItem3]*.id
+    }
+
+    void "test fetching all records for a phone id"() {
+        given: "phone + records"
+        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumber())
+        p1.updateOwner(t1)
+        p1.save(flush:true, failOnError:true)
+
+        Record rec1 = new Record()
+        Record rec2 = new Record()
+        [rec1, rec2]*.save(flush: true, failOnError: true)
+
+        Contact c1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        c1.record = rec1
+        ContactTag ct1 = p1.createTag(name: TestUtils.randString()).payload
+        ct1.record = rec2
+        [c1, ct1]*.save(flush: true, failOnError: true)
+
+        RecordItem rItem1 = new RecordItem(record: rec1)
+        RecordItem rItem2 = new RecordItem(record: rec2)
+        [rItem1, rItem2]*.save(flush: true, failOnError: true)
+
+        expect:
+        RecordItem.forPhoneIdWithOptions(p1.id)
+            .build(RecordItem.buildForSort())
+            .list()
+            *.id.every { it in [rItem1, rItem2]*.id }
     }
 }

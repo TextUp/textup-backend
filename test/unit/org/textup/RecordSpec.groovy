@@ -1,12 +1,13 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
+import org.textup.test.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.IncomingText
 import spock.lang.Shared
 import spock.lang.Specification
@@ -22,7 +23,6 @@ class RecordSpec extends Specification {
     }
 
 	def setup() {
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
         IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
 	}
 
@@ -99,108 +99,46 @@ class RecordSpec extends Specification {
         RecordCall.countByRecord(rec) == 2
     }
 
-    void "test retrieving items from the record"() {
-    	given: "a record with items of various ages"
-    	Record rec = new Record()
-    	rec.save(flush:true, failOnError:true)
-    	RecordItem nowItem = rec.add(new RecordItem(), null).payload,
-    		lWkItem = rec.add(new RecordItem(), null).payload,
-    		yestItem = rec.add(new RecordItem(), null).payload,
-    		twoDItem = rec.add(new RecordItem(), null).payload,
-    		thrDItem = rec.add(new RecordItem(), null).payload
-    	rec.save(flush:true, failOnError:true)
-    	assert RecordItem.countByRecord(rec) == 5
-    	//can't set the whenCreated in the constructor
-    	lWkItem.whenCreated = DateTime.now().minusWeeks(1)
-    	yestItem.whenCreated = DateTime.now().minusDays(1)
-    	twoDItem.whenCreated = DateTime.now().minusDays(2)
-    	thrDItem.whenCreated = DateTime.now().minusDays(3)
-    	thrDItem.save(flush:true, failOnError:true)
-
-    	when: "we get items between a date range"
-    	List<RecordItem> items = rec.getBetween(DateTime.now().minusDays(4),
-    		DateTime.now().minusHours(22), [max:2, offset:1])
-
-    	then:
-    	items.size() == 2 // notice offset 1
-    	items[0] == twoDItem // newer item
-    	items[1] == thrDItem // older item
-
-    	when: "we get items since a certain date"
-    	items = rec.getSince(DateTime.now().minusWeeks(4), [max:3, offset:1])
-
-    	then:
-    	items.size() == 3 // notice offset 1
-    	items[0] == yestItem // newer item
-    	items[1] == twoDItem
-    	items[2] == thrDItem // older item
-    }
-
-    void "test getting items from record by type"() {
-        given: "record with items of all types"
+    void "test checking for unread info"() {
+        given:
         Record rec1 = new Record()
-        rec1.save(flush:true, failOnError:true)
+        rec1.save(flush: true, failOnError: true)
 
-        RecordText rText1 = rec1.storeOutgoingText("hello").payload
-        RecordCall rCall1 = rec1.storeOutgoingCall().payload,
-            rCall2 = rec1.storeOutgoingCall().payload
-        rCall2.voicemailInSeconds = 22
-        rCall2.hasAwayMessage = true
-        RecordNote rNote1 = new RecordNote(record:rec1)
-        [rText1, rCall1, rCall2, rNote1]*.save(flush:true, failOnError:true)
-
-        DateTime afterDt = DateTime.now().minusWeeks(3)
-        DateTime beforeDt = DateTime.now().plusWeeks(3)
+        DateTime dt = DateTime.now()
+        RecordItem rItem1 = new RecordItem(record: rec1, whenCreated: dt)
+        rItem1.save(flush: true, failOnError: true)
 
         expect:
-        rec1.countItems([RecordCall]) == 2
-        rec1.countItems([RecordText]) == 1
-        rec1.countItems([RecordNote]) == 1
-        rec1.countItems([RecordCall, RecordText]) == 3
-        rec1.countItems([RecordText, RecordNote]) == 2
-        rec1.countItems([RecordCall, RecordNote]) == 3
-        rec1.countItems([RecordCall, RecordText, RecordNote]) == 4
+        rec1.hasUnreadInfo(dt.minusDays(1)) == true
+        rec1.hasUnreadInfo(dt.plusDays(1)) == false
+    }
 
-        rec1.getItems([RecordCall])*.id.every { it in [rCall1, rCall2]*.id }
-        rec1.getItems([RecordText])*.id.every { it in [rText1]*.id }
-        rec1.getItems([RecordNote])*.id.every { it in [rNote1]*.id }
-        rec1.getItems([RecordCall, RecordText])*.id.every { it in [rText1, rCall1, rCall2]*.id }
-        rec1.getItems([RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
-        rec1.getItems([RecordCall, RecordNote])*.id.every { it in [rCall1, rNote1, rCall2]*.id }
-        rec1.getItems([RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
+    void "test building unread info"() {
+        given:
+        Record rec1 = new Record()
+        rec1.save(flush: true, failOnError: true)
 
-        rec1.countCallsSince(afterDt, false) == 1 // one call that isn't a voicemail
-        rec1.countCallsSince(afterDt, true) == 1 // one call that IS a voicemail
-        rec1.countSince(afterDt, [RecordCall]) == 2 // overall, two calls of any voicemail status
-        rec1.countSince(afterDt, [RecordText]) == 1
-        rec1.countSince(afterDt, [RecordNote]) == 1
-        rec1.countSince(afterDt, [RecordCall, RecordText]) == 3
-        rec1.countSince(afterDt, [RecordText, RecordNote]) == 2
-        rec1.countSince(afterDt, [RecordCall, RecordNote]) == 3
-        rec1.countSince(afterDt, [RecordCall, RecordText, RecordNote]) == 4
+        RecordText rText1 = rec1.storeOutgoingText("hello").payload,
+            rText2 = rec1.storeOutgoingText("hello").payload
+        rText1.outgoing = false
+        rText2.outgoing = true
+        RecordCall rCall1 = rec1.storeOutgoingCall().payload,
+            rCall2 = rec1.storeOutgoingCall().payload,
+            rCall3 = rec1.storeOutgoingCall().payload
+        rCall1.outgoing = false
+        rCall2.outgoing = false
+        rCall2.voicemailInSeconds = 22
+        rCall2.hasAwayMessage = true
+        rCall3.outgoing = true
+        RecordNote rNote1 = new RecordNote(record:rec1)
+        [rText1, rText2, rCall1, rCall2, rCall3, rNote1]*.save(flush:true, failOnError:true)
 
-        rec1.getSince(afterDt, [RecordCall])*.id.every { it in [rCall1, rCall2]*.id }
-        rec1.getSince(afterDt, [RecordText])*.id.every { it in [rText1]*.id }
-        rec1.getSince(afterDt, [RecordNote])*.id.every { it in [rNote1]*.id }
-        rec1.getSince(afterDt, [RecordCall, RecordText])*.id.every { it in [rText1, rCall1, rCall2]*.id }
-        rec1.getSince(afterDt, [RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
-        rec1.getSince(afterDt, [RecordCall, RecordNote])*.id.every { it in [rCall1, rCall2, rNote1]*.id }
-        rec1.getSince(afterDt, [RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
+        when:
+        UnreadInfo uInfo = rec1.getUnreadInfo(null)
 
-        rec1.countBetween(afterDt, beforeDt, [RecordCall]) == 2
-        rec1.countBetween(afterDt, beforeDt, [RecordText]) == 1
-        rec1.countBetween(afterDt, beforeDt, [RecordNote]) == 1
-        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordText]) == 3
-        rec1.countBetween(afterDt, beforeDt, [RecordText, RecordNote]) == 2
-        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordNote]) == 3
-        rec1.countBetween(afterDt, beforeDt, [RecordCall, RecordText, RecordNote]) == 4
-
-        rec1.getBetween(afterDt, beforeDt, [RecordCall])*.id.every { it in [rCall1, rCall2]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordText])*.id.every { it in [rText1]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordNote])*.id.every { it in [rNote1]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordText])*.id.every { it in [rText1, rCall1, rCall2]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordText, RecordNote])*.id.every { it in [rText1, rNote1]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordNote])*.id.every { it in [rCall1, rCall2, rNote1]*.id }
-        rec1.getBetween(afterDt, beforeDt, [RecordCall, RecordText, RecordNote])*.id.every { it in [rText1, rCall1, rCall2, rNote1]*.id }
+        then: "unread info only includes counts for incoming items"
+        uInfo.numTexts == 1 // excludes outgoing text
+        uInfo.numCalls == 1 // excludes outgoing call and call with voicemail
+        uInfo.numVoicemails == 1
     }
 }

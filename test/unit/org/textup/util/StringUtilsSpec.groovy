@@ -1,9 +1,6 @@
 package org.textup.util
 
-import org.textup.*
-import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
+import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import grails.util.Holders
 import java.util.concurrent.*
@@ -11,26 +8,31 @@ import org.apache.http.client.methods.*
 import org.apache.http.HttpResponse
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
+import org.textup.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Specification
 
-// TODO check setup
-
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
-@TestMixin(HibernateTestMixin)
+@TestMixin(GrailsUnitTestMixin)
 class StringUtilsSpec extends Specification {
 
-    static doWithSpring = {
-        resultFactory(ResultFactory)
+    void "test to lower case string"() {
+        expect:
+        StringUtils.toLowerCaseString(["HELLO"]) == "[hello]"
+        StringUtils.toLowerCaseString("yEsS") == "yess"
+        StringUtils.toLowerCaseString(null) == "null"
     }
 
-    def setup() {
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+    void "test formatting string as SQL query"() {
+        expect:
+        StringUtils.toQuery(["HELLO"]) == "%[HELLO]%"
+        StringUtils.toQuery("yEsS") == "%yEsS%"
+        StringUtils.toQuery(null) == "%null%"
+        StringUtils.toQuery("%hi") == "%hi%"
+        StringUtils.toQuery("hi%") == "%hi%"
+        StringUtils.toQuery("%hi%") == "%hi%"
     }
 
     void "test appending strings while guaranteeing a max resulting length"() {
@@ -43,5 +45,22 @@ class StringUtilsSpec extends Specification {
         StringUtils.appendGuaranteeLength("hello", "yes", 7) == "hellyes"
         StringUtils.appendGuaranteeLength("hello", "yes", 8) == "helloyes"
         StringUtils.appendGuaranteeLength("hello", "yes", 10) == "helloyes"
+    }
+
+    void "test generating random alphanumeric strings"() {
+        expect:
+        10.times {
+            assert StringUtils.randomAlphanumericString() != StringUtils.randomAlphanumericString()
+        }
+    }
+
+    void "test generating alphabet"() {
+        when:
+        List<String> alphabet = StringUtils.buildAlphabet()
+
+        then:
+        StringUtils.ALPHABET == alphabet
+        alphabet.size() == 26 + 10
+        alphabet.every { it instanceof String }
     }
 }

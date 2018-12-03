@@ -2,8 +2,7 @@ package org.textup
 
 import grails.test.runtime.DirtiesRuntime
 import org.textup.test.*
-import org.textup.type.OrgStatus
-import org.textup.type.StaffStatus
+import org.textup.type.*
 import org.textup.util.*
 
 class SocketServiceIntegrationSpec extends CustomSpec {

@@ -1,10 +1,10 @@
 package org.textup.util
 
-import org.textup.*
-import org.textup.test.*
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import grails.test.runtime.*
+import org.textup.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*

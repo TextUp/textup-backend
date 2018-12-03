@@ -1,25 +1,28 @@
 package org.textup.rest.marshaller
 
 import grails.converters.JSON
-import org.textup.test.*
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
-import org.textup.type.AuthorType
-import org.textup.type.ReceiptStatus
-import org.textup.type.RecordItemType
-import org.textup.validator.Author
-import org.textup.validator.TempRecordReceipt
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.validator.*
 import spock.lang.*
 
-class RecordItemJsonMarshallerIntegrationSpec extends Specification {
+class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
 
     def grailsApplication
     Record rec
 
     def setup() {
-    	rec = new Record()
+        setupIntegrationData()
+
+        rec = new Record()
         rec.save(flush: true, failOnError: true)
+    }
+
+    def cleanup() {
+        cleanupIntegrationData()
     }
 
     protected boolean validate(Map json, RecordItem item) {
@@ -35,10 +38,38 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         assert json.authorId == item.authorId
         assert json.authorType == item.authorType.toString()
         assert json.noteContents == item.noteContents
-        // did not mock up contacts or tags so these both should be null
-        assert json.contact == null
-        assert json.tag == null
         true
+    }
+
+    void "test marshalling with different record owners"() {
+        given:
+        RecordItem rItem1 = new RecordItem(record: rec)
+        Map json
+
+        when: "record owner is a contact"
+        c1.record = rec
+        c1.save(flush: true, failOnError: true)
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = TestUtils.jsonToMap(rItem1 as JSON)
+        }
+
+        then:
+        json.contact == c1.id
+        json.ownerName == c1.nameOrNumber
+        json.tag == null
+
+        when: "record owner is a tag"
+        c1.record = tag1.record
+        tag1.record = rec
+        tag1.save(flush: true, failOnError: true)
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = TestUtils.jsonToMap(rItem1 as JSON)
+        }
+
+        then:
+        json.contact == null
+        json.ownerName == tag1.name
+        json.tag == tag1.id
     }
 
     void "test marshalling voicemail"() {

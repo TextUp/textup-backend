@@ -1,6 +1,5 @@
 package org.textup.validator
 
-import org.textup.test.*
 import com.amazonaws.services.s3.model.PutObjectResult
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -12,15 +11,16 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.validator.UploadItem
 import spock.lang.Shared
 import spock.lang.Specification
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText, RecordNote,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision, NotificationPolicy,
+    RecordNote, RecordNoteRevision, NotificationPolicy, RecordNoteRevision,
     MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class TempRecordNoteSpec extends CustomSpec {
@@ -107,7 +107,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		c1.record = newRec
 		c1.save(flush:true, failOnError:true)
 
-		assert newRec.countItems() == 0
+		assert RecordItem.forRecordIdsWithOptions([newRec.id]).count() == 0
 		RecordText text1 = newRec.storeOutgoingText("hello").payload,
 			text2 = newRec.storeOutgoingText("hello").payload
 		DateTime time1 = DateTime.now().minusMonths(2),
@@ -115,7 +115,7 @@ class TempRecordNoteSpec extends CustomSpec {
 		text1.whenCreated = time1
 		text2.whenCreated = time2
 		[text1, text2]*.save(flush:true, failOnError:true)
-		assert newRec.countItems() == 2
+		assert RecordItem.forRecordIdsWithOptions([newRec.id]).count() == 2
 
 		temp1.after = time1
 		updatedNote = temp1.toNote().payload

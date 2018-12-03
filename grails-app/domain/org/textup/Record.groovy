@@ -89,7 +89,7 @@ class Record implements ReadOnlyRecord, WithId {
     // ---------------
 
     boolean hasUnreadInfo(DateTime lastTouched) {
-        RecordItem.forRecordIdsWithOptions(true, [this.id], lastTouched).count() > 0
+        RecordItem.forRecordIdsWithOptions([this.id], lastTouched).count() > 0
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -98,16 +98,16 @@ class Record implements ReadOnlyRecord, WithId {
         UnreadInfo uInfo = new UnreadInfo()
         uInfo.with {
             numTexts = RecordItem
-                .forRecordIdsWithOptions(true, [this.id], lastTouched, null, [RecordText])
+                .forRecordIdsWithOptions([this.id], lastTouched, null, [RecordText])
                 .build(notOutgoing)
                 .count()
             numCalls = RecordItem
-                .forRecordIdsWithOptions(true, [this.id], lastTouched, null, [RecordCall])
+                .forRecordIdsWithOptions([this.id], lastTouched, null, [RecordCall])
                 .build(notOutgoing)
                 .build { eq("voicemailInSeconds", 0) }
                 .count()
             numVoicemails = RecordItem
-                .forRecordIdsWithOptions(true, [this.id], lastTouched, null, [RecordCall])
+                .forRecordIdsWithOptions([this.id], lastTouched, null, [RecordCall])
                 .build(notOutgoing)
                 .build { gt("voicemailInSeconds", 0) }
                 .count()

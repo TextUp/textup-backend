@@ -11,13 +11,13 @@ import org.textup.validator.*
 @Log4j
 class DateTimeUtils {
 
-    static final DateTimeFormatter currentTimeFormat = DateTimeFormat.forPattern("MMM dd, y h:mm a")
-    static final DateTimeFormatter displayedMonthFormat = DateTimeFormat.forPattern("MMM yyyy")
-    static final DateTimeFormatter fileTimestampFormat = DateTimeFormat.forPattern("MMM-dd-yyyy")
-    static final DateTimeFormatter queryMonthFormat = DateTimeFormat.forPattern("yyyy-MM")
-
     // Printing DateTimes
     // ------------------
+
+    static final DateTimeFormatter CURRENT_TIME_FORMAT = DateTimeFormat.forPattern("MMM dd, y h:mm a")
+    static final DateTimeFormatter DISPLAYED_MONTH_FORMAT = DateTimeFormat.forPattern("MMM yyyy")
+    static final DateTimeFormatter FILE_TIMESTAMP_FORMAT = DateTimeFormat.forPattern("MMM-dd-yyyy")
+    static final DateTimeFormatter QUERY_MONTH_FORMAT = DateTimeFormat.forPattern("yyyy-MM")
 
     static String printLocalInterval(LocalInterval localInt) {
         if (localInt) {
@@ -37,7 +37,7 @@ class DateTimeUtils {
 
     static DateTimeZone getZoneFromId(String id) {
         try {
-            return id ? DateTimeZone.forID(id) : DateTimeZone.UTC
+            id ? DateTimeZone.forID(id) : DateTimeZone.UTC
         }
         catch (e) {
             log.debug("DateTimeUtils.getZoneFromId: ${e.message}")
@@ -45,43 +45,40 @@ class DateTimeUtils {
         }
     }
 
-    static DateTime toUTCDateTime(def val) {
+    static DateTime toDateTimeWithZone(Object val, Object zone = "UTC") {
         try {
-            new DateTime(val, DateTimeZone.UTC)
-        }
-        catch (e) {
-            log.debug("DateTimeUtils.toUTCDateTime: $e")
-            null
-        }
-    }
-
-    static DateTime toDateTimeWithZone(def time, def zone = null) {
-        if (!time) return null
-        new DateTime(TypeConversionUtils.to(String, time))
+            if (!val) {
+                return null
+            }
+            String stringVal = TypeConversionUtils.to(String, val),
+                stringZone = zone as String
+            DateTimeZone tz = getZoneFromId(stringZone)
             // must NOT use withZoneRetainFields because doing so results in this scenario:
             // The default system time might not be UTC time. Therefore, when we pass a UTC
             // string to the DateTime constructor, it converts the UTC fields to the fields
             // in the local time zone (that is the system default). Then, if we call
             // withZoneRetainFields on this DateTime object, we convert to the UTC time zone
             // using the LOCAL values, thereby losing the original time
-            .withZone(getZoneFromId(zone as String))
+            new DateTime(stringVal).withZone(tz)
+        }
+        catch (e) {
+            log.debug("DateTimeUtils.toDateTimeWithZone: $e")
+            null
+        }
     }
 
-    static DateTime toDateTimeTodayWithZone(LocalTime lt, DateTimeZone zone) {
-        if (zone) {
-            lt.toDateTimeToday(DateTimeZone.UTC).withZone(zone)
-        }
-        else { lt.toDateTimeToday(DateTimeZone.UTC) }
+    static DateTime toUTCDateTimeTodayThenZone(LocalTime lt, DateTimeZone zone = DateTimeZone.UTC) {
+        lt.toDateTimeToday(DateTimeZone.UTC).withZone(zone)
     }
 
-    static DateTime toUTCDateTimeTodayFromZone(LocalTime lt, DateTimeZone zone) {
-        if (zone) {
-            lt.toDateTimeToday(zone).withZone(DateTimeZone.UTC)
-        }
-        else { lt.toDateTimeToday(DateTimeZone.UTC) }
+    static DateTime toZoneDateTimeTodayThenUTC(LocalTime lt, DateTimeZone zone = DateTimeZone.UTC) {
+        lt.toDateTimeToday(zone).withZone(DateTimeZone.UTC)
     }
 
     static int getDaysBetween(DateTime dt1, DateTime dt2) {
+        if (!dt1 || !dt2) {
+            return 0
+        }
         Days.daysBetween(dt1.toLocalDate(), dt2.toLocalDate()).getDays()
     }
 

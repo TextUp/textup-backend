@@ -47,9 +47,9 @@ class RecordUtils {
 
     static Result<RecordItemRequest> buildRecordItemRequest(Phone p1, TypeConvertingMap body,
         boolean groupByEntity) {
-        Collection<Class<? extends RecordItem>> types = RecordUtils.parseTypes(body.list("types[]"))
-        DateTime start = DateTimeUtils.toUTCDateTime(body.since),
-            end = DateTimeUtils.toUTCDateTime(body.before)
+        Collection<Class<? extends RecordItem>> types = RecordUtils.parseTypes(body.list("types"))
+        DateTime start = DateTimeUtils.toDateTimeWithZone(body.since),
+            end = DateTimeUtils.toDateTimeWithZone(body.before)
         RecordItemRequest itemRequest = new RecordItemRequest(phone: p1,
             types: types,
             start: start,

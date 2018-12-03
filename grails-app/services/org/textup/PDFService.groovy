@@ -19,7 +19,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class PDFService {
+class PdfService {
 
     GrailsApplication grailsApplication
 
@@ -29,17 +29,18 @@ class PDFService {
 
     @PostConstruct
     protected void startUp() {
-        FopFactory _fopFactory = FopFactory.newInstance(new File(".").toURI())
+        // // TODO
+        // FopFactory _fopFactory = FopFactory.newInstance(new File(".").toURI())
 
-        String pdfTransformPath = grailsApplication.flatConfig["textup.export.pdfTransformPath"]
-        Path pdfTransform = Paths.get(pdfTransformPath)
-        if (!Files.isReadable(pdfTransform)) {
-            throw new IllegalArgumentException("Path to pdf XSLT file must be readable")
-        }
-        // see https://stackoverflow.com/a/3389479
-        // use Saxon XSLT processor instead of XalanJ bundled with Apache FOP
-        TransformerFactory tFactory = TransformerFactory.newInstance(XSLT_PROCESSOR_CLASS, null)
-        _pdfTransformTemplate = tFactory.newTemplates(new StreamSource(pdfTransform.toFile()))
+        // String pdfTransformPath = grailsApplication.flatConfig["textup.export.pdfTransformPath"]
+        // Path pdfTransform = Paths.get(pdfTransformPath)
+        // if (!Files.isReadable(pdfTransform)) {
+        //     throw new IllegalArgumentException("Path to pdf XSLT file must be readable")
+        // }
+        // // see https://stackoverflow.com/a/3389479
+        // // use Saxon XSLT processor instead of XalanJ bundled with Apache FOP
+        // TransformerFactory tFactory = TransformerFactory.newInstance(XSLT_PROCESSOR_CLASS, null)
+        // _pdfTransformTemplate = tFactory.newTemplates(new StreamSource(pdfTransform.toFile()))
     }
 
     @PreDestroy
@@ -62,7 +63,7 @@ class PDFService {
             IOCUtils.resultFactory.success(out.toByteArray())
         }
         catch (Throwable e) {
-            log.error("PDFService.buildRecordItems: ${e.class}: ${e.message}")
+            log.error("PdfService.buildRecordItems: ${e.class}: ${e.message}")
             IOCUtils.resultFactory.failWithThrowable(e)
         }
         finally {

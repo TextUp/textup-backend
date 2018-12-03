@@ -1,9 +1,8 @@
-package org.textup.rest
-
-import org.textup.test.*.marshaller
+package org.textup.rest.marshaller
 
 import grails.converters.JSON
 import org.textup.*
+import org.textup.test.*
 import org.textup.type.StaffStatus
 import org.textup.util.*
 

@@ -48,7 +48,7 @@ class FutureMessageController extends BaseController {
     ])
 	@Transactional(readOnly=true)
     def index() {
-    	if (!MapUtils.exactly(1, ["contactId", "tagId"], params)) {
+    	if (!MapUtils.countKeys(["contactId", "tagId"], params) == 1) {
     		badRequest()
 		}
     	else if (params.long("contactId")) {
@@ -76,7 +76,9 @@ class FutureMessageController extends BaseController {
             rec1 = res.payload
         }
         Closure<Integer> count = { rec1.countFutureMessages() }
-        Closure<List<ReadOnlyFutureMessage>> list = { Map opts -> rec1.getFutureMessages(opts) }
+        Closure<List<? extends ReadOnlyFutureMessage>> list = { Map opts ->
+            rec1.getFutureMessages(opts)
+        }
         respondWithMany(FutureMessage, count, list, params)
     }
     protected def listForTag(GrailsParameterMap params) {
@@ -143,7 +145,7 @@ class FutureMessageController extends BaseController {
         Map fInfo = getJsonPayload(FutureMessage, request)
         if (fInfo == null) { return }
         String tz = params.timezone as String
-        if (!MapUtils.exactly(1, ["contactId", "tagId"], params)) {
+        if (!MapUtils.countKeys(["contactId", "tagId"], params) == 1) {
             badRequest()
         }
         else if (params.long("contactId")) {

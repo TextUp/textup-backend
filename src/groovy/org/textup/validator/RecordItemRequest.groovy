@@ -53,22 +53,24 @@ class RecordItemRequest {
         if (hasErrors()) {
             return []
         }
-        List<Integer> normalized = Utils.normalizePagination(params.offset, params.max)
-        params.offset = normalized[0]
-        params.max = normalized[1]
-        getCriteria(recentFirst).list(params)
+        List<Integer> normalized = Utils.normalizePagination(params?.offset, params?.max)
+        params?.offset = normalized[0]
+        params?.max = normalized[1]
+        getCriteria()
+            .build(RecordItem.buildForSort(recentFirst))
+            .list(params)
     }
 
     List<RecordItemRequestSection> getSections(Map params = [:]) {
         if (hasErrors()) {
             return []
         }
-        String phoneName = phone.owner.name
+        String phoneName = phone?.owner?.name
         // when exporting, we want the oldest records first instead of most recent first
         List<RecordItem> rItems = getRecordItems(params, false)
         // group by entity only makes sense if we have entities and haven't fallen back
         // to getting record items for the phone overall
-        if (!hasAnyRecipients() && groupByEntity) {
+        if (hasAnyRecipients() && groupByEntity) {
             Map<Long, Collection<RecordItem>> recordIdToItems = MapUtils
                 .<Long, RecordItem>buildManyObjectsMap({ RecordItem i1 -> i1.record.id }, rItems)
             buildSectionsByEntity(phoneName, recordIdToItems)
@@ -76,9 +78,9 @@ class RecordItemRequest {
         else {
             [
                 new RecordItemRequestSection(phoneName: phoneName,
-                    contactNames: contacts.recipients.collect { it.nameOrNumber },
-                    tagNames: tags.recipients.collect { it.name },
-                    sharedContactNames: sharedContacts.recipients.collect { it.name },
+                    contactNames: contacts?.recipients?.collect { it.nameOrNumber },
+                    sharedContactNames: sharedContacts?.recipients?.collect { it.name },
+                    tagNames: tags?.recipients?.collect { it.name },
                     recordItems: rItems)
             ]
         }
@@ -87,17 +89,17 @@ class RecordItemRequest {
     // Helpers
     // -------
 
-    protected DetachedCriteria<RecordItem> getCriteria(boolean recentFirst = true) {
+    protected DetachedCriteria<RecordItem> getCriteria() {
         !hasAnyRecipients()
-            ? RecordItem.forPhoneIdWithOptions(recentFirst, phone.id, start, end, types)
-            : RecordItem.forRecordIdsWithOptions(recentFirst, getRecordIds(), start, end, types)
+            ? RecordItem.forPhoneIdWithOptions(phone?.id, start, end, types)
+            : RecordItem.forRecordIdsWithOptions(getRecordIds(), start, end, types)
     }
 
     protected Collection<Long> getRecordIds() {
         ResultGroup<ReadOnlyRecord> resGroup = new ResultGroup<>()
-        resGroup << contacts.recipients.collect { it.tryGetReadOnlyRecord() }
-        resGroup << sharedContacts.recipients.collect { it.tryGetReadOnlyRecord() }
-        resGroup << tags.recipients.collect { it.tryGetReadOnlyRecord() }
+        resGroup << contacts?.recipients?.collect { it.tryGetReadOnlyRecord() }
+        resGroup << sharedContacts?.recipients?.collect { it.tryGetReadOnlyRecord() }
+        resGroup << tags?.recipients?.collect { it.tryGetReadOnlyRecord() }
 
         resGroup.logFail("RecordItemRequest.getRecordIds")
         resGroup.payload*.id
@@ -107,9 +109,9 @@ class RecordItemRequest {
         Map<Long, Collection<RecordItem>> rIdToItems) {
 
         ResultGroup<RecordItemRequestSection> resGroup = new ResultGroup<>()
-        resGroup << contacts.recipients.collect { addSectionForEntity(it, pName, rIdToItems) }
-        resGroup << sharedContacts.recipients.collect { addSectionForEntity(it, pName, rIdToItems) }
-        resGroup << tags.recipients.collect { addSectionForEntity(it, pName, rIdToItems) }
+        resGroup << contacts?.recipients?.collect { addSectionForEntity(it, pName, rIdToItems) }
+        resGroup << sharedContacts?.recipients?.collect { addSectionForEntity(it, pName, rIdToItems) }
+        resGroup << tags?.recipients?.collect { addSectionForEntity(it, pName, rIdToItems) }
 
         resGroup.logFail("RecordItemRequest.buildSectionsByEntity")
         resGroup.payload

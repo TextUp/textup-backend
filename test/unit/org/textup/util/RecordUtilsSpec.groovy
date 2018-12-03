@@ -1,12 +1,13 @@
 package org.textup.util
 
-import org.textup.*
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.test.runtime.*
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.joda.time.*
+import org.textup.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -31,6 +32,51 @@ class RecordUtilsSpec extends CustomSpec {
 
     def cleanup() {
         cleanupData()
+    }
+
+    void "test building record item request"() {
+        given:
+        TypeConvertingMap body = new TypeConvertingMap()
+        DateTime start = DateTime.now().minusDays(2)
+        DateTime end = DateTime.now()
+
+        when: "missing inputs"
+        Result<RecordItemRequest> res = RecordUtils.buildRecordItemRequest(null, body, false)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when: "no params"
+        res = RecordUtils.buildRecordItemRequest(p1, body, false)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload instanceof RecordItemRequest
+        res.payload.phone == p1
+        res.payload.groupByEntity == false
+
+        when: "has params"
+        assert sc2.sharedWith.id == p1.id
+
+        body = new TypeConvertingMap(
+            since: start.toString(),
+            before: end.toString(),
+            types: ["text"],
+            contactIds: [c1.id],
+            sharedContactIds:[sc2.contactId],
+            tagIds: [tag1.id]
+        )
+        res = RecordUtils.buildRecordItemRequest(p1, body, false)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload instanceof RecordItemRequest
+        res.payload.start == start
+        res.payload.end == end
+        res.payload.types == [RecordText]
+        res.payload.contacts.recipients == [c1]
+        res.payload.sharedContacts.recipients == [sc2]
+        res.payload.tags.recipients == [tag1]
     }
 
     // Identification
@@ -103,7 +149,7 @@ class RecordUtilsSpec extends CustomSpec {
     @DirtiesRuntime
     void "test check outgoing message recipients"() {
         given:
-        OutgoingMessage msg1 = TestUtils.buildOutgoingMessage()
+        OutgoingMessage msg1 = TestUtils.buildOutgoingMessage(p1)
 
         when: "no recipients"
         Result<OutgoingMessage> res = RecordUtils.checkOutgoingMessageRecipients(msg1)
@@ -173,8 +219,9 @@ class RecordUtilsSpec extends CustomSpec {
         body = new TypeConvertingMap(contents: "hi", sendToPhoneNumbers: ["i am not a valid phone number"])
         res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
 
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        then: "invalid phone numbers are ignored"
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages[0] == "recordUtils.atLeastOneRecipient"
         Contact.count() == cBaseline
         ContactNumber.count() == cnBaseline
 

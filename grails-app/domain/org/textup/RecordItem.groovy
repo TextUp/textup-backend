@@ -143,25 +143,24 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<RecordItem> forPhoneIdWithOptions(boolean recentFirst,
-        Long phoneId, DateTime start = null, DateTime end = null,
+    static DetachedCriteria<RecordItem> forPhoneIdWithOptions(Long phoneId,
+        DateTime start = null, DateTime end = null,
         Collection<Class<? extends RecordItem>> types = null) {
 
         new DetachedCriteria(RecordItem)
             .build {
                 or {
-                    "in"("record.id", RecordOwner.forRecordOwnerPhone(phoneId))
-                    "in"("record.id", RecordOwner.forRecordOwnerPhone(phoneId))
+                    "in"("record.id", RecordItem.forRecordOwnerPhone(Contact, phoneId))
+                    "in"("record.id", RecordItem.forRecordOwnerPhone(ContactTag, phoneId))
                 }
             }
             .build(RecordItem.buildForOptionalDates(start, end))
             .build(RecordItem.buildForOptionalTypes(types))
-            .build(RecordItem.buildForSort(recentFirst))
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<RecordItem> forRecordIdsWithOptions(boolean recentFirst,
-        Collection<Long> recIds, DateTime start = null, DateTime end = null,
+    static DetachedCriteria<RecordItem> forRecordIdsWithOptions(Collection<Long> recIds,
+        DateTime start = null, DateTime end = null,
         Collection<Class<? extends RecordItem>> types = null) {
 
         new DetachedCriteria(RecordItem)
@@ -173,8 +172,24 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
             }
             .build(RecordItem.buildForOptionalDates(start, end))
             .build(RecordItem.buildForOptionalTypes(types))
-            .build(RecordItem.buildForSort(recentFirst))
     }
+
+    // Specify sort order separately because when we call `count()` on a DetachedCriteria
+    // we are grouping fields and, according to the SQL spec, we need to specify a GROUP BY
+    // if we also have an ORDER BY clause. Therefore, to avoid GROUP BY errors when calling `count()`
+    // we don't include the sort order by default and we have to separately add it in
+    // before calling `list()`. See https://stackoverflow.com/a/19602031
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    protected static Closure buildForSort(boolean recentFirst = true) {
+        return {
+            if (recentFirst) {
+                // from newer (larger # millis) to older (smaller $ millis)
+                order("whenCreated", "desc")
+            }
+            else { order("whenCreated", "asc") }
+        }
+    }
+
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static DetachedCriteria<Long> forRecordOwnerPhone(Class<? extends WithRecord> ownerClass,
@@ -202,16 +217,6 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
             if (types) {
                 "in"("class", types*.canonicalName)
             }
-        }
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Closure buildForSort(boolean recentFirst) {
-        return {
-            if (recentFirst) {
-                // from newer (larger # millis) to older (smaller $ millis)
-                order("whenCreated", "desc")
-            }
-            else { order("whenCreated", "asc") }
         }
     }
 

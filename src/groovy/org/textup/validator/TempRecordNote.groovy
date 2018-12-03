@@ -85,7 +85,9 @@ class TempRecordNote {
 
 	protected RecordNote tryModifyWhenCreated(RecordNote note1, DateTime afterTime) {
 		RecordItem beforeItem = afterTime
-			? RecordItem.forRecordIdsWithOptions(true, [note1.record?.id], afterTime).list(max:1)[0]
+			? RecordItem.forRecordIdsWithOptions([note1.record?.id], afterTime)
+				.build(RecordItem.buildForSort())
+				.list(max:1)[0]
 			: null
 		if (beforeItem) {
 			BigDecimal midpointMillis  = (new Duration(afterTime,

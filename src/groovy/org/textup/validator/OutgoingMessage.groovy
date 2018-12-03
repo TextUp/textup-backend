@@ -71,11 +71,11 @@ class OutgoingMessage {
 		if (hasErrors()) {
 			return ""
 		}
-		Long id = contacts.recipients.find { Contact c1 -> c1.id }?.id
+		Long id = contacts?.recipients?.find { Contact c1 -> c1.id }?.id
 		if (id) { // don't return contact name, instead id, for PHI
 			IOCUtils.getMessage("outgoingMessage.getName.contactId", [id])
 		}
-		else { tags.recipients.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
+		else { tags?.recipients?.find { ContactTag ct1 -> ct1.name }?.name ?: "" }
     }
 
 	boolean getIsText() {
@@ -87,10 +87,16 @@ class OutgoingMessage {
 		if (hasErrors()) {
 			return phones
 		}
-		phones.addAll(contacts.recipients*.phone)
-		phones.addAll(sharedContacts.recipients*.sharedBy)
-		phones.addAll(sharedContacts.recipients*.sharedWith)
-		phones.addAll(tags.recipients*.phone)
+		if (contacts?.recipients) {
+			phones.addAll(contacts.recipients*.phone)
+		}
+		if (sharedContacts?.recipients) {
+			phones.addAll(sharedContacts.recipients*.sharedBy)
+			phones.addAll(sharedContacts.recipients*.sharedWith)
+		}
+		if (tags?.recipients) {
+			phones.addAll(tags.recipients*.phone)
+		}
 		phones
 	}
 }

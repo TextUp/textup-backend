@@ -29,45 +29,29 @@ class UsageUtils {
         if (!activityOwners || !activityList) {
             return activityOwners
         }
-        Map<BigInteger, T> ownerMap = [:]
-        activityOwners.each { T ha1 -> ownerMap[ha1.id] = ha1 }
+        List<T> clonedOwners = []
+        activityOwners.each { T ha1 -> clonedOwners << ha1.clone() }
+        Map<BigInteger, T> ownerMap = MapUtils.buildObjectMap({ T ha1 -> ha1.id }, clonedOwners)
         activityList.each { UsageService.ActivityRecord a1 ->
             ownerMap.get(a1.ownerId)?.setActivity(a1)
         }
-        new ArrayList<T>(ownerMap.values())
+        clonedOwners
     }
 
     static List<UsageService.ActivityRecord> ensureMonths(List<UsageService.ActivityRecord> aList) {
         // do not short circuit if aList is an empty or null because we still want to ensure
         // the proper number of months even if all months are empty
-        List<UsageService.ActivityRecord> normalized = []
-        int currIndex = 0,
-            numActivity = aList?.size()
+        Map<String, UsageService.ActivityRecord> monthStringToActivity = MapUtils
+            .buildObjectMap({ UsageService.ActivityRecord a1 -> a1.monthString }, aList)
         getAvailableMonthStrings().each { String monthString ->
-            UsageService.ActivityRecord activity
-            if (currIndex < numActivity && aList[currIndex].monthString == monthString) {
-                activity = aList[currIndex]
-                currIndex++
-            }
-            else {
-                activity = new UsageService.ActivityRecord()
-                activity.setMonthStringDirectly(monthString)
-            }
-            normalized << activity
-        }
-        normalized
-    }
-
-    static <T> BigDecimal sumProperty(Collection<? extends T> objList,
-        Closure<BigDecimal> doGetProperty) {
-        BigDecimal runningTotal = 0
-        objList?.each { T obj ->
-            BigDecimal propVal = doGetProperty(obj)
-            if (propVal) {
-                runningTotal += propVal
+            if (!monthStringToActivity.containsKey(monthString)) {
+                UsageService.ActivityRecord a1 = new UsageService.ActivityRecord()
+                a1.setMonthStringDirectly(monthString)
+                a1.monthObj = UsageUtils.monthStringToDateTime(monthString)
+                monthStringToActivity[monthString] = a1
             }
         }
-        runningTotal
+        new ArrayList<UsageService.ActivityRecord>(monthStringToActivity.values()).sort()
     }
 
     // Display helpers
@@ -78,24 +62,25 @@ class UsageUtils {
         DateTime now = DateTime.now(),
             dt = rItem?.whenCreated ?: now
         List<String> monthStrings = []
-        while (dt.isBefore(now)) {
+        // isEqual is for the edge cas where rItem.whenCreated is null so we default to the now
+        // In this case, we still want include the "now" month
+        while (dt.isBefore(now) || dt.isEqual(now)) {
             monthStrings << dateTimeToMonthString(dt)
             dt = dt.plusMonths(1)
         }
-        monthStrings << dateTimeToMonthString(now)
         monthStrings
     }
 
     static String queryMonthToMonthString(String queryMonth) {
         if (!queryMonth) {
-            return null
+            return ""
         }
         try {
-            DateTime dt = DateTimeUtils.queryMonthFormat.parseDateTime(queryMonth)
+            DateTime dt = DateTimeUtils.QUERY_MONTH_FORMAT.parseDateTime(queryMonth)
             dateTimeToMonthString(dt)
         }
         catch (IllegalArgumentException e) {
-            return null
+            return ""
         }
     }
 
@@ -103,14 +88,14 @@ class UsageUtils {
         if (!dt) {
             return ""
         }
-        DateTimeUtils.currentTimeFormat.print(dt)
+        DateTimeUtils.CURRENT_TIME_FORMAT.print(dt)
     }
 
     static String dateTimeToMonthString(DateTime dt) {
         if (!dt) {
             return ""
         }
-        DateTimeUtils.displayedMonthFormat.print(dt)
+        DateTimeUtils.DISPLAYED_MONTH_FORMAT.print(dt)
     }
 
     static DateTime monthStringToDateTime(String monthString) {
@@ -118,7 +103,7 @@ class UsageUtils {
             return null
         }
         try {
-            DateTimeUtils.displayedMonthFormat.parseDateTime(monthString)
+            DateTimeUtils.DISPLAYED_MONTH_FORMAT.parseDateTime(monthString)
         }
         catch (IllegalArgumentException e) {
             return null

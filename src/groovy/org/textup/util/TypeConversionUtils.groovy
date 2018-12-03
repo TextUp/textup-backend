@@ -22,10 +22,13 @@ class TypeConversionUtils {
     static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, def enumsOrStrings,
         List<T> fallbackList = []) {
         if (enumsOrStrings instanceof Collection) {
-            enumsOrStrings?.collect { enumOrString ->
-                (enumClass?.isInstance(enumOrString)) ? enumOrString :
-                    convertEnum(enumClass, enumOrString)
-            } ?: fallbackList
+            enumsOrStrings
+                ?.collect { enumOrString ->
+                    enumClass?.isInstance(enumOrString)
+                        ? enumOrString
+                        : convertEnum(enumClass, enumOrString)
+                }
+                ?: fallbackList
         }
         else { fallbackList }
     }

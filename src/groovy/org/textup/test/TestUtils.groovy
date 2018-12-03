@@ -242,13 +242,22 @@ class TestUtils {
         rpt
     }
 
-    static OutgoingMessage buildOutgoingMessage(String message = "hi") {
+    static OutgoingMessage buildOutgoingMessage(Phone p1, String message = "hi") {
         OutgoingMessage text = new OutgoingMessage(message: message,
-            contacts: new ContactRecipients(),
-            sharedContacts: new SharedContactRecipients(),
-            tags: new ContactTagRecipients())
+            contacts: new ContactRecipients(phone: p1),
+            sharedContacts: new SharedContactRecipients(phone: p1),
+            tags: new ContactTagRecipients(phone: p1))
         assert text.validate()
         text
+    }
+
+    static RecordItemRequest buildRecordItemRequest(Phone p1) {
+        RecordItemRequest iReq = new RecordItemRequest(phone: p1,
+            contacts: new ContactRecipients(phone: p1),
+            sharedContacts: new SharedContactRecipients(phone: p1),
+            tags: new ContactTagRecipients(phone: p1))
+        assert iReq.validate()
+        iReq
     }
 
     // Mocking

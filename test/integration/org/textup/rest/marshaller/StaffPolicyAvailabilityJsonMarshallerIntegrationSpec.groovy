@@ -1,11 +1,10 @@
-package org.textup.rest
-
-import org.textup.test.*.marshaller
+package org.textup.rest.marshaller
 
 import grails.converters.JSON
 import org.textup.*
 import org.textup.rest.StaffPolicyAvailability
 import org.textup.Schedule
+import org.textup.test.*
 import org.textup.util.*
 
 class StaffPolicyAvailabilityJsonMarshallerIntegrationSpec extends CustomSpec {

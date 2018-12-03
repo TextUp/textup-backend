@@ -1,6 +1,5 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -9,7 +8,8 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeConstants
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalTime
-import org.textup.type.ScheduleStatus
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.LocalInterval
 import org.textup.validator.ScheduleChange
@@ -30,7 +30,6 @@ class WeeklyScheduleSpec extends Specification {
 	}
 
 	def setup() {
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
         IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
 	}
 

@@ -7,8 +7,8 @@ import spock.lang.Specification
 /**
  * See the API for {@link grails.test.mixin.services.ServiceUnitTestMixin} for usage instructions
  */
-@TestFor(PDFService)
-class PDFServiceSpec extends Specification {
+@TestFor(PdfService)
+class PdfServiceSpec extends Specification {
 
     def setup() {
     }

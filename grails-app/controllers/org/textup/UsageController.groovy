@@ -138,60 +138,60 @@ class UsageController {
         ]
     }
     protected BigDecimal getTotalCost(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.totalCost
-        }
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.totalCost
+        } as BigDecimal
     }
     protected BigDecimal getUsageCost(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.cost
-        }
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.activity.cost
+        } as BigDecimal
     }
     protected BigDecimal getCallCost(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.callCost
-        }
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.activity.callCost
+        } as BigDecimal
     }
     protected BigDecimal getTextCost(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.textCost
-        }
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.activity.textCost
+        } as BigDecimal
     }
     protected BigDecimal getNumTexts(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.numTexts
-        }
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.activity.numTexts
+        } as BigDecimal
     }
     protected BigDecimal getNumSegments(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.numSegments
-        }
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.activity.numSegments
+        } as BigDecimal
     }
     protected BigDecimal getNumCalls(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.numCalls
-        }
-    }
-    protected BigDecimal getNumMinutes(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.numMinutes
-        }
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.activity.numCalls
+        } as BigDecimal
     }
     protected BigDecimal getNumBillableMinutes(Collection<? extends UsageService.HasActivity> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.numBillableMinutes
-        }
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.activity.numBillableMinutes
+        } as BigDecimal
+    }
+    protected BigDecimal getNumMinutes(Collection<? extends UsageService.HasActivity> aList) {
+        aList.inject(0 as BigDecimal) { BigDecimal sum, UsageService.HasActivity a1 ->
+            sum + a1.activity.numMinutes
+        } as BigDecimal
     }
 
     protected BigDecimal getNumPhones(Collection<UsageService.Organization> orgs) {
-        UsageUtils.sumProperty(orgs) { UsageService.Organization o1 ->
-            o1.totalNumPhones as BigDecimal
-        }
+        orgs.inject(0 as BigDecimal) { BigDecimal sum, UsageService.Organization org1 ->
+            sum + org1.totalNumPhones
+        } as BigDecimal
     }
     // numActivePhones is really only meaningful in an organizational context
-    protected BigDecimal getNumActivePhones(Collection<UsageService.Organization> aList) {
-        UsageUtils.sumProperty(aList) { UsageService.Organization a1 ->
-            a1.activity.numActivePhones as BigDecimal
-        }
+    protected BigDecimal getNumActivePhones(Collection<UsageService.Organization> orgs) {
+        orgs.inject(0 as BigDecimal) { BigDecimal sum, UsageService.Organization org1 ->
+            sum + org1.activity.numActivePhones
+        } as BigDecimal
     }
 }

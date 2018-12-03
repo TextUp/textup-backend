@@ -69,7 +69,7 @@ class ContactController extends BaseController {
         if (params.list("ids[]")) {
             listForIds(params)
         }
-        else if (MapUtils.exactly(2, ["teamId", "tagId"], params)) {
+        else if (MapUtils.countKeys(["teamId", "tagId"], params) == 2) {
             badRequest()
         }
         else if (params.teamId) {

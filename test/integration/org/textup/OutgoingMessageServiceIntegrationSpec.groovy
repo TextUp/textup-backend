@@ -107,7 +107,7 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
         mockForOutgoing(isText ? TestConstants.TEST_SMS_FROM_VALID : TestConstants.TEST_CALL_FROM_VALID)
 
         when: "an outgoing message as text"
-        OutgoingMessage msg1 = TestUtils.buildOutgoingMessage()
+        OutgoingMessage msg1 = TestUtils.buildOutgoingMessage(p1)
         msg1.message = "hello world"
         msg1.type = enumType
         msg1.contacts.recipients = _contacts

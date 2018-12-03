@@ -1,13 +1,13 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import java.util.UUID
 import org.springframework.context.MessageSource
-import org.textup.type.OrgStatus
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 import spock.lang.Ignore
 import spock.lang.Shared
@@ -24,10 +24,6 @@ class OrganizationSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
-    }
-
-    def setup() {
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     void "test constraints"() {

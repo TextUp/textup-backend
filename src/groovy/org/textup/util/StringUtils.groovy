@@ -9,11 +9,13 @@ import org.textup.*
 @Log4j
 class StringUtils {
 
-    static String toLowerCaseString(def val) {
+    static final List<String> ALPHABET = Collections.unmodifiableList(buildAlphabet())
+
+    static String toLowerCaseString(Object val) {
         "$val".toString().toLowerCase()
     }
 
-    static String toQuery(def raw) {
+    static String toQuery(Object raw) {
         String query = "$raw"
         if (!query?.startsWith("%")) query = "%$query"
         if (!query?.endsWith("%")) query = "$query%"
@@ -49,16 +51,20 @@ class StringUtils {
         myContents + toAppend
     }
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static String randomAlphanumericString(Integer l) {
-        int length = (l != null) ? l : 22
-        Collection<String> alphabet = ("a".."z") + (0..9)
-        int lastIndex = alphabet.size() - 1
+    static String randomAlphanumericString(Integer length = 22) {
+        int lastIndex = ALPHABET.size() - 1
         StringBuffer result = new StringBuffer()
         length.times {
-            int randIndex = Math.round(Math.random() * lastIndex)
-            result << alphabet[randIndex]
+            int randIndex = Math.round(Math.random() * lastIndex) as Integer
+            result << ALPHABET[randIndex]
         }
         result.toString()
+    }
+
+    protected static List<String> buildAlphabet() {
+        List<String> alphabet = []
+        ("a".."z").each(alphabet.&add)
+        (0..9).each { int val -> alphabet << val.toString() }
+        alphabet
     }
 }

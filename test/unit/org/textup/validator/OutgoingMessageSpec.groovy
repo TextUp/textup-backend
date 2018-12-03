@@ -27,7 +27,7 @@ class OutgoingMessageSpec extends CustomSpec {
 		cleanupData()
 	}
 
-	void "test constraints with media"() {
+	void "test constraints with media + cascading validation"() {
 		when: "empty obj"
 		OutgoingMessage msg1 = new OutgoingMessage()
 
@@ -50,17 +50,23 @@ class OutgoingMessageSpec extends CustomSpec {
 		msg1.errors.getFieldErrorCount("media") == 1
 		msg1.errors.getFieldError("media").codes.contains("noInfo")
 		msg1.errors.getFieldErrorCount("contacts") == 0
+		msg1.errors.getFieldErrorCount("contacts.phone") == 1
 		msg1.errors.getFieldErrorCount("sharedContacts") == 0
+		msg1.errors.getFieldErrorCount("sharedContacts.phone") == 1
 		msg1.errors.getFieldErrorCount("tags") == 0
+		msg1.errors.getFieldErrorCount("tags.phone") == 1
 
 		when: "add media element to media so no longer empty"
         msg1.media.addToMediaElements(TestUtils.buildMediaElement())
+        msg1.contacts.phone = p1
+		msg1.sharedContacts.phone = p1
+		msg1.tags.phone = p1
 
 		then:
 		msg1.validate() == true
 	}
 
-	void "test constraints with media"() {
+	void "test constraints without media"() {
 		when: "empty obj"
 		OutgoingMessage msg1 = new OutgoingMessage()
 
@@ -74,9 +80,9 @@ class OutgoingMessageSpec extends CustomSpec {
 
 		when: "add recipients + too-long message"
 		msg1.message = TestUtils.buildVeryLongString()
-		msg1.contacts = new ContactRecipients()
-		msg1.sharedContacts = new SharedContactRecipients()
-		msg1.tags = new ContactTagRecipients()
+		msg1.contacts = new ContactRecipients(phone: p1)
+		msg1.sharedContacts = new SharedContactRecipients(phone: p1)
+		msg1.tags = new ContactTagRecipients(phone: p1)
 
 		then:
 		msg1.validate() == false
@@ -94,7 +100,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test getting name"() {
 		when: "empty outgoing message"
-		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage("hello")
+		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage(p1)
 
 		then:
 		msg1.name == ""
@@ -120,7 +126,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test getting phones"() {
 		when: "empty outgoing message"
-		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage("hello")
+		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage(p1)
 
 		then:
 		msg1.phones.isEmpty() == true
@@ -149,7 +155,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "test generating recipients"() {
 		when: "an empty outgoing msg"
-		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage("hello")
+		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage(p1)
 
 		then: "no recipients"
 		msg1.toRecipients().isEmpty() == true
@@ -171,7 +177,7 @@ class OutgoingMessageSpec extends CustomSpec {
 
 	void "building map of contact ids to tags"() {
 		when: "an empty outgoing msg"
-		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage("hello")
+		OutgoingMessage msg1 = TestUtils.buildOutgoingMessage(p1)
 
 		then:
 		msg1.contactIdToTags.isEmpty() == true

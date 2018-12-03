@@ -27,7 +27,10 @@ environments {
             // username = "sa"
             // password = ""
             // dbCreate = "create-drop" // one of 'create', 'create-drop', 'update', 'validate', ''
-            // url = "jdbc:h2:mem:devDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE"
+            // // For DATABASE_TO_UPPER, see https://stackoverflow.com/a/10793358
+            // // Do NOT add DATABASE_TO_UPPER to the `test` environment because doing so results in
+            // // "ERROR hbm2ddl.SchemaUpdate  - HHH000299: Could not complete schema update"
+            // url = "jdbc:h2:mem:devDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_UPPER=FALSE"
 
             // TODO
             driverClassName = "com.mysql.jdbc.Driver"

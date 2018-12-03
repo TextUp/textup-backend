@@ -399,4 +399,21 @@ class SharedContactSpec extends CustomSpec {
         sharedList.size() == 2
         sharedList.every { it.id in targetIds }
     }
+
+    void "test getting name falls back to contact number if contact has no name"() {
+        given: "valid contacts and shared contacts"
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact2 = p1.createContact([name: TestUtils.randString()], [TestUtils.randPhoneNumber()]).payload
+
+        SharedContact sc1 = p1.share(contact1, p2, SharePermission.DELEGATE).payload
+        SharedContact sc2 = p1.share(contact2, p2, SharePermission.DELEGATE).payload
+
+        SharedContact.withSession { it.flush() }
+
+        expect:
+        sc1.name == contact1.nameOrNumber
+        sc1.name != contact1.name
+        sc2.name == contact2.nameOrNumber
+        sc2.name == contact2.name
+    }
 }

@@ -21,8 +21,6 @@ class DataFormatUtils {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static String toJsonString(Object data) {
-        // // TODO restore?
-        // data ? new JsonBuilder(data).toString() : null
         if (data) {
             JSON.use(Holders.flatConfig["textup.rest.defaultLabel"]) {
                 (data as JSON).toString()
@@ -30,6 +28,7 @@ class DataFormatUtils {
         }
         else { "" }
     }
+
     static Object jsonToObject(Object data) throws JsonException {
         data ? new JsonSlurper().parseText(toJsonString(data)) : null
     }

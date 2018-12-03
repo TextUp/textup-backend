@@ -1,7 +1,6 @@
 package org.textup.util
 
-import org.textup.*
-import org.textup.test.*
+import grails.test.runtime.DirtiesRuntime
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -11,26 +10,48 @@ import org.apache.http.client.methods.*
 import org.apache.http.HttpResponse
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
+import org.quartz.Scheduler
+import org.springframework.context.*
+import org.textup.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Specification
 
-// TODO check setup
-
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([Location])
 @TestMixin(HibernateTestMixin)
 class IOCUtilsSpec extends Specification {
 
-    static doWithSpring = {
-        resultFactory(ResultFactory)
-    }
+    @DirtiesRuntime
+    void "test getting beans from application context"() {
+        given:
+        ApplicationContext applicationContext = Mock()
+        TestUtils.mock(Holders, "getApplicationContext") { applicationContext }
 
-    def setup() {
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        when:
+        IOCUtils.resultFactory
+
+        then:
+        1 * applicationContext.getBean(ResultFactory)
+
+        when:
+        IOCUtils.quartzScheduler
+
+        then:
+        1 * applicationContext.getBean(Scheduler)
+
+        when:
+        IOCUtils.linkGenerator
+
+        then:
+        1 * applicationContext.getBean(LinkGenerator)
+
+        when:
+        IOCUtils.messageSource
+
+        then:
+        1 * applicationContext.getBean(MessageSource)
     }
 
     void "testing getting webhook link"() {

@@ -16,12 +16,12 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
             totalNumItems = itemRequest.countRecordItems()
             maxAllowedNumItems = Constants.MAX_PAGINATION_MAX
         }
-		Result<Map> res = Utils.tryGetFromRequest(Constants.REQUEST_PAGINATION_OPTIONS)
-      .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
-    if (res.success) {
-    	json.sections = itemRequest.getSections(res.payload)
-    }
-    else { json.sections = itemRequest.getSections() }
+    	Result<Map> res = Utils.tryGetFromRequest(Constants.REQUEST_PAGINATION_OPTIONS)
+          .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
+        if (res.success) {
+        	json.sections = itemRequest.getSections(res.payload)
+        }
+        else { json.sections = itemRequest.getSections() }
 		json
 	}
 

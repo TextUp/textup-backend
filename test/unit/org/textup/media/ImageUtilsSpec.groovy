@@ -170,7 +170,6 @@ class ImageUtilsSpec extends Specification {
     @Unroll
     void "test resizing width for #type"() {
         given: "obj with data"
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
         byte[] inputData1 = TestUtils.getSampleDataForMimeType(type)
         BufferedImage image1 = ImageUtils.tryGetImageFromData(inputData1)
 
@@ -221,7 +220,6 @@ class ImageUtilsSpec extends Specification {
 
     void "test compression short circuiting"() {
         given: "obj representing a PNG image (not compressible)"
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
         byte[] inputData1 = TestUtils.getPngSampleData()
         BufferedImage image1 = ImageUtils.tryGetImageFromData(inputData1)
 
@@ -246,7 +244,6 @@ class ImageUtilsSpec extends Specification {
     @Unroll
     void "test compression for #type"() {
         given: "obj with compressible data"
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
         byte[] inputData1 = TestUtils.getSampleDataForMimeType(type)
         BufferedImage image1 = ImageUtils.tryGetImageFromData(inputData1)
 

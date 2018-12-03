@@ -67,7 +67,7 @@ class StaffController extends BaseController {
         if (params.search) {
             listSearch(params)
         }
-        else if (MapUtils.exactly(1, ["organizationId", "teamId", "canShareStaffId"], params)) {
+        else if (MapUtils.countKeys(["organizationId", "teamId", "canShareStaffId"], params) == 1) {
             if (params.organizationId) {
                 listForOrg(params)
             }

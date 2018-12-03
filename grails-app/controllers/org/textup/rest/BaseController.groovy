@@ -163,7 +163,7 @@ class BaseController {
             respond(responseObj, responseInfo)
         }
     }
-    protected void respondWithPDF(String fileName, Result<byte[]> pdfRes) {
+    protected void respondWithPdf(String fileName, Result<byte[]> pdfRes) {
         if (pdfRes.success) {
             withPDFFormat {
                 InputStream iStream = new ByteArrayInputStream(pdfRes.payload)

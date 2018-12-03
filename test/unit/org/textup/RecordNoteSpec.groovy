@@ -1,6 +1,5 @@
 package org.textup
 
-import org.textup.test.*
 import com.amazonaws.services.s3.model.PutObjectResult
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -10,6 +9,7 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -23,10 +23,6 @@ class RecordNoteSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
-    }
-
-    def setup() {
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     void "test validation + cascading to location"() {

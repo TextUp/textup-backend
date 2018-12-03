@@ -1,11 +1,11 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.springframework.validation.Errors
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.validator.UploadItem
 import spock.lang.*
@@ -46,7 +46,6 @@ class MediaElementSpec extends Specification {
 
     void "test getting types and versions"() {
         given:
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
         byte[] inputData1 = TestUtils.getJpegSampleData512()
         UploadItem uItem1 = new UploadItem(type: MediaType.IMAGE_JPEG, data: inputData1)
 
@@ -145,7 +144,6 @@ class MediaElementSpec extends Specification {
 
     void "test static creation method"() {
         given:
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
         UploadItem mockSendItem = Mock(UploadItem)
         UploadItem mockAltItem = Mock(UploadItem)
 

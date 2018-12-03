@@ -26,7 +26,7 @@ class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
         UserDetails userDetails = accessToken.principal as UserDetails
         Map result = [
             (usernamePropertyName) : userDetails.username,
-            (authoritiesPropertyName) : userDetails.authorities.collect {GrantedAuthority role -> role.authority },
+            (authoritiesPropertyName) : userDetails.authorities?.collect {GrantedAuthority role -> role.authority },
             id: userDetails.id
         ]
         // add additional information about the staff

@@ -6,6 +6,7 @@ import org.quartz.Scheduler
 import org.quartz.TriggerKey
 import org.textup.*
 import org.textup.type.*
+import org.textup.util.*
 import spock.lang.*
 
 class CustomSpec extends Specification {
@@ -40,7 +41,6 @@ class CustomSpec extends Specification {
     void setupData(int iterNum) {
         IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
         IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-        IOCUtils.metaClass."static".getResultFactory = TestUtils.getResultFactory(grailsApplication)
 
         loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"

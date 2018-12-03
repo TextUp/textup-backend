@@ -247,10 +247,10 @@ class WeeklySchedule extends Schedule {
                     else if (dayOfWeek == daysOfWeek.last()) {
                         if (hasWraparound && times[1] == "2359") {
                             DateTime start = DateTimeUtils
-                                .toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
+                                .toUTCDateTimeTodayThenZone(dtf.parseLocalTime(times[0]), zone)
                                 .plusDays(addDays)
                             DateTime end = DateTimeUtils
-                                .toDateTimeTodayWithZone(dtf.parseLocalTime(firstDayWrappedEnd), zone)
+                                .toUTCDateTimeTodayThenZone(dtf.parseLocalTime(firstDayWrappedEnd), zone)
                                 .plusDays(addDays + 1)
                             intervalsForDay << new Interval(start, end)
                         }
@@ -301,9 +301,9 @@ class WeeklySchedule extends Schedule {
     protected addToIntervalsHelper(DateTimeFormatter dtf, DateTimeZone zone,
         List<Interval> intervalsForDay, List<String> times, int addDays) {
 
-        DateTime start = DateTimeUtils.toDateTimeTodayWithZone(dtf.parseLocalTime(times[0]), zone)
+        DateTime start = DateTimeUtils.toUTCDateTimeTodayThenZone(dtf.parseLocalTime(times[0]), zone)
             .plusDays(addDays)
-        DateTime end = DateTimeUtils.toDateTimeTodayWithZone(dtf.parseLocalTime(times[1]), zone)
+        DateTime end = DateTimeUtils.toUTCDateTimeTodayThenZone(dtf.parseLocalTime(times[1]), zone)
             .plusDays(addDays)
         intervalsForDay << new Interval(start, end)
     }
@@ -405,9 +405,9 @@ class WeeklySchedule extends Schedule {
                 List<String> times = str.tokenize(_restDelimiter)
                 if (times.size() == 2) {
                     DateTime start = DateTimeUtils
-                            .toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[0]), zone),
+                            .toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[0]), zone),
                         end = DateTimeUtils
-                            .toUTCDateTimeTodayFromZone(dtf.parseLocalTime(times[1]), zone)
+                            .toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[1]), zone)
                     //add days until we've reached the desired offset from today
                     //we use the start date as reference and increment the end date
                     //accordingly to preserve the range

@@ -1,7 +1,5 @@
 package org.textup.util
 
-import org.textup.*
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
@@ -11,17 +9,14 @@ import org.apache.http.client.methods.*
 import org.apache.http.HttpResponse
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
+import org.textup.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Specification
 
-// TODO check setup
-
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([Organization, Location])
 @TestMixin(HibernateTestMixin)
 class UtilsSpec extends Specification {
 
@@ -31,40 +26,6 @@ class UtilsSpec extends Specification {
 
     def setup() {
         IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-    }
-
-    void "test with default"() {
-        expect:
-        "hello" == Utils.withDefault(null, "hello")
-        "wut" == Utils.withDefault("wut", "hello")
-        22L == Utils.withDefault(null, 22L)
-        8L == Utils.withDefault(8L, 22L)
-    }
-
-    void "test executing closures without flushing the session"() {
-        given: "an saved but not persisted instance"
-        Record rec = new Record()
-        rec.save(flush:true, failOnError:true)
-
-        rec.lastRecordActivity = DateTime.now().plusHours(12)
-        assert rec.isDirty()
-        rec.save()
-        assert rec.isDirty()
-
-        when: "we do an existence that would normally flush"
-        assert Utils.<Boolean>doWithoutFlush { Staff.exists(-88L) } == false
-
-        then: "saved but not persisted instance still isn't flushed"
-        rec.isDirty()
-    }
-
-    void "test error handling on request operations"() {
-        when: "no request"
-        Result<Void> res = Utils.trySetOnRequest("hello", "world")
-
-        then: "IllegalStateException is caught and gracefully returned -- see mock"
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0].contains("No thread-bound request found")
     }
 
     void "test getting notification number"() {
@@ -99,5 +60,99 @@ class UtilsSpec extends Specification {
         res.status == ResultStatus.OK
         res.payload instanceof PhoneNumber
         notifNum == res.payload.number
+    }
+
+    void "test calling closure"() {
+        when: "no args"
+        boolean wasCalled = false
+        Utils.callClosure({ -> wasCalled = true }, [] as Object[])
+
+        then:
+        true == wasCalled
+
+        when: "one arg"
+        wasCalled = false
+        Utils.callClosure({ Integer a1 -> wasCalled = true }, [1] as Object[])
+
+        then:
+        true == wasCalled
+
+        when: "many args"
+        wasCalled = false
+        Utils.callClosure({ Integer a1, Integer a2, Integer a3 -> wasCalled = true },
+            [1, 2, 3] as Object[])
+
+        then:
+        true == wasCalled
+    }
+
+    void "test error handling on request operations"() {
+        when: "setting -- no request"
+        Result<Void> res = Utils.trySetOnRequest("hello", "world")
+
+        then: "IllegalStateException is caught and gracefully returned -- see mock"
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages[0].contains("No thread-bound request found")
+
+        when: "getting -- no request"
+        res = Utils.tryGetFromRequest("hello")
+
+        then:
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages[0].contains("No thread-bound request found")
+    }
+
+    void "test with default"() {
+        expect:
+        "hello" == Utils.withDefault(null, "hello")
+        "wut" == Utils.withDefault("wut", "hello")
+        22L == Utils.withDefault(null, 22L)
+        8L == Utils.withDefault(8L, 22L)
+    }
+
+    void "test executing closures without flushing the session"() {
+        given: "an saved but not persisted instance"
+        Organization org1 = new Organization()
+        org1.name = "hi"
+        org1.location = TestUtils.buildLocation()
+        org1.save(flush:true, failOnError:true)
+
+        org1.name = TestUtils.randString()
+        assert org1.isDirty()
+        org1.save()
+        assert org1.isDirty()
+
+        when: "we do an existence that would normally flush"
+        assert Utils.<Boolean>doWithoutFlush { Organization.exists(-88L) } == false
+
+        then: "saved but not persisted instance still isn't flushed"
+        org1.isDirty()
+    }
+
+    void "test normalizing pagination"() {
+        when: "no inputs"
+        List<Integer> normalized = Utils.normalizePagination(null, null)
+
+        then:
+        normalized.size() == 2
+        normalized[0] == 0
+        normalized[1] == Constants.DEFAULT_PAGINATION_MAX
+
+        when: "negative inputs"
+        normalized = Utils.normalizePagination(-8, -8)
+
+        then:
+        normalized.size() == 2
+        normalized[0] == 0
+        normalized[1] == Constants.DEFAULT_PAGINATION_MAX
+
+        when: "max is too high"
+        Integer offset = 888
+        normalized = Utils.normalizePagination(offset, Constants.MAX_PAGINATION_MAX * 2)
+
+        then:
+        normalized.size() == 2
+        normalized[0] == offset
+        normalized[1] == Constants.MAX_PAGINATION_MAX
     }
 }

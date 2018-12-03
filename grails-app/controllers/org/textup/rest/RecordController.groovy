@@ -28,7 +28,7 @@ class RecordController extends BaseController {
     final String EXPORT_TYPE_GROUPED = "groupByEntity"
 
     AuthService authService
-    PDFService pdfService
+    PdfService pdfService
     RecordService recordService
     ResultFactory resultFactory
 
@@ -102,9 +102,9 @@ class RecordController extends BaseController {
         // step 3: return data in specified format
         RecordItemRequest itemRequest = res.payload
         if (params.format == "pdf") {
-            String timestamp = DateTimeUtils.fileTimestampFormat.print(DateTime.now())
+            String timestamp = DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(DateTime.now())
             String exportFileName = "textup-export-${timestamp}.pdf"
-            respondWithPDF(exportFileName, pdfService.buildRecordItems(itemRequest))
+            respondWithPdf(exportFileName, pdfService.buildRecordItems(itemRequest))
         }
         else {
             Closure<Integer> count = { itemRequest.countRecordItems() }
@@ -188,14 +188,14 @@ class RecordController extends BaseController {
     protected boolean validateCreateBody(Class<RecordItem> clazz, TypeConvertingMap body) {
         switch(clazz) {
             case RecordCall:
-                if (!MapUtils.exactly(1, ["callContact", "callSharedContact"], body)) {
+                if (!MapUtils.countKeys(["callContact", "callSharedContact"], body) == 1) {
                     respondWithResult(RecordItem, resultFactory.failWithCodeAndStatus(
                         "recordController.create.tooManyForCall", ResultStatus.BAD_REQUEST))
                     return false
                 }
                 break
             case RecordNote:
-                if (!MapUtils.exactly(1, ["forContact", "forSharedContact", "forTag"], body)) {
+                if (!MapUtils.countKeys(["forContact", "forSharedContact", "forTag"], body) == 1) {
                     respondWithResult(RecordItem, resultFactory.failWithCodeAndStatus(
                         "recordController.create.tooManyForNote", ResultStatus.BAD_REQUEST))
                     return false
