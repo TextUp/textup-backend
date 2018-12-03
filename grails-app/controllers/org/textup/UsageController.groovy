@@ -111,21 +111,72 @@ class UsageController {
         BigDecimal numTeamPhones, Collection<? extends UsageService.HasActivity> teamList) {
 
         [
+            staffTotalCost: getTotalCost(staffList),
+            staffUsageCost: getUsageCost(staffList),
+            staffCallCost: getCallCost(staffList),
+            staffTextCost: getTextCost(staffList),
             numStaffPhones: numStaffPhones,
+            numStaffTexts: getNumTexts(staffList),
             numStaffSegments: getNumSegments(staffList),
+            numStaffCalls: getNumCalls(staffList),
             numStaffMinutes: getNumMinutes(staffList),
+            numStaffBillableMinutes: getNumBillableMinutes(staffList),
+
+            teamTotalCost: getTotalCost(teamList),
+            teamUsageCost: getUsageCost(teamList),
+            teamCallCost: getCallCost(teamList),
+            teamTextCost: getTextCost(teamList),
             numTeamPhones: numTeamPhones,
+            numTeamTexts: getNumTexts(teamList),
             numTeamSegments: getNumSegments(teamList),
+            numTeamCalls: getNumCalls(teamList),
             numTeamMinutes: getNumMinutes(teamList),
+            numTeamBillableMinutes: getNumBillableMinutes(teamList),
+
             currentTime: UsageUtils.dateTimeToTimestamp(DateTime.now())
         ]
     }
+    protected BigDecimal getTotalCost(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.totalCost
+        }
+    }
+    protected BigDecimal getUsageCost(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.activity.cost
+        }
+    }
+    protected BigDecimal getCallCost(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.activity.callCost
+        }
+    }
+    protected BigDecimal getTextCost(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.activity.textCost
+        }
+    }
+    protected BigDecimal getNumTexts(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.activity.numTexts
+        }
+    }
     protected BigDecimal getNumSegments(Collection<? extends UsageService.HasActivity> aList) {
         UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
-            a1.activity.numBillableSegments
+            a1.activity.numSegments
+        }
+    }
+    protected BigDecimal getNumCalls(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.activity.numCalls
         }
     }
     protected BigDecimal getNumMinutes(Collection<? extends UsageService.HasActivity> aList) {
+        UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
+            a1.activity.numMinutes
+        }
+    }
+    protected BigDecimal getNumBillableMinutes(Collection<? extends UsageService.HasActivity> aList) {
         UsageUtils.sumProperty(aList) { UsageService.HasActivity a1 ->
             a1.activity.numBillableMinutes
         }

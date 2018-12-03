@@ -13,15 +13,31 @@ import org.textup.validator.*
 final class UsageService {
 
     final String ACTIVITY_QUERY = """
-        SUM(CASE WHEN i.class = "org.textup.RecordText" THEN 1 ELSE 0 END) AS numTexts,
-        SUM(CASE WHEN i.class = "org.textup.RecordText" THEN rir.num_billable ELSE 0 END) AS numBillableSegments,
-        SUM(CASE WHEN i.class = "org.textup.RecordCall" THEN 1 ELSE 0 END) AS numCalls,
-        (SUM(CASE WHEN i.class = "org.textup.RecordCall" THEN rir.num_billable ELSE 0 END) / 60) AS numBillableMinutes
+        SUM(CASE WHEN i.num_notified IS NOT NULL THEN i.num_notified ELSE 0 END) AS numNotificationTexts,
+
+        SUM(CASE WHEN i.class = 'org.textup.RecordText' AND i.outgoing = TRUE THEN 1 ELSE 0 END) AS numOutgoingTexts,
+        SUM(CASE WHEN i.class = 'org.textup.RecordText' AND i.outgoing = TRUE THEN rir.num_segments ELSE 0 END) AS numOutgoingSegments,
+        SUM(CASE WHEN i.class = 'org.textup.RecordText' AND i.outgoing = FALSE THEN 1 ELSE 0 END) AS numIncomingTexts,
+        SUM(CASE WHEN i.class = 'org.textup.RecordText' AND i.outgoing = FALSE THEN rir.num_segments ELSE 0 END) AS numIncomingSegments,
+
+        SUM(CASE WHEN i.voicemail_in_seconds IS NOT NULL THEN i.voicemail_in_seconds / 60 ELSE 0 END) AS numVoicemailMinutes,
+        SUM(CASE WHEN i.voicemail_in_seconds IS NOT NULL THEN CEIL(i.voicemail_in_seconds / 60) ELSE 0 END) AS numBillableVoicemailMinutes,
+
+        SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = TRUE THEN 1 ELSE 0 END) AS numOutgoingCalls,
+        SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = TRUE THEN rir.num_minutes ELSE 0 END) AS numOutgoingMinutes,
+        SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = TRUE THEN rir.ceil_num_minutes ELSE 0 END) AS numOutgoingBillableMinutes,
+        SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = FALSE THEN 1 ELSE 0 END) AS numIncomingCalls,
+        SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = FALSE THEN rir.num_minutes ELSE 0 END) AS numIncomingMinutes,
+        SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = FALSE THEN rir.ceil_num_minutes ELSE 0 END) AS numIncomingBillableMinutes
     """
     final String ACTIVE_PHONES_QUERY = "COUNT(DISTINCT(p.id)) AS numActivePhones"
     final String ACTIVITY_QUERY_SOURCE = """
         FROM record_item AS i
-        JOIN record_item_receipt AS rir ON rir.item_id = i.id
+        JOIN (SELECT item_id,
+                (CASE WHEN num_billable IS NOT NULL THEN num_billable ELSE 1 END) AS num_segments,
+                (CASE WHEN num_billable IS NOT NULL THEN num_billable / 60 ELSE 1 END) AS num_minutes,
+                (CASE WHEN num_billable IS NOT NULL THEN CEIL(num_billable / 60) ELSE 1 END) AS ceil_num_minutes
+            FROM record_item_receipt) AS rir ON rir.item_id = i.id
         JOIN contact AS c ON c.record_id = i.record_id
         JOIN phone AS p ON c.phone_id = p.id
     """
@@ -32,10 +48,23 @@ final class UsageService {
         BigInteger ownerId
         String monthString
         BigInteger numActivePhones = 0
-        BigDecimal numTexts = 0
-        BigDecimal numBillableSegments = 0
-        BigDecimal numCalls = 0
-        BigDecimal numBillableMinutes = 0
+
+        BigDecimal numNotificationTexts = 0
+
+        BigDecimal numOutgoingTexts = 0
+        BigDecimal numOutgoingSegments = 0
+        BigDecimal numIncomingTexts = 0
+        BigDecimal numIncomingSegments = 0
+
+        BigDecimal numVoicemailMinutes = 0
+        BigDecimal numBillableVoicemailMinutes = 0
+
+        BigDecimal numOutgoingCalls = 0
+        BigDecimal numOutgoingMinutes = 0
+        BigDecimal numOutgoingBillableMinutes = 0
+        BigDecimal numIncomingCalls = 0
+        BigDecimal numIncomingMinutes = 0
+        BigDecimal numIncomingBillableMinutes = 0
 
         void setMonthString(String queryMonth) {
             this.monthString = UsageUtils.queryMonthToMonthString(queryMonth)
@@ -43,16 +72,43 @@ final class UsageService {
         void setMonthStringDirectly(String monthString) {
             this.monthString = monthString
         }
+
+        BigDecimal getCost() {
+            textCost + callCost
+        }
+
+        BigDecimal getNumTexts() { numOutgoingTexts + numIncomingTexts }
+        BigDecimal getNumSegments() { numOutgoingSegments + numIncomingSegments }
+        BigDecimal getTextCost() {
+            (numSegments + numNotificationTexts) * Constants.UNIT_COST_TEXT
+        }
+
+        BigDecimal getNumCalls() { numOutgoingCalls + numIncomingCalls }
+        BigDecimal getNumMinutes() { numOutgoingMinutes + numIncomingMinutes }
+        BigDecimal getNumBillableMinutes() { numOutgoingBillableMinutes + numIncomingBillableMinutes }
+
+        BigDecimal getCallCost() {
+            (numBillableMinutes + numBillableVoicemailMinutes) * Constants.UNIT_COST_CALL
+        }
     }
 
     public static class HasActivity {
         BigInteger id
         UsageService.ActivityRecord activity = new ActivityRecord()
+
+        BigDecimal getTotalCost() {
+            activity.textCost + activity.callCost + Constants.UNIT_COST_NUMBER
+        }
     }
 
     public static class Organization extends HasActivity {
         String name
         BigInteger totalNumPhones = 0
+
+        @Override
+        BigDecimal getTotalCost() {
+            activity.textCost + activity.callCost + (totalNumPhones * Constants.UNIT_COST_NUMBER)
+        }
     }
 
     public static class Staff extends HasActivity {
@@ -292,10 +348,7 @@ final class UsageService {
                 SELECT LEFT(i.when_created, 7) AS monthString,
                     ${ACTIVE_PHONES_QUERY},
                     ${ACTIVITY_QUERY}
-                FROM record_item AS i
-                JOIN record_item_receipt AS rir ON rir.item_id = i.id
-                JOIN contact AS c ON c.record_id = i.record_id
-                JOIN phone AS p ON c.phone_id = p.id
+                ${ACTIVITY_QUERY_SOURCE}
                 WHERE p.number_as_string = :number
                 GROUP BY LEFT(i.when_created, 7)
                 ORDER BY LEFT(i.when_created, 7) ASC;

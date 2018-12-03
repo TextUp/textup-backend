@@ -1,6 +1,9 @@
 $(document).ready(function() {
   var HEX_COLOR_1 = "#1f77b4",
     HEX_COLOR_2 = "#ff7600",
+    HEX_COLOR_3 = "#2ecc71",
+    HEX_COLOR_4 = "#9b59b6",
+    HEX_COLOR_5 = "#1abc9c",
     charts = [],
     $chartSelector = $(".chart-type-selector"),
     orgId = $chartSelector.data("orgId"),
@@ -10,6 +13,7 @@ $(document).ready(function() {
     $("table")
       .DataTable({
         pageLength: 10,
+        scrollX: true,
         dom:
           "<'row'<'col-sm-6'B><'col-sm-6 flex flex--align-center flex-justify-end'<'margin-r'f>l>>" +
           "<'row'<'col-sm-12'tr>>" +
@@ -133,16 +137,20 @@ $(document).ready(function() {
   }
 
   function refreshChartData(chartObj) {
-    var propsToDisplay = getCurrentPropsToDisplay();
+    var propsAndTypes = getCurrentPropsAndTypesToDisplay(),
+      propGroupsToDisplay = getCurrentPropGroupsToDisplay();
     chartObj.load({
       json: retrieveDataOnChart(chartObj),
-      keys: { value: propsToDisplay },
+      keys: { value: Object.keys(propsAndTypes) },
+      types: propsAndTypes,
       unload: true
     });
+    chartObj.groups(propGroupsToDisplay);
   }
 
   function generateChart(bindTo, currentMonthIndex, chartData) {
-    var propsToDisplay = getCurrentPropsToDisplay(),
+    var propsAndTypes = getCurrentPropsAndTypesToDisplay(),
+      propGroupsToDisplay = getCurrentPropGroupsToDisplay(),
       months = chartData.map(function(month) {
         return month.monthString;
       }),
@@ -173,20 +181,42 @@ $(document).ready(function() {
       data: {
         onclick: changeMonthFromChartClick,
         json: chartData,
-        keys: { value: propsToDisplay },
+        keys: { value: Object.keys(propsAndTypes) },
+        types: propsAndTypes,
+        groups: propGroupsToDisplay,
         colors: {
+          cost: HEX_COLOR_1,
+          textCost: HEX_COLOR_4,
+          callCost: HEX_COLOR_5,
           numActivePhones: HEX_COLOR_1,
-          numTexts: HEX_COLOR_1,
-          numBillableSegments: HEX_COLOR_2,
-          numCalls: HEX_COLOR_1,
-          numBillableMinutes: HEX_COLOR_2
+          numNotificationTexts: HEX_COLOR_3,
+          numOutgoingTexts: HEX_COLOR_1,
+          numIncomingTexts: HEX_COLOR_2,
+          numOutgoingSegments: HEX_COLOR_1,
+          numIncomingSegments: HEX_COLOR_2,
+          numVoicemailMinutes: HEX_COLOR_3,
+          numOutgoingMinutes: HEX_COLOR_1,
+          numIncomingMinutes: HEX_COLOR_2,
+          numBillableVoicemailMinutes: HEX_COLOR_3,
+          numOutgoingBillableMinutes: HEX_COLOR_1,
+          numIncomingBillableMinutes: HEX_COLOR_2
         },
         names: {
+          cost: "$ fees for usage overall",
+          textCost: "$ fees for texts",
+          callCost: "$ fees for calls",
           numActivePhones: "# active phones",
-          numTexts: "# texts",
-          numBillableSegments: "# billable segments",
-          numCalls: "# calls",
-          numBillableMinutes: "# billable minutes"
+          numNotificationTexts: "# notification texts",
+          numOutgoingTexts: "# outgoing texts",
+          numIncomingTexts: "# incoming texts",
+          numOutgoingSegments: "# outgoing text segments",
+          numIncomingSegments: "# incoming text segments",
+          numVoicemailMinutes: "# voicemail minutes",
+          numOutgoingMinutes: "# outgoing call minutes",
+          numIncomingMinutes: "# incoming call minutes",
+          numBillableVoicemailMinutes: "# voicemail billable minutes",
+          numOutgoingBillableMinutes: "# outgoing call billable minutes",
+          numIncomingBillableMinutes: "# incoming call billable minutes"
         }
       },
       grid: gridOptions,
@@ -197,7 +227,15 @@ $(document).ready(function() {
     return chartObj;
   }
 
-  function getCurrentPropsToDisplay() {
-    return $(".chart-type-selector .active").data("props") || [];
+  function getCurrentPropsAndTypesToDisplay() {
+    var $active = $(".chart-type-selector .active");
+    $active.removeData("props"); // force jQuery to re-read HTML data attribute
+    return $active.data("props") || {};
+  }
+
+  function getCurrentPropGroupsToDisplay() {
+    var $active = $(".chart-type-selector .active");
+    $active.removeData("propGroups"); // force jQuery to re-read HTML data attribute
+    return $active.data("propGroups") || [];
   }
 });

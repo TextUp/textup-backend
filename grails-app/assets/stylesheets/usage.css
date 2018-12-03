@@ -2,6 +2,10 @@
     margin-right: 1rem;
 }
 
+.text--bold {
+    font-weight: 700;
+}
+
 .chart-current-month {
     width: 20px;
     transform: translateX(-10px);
@@ -27,6 +31,12 @@ tr.number-detail-expanded + tr > td {
     border-top-width: 0;
 }
 
+.table--horizontal-scroll th, .table--horizontal-scroll td { white-space: nowrap; }
+
+.table-cell__highlight {
+    background-color: #f3f7fa;
+}
+
 .flex {
     display: flex;
 }
@@ -40,7 +50,7 @@ tr.number-detail-expanded + tr > td {
 .usage-header {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
 }
 .usage-header--sticky {
     -webkit-position: sticky;
@@ -61,9 +71,13 @@ tr.number-detail-expanded + tr > td {
 
 .usage-context-list {
     display: flex;
+    justify-content: flex-end;
     list-style-type: none;
     padding: 0;
     margin: 0;
+}
+.usage-context-list + .usage-context-list {
+    margin-top: 1rem;
 }
 .usage-context-list__item {
     white-space: nowrap;

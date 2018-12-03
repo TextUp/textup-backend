@@ -25,6 +25,13 @@ class Constants {
 	static final int DEFAULT_TOKEN_LENGTH = 25
 	static final int MAX_NUM_ACCESS_NOTIFICATION_TOKEN = 3
 
+	// Billing
+	// -------
+
+	static final double UNIT_COST_NUMBER = 5
+	static final double UNIT_COST_TEXT = 0.01
+	static final double UNIT_COST_CALL = 0.015
+
 	// HTTP
 	// ----
 

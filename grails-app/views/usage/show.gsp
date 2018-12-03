@@ -29,9 +29,18 @@
                     <h4>${org.name} Staff</h4>
                 </div>
                 <div class="usage-header__item">
-                    <tmpl:context numPhones="${numStaffPhones}"
+                    <tmpl:context
+                        totalCost="${staffTotalCost}"
+                        usageCost="${staffUsageCost}"
+                        callCost="${staffCallCost}"
+                        textCost="${staffTextCost}"
+                        numPhones="${numStaffPhones}"
+                        numActivePhones="${numActiveStaffPhones}"
+                        numTexts="${numStaffTexts}"
                         numSegments="${numStaffSegments}"
-                        numMinutes="${numStaffMinutes}" />
+                        numCalls="${numStaffCalls}"
+                        numMinutes="${numStaffMinutes}"
+                        numBillableMinutes="${numStaffBillableMinutes}" />
                 </div>
             </div>
             <div class="panel-body">
@@ -49,9 +58,18 @@
                     <h4>${org.name} Teams</h4>
                 </div>
                 <div class="usage-header__item">
-                    <tmpl:context numPhones="${numTeamPhones}"
+                    <tmpl:context
+                        totalCost="${teamTotalCost}"
+                        usageCost="${teamUsageCost}"
+                        callCost="${teamCallCost}"
+                        textCost="${teamTextCost}"
+                        numPhones="${numTeamPhones}"
+                        numActivePhones="${numActiveTeamPhones}"
+                        numTexts="${numTeamTexts}"
                         numSegments="${numTeamSegments}"
-                        numMinutes="${numTeamMinutes}" />
+                        numCalls="${numTeamCalls}"
+                        numMinutes="${numTeamMinutes}"
+                        numBillableMinutes="${numTeamBillableMinutes}" />
                 </div>
             </div>
             <div class="panel-body">

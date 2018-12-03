@@ -1,5 +1,5 @@
 <g:form class="form-inline" action="updateTimeframe" params="[id: id]">
-    <span class="margin-r">Select chart points to change timeframe or</span>
+    <span class="margin-r">Select chart points or</span>
     <div class="form-group">
         <label class="sr-only" for="timeframe">Timeframe</label>
         <g:select class="form-control"
