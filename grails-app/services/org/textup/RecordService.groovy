@@ -30,7 +30,7 @@ class RecordService {
                 ResultStatus.UNPROCESSABLE_ENTITY).toGroup()
         }
         Staff authUser = authService.loggedInAndActive
-        if (!p1.owner.all.any { Staff s2 -> s2.id == authUser.id }) {
+        if (!p1.owner.buildAllStaff().any { Staff s2 -> s2.id == authUser.id }) {
             return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
         }
         Result<Class<RecordItem>> res = RecordUtils.determineClass(body)

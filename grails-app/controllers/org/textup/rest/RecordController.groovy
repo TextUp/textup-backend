@@ -71,7 +71,9 @@ class RecordController extends BaseController {
             paramType=RestApiParamType.QUERY,
             description="Ids of contacts shared with the current user to fetch records for"),
         @RestApiParam(name="tagIds[]", type="List", required=false,
-            paramType=RestApiParamType.QUERY, description="Ids of tags to fetch records for")
+            paramType=RestApiParamType.QUERY, description="Ids of tags to fetch records for"),
+        @RestApiParam(name="timezone", type="String", paramType=RestApiParamType.QUERY,
+            required=false, description='''IANA zone info key to convert times to, defaults to UTC if unspecified or invalid''')
     ])
     @RestApiResponseObject(objectIdentifier = "RecordCall, RecordText, or RecordNote")
     @RestApiErrors(apierrors=[
@@ -99,6 +101,7 @@ class RecordController extends BaseController {
             return respondWithResult(null, res)
         }
         Utils.trySetOnRequest(Constants.REQUEST_PAGINATION_OPTIONS, params)
+        Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, params.timezone)
         // step 3: return data in specified format
         RecordItemRequest itemRequest = res.payload
         if (params.format == "pdf") {
@@ -188,14 +191,14 @@ class RecordController extends BaseController {
     protected boolean validateCreateBody(Class<RecordItem> clazz, TypeConvertingMap body) {
         switch(clazz) {
             case RecordCall:
-                if (!MapUtils.countKeys(["callContact", "callSharedContact"], body) == 1) {
+                if (MapUtils.countKeys(["callContact", "callSharedContact"], body) != 1) {
                     respondWithResult(RecordItem, resultFactory.failWithCodeAndStatus(
                         "recordController.create.tooManyForCall", ResultStatus.BAD_REQUEST))
                     return false
                 }
                 break
             case RecordNote:
-                if (!MapUtils.countKeys(["forContact", "forSharedContact", "forTag"], body) == 1) {
+                if (MapUtils.countKeys(["forContact", "forSharedContact", "forTag"], body) != 1) {
                     respondWithResult(RecordItem, resultFactory.failWithCodeAndStatus(
                         "recordController.create.tooManyForNote", ResultStatus.BAD_REQUEST))
                     return false

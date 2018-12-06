@@ -1,21 +1,27 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import grails.test.mixin.web.ControllerUnitTestMixin
 import grails.validation.ValidationErrors
 import java.util.UUID
 import org.springframework.context.MessageSource
+import org.textup.test.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.PhoneNumber
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 
 @Domain([Token, Organization, Location])
-@TestMixin(HibernateTestMixin)
+@TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 class TokenSpec extends Specification {
+
+    def setup() {
+        TestUtils.mockJsonToString()
+    }
 
     void "test constraints"() {
     	when: "we have an empty token"

@@ -19,11 +19,11 @@ env:
   - TEST_SCOPE='"unit:" org.textup.media.*'
   - TEST_SCOPE='"unit:" org.textup.rest.* org.textup.test.*'
 before_script:
-- chmod +x grailsw
-- "./grailsw clean"
-- "./grailsw refresh-dependencies"
+  - chmod +x grailsw
+  - "./grailsw clean"
+  - "./grailsw refresh-dependencies"
 script:
-- "./grailsw test-app $TEST_SCOPE"
+  - "./grailsw test-app $TEST_SCOPE"
 jobs:
   include:
   - stage: deploy

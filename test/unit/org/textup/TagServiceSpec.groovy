@@ -1,14 +1,13 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.joda.time.DateTime
-import org.textup.type.FutureMessageType
-import org.textup.type.VoiceLanguage
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 import spock.lang.Shared
 

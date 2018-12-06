@@ -1,13 +1,14 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
+import grails.test.mixin.web.ControllerUnitTestMixin
 import grails.test.runtime.*
 import java.util.concurrent.*
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -18,7 +19,7 @@ import spock.lang.*
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
     MediaInfo, MediaElement, MediaElementVersion, Token])
-@TestMixin(HibernateTestMixin)
+@TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 @TestFor(OutgoingMessageService)
 class OutgoingMessageServiceSpec extends CustomSpec {
 

@@ -1,7 +1,8 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.TestFor
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Specification

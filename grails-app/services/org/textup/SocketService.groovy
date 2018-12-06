@@ -49,7 +49,7 @@ class SocketService {
             return resGroup
         }
         Collection serialized = DataFormatUtils.jsonToObject([p1])
-        p1.owner.all.each { Staff s1 ->
+        p1.owner.buildAllStaff().each { Staff s1 ->
             resGroup << sendToDataToStaff(s1, Constants.SOCKET_EVENT_PHONES, serialized)
         }
         resGroup
@@ -76,7 +76,7 @@ class SocketService {
     protected Collection<Staff> getStaffsForRecords(Collection<Record> recs) {
         HashSet<Phone> phones = Phone.getPhonesForRecords(recs)
         HashSet<Staff> staffList = new HashSet<>()
-        phones*.owner.each { PhoneOwnership po1 -> staffList.addAll(po1.all) }
+        phones*.owner.each { PhoneOwnership po1 -> staffList.addAll(po1.buildAllStaff()) }
         staffList
     }
 

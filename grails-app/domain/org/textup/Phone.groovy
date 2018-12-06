@@ -277,8 +277,8 @@ class Phone implements WithMedia, WithId {
 
     boolean canShare(Phone sWith) {
         if (!sWith) { return false }
-        Collection<Team> myTeams = Team.listForStaffs(this.owner.all),
-            sharedWithTeams = Team.listForStaffs(sWith.owner.all)
+        Collection<Team> myTeams = Team.listForStaffs(this.owner.buildAllStaff()),
+            sharedWithTeams = Team.listForStaffs(sWith.owner.buildAllStaff())
         HashSet<Team> allowedTeams = new HashSet<>(myTeams)
         sharedWithTeams.any { it in allowedTeams }
     }
@@ -333,7 +333,7 @@ class Phone implements WithMedia, WithId {
     // ---------------
 
     String getName() {
-        this.owner.name
+        this.owner.buildName()
     }
     boolean getIsActive() {
         this.getNumber().validate()

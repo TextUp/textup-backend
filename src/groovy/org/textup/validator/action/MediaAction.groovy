@@ -11,6 +11,14 @@ import org.textup.validator.UploadItem
 
 // documented as [mediaAction] in CustomApiDocs.groovy
 
+// [IMPORTANT] On classes with the Validateable annotation, public getters with no properties and
+// no defined field are treated like fields during validation. Making these getters protected
+// or overloading the method stops these from being treated as constrainted properties. Therefore,
+// in this special case, if we don't want these methods to be called during validation, we need to
+// (1) rename the method, (2) make the method protected, or (3) overload the method. If we are
+// all right with the getter being called but we want to apply custom constraints on it, then we
+// need to declare it as a static final field to make the constraints pass type checking.
+
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
@@ -24,7 +32,12 @@ class MediaAction extends BaseAction {
 	// required when removing
 	String uid
 
+	final byte[] byteData
+	final MediaType type
+
 	static constraints = {
+		byteData nullable:true
+		type nullable:true
 		mimeType nullable:true, blank:true, validator: { String mimeType, MediaAction obj ->
 			if (obj.matches(Constants.MEDIA_ACTION_ADD)) {
 				if (!mimeType) {

@@ -297,7 +297,7 @@ class SharedContact implements Contactable, WithId {
         // and when we are getting notification statuses for the sharedWith collabors, we must
         // go to the sharedBy phone to retrieve the notification policies
         if (this.canView) {
-            sharedBy.owner.getNotificationStatusesForStaffsAndRecords(this.sharedWith.owner.all,
+            sharedBy.owner.getNotificationStatusesForStaffsAndRecords(this.sharedWith.owner.buildAllStaff(),
                 [this.contact.record.id])
         }
         else { [] }

@@ -14,7 +14,7 @@ class Constants {
 	static final int DIRECT_MESSAGE_MAX_REPEATS = 5
 
 	static final int DEFAULT_PAGINATION_MAX = 10
-	static final int MAX_PAGINATION_MAX = 10000
+	static final int MAX_PAGINATION_MAX = 5000
 
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
 	// keep the space before the away message to aid in appropriate spacing when appending to ensure

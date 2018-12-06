@@ -233,22 +233,34 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
 
     Result<OutgoingMessage> tryGetOutgoingMessage() {
         OutgoingMessage msg1 = Utils.doWithoutFlush {
-            // step 1: populate recipients
+            // step 1: initialize recipients
             ContactRecipients cRecip = new ContactRecipients()
             ContactTagRecipients ctRecip = new ContactTagRecipients()
+            SharedContactRecipients scRecip = new SharedContactRecipients()
+            Phone p1
+            // step 2: populate recipients
             ContactTag tag = ContactTag.findByRecord(this.record)
-            if (tag) { ctRecip.recipients = [tag] }
+            if (tag) {
+                ctRecip.recipients = [tag]
+                p1 = tag.phone
+            }
             else {
                 Contact contact = Contact.findByRecord(this.record)
-                if (contact) { cRecip.recipients = [contact] }
+                if (contact) {
+                    cRecip.recipients = [contact]
+                    p1 = contact.phone
+                }
             }
+            cRecip.phone = p1
+            ctRecip.phone = p1
+            scRecip.phone = p1
             // step 2: initialize classes
             new OutgoingMessage(
                 message: this.message,
                 media: this.media,
                 language: this.language,
                 type: this.type?.toRecordItemType(),
-                sharedContacts: new SharedContactRecipients(),
+                sharedContacts: scRecip,
                 contacts: cRecip,
                 tags: ctRecip)
         }

@@ -3,6 +3,8 @@ package org.textup.rest.marshaller
 import grails.compiler.GrailsTypeChecked
 import org.textup.*
 import org.textup.rest.*
+import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
@@ -20,6 +22,11 @@ class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
             if (rev.authorId) authorId = rev.authorId
             if (rev.authorType) authorType = rev.authorType.toString()
         }
+        Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
+            .logFail("RecordNoteRevisionJsonMarshaller: no available request", LogLevel.DEBUG)
+            .thenEnd { String tz = null ->
+                json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
+            }
         json
     }
 

@@ -1,19 +1,21 @@
 package org.textup.rest
 
-import org.textup.test.*
 import grails.plugin.jodatime.converters.JodaConverters
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
+import grails.test.runtime.DirtiesRuntime
 import grails.validation.ValidationErrors
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.type.SharePermission
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.Shared
 import spock.lang.Specification
 import static javax.servlet.http.HttpServletResponse.*
@@ -30,12 +32,14 @@ class RecordControllerSpec extends CustomSpec {
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
         setupData()
         JodaConverters.registerJsonAndXmlMarshallers()
         controller.recordService = [parseTypes:{ Collection<?> rawTypes -> [] }] as RecordService
         controller.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
+
     def cleanup() {
         cleanupData()
     }
@@ -43,128 +47,129 @@ class RecordControllerSpec extends CustomSpec {
     // List
     // ----
 
-    void "test list with no ids"() {
-        when:
-        request.method = "GET"
-        controller.index()
-
-        then:
-        response.status == SC_BAD_REQUEST
-    }
-    void "test list with both contact and tag id"() {
-        when:
-        request.method = "GET"
-        params.contactId = 2L
-        params.tagId = 8L
-        controller.index()
-
-        then:
-        response.status == SC_BAD_REQUEST
-    }
-    void "test list with nonexistent contact id"() {
-        when:
-        request.method = "GET"
-        params.contactId = -888L
-        controller.index()
-
-        then:
-        response.status == SC_NOT_FOUND
-    }
-    void "test list with forbidden contact id that is shared with me"() {
+    @DirtiesRuntime
+    void "test listing error conditions"() {
         given:
-        controller.authService = [
-            hasPermissionsForContact:{ Long id -> false },
-            getSharedContactIdForContact:{ Long cId -> null }
-        ] as AuthService
+        controller.authService = Mock(AuthService)
+        String errorMsg = TestUtils.randString()
+        MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
+            Result.createError([errorMsg], ResultStatus.BAD_REQUEST)
+        }
+        Long teamId = TestUtils.randIntegerUpTo(88)
 
-        when:
-        request.method = "GET"
-        params.contactId = 2L
+        when: "validation error when building record item request"
         controller.index()
 
         then:
-        response.status == SC_FORBIDDEN
-    }
-    void "test list with forbidden tag id"() {
-        controller.authService = [
-            hasPermissionsForTag:{ Long id -> false }
-        ] as AuthService
+        1 * controller.authService.loggedInAndActive
+        buildRecordItemRequest.callCount == 1
+        response.status == ResultStatus.BAD_REQUEST.intStatus
 
-        when:
-        request.method = "GET"
-        params.tagId = tag1.id
+        when: "passed in nonexistent team id"
+        params.clear()
+        response.reset()
+
+        params.teamId = teamId
         controller.index()
 
         then:
-        response.status == SC_FORBIDDEN
-    }
+        1 * controller.authService.loggedInAndActive
+        1 * controller.authService.exists(Team, teamId) >> false
+        buildRecordItemRequest.callCount == 1
+        response.status == ResultStatus.NOT_FOUND.intStatus
 
-    void "test list with no dates"() {
-        when:
-        request.method = "GET"
-        controller.listForRecord(c1.record, params)
-        List<Long> ids = TypeConversionUtils.allTo(Long, c1.record.items*.id)
+        when: "forbidden to access team's phone"
+        params.clear()
+        response.reset()
+
+        params.teamId = teamId
+        controller.index()
 
         then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
+        1 * controller.authService.loggedInAndActive
+        1 * controller.authService.exists(Team, teamId) >> true
+        1 * controller.authService.hasPermissionsForTeam(teamId) >> false
+        buildRecordItemRequest.callCount == 1
+        response.status == ResultStatus.FORBIDDEN.intStatus
     }
 
-    void "test list with no dates for shared contact with view-only permissions"() {
+    @DirtiesRuntime
+    void "test passing pagination options and timezone when listing items"() {
         given:
-        sc1.permission = SharePermission.VIEW
-        sc1.save(flush: true, failOnError: true)
-
-        controller.authService = [
-            hasPermissionsForContact:{ Long id -> false },
-            getSharedContactIdForContact:{ Long cId -> sc1.id }
-        ] as AuthService
-        List<Long> ids = TypeConversionUtils.allTo(Long, sc1.tryGetReadOnlyRecord().payload.items*.id)
+        controller.authService = Stub(AuthService)
+        RecordItemRequest stubItemRequest = Stub() {
+            countRecordItems() >> 100
+            getRecordItems(*_) >> []
+        }
+        MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
+            Result.createSuccess(stubItemRequest, ResultStatus.OK)
+        }
+        String tzId = TestUtils.randString()
 
         when:
-        request.method = "GET"
-        params.contactId = 2L
+        params.timezone = tzId
         controller.index()
 
         then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
+        request[Constants.REQUEST_PAGINATION_OPTIONS] == params
+        request[Constants.REQUEST_TIMEZONE] == tzId
     }
 
-    void "test list with date since"() {
+    @DirtiesRuntime
+    void "test listing with json response"() {
+        given:
+        controller.authService = Mock(AuthService)
+        Phone mockPhone = Mock()
+        Staff staffStub = Stub { getPhone() >> mockPhone }
+        RecordItemRequest mockItemRequest = Mock()
+        MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
+            Result.createSuccess(mockItemRequest, ResultStatus.OK)
+        }
+
         when:
-        DateTime since = DateTime.now().minusDays(1)
-        request.method = "GET"
-        params.since = since.toDate()
-        controller.listForRecord(c1.record, params)
-        List<Long> ids = TypeConversionUtils.allTo(Long, c1.record.getSince(since)*.id)
+        controller.index()
 
         then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
+        (1.._) * controller.authService.loggedInAndActive >> staffStub
+        1 * mockItemRequest.countRecordItems() >> 100
+        1 * mockItemRequest.getRecordItems(*_) >> []
+        buildRecordItemRequest.callCount == 1
+        buildRecordItemRequest.callArguments[0][0] == mockPhone
+        buildRecordItemRequest.callArguments[0][1] == params
+        buildRecordItemRequest.callArguments[0][2] == false
+        response.status == ResultStatus.OK.intStatus
+        response.getHeaderValue("Content-Type") == "application/json;charset=UTF-8"
+        response.json.records.size() == 0 // getRecordItems returns an empty list
+        response.json.meta.total == 100
     }
 
-    void "test list with date between"() {
+    @DirtiesRuntime
+    void "test listing with pdf response"() {
+        given:
+        controller.authService = Mock(AuthService)
+        controller.pdfService = Mock(PdfService)
+        Phone mockPhone = Mock()
+        Staff staffStub = Stub { getPhone() >> mockPhone }
+        RecordItemRequest mockItemRequest = Mock()
+        MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
+            Result.createSuccess(mockItemRequest, ResultStatus.OK)
+        }
+
         when:
-        DateTime since = DateTime.now().minusDays(1)
-        DateTime before = DateTime.now().minusHours(1)
-        request.method = "GET"
-        params.since = since.toDate()
-        params.before = before.toDate()
-        controller.listForRecord(c1.record, params)
-        List<Long> ids = TypeConversionUtils.allTo(Long, c1.record.getBetween(since, before)*.id)
+        params.format = "pdf"
+        controller.index()
 
         then:
-        response.status == SC_OK
-        response.json.records.size() == ids.size()
-        //this is a little different because this went to respondHandleEmpty
-        //which explicitly puts in the root "records." All the other tests above
-        //rely on the renderer to put in the "records" root which is not loaded
-        //in these unit tests.
-        response.json.records*.id.every { ids.contains(it as Long) }
+        (1.._) * controller.authService.loggedInAndActive >> staffStub
+        1 * controller.pdfService.buildRecordItems(mockItemRequest) >>
+            Result.createSuccess([] as byte[], ResultStatus.OK)
+        buildRecordItemRequest.callCount == 1
+        buildRecordItemRequest.callArguments[0][0] == mockPhone
+        buildRecordItemRequest.callArguments[0][1] == params
+        buildRecordItemRequest.callArguments[0][2] == false
+        response.status == ResultStatus.OK.intStatus
+        response.getHeaderValue("Content-Type") == "application/pdf;charset=utf-8"
+        response.getHeaderValue("Content-Disposition").contains("attachment;filename=")
     }
 
     // Show

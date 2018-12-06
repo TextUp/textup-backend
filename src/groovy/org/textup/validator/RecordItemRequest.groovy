@@ -49,7 +49,7 @@ class RecordItemRequest {
         getCriteria().count() as Integer
     }
 
-    List<RecordItem> getRecordItems(Map params = [:], boolean recentFirst = true) {
+    List<RecordItem> getRecordItems(Map params = null, boolean recentFirst = true) {
         if (hasErrors()) {
             return []
         }
@@ -65,7 +65,8 @@ class RecordItemRequest {
         if (hasErrors()) {
             return []
         }
-        String phoneName = phone?.owner?.name
+        String phoneName = phone?.owner?.buildName()
+        String phoneNumber = phone?.number?.prettyPhoneNumber
         // when exporting, we want the oldest records first instead of most recent first
         List<RecordItem> rItems = getRecordItems(params, false)
         // group by entity only makes sense if we have entities and haven't fallen back
@@ -73,11 +74,12 @@ class RecordItemRequest {
         if (hasAnyRecipients() && groupByEntity) {
             Map<Long, Collection<RecordItem>> recordIdToItems = MapUtils
                 .<Long, RecordItem>buildManyObjectsMap({ RecordItem i1 -> i1.record.id }, rItems)
-            buildSectionsByEntity(phoneName, recordIdToItems)
+            buildSectionsByEntity(phoneName, phoneNumber, recordIdToItems)
         }
         else {
             [
                 new RecordItemRequestSection(phoneName: phoneName,
+                    phoneNumber: phoneNumber,
                     contactNames: contacts?.recipients?.collect { it.nameOrNumber },
                     sharedContactNames: sharedContacts?.recipients?.collect { it.name },
                     tagNames: tags?.recipients?.collect { it.name },
@@ -105,29 +107,32 @@ class RecordItemRequest {
         resGroup.payload*.id
     }
 
-    protected List<RecordItemRequestSection> buildSectionsByEntity(String pName,
+    protected List<RecordItemRequestSection> buildSectionsByEntity(String pName, String pNum,
         Map<Long, Collection<RecordItem>> rIdToItems) {
 
         ResultGroup<RecordItemRequestSection> resGroup = new ResultGroup<>()
-        resGroup << contacts?.recipients?.collect { addSectionForEntity(it, pName, rIdToItems) }
-        resGroup << sharedContacts?.recipients?.collect { addSectionForEntity(it, pName, rIdToItems) }
-        resGroup << tags?.recipients?.collect { addSectionForEntity(it, pName, rIdToItems) }
+        resGroup << contacts?.recipients?.collect { addSectionForEntity(it, pName, pNum, rIdToItems) }
+        resGroup << sharedContacts?.recipients?.collect { addSectionForEntity(it, pName, pNum, rIdToItems) }
+        resGroup << tags?.recipients?.collect { addSectionForEntity(it, pName, pNum, rIdToItems) }
 
         resGroup.logFail("RecordItemRequest.buildSectionsByEntity")
         resGroup.payload
     }
 
     protected Result<RecordItemRequestSection> addSectionForEntity(WithRecord recordOwner,
-        String phoneName, Map<Long, Collection<RecordItem>> recordIdToItems) {
+        String phoneName, String phoneNumber, Map<Long, Collection<RecordItem>> recordIdToItems) {
 
         recordOwner.tryGetReadOnlyRecord()
             .then { ReadOnlyRecord rec1 ->
                 RecordItemRequestSection rSec = new RecordItemRequestSection(phoneName: phoneName,
+                    phoneNumber: phoneNumber,
                     recordItems: recordIdToItems[rec1.id])
                 if (recordOwner instanceof Contact) {
                     rSec.contactNames << recordOwner.nameOrNumber
                 }
                 else if (recordOwner instanceof SharedContact) {
+                    rSec.phoneName = recordOwner.sharedBy?.owner?.buildName()
+                    rSec.phoneNumber = recordOwner.sharedBy?.number?.prettyPhoneNumber
                     rSec.sharedContactNames << recordOwner.name
                 }
                 else if (recordOwner instanceof ContactTag) {

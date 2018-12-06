@@ -15,7 +15,10 @@ class TeamAction extends BaseAction {
 
 	Long id // id of the staff to modify
 
+	final Staff staff
+
 	static constraints = {
+		staff nullable: true
 		id validator: { Long staffId ->
 			if (!Utils.<Boolean>doWithoutFlush({ Staff.exists(staffId) })) {
 				["doesNotExist"]

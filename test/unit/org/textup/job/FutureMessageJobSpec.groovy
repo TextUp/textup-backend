@@ -1,12 +1,13 @@
 package org.textup.job
 
-import org.textup.test.*
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import org.quartz.JobDataMap
 import org.quartz.JobExecutionContext
 import org.quartz.Trigger
 import org.textup.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 import spock.lang.Specification
 

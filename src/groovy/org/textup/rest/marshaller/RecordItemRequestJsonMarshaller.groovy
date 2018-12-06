@@ -1,6 +1,8 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
+import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.*
@@ -10,18 +12,41 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
 
-	static final Closure marshalClosure = { RecordItemRequest itemRequest ->
+	static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
+        RecordItemRequest itemRequest ->
+
+        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
+
 		Map json = [:]
         json.with {
             totalNumItems = itemRequest.countRecordItems()
             maxAllowedNumItems = Constants.MAX_PAGINATION_MAX
+            exportedBy = authService.loggedInAndActive?.name
+            phoneName = itemRequest.phone?.name
+            phoneNumber = itemRequest.phone?.number?.prettyPhoneNumber
         }
-    	Result<Map> res = Utils.tryGetFromRequest(Constants.REQUEST_PAGINATION_OPTIONS)
-          .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
-        if (res.success) {
-        	json.sections = itemRequest.getSections(res.payload)
-        }
-        else { json.sections = itemRequest.getSections() }
+        // fetching sections with appropriate pagination options
+    	Utils.tryGetFromRequest(Constants.REQUEST_PAGINATION_OPTIONS)
+            .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
+            .thenEnd({ Map options = null -> json.sections = itemRequest.getSections(options)},
+                { json.sections = itemRequest.getSections() })
+        // setting timestamps with appropriate
+        Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
+            .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
+            .thenEnd { String tz = null ->
+                json.with {
+                    startDate = itemRequest.start
+                        ? DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(
+                            DateTimeUtils.toDateTimeWithZone(itemRequest.start, tz))
+                        : "beginning"
+                    endDate = itemRequest.end
+                        ? DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(
+                            DateTimeUtils.toDateTimeWithZone(itemRequest.end, tz))
+                        : "end"
+                    exportedOnDate = DateTimeUtils.CURRENT_TIME_FORMAT.print(
+                        DateTimeUtils.toDateTimeWithZone(DateTime.now(), tz))
+                }
+            }
 		json
 	}
 

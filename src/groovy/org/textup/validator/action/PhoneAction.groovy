@@ -23,7 +23,12 @@ class PhoneAction extends BaseAction {
 	String number // required when creating new phone with specified number
 	String numberId // required when creating new phone with existing number
 
+	final PhoneOwnershipType typeAsEnum
+	final PhoneNumber phoneNumber
+
 	static constraints = {
+		typeAsEnum nullable: true
+		phoneNumber nullable: true
 		id nullable:true, validator: { Long val, PhoneAction obj ->
 			// existence check for this id happens already in Phone.transferTo
 			if (obj.matches(Constants.PHONE_ACTION_TRANSFER) && !val) {

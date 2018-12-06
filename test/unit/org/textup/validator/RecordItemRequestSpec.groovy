@@ -158,7 +158,8 @@ class RecordItemRequestSpec extends CustomSpec {
 
         then:
         sections.size() == 1
-        sections[0].phoneName == p1.owner.name
+        sections[0].phoneName == p1.owner.buildName()
+        sections[0].phoneNumber == p1.number.prettyPhoneNumber
         sections[0].contactNames == []
         sections[0].tagNames == []
         sections[0].sharedContactNames == []
@@ -170,7 +171,8 @@ class RecordItemRequestSpec extends CustomSpec {
 
         then: "when getting from phone, grouped by entity is the same as single stream"
         sections.size() == 1
-        sections[0].phoneName == p1.owner.name
+        sections[0].phoneName == p1.owner.buildName()
+        sections[0].phoneNumber == p1.number.prettyPhoneNumber
         sections[0].contactNames == []
         sections[0].tagNames == []
         sections[0].sharedContactNames == []
@@ -181,11 +183,13 @@ class RecordItemRequestSpec extends CustomSpec {
         given:
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
         iReq.contacts.recipients << c1
-        iReq.sharedContacts.recipients << sc1
+        iReq.sharedContacts.recipients << sc2
         iReq.tags.recipients << tag1
 
+        assert sc2.sharedBy.id != p1.id
+
         RecordItem rItem1 = c1.record.storeOutgoingText(TestUtils.randString()).payload
-        RecordItem rItem2 = sc1.contact.record.storeOutgoingText(TestUtils.randString()).payload
+        RecordItem rItem2 = sc2.contact.record.storeOutgoingText(TestUtils.randString()).payload
         RecordItem rItem3 = tag1.record.storeOutgoingText(TestUtils.randString()).payload
 
         Record.withSession { it.flush() }
@@ -196,9 +200,10 @@ class RecordItemRequestSpec extends CustomSpec {
 
         then:
         sections.size() == 1
-        sections[0].phoneName == p1.owner.name
+        sections[0].phoneName == p1.owner.buildName()
+        sections[0].phoneNumber == p1.number.prettyPhoneNumber
         sections[0].contactNames == [c1.nameOrNumber]
-        sections[0].sharedContactNames == [sc1.name]
+        sections[0].sharedContactNames == [sc2.name]
         sections[0].tagNames == [tag1.name]
         sections[0].recordItems.size() > 0
         rItem1.id in sections[0].recordItems*.id
@@ -209,11 +214,18 @@ class RecordItemRequestSpec extends CustomSpec {
         iReq.groupByEntity = true
         sections = iReq.sections
 
-        then:
+        then: "when a shared contact is alone in its section, the phone for that section is the sharedBy phone"
         sections.size() == 3
-        sections.every { it.phoneName == p1.owner.name }
+        sections.any { it.phoneName == sc2.sharedBy.owner.buildName() }
+        sections.any { it.phoneNumber == sc2.sharedBy.number.prettyPhoneNumber }
+        sections.every {
+            it.phoneName in [sc2.sharedBy.owner.buildName(), p1.owner.buildName()]
+        }
+        sections.every {
+            it.phoneNumber in [sc2.sharedBy.number.prettyPhoneNumber, p1.number.prettyPhoneNumber]
+        }
         sections.any { it.contactNames == [c1.nameOrNumber] && rItem1.id in it.recordItems*.id }
-        sections.any { it.sharedContactNames == [sc1.name] && rItem2.id in it.recordItems*.id }
+        sections.any { it.sharedContactNames == [sc2.name] && rItem2.id in it.recordItems*.id }
         sections.any { it.tagNames == [tag1.name] && rItem3.id in it.recordItems*.id }
     }
 

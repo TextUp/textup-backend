@@ -168,7 +168,7 @@ class Organization implements WithId {
         getPeople(params + [statuses:[StaffStatus.BLOCKED]])
     }
     @GrailsTypeChecked
-    int countPeople(Map params) {
+    int countPeople(Map params=[:]) {
         List<StaffStatus> statusEnums =
             TypeConversionUtils.toEnumList(StaffStatus, params.statuses)
         if (statusEnums) {

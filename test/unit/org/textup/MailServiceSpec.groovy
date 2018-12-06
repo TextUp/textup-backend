@@ -1,18 +1,17 @@
 package org.textup
 
-import org.textup.test.*
+import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.validator.EmailEntity
 import spock.lang.Shared
 import spock.lang.Specification
-import grails.plugin.springsecurity.SpringSecurityService
-import org.textup.type.StaffStatus
-import org.textup.type.OrgStatus
-import org.textup.validator.EmailEntity
 
 @TestFor(MailService)
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,

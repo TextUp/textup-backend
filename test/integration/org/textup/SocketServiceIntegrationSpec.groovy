@@ -79,7 +79,7 @@ class SocketServiceIntegrationSpec extends CustomSpec {
         resGroup = socketService.sendPhone(p1)
 
         then:
-        resGroup.successes.size() == p1.owner.all.size()
-        sendToDataToStaff.callCount == p1.owner.all.size()
+        resGroup.successes.size() == p1.owner.buildAllStaff().size()
+        sendToDataToStaff.callCount == p1.owner.buildAllStaff().size()
     }
 }

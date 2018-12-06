@@ -17,10 +17,15 @@ class MergeAction extends BaseAction {
 	Long nameId
 	Long noteId
 
+	final String name
+	final String note
+
 	private List<Long> ids = []
 	private List<Contact> contacts = []
 
 	static constraints = {
+		name nullable: true
+		note nullable: true
 		mergeIds validator:{ Object val, MergeAction obj ->
 			Collection<?> idObjs = TypeConversionUtils.to(Collection, val)
 			if (!idObjs) {

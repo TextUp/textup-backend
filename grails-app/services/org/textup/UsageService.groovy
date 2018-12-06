@@ -11,9 +11,19 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
+// NOTE: for speed, we wrote the queries in raw SQL. For compatibility between MySQL (prod)
+// and H2 (testing),
+//
+// (1) do not use backticks to enclose column aliases, AND make sure to append
+//      ";DATABASE_TO_UPPER=FALSE" to the H2 URL do it does not auto-capitalize
+// (2) use single quotes to enclose string literals
+// (3) denominators in division operations should be written as floats or else H2 db will
+//      interpret the division result as an integer, truncating the decimal places
+//      Specifically, dividing by 60 must be written as "60.0"
+
 @GrailsTypeChecked
 @Transactional
-final class UsageService {
+class UsageService {
 
     final String ACTIVITY_QUERY = """
         SUM(CASE WHEN i.num_notified IS NOT NULL THEN i.num_notified ELSE 0 END) AS numNotificationTexts,
@@ -23,8 +33,8 @@ final class UsageService {
         SUM(CASE WHEN i.class = 'org.textup.RecordText' AND i.outgoing = FALSE THEN 1 ELSE 0 END) AS numIncomingTexts,
         SUM(CASE WHEN i.class = 'org.textup.RecordText' AND i.outgoing = FALSE THEN rir.num_segments ELSE 0 END) AS numIncomingSegments,
 
-        SUM(CASE WHEN i.voicemail_in_seconds IS NOT NULL THEN i.voicemail_in_seconds / 60 ELSE 0 END) AS numVoicemailMinutes,
-        SUM(CASE WHEN i.voicemail_in_seconds IS NOT NULL THEN CEIL(i.voicemail_in_seconds / 60) ELSE 0 END) AS numBillableVoicemailMinutes,
+        SUM(CASE WHEN i.voicemail_in_seconds IS NOT NULL THEN i.voicemail_in_seconds / 60.0 ELSE 0 END) AS numVoicemailMinutes,
+        SUM(CASE WHEN i.voicemail_in_seconds IS NOT NULL THEN CEIL(i.voicemail_in_seconds / 60.0) ELSE 0 END) AS numBillableVoicemailMinutes,
 
         SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = TRUE THEN 1 ELSE 0 END) AS numOutgoingCalls,
         SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = TRUE THEN rir.num_minutes ELSE 0 END) AS numOutgoingMinutes,
@@ -38,8 +48,8 @@ final class UsageService {
         FROM record_item AS i
         JOIN (SELECT item_id,
                 (CASE WHEN num_billable IS NOT NULL THEN num_billable ELSE 1 END) AS num_segments,
-                (CASE WHEN num_billable IS NOT NULL THEN num_billable / 60 ELSE 1 END) AS num_minutes,
-                (CASE WHEN num_billable IS NOT NULL THEN CEIL(num_billable / 60) ELSE 1 END) AS ceil_num_minutes
+                (CASE WHEN num_billable IS NOT NULL THEN num_billable / 60.0 ELSE 1 END) AS num_minutes,
+                (CASE WHEN num_billable IS NOT NULL THEN CEIL(num_billable / 60.0) ELSE 1 END) AS ceil_num_minutes
             FROM record_item_receipt) AS rir ON rir.item_id = i.id
         JOIN contact AS c ON c.record_id = i.record_id
         JOIN phone AS p ON c.phone_id = p.id
@@ -49,27 +59,27 @@ final class UsageService {
 
     @Sortable(includes = ["monthObj"])
     public static class ActivityRecord {
-        BigInteger ownerId
+        Number ownerId
         String monthString
         DateTime monthObj
-        BigInteger numActivePhones = 0
+        Number numActivePhones = new Integer(0)
 
-        BigDecimal numNotificationTexts = 0
+        Number numNotificationTexts = new Integer(0)
 
-        BigDecimal numOutgoingTexts = 0
-        BigDecimal numOutgoingSegments = 0
-        BigDecimal numIncomingTexts = 0
-        BigDecimal numIncomingSegments = 0
+        Number numOutgoingTexts = new Integer(0)
+        Number numOutgoingSegments = new Integer(0)
+        Number numIncomingTexts = new Integer(0)
+        Number numIncomingSegments = new Integer(0)
 
-        BigDecimal numVoicemailMinutes = 0
-        BigDecimal numBillableVoicemailMinutes = 0
+        Number numVoicemailMinutes = new Integer(0)
+        Number numBillableVoicemailMinutes = new Integer(0)
 
-        BigDecimal numOutgoingCalls = 0
-        BigDecimal numOutgoingMinutes = 0
-        BigDecimal numOutgoingBillableMinutes = 0
-        BigDecimal numIncomingCalls = 0
-        BigDecimal numIncomingMinutes = 0
-        BigDecimal numIncomingBillableMinutes = 0
+        Number numOutgoingCalls = new Integer(0)
+        Number numOutgoingMinutes = new Integer(0)
+        Number numOutgoingBillableMinutes = new Integer(0)
+        Number numIncomingCalls = new Integer(0)
+        Number numIncomingMinutes = new Integer(0)
+        Number numIncomingBillableMinutes = new Integer(0)
 
         void setMonthString(String queryMonth) {
             this.monthString = UsageUtils.queryMonthToMonthString(queryMonth)
@@ -100,7 +110,7 @@ final class UsageService {
 
     @AutoClone
     public static class HasActivity {
-        BigInteger id
+        Number id
         UsageService.ActivityRecord activity = new ActivityRecord()
 
         BigDecimal getTotalCost() {
@@ -110,7 +120,7 @@ final class UsageService {
 
     public static class Organization extends HasActivity {
         String name
-        BigInteger totalNumPhones = 0
+        Number totalNumPhones = new Integer(0)
 
         @Override
         BigDecimal getTotalCost() {
@@ -128,7 +138,7 @@ final class UsageService {
 
     public static class Team extends HasActivity {
         String name
-        BigInteger numStaff = 0
+        Number numStaff = new Integer(0)
         String number
         PhoneNumber getPhoneNumber() { new PhoneNumber(number: number) }
     }
@@ -171,13 +181,6 @@ final class UsageService {
     // Details
     // -------
 
-    // NOTE for speed, we wrote the queries in raw SQL. For compatibility between MySQL (prod)
-    // and H2 (testing),
-    //
-    // (1) do not use backticks to enclose column aliases, AND make sure to append
-    //      ";DATABASE_TO_UPPER=FALSE" to the H2 URL do it does not auto-capitalize
-    // (2) use single quotes to enclose string literals
-
     protected List<UsageService.Organization> getAllOrgs(DateTime dt, PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
@@ -206,7 +209,7 @@ final class UsageService {
     protected List<UsageService.Staff> getStaffForOrg(DateTime dt, Long orgId) {
         sessionFactory.currentSession
             .createSQLQuery("""
-                SELECT m.id as id,
+                SELECT m.id AS id,
                     m.name AS name,
                     m.username AS username,
                     m.email AS email,
@@ -233,7 +236,7 @@ final class UsageService {
     protected List<UsageService.Team> getTeamsForOrg(DateTime dt, Long orgId) {
         sessionFactory.currentSession
             .createSQLQuery("""
-                SELECT m.id as id,
+                SELECT m.id AS id,
                     m.name AS name,
                     COUNT(DISTINCT(ts.staff_id)) AS numStaff,
                     p.number_as_string AS number
@@ -263,7 +266,7 @@ final class UsageService {
     protected List<UsageService.ActivityRecord> getAllActivity(DateTime dt, PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
-                SELECT org.id as ownerId,
+                SELECT org.id AS ownerId,
                     ${ACTIVE_PHONES_QUERY},
                     ${ACTIVITY_QUERY}
                 ${ACTIVITY_QUERY_SOURCE}

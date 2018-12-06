@@ -85,6 +85,24 @@ class UsageUtilsSpec extends Specification {
         monthStrings.size() == 8 + 1 // 8 prior months + 1 "now" month
     }
 
+    @DirtiesRuntime
+    void "test get available month string index"() {
+        given:
+        DateTime now = DateTime.now()
+        int numMonthsLastIndex = 8
+        RecordItem itemStub = Stub() { getWhenCreated() >> now.minusMonths(numMonthsLastIndex) }
+        RecordItem.metaClass."static".first = { String propName -> itemStub }
+
+        expect: "invalid + out of range inputs return -1"
+        UsageUtils.getAvailableMonthStringIndex(null) == -1
+        UsageUtils.getAvailableMonthStringIndex(now.plusYears(8)) == -1
+
+        and:
+        UsageUtils.getAvailableMonthStringIndex(now) == numMonthsLastIndex
+        UsageUtils.getAvailableMonthStringIndex(now.minusMonths(numMonthsLastIndex)) == 0
+        UsageUtils.getAvailableMonthStringIndex(now.minusMonths(numMonthsLastIndex).plusMonths(1)) == 1
+    }
+
     void "test associating activity record with activity owners + has no side effects"() {
         given:
         List<UsageService.HasActivity> owners1 = []

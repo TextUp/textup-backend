@@ -1,6 +1,5 @@
 package org.textup.rest
 
-import org.textup.test.*
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -8,9 +7,12 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
+import org.textup.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
 import spock.lang.Shared
 import spock.lang.Specification
-import org.textup.*
 import static javax.servlet.http.HttpServletResponse.*
 
 @TestFor(TeamController)

@@ -71,6 +71,16 @@ class UsageUtils {
         monthStrings
     }
 
+    static int getAvailableMonthStringIndex(DateTime dt) {
+        if (!dt) {
+            return -1
+        }
+        String currentMonthString = UsageUtils.dateTimeToMonthString(dt)
+        UsageUtils
+            .getAvailableMonthStrings()
+            .findIndexOf { String m1 -> m1 == currentMonthString }
+    }
+
     static String queryMonthToMonthString(String queryMonth) {
         if (!queryMonth) {
             return ""

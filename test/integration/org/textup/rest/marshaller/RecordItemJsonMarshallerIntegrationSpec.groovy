@@ -3,9 +3,12 @@ package org.textup.rest.marshaller
 import grails.converters.JSON
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.WebUtils
+import org.joda.time.DateTime
+import org.joda.time.DateTimeZone
 import org.textup.*
 import org.textup.test.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
@@ -189,5 +192,24 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         json.location.id == note1.location.id
         json.uploadErrors == null
         json.type == "NOTE"
+    }
+
+    void "test marshalling note with specified timezone"() {
+        given:
+        String tzId = "Europe/Stockholm"
+        Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, tzId)
+
+        RecordNote note1 = new RecordNote(record: rec, noteContents: TestUtils.randString())
+        note1.save(flush:true, failOnError:true)
+
+        when:
+        Map json
+        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
+            json = TestUtils.jsonToMap(note1 as JSON)
+        }
+
+        then:
+        json.whenCreated.contains("+01:00")
+        json.whenChanged.contains("+01:00")
     }
 }

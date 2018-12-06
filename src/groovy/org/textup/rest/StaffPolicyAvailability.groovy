@@ -25,7 +25,7 @@ class StaffPolicyAvailability {
         jointId = buildJointId(p1, s1)
         name = s1.name
 
-        NotificationPolicy np1 = p1.owner.getPolicyForStaff(s1.id)
+        NotificationPolicy np1 = p1.owner.findPolicyForStaff(s1.id)
         if (np1) {
             useStaffAvailability = np1.useStaffAvailability
             initAvailability(np1, true)

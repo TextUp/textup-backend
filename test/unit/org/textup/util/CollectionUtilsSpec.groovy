@@ -81,4 +81,11 @@ class CollectionUtilsSpec extends Specification {
         CollectionUtils.joinWithDifferentLast([1, 2], ", ", " and ") == "1 and 2"
         CollectionUtils.joinWithDifferentLast([1, 2, 3], ", ", " and ") == "1, 2 and 3"
     }
+
+    void "test ensure list has no null elements"() {
+        expect:
+        CollectionUtils.ensureNoNull(null) == null
+        CollectionUtils.ensureNoNull([1, 2, 3, 4]) == [1, 2, 3, 4]
+        CollectionUtils.ensureNoNull([null, 1, 2, 3, null, 4]) == [1, 2, 3, 4]
+    }
 }

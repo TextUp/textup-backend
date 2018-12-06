@@ -17,7 +17,12 @@ class ShareContactAction extends BaseAction {
 	Long id // id of phone that we are sharing with
 	String permission
 
+	final SharePermission permissionAsEnum
+	final Phone phone
+
 	static constraints = {
+		permissionAsEnum nullable: true
+		phone nullable: true
 		id validator: { Long phoneId, ShareContactAction ->
 			if (!Utils.<Boolean>doWithoutFlush({ Phone.exists(phoneId) })) {
 				["doesNotExist"]

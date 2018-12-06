@@ -1,11 +1,11 @@
 package org.textup
 
-import org.textup.test.*
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
+import grails.test.mixin.web.ControllerUnitTestMixin
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import org.codehaus.groovy.grails.commons.GrailsApplication
@@ -13,6 +13,7 @@ import org.hibernate.Session
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.springframework.context.MessageSource
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -23,7 +24,7 @@ import spock.lang.Shared
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Token, Role, StaffRole, NotificationPolicy,
     MediaInfo, MediaElement, MediaElementVersion])
-@TestMixin(HibernateTestMixin)
+@TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 class TokenServiceSpec extends CustomSpec {
 
     static doWithSpring = {

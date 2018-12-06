@@ -46,7 +46,7 @@ class BasicNotificationSpec extends CustomSpec {
 		then: "valid"
 		bNotif1.validate() == true
 		if (p1.owner.type == PhoneOwnershipType.INDIVIDUAL) {
-			bNotif1.ownerId == p1.owner.all[0].username
+			bNotif1.ownerId == p1.owner.buildAllStaff()[0].username
 			bNotif1.ownerType == "staff"
 		}
 		else {

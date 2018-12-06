@@ -1,11 +1,11 @@
 package org.textup.rest.marshaller
 
 import grails.converters.JSON
-import org.textup.test.*
 import org.joda.time.DateTime
 import org.textup.*
-import org.textup.type.FutureMessageType
-import org.textup.type.VoiceLanguage
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
 import spock.lang.*
 
 class FutureMessageJsonMarshallerIntegrationSpec extends Specification {

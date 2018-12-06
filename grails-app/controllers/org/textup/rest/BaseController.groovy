@@ -136,17 +136,11 @@ class BaseController {
             error()
             return
         }
-        Object responseObj = resGroup.anySuccesses ? resGroup.successes*.payload :
-            [errors:buildErrorObj(resGroup.failures)]
-        HttpStatus thisStatus = resGroup.anySuccesses ? resGroup.successStatus.apiStatus :
-            resGroup.failureStatus.apiStatus
-        Map<String,? extends Object> responseInfo = [:]
-        // if has successes and failures, include the failures in a error object for completeness
-        if (resGroup.anySuccesses && resGroup.anyFailures) {
-            responseInfo.errors = buildErrorObj(resGroup.failures)
-        }
-        render(status:thisStatus)
+        render(status: resGroup.anySuccesses
+            ? resGroup.successStatus.apiStatus
+            : resGroup.failureStatus.apiStatus)
         withJsonFormat {
+            Map errorObj = [errors: buildErrorObj(resGroup.failures)]
             if (resGroup.anySuccesses) {
                 List<Result<T>> successes = resGroup.successes
                 Long resourceId = getId(successes.toArray(new Result<T>[successes.size()])[0]?.payload)
@@ -159,8 +153,10 @@ class BaseController {
                         id:resourceId
                     )
                 )
+                // even if successes, include the failures in a error object for completeness
+                respond(resGroup.successes*.payload, errorObj)
             }
-            respond(responseObj, responseInfo)
+            else { respond(errorObj) }
         }
     }
     protected void respondWithPdf(String fileName, Result<byte[]> pdfRes) {
@@ -173,8 +169,8 @@ class BaseController {
             }
         }
         else {
-            render(status:pdfRes.status.apiStatus)
-            respond(errors:buildErrorObj([pdfRes]))
+            render(status: pdfRes.status.apiStatus)
+            render([errors: buildErrorObj([pdfRes])] as JSON)
         }
     }
 

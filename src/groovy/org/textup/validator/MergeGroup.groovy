@@ -12,7 +12,10 @@ class MergeGroup {
 	Long targetContactId
 	Collection<MergeGroupItem> possibleMerges = []
 
+	final Contact targetContact
+
 	static constraints = {
+		targetContact nullable: true
 		targetContactId validator:{ Long id ->
 			if (id && !Utils.<Boolean>doWithoutFlush({ Contact.exists(id) })) {
 				["doesNotExist"]

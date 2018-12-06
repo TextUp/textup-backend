@@ -1,7 +1,7 @@
 <ul class="usage-context-list">
     <li class="usage-context-list__item">
         <strong>
-            $<g:formatNumber number="${totalCost}"
+            $<g:formatNumber number="${usageAndCosts.totalCost}"
                 type="number"
                 minFractionDigits="2"
                 maxFractionDigits="2" />
@@ -9,7 +9,7 @@
     </li>
     <li class="usage-context-list__item">
         <strong>
-            $<g:formatNumber number="${usageCost}"
+            $<g:formatNumber number="${usageAndCosts.usageCost}"
                 type="number"
                 minFractionDigits="2"
                 maxFractionDigits="2" />
@@ -17,7 +17,7 @@
     </li>
     <li class="usage-context-list__item">
         <strong>
-            $<g:formatNumber number="${textCost}"
+            $<g:formatNumber number="${usageAndCosts.textCost}"
                 type="number"
                 minFractionDigits="2"
                 maxFractionDigits="2" />
@@ -25,7 +25,7 @@
     </li>
     <li class="usage-context-list__item">
         <strong>
-            $<g:formatNumber number="${callCost}"
+            $<g:formatNumber number="${usageAndCosts.callCost}"
                 type="number"
                 minFractionDigits="2"
                 maxFractionDigits="2" />
@@ -34,25 +34,25 @@
 </ul>
 <ul class="usage-context-list">
     <li class="usage-context-list__item">
-        <strong>${numPhones}</strong> phones<g:if test="${numActivePhones != null}">,
-            <strong>${numActivePhones}</strong> active
+        <strong>${phoneCounts.numPhones}</strong> phones<g:if test="${phoneCounts.numActivePhones != null}">,
+            <strong>${phoneCounts.numActivePhones}</strong> active
         </g:if>
     </li>
     <li class="usage-context-list__item">
-        <strong>${numTexts}</strong> texts,
-        <strong>${numSegments}</strong> segments
+        <strong>${usageAndCosts.numTexts}</strong> texts,
+        <strong>${usageAndCosts.numSegments}</strong> segments
     </li>
     <li class="usage-context-list__item">
-        <strong>${numCalls}</strong> calls,
+        <strong>${usageAndCosts.numCalls}</strong> calls,
         <strong>
-            <g:formatNumber number="${numMinutes}"
+            <g:formatNumber number="${usageAndCosts.numMinutes}"
                 type="number"
                 minFractionDigits="2"
                 maxFractionDigits="2" />
         </strong>
         minutes,
         <strong>
-            <g:formatNumber number="${numBillableMinutes}"
+            <g:formatNumber number="${usageAndCosts.numBillableMinutes}"
                 type="number"
                 minFractionDigits="0"
                 maxFractionDigits="0" />

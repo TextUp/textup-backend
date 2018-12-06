@@ -15,7 +15,10 @@ class ContactTagAction extends BaseAction {
 
 	Long id // id of contact to modify
 
+	final Contact contact
+
 	static constraints = {
+		contact nullable: true
 		id validator: { Long contactId ->
 			if (!Utils.<Boolean>doWithoutFlush({ Contact.exists(contactId) })) {
 				["doesNotExist"]

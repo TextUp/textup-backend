@@ -17,7 +17,7 @@ class AvailablePhoneNumberSpec extends Specification {
 
 		then:
 		aNum.validate() == false
-		aNum.errors.errorCount == 3
+		aNum.errors.errorCount >= 3
 		aNum.errors.getFieldError("number").code == "nullable"
 		aNum.errors.getFieldError("info").code == "nullable"
 		aNum.errors.getFieldError("infoType").code == "nullable"
@@ -27,7 +27,7 @@ class AvailablePhoneNumberSpec extends Specification {
 
 		then:
 		aNum.validate() == false
-		aNum.errors.errorCount == 3
+		aNum.errors.errorCount >= 3
 		aNum.errors.getFieldError("number").code == "format"
 		aNum.errors.getFieldError("info").code == "nullable"
 		aNum.errors.getFieldError("infoType").code == "nullable"
@@ -37,7 +37,7 @@ class AvailablePhoneNumberSpec extends Specification {
 
 		then:
 		aNum.validate() == false
-		aNum.errors.errorCount == 3
+		aNum.errors.errorCount >= 3
 		aNum.errors.getFieldError("number").code == "format"
 		aNum.errors.getFieldError("infoType").code == "not.inList"
 		aNum.errors.getFieldError("info").code == "nullable"

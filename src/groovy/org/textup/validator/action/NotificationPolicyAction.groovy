@@ -17,7 +17,10 @@ class NotificationPolicyAction extends BaseAction {
 	Long id // id of staff member to customize notifications for
 	String level // required for default, level to change the default to
 
+	final NotificationLevel levelAsEnum
+
 	static constraints = {
+		levelAsEnum nullable: true
 		id validator: { Long staffId ->
 			if (staffId && !Utils.<Boolean>doWithoutFlush({ Staff.exists(staffId) })) {
 				["doesNotExist"]

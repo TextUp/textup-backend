@@ -1,6 +1,5 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
@@ -9,6 +8,8 @@ import grails.test.runtime.*
 import java.util.concurrent.Future
 import org.joda.time.DateTime
 import org.quartz.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Specification

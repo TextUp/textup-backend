@@ -32,4 +32,9 @@ class CollectionUtils {
         }
         (list.size() > 2) ? (list[0..-2].join(delim) + lastDelim + list[-1]) : list.join(lastDelim)
     }
+
+    static <T> List<T> ensureNoNull(List<T> list) {
+        list?.removeAll { it == null }
+        list
+    }
 }

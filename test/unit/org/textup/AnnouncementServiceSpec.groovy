@@ -63,7 +63,7 @@ class AnnouncementServiceSpec extends CustomSpec {
 
         when: "expiration time is missing or in the past"
         p1.numberAsString = TestUtils.randPhoneNumber()
-        params.expiresAt = DateTime.now().minusDays(1).toDate()
+        params.expiresAt = DateTime.now().minusDays(1).toString()
         res = service.create(p1, params)
 
         then:
@@ -72,12 +72,12 @@ class AnnouncementServiceSpec extends CustomSpec {
         res.errorMessages[0] == "announcementService.create.expiresInPast"
 
         when: "success, having mocked method on phone"
-        params.expiresAt = DateTime.now().plusDays(1).toDate()
+        params.expiresAt = DateTime.now().plusDays(1).toString()
         res = service.create(p1, params)
 
         then:
         1 * service.outgoingAnnouncementService.send(*_) >> new Result()
-        1 * service.authService.loggedInAndActive >> p1.owner.all[0]
+        1 * service.authService.loggedInAndActive >> p1.owner.buildAllStaff()[0]
         res.status == ResultStatus.OK
 
         when: "currently logged-in user is not an owner for the passed-in phone"
@@ -117,7 +117,7 @@ class AnnouncementServiceSpec extends CustomSpec {
 
     	when: "valid"
     	DateTime newExpires = DateTime.now().plusMinutes(30)
-    	res = service.update(announce.id, [expiresAt: newExpires.toDate()])
+    	res = service.update(announce.id, [expiresAt: newExpires.toString()])
 
     	then:
     	res.success == true

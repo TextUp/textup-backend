@@ -15,7 +15,7 @@ class NotificationJsonMarshaller extends JsonNamedMarshaller {
         	id = notif.tokenId
         	ownerType = notif.ownerType
 			ownerId = notif.ownerId
-			ownerName = notif.owner.name
+			ownerName = notif.owner.buildName()
 			ownerNumber = notif.owner.phone.number.e164PhoneNumber
 			otherType = notif.otherType
 			otherId = notif.otherId

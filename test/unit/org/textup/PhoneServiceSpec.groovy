@@ -353,7 +353,7 @@ class PhoneServiceSpec extends CustomSpec {
         NotificationPolicy.count() == npBaseline
 
         when: "has availability in body"
-        assert p1.owner.getPolicyForStaff(staff1.id) == null
+        assert p1.owner.findPolicyForStaff(staff1.id) == null
         res = service.handleAvailability(p1, [availability:[hello: 'there!']], null)
 
         then: "a new notification policy is created and policy is updated"
@@ -501,7 +501,7 @@ class PhoneServiceSpec extends CustomSpec {
             tryProcess(_, _, true) >> new Result(payload: Tuple.create(null, null))
         }
         Long staffId = 888L
-        assert p1.owner.getPolicyForStaff(staffId) == null
+        assert p1.owner.findPolicyForStaff(staffId) == null
         int policyBaseline = NotificationPolicy.count()
 
         when: "update without availability"

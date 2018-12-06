@@ -104,6 +104,10 @@ See the `script` section of `.travis.yml` for the tests. Note that the command i
 
 * [Grails 2.4.4 documentation](https://grails.github.io/grails2-doc/2.4.4/index.html)
 
+## Key development tips
+
+* Classes with the Validateable annotation, public getters with no properties and no defined field are treated like fields during validation. Making these getters protected or overloading the method stops these from being treated as constrainted properties. Therefore, in this special case, if we don't want these methods to be called during validation, we need to (1) rename the method, (2) make the method protected, or (3) overload the method. If we are all right with the getter being called but we want to apply custom constraints on it, then we need to declare it as a static final field to make the constraints pass type checking.
+
 ## License
 
 Copyright 2018 TextUp

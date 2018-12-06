@@ -38,8 +38,8 @@ class NotificationJsonMarshallerIntegrationSpec extends CustomSpec {
         json.ownerType ==
     		(p1.owner.type == PhoneOwnershipType.INDIVIDUAL ? "staff" : "team")
 		json.ownerId == (p1.owner.type == PhoneOwnershipType.INDIVIDUAL ?
-            Staff.get(p1.owner.ownerId).username : p1.owner.name)
-		json.ownerName == p1.owner.name
+            Staff.get(p1.owner.ownerId).username : p1.owner.buildName())
+		json.ownerName == p1.owner.buildName()
 		json.ownerNumber == p1.number.e164PhoneNumber
 		json.contents == contents
         json.outgoing == isOutgoing

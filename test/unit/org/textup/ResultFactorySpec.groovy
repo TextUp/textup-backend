@@ -9,6 +9,7 @@ import org.springframework.context.NoSuchMessageException
 import org.springframework.context.support.StaticMessageSource
 import org.textup.test.*
 import org.textup.type.*
+import org.textup.util.*
 import spock.lang.*
 
 @Domain([Organization, Location])

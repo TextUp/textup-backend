@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
+import org.textup.util.*
 
 // For shared contacts, ids are actually ids of the CONTACTS themselves
 // because the API only present contacts, never shared contacts. Therefore, when
@@ -35,6 +36,8 @@ class SharedContactRecipients extends Recipients<Long, SharedContact> {
     @Override
     protected List<SharedContact> buildRecipientsFromIds(List<Long> ids) {
         // this static finder only returns valid shared contacts
-        phone ? SharedContact.findEveryByContactIdsAndSharedWith(ids, phone) : []
+        phone
+            ? CollectionUtils.ensureNoNull(SharedContact.findEveryByContactIdsAndSharedWith(ids, phone))
+            : []
     }
 }

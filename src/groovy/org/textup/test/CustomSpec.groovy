@@ -41,6 +41,7 @@ class CustomSpec extends Specification {
     void setupData(int iterNum) {
         IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
         IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        TestUtils.mockJsonToString()
 
         loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"
@@ -233,8 +234,10 @@ class CustomSpec extends Specification {
         otherRText2 = otherC2.record.storeOutgoingText("text", null).payload
         otherRTeText2 = otherTC2.record.storeOutgoingText("text", null).payload
 
-        [rText1, rText2, rTeText1, rTeText2, otherRText2, otherRTeText2]
-        	*.save(flush:true, failOnError:true)
+        [rText1, rText2, rTeText1, rTeText2, otherRText2, otherRTeText2].each {
+            it.addReceipt(TestUtils.buildTempReceipt(ReceiptStatus.SUCCESS))
+            it.save(flush:true, failOnError:true)
+        }
     }
 
     protected void shareContacts(int iterNum) {

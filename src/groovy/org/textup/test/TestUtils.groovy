@@ -17,8 +17,8 @@ import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.media.*
 import org.textup.type.*
-import org.textup.validator.*
 import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
@@ -194,6 +194,12 @@ class TestUtils {
 
     static MessageSource mockMessageSource() {
         MESSAGE_SOURCE
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static void mockJsonToString() {
+        // in unit tests, don't have custom `default` marshallers so replace with simple JSON cast
+        DataFormatUtils.metaClass."static".toJsonString = { it ? (it as JSON).toString() : "" }
     }
 
     // Object generators

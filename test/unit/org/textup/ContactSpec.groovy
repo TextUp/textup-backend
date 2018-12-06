@@ -1,21 +1,14 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.springframework.context.MessageSource
-import org.textup.type.AuthorType
-import org.textup.type.ContactStatus
-import org.textup.type.SharePermission
-import org.textup.type.VoiceLanguage
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.Author
-import org.textup.validator.IncomingText
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
-import spock.lang.Ignore
-import spock.lang.Shared
+import org.textup.validator.*
+import spock.lang.*
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,

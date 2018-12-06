@@ -145,8 +145,8 @@ class IncomingMessageService {
 
     Result<Closure> receiveCall(Phone p1, String apiId, String digits, IncomingSession session) {
         //if staff member is calling from personal phone to TextUp phone
-        if (p1.owner.all.any { it.personalPhoneAsString == session.numberAsString }) {
-            Staff staff = p1.owner.all.find { it.personalPhoneAsString == session.numberAsString }
+        if (p1.owner.buildAllStaff().any { it.personalPhoneAsString == session.numberAsString }) {
+            Staff staff = p1.owner.buildAllStaff().find { it.personalPhoneAsString == session.numberAsString }
             handleSelfCall(p1, apiId, digits, staff)
         }
         else if (p1.getAnnouncements()) {

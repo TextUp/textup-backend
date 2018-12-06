@@ -1,6 +1,5 @@
 package org.textup
 
-import org.textup.test.*
 import com.twilio.Twilio
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
@@ -9,10 +8,10 @@ import grails.test.mixin.TestMixin
 import grails.test.runtime.FreshRuntime
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.context.MessageSource
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.validator.*
 import spock.lang.Shared
 import spock.lang.Specification
 import static org.springframework.http.HttpStatus.*

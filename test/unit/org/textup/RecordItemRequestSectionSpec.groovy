@@ -15,6 +15,7 @@ class RecordItemRequestSectionSpec extends Specification {
 
         then:
         rSection.phoneName == ""
+        rSection.phoneNumber == ""
         rSection.contactNames == []
         rSection.tagNames == []
         rSection.sharedContactNames == []

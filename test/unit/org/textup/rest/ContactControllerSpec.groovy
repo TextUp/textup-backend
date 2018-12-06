@@ -1,6 +1,5 @@
 package org.textup.rest
 
-import org.textup.test.*
 import grails.plugin.jodatime.converters.JodaConverters
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
@@ -10,6 +9,8 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.type.ContactStatus
 import org.textup.util.*
 import org.textup.validator.MergeGroup

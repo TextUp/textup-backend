@@ -31,67 +31,38 @@ class UrlMappings {
         	// Public API //
 	        ////////////////
 
-	        "/public/organizations"(resources:"publicOrganization", namespace:"v1") {
-                format = "json"
-            }
-            "/public/staff"(resources:"publicStaff", namespace:"v1") {
-                format = "json"
-            }
+	        "/public/organizations"(resources:"publicOrganization", namespace:"v1") { format = "json" }
+            "/public/staff"(resources:"publicStaff", namespace:"v1") { format = "json" }
             //for webhook requests from Twilio
-            "/public/records"(resources:"publicRecord", namespace:"v1") {
-                format = "json"
-            }
+            "/public/records"(resources:"publicRecord", namespace:"v1") { format = "json" }
             // GET for looking up details about a notification
-            "/public/notifications"(resources:"notify", namespace:"v1") {
-                format = "json"
-            }
+            "/public/notifications"(resources:"notify", namespace:"v1") { format = "json" }
 
             ////////////////////////////
             // Restricted Utility API //
             ////////////////////////////
 
             //authenticating private channels with Pusher
-            "/sockets"(resources:"socket", namespace:"v1") {
-                format = "json"
-            }
+            "/sockets"(resources:"socket", namespace:"v1") { format = "json" }
             //GET (index) for looking up available TextUp numbers from twilio
             //GET (show) for determining validity of provided phone number
             //POST for validating ownership of phone numbers
-            "/numbers"(resources:"number", namespace:"v1") {
-                format = "json"
-            }
+            "/numbers"(resources:"number", namespace:"v1") { format = "json" }
 
 	        ////////////////////
 	        // Restricted API //
 	        ////////////////////
 
-        	"/organizations"(resources:"organization", namespace:"v1") {
-                format = "json"
-            }
-            "/staff"(resources:"staff", namespace:"v1") {
-            	format = "json"
-            }
-            "/teams"(resources:"team", namespace:"v1") {
-            	format = "json"
-            }
-            "/records"(resources:"record", namespace:"v1") {
-            	format = "json"
-            }
-            "/future-messages"(resources:"futureMessage", namespace:"v1") {
-                format = "json"
-            }
-            "/contacts"(resources:"contact", namespace:"v1") {
-            	format = "json"
-            }
-            "/tags"(resources:"tag", namespace:"v1") {
-            	format = "json"
-            }
-            "/sessions"(resources:"session", namespace:"v1") {
-                format = "json"
-            }
-            "/announcements"(resources:"announcement", namespace:"v1") {
-                format = "json"
-            }
+        	"/organizations"(resources:"organization", namespace:"v1") { format = "json" }
+            "/staff"(resources:"staff", namespace:"v1") { format = "json" }
+            "/teams"(resources:"team", namespace:"v1") { format = "json" }
+            // took out the json format closure because we need to support both json and pdf here
+            "/records"(resources:"record", namespace:"v1")
+            "/future-messages"(resources:"futureMessage", namespace:"v1") { format = "json" }
+            "/contacts"(resources:"contact", namespace:"v1") { format = "json" }
+            "/tags"(resources:"tag", namespace:"v1") { format = "json" }
+            "/sessions"(resources:"session", namespace:"v1") { format = "json" }
+            "/announcements"(resources:"announcement", namespace:"v1") { format = "json" }
         }
 	}
 }

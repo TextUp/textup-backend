@@ -41,11 +41,11 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         Staff authUser
         if (isLoggedIn) {
             if (isOwner) {
-                authUser = p1.owner.all[0]
+                authUser = p1.owner.buildAllStaff()[0]
             }
             else {
                 authUser = s2
-                assert p1.owner.all.contains(s2) == false
+                assert p1.owner.buildAllStaff().contains(s2) == false
             }
 
             NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authUser.id)
@@ -72,7 +72,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
             json.tags.find { it.id == ct1.id }
         }
         if (showAvailabilityInfo) {
-            NotificationPolicy np1 = p1.owner.getPolicyForStaff(authUser.id)
+            NotificationPolicy np1 = p1.owner.findPolicyForStaff(authUser.id)
             assert json.availability instanceof Map
             assert json.availability.useStaffAvailability == true
             assert json.availability.manualSchedule == np1.useStaffAvailability
@@ -81,7 +81,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
             assert json.availability.schedule == np1.schedule
             assert json.availability.schedule == null // no schedule created yet
             assert json.others instanceof Collection
-            assert json.others.size() == p1.owner.all.size() - 1
+            assert json.others.size() == p1.owner.buildAllStaff().size() - 1
         }
         else {
             assert json.availability == null
@@ -109,7 +109,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         p1.updateOwner(staff1)
         p1.save(flush:true, failOnError:true)
 
-        assert p1.owner.getPolicyForStaff(staff1.id) == null
+        assert p1.owner.findPolicyForStaff(staff1.id) == null
         overrideGetLoggedInAndActiveWith({ staff1 })
 
         when:

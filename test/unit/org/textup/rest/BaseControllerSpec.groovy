@@ -144,17 +144,28 @@ class BaseControllerSpec extends CustomSpec {
         Integer largestMax = Constants.MAX_PAGINATION_MAX
 
         expect:
-        controller.buildPaginationOptions(null, null, null) == [defaultMax, 0, defaultMax]
-        controller.buildPaginationOptions(1, null, null) == [1, 0, 1]
-        controller.buildPaginationOptions(-1, null, null) == [defaultMax, 0, defaultMax]
-        controller.buildPaginationOptions(null, -1, null) == [defaultMax, 0, defaultMax]
-        controller.buildPaginationOptions(null, null, -1) == [defaultMax, 0, defaultMax]
-        controller.buildPaginationOptions(10, 0, 10) == [10, 0, 10]
-        controller.buildPaginationOptions(20, 0, 10) == [20, 0, 10]
-        controller.buildPaginationOptions(20, 30, 10) == [20, 30, 10]
-        controller.buildPaginationOptions(largestMax + 1, 0, 0) == [largestMax, 0, 0]
-        controller.buildPaginationOptions(null, -1, largestMax + 1) == [defaultMax, 0, largestMax + 1]
-        controller.buildPaginationOptions(0, 100, 0) == [defaultMax, 100, 0]
+        controller.handlePagination([max: null, offset: null], null).meta ==
+            [max: defaultMax, offset: 0, total: defaultMax]
+        controller.handlePagination([max: 1, offset: null], null).meta ==
+            [max: 1, offset: 0, total: 1]
+        controller.handlePagination([max: -1, offset: null], null).meta ==
+            [max: defaultMax, offset: 0, total: defaultMax]
+        controller.handlePagination([max: null, offset: -1], null).meta ==
+            [max: defaultMax, offset: 0, total: defaultMax]
+        controller.handlePagination([max: null, offset: null], -1).meta ==
+            [max: defaultMax, offset: 0, total: defaultMax]
+        controller.handlePagination([max: 10, offset: 0], 10).meta ==
+            [max: 10, offset: 0, total: 10]
+        controller.handlePagination([max: 20, offset: 0], 10).meta ==
+            [max: 20, offset: 0, total: 10]
+        controller.handlePagination([max: 20, offset: 30], 10).meta ==
+            [max: 20, offset: 30, total: 10]
+        controller.handlePagination([max: largestMax + 1, offset: 0], 0).meta ==
+            [max: largestMax, offset: 0, total: 0]
+        controller.handlePagination([max: null, offset: -1], largestMax + 1).meta ==
+            [max: defaultMax, offset: 0, total: largestMax + 1]
+        controller.handlePagination([max: 0, offset: 100], 0).meta ==
+            [max: defaultMax, offset: 100, total: 0]
     }
 
     void "test pagination"() {
@@ -163,6 +174,15 @@ class BaseControllerSpec extends CustomSpec {
         testPagination(10, 10, 0, [hasNext:false , hasPrev:true])
         testPagination(10, 0, 11, [hasNext:true , hasPrev:false])
         testPagination(10, 10, 21, [hasNext:true , hasPrev:true])
+    }
+    protected void testPagination(Integer optMax, Integer optOffset, Integer optTotal,
+        Map<String,Boolean> outcomes)  {
+
+        Map<String,? extends Object> paginationOutput = controller
+            .handlePagination([max: optMax, offset: optOffset], optTotal)
+        assert (paginationOutput.links?.next != null) == outcomes.hasNext
+        assert (paginationOutput.links?.prev != null) == outcomes.hasPrev
+        assert paginationOutput.meta != null
     }
 
     void "test responding with count and list closures"() {
@@ -303,6 +323,38 @@ class BaseControllerSpec extends CustomSpec {
         response.json*.id.every { (it as Long) in cIds }
     }
 
+    void "test responding with pdf file"() {
+        given:
+        String fileName = TestUtils.randString()
+        byte[] validPdfData = TestUtils.getSampleDataForMimeType(MediaType.IMAGE_PNG)
+
+        String errStr1 = TestUtils.randString()
+        Result failRes1 = Result.createError([errStr1], ResultStatus.BAD_REQUEST)
+        Result successRes1 = Result.createSuccess(validPdfData, ResultStatus.OK)
+
+        when: "result is a failure"
+        controller.respondWithPdf(fileName, failRes1)
+
+        then:
+        response.status == SC_BAD_REQUEST
+        response.getHeaderValue("Content-Type") == "application/json;charset=UTF-8"
+        response.text.contains("errors")
+        response.text.contains(errStr1)
+        response.json.errors.size() == 1
+        response.json.errors[0].message == errStr1
+        response.json.errors[0].statusCode == failRes1.status.intStatus
+
+        when: "result is a success"
+        response.reset()
+
+        controller.respondWithPdf(fileName, successRes1)
+
+        then:
+        response.status == SC_OK
+        response.getHeaderValue("Content-Type") == "application/pdf;charset=utf-8"
+        response.getHeaderValue("Content-Disposition") == "attachment;filename=${fileName}"
+    }
+
     void "test status rendering helpers"() {
         when:
         controller.ok()
@@ -357,17 +409,5 @@ class BaseControllerSpec extends CustomSpec {
 
         then:
         response.status == SC_INTERNAL_SERVER_ERROR
-    }
-
-    // Helpers
-    // -------
-
-    protected void testPagination(Integer optMax, Integer optOffset, Integer optTotal,
-        Map<String,Boolean> outcomes)  {
-
-        Map<String,? extends Object> paginationOutput = controller.handlePagination(optMax, optOffset, optTotal)
-        assert (paginationOutput.links?.next != null) == outcomes.hasNext
-        assert (paginationOutput.links?.prev != null) == outcomes.hasPrev
-        assert paginationOutput.meta != null
     }
 }

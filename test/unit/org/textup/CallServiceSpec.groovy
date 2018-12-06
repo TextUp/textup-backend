@@ -1,17 +1,18 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
+import grails.test.mixin.web.ControllerUnitTestMixin
 import grails.test.runtime.FreshRuntime
 import java.util.UUID
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.springframework.context.MessageSource
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.Shared
 import spock.lang.Specification
 import static org.springframework.http.HttpStatus.*
@@ -24,7 +25,7 @@ import static org.springframework.http.HttpStatus.*
 
 @Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
     MediaInfo, MediaElement, MediaElementVersion])
-@TestMixin(HibernateTestMixin)
+@TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 @TestFor(CallService)
 class CallServiceSpec extends Specification {
 
@@ -39,6 +40,7 @@ class CallServiceSpec extends Specification {
             Map afterPickup, String callback ->
 	        new Result(status:ResultStatus.OK, payload:[afterPickup:afterPickup, callback:callback])
 	    }
+        TestUtils.mockJsonToString()
     }
 
     void "test starting a call to one or more numbers"() {

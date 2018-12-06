@@ -51,13 +51,14 @@ class PhoneOwnership implements WithId {
         canNotify
     }
     List<NotificationStatus> getNotificationStatusesForRecords(Collection<Long> recordIds) {
-        getNotificationStatusesForStaffsAndRecords(getAll(), recordIds)
+        getNotificationStatusesForStaffsAndRecords(buildAllStaff(), recordIds)
     }
     List<NotificationStatus> getNotificationStatusesForStaffsAndRecords(Collection<Staff> staffs,
         Collection<Long> recordIds) {
         List<NotificationStatus> statuses = []
+
         staffs.each { Staff s1 ->
-            NotificationPolicy np1 = getPolicyForStaff(s1.id)
+            NotificationPolicy np1 = findPolicyForStaff(s1.id)
             // if no notification policy, then can notify and default to staff availability
             if (!np1) {
                 statuses << new NotificationStatus(staff: s1,
@@ -72,7 +73,7 @@ class PhoneOwnership implements WithId {
         }
         statuses
     }
-    List<Staff> getAll() {
+    List<Staff> buildAllStaff() {
         if (this.type == PhoneOwnershipType.INDIVIDUAL) {
             Staff s1 = Staff.get(this.ownerId)
             s1 ? [s1] : []
@@ -81,7 +82,7 @@ class PhoneOwnership implements WithId {
             Team.get(this.ownerId)?.getActiveMembers() ?: []
         }
     }
-    String getName() {
+    String buildName() {
         if (this.type == PhoneOwnershipType.INDIVIDUAL) {
             Staff.get(this.ownerId)?.name ?: ''
         }
@@ -94,14 +95,14 @@ class PhoneOwnership implements WithId {
     // through a sharing arrangement. Also, if we transfer phones, then the new owners will not
     // correspond with the staff ids in this list of policies
     NotificationPolicy getOrCreatePolicyForStaff(Long staffId) {
-        NotificationPolicy np1 = getPolicyForStaff(staffId)
+        NotificationPolicy np1 = findPolicyForStaff(staffId)
         if (!np1) { // create a new notification policy if none currently exists for this staff id
             np1 = new NotificationPolicy(staffId:staffId)
             this.addToPolicies(np1)
         }
         np1
     }
-    NotificationPolicy getPolicyForStaff(Long staffId) {
+    NotificationPolicy findPolicyForStaff(Long staffId) {
         this.policies?.find { NotificationPolicy np1 -> np1.staffId == staffId }
     }
 }

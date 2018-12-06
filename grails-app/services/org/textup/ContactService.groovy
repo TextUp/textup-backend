@@ -201,10 +201,10 @@ class ContactService {
         HashSet<String> stopNames = new HashSet<>(),
             viewNames = new HashSet<>(),
             delegateNames = new HashSet<>()
-        stopSharingPhones.each { Phone p1 -> stopNames.addAll(p1.owner.all*.name) }
+        stopSharingPhones.each { Phone p1 -> stopNames.addAll(p1.owner.buildAllStaff()*.name) }
         sharedWithToPermission.each { Phone p1, SharePermission perm1 ->
             HashSet<String> namesSet = (perm1 == SharePermission.DELEGATE) ? delegateNames : viewNames
-            namesSet.addAll(p1.owner.all*.name)
+            namesSet.addAll(p1.owner.buildAllStaff()*.name)
         }
         Author auth = authService.loggedInAndActive.toAuthor()
         ResultGroup<RecordNote> resGroup = new ResultGroup<>()

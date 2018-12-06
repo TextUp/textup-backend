@@ -1,17 +1,18 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import grails.test.mixin.web.ControllerUnitTestMixin
 import org.textup.rest.NotificationStatus
+import org.textup.test.*
 import org.textup.type.NotificationLevel
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
     MediaInfo, MediaElement, MediaElementVersion])
-@TestMixin(HibernateTestMixin)
+@TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 class NotificationPolicySpec extends CustomSpec {
 
     static doWithSpring = {

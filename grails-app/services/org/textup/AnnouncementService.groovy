@@ -44,7 +44,7 @@ class AnnouncementService {
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         // validate staff
-        if (!p1.owner.all.contains(loggedIn)) {
+        if (!p1.owner.buildAllStaff().contains(loggedIn)) {
             return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN)
         }
         outgoingAnnouncementService.send(p1, msg, expires, loggedIn)
@@ -134,7 +134,7 @@ class AnnouncementService {
             }
         }
         else if (phone.getAnnouncements()) {
-            CallTwiml.announcementGreeting(phone.owner.name, session.isSubscribedToCall)
+            CallTwiml.announcementGreeting(phone.owner.buildName(), session.isSubscribedToCall)
         }
         else { fallbackAction() }
     }

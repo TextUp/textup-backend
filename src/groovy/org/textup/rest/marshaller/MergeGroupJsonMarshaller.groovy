@@ -18,14 +18,12 @@ class MergeGroupJsonMarshaller extends JsonNamedMarshaller {
 
         Map json = [:]
     	if (c1) {
-    		doMarshalContact(json, c1)
+    		json.putAll(MergeGroupJsonMarshaller.marshalSimpleContact(c1))
     	}
     	json.merges = mGroup.possibleMerges.collect { MergeGroupItem item1 ->
             Collection<Map<String,?>> mergeWithList = []
             item1.mergeWith.each { Contact c2 ->
-                Map<String,?> mergeWith = [:]
-                doMarshalContact(mergeWith, c2)
-                mergeWithList << mergeWith
+                mergeWithList << MergeGroupJsonMarshaller.marshalSimpleContact(c2)
             }
     		[mergeBy:item1.number.prettyPhoneNumber, mergeWith:mergeWithList]
     	}
@@ -33,7 +31,8 @@ class MergeGroupJsonMarshaller extends JsonNamedMarshaller {
             resource:"contact", action:"show", id:mGroup.targetContactId, absolute:false)]
     	json
 	}
-	static final Closure<Void> doMarshalContact = { Map json, Contact c1 ->
+	static Map marshalSimpleContact(Contact c1) {
+        Map json = [:]
         json.id = c1.id
 		if (c1.name) {
             json.name = c1.name
@@ -42,7 +41,7 @@ class MergeGroupJsonMarshaller extends JsonNamedMarshaller {
             json.note = c1.note
         }
         json.numbers = c1.sortedNumbers.collect { ContactNumber num -> [number:num.prettyPhoneNumber] }
-        return
+        return json
 	}
 
 	MergeGroupJsonMarshaller() {

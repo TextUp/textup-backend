@@ -8,6 +8,7 @@ import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Log4j
@@ -48,6 +49,12 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 type = "NOTE"
             }
         }
+        Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
+            .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
+            .thenEnd { String tz = null ->
+                json.whenCreated = DateTimeUtils.toDateTimeWithZone(json.whenCreated, tz)
+                json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
+            }
         // find owner, may be a contact or a tag
         Contact c1 = Contact.findByRecord(item.readOnlyRecord)
         json.contact = c1?.id

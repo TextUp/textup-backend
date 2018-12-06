@@ -1,6 +1,5 @@
 package org.textup.rest
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
@@ -12,7 +11,8 @@ import javax.servlet.http.HttpServletRequest
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
-import org.textup.type.ReceiptStatus
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.AvailablePhoneNumber
 import org.textup.validator.PhoneNumber
@@ -124,7 +124,7 @@ class NumberControllerSpec extends CustomSpec {
 
         when:
         request.method = "POST"
-        request.json = Utils.toJsonString { phoneNumber(num) }
+        request.json = DataFormatUtils.toJsonString(phoneNumber: num)
         controller.save()
 
         then:
@@ -146,10 +146,7 @@ class NumberControllerSpec extends CustomSpec {
 
         when:
         request.method = "POST"
-        request.json = Utils.toJsonString {
-            token(tok)
-            phoneNumber(num)
-        }
+        request.json = DataFormatUtils.toJsonString(token: tok, phoneNumber: num)
         controller.save()
 
         then:

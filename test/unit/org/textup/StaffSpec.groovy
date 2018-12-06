@@ -10,8 +10,7 @@ import org.joda.time.DateTimeConstants
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalTime
 import org.springframework.context.MessageSource
-import org.textup.type.AuthorType
-import org.textup.type.ScheduleStatus
+import org.textup.type.*
 import org.textup.validator.Author
 import org.textup.validator.LocalInterval
 import org.textup.validator.ScheduleChange

@@ -14,6 +14,8 @@ import javax.xml.transform.Transformer
 import javax.xml.transform.TransformerFactory
 import org.apache.fop.apps.*
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.springframework.core.io.Resource
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
@@ -29,18 +31,15 @@ class PdfService {
 
     @PostConstruct
     protected void startUp() {
-        // // TODO
-        // FopFactory _fopFactory = FopFactory.newInstance(new File(".").toURI())
-
-        // String pdfTransformPath = grailsApplication.flatConfig["textup.export.pdfTransformPath"]
-        // Path pdfTransform = Paths.get(pdfTransformPath)
-        // if (!Files.isReadable(pdfTransform)) {
-        //     throw new IllegalArgumentException("Path to pdf XSLT file must be readable")
-        // }
-        // // see https://stackoverflow.com/a/3389479
-        // // use Saxon XSLT processor instead of XalanJ bundled with Apache FOP
-        // TransformerFactory tFactory = TransformerFactory.newInstance(XSLT_PROCESSOR_CLASS, null)
-        // _pdfTransformTemplate = tFactory.newTemplates(new StreamSource(pdfTransform.toFile()))
+        _fopFactory = FopFactory.newInstance(new File(".").toURI())
+        Resource pdfTransform = grailsApplication.mainContext.getResource("record-items-export.xsl")
+        if (!pdfTransform.isReadable()) {
+            throw new IllegalArgumentException("Path to pdf XSLT file must be readable")
+        }
+        // see https://stackoverflow.com/a/3389479
+        // use Saxon XSLT processor instead of XalanJ bundled with Apache FOP
+        TransformerFactory tFactory = TransformerFactory.newInstance(XSLT_PROCESSOR_CLASS, null)
+        _pdfTransformTemplate = tFactory.newTemplates(new StreamSource(pdfTransform.file))
     }
 
     @PreDestroy
@@ -50,8 +49,13 @@ class PdfService {
     }
 
     Result<byte[]> buildRecordItems(RecordItemRequest itemRequest) {
-        OutputStream out = new ByteArrayOutputStream()
+        if (!itemRequest) {
+            return IOCUtils.resultFactory.failWithCodeAndStatus("pdfService.buildRecordItems.noInput",
+                ResultStatus.INTERNAL_SERVER_ERROR)
+        }
+        OutputStream out
         try {
+            out = new ByteArrayOutputStream()
             Fop fop = _fopFactory.newFop(MimeConstants.MIME_PDF, out)
             Object xmlString = DataFormatUtils.toXmlString(DataFormatUtils.jsonToObject(itemRequest))
             Source src = new StreamSource(new StringReader(xmlString))
@@ -67,7 +71,7 @@ class PdfService {
             IOCUtils.resultFactory.failWithThrowable(e)
         }
         finally {
-            out.close()
+            out?.close()
         }
     }
 }

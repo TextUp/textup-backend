@@ -35,7 +35,7 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             p1 = Phone.get(p1.id)
         }
         // if the logged-in user is an owner of this phone, show integrated availability information
-        List<Staff> allStaff = p1.owner.all
+        List<Staff> allStaff = p1.owner.buildAllStaff()
         if (allStaff.contains(loggedIn)) {
             json.availability = new StaffPolicyAvailability(p1, loggedIn, false)
             json.others = allStaff

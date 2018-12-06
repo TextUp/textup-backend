@@ -1,11 +1,12 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
+import grails.test.mixin.web.ControllerUnitTestMixin
 import grails.validation.ValidationErrors
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -15,7 +16,7 @@ import org.textup.validator.*
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy,
     MediaInfo, MediaElement, MediaElementVersion, Token])
-@TestMixin(HibernateTestMixin)
+@TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 @TestFor(NotificationService)
 class NotificationServiceSpec extends CustomSpec {
 
@@ -388,10 +389,11 @@ class NotificationServiceSpec extends CustomSpec {
         service.textService = Mock(TextService)
         service.grailsApplication = grailsApplication
 
+
         String contents = TestUtils.randString()
         String instr = TestUtils.randString()
         BasicNotification bn1 = [
-            owner: [phone: p1],
+            owner: Stub(PhoneOwnership) { getPhone() >> p1 },
             staff: s1,
             record: c1.record
         ] as BasicNotification

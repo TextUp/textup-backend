@@ -297,7 +297,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         Result<Closure> res = service.receiveCall(p1, null, null, sess1)
 
         then:
-        (1.._) * p1.owner >> Stub(PhoneOwnership) { getAll() >> [[personalPhoneAsString: pNum]] }
+        (1.._) * p1.owner >> Stub(PhoneOwnership) { buildAllStaff() >> [[personalPhoneAsString: pNum]] }
         0 * service.announcementService._
         handleSelfCall.callCount == 1
         relayCall.callCount == 0
@@ -306,7 +306,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         res = service.receiveCall(p1, null, null, sess1)
 
         then:
-        (1.._) * p1.owner >> Stub(PhoneOwnership) { getAll() >> [[personalPhoneAsString: "other"]] }
+        (1.._) * p1.owner >> Stub(PhoneOwnership) { buildAllStaff() >> [[personalPhoneAsString: "other"]] }
         (1.._) * p1.announcements >> [Mock(FeaturedAnnouncement)]
         // check that the fallback closure passed in actually calls relayCall
         1 * service.announcementService.handleAnnouncementCall(*_) >> { args -> args[3].call(); null; }
@@ -317,7 +317,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         res = service.receiveCall(p1, null, null, sess1)
 
         then:
-        (1.._) * p1.owner >> Stub(PhoneOwnership) { getAll() >> [[personalPhoneAsString: "other"]] }
+        (1.._) * p1.owner >> Stub(PhoneOwnership) { buildAllStaff() >> [[personalPhoneAsString: "other"]] }
         (1.._) * p1.announcements >> []
         0 * service.announcementService._
         handleSelfCall.callCount == 1

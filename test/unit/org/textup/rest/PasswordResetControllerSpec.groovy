@@ -8,6 +8,7 @@ import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.util.*
+import org.textup.type.*
 import spock.lang.Shared
 import static javax.servlet.http.HttpServletResponse.*
 
@@ -55,7 +56,7 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     	when:
     	request.method = "POST"
-    	request.json = Utils.toJsonString { username(un) }
+        request.json = DataFormatUtils.toJsonString(username: un)
     	controller.requestReset()
 
     	then:
@@ -88,10 +89,7 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     	when:
     	request.method = "PUT"
-    	request.json = Utils.toJsonString {
-    		token(tok)
-    		password(pwd)
-		}
+        request.json = DataFormatUtils.toJsonString(token: tok, password: pwd)
     	controller.resetPassword()
 
     	then:

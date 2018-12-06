@@ -1,6 +1,5 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
@@ -8,10 +7,8 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.apache.commons.lang3.tuple.Pair
 import org.springframework.context.MessageSource
-import org.textup.type.ContactStatus
-import org.textup.type.FutureMessageType
-import org.textup.type.SharePermission
-import org.textup.type.StaffStatus
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.MergeGroup
 import org.textup.validator.MergeGroupItem
@@ -457,7 +454,7 @@ class DuplicateServiceSpec extends CustomSpec {
     		assert it.record.id == c1.record.id
     	}
     	[contact1, contact2].each {
-    		assert it.record.countItems() == 0
+    		assert RecordItem.forRecordIdsWithOptions([it.record.id]).count() == 0
     		assert it.record.countFutureMessages() == 0
     	}
 
@@ -539,7 +536,7 @@ class DuplicateServiceSpec extends CustomSpec {
         // merged-in contacts to the caller of the merge method
     	[contact1, contact2].each {
     		assert it.isDeleted == false // merged-in contacts are NOT deleted
-    		assert it.record.countItems() == 0
+    		assert RecordItem.forRecordIdsWithOptions([it.record.id]).count() == 0
     		assert it.record.countFutureMessages() == 0
     	}
 

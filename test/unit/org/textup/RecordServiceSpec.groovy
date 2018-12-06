@@ -68,7 +68,7 @@ class RecordServiceSpec extends CustomSpec {
         resGroup = service.create(t1.phone.id, params)
 
         then:
-        1 * service.authService.loggedInAndActive >> t1.phone.owner.all[0]
+        1 * service.authService.loggedInAndActive >> t1.phone.owner.buildAllStaff()[0]
         resGroup.anySuccesses == false
         resGroup.failures.size() == 1
         resGroup.failures[0].errorMessages[0] == "recordUtils.determineClass.unknownType"
@@ -79,7 +79,7 @@ class RecordServiceSpec extends CustomSpec {
     void "test create overall"() {
         given:
         Phone p1 = t1.phone
-        service.authService = Stub(AuthService) { getLoggedInAndActive() >> p1.owner.all[0] }
+        service.authService = Stub(AuthService) { getLoggedInAndActive() >> p1.owner.buildAllStaff()[0] }
         MockedMethod createText = TestUtils.mock(service, "createText") { new ResultGroup() }
         MockedMethod createCall = TestUtils.mock(service, "createCall") { new Result() }
         MockedMethod createNote = TestUtils.mock(service, "createNote") { new Result() }

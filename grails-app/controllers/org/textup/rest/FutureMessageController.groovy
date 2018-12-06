@@ -48,7 +48,7 @@ class FutureMessageController extends BaseController {
     ])
 	@Transactional(readOnly=true)
     def index() {
-    	if (!MapUtils.countKeys(["contactId", "tagId"], params) == 1) {
+    	if (MapUtils.countKeys(["contactId", "tagId"], params) != 1) {
     		badRequest()
 		}
     	else if (params.long("contactId")) {
@@ -145,7 +145,7 @@ class FutureMessageController extends BaseController {
         Map fInfo = getJsonPayload(FutureMessage, request)
         if (fInfo == null) { return }
         String tz = params.timezone as String
-        if (!MapUtils.countKeys(["contactId", "tagId"], params) == 1) {
+        if (MapUtils.countKeys(["contactId", "tagId"], params) != 1) {
             badRequest()
         }
         else if (params.long("contactId")) {

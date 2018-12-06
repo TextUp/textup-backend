@@ -343,7 +343,7 @@ class SharedContactSpec extends CustomSpec {
         assert sByOwner.policies == null
         assert sWithOwner.policies == null
 
-        Long noNotifyStaffId = sWithOwner.all[0].id
+        Long noNotifyStaffId = sWithOwner.buildAllStaff()[0].id
         NotificationPolicy np1 = new NotificationPolicy(staffId:noNotifyStaffId,
             level:NotificationLevel.NONE)
         sByOwner.addToPolicies(np1)
@@ -352,7 +352,7 @@ class SharedContactSpec extends CustomSpec {
 
         when: "we ask about notification statuses"
         List<NotificationStatus> statuses = sc1.getNotificationStatuses()
-        List<Staff> sWithStaffIds = sWithOwner.all*.id
+        List<Staff> sWithStaffIds = sWithOwner.buildAllStaff()*.id
 
         then: "we look in the sharedBy owner's policies NOT the sharedWith owner's policies \
             and the staff members we return are the staff members are from the sharedWith owner"

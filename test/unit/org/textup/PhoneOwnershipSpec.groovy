@@ -1,13 +1,14 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import grails.test.mixin.web.ControllerUnitTestMixin
 import grails.test.runtime.FreshRuntime
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.rest.NotificationStatus
+import org.textup.test.*
 import org.textup.type.NotificationLevel
 import org.textup.type.PhoneOwnershipType
 import org.textup.type.StaffStatus
@@ -18,7 +19,7 @@ import spock.lang.Shared
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
 	Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
     MediaInfo, MediaElement, MediaElementVersion])
-@TestMixin(HibernateTestMixin)
+@TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 class PhoneOwnershipSpec extends CustomSpec {
 
 	static doWithSpring = {
@@ -60,9 +61,9 @@ class PhoneOwnershipSpec extends CustomSpec {
 
     	then:
     	own.validate() == true
-    	own.name == s1.name
-    	own.all.size() == 1
-    	own.all[0] == s1
+    	own.buildName() == s1.name
+    	own.buildAllStaff().size() == 1
+    	own.buildAllStaff()[0] == s1
 
     	when: "we have a group phone ownership"
     	own = new PhoneOwnership(phone:p1, ownerId:t1.id,
@@ -70,9 +71,9 @@ class PhoneOwnershipSpec extends CustomSpec {
 
     	then:
     	own.validate() == true
-    	own.name == t1.name
-    	own.all.size() == t1.members.size()
-    	own.all.every { Staff s1 ->
+    	own.buildName() == t1.name
+    	own.buildAllStaff().size() == t1.members.size()
+    	own.buildAllStaff().every { Staff s1 ->
             t1.members.find { Staff s2 -> s1.id == s2.id }}
     }
 
@@ -90,7 +91,7 @@ class PhoneOwnershipSpec extends CustomSpec {
 
         when: "we try to get a policy for this same staff id"
         np1.save(flush:true, failOnError:true)
-        NotificationPolicy np2 = owner1.getPolicyForStaff(np1.staffId)
+        NotificationPolicy np2 = owner1.findPolicyForStaff(np1.staffId)
 
         then:
         np2 != null
@@ -134,7 +135,7 @@ class PhoneOwnershipSpec extends CustomSpec {
         statuses[0].isAvailableNow == true // policy-level is available even if staff-level is not
 
         when: "we get notification status for staff that does not have any policies"
-        assert p1.owner.getPolicyForStaff(s1.id) == null
+        assert p1.owner.findPolicyForStaff(s1.id) == null
         s1.with {
             manualSchedule = true
             isAvailable = false

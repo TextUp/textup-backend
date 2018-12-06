@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @Validateable
@@ -22,6 +23,6 @@ class ContactRecipients extends Recipients<Long, Contact> {
 
     @Override
     protected List<Contact> buildRecipientsFromIds(List<Long> ids) {
-        Contact.getAll(ids as Iterable<Serializable>)
+        CollectionUtils.ensureNoNull(Contact.getAll(ids as Iterable<Serializable>))
     }
 }

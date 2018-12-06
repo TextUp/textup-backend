@@ -7,6 +7,7 @@ import org.springframework.beans.factory.support.AbstractBeanDefinition
 import org.springframework.beans.factory.support.GenericBeanDefinition
 import org.textup.*
 import org.textup.test.*
+import org.textup.type.*
 import spock.lang.*
 
 class RollbackOnResultFailureAspectIntegrationSpec extends Specification {

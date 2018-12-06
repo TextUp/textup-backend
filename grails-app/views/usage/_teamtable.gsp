@@ -1,6 +1,6 @@
 <g:if test="${teams}">
     <div class="table-responsive table--horizontal-scroll">
-        <table class="table"
+        <table class="table table-hover"
             data-order='[[2, "desc"]]'
             data-buttons='[{
                 "extend": "pdfHtml5",
