@@ -60,8 +60,10 @@ class PdfService {
             Object xmlString = DataFormatUtils.toXmlString(DataFormatUtils.jsonToObject(itemRequest))
             Source src = new StreamSource(new StringReader(xmlString))
             XMLResult res = new SAXResult(fop.getDefaultHandler())
+            String imagePath = grailsApplication.flatConfig["textup.export.imagePath"]
 
             Transformer transformer = _pdfTransformTemplate.newTransformer()
+            transformer.setParameter("logoFilePath", imagePath)
             transformer.transform(src, res)
 
             IOCUtils.resultFactory.success(out.toByteArray())

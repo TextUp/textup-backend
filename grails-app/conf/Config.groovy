@@ -92,7 +92,11 @@ environments {
     development {
         grails.logging.jul.usebridge                  = true
         grails.plugin.databasemigration.updateOnStart = false
-        grails.plugin.console.baseUrl                 ="http://localhost:8080/console"
+        grails.plugin.console.baseUrl                 = "http://localhost:8080/console"
+        textup.export.imagePath                       = "web-app/images/logo.png"
+    }
+    test {
+        textup.export.imagePath = "web-app/images/logo.png"
     }
     production {
         grails.logging.jul.usebridge                           = false
@@ -113,6 +117,7 @@ environments {
             'QRTZ_SIMPROP_TRIGGERS',
             'QRTZ_TRIGGERS'
         ]
+        textup.export.imagePath = "images/logo.png"
     }
 }
 
@@ -229,9 +234,6 @@ textup {
             executableDirectory = System.getenv("TEXTUP_BACKEND_FFMPEG_DIRECTORY") ?: System.getProperty("TEXTUP_BACKEND_FFMPEG_DIRECTORY")
             executableName      = System.getenv("TEXTUP_BACKEND_FFMPEG_COMMAND") ?: System.getProperty("TEXTUP_BACKEND_FFMPEG_COMMAND")
         }
-    }
-    export {
-        pdfTransformPath = System.getenv("TEXTUP_BACKEND_PDF_XSLT_PATH") ?: System.getProperty("TEXTUP_BACKEND_PDF_XSLT_PATH")
     }
     mail {
         standard {

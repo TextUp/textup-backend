@@ -6,6 +6,8 @@
 
     <!-- Global context -->
 
+    <xsl:param name="logoFilePath" />
+
     <xsl:variable name="totalNumItems" select="/map/entry[@key='totalNumItems']/number()" />
     <xsl:variable name="maxAllowedNumItems" select="/map/entry[@key='maxAllowedNumItems']/number()" />
     <xsl:variable name="exportedOnDate" select="/map/entry[@key='exportedOnDate']/text()" />
@@ -143,7 +145,7 @@
                     </fo:table-cell>
                     <fo:table-cell xsl:use-attribute-sets="text-small">
                         <fo:block text-align="right" xsl:use-attribute-sets="space-bottom--small">
-                            <fo:external-graphic src="web-app/images/logo.png"
+                            <fo:external-graphic src="{$logoFilePath}"
                                 height="0.5in"
                                 content-height="scale-to-fit" />
                         </fo:block>
