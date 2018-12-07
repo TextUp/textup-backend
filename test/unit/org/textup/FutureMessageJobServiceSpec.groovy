@@ -14,6 +14,10 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Specification
 
+// When writing Groovy code, use GroovyMock instead of Mock which is aware of Groovy features
+// such as normalizing setProperty("name", value) to setName(value)
+// see: https://stackoverflow.com/a/46572812
+
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
@@ -42,9 +46,9 @@ class FutureMessageJobServiceSpec extends CustomSpec {
 
     void "test building trigger"() {
         given:
-        service.authService = Mock(AuthService)
+        service.authService = GroovyMock(AuthService)
         TriggerBuilder builder = TriggerBuilder.newTrigger()
-        FutureMessage fMsg = Mock()
+        FutureMessage fMsg = GroovyMock()
         String keyName = TestUtils.randString()
         DateTime startDate = DateTime.now().plusDays(1)
         DateTime endDate = DateTime.now().plusDays(8)
@@ -69,7 +73,7 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     void "test scheduling"() {
         given:
         service.quartzScheduler = Mock(Scheduler)
-        FutureMessage fMsg = Mock()
+        FutureMessage fMsg = GroovyMock()
         MockedMethod buildTrigger = TestUtils.mock(service, "buildTrigger")
 
         when: "error scheduling job"
@@ -105,7 +109,7 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     void "test unscheduling"() {
         given:
         service.quartzScheduler = Mock(Scheduler)
-        FutureMessage fMsg = Mock(FutureMessage)
+        FutureMessage fMsg = GroovyMock()
 
         when: "gracefully catch exceptions"
         Result<Void> res = service.unschedule(fMsg)
@@ -126,7 +130,8 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     void "test cancelling all"() {
         given:
         MockedMethod unschedule = TestUtils.mock(service, 'unschedule') { new Result() }
-        FutureMessage fMsg = Mock()
+        // see https://github.com/spockframework/spock/issues/438
+        FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
 
         when:
         ResultGroup<FutureMessage> resGroup = service.cancelAll(null)
@@ -152,10 +157,10 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test execution errors"() {
         given:
-        service.outgoingMessageService = Mock(OutgoingMessageService)
-        service.notificationService = Mock(NotificationService)
-        FutureMessage fMsg = Mock()
-        OutgoingMessage msg1 = Mock()
+        service.outgoingMessageService = GroovyMock(OutgoingMessageService)
+        service.notificationService = GroovyMock(NotificationService)
+        FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
+        OutgoingMessage msg1 = GroovyMock() { asBoolean() >> true }
 
         when: "nonexistent keyName"
         FutureMessage.metaClass."static".findByKeyName = { String key -> null }
@@ -197,13 +202,13 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test execute"() {
         given: "overrides and baselines"
-        FutureMessage fMsg = Mock()
-        OutgoingMessage msg1 = Mock()
-        RecordItem rItem = Mock()
+        FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
+        OutgoingMessage msg1 = GroovyMock() { asBoolean() >> true }
+        RecordItem rItem = GroovyMock() { asBoolean() >> true }
         Future fut1 = Mock()
-        service.outgoingMessageService = Mock(OutgoingMessageService)
-        service.notificationService = Mock(NotificationService)
-        service.threadService = Mock(ThreadService)
+        service.outgoingMessageService = GroovyMock(OutgoingMessageService)
+        service.notificationService = GroovyMock(NotificationService)
+        service.threadService = GroovyMock(ThreadService)
         FutureMessage.metaClass."static".findByKeyName = { String key -> fMsg }
         Closure asyncAction
 
@@ -212,7 +217,7 @@ class FutureMessageJobServiceSpec extends CustomSpec {
 
         then:
         1 * fMsg.tryGetOutgoingMessage() >> new Result(payload: msg1)
-        1 * msg1.phones >> [Mock(Phone)]
+        1 * msg1.phones >> [GroovyMock(Phone) { asBoolean() >> true }]
         1 * service.outgoingMessageService.processMessage(_, _, s1) >>
             Tuple.create(new Result(payload: rItem).toGroup(), fut1)
         1 * fMsg.notifySelf >> false
@@ -227,14 +232,14 @@ class FutureMessageJobServiceSpec extends CustomSpec {
 
         then:
         1 * fMsg.tryGetOutgoingMessage() >> new Result(payload: msg1)
-        1 * msg1.phones >> [Mock(Phone)]
+        1 * msg1.phones >> [GroovyMock(Phone) { asBoolean() >> true }]
         1 * service.outgoingMessageService.processMessage(_, _, s1) >>
             Tuple.create(new Result(payload: rItem).toGroup(), fut1)
         1 * fMsg.notifySelf >> true
         1 * rItem.setWasScheduled(true)
-        1 * service.notificationService.build(*_) >> [Mock(BasicNotification)]
-        1 * msg1.contacts >> Mock(Recipients)
-        1 * msg1.tags >> Mock(Recipients)
+        1 * service.notificationService.build(*_) >> [GroovyMock(BasicNotification)]
+        1 * msg1.contacts >> GroovyMock(Recipients)
+        1 * msg1.tags >> GroovyMock(Recipients)
         1 * service.threadService.submit(*_) >> { Closure action -> asyncAction = action; null; }
         resGroup.anyFailures == false
         resGroup.successes.size() == 1
@@ -254,8 +259,8 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test mark done"() {
         given:
-        service.socketService = Mock(SocketService)
-        FutureMessage fMsg = Mock()
+        service.socketService = GroovyMock(SocketService)
+        FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
 
         when: "passed in a nonexistent keyName"
         FutureMessage.metaClass."static".findByKeyName = { String key -> null }

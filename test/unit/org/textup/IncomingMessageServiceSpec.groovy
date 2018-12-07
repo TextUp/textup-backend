@@ -271,7 +271,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
             notBlockedContacts = contactsList
             new Result()
         }
-        service.socketService = Mock(SocketService)
+        service.socketService = GroovyMock(SocketService)
 
         when:
         service.relayCall(p1, "apiId", session)
@@ -288,8 +288,8 @@ class IncomingMessageServiceSpec extends CustomSpec {
         given:
         MockedMethod handleSelfCall = TestUtils.mock(service, "handleSelfCall") { new Result() }
         MockedMethod relayCall = TestUtils.mock(service, "relayCall") { new Result() }
-        service.announcementService = Mock(AnnouncementService)
-        Phone p1 = Mock(Phone)
+        service.announcementService = GroovyMock(AnnouncementService)
+        Phone p1 = GroovyMock(Phone)
         String pNum = TestUtils.randPhoneNumber()
         IncomingSession sess1 = Stub(IncomingSession) { getNumberAsString() >> pNum }
 
@@ -307,7 +307,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
         then:
         (1.._) * p1.owner >> Stub(PhoneOwnership) { buildAllStaff() >> [[personalPhoneAsString: "other"]] }
-        (1.._) * p1.announcements >> [Mock(FeaturedAnnouncement)]
+        (1.._) * p1.announcements >> [GroovyMock(FeaturedAnnouncement)]
         // check that the fallback closure passed in actually calls relayCall
         1 * service.announcementService.handleAnnouncementCall(*_) >> { args -> args[3].call(); null; }
         handleSelfCall.callCount == 1
@@ -361,7 +361,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int iBaseline = RecordCall.count()
         int rBaseline = RecordItemReceipt.count()
-        service.socketService = Mock(SocketService)
+        service.socketService = GroovyMock(SocketService)
 
         when: "missing digits"
         Result<Closure> res = service.handleSelfCall(p1, "apiId", null, s1)
@@ -436,7 +436,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test building texts overall"() {
         given:
-        service.socketService = Mock(SocketService)
+        service.socketService = GroovyMock(SocketService)
         Phone newPhone = new Phone(numberAsString:TestUtils.randPhoneNumber())
         newPhone.updateOwner(s1)
         newPhone.save(flush:true, failOnError:true)
@@ -469,9 +469,9 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test building response to incoming text"() {
         given:
-        BasicNotification bn1 = Mock(BasicNotification)
-        RecordText rText = Mock(RecordText)
-        service.announcementService = Mock(AnnouncementService)
+        BasicNotification bn1 = GroovyMock(BasicNotification)
+        RecordText rText = GroovyMock(RecordText)
+        service.announcementService = GroovyMock(AnnouncementService)
         String msg = TestUtils.randString()
 
         when: "no notifications"
@@ -496,8 +496,8 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test finishing processing texts helper"() {
         given:
-        service.notificationService = Mock(NotificationService)
-        service.socketService = Mock(SocketService)
+        service.notificationService = GroovyMock(NotificationService)
+        service.socketService = GroovyMock(SocketService)
         IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
         assert text.validate()
         MediaInfo invalidMedia = new MediaInfo()
@@ -528,7 +528,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test finishing processing texts overall"() {
         given:
-        service.incomingMediaService = Mock(IncomingMediaService)
+        service.incomingMediaService = GroovyMock(IncomingMediaService)
         IncomingText text = Stub(IncomingText) { getApiId() >> "hi" }
         TypeConvertingMap params = new TypeConvertingMap()
         MediaElement e1 = TestUtils.buildMediaElement()
@@ -564,8 +564,8 @@ class IncomingMessageServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test processing texts overall for blocked vs not blocked"() {
         given:
-        service.notificationService = Mock(NotificationService)
-        service.threadService = Mock(ThreadService)
+        service.notificationService = GroovyMock(NotificationService)
+        service.threadService = GroovyMock(ThreadService)
         MockedMethod finishProcessingText = TestUtils.mock(service, "finishProcessingText")
             { new Result() }
         MockedMethod buildTextResponse = TestUtils.mock(service, "buildTextResponse")

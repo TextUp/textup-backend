@@ -40,8 +40,8 @@ class AnnouncementServiceSpec extends CustomSpec {
 
     void "test create"() {
         given:
-        service.outgoingAnnouncementService = Mock(OutgoingAnnouncementService)
-        service.authService = Mock(AuthService)
+        service.outgoingAnnouncementService = GroovyMock(OutgoingAnnouncementService)
+        service.authService = GroovyMock(AuthService)
 
     	when: "no phone"
         Map params = [:]
@@ -132,12 +132,12 @@ class AnnouncementServiceSpec extends CustomSpec {
 
     void "test see announcement via text"() {
         given:
-        Phone owner = Mock(Phone)
-        FeaturedAnnouncement fa1 = Mock(FeaturedAnnouncement) {
+        Phone owner = GroovyMock(Phone)
+        FeaturedAnnouncement fa1 = GroovyMock(FeaturedAnnouncement) {
             getWhenCreated() >> DateTime.now()
             getOwner() >> owner
         }
-        IncomingSession sess1 = Mock(IncomingSession)
+        IncomingSession sess1 = GroovyMock(IncomingSession)
 
         when:
         Result<Closure> res = service.textSeeAnnouncements([fa1], sess1)
@@ -150,7 +150,7 @@ class AnnouncementServiceSpec extends CustomSpec {
 
     void "test change announcement subscription for texts"() {
         given:
-        IncomingSession sess1 = Mock(IncomingSession)
+        IncomingSession sess1 = GroovyMock(IncomingSession)
 
         when: "is unsubscribed"
         Result<Closure> res = service.textToggleSubscribe(sess1)
@@ -296,7 +296,7 @@ class AnnouncementServiceSpec extends CustomSpec {
 
     void "test complete call announcement"() {
         given:
-        IncomingSession session = Mock(IncomingSession)
+        IncomingSession session = GroovyMock(IncomingSession)
 
         when: "unsubscribe"
         String digits = Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE
