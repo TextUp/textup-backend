@@ -67,7 +67,7 @@ class IncomingMessageService {
         List<RecordText> rTexts, List<BasicNotification> notifs) {
         List<String> responses = []
         if (notifs.isEmpty()) {
-            rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
+            rTexts.each { RecordText rText -> rText.setHasAwayMessage(true) }
             responses << p1.awayMessage
         }
         // remind about instructions if phone has announcements enabled

@@ -64,7 +64,7 @@ class FutureMessageJobService {
         unschedule(fMsg)
             .logFail("FutureMessageJobService.cancel")
             .then {
-                fMsg.isDone = true
+                fMsg.setIsDone(true)
                 if (fMsg.save()) {
                     resultFactory.success(fMsg)
                 }
@@ -97,7 +97,7 @@ class FutureMessageJobService {
         ResultGroup<RecordItem> resGroup = processed.first
         Future<?> future = processed.second
         // mark all these record items as having been scheduled originally
-        resGroup.payload.each { RecordItem item1 -> item1.wasScheduled = true }
+        resGroup.payload.each { RecordItem item1 -> item1.setWasScheduled(true) }
         // notify staffs is any successes
         if (fMsg.notifySelf && resGroup.anySuccesses) {
             List<BasicNotification> notifs = notificationService
@@ -149,7 +149,7 @@ class FutureMessageJobService {
             return resultFactory.failWithCodeAndStatus("futureMessageService.markDone.messageNotFound",
                 ResultStatus.NOT_FOUND, [futureKey])
         }
-        fMsg.isDone = true
+        fMsg.setIsDone(true)
         if (fMsg.save()) {
             socketService.sendFutureMessages([fMsg]) // socketService will refresh trigger
             resultFactory.success(fMsg)

@@ -55,7 +55,7 @@ class RecordControllerSpec extends CustomSpec {
         MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
             Result.createError([errorMsg], ResultStatus.BAD_REQUEST)
         }
-        Long teamId = TestUtils.randIntegerUpTo(88)
+        Long teamId = TestUtils.randIntegerUpTo(88) + 1
 
         when: "validation error when building record item request"
         controller.index()

@@ -81,11 +81,11 @@ class AnnouncementService {
 
     Result<Closure> textToggleSubscribe(IncomingSession sess1) {
         if (sess1.isSubscribedToText) {
-            sess1.isSubscribedToText = false
+            sess1.setIsSubscribedToText(false)
             TextTwiml.unsubscribed()
         }
         else {
-            sess1.isSubscribedToText = true
+            sess1.setIsSubscribedToText(true)
             TextTwiml.subscribed()
         }
     }
@@ -142,7 +142,7 @@ class AnnouncementService {
     Result<Closure> completeCallAnnouncement(String digits, String message,
         String identifier, IncomingSession session) {
         if (digits == Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE) {
-            session.isSubscribedToCall = false
+            session.setIsSubscribedToCall(false)
             CallTwiml.unsubscribed()
         }
         else { CallTwiml.announcementAndDigits(identifier, message) }
