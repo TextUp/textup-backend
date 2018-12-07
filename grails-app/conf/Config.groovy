@@ -194,7 +194,11 @@ grails {
         }
     }
 }
-cors.headers = ['Access-Control-Allow-Headers': 'Content-Type, Authorization']
+// this property seems to only set CORS headers in response to the preflight request
+cors.headers = ["Access-Control-Allow-Headers": "Content-Type, Authorization"]
+// this property sets Access-Control-Expose-Headers
+// see: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Access-Control-Expose-Headers
+cors.expose.headers = "Content-Disposition"
 
 //REST API documentation
 grails.plugins.restapidoc.customClassName="org.textup.rest.CustomResponseDoc"

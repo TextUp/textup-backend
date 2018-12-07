@@ -61,10 +61,10 @@ class RecordUtilsSpec extends CustomSpec {
         body = new TypeConvertingMap(
             since: start.toString(),
             before: end.toString(),
-            types: ["text"],
-            contactIds: [c1.id],
-            sharedContactIds:[sc2.contactId],
-            tagIds: [tag1.id]
+            "types[]": ["text"],
+            "contactIds[]": [c1.id],
+            "sharedContactIds[]":[sc2.contactId],
+            "tagIds[]": [tag1.id]
         )
         res = RecordUtils.buildRecordItemRequest(p1, body, false)
 

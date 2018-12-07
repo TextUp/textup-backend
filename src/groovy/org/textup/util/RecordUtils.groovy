@@ -47,7 +47,7 @@ class RecordUtils {
 
     static Result<RecordItemRequest> buildRecordItemRequest(Phone p1, TypeConvertingMap body,
         boolean groupByEntity) {
-        Collection<Class<? extends RecordItem>> types = RecordUtils.parseTypes(body.list("types"))
+        Collection<Class<? extends RecordItem>> types = RecordUtils.parseTypes(body.list("types[]"))
         DateTime start = DateTimeUtils.toDateTimeWithZone(body.since),
             end = DateTimeUtils.toDateTimeWithZone(body.before)
         RecordItemRequest itemRequest = new RecordItemRequest(phone: p1,
@@ -56,11 +56,11 @@ class RecordUtils {
             end: end,
             groupByEntity: groupByEntity,
             contacts: new ContactRecipients(phone: p1,
-                ids: TypeConversionUtils.allTo(Long, body.list("contactIds"))),
+                ids: TypeConversionUtils.allTo(Long, body.list("contactIds[]"))),
             sharedContacts: new SharedContactRecipients(phone: p1,
-                ids: TypeConversionUtils.allTo(Long, body.list("sharedContactIds"))),
+                ids: TypeConversionUtils.allTo(Long, body.list("sharedContactIds[]"))),
             tags: new ContactTagRecipients(phone: p1,
-                ids: TypeConversionUtils.allTo(Long, body.list("tagIds"))))
+                ids: TypeConversionUtils.allTo(Long, body.list("tagIds[]"))))
         if (itemRequest.validate()) {
             IOCUtils.resultFactory.success(itemRequest)
         }
