@@ -70,11 +70,11 @@
               <fo:simple-page-master master-name="single-stream"
                 page-width="8.5in"
                 page-height="11in"
-                margin-top="0.2in"
-                margin-left="1in"
-                margin-right="1in">
-                <fo:region-body margin-top="1in"
-                    margin-bottom="1in"/>
+                margin-top="0.5in"
+                margin-left="0.5in"
+                margin-right="0.5in">
+                <fo:region-body margin-top="1.1in"
+                    margin-bottom="0.5in"/>
                 <fo:region-before precedence="true"
                     extent="1in"/>
               </fo:simple-page-master>
@@ -215,7 +215,7 @@
             </fo:list-item>
         </fo:list-block>
         <fo:block xsl:use-attribute-sets="space-top">
-            This export contains <xsl:value-of select="count(entry[@key='recordItems']//entry[@key='type'])" /> record items
+            This export contains <xsl:value-of select="count(entry[@key='recordItems']/map/entry[@key='type'])" /> record items
         </fo:block>
         <fo:list-block provisional-distance-between-starts="0.4cm"
             provisional-label-separation="0.15cm">
@@ -227,7 +227,7 @@
                 </fo:list-item-label>
                 <fo:list-item-body start-indent="body-start()">
                     <fo:block>
-                        <xsl:value-of select="count(entry[@key='recordItems']//entry[@key='type' and text()='TEXT'])" />
+                        <xsl:value-of select="count(entry[@key='recordItems']/map/entry[@key='type' and text()='TEXT'])" />
                         texts
                     </fo:block>
                 </fo:list-item-body>
@@ -240,7 +240,7 @@
                 </fo:list-item-label>
                 <fo:list-item-body start-indent="body-start()">
                     <fo:block>
-                        <xsl:value-of select="count(entry[@key='recordItems']//entry[@key='type' and text()='CALL'])" />
+                        <xsl:value-of select="count(entry[@key='recordItems']/map/entry[@key='type' and text()='CALL'])" />
                         calls
                     </fo:block>
                 </fo:list-item-body>
@@ -253,7 +253,7 @@
                 </fo:list-item-label>
                 <fo:list-item-body start-indent="body-start()">
                     <fo:block>
-                        <xsl:value-of select="count(entry[@key='recordItems']//entry[@key='type' and text()='NOTE'])" />
+                        <xsl:value-of select="count(entry[@key='recordItems']/map/entry[@key='type' and text()='NOTE'])" />
                         notes
                     </fo:block>
                 </fo:list-item-body>

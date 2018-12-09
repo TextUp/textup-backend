@@ -117,7 +117,8 @@ environments {
             'QRTZ_SIMPROP_TRIGGERS',
             'QRTZ_TRIGGERS'
         ]
-        textup.export.imagePath = "images/logo.png"
+        // on Tomcat7, FopFactory's context root is `/var/lib/tomcat7/./`
+        textup.export.imagePath = "webapps/ROOT/images/logo.png"
     }
 }
 
