@@ -2,6 +2,7 @@ package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.codehaus.groovy.grails.validation.ConstrainedProperty
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
@@ -25,9 +26,14 @@ class OrganizationJsonMarshaller extends JsonNamedMarshaller {
         if (s1?.org && s1.org.id == org.id) {
             json.with {
                 status = org.status.toString()
-                timeout = org.timeout
                 teams = org.getTeams()
                 numAdmins = org.countPeople(statuses:[StaffStatus.ADMIN])
+                timeout = org.timeout
+                awayMessageSuffix = org.awayMessageSuffix
+
+                Map<String, ConstrainedProperty> constraints = Organization.constraints as Map
+                timeoutMax = constraints.timeout.max
+                awayMessageSuffixMaxLength = constraints.awayMessageSuffix.size.to
             }
         }
         json.links = [:] << [self:linkGenerator.link(namespace:namespace,

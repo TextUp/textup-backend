@@ -957,4 +957,6 @@ databaseChangeLog = {
 	include file: 'recorded-voicemail-greeting.groovy'
 
 	include file: 'store-scheduled-status-on-items.groovy'
+
+	include file: 'customizable-away-message-suffix.groovy'
 }

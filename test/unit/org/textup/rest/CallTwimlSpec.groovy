@@ -215,7 +215,7 @@ class CallTwimlSpec extends CustomSpec {
         TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Pause(length: 1)
-                Say(voice: p1.voice.toTwimlValue(), p1.awayMessage)
+                Say(voice: p1.voice.toTwimlValue(), p1.buildAwayMessage())
                 Say("twimlBuilder.call.voicemailDirections")
                 Record(action: actionParams.toString(), maxLength: 160,
                     recordingStatusCallback:callbackParams.toString())
@@ -253,7 +253,7 @@ class CallTwimlSpec extends CustomSpec {
         TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Pause(length: 1)
-                Say(voice: p1.voice.toTwimlValue(), p1.awayMessage)
+                Say(voice: p1.voice.toTwimlValue(), p1.buildAwayMessage())
                 Say("twimlBuilder.call.voicemailDirections")
                 Record(action: actionParams.toString(), maxLength: 160,
                     recordingStatusCallback:callbackParams.toString())

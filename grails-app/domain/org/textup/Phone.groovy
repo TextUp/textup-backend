@@ -116,7 +116,7 @@ class Phone implements WithMedia, WithId {
                 return ["format"]
             }
         }
-        awayMessage blank:false, size:1..(Constants.TEXT_LENGTH)
+        awayMessage blank:false, size:1..(Constants.TEXT_LENGTH * 2)
         media nullable: true, cascadeValidation: true
     }
     static mapping = {
@@ -130,18 +130,6 @@ class Phone implements WithMedia, WithId {
 		Contact
 		ContactTag
 	*/
-
-    // Hooks
-    // -----
-
-    def beforeValidate() {
-        String mandatoryMsg = Constants.AWAY_EMERGENCY_MESSAGE,
-            awayMsg = this.awayMessage ?: ""
-        int maxLen = Constants.TEXT_LENGTH
-        if (!awayMsg.contains(mandatoryMsg)) {
-            this.awayMessage = StringUtils.appendGuaranteeLength(awayMsg, mandatoryMsg, maxLen).trim()
-        }
-    }
 
     // Static finders
     // --------------
@@ -327,6 +315,10 @@ class Phone implements WithMedia, WithId {
         List<SharedContact> shareds = SharedContact.listForContact(contact)
         shareds?.each { SharedContact sc -> sc.stopSharing() }
         IOCUtils.resultFactory.success()
+    }
+
+    String buildAwayMessage() {
+        this.awayMessage + " " + this.owner?.buildOrganization()?.awayMessageSuffix
     }
 
     // Property Access

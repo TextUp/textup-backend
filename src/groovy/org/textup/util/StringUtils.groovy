@@ -22,33 +22,16 @@ class StringUtils {
         query
     }
 
-    static String appendGuaranteeLength(String contents, String toAppend, int targetLen) {
-        Integer contentsLen = contents?.size(),
-            appendLen = toAppend?.size()
-        String myContents = contents
-        if (!contentsLen || targetLen < 1) {
-            return myContents
+    static String buildInitials(String contents) {
+        if (!contents) {
+            return contents
         }
-        if (contentsLen > targetLen) {
-            // subtract one because we are dealing with indices not lengths
-            int howMuchToKeep = targetLen - 1
-            myContents = contents[0..howMuchToKeep]
-            contentsLen = myContents.size()
-        }
-        if (!appendLen || appendLen > targetLen) {
-            return myContents
-        }
-        if (contentsLen + appendLen > targetLen) {
-            // contentsLen - (contentsLen + appendLen - targetLen)
-            // = contentsLen - contentsLen - appendLen + targetLen
-            // = targetLen - appendLen
-            // then subtract one because we are dealing with indices not lengths
-            int howMuchToKeep = targetLen - appendLen - 1
-            // if we want to keep a negative amount, then we are in the edge case where
-            // we want to keep none of the contents and effectively return only toAppend
-            myContents = (howMuchToKeep < 0) ? "" : contents[0..howMuchToKeep]
-        }
-        myContents + toAppend
+        contents
+            .replaceAll(/\d+/, "") // remove digits
+            .trim()
+            .split(/\s+/)
+            .collect { String word -> word?.size() > 0 ? word[0].toUpperCase() : word }
+            .join(".") + "." // put a period after each initial
     }
 
     static String randomAlphanumericString(Integer length = 22) {

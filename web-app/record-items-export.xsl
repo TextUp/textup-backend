@@ -126,6 +126,9 @@
                         <fo:block>
                             <fo:inline xsl:use-attribute-sets="underline">Records for</fo:inline>:
                             <xsl:choose>
+                                <xsl:when test="count(entry/string) = 0">
+                                    all records within <xsl:value-of select='$phoneName'/> (<xsl:value-of select='$phoneNumber'/>)
+                                </xsl:when>
                                 <xsl:when test="count(entry/string) = 1">
                                     <xsl:value-of select="entry/string/text()" />
                                     (<xsl:value-of select="position()" /> of <xsl:value-of select="count(../map)" />)
@@ -163,57 +166,59 @@
 
     <!-- Overview statistics at the beginning of each section -->
     <xsl:template name="overallInfo">
-        <fo:block>
-            This export is for
-        </fo:block>
-        <fo:list-block provisional-distance-between-starts="0.4cm"
-            provisional-label-separation="0.15cm">
-            <fo:list-item start-indent="0.5cm">
-                <fo:list-item-label end-indent="label-end()">
-                    <fo:block>
-                        <fo:inline>-</fo:inline>
-                    </fo:block>
-                </fo:list-item-label>
-                <fo:list-item-body start-indent="body-start()">
-                    <fo:block>
-                        <fo:inline xsl:use-attribute-sets="underline">
-                            <xsl:value-of select="count(entry[@key='contactNames']/string)" />
-                            contacts</fo:inline>:
-                        <xsl:value-of select="string-join(entry[@key='contactNames']/string, ', ')" />
-                    </fo:block>
-                </fo:list-item-body>
-            </fo:list-item>
-            <fo:list-item start-indent="0.5cm">
-                <fo:list-item-label end-indent="label-end()">
-                    <fo:block>
-                        <fo:inline>-</fo:inline>
-                    </fo:block>
-                </fo:list-item-label>
-                <fo:list-item-body start-indent="body-start()">
-                    <fo:block>
-                        <fo:inline xsl:use-attribute-sets="underline">
-                            <xsl:value-of select="count(entry[@key='sharedContactNames']/string)" />
-                            shared contacts</fo:inline>:
-                        <xsl:value-of select="string-join(entry[@key='sharedContactNames']/string, ', ')" />
-                    </fo:block>
-                </fo:list-item-body>
-            </fo:list-item>
-            <fo:list-item start-indent="0.5cm">
-                <fo:list-item-label end-indent="label-end()">
-                    <fo:block>
-                        <fo:inline>-</fo:inline>
-                    </fo:block>
-                </fo:list-item-label>
-                <fo:list-item-body start-indent="body-start()">
-                    <fo:block>
-                        <fo:inline xsl:use-attribute-sets="underline">
-                            <xsl:value-of select="count(entry[@key='tagNames']/string)" />
-                            tags</fo:inline>:
-                        <xsl:value-of select="string-join(entry[@key='tagNames']/string, ', ')" />
-                    </fo:block>
-                </fo:list-item-body>
-            </fo:list-item>
-        </fo:list-block>
+        <xsl:if test="count(entry/string) > 0">
+            <fo:block>
+                This export is for
+            </fo:block>
+            <fo:list-block provisional-distance-between-starts="0.4cm"
+                provisional-label-separation="0.15cm">
+                <fo:list-item start-indent="0.5cm">
+                    <fo:list-item-label end-indent="label-end()">
+                        <fo:block>
+                            <fo:inline>-</fo:inline>
+                        </fo:block>
+                    </fo:list-item-label>
+                    <fo:list-item-body start-indent="body-start()">
+                        <fo:block>
+                            <fo:inline xsl:use-attribute-sets="underline">
+                                <xsl:value-of select="count(entry[@key='contactNames']/string)" />
+                                contacts</fo:inline>:
+                            <xsl:value-of select="string-join(entry[@key='contactNames']/string, ', ')" />
+                        </fo:block>
+                    </fo:list-item-body>
+                </fo:list-item>
+                <fo:list-item start-indent="0.5cm">
+                    <fo:list-item-label end-indent="label-end()">
+                        <fo:block>
+                            <fo:inline>-</fo:inline>
+                        </fo:block>
+                    </fo:list-item-label>
+                    <fo:list-item-body start-indent="body-start()">
+                        <fo:block>
+                            <fo:inline xsl:use-attribute-sets="underline">
+                                <xsl:value-of select="count(entry[@key='sharedContactNames']/string)" />
+                                shared contacts</fo:inline>:
+                            <xsl:value-of select="string-join(entry[@key='sharedContactNames']/string, ', ')" />
+                        </fo:block>
+                    </fo:list-item-body>
+                </fo:list-item>
+                <fo:list-item start-indent="0.5cm">
+                    <fo:list-item-label end-indent="label-end()">
+                        <fo:block>
+                            <fo:inline>-</fo:inline>
+                        </fo:block>
+                    </fo:list-item-label>
+                    <fo:list-item-body start-indent="body-start()">
+                        <fo:block>
+                            <fo:inline xsl:use-attribute-sets="underline">
+                                <xsl:value-of select="count(entry[@key='tagNames']/string)" />
+                                tags</fo:inline>:
+                            <xsl:value-of select="string-join(entry[@key='tagNames']/string, ', ')" />
+                        </fo:block>
+                    </fo:list-item-body>
+                </fo:list-item>
+            </fo:list-block>
+        </xsl:if>
         <fo:block xsl:use-attribute-sets="space-top">
             This export contains <xsl:value-of select="count(entry[@key='recordItems']/map/entry[@key='type'])" /> record items
         </fo:block>
@@ -322,7 +327,7 @@
                 </xsl:otherwise>
             </xsl:choose>
         </fo:block>
-        <xsl:if test="entry[@key='durationInSeconds'] | entry[@key='contents'] | entry[@key='media']/*">
+        <xsl:if test="entry[@key='durationInSeconds'] | entry[@key='contents'] | entry[@key='noteContents'] | entry[@key='media']/*">
             <fo:list-block provisional-distance-between-starts="0.4cm"
                 provisional-label-separation="0.15cm">
                 <xsl:if test="entry[@key='durationInSeconds']">
@@ -359,6 +364,21 @@
                             <fo:block>
                                 <fo:inline xsl:use-attribute-sets="underline">Contents</fo:inline>:
                                 <xsl:value-of select="entry[@key='contents']" />
+                            </fo:block>
+                        </fo:list-item-body>
+                    </fo:list-item>
+                </xsl:if>
+                <xsl:if test="entry[@key='noteContents']">
+                    <fo:list-item start-indent="0.5cm">
+                        <fo:list-item-label end-indent="label-end()">
+                            <fo:block>
+                                <fo:inline>-</fo:inline>
+                            </fo:block>
+                        </fo:list-item-label>
+                        <fo:list-item-body start-indent="body-start()">
+                            <fo:block>
+                                <fo:inline xsl:use-attribute-sets="underline">Note</fo:inline>:
+                                <xsl:value-of select="entry[@key='noteContents']" />
                             </fo:block>
                         </fo:list-item-body>
                     </fo:list-item>

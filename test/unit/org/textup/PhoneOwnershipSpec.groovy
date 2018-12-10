@@ -77,6 +77,22 @@ class PhoneOwnershipSpec extends CustomSpec {
             t1.members.find { Staff s2 -> s1.id == s2.id }}
     }
 
+    void "test building organization"() {
+        when: "individual ownership"
+        PhoneOwnership own = new PhoneOwnership(phone: p1, type: PhoneOwnershipType.INDIVIDUAL,
+            ownerId: s1.id)
+
+        then:
+        own.buildOrganization().id == s1.org.id
+
+        when: "group ownership"
+        own.type = PhoneOwnershipType.GROUP
+        own.ownerId = t1.id
+
+        then:
+        own.buildOrganization().id == t1.org.id
+    }
+
     void "test policies"() {
         given: "a phone ownership without any notification policies"
         PhoneOwnership owner1 = p1.owner

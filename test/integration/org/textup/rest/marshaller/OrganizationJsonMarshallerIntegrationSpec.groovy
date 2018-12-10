@@ -48,10 +48,13 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
     	json.location.address == org.location.address
     	json.location.lat == org.location.lat
     	json.location.lon == org.location.lon
-        json.timeout == null
         json.status == null
         json.numAdmins == null
     	json.teams == null
+        json.timeout == null
+        json.awayMessageSuffix == null
+        json.timeoutMax == null
+        json.awayMessageSuffixMaxLength == null
     }
 
     void "test marshal organization when active user but NOT a member of the organization"() {
@@ -76,10 +79,13 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
         json.location.address == org.location.address
         json.location.lat == org.location.lat
         json.location.lon == org.location.lon
-        json.timeout == null
         json.status == null
         json.numAdmins == null
         json.teams == null
+        json.timeout == null
+        json.awayMessageSuffix == null
+        json.timeoutMax == null
+        json.awayMessageSuffixMaxLength == null
     }
 
     void "test marshal organization when active user that is a member of this organization"() {
@@ -97,7 +103,6 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
         then:
         json.id == org.id
         json.name == org.name
-        json.timeout == org.timeout
         json.status == org.status.toString()
         json.numAdmins == org.countPeople(statuses:[StaffStatus.ADMIN])
         json.location instanceof Map
@@ -107,5 +112,10 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
         json.teams instanceof List
         json.teams.size() == org.teams.size()
         org.teams.every { Team team -> json.teams.find { it.id == team.id } }
+
+        json.timeout == org.timeout
+        json.awayMessageSuffix == org.awayMessageSuffix
+        json.timeoutMax == Constants.MAX_LOCK_TIMEOUT_MILLIS
+        json.awayMessageSuffixMaxLength == Constants.TEXT_LENGTH - 1
     }
 }

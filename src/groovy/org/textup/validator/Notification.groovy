@@ -5,6 +5,7 @@ import grails.validation.Validateable
 import groovy.transform.ToString
 import org.textup.*
 import org.textup.type.PhoneOwnershipType
+import org.textup.util.*
 
 // See [notification] in CustomApiDocs.groovy for documentation
 
@@ -51,6 +52,11 @@ class Notification extends BasicNotification {
 	}
 	String getOtherName() {
 		this.contact?.getNameOrNumber() ?: this.tag?.name
+	}
+	String getOtherInitials() {
+		// Do not use `getNameOrNumber` on contact because we only want to show the initials, NOT
+		// accidentally leak the contact's phone number
+		StringUtils.buildInitials(this.contact?.name ?: this.tag?.name)
 	}
 	// alias tokenId to id so that the `getId` method in BaseController can find an ID when
 	// generating a link to return with the JSON payload

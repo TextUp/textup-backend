@@ -82,13 +82,17 @@ class PhoneOwnership implements WithId {
             Team.get(this.ownerId)?.getActiveMembers() ?: []
         }
     }
+    Organization buildOrganization() {
+        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
+            Staff.get(this.ownerId)?.org
+        }
+        else { Team.get(this.ownerId)?.org }
+    }
     String buildName() {
         if (this.type == PhoneOwnershipType.INDIVIDUAL) {
             Staff.get(this.ownerId)?.name ?: ''
         }
-        else {
-            Team.get(this.ownerId)?.name ?: ''
-        }
+        else { Team.get(this.ownerId)?.name ?: '' }
     }
     // Notification Policies might not all correspond to staff members that are owners on this phone
     // because we also include staff members that can access one of this phone's contacts

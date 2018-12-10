@@ -2,6 +2,7 @@ package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.codehaus.groovy.grails.validation.ConstrainedProperty
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
@@ -20,10 +21,12 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             language = p1.language.toString()
 
             awayMessage = p1.awayMessage
-            mandatoryEmergencyMessage = Constants.AWAY_EMERGENCY_MESSAGE
             useVoicemailRecordingIfPresent = p1.useVoicemailRecordingIfPresent
             voice = p1.voice.toString()
             media = p1.media
+
+            Map<String, ConstrainedProperty> constraints = Phone.constraints as Map
+            awayMessageMaxLength = constraints.awayMessage.size.to
         }
 
         AuthService authService = grailsApplication.mainContext.getBean(AuthService)

@@ -42,6 +42,12 @@ class Organization implements WithId {
     int timeout = Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
 
     @RestApiObjectField(
+        description    = "Message to append to the end of all text message away messages",
+        useForCreation = true,
+        allowedType    = "String")
+    String awayMessageSuffix = Constants.DEFAULT_AWAY_MESSAGE_SUFFIX
+
+    @RestApiObjectField(
         apiFieldName   = "numAdmins",
         description    = "Number of admins this organization has",
         useForCreation = false,
@@ -67,8 +73,10 @@ class Organization implements WithId {
                 ["duplicate", obj.location?.address]
             }
     	}
-        status blank:false, nullable:false
-        timeout min:Constants.DEFAULT_LOCK_TIMEOUT_MILLIS, max:Constants.MAX_LOCK_TIMEOUT_MILLIS
+        status blank: false, nullable: false
+        timeout min: Constants.DEFAULT_LOCK_TIMEOUT_MILLIS, max: Constants.MAX_LOCK_TIMEOUT_MILLIS
+        // leave one character for the space for joining this suffix with an away message
+        awayMessageSuffix nullable: true, blank: true, size: 1..(Constants.TEXT_LENGTH - 1)
     }
     static mapping = {
         whenCreated type:PersistentDateTime

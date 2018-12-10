@@ -104,9 +104,13 @@ See the `script` section of `.travis.yml` for the tests. Note that the command i
 
 * [Grails 2.4.4 documentation](https://grails.github.io/grails2-doc/2.4.4/index.html)
 
-## Key development tips
+## Development tips
 
-* Classes with the Validateable annotation, public getters with no properties and no defined field are treated like fields during validation. Making these getters protected or overloading the method stops these from being treated as constrainted properties. Therefore, in this special case, if we don't want these methods to be called during validation, we need to (1) rename the method, (2) make the method protected, or (3) overload the method. If we are all right with the getter being called but we want to apply custom constraints on it, then we need to declare it as a static final field to make the constraints pass type checking.
+* For classes with the Validateable annotation, public getters with no properties and no defined field are treated like fields during validation. Making these getters protected or overloading the method stops these from being treated as constrainted properties. Therefore, in this special case, if we don't want these methods to be called during validation, we need to (1) rename the method, (2) make the method protected, or (3) overload the method. If we are all right with the getter being called but we want to apply custom constraints on it, then we need to declare it as a static final field to make the constraints pass type checking.
+* Run all tests from command line before sending to CI via:
+```shell
+{ grails test-app "functional:" ;grails test-app "integration:" org.textup.rest.marshaller.* ;grails test-app "integration:" org.textup.* org.textup.util.* ;grails test-app "unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.type.* org.textup.util.* ;grails test-app "unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M* ;grails test-app "unit:" org.textup.N* org.textup.O* org.textup.P* org.textup.Q* org.textup.R* org.textup.S* org.textup.T* org.textup.U* org.textup.V* org.textup.W* org.textup.X* org.textup.Y* org.textup.Z* ;grails test-app "unit:" org.textup.media.* ;grails test-app "unit:" org.textup.rest.* org.textup.test.* } > test-output.txt
+```
 
 ## License
 

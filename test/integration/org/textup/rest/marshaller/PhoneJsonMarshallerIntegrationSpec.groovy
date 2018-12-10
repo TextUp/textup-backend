@@ -16,7 +16,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
 
     def setup() {
         setupIntegrationData()
-        authService = grailsApplication.mainContext.getBean('authService')
+        authService = grailsApplication.mainContext.getBean("authService")
     }
 
     def cleanup() {
@@ -67,7 +67,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         json.tags.size() == p1.tags.size()
         json.voice == p1.voice.toString()
         json.language == p1.language.toString()
-        json.mandatoryEmergencyMessage == Constants.AWAY_EMERGENCY_MESSAGE
+        json.awayMessageMaxLength == Constants.TEXT_LENGTH * 2
         p1.tags.every { ContactTag ct1 ->
             json.tags.find { it.id == ct1.id }
         }
@@ -125,7 +125,7 @@ class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
         json.tags.size() == p1.tags.size()
         json.voice == p1.voice.toString()
         json.language == p1.language.toString()
-        json.mandatoryEmergencyMessage == Constants.AWAY_EMERGENCY_MESSAGE
+        json.awayMessageMaxLength == Constants.TEXT_LENGTH * 2
         p1.tags.every { ContactTag ct1 ->
             json.tags.find { it.id == ct1.id }
         }

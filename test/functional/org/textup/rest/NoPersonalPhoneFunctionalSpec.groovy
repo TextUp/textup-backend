@@ -72,7 +72,7 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
         response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
         // first Say verb contains the phone's away message which is guaranteed to
         // have the default emergency message
-        response.xml.Say[0].text().contains(Constants.AWAY_EMERGENCY_MESSAGE)
+        response.xml.Say[0].text().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
 	}
 
 	void "test incoming self call"() {
@@ -98,7 +98,7 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
         response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
         // first Say verb contains the phone's away message which is guaranteed to
         // have the default emergency message
-        response.xml.Say[0].text().contains(Constants.AWAY_EMERGENCY_MESSAGE)
+        response.xml.Say[0].text().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
 	}
 
 	void "test attempting to start an outgoing bridge call"() {
@@ -151,7 +151,7 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 
 		then: "no personal phone implicitly means we cannot notify -> respond with away message"
 		response.status == OK.value()
-        response.body.contains(Constants.AWAY_EMERGENCY_MESSAGE)
+        response.body.contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
 	}
 
 	// for outgoing text test see OutgoingTextFunctionalSpec

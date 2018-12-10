@@ -117,7 +117,8 @@ class IncomingTextFunctionalSpec extends RestSpec {
         then: "away message and marked as away, no instructions"
         response.status == OK.value()
         response.xml.Message.size() == 2
-        response.xml.Message.any { it.toString() == away }
+        // away message is returned but also augmented with the away message suffix
+        response.xml.Message.any { it.toString().contains(away) && it.toString() != away }
         response.xml.Message.any {
             it.toString().contains(Constants.TEXT_TOGGLE_SUBSCRIBE) &&
                 it.toString().contains(Constants.TEXT_SEE_ANNOUNCEMENTS)
@@ -132,7 +133,7 @@ class IncomingTextFunctionalSpec extends RestSpec {
         then: "instructions only shown once per day"
         response.status == OK.value()
         response.xml.Message.size() == 1
-        response.xml.Message[0].toString() == away
+        response.xml.Message[0].toString().contains(away)
 
         when: "see announcements"
         form.set("Body", Constants.TEXT_SEE_ANNOUNCEMENTS)

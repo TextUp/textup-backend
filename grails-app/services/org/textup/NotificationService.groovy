@@ -81,10 +81,10 @@ class NotificationService {
 		buildNotifications(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify)
 	}
 
-    ResultGroup<Void> send(List<BasicNotification> notifs, Boolean outgoing, String contents, String instr) {
+    ResultGroup<Void> send(List<BasicNotification> notifs, Boolean outgoing, String contents) {
         ResultGroup<Void> outcomes = new ResultGroup<>()
         notifs.each { BasicNotification bn1 ->
-            outcomes << sendForNotification(bn1, outgoing, contents, instr)
+            outcomes << sendForNotification(bn1, outgoing, contents)
         }
         outcomes.logFail("NotificationService.send for records with ids: ${notifs*.record*.id}")
     }
@@ -191,9 +191,7 @@ class NotificationService {
         notifs
 	}
 
-    protected Result<Void> sendForNotification(BasicNotification bn1, Boolean outgoing,
-        String contents, String instr) {
-
+    protected Result<Void> sendForNotification(BasicNotification bn1, Boolean isOut, String msg1) {
         Phone p1 = bn1.owner.phone
         Staff s1 = bn1.staff
         // short circuit if no staff specified or staff has no personal phone
@@ -202,13 +200,20 @@ class NotificationService {
         }
         Map tokenData = [
             phoneId: p1.id,
-            recordId:bn1.record.id,
-            contents:contents,
-            outgoing:outgoing
+            recordId: bn1.record.id,
+            contents: msg1,
+            outgoing: isOut
         ]
+        String oName = bn1.owner.buildName(),
+            notifyLink = grailsApplication.flatConfig["textup.links.notifyMessage"],
+            suffix = IOCUtils.getMessage("notificationService.send.notificationSuffix"),
+            instr = (bn1 instanceof Notification)
+                ? IOCUtils.getMessage("notificationService.send.notificationWithFrom", [oName, bn1.otherInitials])
+                : IOCUtils.getMessage("notificationService.send.notification", [oName])
+        // Surround the link with messages to prevent iMessage from removing the link from the message
+        // in order to generate a preview
         tokenService.generateNotification(tokenData).then { Token tok1 ->
-            String notifyLink = grailsApplication.flatConfig["textup.links.notifyMessage"]
-            String notification = "${instr} \n\n ${notifyLink + tok1.token}"
+            String notification = "${instr} \n\n${notifyLink + tok1.token} \n\n${suffix}"
             textService.send(p1.number, [s1.personalPhoneNumber], notification)
         }
     }

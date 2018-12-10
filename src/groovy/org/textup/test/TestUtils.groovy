@@ -4,8 +4,10 @@ import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
+import groovy.util.slurpersupport.GPathResult
 import groovy.xml.MarkupBuilder
 import java.nio.file.*
+import javax.xml.transform.stream.*
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.io.IOUtils
@@ -43,6 +45,17 @@ class TestUtils {
         MarkupBuilder xmlBuilder = new MarkupBuilder(writer)
         xmlBuilder(data)
         writer.toString().replaceAll(/<call>|<\/call>|\s+/, "").trim()
+    }
+
+    static GPathResult buildXmlTransformOutput(GrailsApplication grailsApplication, RecordItemRequest iReq) {
+        String xmlString = DataFormatUtils.toXmlString(DataFormatUtils.jsonToObject(iReq))
+        StringWriter writer = new StringWriter()
+
+        StreamSource src = new StreamSource(new StringReader(xmlString))
+        StreamResult sRes = new StreamResult(writer)
+        getBean(grailsApplication, PdfService).buildTransformer().transform(src, sRes)
+
+        new XmlSlurper().parseText(writer.toString())
     }
 
     // Utilities

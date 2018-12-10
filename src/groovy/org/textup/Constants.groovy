@@ -19,7 +19,7 @@ class Constants {
 	static final String DEFAULT_AWAY_MESSAGE = "Sorry. I'm currently not available. I'll reply when I am back."
 	// keep the space before the away message to aid in appropriate spacing when appending to ensure
 	// accurate count of how much to truncate for API consumers
-	static final String AWAY_EMERGENCY_MESSAGE = " If this is an emergency, contact 9 1 1."
+	static final String DEFAULT_AWAY_MESSAGE_SUFFIX = "If this is an emergency, contact 9 1 1."
 
 	static final int DEFAULT_TOKEN_LENGTH = 25
 	static final int MAX_NUM_ACCESS_NOTIFICATION_TOKEN = 3

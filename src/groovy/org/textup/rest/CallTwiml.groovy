@@ -182,7 +182,7 @@ class CallTwiml {
             if (shouldUseRecording && recordingUrl) {
                 Play(recordingUrl.toString())
             }
-            else { Say(voice: p1.voice.toTwimlValue(), p1.awayMessage) }
+            else { Say(voice: p1.voice.toTwimlValue(), p1.buildAwayMessage()) }
             Say(directions)
             Record(action: actionWebhook, maxLength: 160, recordingStatusCallback: callbackWebhook)
             Say(goodbye)

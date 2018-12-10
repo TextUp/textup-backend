@@ -1,6 +1,5 @@
 package org.textup
 
-import grails.test.runtime.DirtiesRuntime
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
@@ -29,7 +28,6 @@ class SocketServiceIntegrationSpec extends CustomSpec {
     	cleanupIntegrationData()
     }
 
-    @DirtiesRuntime
     void "test sending generic object with record"() {
         given:
         int numBatches = 3
@@ -61,7 +59,6 @@ class SocketServiceIntegrationSpec extends CustomSpec {
         resGroup.successes.size() == 1
     }
 
-    @DirtiesRuntime
     void "test sending a phone"() {
         given:
         MockedMethod sendToDataToStaff = TestUtils.mock(socketService, "sendToDataToStaff") {
@@ -81,5 +78,8 @@ class SocketServiceIntegrationSpec extends CustomSpec {
         then:
         resGroup.successes.size() == p1.owner.buildAllStaff().size()
         sendToDataToStaff.callCount == p1.owner.buildAllStaff().size()
+
+        cleanup:
+        sendToDataToStaff.restore()
     }
 }

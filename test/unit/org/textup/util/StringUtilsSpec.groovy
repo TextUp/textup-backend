@@ -35,16 +35,17 @@ class StringUtilsSpec extends Specification {
         StringUtils.toQuery("%hi%") == "%hi%"
     }
 
-    void "test appending strings while guaranteeing a max resulting length"() {
+    void "test building initials"() {
         expect:
-        StringUtils.appendGuaranteeLength("hello", null, 1) == "h"
-        StringUtils.appendGuaranteeLength(null, "yes", 1) == null
-        StringUtils.appendGuaranteeLength("hello", "yes", -1) == "hello"
-        StringUtils.appendGuaranteeLength("hello", "yes", 1) == "h"
-        StringUtils.appendGuaranteeLength("hello", "yes", 6) == "helyes"
-        StringUtils.appendGuaranteeLength("hello", "yes", 7) == "hellyes"
-        StringUtils.appendGuaranteeLength("hello", "yes", 8) == "helloyes"
-        StringUtils.appendGuaranteeLength("hello", "yes", 10) == "helloyes"
+        StringUtils.buildInitials(null) == null
+        StringUtils.buildInitials("") == ""
+        StringUtils.buildInitials("Hello there") == "H.T."
+        StringUtils.buildInitials("  Hello 626 123 3920 okay!!") == "H.O."
+        StringUtils.buildInitials("""    Hello 626 123
+                yes
+            all right
+            3920 @@okay!!
+        """) == "H.Y.A.R.@."
     }
 
     void "test generating random alphanumeric strings"() {

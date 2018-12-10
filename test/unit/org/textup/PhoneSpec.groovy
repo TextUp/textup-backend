@@ -76,6 +76,49 @@ class PhoneSpec extends CustomSpec {
     	p1.validate() == true
     }
 
+    void "test away message constraints"() {
+        given: "a phone"
+        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumber())
+        p1.updateOwner(s1)
+        assert p1.validate()
+
+        when: "a phone with blank away message"
+        p1.awayMessage = ""
+
+        then: "invalid"
+        p1.validate() == false
+        p1.errors.getFieldErrorCount("awayMessage") == 1
+
+        when: "too long away message"
+        p1.awayMessage = TestUtils.buildVeryLongString()
+
+        then:
+        p1.validate() == false
+        p1.errors.getFieldErrorCount("awayMessage") == 1
+
+        when: "away message within length constraints"
+        p1.awayMessage = TestUtils.randString()
+
+        then:
+        p1.validate()
+    }
+
+    void "test building away message"() {
+        given: "a phone"
+        String pAway = TestUtils.randString(),
+            oAway = TestUtils.randString()
+        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumber(), awayMessage: pAway)
+        p1.owner = GroovyMock(PhoneOwnership)
+        assert p1.validate()
+
+        when:
+        String away = p1.buildAwayMessage()
+
+        then:
+        1 * p1.owner.buildOrganization() >> GroovyStub(Organization) { getAwayMessageSuffix() >> oAway }
+        away == pAway + " " + oAway
+    }
+
     void "test cascading validation and saving to media object"() {
         given:
         MediaElement e1 = TestUtils.buildMediaElement()

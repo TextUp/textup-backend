@@ -49,4 +49,33 @@ class NotificationSpec extends CustomSpec {
 		notif.otherName == c1.nameOrNumber
 		notif.id == notif.tokenId // alias tokenId as id for link generation in BaseController.getId
 	}
+
+	void "test getting initials"() {
+		given:
+		Notification notif = new Notification()
+
+		when: "contact without a name"
+		notif.contact = c1
+		c1.name = null
+		String initials = notif.otherInitials
+
+		then: "null since name is null"
+		initials == null
+
+		when: "contact with name"
+		c1.name = "hello there"
+		initials = notif.otherInitials
+
+		then:
+		initials == "H.T."
+
+		when: "tag"
+		notif.contact = null
+		notif.tag = tag1
+		tag1.name = "what's up doc"
+		initials = notif.otherInitials
+
+		then:
+		initials == "W.U.D."
+	}
 }

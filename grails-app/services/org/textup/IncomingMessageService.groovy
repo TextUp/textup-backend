@@ -67,8 +67,8 @@ class IncomingMessageService {
         List<RecordText> rTexts, List<BasicNotification> notifs) {
         List<String> responses = []
         if (notifs.isEmpty()) {
-            rTexts.each { RecordText rText -> rText.setHasAwayMessage(true) }
-            responses << p1.awayMessage
+            rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
+            responses << p1.buildAwayMessage()
         }
         // remind about instructions if phone has announcements enabled
         announcementService
@@ -111,8 +111,7 @@ class IncomingMessageService {
         }
         if (!outcomes.anyFailures) {
             // send out notifications
-            String instr = IOCUtils.getMessage("incomingMessageService.notifyStaff.notification")
-            notificationService.send(notifs, false, text.message, instr)
+            notificationService.send(notifs, false, text.message)
                 .logFail("IncomingMessageService.finishProcessingTextHelper: notifying staff")
             // For outgoing messages and all calls, we rely on status callbacks
             // to push record items to the frontend. However, for incoming texts

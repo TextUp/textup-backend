@@ -250,7 +250,10 @@ class PhoneServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         res.payload instanceof Phone
         res.payload.awayMessage.contains(msg)
-        res.payload.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
+
+        and: "no longer contains suffix because this lives on the org now"
+        res.payload.awayMessage.contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX) == false
+        res.payload.buildAwayMessage().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
     }
 
     void "test updating useVoicemailRecordingIfPresent"() {
@@ -512,8 +515,11 @@ class PhoneServiceSpec extends CustomSpec {
         res.status == ResultStatus.OK
         res.payload instanceof Phone
         res.payload.awayMessage.contains(body.awayMessage)
-        res.payload.awayMessage.contains(Constants.AWAY_EMERGENCY_MESSAGE)
         NotificationPolicy.count() == policyBaseline
+
+        and: "no longer contains suffix because this lives on the org now"
+        res.payload.awayMessage.contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX) == false
+        res.payload.buildAwayMessage().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
 
         when: "update with availability"
         body = [availability: [hi: "there"]]

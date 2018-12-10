@@ -1,7 +1,6 @@
 package org.textup.rest.marshaller
 
 import grails.converters.JSON
-import grails.test.runtime.DirtiesRuntime
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.test.*
@@ -58,7 +57,6 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends CustomSpec {
         json.sections[0].recordItems.size() == 0
     }
 
-    @DirtiesRuntime
     void "test marshalling specified timezone"() {
         given:
         MockedMethod toDateTimeWithZone = TestUtils
@@ -88,5 +86,8 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends CustomSpec {
         toDateTimeWithZone.callArguments.every { it[1] == tzId }
         toDateTimeWithZone.callArguments.any { it[0] == iReq.start }
         toDateTimeWithZone.callArguments.any { it[0] == iReq.end }
+
+        cleanup:
+        toDateTimeWithZone.restore()
     }
 }

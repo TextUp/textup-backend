@@ -85,6 +85,38 @@ class OrganizationSpec extends Specification {
         Organization.search(orgName).size() == Organization.countSearch(orgName)
     }
 
+    void "test away message suffix constraints"() {
+        given: "an org"
+        Organization org = new Organization(name:"OrgSpec2")
+        org.location = TestUtils.buildLocation()
+        assert org.validate()
+
+        when: "away message suffix is null"
+        org.awayMessageSuffix = null
+
+        then:
+        org.validate()
+
+        when: "away message suffix is absent"
+        org.awayMessageSuffix = ""
+
+        then:
+        org.validate()
+
+        when: "away message suffix is too long"
+        org.awayMessageSuffix = TestUtils.buildVeryLongString()
+
+        then:
+        org.validate() == false
+        org.errors.getFieldErrorCount("awayMessageSuffix")
+
+        when: "away message suffix is present and within length constraints"
+        org.awayMessageSuffix = TestUtils.randString()
+
+        then:
+        org.validate()
+    }
+
     void "test operations on staff"() {
         given: "an organization"
         Organization org = new Organization(name:"OrgSpec2")

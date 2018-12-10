@@ -192,7 +192,7 @@ class IncomingCallFunctionalSpec extends RestSpec {
         response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
         // first Say verb contains the phone's away message which is guaranteed to
         // have the default emergency message
-        response.xml.Say[0].text().contains(Constants.AWAY_EMERGENCY_MESSAGE)
+        response.xml.Say[0].text().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
     }
 
     void "test call self"() {
@@ -354,7 +354,7 @@ class IncomingCallFunctionalSpec extends RestSpec {
         response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
         // first Say verb contains the phone's away message which is guaranteed to
         // have the default emergency message
-        response.xml.Say[0].text().contains(Constants.AWAY_EMERGENCY_MESSAGE)
+        response.xml.Say[0].text().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
 
         when: "any key to connect to staff, some staff available"
         remote.exec({ un ->

@@ -482,7 +482,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload: [msg])
         res.status == ResultStatus.OK
         TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(msg) })
-        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(p1.awayMessage) })
+        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(p1.buildAwayMessage()) })
 
         when: "has notifications"
         res = service.buildTextResponse(p1, null, [rText], [bn1])
@@ -491,7 +491,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         0 * rText._
         1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload: [msg])
         TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(msg) })
-        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(p1.awayMessage) }) == false
+        TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(p1.buildAwayMessage()) }) == false
     }
 
     void "test finishing processing texts helper"() {
