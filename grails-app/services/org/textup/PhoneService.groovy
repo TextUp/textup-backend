@@ -149,7 +149,7 @@ class PhoneService {
             return resultFactory.failWithValidationErrors(p1.errors)
         }
         if (oldApiId) {
-            numberService.freeExistingNumber(oldApiId).then({ resultFactory.success(p1) })
+            numberService.freeExistingNumberToInternalPool(oldApiId).then({ resultFactory.success(p1) })
         }
         else { resultFactory.success(p1) }
     }

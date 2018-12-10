@@ -45,6 +45,7 @@ class FutureMessageDaylightSavingsJob implements Job {
                 if (!fMsg1.save()) { withErrorMsgs << fMsg1 }
             }
         }
+        log.info("FutureMessageDaylightSavingsJob: adjusted ${toBeAdjustedList.size()} future messages")
         if (withErrorMsgs) {
             log.error """
                 FutureMessageDaylightSavingsJob: could not adjust the following with ids

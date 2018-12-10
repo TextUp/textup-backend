@@ -53,7 +53,7 @@ class PhoneServiceSpec extends CustomSpec {
         Result<Phone> res = service.deactivatePhone(p1)
 
         then:
-        1 * service.numberService.freeExistingNumber(*_) >> new Result()
+        1 * service.numberService.freeExistingNumberToInternalPool(*_) >> new Result()
         res.success == true
         res.payload instanceof Phone
         res.payload.numberAsString == null

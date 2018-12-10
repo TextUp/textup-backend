@@ -35,6 +35,7 @@ class FutureMessageCleanupJob implements Job {
                 if (!fMsg1.save()) { withErrorMsgs << fMsg1 }
             }
         }
+        log.info("FutureMessageCleanupJob: checked ${toBeCheckedList.size()} future messages")
         if (withErrorMsgs) {
             log.error """
                 FutureMessageCleanupJob: could not mark following scheduled message ids as

@@ -6,6 +6,7 @@ import com.twilio.http.HttpMethod
 import com.twilio.rest.api.v2010.account.availablephonenumbercountry.Local
 import com.twilio.rest.api.v2010.account.availablephonenumbercountry.LocalReader
 import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
+import com.twilio.rest.api.v2010.account.IncomingPhoneNumberDeleter
 import com.twilio.rest.lookups.v1.PhoneNumber as LookupPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
@@ -203,13 +204,13 @@ class NumberService {
         p1.apiId = newNum.sid
         p1.number = new PhoneNumber(number:newNum.phoneNumber as String)
         if (oldApiId) {
-            freeExistingNumber(oldApiId).then({ resultFactory.success(p1) })
+            freeExistingNumberToInternalPool(oldApiId).then({ resultFactory.success(p1) })
         }
         else { resultFactory.success(p1) }
     }
 
     // [UNTESTED] due to mocking constraints
-    Result<IncomingPhoneNumber> freeExistingNumber(String oldApiId) {
+    Result<IncomingPhoneNumber> freeExistingNumberToInternalPool(String oldApiId) {
         try {
             String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
             IncomingPhoneNumber uNum = IncomingPhoneNumber
@@ -217,6 +218,29 @@ class NumberService {
                 .setFriendlyName(available)
                 .update()
             resultFactory.success(uNum)
+        }
+        catch (TwilioException e) {
+            resultFactory.failWithThrowable(e)
+        }
+    }
+
+    // [UNTESTED] due to mocking constraints
+    Result<Tuple<Collection<String>, Collection<String>>> cleanupInternalNumberPool() {
+        try {
+            Collection<String> deletedNumberIds = [],
+                errorNumberIds = []
+            String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
+            ResourceSet<IncomingPhoneNumber> iNums = IncomingPhoneNumber
+                .reader()
+                .setFriendlyName(available)
+                .read()
+            for (IncomingPhoneNumber iNum in iNums) {
+                if (IncomingPhoneNumber.deleter(iNum.sid).delete()) {
+                    deletedNumberIds << iNum.sid
+                }
+                else { errorNumberIds << iNum.sid }
+            }
+            resultFactory.success(deletedNumberIds, errorNumberIds)
         }
         catch (TwilioException e) {
             resultFactory.failWithThrowable(e)

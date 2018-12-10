@@ -132,6 +132,7 @@ log4j.main = {
     // // Enable Hibernate SQL logging with param values
     // trace 'org.hibernate.type'
     // debug 'org.hibernate.SQL'
+    info   'org.textup.job'
     // Error loggers
     error  'org.codehaus.groovy.grails.web.servlet',        // controllers
            'org.codehaus.groovy.grails.web.pages',          // GSP

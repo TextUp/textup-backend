@@ -417,11 +417,12 @@ class NotificationServiceSpec extends CustomSpec {
 
         then:
         1 * service.tokenService.generateNotification(*_) >> new Result(payload: [token: "hi"] as Token)
-        1 * service.textService.send(_, _, {
-                it.contains("notificationService.send.notificationSuffix") &&
-                    it.contains("notificationService.incoming.noFrom") &&
-                    it.contains(grailsApplication.config.textup.links.notifyMessage)
-            }) >> new Result()
+        1 * service.textService.send(*_) >> { args ->
+            assert args[2].contains("notificationService.send.notificationSuffix")
+            assert args[2].contains("notificationService.incoming.noFrom")
+            assert args[2].contains(grailsApplication.config.textup.links.notifyMessage)
+            new Result()
+        }
         res.success == true
     }
 
@@ -440,11 +441,12 @@ class NotificationServiceSpec extends CustomSpec {
 
         then:
         1 * service.tokenService.generateNotification(*_) >> new Result(payload: [token: "hi"] as Token)
-        1 * service.textService.send(_, _, {
-                it.contains("notificationService.send.notificationSuffix") &&
-                    it.contains("notificationService.incoming.withFrom") &&
-                    it.contains(grailsApplication.config.textup.links.notifyMessage)
-            }) >> new Result()
+        1 * service.textService.send(*_) >> { args ->
+            assert args[2].contains("notificationService.send.notificationSuffix")
+            assert args[2].contains("notificationService.incoming.withFrom")
+            assert args[2].contains(grailsApplication.config.textup.links.notifyMessage)
+            new Result()
+        }
         res.success == true
     }
 
