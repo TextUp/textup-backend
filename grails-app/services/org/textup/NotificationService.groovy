@@ -204,17 +204,29 @@ class NotificationService {
             contents: msg1,
             outgoing: isOut
         ]
-        String oName = bn1.owner.buildName(),
-            notifyLink = grailsApplication.flatConfig["textup.links.notifyMessage"],
+        String notifyLink = grailsApplication.flatConfig["textup.links.notifyMessage"],
             suffix = IOCUtils.getMessage("notificationService.send.notificationSuffix"),
-            instr = (bn1 instanceof Notification)
-                ? IOCUtils.getMessage("notificationService.send.notificationWithFrom", [oName, bn1.otherInitials])
-                : IOCUtils.getMessage("notificationService.send.notification", [oName])
+            instr = buildInstructions(bn1, isOut)
         // Surround the link with messages to prevent iMessage from removing the link from the message
         // in order to generate a preview
         tokenService.generateNotification(tokenData).then { Token tok1 ->
             String notification = "${instr} \n\n${notifyLink + tok1.token} \n\n${suffix}"
             textService.send(p1.number, [s1.personalPhoneNumber], notification)
+        }
+    }
+    protected String buildInstructions(BasicNotification bn1, Boolean isOutgoing) {
+        String oName = bn1.owner.buildName()
+        if (bn1 instanceof Notification) {
+            String code = isOutgoing
+                ? "notificationService.outgoing.withFrom"
+                : "notificationService.incoming.withFrom"
+            IOCUtils.getMessage(code, [oName, bn1.otherInitials])
+        }
+        else {
+            String code = isOutgoing
+                ? "notificationService.outgoing.noFrom"
+                : "notificationService.incoming.noFrom"
+            IOCUtils.getMessage(code, [oName])
         }
     }
 }

@@ -349,6 +349,45 @@ class NotificationServiceSpec extends CustomSpec {
     // Sending notifications
     // ---------------------
 
+    void "test building instructions for notification"() {
+        given:
+        String ownerName = TestUtils.randString()
+        String initials = TestUtils.randString()
+        PhoneOwnership owner1 = GroovyStub() { buildName() >> ownerName }
+        BasicNotification bn1 = GroovyMock()
+        Notification notif1 = GroovyMock()
+
+        when: "is notification and is outgoing"
+        String instr = service.buildInstructions(notif1, true)
+
+        then:
+        1 * notif1.owner >> owner1
+        1 * notif1.otherInitials >> initials
+        instr == "notificationService.outgoing.withFrom"
+
+        when: "is notification and NOT outgoing"
+        instr = service.buildInstructions(notif1, false)
+
+        then:
+        1 * notif1.owner >> owner1
+        1 * notif1.otherInitials >> initials
+        instr == "notificationService.incoming.withFrom"
+
+        when: "is BASIC notification and is outgoing"
+        instr = service.buildInstructions(bn1, true)
+
+        then:
+        1 * bn1.owner >> owner1
+        instr == "notificationService.outgoing.noFrom"
+
+        when: "is BASIC notification and NOT outgoing"
+        instr = service.buildInstructions(bn1, false)
+
+        then:
+        1 * bn1.owner >> owner1
+        instr == "notificationService.incoming.noFrom"
+    }
+
     void "test sending for basic notification (no from)"() {
         given:
         service.tokenService = Mock(TokenService)
@@ -365,7 +404,7 @@ class NotificationServiceSpec extends CustomSpec {
 
         when: "no personal phone"
         bn1.staff.personalPhoneAsString = null
-        Result<Void> res = service.sendForNotification(bn1, true, contents)
+        Result<Void> res = service.sendForNotification(bn1, false, contents)
 
         then:
         0 * service.tokenService._
@@ -374,13 +413,13 @@ class NotificationServiceSpec extends CustomSpec {
 
         when:
         bn1.staff.personalPhoneNumber = personalNum
-        res = service.sendForNotification(bn1, true, contents)
+        res = service.sendForNotification(bn1, false, contents)
 
         then:
         1 * service.tokenService.generateNotification(*_) >> new Result(payload: [token: "hi"] as Token)
         1 * service.textService.send(_, _, {
                 it.contains("notificationService.send.notificationSuffix") &&
-                    it.contains("notificationService.send.notification") &&
+                    it.contains("notificationService.incoming.noFrom") &&
                     it.contains(grailsApplication.config.textup.links.notifyMessage)
             }) >> new Result()
         res.success == true
@@ -397,13 +436,13 @@ class NotificationServiceSpec extends CustomSpec {
         s1.personalPhoneAsString = TestUtils.randPhoneNumber()
 
         when:
-        Result<Void> res = service.sendForNotification(notif, true, contents)
+        Result<Void> res = service.sendForNotification(notif, false, contents)
 
         then:
         1 * service.tokenService.generateNotification(*_) >> new Result(payload: [token: "hi"] as Token)
         1 * service.textService.send(_, _, {
                 it.contains("notificationService.send.notificationSuffix") &&
-                    it.contains("notificationService.send.notificationWithFrom") &&
+                    it.contains("notificationService.incoming.withFrom") &&
                     it.contains(grailsApplication.config.textup.links.notifyMessage)
             }) >> new Result()
         res.success == true

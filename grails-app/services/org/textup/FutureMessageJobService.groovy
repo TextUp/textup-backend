@@ -120,12 +120,9 @@ class FutureMessageJobService {
         // so in this future, we are simply sending and storing the outgoing message, including
         // the already-processed media referred to in the `media` prop of the  OutgoingMessage
         future.get()
-
-        String instr = IOCUtils.getMessage("futureMessageService.notifyStaff.notification")
-        notificationService.send(notifs, true, message, instr)
+        notificationService.send(notifs, true, message)
             .logFail("FutureMessageService.execute: sending notifications")
         int numNotified = notifs.size()
-
         ResultGroup<RecordItem> saveFailiures = new ResultGroup<>()
         boolean didFindAll = true
         Collection<RecordItem> items = RecordItem.getAll(itemIds as Iterable<Serializable>)
