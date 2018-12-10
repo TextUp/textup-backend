@@ -420,7 +420,6 @@ class NotificationServiceSpec extends CustomSpec {
         1 * service.textService.send(*_) >> { args ->
             assert args[2].contains("notificationService.send.notificationSuffix")
             assert args[2].contains("notificationService.incoming.noFrom")
-            assert args[2].contains(grailsApplication.config.textup.links.notifyMessage)
             new Result()
         }
         res.success == true
@@ -444,7 +443,6 @@ class NotificationServiceSpec extends CustomSpec {
         1 * service.textService.send(*_) >> { args ->
             assert args[2].contains("notificationService.send.notificationSuffix")
             assert args[2].contains("notificationService.incoming.withFrom")
-            assert args[2].contains(grailsApplication.config.textup.links.notifyMessage)
             new Result()
         }
         res.success == true
