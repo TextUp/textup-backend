@@ -444,7 +444,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
 
         when: "voicemail"
         rCall1.voicemailInSeconds = voicemailSeconds
-        rCall.save(flush: true, failOnError: true)
+        rCall1.save(flush: true, failOnError: true)
         GPathResult xml = TestUtils.buildXmlTransformOutput(grailsApplication, iReq)
 
         String outputString = xml.text().replaceAll(/\s+/, " ")
@@ -457,7 +457,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
 
         when: "call"
         rCall1.voicemailInSeconds = 0
-        rCall.save(flush: true, failOnError: true)
+        rCall1.save(flush: true, failOnError: true)
         xml = TestUtils.buildXmlTransformOutput(grailsApplication, iReq)
 
         outputString = xml.text().replaceAll(/\s+/, " ")
