@@ -1,10 +1,10 @@
 package org.textup.validator
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
+import org.textup.test.*
 import org.textup.type.PhoneOwnershipType
 
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
@@ -34,6 +34,13 @@ class BasicNotificationSpec extends CustomSpec {
 
 		when: "fill out staff"
 		bNotif1.staff = s1
+
+		then: "optional so no change in errors"
+		bNotif1.validate() == false
+		bNotif1.errors.errorCount == 2
+
+		when: "fill out otherName"
+		bNotif1.otherName = TestUtils.randString()
 
 		then: "optional so no change in errors"
 		bNotif1.validate() == false

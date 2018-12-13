@@ -72,13 +72,15 @@ class NotificationService {
         Collection<ContactTag> tags = []) {
 
 		Map<Long, Record> phoneIdToRecord = [:]
+        Map<Long, String> phoneIdToClientName = [:]
 		Map<Long, Long> staffIdToPersonalPhoneId = [:]
 		Map<Phone, List<Staff>> phonesToCanNotify = [:]
 		// populate these data maps from the phone and list of contacts
-		populateData(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify,
-			targetPhone, contacts, tags)
+		populateData(phoneIdToRecord, phoneIdToClientName, staffIdToPersonalPhoneId,
+            phonesToCanNotify, targetPhone, contacts, tags)
 		// then build basic notifications with these data maps
-		buildNotifications(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify)
+		buildNotifications(phoneIdToRecord, phoneIdToClientName, staffIdToPersonalPhoneId,
+            phonesToCanNotify)
 	}
 
     ResultGroup<Void> send(List<BasicNotification> notifs, Boolean outgoing, String contents) {
@@ -109,8 +111,9 @@ class NotificationService {
 	// -------
 
 	protected void populateData(Map<Long, Record> phoneIdToRecord,
-		Map<Long, Long> staffIdToPersonalPhoneId, Map<Phone, List<Staff>> phonesToCanNotify,
-		Phone targetPhone, Collection<Contact> contacts, Collection<ContactTag> tags = []) {
+        Map<Long, String> phoneIdToClientName, Map<Long, Long> staffIdToPersonalPhoneId,
+        Map<Phone, List<Staff>> phonesToCanNotify, Phone targetPhone, Collection<Contact> contacts,
+        Collection<ContactTag> tags = []) {
 
 		List<SharedContact> sharedContacts = SharedContact
 		    .findEveryByContactIdsAndSharedBy(contacts*.id, targetPhone)
@@ -121,6 +124,10 @@ class NotificationService {
         // if we wanted to support showing all the records that received
         // the text, we can do so by exhaustively listing all record ids
 		contacts.each { Contact c1 ->
+            // Do not use `getNameOrNumber` on contact because we only want to show the initials, NOT
+            // accidentally leak the contact's phone number. Note that StringUtils.buildInitials
+            // also strips digits for an additional safeguard against leaking client numbers
+            phoneIdToClientName[c1.phone.id] = c1.name
 		    phoneIdToRecord[c1.phone.id] = c1.record
 		    recordIds << c1.record.id
 		}
@@ -128,6 +135,7 @@ class NotificationService {
         // tag record for a group of contacts as well, prefer this record because the tag
         // brings together a group of contacts
         tags.each { ContactTag ct1 ->
+            phoneIdToClientName[ct1.phone.id] = ct1.name
             phoneIdToRecord[ct1.phone.id] = ct1.record
             recordIds << ct1.record.id
         }
@@ -162,7 +170,9 @@ class NotificationService {
 		}
 	}
 	protected List<BasicNotification> buildNotifications(Map<Long, Record> phoneIdToRecord,
-		Map<Long, Long> staffIdToPersonalPhoneId, Map<Phone, List<Staff>> phonesToCanNotify) {
+        Map<Long, String> phoneIdToClientName, Map<Long, Long> staffIdToPersonalPhoneId,
+        Map<Phone, List<Staff>> phonesToCanNotify) {
+
 		List<BasicNotification> notifs = []
 		// if you are concerned about several tokens generated
         // for one message, remember that we also send unique tokens
@@ -182,9 +192,13 @@ class NotificationService {
                     staffIdToPersonalPhoneId[s1.id] != p1.id) {
                     continue
                 }
-                BasicNotification notif = new BasicNotification(owner:p1.owner,
-                	record:phoneIdToRecord[p1.id], staff:s1)
-                if (notif.validate()) { notifs << notif }
+                BasicNotification notif = new BasicNotification(owner: p1.owner,
+                	record: phoneIdToRecord[p1.id],
+                    staff: s1,
+                    otherName: phoneIdToClientName[p1.id])
+                if (notif.validate()) {
+                    notifs << notif
+                }
                 else { log.error("NotificationService.buildNotifications: ${notif.errors}") }
             }
         }
@@ -214,19 +228,22 @@ class NotificationService {
             textService.send(p1.number, [s1.personalPhoneNumber], notification)
         }
     }
+    // Outgoing notification is always BasicNotification and never Notification. Notification objects
+    // are only created when the preview message token is redeemed
     protected String buildInstructions(BasicNotification bn1, Boolean isOutgoing) {
-        String oName = bn1.owner.buildName()
-        if (bn1 instanceof Notification) {
+        String ownerName = bn1.owner.buildName(),
+            otherInitials = StringUtils.buildInitials(bn1.otherName)
+        if (otherInitials) {
             String code = isOutgoing
                 ? "notificationService.outgoing.withFrom"
                 : "notificationService.incoming.withFrom"
-            IOCUtils.getMessage(code, [oName, bn1.otherInitials])
+            IOCUtils.getMessage(code, [ownerName, otherInitials])
         }
         else {
             String code = isOutgoing
                 ? "notificationService.outgoing.noFrom"
                 : "notificationService.incoming.noFrom"
-            IOCUtils.getMessage(code, [oName])
+            IOCUtils.getMessage(code, [ownerName])
         }
     }
 }

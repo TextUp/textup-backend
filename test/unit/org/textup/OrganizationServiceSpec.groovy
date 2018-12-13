@@ -55,11 +55,15 @@ class OrganizationServiceSpec extends CustomSpec {
         res.errorMessages.size() == 2
 
     	when: "we update with valid fields"
+        org.awayMessageSuffix = TestUtils.randString()
+        org.save(flush: true, failOnError: true)
+
         String newName = "I am a new name"
         BigInteger newLat = 22G, newLon = 22G
         int newTimeout = Constants.DEFAULT_LOCK_TIMEOUT_MILLIS + 1
         updateInfo = [
             name:newName,
+            awayMessageSuffix: "",
             timeout:newTimeout,
             location:[
                 lat:newLat,
@@ -73,6 +77,7 @@ class OrganizationServiceSpec extends CustomSpec {
         res.payload instanceof Organization
         res.payload.name == newName
         res.payload.timeout == newTimeout
+        res.payload.awayMessageSuffix == ""
         res.payload.location.lat == newLat
         res.payload.location.lon == newLon
     }

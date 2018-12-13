@@ -32,6 +32,7 @@ class OrganizationJsonMarshaller extends JsonNamedMarshaller {
                 awayMessageSuffix = org.awayMessageSuffix
 
                 Map<String, ConstrainedProperty> constraints = Organization.constraints as Map
+                timeoutMin = constraints.timeout.min
                 timeoutMax = constraints.timeout.max
                 awayMessageSuffixMaxLength = constraints.awayMessageSuffix.size.to
             }

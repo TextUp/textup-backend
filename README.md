@@ -111,6 +111,7 @@ See the `script` section of `.travis.yml` for the tests. Note that the command i
 ```shell
 { grails test-app "functional:" ;grails test-app "integration:" org.textup.rest.marshaller.* ;grails test-app "integration:" org.textup.* org.textup.util.* ;grails test-app "unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.type.* org.textup.util.* ;grails test-app "unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M* ;grails test-app "unit:" org.textup.N* org.textup.O* org.textup.P* org.textup.Q* org.textup.R* org.textup.S* org.textup.T* org.textup.U* org.textup.V* org.textup.W* org.textup.X* org.textup.Y* org.textup.Z* ;grails test-app "unit:" org.textup.media.* ;grails test-app "unit:" org.textup.rest.* org.textup.test.* } > test-output.txt
 ```
+* If possible, don't import our own classes into config files because no type-checking happens in these config files. A "class not found error" can silently fail and cause the config file to not be read.
 
 ## License
 

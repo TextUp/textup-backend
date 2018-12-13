@@ -18,9 +18,14 @@ class OrganizationService {
     		return resultFactory.failWithCodeAndStatus("organizationService.update.notFound",
                 ResultStatus.NOT_FOUND, [orgId])
     	}
-        if (body.name) { org.name = body.name }
+        if (body.name) {
+            org.name = body.name
+        }
         if (TypeConversionUtils.to(Integer, body.timeout) != null) {
             org.timeout = TypeConversionUtils.to(Integer, body.timeout)
+        }
+        if (body.awayMessageSuffix != null) {
+            org.awayMessageSuffix = body.awayMessageSuffix
         }
     	if (body.location instanceof Map) {
     		Map l = body.location as Map

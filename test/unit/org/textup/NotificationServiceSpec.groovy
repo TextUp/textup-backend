@@ -276,6 +276,7 @@ class NotificationServiceSpec extends CustomSpec {
         phone1.save(flush:true, failOnError:true)
 
         Map<Long, Record> phoneIdToRecord = [:]
+        Map<Long, String> phoneIdToClientName = [:]
         Map<Long, Long> staffIdToPersonalPhoneId = [:]
         Map<Phone, List<Staff>> phonesToCanNotify = [:]
 
@@ -287,8 +288,8 @@ class NotificationServiceSpec extends CustomSpec {
         }
         t1.save(flush:true, failOnError:true)
 
-        service.populateData(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify,
-            phone1, [contact1])
+        service.populateData(phoneIdToRecord, phoneIdToClientName, staffIdToPersonalPhoneId,
+            phonesToCanNotify, phone1, [contact1])
 
         then: "map should be empty, should not have any entries"
         phonesToCanNotify.isEmpty() == true
@@ -298,10 +299,11 @@ class NotificationServiceSpec extends CustomSpec {
         t1.save(flush:true, failOnError:true)
 
         phoneIdToRecord.clear()
+        phoneIdToClientName.clear()
         staffIdToPersonalPhoneId.clear()
         phonesToCanNotify.clear()
-        service.populateData(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify,
-            phone1, [contact1])
+        service.populateData(phoneIdToRecord, phoneIdToClientName, staffIdToPersonalPhoneId,
+            phonesToCanNotify, phone1, [contact1])
 
         then: "only this phone to list of available now"
         phonesToCanNotify.size() == 1
@@ -313,16 +315,18 @@ class NotificationServiceSpec extends CustomSpec {
         t1.save(flush:true, failOnError:true)
 
         phoneIdToRecord.clear()
+        phoneIdToClientName.clear()
         staffIdToPersonalPhoneId.clear()
         phonesToCanNotify.clear()
-        service.populateData(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify,
-            phone1, [contact1], [tag1])
+        service.populateData(phoneIdToRecord, phoneIdToClientName, staffIdToPersonalPhoneId,
+            phonesToCanNotify, phone1, [contact1], [tag1])
 
         then: "only this phone to list of available now, tag's record takes precedence over contact's record"
         phonesToCanNotify.size() == 1
         phonesToCanNotify[phone1] instanceof List
         phoneIdToRecord[phone1.id] != contact1.record
         phoneIdToRecord[phone1.id] == tag1.record
+        phoneIdToClientName[phone1.id] == tag1.name
         t1.activeMembers.every { it in phonesToCanNotify[phone1] }
 
         when: "has available, has contacts shared"
@@ -332,10 +336,11 @@ class NotificationServiceSpec extends CustomSpec {
         assert res.success
 
         phoneIdToRecord.clear()
+        phoneIdToClientName.clear()
         staffIdToPersonalPhoneId.clear()
         phonesToCanNotify.clear()
-        service.populateData(phoneIdToRecord, staffIdToPersonalPhoneId, phonesToCanNotify,
-            phone1, [contact1])
+        service.populateData(phoneIdToRecord, phoneIdToClientName, staffIdToPersonalPhoneId,
+            phonesToCanNotify, phone1, [contact1])
 
         then: "this phone and other sharedWith phones too"
         phonesToCanNotify.size() == 2
@@ -352,43 +357,44 @@ class NotificationServiceSpec extends CustomSpec {
     void "test building instructions for notification"() {
         given:
         String ownerName = TestUtils.randString()
-        String initials = TestUtils.randString()
+        String otherName = TestUtils.randString()
         PhoneOwnership owner1 = GroovyStub() { buildName() >> ownerName }
         BasicNotification bn1 = GroovyMock()
-        Notification notif1 = GroovyMock()
 
-        when: "is notification and is outgoing"
-        String instr = service.buildInstructions(notif1, true)
-
-        then:
-        1 * notif1.owner >> owner1
-        1 * notif1.otherInitials >> initials
-        instr == "notificationService.outgoing.withFrom"
-
-        when: "is notification and NOT outgoing"
-        instr = service.buildInstructions(notif1, false)
-
-        then:
-        1 * notif1.owner >> owner1
-        1 * notif1.otherInitials >> initials
-        instr == "notificationService.incoming.withFrom"
-
-        when: "is BASIC notification and is outgoing"
-        instr = service.buildInstructions(bn1, true)
+        when: "basic notification has otherName and is outgoing"
+        String instr = service.buildInstructions(bn1, true)
 
         then:
         1 * bn1.owner >> owner1
-        instr == "notificationService.outgoing.noFrom"
+        1 * bn1.otherName >> otherName
+        instr == "notificationService.outgoing.withFrom"
 
-        when: "is BASIC notification and NOT outgoing"
+        when: "basic notification has otherName and NOT outgoing"
         instr = service.buildInstructions(bn1, false)
 
         then:
         1 * bn1.owner >> owner1
+        1 * bn1.otherName >> otherName
+        instr == "notificationService.incoming.withFrom"
+
+        when: "basic notification does NOT have otherName and is outgoing"
+        instr = service.buildInstructions(bn1, true)
+
+        then:
+        1 * bn1.owner >> owner1
+        1 * bn1.otherName >> null
+        instr == "notificationService.outgoing.noFrom"
+
+        when: "basic notification does NOT have otherName and NOT outgoing"
+        instr = service.buildInstructions(bn1, false)
+
+        then:
+        1 * bn1.owner >> owner1
+        1 * bn1.otherName >> null
         instr == "notificationService.incoming.noFrom"
     }
 
-    void "test sending for basic notification (no from)"() {
+    void "test sending for basic notification"() {
         given:
         service.tokenService = Mock(TokenService)
         service.textService = Mock(TextService)
@@ -411,7 +417,8 @@ class NotificationServiceSpec extends CustomSpec {
         0 * service.textService._
         res.status == ResultStatus.NO_CONTENT
 
-        when:
+        when: "basic notification does not have other name"
+        bn1.otherName = null
         bn1.staff.personalPhoneNumber = personalNum
         res = service.sendForNotification(bn1, false, contents)
 
@@ -423,20 +430,10 @@ class NotificationServiceSpec extends CustomSpec {
             new Result()
         }
         res.success == true
-    }
 
-    void "test sending for notification (includes from initials)"() {
-        given:
-        service.tokenService = Mock(TokenService)
-        service.textService = Mock(TextService)
-        service.grailsApplication = grailsApplication
-
-        String contents = TestUtils.randString()
-        Notification notif = new Notification(owner: p1.owner, record: c1.record, contents: "hi", staff: s1)
-        s1.personalPhoneAsString = TestUtils.randPhoneNumber()
-
-        when:
-        Result<Void> res = service.sendForNotification(notif, false, contents)
+        when: "has other name"
+        bn1.otherName = TestUtils.randString()
+        res = service.sendForNotification(bn1, false, contents)
 
         then:
         1 * service.tokenService.generateNotification(*_) >> new Result(payload: [token: "hi"] as Token)

@@ -8,6 +8,7 @@ databaseChangeLog = {
                 defaultValue: Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
 		}
 	}
+
     // remove the existing suffix added to the away message column in the phone table now that we
     // separately store this suffix in the organization table
     changeSet(author: "ericbai", id: "1544452854815-2") {
@@ -20,5 +21,11 @@ databaseChangeLog = {
                 """.toString())
             }
         }
+    }
+
+    // need to change the column type for the phone.away_message to reflect the larger allowed size
+    // the larger size is two text messages = 160 * 2 = 320
+    changeSet(author: "ericbai", id: "1544452854815-3") {
+        modifyDataType(columnName: "away_message", newDataType: "varchar(320)", tableName: "phone")
     }
 }

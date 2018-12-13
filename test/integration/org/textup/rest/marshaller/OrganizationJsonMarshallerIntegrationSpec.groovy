@@ -53,6 +53,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
     	json.teams == null
         json.timeout == null
         json.awayMessageSuffix == null
+        json.timeoutMin == null
         json.timeoutMax == null
         json.awayMessageSuffixMaxLength == null
     }
@@ -84,6 +85,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
         json.teams == null
         json.timeout == null
         json.awayMessageSuffix == null
+        json.timeoutMin == null
         json.timeoutMax == null
         json.awayMessageSuffixMaxLength == null
     }
@@ -115,6 +117,7 @@ class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
 
         json.timeout == org.timeout
         json.awayMessageSuffix == org.awayMessageSuffix
+        json.timeoutMin == Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
         json.timeoutMax == Constants.MAX_LOCK_TIMEOUT_MILLIS
         json.awayMessageSuffixMaxLength == Constants.TEXT_LENGTH - 1
     }
