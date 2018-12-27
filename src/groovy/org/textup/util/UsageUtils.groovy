@@ -59,8 +59,10 @@ class UsageUtils {
 
     static List<String> getAvailableMonthStrings() {
         RecordItem rItem = RecordItem.first("whenCreated")
-        DateTime now = DateTime.now(),
-            dt = rItem?.whenCreated ?: now
+        // normalize both DateTimes to start of day and month because we are only interested
+        // in month and year comparisons
+        DateTime now = DateTime.now().withTimeAtStartOfDay().withDayOfMonth(1),
+            dt = (rItem?.whenCreated ?: now).withTimeAtStartOfDay().withDayOfMonth(1)
         List<String> monthStrings = []
         // isEqual is for the edge cas where rItem.whenCreated is null so we default to the now
         // In this case, we still want include the "now" month

@@ -80,8 +80,8 @@ class UsageUtilsSpec extends Specification {
         RecordItem.metaClass."static".first = { String propName -> mockItem }
         monthStrings = UsageUtils.getAvailableMonthStrings()
 
-        then:
-        1 * mockItem.whenCreated >> DateTime.now().minusMonths(8)
+        then: "will return appropriate number of month strings by normalizing day-of-month and time-of-day"
+        1 * mockItem.whenCreated >> DateTime.now().withDayOfMonth(8).minusMonths(8)
         monthStrings.size() == 8 + 1 // 8 prior months + 1 "now" month
     }
 

@@ -101,11 +101,12 @@ class OutgoingMessageService {
             // This seeems to be a limitation of the integration testing environment. We tested in
             // the Grails console and we were able to access all data no matter which session or thread
             String phoneName = phone.name
-            future = threadService.delay(5, TimeUnit.SECONDS) {
+            future = threadService.delay(10, TimeUnit.SECONDS) {
                 finishProcessingMessages(recordIdToItemIds, phoneName, msg1, mediaFuture)
                     .logFail("OutgoingMessageService.processMessage: finish processing")
             }
         }
+
         Tuple.create(resGroup, future)
     }
 

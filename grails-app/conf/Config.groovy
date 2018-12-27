@@ -129,10 +129,16 @@ log4j.main = {
     //appenders {
     //    console name:'stdout', layout:pattern(conversionPattern: '%c{2} %m%n')
     //}
-    // // Enable Hibernate SQL logging with param values
-    // trace 'org.hibernate.type'
-    // debug 'org.hibernate.SQL'
-    info   'org.textup.job'
+
+    // // For printing out the data values bound to the printed Hibernate SQL statements
+    // // see https://therealdanvega.com/blog/2013/08/20/grails-hibernate-logging
+    // trace  'org.hibernate.type.descriptor.sql.BasicBinder'
+    // // For printing Hibernate SQL statements
+    // debug  'org.hibernate.SQL'
+
+    // For greater visibility into jobs
+    info   'grails.app.jobs'                                // Quartz jobs
+
     // Error loggers
     error  'org.codehaus.groovy.grails.web.servlet',        // controllers
            'org.codehaus.groovy.grails.web.pages',          // GSP
@@ -145,8 +151,7 @@ log4j.main = {
            'org.springframework',
            'org.hibernate',
            'net.sf.ehcache.hibernate',
-           'net.bull.javamelody',                           // Melody monitoring
-           'grails.app.jobs'                                // Quartz jobs
+           'net.bull.javamelody'                           // Melody monitoring
 }
 
 

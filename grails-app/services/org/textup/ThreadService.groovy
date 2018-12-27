@@ -99,7 +99,6 @@ class ThreadService {
                 }
             } catch(Throwable e) {
                 log.error("ThreadService.addSessionAndTransaction: uncaught exception: ${e.message}")
-                e.printStackTrace()
             }
         }
     }

@@ -1,19 +1,48 @@
 dataSource {
     pooled = true
     jmxExport = true
+    // For debugging only
     // logSql = true
 }
 hibernate {
-    // format_sql = true
     charSet = 'utf8mb4'
-    characterEncoding='utf8mb4'
-    useUnicode=true
+    characterEncoding = 'utf8mb4'
+    useUnicode = true
 
-    reload = false //disables recreation of the Hibernate session factory on reload, workaround for error when editing domain subclass
+    // // For debugging only
+    // format_sql = true // only affects if we are logging SQL (see `logSql` option above OR log4j config in `Config.groovy`)
+    // generate_statistics = true
+
+    // Helps prevent deadlocks in highly concurrent settings.
+    // see: https://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html_single/#configuration-optional
+    order_updates = true
+
+    // NO BATCHING SUPPORT: because Grails uses the native identity generator to generate ids for inserts,
+    // Hibernate disables batching inserts. We need to change to another identity provider before
+    // we can using the batching features of Hibernate.
+    // See: https://vladmihalcea.com/hibernate-identity-sequence-and-table-sequence-generator/
+    // jdbc.batch_size = 30
+    // jdbc.batch_versioned_data = true
+
+    //disables recreation of the Hibernate session factory on reload, workaround for error when editing domain subclass
+    reload = false
+
+    // second level cache holds entities and query cache is a special "region" of the second
+    // level cache that holds queries and parameters. WE DO NOT WANT TO USE THE QUERY CACHE because
+    // any write to a table (insert/update/delete) clears out all queries for that table in the query cache.
+    //
+    // Also, we don't really use the second level cache directly in our app either because it requires
+    // look-ups solely via the id of the entity. Our operations usually involve other properties.
+    // Therefore, we choose to cache at the service level using Grail's cache plugin. Specifically,
+    // we cache the RecordItemReceipt apiId to its current status so that we can see if we
+    // need to update the stored status value in the status callback webhook. This will reduce the
+    // number of database calls to check to see what the stored status is and also will
+    // reduce the number of updates to the database, hopefully decreasing the number of
+    // OptimisticLockingExceptions we are seeing in the logs.
     cache.use_second_level_cache = true
     cache.use_query_cache = false
-//    cache.region.factory_class = 'net.sf.ehcache.hibernate.EhCacheRegionFactory' // Hibernate 3
     cache.region.factory_class = 'org.hibernate.cache.ehcache.EhCacheRegionFactory' // Hibernate 4
+
     singleSession = true // configure OSIV singleSession mode
     flush.mode = 'manual' // OSIV session flush mode outside of transactional context
 }
