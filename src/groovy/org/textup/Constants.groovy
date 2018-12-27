@@ -24,6 +24,15 @@ class Constants {
 	static final int DEFAULT_TOKEN_LENGTH = 25
 	static final int MAX_NUM_ACCESS_NOTIFICATION_TOKEN = 3
 
+	// Caching
+	// -------
+
+	static final int DEFAULT_CACHE_MAX_SIZE = 1000
+
+	// If chance this cache name, need to update values in `RecordItemReceiptsCache.groovy`
+	static final String CACHE_RECEIPTS = "receiptsCache"
+	static final String CACHE_RECEIPTS_MAX_SIZE = 500
+
 	// Billing
 	// -------
 

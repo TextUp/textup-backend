@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.TimeUnit
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.textup.cache.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -13,7 +14,7 @@ import org.textup.validator.*
 class CallbackStatusService {
 
     CallService callService
-    ResultFactory resultFactory
+    RecordItemReceiptCache receiptCache
     SocketService socketService
     ThreadService threadService
 
@@ -58,7 +59,7 @@ class CallbackStatusService {
         updateExistingReceiptsWithStatus(textId, status)
             .then { List<RecordItemReceipt> rpts ->
                 sendItemsThroughSocket(rpts)
-                resultFactory.success()
+                IOCUtils.resultFactory.success()
             }
     }
 
@@ -67,10 +68,10 @@ class CallbackStatusService {
         PhoneNumber childNumber, ReceiptStatus status, Integer duration) {
 
         createNewReceiptsWithStatus(parentId, childId, childNumber, status)
-            .then { List<RecordItemReceipt> rpts -> updateDurationForCall(rpts, duration) }
+            .then { List<RecordItemReceipt> rpts -> tryUpdateDurationForCall(rpts, duration) }
             .then { List<RecordItemReceipt> rpts ->
                 sendItemsThroughSocket(rpts)
-                resultFactory.success()
+                IOCUtils.resultFactory.success()
             }
     }
 
@@ -79,12 +80,12 @@ class CallbackStatusService {
         Integer duration, TypeConvertingMap params) {
 
         updateExistingReceiptsWithStatus(callId, status)
-            .then { List<RecordItemReceipt> rpts -> updateDurationForCall(rpts, duration) }
+            .then { List<RecordItemReceipt> rpts -> tryUpdateDurationForCall(rpts, duration) }
             .then { List<RecordItemReceipt> rpts ->
                 // try to retry parent call if failed
                 if (status == ReceiptStatus.FAILED) { tryRetryParentCall(callId, params) }
                 sendItemsThroughSocket(rpts)
-                resultFactory.success()
+                IOCUtils.resultFactory.success()
             }
     }
 
@@ -94,7 +95,7 @@ class CallbackStatusService {
     protected Result<List<RecordItemReceipt>> createNewReceiptsWithStatus(String parentId,
         String childId, PhoneNumber childNumber, ReceiptStatus status) {
 
-        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(parentId),
+        List<RecordItemReceipt> receipts = receiptCache.findReceiptsByApiId(parentId),
             childReceipts = []
         if (receipts) {
             for (RecordItemReceipt receipt in receipts) {
@@ -102,50 +103,19 @@ class CallbackStatusService {
                     contactNumber: childNumber)
                 receipt.item.addToReceipts(newReceipt)
                 if (!receipt.item.save()) {
-                    return resultFactory.failWithValidationErrors(receipt.item.errors)
+                    return IOCUtils.resultFactory.failWithValidationErrors(receipt.item.errors)
                 }
                 childReceipts << newReceipt
             }
         }
-        updateStatusForReceipts(childReceipts, status)
+        tryUpdateStatusForReceipts(childReceipts, status)
     }
 
     protected Result<List<RecordItemReceipt>> updateExistingReceiptsWithStatus(String apiId,
         ReceiptStatus status) {
 
-        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
-        updateStatusForReceipts(receipts, status)
-    }
-
-    protected Result<List<RecordItemReceipt>> updateStatusForReceipts(
-        List<RecordItemReceipt> receipts, ReceiptStatus status) {
-
-        // It's okay if we don't find any receipts for a certain apiId because we aren't interested
-        // in recording the status of certain messages such as notification messages we send out
-        // to staff members.
-        if (receipts) {
-            for (RecordItemReceipt receipt in receipts) {
-                receipt.status = status
-                if (!receipt.save()) {
-                    return resultFactory.failWithValidationErrors(receipt.errors)
-                }
-            }
-        }
-        resultFactory.success(receipts)
-    }
-
-    protected Result<List<RecordItemReceipt>> updateDurationForCall(List<RecordItemReceipt> receipts,
-        Integer duration) {
-
-        if (receipts) {
-            for (RecordItemReceipt receipt in receipts) {
-                receipt.numBillable = duration
-                if (!receipt.save()) {
-                    return resultFactory.failWithValidationErrors(receipt.errors)
-                }
-            }
-        }
-        resultFactory.success(receipts)
+        List<RecordItemReceipt> receipts = receiptCache.findReceiptsByApiId(apiId)
+        tryUpdateStatusForReceipts(receipts, status)
     }
 
     protected void sendItemsThroughSocket(List<RecordItemReceipt> receipts) {
@@ -166,6 +136,27 @@ class CallbackStatusService {
                     .logFail("CallbackStatusService.sendItemsThroughSocket: receipts: $receipts")
             }
         }
+    }
+    Result<List<RecordItemReceipt>> tryUpdateStatusForReceipts(List<RecordItemReceipt> receipts,
+        ReceiptStatus newStatus) {
+
+        // (1) It's okay if we don't find any receipts for a certain apiId because we aren't interested
+        // in recording the status of certain messages such as notification messages we send out
+        // to staff members.
+        // (2) We assume that all the receipts have the same status, so we only check the status
+        // of the first receipt
+        if (receipts && receipts[0]?.status?.isEarlierInSequenceThan(newStatus)) {
+            receiptCache.updateStatusForReceipts(receipts, newStatus)
+        }
+        IOCUtils.resultFactory.success(receipts)
+    }
+    Result<List<RecordItemReceipt>> tryUpdateDurationForCall(List<RecordItemReceipt> receipts,
+        Integer duration) {
+
+        if (receipts && receipts[0]?.numBillable && receipts[0].numBillable != duration) {
+            receiptCache.updateDurationForCall(receipts, duration)
+        }
+        IOCUtils.resultFactory.success(receipts)
     }
 
     // If multiple phone numbers on a call and the status is failure, then retry the call.

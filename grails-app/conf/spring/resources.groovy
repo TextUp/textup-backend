@@ -2,11 +2,12 @@ import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import com.pusher.rest.Pusher
 import org.textup.*
+import org.textup.cache.*
+import org.textup.media.*
 import org.textup.rest.*
 import org.textup.rest.marshaller.*
 import org.textup.util.*
 import org.textup.validator.*
-import org.textup.media.*
 
 // Place your Spring DSL code here
 beans = {
@@ -45,6 +46,11 @@ beans = {
 		authoritiesPropertyName = restConfig.rendering.authoritiesPropertyName
 		useBearerToken = restConfig.validation.useBearerToken
 	}
+	// Override cache manager to support constraining the in-memory cache size
+	grailsCacheManager(ConstrainedSizeCacheManager) {
+		cacheNameToMaxSize = [(Constants.CACHE_RECEIPTS): Constants.CACHE_RECEIPTS_MAX_SIZE]
+	}
+	receiptCache(RecordItemReceiptCache)
 
 	// Marshallers
 	// -----------

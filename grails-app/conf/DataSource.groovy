@@ -13,16 +13,16 @@ hibernate {
     // format_sql = true // only affects if we are logging SQL (see `logSql` option above OR log4j config in `Config.groovy`)
     // generate_statistics = true
 
-    // Helps prevent deadlocks in highly concurrent settings.
-    // see: https://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html_single/#configuration-optional
-    order_updates = true
-
     // NO BATCHING SUPPORT: because Grails uses the native identity generator to generate ids for inserts,
     // Hibernate disables batching inserts. We need to change to another identity provider before
     // we can using the batching features of Hibernate.
     // See: https://vladmihalcea.com/hibernate-identity-sequence-and-table-sequence-generator/
     // jdbc.batch_size = 30
     // jdbc.batch_versioned_data = true
+
+    // Helps prevent deadlocks in highly concurrent settings.
+    // see: https://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html_single/#configuration-optional
+    order_updates = true
 
     //disables recreation of the Hibernate session factory on reload, workaround for error when editing domain subclass
     reload = false

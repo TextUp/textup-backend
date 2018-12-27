@@ -100,10 +100,14 @@ grails.project.dependency.resolution = {
 
         // plugins for the compile step
         compile ":scaffolding:2.1.2"
-        compile ':cache:1.1.8'
         compile ":asset-pipeline:1.9.9"
         compile ":joda-time:1.5"
         compile ":quartz:1.0.2"
+
+        // cache 1.1.9-SNAPSHOT can limit cache size, but it won't compile because it assumes
+        // Spring 3.1.x while we are on Spring 4.0.7-RELEASE, which has changed the contract
+        // of the Cache interface so `GrailsConcurrentLinkedMapCache` in 1,1.9 won't compile
+        compile ':cache:1.1.8'
 
         compile ":spring-security-core:2.0-RC4"
         compile ":spring-security-rest:1.5.3", {

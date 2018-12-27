@@ -1,4 +1,5 @@
 import org.codehaus.groovy.grails.validation.ConstrainedProperty
+import org.textup.Constants
 import org.textup.util.CascadeValidationConstraint
 
 // locations to search for config files that get merged into the main config;
@@ -81,7 +82,6 @@ grails.exceptionresolver.params.exclude = ['password']
 
 // configure auto-caching of queries by default (if false you can cache individual queries with 'cache: true')
 grails.hibernate.cache.queries = false
-
 // configure passing transaction's read-only attribute to Hibernate session, queries and criterias
 // set "singleSession = false" OSIV mode in hibernate configuration after enabling
 grails.hibernate.pass.readonly = false
@@ -135,6 +135,8 @@ log4j.main = {
     // trace  'org.hibernate.type.descriptor.sql.BasicBinder'
     // // For printing Hibernate SQL statements
     // debug  'org.hibernate.SQL'
+    // // For greater visibility into caching configuration + setup
+    // debug  'grails.plugin.cache'
 
     // For greater visibility into jobs
     info   'grails.app.jobs'                                // Quartz jobs
@@ -151,7 +153,8 @@ log4j.main = {
            'org.springframework',
            'org.hibernate',
            'net.sf.ehcache.hibernate',
-           'net.bull.javamelody'                           // Melody monitoring
+           'net.bull.javamelody',                            // Melody monitoring
+           'grails.plugin.cache'
 }
 
 
@@ -206,6 +209,18 @@ grails {
         }
     }
 }
+
+// NOTE: v3.0.0 docs are NOT THE SAME as v1.1.8 docs. For example, 1.1.8 does NOT have
+// `GrailsConcurrentLinkedMapCacheManager` so we have to override the grailsCacheManager bean manually
+// For 1.1.8 docs: https://github.com/grails-plugins/grails-cache/tree/v1.1.8/src/docs
+// To configure max size of certain caches, go to `conf/spring/resources.groovy` and
+// add to the passed-in `cacheNameToMaxSize` map
+grails.cache.enabled = true
+grails.cache.clearAtStartup = true
+grails.cache.config = {
+   cache { name Constants.CACHE_RECEIPTS }
+}
+
 // this property seems to only set CORS headers in response to the preflight request
 cors.headers = ["Access-Control-Allow-Headers": "Content-Type, Authorization"]
 // this property sets Access-Control-Expose-Headers

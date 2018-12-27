@@ -4,16 +4,24 @@ import grails.compiler.GrailsTypeChecked
 
 @GrailsTypeChecked
 enum ReceiptStatus {
-	FAILED(["failed", "undelivered"]),
-	PENDING(["in-progress", "ringing", "queued", "accepted", "sending", "receiving"]),
-	BUSY(["busy", "no-answer"]),
+	PENDING(["in-progress", "ringing", "queued", "accepted", "sending", "receiving"], 1),
 	// the 'sent' status is for when Twilio doesn't receive an additional confirmation from the
 	// carrier that the message has sent. However, this 'sent' status should still represent
 	// a successful status
-	SUCCESS(["sent", "completed", "canceled", "delivered"])
+	SUCCESS(["sent", "completed", "canceled", "delivered"], 2),
+	// BUSY and FAILED have higher sequence numbers than success because we want to make sure
+	// that these errors statuses are noted for the user rather than being overriden
+	// by an earlier success
+	BUSY(["busy", "no-answer"], 3),
+	FAILED(["failed", "undelivered"], 4)
+
 
 	private final Collection<String> statuses
-	ReceiptStatus(Collection<String> thisStatuses) { this.statuses = thisStatuses }
+	private final int sequenceNumber
+	ReceiptStatus(Collection<String> thisStatuses, int thisNum) {
+		this.statuses = thisStatuses
+		this.sequenceNumber = thisNum
+	}
 	Collection<String> getStatuses() { Collections.unmodifiableCollection(this.statuses) }
 
 	static ReceiptStatus translate(String status) {
@@ -33,5 +41,9 @@ enum ReceiptStatus {
 		else if (cleanedStatus in SUCCESS.statuses) {
 			return SUCCESS
 		}
+	}
+
+	boolean isEarlierInSequenceThan(ReceiptStatus comparisonStatus) {
+		this.sequenceNumber < comparisonStatus?.sequenceNumber
 	}
 }

@@ -4,6 +4,7 @@ import java.security.Security
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.textup.*
 import org.textup.rest.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -133,6 +134,7 @@ class BootStrap {
 		        	.storeOutgoingText("Hi! Hope you're doing well today.", null).payload
 				[rText1, rText2, rTeText1].each {
 					it.media = new MediaInfo()
+					it.addToReceipts(TestUtils.buildReceipt())
 					it.save(flush:true, failOnError:true)
 				}
 
