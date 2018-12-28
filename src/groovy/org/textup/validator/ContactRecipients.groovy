@@ -13,7 +13,7 @@ class ContactRecipients extends Recipients<Long, Contact> {
         recipients validator: { Collection<Contact> recips, ContactRecipients obj ->
             List<Contact> doNotBelong = []
             recips?.each { Contact c1 ->
-                if (c1 && c1.phone != obj.phone) { doNotBelong << c1 }
+                if (c1 && c1.phone?.id != obj.phone?.id) { doNotBelong << c1 }
             }
             if (doNotBelong) {
                 return ['foreign', doNotBelong*.id]

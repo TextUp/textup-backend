@@ -40,6 +40,11 @@ class RecordItemReceipt implements WithId {
         }
         numBillable nullable: true, min: 0
     }
+    static mapping = {
+        // an index because we often look up via apiId and lots of rows in this table
+        // makes this a very slow query (from sql performance monitoring)
+        apiId index: "ix_record_item_receipt_api_id"
+    }
 
     // Property Access
     // ---------------

@@ -27,20 +27,24 @@ hibernate {
     //disables recreation of the Hibernate session factory on reload, workaround for error when editing domain subclass
     reload = false
 
-    // second level cache holds entities and query cache is a special "region" of the second
-    // level cache that holds queries and parameters. WE DO NOT WANT TO USE THE QUERY CACHE because
-    // any write to a table (insert/update/delete) clears out all queries for that table in the query cache.
-    //
-    // Also, we don't really use the second level cache directly in our app either because it requires
-    // look-ups solely via the id of the entity. Our operations usually involve other properties.
-    // Therefore, we choose to cache at the service level using Grail's cache plugin. Specifically,
-    // we cache the RecordItemReceipt apiId to its current status so that we can see if we
-    // need to update the stored status value in the status callback webhook. This will reduce the
-    // number of database calls to check to see what the stored status is and also will
+    // Note that the second-level cache  requires look-ups solely via the id of the entity.
+    // Therefore, we usually choose to cache at the service level using Grail's cache plugin.
+    // Specifically, we cache the RecordItemReceipt apiId to its current status so that we can see
+    // if we need to update the stored status value in the status callback webhook. This will reduce
+    // the number of database calls to check to see what the stored status is and also will
     // reduce the number of updates to the database, hopefully decreasing the number of
     // OptimisticLockingExceptions we are seeing in the logs.
     cache.use_second_level_cache = true
-    cache.use_query_cache = false
+    // Second level cache holds entities and query cache is a special "region" of the second
+    // level cache that holds queries and parameters. We only use the query cache for very special use
+    // cases because any write to a table (insert/update/delete) clears out all queries for that
+    // table in the query cache. This makes the query cache suitable for holding dynamic finder queries
+    // for `CustomAccountDetails`s. The reason why we need the query cache in addition to the second
+    // level cache becasue the second-level cache requires look-up directly from id. When we are
+    // determining which authToken to use based on the provided accountId, we are using a dynamic
+    // finder based on the accountId. Therefore, we need to cache this query so that we don't
+    // keep on hitting the database.
+    cache.use_query_cache = true
     cache.region.factory_class = 'org.hibernate.cache.ehcache.EhCacheRegionFactory' // Hibernate 4
 
     singleSession = true // configure OSIV singleSession mode

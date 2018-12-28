@@ -23,9 +23,6 @@ class Phone implements WithMedia, WithId {
 	String numberAsString
     PhoneOwnership owner
 
-    // to support when phone number is assigned to a subaccount
-    String customAccountId
-
     @RestApiObjectField(
         description    = "public media assets related to phone, for example, recorded voicemail greeting",
         allowedType    = "MediaInfo",
@@ -60,6 +57,8 @@ class Phone implements WithMedia, WithId {
         allowedType  = "String",
         defaultValue = "ENGLISH")
     VoiceLanguage language = VoiceLanguage.ENGLISH
+
+    CustomAccountDetails customAccount
 
     @RestApiObjectFields(params = [
         @RestApiObjectField(
@@ -102,7 +101,6 @@ class Phone implements WithMedia, WithId {
     static transients = ["number"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
-        customAccountId blank: true, nullable: true
         voice blank:false, nullable:false
         numberAsString blank:true, nullable:true, validator:{ String num, Phone obj ->
             if (!num) { // short circuit if number is blank
@@ -122,6 +120,7 @@ class Phone implements WithMedia, WithId {
         }
         awayMessage blank:false, size:1..(Constants.TEXT_LENGTH * 2)
         media nullable: true, cascadeValidation: true
+        customAccount nullable: true
     }
     static mapping = {
         whenCreated type:PersistentDateTime
@@ -339,6 +338,9 @@ class Phone implements WithMedia, WithId {
     }
     PhoneNumber getNumber() {
         new PhoneNumber(number:this.numberAsString)
+    }
+    String getCustomAccountId() {
+        customAccount?.accountId
     }
 
     int countTags() {

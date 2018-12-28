@@ -31,8 +31,9 @@ class TwilioUtils {
         // step 2: build browser url and extract Twilio params
         String url = TwilioUtils.getBrowserURL(request)
         Map<String, String> twilioParams = TwilioUtils.extractTwilioParams(request, params)
-        // step 3: build and run request validator
-        String authToken = Holders.flatConfig["textup.apiKeys.twilio.authToken"]
+        // step 3: build and run request validator. Note that this is the only place
+        // where we require the sub-account authToken
+        String authToken = TwilioUtils.getAuthToken(params.AccountSid as String)
         RequestValidator validator = new RequestValidator(authToken)
 
         validator.validate(url, twilioParams, authHeader) ?
@@ -125,6 +126,17 @@ class TwilioUtils {
 
     // Helpers
     // -------
+
+    protected static String getAuthToken(String sid) {
+        if (sid == Holders.flatConfig["textup.apiKeys.twilio.sid"]) {
+            Holders.flatConfig["textup.apiKeys.twilio.authToken"]
+        }
+        else {
+            // uses query cache
+            CustomAccountDetails cd1 = CustomAccountDetails.findByAccountId(sid, [cache: true])
+            cd1?.authToken ?: ""
+        }
+    }
 
     protected static String getBrowserURL(HttpServletRequest request) {
         String browserURL = (request.requestURL.toString() - request.requestURI) +

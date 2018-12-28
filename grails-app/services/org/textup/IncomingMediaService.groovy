@@ -53,6 +53,8 @@ class IncomingMediaService {
         }
         String sid = grailsApplication.flatConfig["textup.apiKeys.twilio.sid"],
             authToken = grailsApplication.flatConfig["textup.apiKeys.twilio.authToken"]
+        // We don't need to add subaccount support here because, as long as the subaccount account id
+        // is in the URL, the master credentials will work for authentication
         HttpUtils.executeBasicAuthRequest(sid, authToken, new HttpGet(im1.url)) { HttpResponse resp ->
             int statusCode = resp.statusLine.statusCode
             if (statusCode != ApacheHttpStatus.SC_OK) {

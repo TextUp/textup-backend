@@ -961,4 +961,8 @@ databaseChangeLog = {
 	include file: 'customizable-away-message-suffix.groovy'
 
 	include file: 'phone-subaccount-id.groovy'
+
+	include file: 'phone-subaccount-credentials.groovy'
+
+	include file: 'receipt-api-id-index.groovy'
 }
