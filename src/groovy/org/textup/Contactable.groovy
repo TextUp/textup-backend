@@ -13,6 +13,7 @@ interface Contactable extends WithRecord {
     String getName()
     String getNote()
     PhoneNumber getFromNum()
+    String getCustomAccountId()
     List<ContactNumber> getNumbers()
     List<ContactNumber> getSortedNumbers()
     List<NotificationStatus> getNotificationStatuses()

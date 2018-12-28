@@ -959,4 +959,6 @@ databaseChangeLog = {
 	include file: 'store-scheduled-status-on-items.groovy'
 
 	include file: 'customizable-away-message-suffix.groovy'
+
+	include file: 'phone-subaccount-id.groovy'
 }

@@ -59,7 +59,7 @@ class OutgoingMessageService {
         PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : p1.number,
             toNum = s1.personalPhoneNumber
         callService
-            .start(fromNum, toNum, CallTwiml.infoForFinishBridge(c1))
+            .start(fromNum, toNum, CallTwiml.infoForFinishBridge(c1), p1.customAccountId)
             .then(this.&afterBridgeCall.curry(c1, s1))
     }
 
@@ -142,7 +142,7 @@ class OutgoingMessageService {
             Result<MediaInfo> mediaRes = mediaFuture.get()
             if (!mediaRes) {
                 return resultFactory.failWithCodeAndStatus(
-                    "outgoingMediaService.finishProcessingMessages.futureMissingPayload",
+                    "outgoingMessageService.finishProcessingMessages.futureMissingPayload",
                     ResultStatus.INTERNAL_SERVER_ERROR,
                     [msg1.media?.id, recordIdToItems?.keySet()]).toGroup()
             }
@@ -186,7 +186,8 @@ class OutgoingMessageService {
         ResultGroup<?> resGroup = new ResultGroup<>()
         msg1.toRecipients().each { Contactable cont1 ->
             outgoingMediaService
-                .send(cont1.fromNum, cont1.sortedNumbers, msg1.message, msg1.media, callToken)
+                .send(cont1.fromNum, cont1.sortedNumbers, cont1.customAccountId, msg1.message,
+                    msg1.media, callToken)
                 .thenEnd { List<TempRecordReceipt> tempReceipts ->
                     resGroup << tryStoreReceipts(recordIdToItems, cont1, tempReceipts)
                     contactIdToTags[cont1.contactId]?.each { ContactTag ct1 ->

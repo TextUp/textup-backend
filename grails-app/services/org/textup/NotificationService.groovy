@@ -225,7 +225,7 @@ class NotificationService {
         // in order to generate a preview
         tokenService.generateNotification(tokenData).then { Token tok1 ->
             String notification = "${instr} \n\n${notifyLink + tok1.token} \n\n${suffix}"
-            textService.send(p1.number, [s1.personalPhoneNumber], notification)
+            textService.send(p1.number, [s1.personalPhoneNumber], notification, p1.customAccountId)
         }
     }
     // Outgoing notification is always BasicNotification and never Notification. Notification objects

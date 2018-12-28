@@ -274,6 +274,10 @@ class SharedContact implements Contactable, WithId {
         this.canView ? this.sharedBy.number : null
     }
     @GrailsTypeChecked
+    String getCustomAccountId() {
+        this.canView ? this.sharedBy.customAccountId : null
+    }
+    @GrailsTypeChecked
     String getName() {
         this.canView ? this.contact.nameOrNumber : null
     }

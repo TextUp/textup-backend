@@ -50,7 +50,8 @@ class TwilioUtils {
             mediaList << new IncomingMediaInfo(url: contentUrl,
                 messageId: messageId,
                 mimeType: contentType,
-                mediaId: TwilioUtils.extractMediaIdFromUrl(contentUrl))
+                mediaId: TwilioUtils.extractMediaIdFromUrl(contentUrl),
+                accountId: params.AccountSid as String)
         }
         mediaList
     }
@@ -58,7 +59,19 @@ class TwilioUtils {
     static IncomingRecordingInfo buildIncomingRecording(TypeConvertingMap params) {
         new IncomingRecordingInfo(mimeType: MediaType.AUDIO_MP3.mimeType,
             url: params.RecordingUrl as String,
-            mediaId: params.RecordingSid as String)
+            mediaId: params.RecordingSid as String,
+            accountId: params.AccountSid as String)
+    }
+
+    // Updating status
+    // ---------------
+
+    static boolean shouldUpdateStatus(ReceiptStatus oldStatus, ReceiptStatus newStatus) {
+        !oldStatus || oldStatus.isEarlierInSequenceThan(newStatus)
+    }
+
+    static boolean shouldUpdateDuration(Integer oldDuration, Integer newDuration) {
+        newDuration != null && (oldDuration == null || oldDuration != newDuration)
     }
 
     // Twiml

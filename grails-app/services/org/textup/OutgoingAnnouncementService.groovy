@@ -68,7 +68,7 @@ class OutgoingAnnouncementService {
         Author author1 = staff.toAuthor()
         String announcement = TwilioUtils.formatAnnouncementForSend(identifier, message)
         sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
-            textService.send(phone.number, [s1.number], announcement)
+            textService.send(phone.number, [s1.number], announcement, phone.customAccountId)
         }, { Contact c1, TempRecordReceipt receipt ->
             c1.record.storeOutgoingText(message, author1)
                 .then { RecordText rText1 ->
@@ -84,7 +84,8 @@ class OutgoingAnnouncementService {
         Author author1 = staff.toAuthor()
         sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
             callService.start(phone.number, s1.number,
-                CallTwiml.infoForAnnouncementAndDigits(identifier, message))
+                CallTwiml.infoForAnnouncementAndDigits(identifier, message),
+                phone.customAccountId)
         }, { Contact c1, TempRecordReceipt receipt ->
             c1.record.storeOutgoingCall(author1, message)
                 .then { RecordCall rCall1 ->

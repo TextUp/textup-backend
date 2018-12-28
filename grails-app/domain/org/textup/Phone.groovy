@@ -23,6 +23,9 @@ class Phone implements WithMedia, WithId {
 	String numberAsString
     PhoneOwnership owner
 
+    // to support when phone number is assigned to a subaccount
+    String customAccountId
+
     @RestApiObjectField(
         description    = "public media assets related to phone, for example, recorded voicemail greeting",
         allowedType    = "MediaInfo",
@@ -99,6 +102,7 @@ class Phone implements WithMedia, WithId {
     static transients = ["number"]
     static constraints = {
         apiId blank:true, nullable:true, unique:true
+        customAccountId blank: true, nullable: true
         voice blank:false, nullable:false
         numberAsString blank:true, nullable:true, validator:{ String num, Phone obj ->
             if (!num) { // short circuit if number is blank

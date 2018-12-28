@@ -28,36 +28,32 @@ class RecordItemReceiptCache {
         RecordItemReceipt.findAllByApiId(apiId)
     }
 
-    // (1) CacheEvict ignores return values, see section 28.3.3 of
-    // https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/cache.html
+    // (1) Use CachePut instead of CacheEvict because we want to avoid excessive db calls with
+    // caching so we will cache the updated state here save another read to the database. If we
+    // used CacheEvict, we would only be reducing our db hits by a relatively small amount,
+    // one fewer for calls and the same number for texts
     // (2) For SpEL, use the parameter index instead of the parameter name, which may be unreliably
     // available. see: https://stackoverflow.com/a/14197738
     // (3) Use `get` instead of `getAt` because `getAt` is dynamically added by Groovy and `get` is
     // part of the Java List interface, which is the source consulted by Spring
-    @CacheEvict(value = "receiptsCache", key = "#p0?.get(0)?.apiId")
-    Result<List<RecordItemReceipt>> updateStatusForReceipts(List<RecordItemReceipt> receipts,
-        ReceiptStatus newStatus) {
+    // (4) need to `merge` instead of `save` because, when the receipts are returned from the cache
+    // instead of from a db call, they are NOT attached to the currently-active session
+    @CachePut(value = "receiptsCache", key = "#p0?.get(0)?.apiId")
+    List<RecordItemReceipt> updateReceipts(List<RecordItemReceipt> receipts,
+        ReceiptStatus newStatus, Integer newDuration = null) {
 
+        ResultGroup<RecordItemReceipt> resGroup = new ResultGroup<>()
         for (RecordItemReceipt receipt in receipts) {
             receipt.status = newStatus
-            if (!receipt.save()) {
-                return IOCUtils.resultFactory.failWithValidationErrors(receipt.errors)
+            if (newDuration != null) {
+                receipt.numBillable = newDuration
             }
-        }
-        IOCUtils.resultFactory.success(receipts)
-    }
-
-    // See comments on `updateStatusForReceipts` for things to note
-    @CacheEvict(value = "receiptsCache", key = "#p0?.get(0)?.apiId")
-    Result<List<RecordItemReceipt>> updateDurationForCall(List<RecordItemReceipt> receipts,
-        Integer duration) {
-
-        for (RecordItemReceipt receipt in receipts) {
-            receipt.numBillable = duration
-            if (!receipt.save()) {
-                return IOCUtils.resultFactory.failWithValidationErrors(receipt.errors)
+            if (receipt.merge()) {
+                resGroup << IOCUtils.resultFactory.success(receipt)
             }
+            else { resGroup << IOCUtils.resultFactory.failWithValidationErrors(receipt.errors) }
         }
-        IOCUtils.resultFactory.success(receipts)
+        resGroup.logFail("updateReceipts: apiIds ${receipts*.apiId}, newStatus: $newStatus, newDuration: $newDuration")
+        resGroup.payload
     }
 }

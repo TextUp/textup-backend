@@ -2,6 +2,9 @@ package org.textup
 
 import com.twilio.exception.ApiException
 import com.twilio.rest.api.v2010.account.Call
+import com.twilio.rest.api.v2010.account.CallCreator
+import com.twilio.rest.api.v2010.account.CallUpdater
+import com.twilio.type.PhoneNumber as TwilioPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.textup.type.*
@@ -12,17 +15,17 @@ import org.textup.validator.*
 @Transactional
 class CallService {
 
-    ResultFactory resultFactory
+    Result<TempRecordReceipt> start(BasePhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup,
+        String customAccountId) {
 
-    Result<TempRecordReceipt> start(BasePhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup) {
         String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS)
-        doCall(fromNum, toNum, afterPickup, callback)
+        doCall(fromNum, toNum, afterPickup, callback, customAccountId)
     }
     Result<TempRecordReceipt> start(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, Map afterPickup) {
+        List<? extends BasePhoneNumber> toNums, Map afterPickup, String customAccountId) {
         // if one number we can just start without any retry logic
         if (toNums?.size() <= 1) {
-            start(fromNum, toNums ? toNums[0] : null, afterPickup)
+            start(fromNum, toNums ? toNums[0] : null, afterPickup, customAccountId)
         }
         // if multiple numbers, we want to add in retry logic
         // We start with the first number **that doesn't IMMEDIATELY fail**.
@@ -41,7 +44,7 @@ class CallService {
                 // previous numbers have IMMEDIATELY failed for whatever reason, then this
                 // is the same case as if we are only trying to call one number
                 if (!remaining) {
-                    return start(fromNum, toNum, afterPickup)
+                    return start(fromNum, toNum, afterPickup, customAccountId)
                 }
                 // if we still have some numbers remaining to try, then we try to start the
                 // call with this number, and if it succeeds, then we can return and the call has
@@ -50,72 +53,89 @@ class CallService {
                 else {
                     String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS,
                         remaining: remaining, afterPickup: afterPickupJson)
-                    Result<TempRecordReceipt> res = doCall(fromNum, toNum, afterPickup, callback)
+                    Result<TempRecordReceipt> res =
+                        doCall(fromNum, toNum, afterPickup, callback, customAccountId)
                     if (res.success) {
                         return res
                     }
                 }
             }
-            resultFactory.failWithCodeAndStatus("callService.start.missingInfoOrAllFailed",
+            IOCUtils.resultFactory.failWithCodeAndStatus("callService.start.missingInfoOrAllFailed",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
     }
     Result<TempRecordReceipt> retry(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup) {
-        this.start(fromNum, toNums, afterPickup).then({ TempRecordReceipt r1 ->
+        List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup,
+        String customAccountId) {
+
+        start(fromNum, toNums, afterPickup, customAccountId).then { TempRecordReceipt r1 ->
             List<RecordItem> items = RecordItem.findEveryByApiId(apiId)
             RecordItem.findEveryByApiId(apiId).each { RecordItem item1 ->
                 item1.addReceipt(r1)
                 item1.save()
             }
-            resultFactory.success(r1)
-        })
+            IOCUtils.resultFactory.success(r1)
+        }
     }
 
     // [UNTESTED] because of limitations in mocking
     // interrupt existing call with the following Twiml
     // see https://www.twilio.com/docs/voice/api/call#update-a-call-resource
-    Result<Void> interrupt(String callId, Map afterPickup) {
+    Result<Void> interrupt(String callId, Map afterPickup, String customAccountId) {
         try {
-            Call.updater(callId)
+            callUpdater(callId, customAccountId)
                 .setUrl(IOCUtils.getWebhookLink(afterPickup))
                 .setStatusCallback(IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS))
                 .update()
-            resultFactory.success()
+            IOCUtils.resultFactory.success()
         }
-        catch (Throwable e) { resultFactory.failWithThrowable(e) }
+        catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
     }
 
     // Helpers
     // -------
 
     protected Result<TempRecordReceipt> doCall(BasePhoneNumber fromNum, BasePhoneNumber toNum,
-        Map afterPickup, String callback) {
+        Map afterPickup, String callback, String customAccountId) {
+
         if (!fromNum || !toNum) {
-            resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
+            IOCUtils.resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
                 ResultStatus.UNPROCESSABLE_ENTITY, null)
         }
-        String afterLink = IOCUtils.getWebhookLink(afterPickup)
         try {
-            Call call = Call
-                .creator(toNum.toApiPhoneNumber(), fromNum.toApiPhoneNumber(), new URI(afterLink))
+            Call call = callCreator(fromNum, toNum, afterPickup, customAccountId)
                 .setStatusCallback(callback)
                 .create()
             TempRecordReceipt receipt = new TempRecordReceipt(apiId:call.sid)
             receipt.contactNumber = toNum
             if (receipt.validate()) {
-                resultFactory.success(receipt)
+                IOCUtils.resultFactory.success(receipt)
             }
-            else { resultFactory.failWithValidationErrors(receipt.errors) }
+            else { IOCUtils.resultFactory.failWithValidationErrors(receipt.errors) }
         }
         catch (Throwable e) {
             log.error("CallService.doCall: ${e.class}, ${e.message}")
             // if an ApiException from Twilio, then would be a validation error
-            Result res = resultFactory.failWithThrowable(e)
+            Result res = IOCUtils.resultFactory.failWithThrowable(e)
             if (e instanceof ApiException) {
                 res.status = ResultStatus.UNPROCESSABLE_ENTITY
             }
             res
         }
+    }
+
+    protected CallCreator callCreator(BasePhoneNumber fromNum, BasePhoneNumber toNum,
+        Map afterPickup, String customAccountId) {
+
+        TwilioPhoneNumber apiTo = toNum.toApiPhoneNumber(),
+            apiFrom = fromNum.toApiPhoneNumber()
+        String afterLink = IOCUtils.getWebhookLink(afterPickup)
+        URI afterUri = new URI(afterLink)
+        customAccountId ?
+            Call.creator(customAccountId, apiTo, apiFrom, afterUri) :
+            Call.creator(apiTo, apiFrom, afterUri)
+    }
+    protected CallUpdater callUpdater(String callId, String customAccountId) {
+        customAccountId ? Call.updater(customAccountId, callId) : Call.updater(callId)
     }
 }

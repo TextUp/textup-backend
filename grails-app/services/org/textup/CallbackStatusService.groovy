@@ -56,7 +56,7 @@ class CallbackStatusService {
 
     // From the statusCallback attribute on the original POST request to the Text resource
     protected Result<Void> handleUpdateForText(String textId, ReceiptStatus status) {
-        updateExistingReceiptsWithStatus(textId, status)
+        updateExistingReceipts(textId, status)
             .then { List<RecordItemReceipt> rpts ->
                 sendItemsThroughSocket(rpts)
                 IOCUtils.resultFactory.success()
@@ -67,8 +67,7 @@ class CallbackStatusService {
     protected Result<Void> handleUpdateForChildCall(String parentId, String childId,
         PhoneNumber childNumber, ReceiptStatus status, Integer duration) {
 
-        createNewReceiptsWithStatus(parentId, childId, childNumber, status)
-            .then { List<RecordItemReceipt> rpts -> tryUpdateDurationForCall(rpts, duration) }
+        createNewReceipts(parentId, childId, childNumber, status, duration)
             .then { List<RecordItemReceipt> rpts ->
                 sendItemsThroughSocket(rpts)
                 IOCUtils.resultFactory.success()
@@ -79,8 +78,7 @@ class CallbackStatusService {
     protected Result<Void> handleUpdateForParentCall(String callId, ReceiptStatus status,
         Integer duration, TypeConvertingMap params) {
 
-        updateExistingReceiptsWithStatus(callId, status)
-            .then { List<RecordItemReceipt> rpts -> tryUpdateDurationForCall(rpts, duration) }
+        updateExistingReceipts(callId, status, duration)
             .then { List<RecordItemReceipt> rpts ->
                 // try to retry parent call if failed
                 if (status == ReceiptStatus.FAILED) { tryRetryParentCall(callId, params) }
@@ -92,30 +90,43 @@ class CallbackStatusService {
     // Shared helpers
     // --------------
 
-    protected Result<List<RecordItemReceipt>> createNewReceiptsWithStatus(String parentId,
-        String childId, PhoneNumber childNumber, ReceiptStatus status) {
+    protected Result<List<RecordItemReceipt>> createNewReceipts(String parentId,
+        String childId, PhoneNumber childNumber, ReceiptStatus status, Integer duration) {
 
         List<RecordItemReceipt> receipts = receiptCache.findReceiptsByApiId(parentId),
             childReceipts = []
         if (receipts) {
             for (RecordItemReceipt receipt in receipts) {
                 RecordItemReceipt newReceipt = new RecordItemReceipt(apiId: childId,
-                    contactNumber: childNumber)
+                    contactNumber: childNumber, status: status, numBillable: duration)
                 receipt.item.addToReceipts(newReceipt)
-                if (!receipt.item.save()) {
+                if (!receipt.item.merge()) {
                     return IOCUtils.resultFactory.failWithValidationErrors(receipt.item.errors)
                 }
                 childReceipts << newReceipt
             }
         }
-        tryUpdateStatusForReceipts(childReceipts, status)
+        IOCUtils.resultFactory.success(childReceipts)
     }
 
-    protected Result<List<RecordItemReceipt>> updateExistingReceiptsWithStatus(String apiId,
-        ReceiptStatus status) {
+    protected Result<List<RecordItemReceipt>> updateExistingReceipts(String apiId,
+        ReceiptStatus newStatus, Integer newDuration = null) {
 
         List<RecordItemReceipt> receipts = receiptCache.findReceiptsByApiId(apiId)
-        tryUpdateStatusForReceipts(receipts, status)
+        // (1) It's okay if we don't find any receipts for a certain apiId because we aren't interested
+        // in recording the status of certain messages such as notification messages we send out
+        // to staff members.
+        // (2) We assume that all the receipts have the same status, so we only check the status
+        // of the first receipt
+        if (receipts) {
+            ReceiptStatus oldStatus = receipts[0]?.status
+            Integer oldDuration = receipts[0]?.numBillable
+            if (TwilioUtils.shouldUpdateStatus(oldStatus, newStatus) ||
+                TwilioUtils.shouldUpdateDuration(oldDuration, newDuration)) {
+                receipts = receiptCache.updateReceipts(receipts, newStatus, newDuration)
+            }
+        }
+        IOCUtils.resultFactory.success(receipts)
     }
 
     protected void sendItemsThroughSocket(List<RecordItemReceipt> receipts) {
@@ -137,34 +148,13 @@ class CallbackStatusService {
             }
         }
     }
-    Result<List<RecordItemReceipt>> tryUpdateStatusForReceipts(List<RecordItemReceipt> receipts,
-        ReceiptStatus newStatus) {
-
-        // (1) It's okay if we don't find any receipts for a certain apiId because we aren't interested
-        // in recording the status of certain messages such as notification messages we send out
-        // to staff members.
-        // (2) We assume that all the receipts have the same status, so we only check the status
-        // of the first receipt
-        if (receipts && receipts[0]?.status?.isEarlierInSequenceThan(newStatus)) {
-            receiptCache.updateStatusForReceipts(receipts, newStatus)
-        }
-        IOCUtils.resultFactory.success(receipts)
-    }
-    Result<List<RecordItemReceipt>> tryUpdateDurationForCall(List<RecordItemReceipt> receipts,
-        Integer duration) {
-
-        if (receipts && receipts[0]?.numBillable && receipts[0].numBillable != duration) {
-            receiptCache.updateDurationForCall(receipts, duration)
-        }
-        IOCUtils.resultFactory.success(receipts)
-    }
 
     // If multiple phone numbers on a call and the status is failure, then retry the call.
     // See CallService.start for the parameters passed into the status callback
     protected void tryRetryParentCall(String callId, TypeConvertingMap params) {
-        PhoneNumber fromNum = new PhoneNumber(number:params.From as String)
+        PhoneNumber fromNum = new PhoneNumber(number: params.From as String)
         List<PhoneNumber> toNums = params.list("remaining")?.collect { Object num ->
-            new PhoneNumber(number:num as String)
+            new PhoneNumber(number: num as String)
         } ?: new ArrayList<PhoneNumber>()
         if (!toNums) {
             return
@@ -172,7 +162,7 @@ class CallbackStatusService {
         try {
             Map afterPickup = (DataFormatUtils.jsonToObject(params.afterPickup) ?: [:]) as Map
             callService
-                .retry(fromNum, toNums, callId, afterPickup)
+                .retry(fromNum, toNums, callId, afterPickup, params.AccountSid as String)
                 .logFail("CallbackStatusService: retrying call: params: ${params}")
         }
         catch (Throwable e) {

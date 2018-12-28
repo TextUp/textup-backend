@@ -349,6 +349,11 @@ class Contact implements Contactable, WithId {
         this.phone.number
     }
     @GrailsTypeChecked
+    String getCustomAccountId() {
+        this.phone.customAccountId
+    }
+
+    @GrailsTypeChecked
     List<NotificationStatus> getNotificationStatuses() {
         this.phone.owner.getNotificationStatusesForRecords([this.record.id])
     }

@@ -34,13 +34,15 @@ class NumberService {
         if (!toNum.validate()) {
             return resultFactory.failWithValidationErrors(toNum.errors)
         }
+        // Notification number will always be on our main account so no need for customAccountId
+        String customAccountId = null
         Utils
             .tryGetNotificationNumber()
             .then { PhoneNumber fromNum -> tokenService.generateVerifyNumber(toNum).curry(fromNum) }
             .then { PhoneNumber fromNum, Token tok1 ->
                 String msg = IOCUtils.getMessage("numberService.startVerifyOwnership.message", [tok1.token])
                 textService
-                    .send(fromNum, [toNum], msg)
+                    .send(fromNum, [toNum], msg, customAccountId)
                     .logFail("NumberService.startVerifyOwnership from $fromNum to $toNum")
             }
     }

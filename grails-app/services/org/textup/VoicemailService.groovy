@@ -1,7 +1,6 @@
 package org.textup
 
 import com.amazonaws.services.s3.model.PutObjectResult
-import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.*
@@ -99,7 +98,8 @@ class VoicemailService {
             // saving so that when this webhook is called, it will play the latest greeting instead
             // of occasionally the one before
             threadService.delay(3, TimeUnit.SECONDS) {
-                callService.interrupt(callId, CallTwiml.infoForPlayVoicemailGreeting())
+                callService
+                    .interrupt(callId, CallTwiml.infoForPlayVoicemailGreeting(), p1.customAccountId)
                     .logFail("VoicemailService.finishedProcessingVoicemailGreeting interrupt $callId")
             }
             resultFactory.success()

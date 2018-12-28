@@ -101,7 +101,8 @@ class PhoneService {
         if (!toNum.validate()) {
             return resultFactory.failWithValidationErrors(toNum.errors)
         }
-        callService.start(p1.number, toNum, CallTwiml.infoForRecordVoicemailGreeting())
+        callService.start(p1.number, toNum, CallTwiml.infoForRecordVoicemailGreeting(),
+            p1.customAccountId)
     }
     protected String getNumberToCallForVoicemailGreeting(String possibleNum) {
         possibleNum == "true" ? authService.loggedInAndActive?.personalPhoneAsString : possibleNum
@@ -116,6 +117,11 @@ class PhoneService {
             List<PhoneAction> actions = ac1.validateAndBuildActions(PhoneAction)
             if (ac1.hasErrors()) {
                 return resultFactory.failWithValidationErrors(ac1.errors)
+            }
+            if (p1.customAccountId) {
+                return resultFactory.failWithCodeAndStatus(
+                    "phoneService.handlePhoneActions.disabledWhenDebugging",
+                    ResultStatus.FORBIDDEN, [p1.number.prettyPhoneNumber])
             }
             Collection<Result<?>> failResults = []
             for (PhoneAction a1 in actions) {
@@ -149,13 +155,17 @@ class PhoneService {
             return resultFactory.failWithValidationErrors(p1.errors)
         }
         if (oldApiId) {
-            numberService.freeExistingNumberToInternalPool(oldApiId).then({ resultFactory.success(p1) })
+            numberService
+                .freeExistingNumberToInternalPool(oldApiId)
+                .then { resultFactory.success(p1) }
         }
         else { resultFactory.success(p1) }
     }
 
     protected Result<Phone> transferPhone(Phone p1, Long id, PhoneOwnershipType type) {
-        p1.transferTo(id, type).then({ resultFactory.success(p1) })
+        p1
+            .transferTo(id, type)
+            .then { resultFactory.success(p1) }
     }
 
     protected Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {

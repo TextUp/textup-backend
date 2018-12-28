@@ -11,6 +11,7 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 interface IsIncomingMedia {
+    String getAccountId()
     String getMimeType()
     String getUrl()
     String getMediaId()
@@ -25,6 +26,7 @@ interface IsIncomingMedia {
 @Validateable
 @Log4j
 class IncomingMediaInfo implements IsIncomingMedia {
+    String accountId
     String mimeType
     String url
     String messageId
@@ -38,7 +40,7 @@ class IncomingMediaInfo implements IsIncomingMedia {
     // [UNTESTED] because of limitations in mocking
     Result<Boolean> delete() {
         try {
-            IOCUtils.resultFactory.success(Media.deleter(messageId, mediaId).delete())
+            IOCUtils.resultFactory.success(Media.deleter(accountId, messageId, mediaId).delete())
         }
         catch (Throwable e) {
             log.error("SmsMediaDeleter.delete: ${e.message}")
@@ -52,6 +54,7 @@ class IncomingMediaInfo implements IsIncomingMedia {
 @Validateable
 @Log4j
 class IncomingRecordingInfo implements IsIncomingMedia {
+    String accountId
     String mimeType
     String url
     String mediaId
@@ -64,7 +67,7 @@ class IncomingRecordingInfo implements IsIncomingMedia {
     // [UNTESTED] because of limitations in mocking
     Result<Boolean> delete() {
         try {
-            IOCUtils.resultFactory.success(Recording.deleter(mediaId).delete())
+            IOCUtils.resultFactory.success(Recording.deleter(accountId, mediaId).delete())
         }
         catch (Throwable e) {
             log.error("CallRecordingDeleter.delete: ${e.message}")
