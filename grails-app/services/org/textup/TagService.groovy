@@ -89,7 +89,7 @@ class TagService {
             }
             for (ContactTagAction a1 in actions) {
                 Contact c1 = a1.contact
-                if (ct1.phone != c1.phone) {
+                if (ct1.phone?.id != c1.phone?.id) {
                     return resultFactory.failWithCodeAndStatus("tagService.update.contactForbidden",
                         ResultStatus.FORBIDDEN, [a1.id])
                 }

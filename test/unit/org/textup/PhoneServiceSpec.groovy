@@ -19,7 +19,7 @@ import spock.lang.*
 import static org.springframework.http.HttpStatus.*
 
 @TestFor(PhoneService)
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
@@ -126,6 +126,9 @@ class PhoneServiceSpec extends CustomSpec {
 
     @DirtiesRuntime
     void "test phone action errors"() {
+        given:
+        CustomAccountDetails cad1 = TestUtils.buildCustomAccountDetails()
+
         when: "not a list"
         Result<Phone> res = service.handlePhoneActions(p1, [doPhoneActions: [
             hello:"i am not a list"
@@ -161,6 +164,16 @@ class PhoneServiceSpec extends CustomSpec {
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         res.errorMessages.size() == 1
         res.errorMessages[0] == "actionContainer.invalidActions"
+
+        when: "phone is on a subaccount and is in debugging mode"
+        p1.customAccount = cad1
+        res = service.handlePhoneActions(p1, [doPhoneActions: [
+            [action: Constants.PHONE_ACTION_DEACTIVATE]
+        ]])
+
+        then:
+        res.status == ResultStatus.FORBIDDEN
+        res.errorMessages[0] == "phoneService.handlePhoneActions.disabledWhenDebugging"
     }
 
     @DirtiesRuntime
@@ -394,8 +407,9 @@ class PhoneServiceSpec extends CustomSpec {
 
     void "test requesting voicemail greeting"() {
         given:
-        service.callService = Mock(CallService)
-        Phone p1 = Mock(Phone)
+        String customAccountId = TestUtils.randString()
+        service.callService = GroovyMock(CallService)
+        Phone p1 = GroovyMock(Phone)
         String randNum1 = TestUtils.randPhoneNumber()
 
         when: "not requesting voicemail greeting"
@@ -416,7 +430,8 @@ class PhoneServiceSpec extends CustomSpec {
         res = service.requestVoicemailGreetingCall(p1, [requestVoicemailGreetingCall: randNum1])
 
         then:
-        1 * service.callService.start(*_) >> new Result()
+        1 * p1.customAccountId >> customAccountId
+        1 * service.callService.start(_, _, _, customAccountId) >> new Result()
     }
 
     // Merging

@@ -41,13 +41,11 @@ class CallRetryFunctionalSpec extends RestSpec {
                 }
                 ctx.resultFactory.success(tempReceipt)
             }
-            ctx.callService.metaClass.start = { PhoneNumber fromNum,
-                List<? extends BasePhoneNumber> toNums, Map afterPickup ->
-
+            TestUtils.forceMock(ctx.callService, "start") { fromNum, toNums ->
                 String toNumAsString = toNums[0].number
                 String apiId = apiId1
-                ctx.resultFactory.success(new TempRecordReceipt(apiId:apiId,
-                    contactNumberAsString:toNumAsString))
+                ctx.resultFactory.success(new TempRecordReceipt(apiId: apiId,
+                    contactNumberAsString: toNumAsString))
             }
             return
         }.curry(_numbers, _firstApiId, _retryApiId))

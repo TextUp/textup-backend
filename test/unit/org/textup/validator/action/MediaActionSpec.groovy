@@ -12,7 +12,7 @@ import org.textup.util.*
 import org.textup.type.*
 import spock.lang.*
 
-@Domain([Organization, Location])
+@Domain([CustomAccountDetails, Organization, Location])
 @TestMixin(HibernateTestMixin)
 class MediaActionSpec extends Specification {
 

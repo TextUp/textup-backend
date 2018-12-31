@@ -14,7 +14,7 @@ import org.textup.validator.*
 import spock.lang.Shared
 
 @TestFor(OutgoingAnnouncementService)
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
     IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy,
@@ -28,7 +28,6 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
 
     def setup() {
         setupData()
-        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -42,19 +41,18 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int nBaseline = ContactNumber.count()
         IncomingSession session = new IncomingSession(phone:p1,
-            numberAsString:"1238470293")
+            numberAsString: TestUtils.randPhoneNumber())
         assert IncomingSession.findByPhoneAndNumberAsString(p1,
             session.numberAsString) == null
         session.save(flush:true, failOnError:true)
-        service.textService = [send:{ BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
-            String message ->
 
-            new Result(status: ResultStatus.OK,
-                payload: new TempRecordReceipt(apiId:"apiId", contactNumberAsString:toNums[0].number))
-        }] as TextService
-        service.socketService = [
-            sendContacts: { List<Contact> contacts -> new ResultGroup()}
-        ] as SocketService
+        service.textService = GroovyStub(TextService) {
+            send(*_) >> { args ->
+                new Result(payload: new TempRecordReceipt(apiId: TestUtils.randString(),
+                    contactNumberAsString: args[1][0].number))
+            }
+        }
+        service.socketService = GroovyStub(SocketService) { sendContacts(*_) >> new ResultGroup() }
 
         when: "for session with no contacts"
         String message = "hello"
@@ -88,29 +86,31 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
 
     void "test starting call announcement"() {
         given: "baselines"
+        String message = TestUtils.randString()
+        String ident = TestUtils.randString()
+
         int iBaseline = RecordCall.count()
         int rBaseline = RecordItemReceipt.count()
         int cBaseline = Contact.count()
         int nBaseline = ContactNumber.count()
         IncomingSession session = new IncomingSession(phone:p1,
-            numberAsString:"1238470294")
+            numberAsString: TestUtils.randPhoneNumber())
         assert IncomingSession.findByPhoneAndNumberAsString(p1,
             session.numberAsString) == null
         session.save(flush:true, failOnError:true)
-        service.callService = [start:{ PhoneNumber fromNum, PhoneNumber toNum, Map afterPickup ->
-            new Result(status: ResultStatus.OK,
-                payload: new TempRecordReceipt(apiId:"apiId", contactNumberAsString:toNum.number))
-        }] as CallService
-        service.socketService = [
-            sendContacts: { List<Contact> contacts -> new ResultGroup()}
-        ] as SocketService
+
+        service.callService = GroovyStub(CallService) {
+            start(*_) >> { args ->
+                new Result(payload: new TempRecordReceipt(apiId: TestUtils.randString(),
+                    contactNumberAsString: args[1][0].number))
+            }
+        }
+        service.socketService = GroovyStub(SocketService) { sendContacts(*_) >> new ResultGroup() }
 
         when:
-        String message = "hello"
-        String ident = "kiki bai"
         Map<String, Result<TempRecordReceipt>> resMap = service.startCallAnnouncement(p1, message, ident,
             [session], s1)
-        Record.withSession { it.flush() }
+        RecordItem.withSession { it.flush() }
 
         then:
         RecordCall.count() == iBaseline + 1
@@ -151,7 +151,7 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
 
         when: "none reached with some subscribers"
         // add a subscriber
-        String subNum = "1223334445"
+        String subNum = TestUtils.randPhoneNumber()
         IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
             isSubscribedToText:true, isSubscribedToCall:true)
         sess.save(flush:true, failOnError:true)
@@ -170,7 +170,7 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
     void "test announcement success"() {
         given: "phone and incoming sessions, some coinciding with contacts"
         // subscriber
-        String subNum = "1223334445"
+        String subNum = TestUtils.randPhoneNumber()
         IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
             isSubscribedToText:true, isSubscribedToCall:true)
         sess.save(flush:true, failOnError:true)

@@ -9,6 +9,7 @@ import grails.test.runtime.DirtiesRuntime
 import java.util.concurrent.TimeUnit
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.textup.cache.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -17,7 +18,7 @@ import org.textup.validator.*
 @Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision, NotificationPolicy,
+    RecordNote, RecordNoteRevision, NotificationPolicy, CustomAccountDetails,
     MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class CallbackStatusServiceSpec extends CustomSpec {
@@ -29,7 +30,6 @@ class CallbackStatusServiceSpec extends CustomSpec {
     def setup() {
         setupData()
         IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     def cleanup() {
@@ -38,53 +38,6 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
     // Shared helpers
     // --------------
-
-    void "test updating receipt status and receipt duration for call"() {
-        given: "lists of valid and invalid receipts"
-        List<RecordItemReceipt> validRpts = [], invalidRpts = []
-        8.times {
-            RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING),
-                invalidRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
-            rText1.addToReceipts(validRpt)
-            assert validRpt.validate()
-            assert !invalidRpt.validate()
-            validRpts << validRpt
-            invalidRpts << invalidRpt
-        }
-        assert validRpts.size() > 0
-        assert invalidRpts.size() > 0
-        Integer duration = 88
-
-        when: "no receipts"
-        Result<List<RecordItemReceipt>> statusRes = service.updateStatusForReceipts(null, ReceiptStatus.BUSY)
-        Result<List<RecordItemReceipt>> durationRes = service.updateDurationForCall(null, duration)
-
-        then:
-        statusRes.status == ResultStatus.OK
-        statusRes.payload == null
-        durationRes.status == ResultStatus.OK
-        durationRes.payload == null
-
-        when: "valid receipts"
-        statusRes = service.updateStatusForReceipts(validRpts, ReceiptStatus.BUSY)
-        durationRes = service.updateDurationForCall(validRpts, duration)
-
-        then:
-        statusRes.status == ResultStatus.OK
-        statusRes.payload.size() == validRpts.size()
-        statusRes.payload.every { it.status == ReceiptStatus.BUSY }
-        durationRes.status == ResultStatus.OK
-        durationRes.payload.size() == validRpts.size()
-        durationRes.payload.every { it.numBillable == duration }
-
-        when: "invalid receipts"
-        statusRes = service.updateStatusForReceipts(invalidRpts, ReceiptStatus.BUSY)
-        durationRes = service.updateDurationForCall(invalidRpts, duration)
-
-        then:
-        statusRes.status == ResultStatus.UNPROCESSABLE_ENTITY
-        durationRes.status == ResultStatus.UNPROCESSABLE_ENTITY
-    }
 
     void "test sending items through socket"() {
         given: "list of valid receipts all belonging to the same item"
@@ -120,55 +73,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
         }
     }
 
-    void "test creating new receipt with status"() {
-        given: "an existing parent id and valid child number"
-        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
-        rText1.addToReceipts(validRpt)
-        [validRpt, rText1]*.save(flush: true, failOnError: true)
-        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        assert childNumber.validate()
-        String childId = TestUtils.randString()
-        ReceiptStatus status = ReceiptStatus.BUSY
-        int rptBaseline = RecordItemReceipt.count()
-
-        when:
-        Result<List<RecordItemReceipt>> res = service.createNewReceiptsWithStatus(validRpt.apiId,
-            childId, childNumber, status)
-
-        then:
-        RecordItemReceipt.count() == rptBaseline + 1
-        res.status == ResultStatus.OK
-        res.payload.size() == 1
-        res.payload[0].status == status
-        res.payload[0].apiId == childId
-        res.payload[0].contactNumberAsString == childNumber.number
-    }
-
-    void "test finding and updating existing receipts with status"() {
-        given: "an existing api id"
-        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
-        rText1.addToReceipts(validRpt)
-        [validRpt, rText1]*.save(flush: true, failOnError: true)
-        int rptBaseline = RecordItemReceipt.count()
-        ReceiptStatus status = ReceiptStatus.BUSY
-
-        when:
-        Result<List<RecordItemReceipt>> res = service.updateExistingReceiptsWithStatus(
-            validRpt.apiId, status)
-
-        then:
-        RecordItemReceipt.count() == rptBaseline
-        res.status == ResultStatus.OK
-        res.payload.size() == 1
-        res.payload[0].id == validRpt.id
-        res.payload[0].status == status
-    }
-
     void "test retrying parent call"() {
         given:
+        String accountId = TestUtils.randString()
         service.callService = Mock(CallService)
         TypeConvertingMap params = new TypeConvertingMap([:])
-
 
         when: "no remaining numbers"
         service.tryRetryParentCall(null, params)
@@ -177,102 +86,185 @@ class CallbackStatusServiceSpec extends CustomSpec {
         0 * service.callService._
 
         when: "has remaining numbers"
-        params = new TypeConvertingMap([remaining:[TestUtils.randPhoneNumber()]])
+        params = new TypeConvertingMap(remaining: [TestUtils.randPhoneNumber()], AccountSid: accountId)
         service.tryRetryParentCall(null, params)
 
         then:
-        1 * service.callService.retry(*_) >> new Result()
+        1 * service.callService.retry(_, _, _, _, accountId) >> new Result()
+    }
+
+    void "test creating new receipts"() {
+        given: "an existing parent id and valid child number"
+        service.receiptCache = GroovyMock(RecordItemReceiptCache)
+        String parentId = TestUtils.randString()
+        String childId = TestUtils.randString()
+        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        ReceiptStatus status = ReceiptStatus.BUSY
+        Integer duration = TestUtils.randIntegerUpTo(100, true)
+
+        RecordItemReceipt mockRpt = GroovyMock()
+        RecordItem mockItem = GroovyMock() { asBoolean() >> true }
+
+        when:
+        Result<List<RecordItemReceipt>> res = service.createNewReceipts(parentId, childId,
+            childNumber, status, duration)
+
+        then:
+        1 * service.receiptCache.findReceiptsByApiId(parentId) >> [mockRpt]
+        (1.._) * mockRpt.getItem() >> mockItem
+        1 * mockItem.addToReceipts(_ as RecordItemReceipt)
+        1 * mockItem.merge() >> mockItem
+        res.status == ResultStatus.OK
+        res.payload.size() == 1
+        res.payload[0].status == status
+        res.payload[0].apiId == childId
+        res.payload[0].contactNumberAsString == childNumber.number
+    }
+
+    void "test updating existing receipts"() {
+        given:
+        service.receiptCache = GroovyMock(RecordItemReceiptCache)
+        String apiId = TestUtils.randString()
+        ReceiptStatus status1 = ReceiptStatus.BUSY
+        ReceiptStatus oldStatus = ReceiptStatus.SUCCESS
+        Integer duration1 = TestUtils.randIntegerUpTo(100, true)
+        Integer oldDuration = TestUtils.randIntegerUpTo(100, true)
+
+        RecordItemReceipt mockRpt1 = GroovyMock()
+        RecordItemReceipt mockRpt2 = GroovyMock()
+        MockedMethod shouldUpdateStatus = TestUtils.mock(TwilioUtils, "shouldUpdateStatus") { true }
+        MockedMethod shouldUpdateDuration = TestUtils.mock(TwilioUtils, "shouldUpdateDuration") { true }
+
+        when: "no receipts found"
+        Result<List<RecordItemReceipt>> res = service.updateExistingReceipts(apiId, status1, duration1)
+
+        then:
+        1 * service.receiptCache.findReceiptsByApiId(apiId) >> []
+        shouldUpdateStatus.callCount == 0
+        shouldUpdateDuration.callCount == 0
+        res.status == ResultStatus.OK
+        res.payload instanceof List
+        res.payload.isEmpty()
+
+        when: "some receipts found"
+        res = service.updateExistingReceipts(apiId, status1, duration1)
+
+        then:
+        1 * service.receiptCache.findReceiptsByApiId(apiId) >> [mockRpt1]
+        1 * mockRpt1.getStatus() >> oldStatus
+        1 * mockRpt1.getNumBillable() >> oldDuration
+        shouldUpdateStatus.callCount == 1 || shouldUpdateDuration.callCount == 1
+        1 * service.receiptCache.updateReceipts([mockRpt1], status1, duration1) >> [mockRpt2]
+        res.status == ResultStatus.OK
+        res.payload instanceof List
+        res.payload.isEmpty() == false
+        res.payload == [mockRpt2]
+
+        cleanup:
+        shouldUpdateStatus.restore()
+        shouldUpdateDuration.restore()
     }
 
     // Three types of entities to update
-    // // ---------------------------------
+    // ---------------------------------
 
-    void "test handling update for text, child calls, and parent calls"() {
+    void "test updating text"() {
         given:
-        service.threadService = Mock(ThreadService)
-        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
-        rText1.addToReceipts(validRpt)
-        [validRpt, rText1]*.save(flush: true, failOnError: true)
-        int rptBaseline = RecordItemReceipt.count()
-        ReceiptStatus status = ReceiptStatus.BUSY
+        RecordItemReceipt mockRpt = GroovyMock()
+        String textId = TestUtils.randString()
+        ReceiptStatus status = ReceiptStatus.SUCCESS
 
-        when: "handling update for text"
-        Result<Void> res = service.handleUpdateForText(validRpt.apiId, status)
-
-        then:
-        1 * service.threadService.delay(*_)
-        res.status == ResultStatus.NO_CONTENT
-        RecordItemReceipt.get(validRpt.id).status == status
-        RecordItemReceipt.count() == rptBaseline
-    }
-
-    void "test handling update for child calls"() {
-        given:
-        service.threadService = Mock(ThreadService)
-        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
-        rText1.addToReceipts(validRpt)
-        [validRpt, rText1]*.save(flush: true, failOnError: true)
-        int rptBaseline = RecordItemReceipt.count()
-        ReceiptStatus status = ReceiptStatus.BUSY
-        String childId = TestUtils.randString()
-        Integer duration = 88
-        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        assert childNumber.validate()
-        int originalNumReceipts = rText1.receipts.size()
+        MockedMethod updateExistingReceipts = TestUtils.mock(service, "updateExistingReceipts") {
+            new Result(payload: [mockRpt])
+        }
+        MockedMethod sendItemsThroughSocket = TestUtils.mock(service, "sendItemsThroughSocket")
 
         when:
-        Result<Void> res = service.handleUpdateForChildCall(validRpt.apiId, childId, childNumber,
-            status, duration)
+        Result<Void> res = service.handleUpdateForText(textId, status)
 
         then:
-        1 * service.threadService.delay(*_)
+        updateExistingReceipts.callCount == 1
+        updateExistingReceipts.callArguments[0] == [textId, status, null]
+        sendItemsThroughSocket.callCount == 1
+        sendItemsThroughSocket.callArguments[0] == [[mockRpt]]
         res.status == ResultStatus.NO_CONTENT
-        RecordItemReceipt.count() == rptBaseline + 1
-        rText1.receipts.size() == originalNumReceipts + 1
-        // parent receipt is not updated
-        RecordItemReceipt.get(validRpt.id).status != status
-        RecordItemReceipt.get(validRpt.id).numBillable != duration
-        // newly-created child receipt is updated
-        RecordItemReceipt.last().id in rText1.receipts*.id
-        RecordItemReceipt.last().status == status
-        RecordItemReceipt.last().numBillable== duration
+
+        cleanup:
+        updateExistingReceipts.restore()
+        sendItemsThroughSocket.restore()
     }
 
-    void "test handling update for parent calls"() {
+    void "test updating child call"() {
         given:
-        service.threadService = Mock(ThreadService)
-        service.callService = Mock(CallService)
-        RecordItemReceipt validRpt = TestUtils.buildReceipt(ReceiptStatus.PENDING)
-        rText1.addToReceipts(validRpt)
-        [validRpt, rText1]*.save(flush: true, failOnError: true)
-        int rptBaseline = RecordItemReceipt.count()
-        ReceiptStatus status = ReceiptStatus.BUSY
-        Integer duration = 88
-        TypeConvertingMap params = new TypeConvertingMap([
-            remaining:[TestUtils.randPhoneNumber()]
-        ])
+        String parentId = TestUtils.randString()
+        String childId = TestUtils.randString()
+        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        ReceiptStatus status = ReceiptStatus.SUCCESS
+        Integer duration = TestUtils.randIntegerUpTo(100, true)
 
-        when: "call status is not failed"
-        Result<Void> res = service.handleUpdateForParentCall(validRpt.apiId, status,
-            duration, params)
+        RecordItemReceipt mockRpt = GroovyMock()
+        MockedMethod createNewReceipts = TestUtils.mock(service, "createNewReceipts") {
+            new Result(payload: [mockRpt])
+        }
+        MockedMethod sendItemsThroughSocket = TestUtils.mock(service, "sendItemsThroughSocket")
 
-        then:
-        1 * service.threadService.delay(*_)
-        0 * service.callService._
-        res.status == ResultStatus.NO_CONTENT
-        RecordItemReceipt.count() == rptBaseline
-        RecordItemReceipt.get(validRpt.id).status == status
-        RecordItemReceipt.get(validRpt.id).numBillable == duration
-
-        when: "call status is failed"
-        status = ReceiptStatus.FAILED
-        res = service.handleUpdateForParentCall(validRpt.apiId, status, duration, params)
+        when:
+        Result<Void> res = service
+            .handleUpdateForChildCall(parentId, childId, childNumber, status, duration)
 
         then:
-        1 * service.threadService.delay(*_)
-        1 * service.callService.retry(*_) >> new Result()
+        createNewReceipts.callCount == 1
+        createNewReceipts.callArguments[0] == [parentId, childId, childNumber, status, duration]
+        sendItemsThroughSocket.callCount == 1
+        sendItemsThroughSocket.callArguments[0] == [[mockRpt]]
         res.status == ResultStatus.NO_CONTENT
-        RecordItemReceipt.count() == rptBaseline
+
+        cleanup:
+        createNewReceipts.restore()
+        sendItemsThroughSocket.restore()
+    }
+
+    void "test updating parent call"() {
+        given:
+        String callId = TestUtils.randString()
+        Integer duration = TestUtils.randIntegerUpTo(100, true)
+        TypeConvertingMap params = new TypeConvertingMap([:])
+
+        RecordItemReceipt mockRpt = GroovyMock()
+        MockedMethod updateExistingReceipts = TestUtils.mock(service, "updateExistingReceipts") {
+            new Result(payload: [mockRpt])
+        }
+        MockedMethod tryRetryParentCall = TestUtils.mock(service, "tryRetryParentCall")
+        MockedMethod sendItemsThroughSocket = TestUtils.mock(service, "sendItemsThroughSocket")
+
+        when: "not failed"
+        Result<Void> res = service
+            .handleUpdateForParentCall(callId, ReceiptStatus.SUCCESS, duration, params)
+
+        then:
+        updateExistingReceipts.callCount == 1
+        updateExistingReceipts.callArguments[0] == [callId, ReceiptStatus.SUCCESS, duration]
+        tryRetryParentCall.callCount == 0
+        sendItemsThroughSocket.callCount == 1
+        sendItemsThroughSocket.callArguments[0] == [[mockRpt]]
+        res.status == ResultStatus.NO_CONTENT
+
+        when: "is failed"
+        res = service.handleUpdateForParentCall(callId, ReceiptStatus.FAILED, duration, params)
+
+        then:
+        updateExistingReceipts.callCount == 2
+        updateExistingReceipts.callArguments[1] == [callId, ReceiptStatus.FAILED, duration]
+        tryRetryParentCall.callCount == 1
+        tryRetryParentCall.callArguments[0] == [callId, params]
+        sendItemsThroughSocket.callCount == 2
+        sendItemsThroughSocket.callArguments[1] == [[mockRpt]]
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        updateExistingReceipts.restore()
+        tryRetryParentCall.restore()
+        sendItemsThroughSocket.restore()
     }
 
     // Overall

@@ -13,7 +13,7 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
 	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
@@ -51,7 +51,7 @@ class PhoneSpec extends CustomSpec {
         p1.errors.getFieldErrorCount("voice") == 1
 
     	when: "we have a phone with a unique number"
-        String num = "5223334444"
+        String num = TestUtils.randPhoneNumber()
         p1.voice = VoiceType.FEMALE
     	p1.numberAsString = num
         p1.updateOwner(s1)
@@ -62,7 +62,7 @@ class PhoneSpec extends CustomSpec {
 
     	when: "we try to add a phone with a duplicate number"
     	p1.save(flush:true, failOnError:true)
-    	p1 = new Phone(numberAsString:num)
+    	p1 = new Phone(numberAsString: num)
         p1.updateOwner(s1)
 
     	then:
@@ -101,6 +101,23 @@ class PhoneSpec extends CustomSpec {
 
         then:
         p1.validate()
+    }
+
+    void "test custom account details"() {
+        given:
+        String accountId = TestUtils.randString()
+
+        when: "no custom account details"
+        Phone p1 = new Phone()
+
+        then:
+        p1.customAccountId == null
+
+        when: "has custom account details"
+        p1.customAccount = Stub(CustomAccountDetails) { getAccountId() >> accountId }
+
+        then:
+        p1.customAccountId == accountId
     }
 
     void "test building away message"() {

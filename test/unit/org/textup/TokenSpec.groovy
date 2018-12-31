@@ -15,7 +15,7 @@ import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 
-@Domain([Token, Organization, Location])
+@Domain([CustomAccountDetails, Token, Organization, Location])
 @TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 class TokenSpec extends Specification {
 

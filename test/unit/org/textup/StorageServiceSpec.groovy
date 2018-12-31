@@ -14,7 +14,7 @@ import org.textup.validator.*
 import spock.lang.Specification
 
 @TestFor(StorageService)
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
+@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
     RecordNote, RecordNoteRevision, Location, Organization,
     MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)

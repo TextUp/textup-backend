@@ -1,21 +1,31 @@
 package org.textup
 
 import grails.test.mixin.TestFor
+import org.textup.test.*
 import spock.lang.Specification
 
-/**
- * See the API for {@link grails.test.mixin.domain.DomainClassUnitTestMixin} for usage instructions
- */
 @TestFor(CustomAccountDetails)
 class CustomAccountDetailsSpec extends Specification {
 
-    def setup() {
-    }
+    void "validation"() {
+        when: "empty"
+        CustomAccountDetails cad1 = new CustomAccountDetails()
 
-    def cleanup() {
-    }
+        then:
+        cad1.validate() == false
 
-    // TODO test
-    void "test something"() {
+        when: "filled in with empty string"
+        cad1.accountId = ""
+        cad1.authToken = ""
+
+        then:
+        cad1.validate() == false
+
+        when: "filled with non-empty strings"
+        cad1.accountId = TestUtils.randString()
+        cad1.authToken = TestUtils.randString()
+
+        then:
+        cad1.validate()
     }
 }

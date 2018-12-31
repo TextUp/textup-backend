@@ -15,7 +15,7 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordNote, RecordNoteRevision,
+@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordNote, RecordNoteRevision,
     RecordItemReceipt, Location, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @Unroll

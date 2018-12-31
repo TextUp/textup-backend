@@ -11,7 +11,7 @@ import org.textup.validator.*
 import spock.lang.Specification
 
 @TestFor(OutgoingMediaService)
-@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class OutgoingMediaServiceSpec extends Specification {
 
@@ -34,6 +34,8 @@ class OutgoingMediaServiceSpec extends Specification {
 
     void "test sending media for text"() {
         given:
+        String customAccountId = TestUtils.randString()
+
         service.textService = Mock(TextService)
         MediaInfo mInfo = new MediaInfo()
         int numBatches = 2
@@ -44,19 +46,20 @@ class OutgoingMediaServiceSpec extends Specification {
         }
 
         when: "no media"
-        service.sendWithMediaForText(null, null, null, null, null)
+        service.sendWithMediaForText(null, null, customAccountId, null, null, null)
 
         then: "send without media"
-        1 * service.textService.send(*_) >> new Result()
+        1 * service.textService.send(_, _, _, customAccountId, []) >> new Result()
 
         when: "with media"
-        service.sendWithMediaForText(null, null, null, mInfo, null)
+        service.sendWithMediaForText(null, null, customAccountId, null, mInfo, null)
 
         then: "send with media in batches"
-        numBatches * service.textService.send(*_) >> new Result()
+        numBatches * service.textService.send(_, _, _, customAccountId,
+            { it.size() == Constants.MAX_NUM_MEDIA_PER_MESSAGE }) >> new Result()
 
         when: "filtering media by certain types"
-        service.sendWithMediaForText(null, null, null, mInfo, MediaType.AUDIO_TYPES)
+        service.sendWithMediaForText(null, null, customAccountId, null, mInfo, MediaType.AUDIO_TYPES)
 
         then:
         0 * service.textService._
@@ -64,6 +67,8 @@ class OutgoingMediaServiceSpec extends Specification {
 
     void "test sending media for call"() {
         given:
+        String customAccountId = TestUtils.randString()
+
         service.callService = Mock(CallService)
         service.textService = Mock(TextService)
         Token callToken = new Token(token: "valid token value")
@@ -80,54 +85,57 @@ class OutgoingMediaServiceSpec extends Specification {
         }
 
         when: "no media"
-        service.sendWithMediaForCall(null, null, callToken, null)
+        service.sendWithMediaForCall(null, null, customAccountId, callToken, null)
 
         then: "only call"
-        1 * service.callService.start(*_) >> new Result()
+        1 * service.callService.start(_, _, _, customAccountId) >> new Result()
         0 * service.textService._
 
         when: "with images"
-        service.sendWithMediaForCall(null, null, callToken, onlyImageMedia)
+        service.sendWithMediaForCall(null, null, customAccountId, callToken, onlyImageMedia)
 
         then: "send images via text message + message via call"
-        1 * service.callService.start(*_) >> new Result()
-        (1.._) * service.textService.send(*_) >> new Result()
+        1 * service.callService.start(_, _, _, customAccountId) >> new Result()
+        (1.._) * service.textService.send(_, _, _, customAccountId, _) >> new Result()
 
         when: "with audio"
-        service.sendWithMediaForCall(null, null, callToken, onlyAudioMedia)
+        service.sendWithMediaForCall(null, null, customAccountId, callToken, onlyAudioMedia)
 
         then: "audio and message both send via call, only images sent via text"
-        1 * service.callService.start(*_) >> new Result()
+        1 * service.callService.start(_, _, _, customAccountId) >> new Result()
         0 * service.textService._
     }
 
     void "test sending with media overall"() {
         given:
+        String customAccountId = TestUtils.randString()
+
         service.callService = Mock(CallService)
         service.textService = Mock(TextService)
         Token callToken = new Token(token: "valid token value")
 
         when: "without call token"
-        Result<List<TempRecordReceipt>> res = service.send(null, null, null, null, null)
+        Result<List<TempRecordReceipt>> res = service.send(null, null, customAccountId, null, null, null)
 
         then: "send as text"
         0 * service.callService.start(*_)
-        1 * service.textService.send(*_) >> new Result()
+        1 * service.textService.send(_, _, _, customAccountId, _) >> new Result()
         res.status == ResultStatus.OK
 
         when: "with call token"
-        res = service.send(null, null, null, null, callToken)
+        res = service.send(null, null, customAccountId, null, null, callToken)
 
         then: "send as call"
-        1 * service.callService.start(*_) >> new Result()
+        1 * service.callService.start(_, _, _, customAccountId) >> new Result()
         0 * service.textService.send(*_)
         res.status == ResultStatus.OK
 
         when: "has some errors"
-        res = service.send(null, null, null, null, callToken)
+        res = service.send(null, null, customAccountId, null, null, callToken)
 
         then: "return error"
-        1 * service.callService.start(*_) >> new Result(status: ResultStatus.BAD_REQUEST)
+        1 * service.callService.start(_, _, _, customAccountId) >>
+            new Result(status: ResultStatus.BAD_REQUEST)
         0 * service.textService.send(*_)
         res.status == ResultStatus.BAD_REQUEST
     }

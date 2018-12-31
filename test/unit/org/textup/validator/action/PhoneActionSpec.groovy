@@ -10,7 +10,7 @@ import org.textup.util.*
 import org.textup.validator.PhoneNumber
 import spock.lang.*
 
-@Domain([Organization, Location])
+@Domain([CustomAccountDetails, Organization, Location])
 @TestMixin(HibernateTestMixin)
 class PhoneActionSpec extends Specification {
 

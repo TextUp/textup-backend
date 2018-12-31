@@ -16,7 +16,7 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Specification
 
-@Domain([Organization, Location])
+@Domain([CustomAccountDetails, Organization, Location])
 @TestMixin(HibernateTestMixin)
 class UtilsSpec extends Specification {
 

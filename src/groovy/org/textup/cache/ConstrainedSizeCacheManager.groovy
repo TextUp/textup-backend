@@ -21,15 +21,19 @@ class ConstrainedSizeCacheManager extends GrailsConcurrentMapCacheManager {
     // https://github.com/grails-plugins/grails-cache/blob/v1.1.8/src/java/grails/plugin/cache/GrailsConcurrentMapCacheManager.java
     @Override
     Cache getCache(String name) {
-        Cache cache = cacheMap.get(name);
+        Cache cache = cacheMap.get(name)
         if (cache == null) {
-            cache = createConstrainedCache(name);
-            Cache existing = cacheMap.putIfAbsent(name, cache);
+            cache = createConstrainedCache(name)
+            // this is a concurrent implementation so as we are creating and inserting in
+            // our cache, another thread may be doing the same. If another thread beat us to
+            // creating this cache for this given name, then we just use the cache that was
+            // first stored into the cache map
+            Cache existing = cacheMap.putIfAbsent(name, cache)
             if (existing != null) {
-                cache = existing;
+                cache = existing
             }
         }
-        return cache;
+        cache
     }
 
     protected Cache createConstrainedCache(String name) {

@@ -400,7 +400,7 @@ class Phone implements WithMedia, WithId {
         //identify those contacts that are shared with me and their index
         HashSet<Long> notMyContactIds = new HashSet<>()
         contacts.each { Contact contact ->
-            if (contact.phone != this) { notMyContactIds << contact.id }
+            if (contact.phone?.id != this.id) { notMyContactIds << contact.id }
         }
         //if all contacts are mine, we can return
         if (notMyContactIds.isEmpty()) { return contacts }

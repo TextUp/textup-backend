@@ -42,9 +42,10 @@ class NumberServiceSpec extends Specification {
         }
         res = service.startVerifyOwnership(validNum)
 
-        then:
+        then: "custom account id is always null because notif number always with main account"
         1 * service.tokenService.generateVerifyNumber(*_) >> new Result(payload: [token: "hi"] as Token)
-        1 * service.textService.send(*_) >> new Result()
+        1 * service.textService.send(_, _, "numberService.startVerifyOwnership.message", null) >>
+            new Result()
         res.status == ResultStatus.OK
     }
 

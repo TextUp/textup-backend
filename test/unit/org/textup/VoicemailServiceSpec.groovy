@@ -12,7 +12,7 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.Specification
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
@@ -133,8 +133,10 @@ class VoicemailServiceSpec extends CustomSpec {
 
     void "test processing voicemail greeting"() {
         given:
+        CustomAccountDetails cad1 = TestUtils.buildCustomAccountDetails()
+        p1.customAccount = cad1
         MediaElement e1 = TestUtils.buildMediaElement()
-        e1.save(flush: true, failOnError: true)
+        [p1, e1]*.save(flush: true, failOnError: true)
 
         int mBaseline = MediaInfo.count()
         int eBaseline = MediaElement.count()
@@ -177,7 +179,7 @@ class VoicemailServiceSpec extends CustomSpec {
         1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
         1 * service.socketService.sendPhone(*_)
         1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
-        1 * service.callService.interrupt(*_) >> new Result()
+        1 * service.callService.interrupt(_, _, cad1.accountId) >> new Result()
         res.status == ResultStatus.NO_CONTENT
         p1.media != null
         MediaInfo.count() == mBaseline + 1
@@ -193,7 +195,7 @@ class VoicemailServiceSpec extends CustomSpec {
         1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
         1 * service.socketService.sendPhone(*_)
         1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
-        1 * service.callService.interrupt(*_) >> new Result()
+        1 * service.callService.interrupt(_, _, cad1.accountId) >> new Result()
         res.status == ResultStatus.NO_CONTENT
         p1.media != null
         MediaInfo.count() == mBaseline + 1

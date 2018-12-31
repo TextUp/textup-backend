@@ -8,7 +8,7 @@ import org.joda.time.DateTime
 import org.textup.type.*
 import spock.lang.*
 
-@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class MediaInfoSpec extends Specification {
 

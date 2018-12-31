@@ -1,7 +1,7 @@
 package org.textup.cache
 
-import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap.Builder;
-import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
+import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap.Builder
+import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap
 import grails.compiler.GrailsTypeChecked
 import grails.plugin.cache.*
 
@@ -48,13 +48,16 @@ class ConstrainedSizeCache implements GrailsCache {
 
     @Override
     GrailsValueWrapper get(Object key) {
-        Object value = restoreNull(getNativeCache().get(replaceNull(key)));
-        value == null ? null : new GrailsValueWrapper(value, null);
+        Object value = getNativeCache().get(replaceNull(key))
+        // only return null if the native cache does not have the key
+        // if the native cache has the key, return a ValueWrapper even if the value
+        // that is being wrapped is null
+        value == null ? null : new GrailsValueWrapper(restoreNull(value), null)
     }
 
     @Override
     public <T> T get(Object key, Class<T> type) {
-        Object value = getNativeCache().get(replaceNull(key));
+        Object value = restoreNull(getNativeCache().get(replaceNull(key)))
         value?.asType(type)
     }
 

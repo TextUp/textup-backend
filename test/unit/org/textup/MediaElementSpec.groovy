@@ -10,7 +10,7 @@ import org.textup.type.*
 import org.textup.validator.UploadItem
 import spock.lang.*
 
-@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class MediaElementSpec extends Specification {
 

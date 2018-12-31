@@ -10,7 +10,7 @@ import org.textup.*
 import org.textup.type.FutureMessageType
 import spock.lang.Specification
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage,
+@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage,
     MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class FutureMessageDaylightSavingsJobSpec extends Specification {

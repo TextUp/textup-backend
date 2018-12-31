@@ -16,7 +16,7 @@ import org.textup.validator.*
 import spock.lang.Specification
 
 @TestFor(IncomingMediaService)
-@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class IncomingMediaServiceSpec extends Specification {
 

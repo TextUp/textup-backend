@@ -10,7 +10,7 @@ import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, Organization, Location,
+@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, Organization, Location,
     MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class RecordCallSpec extends Specification {

@@ -17,7 +17,7 @@ import org.textup.validator.UploadItem
 import spock.lang.Shared
 import spock.lang.Specification
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText, RecordNote,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText, RecordNote,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
     RecordNote, RecordNoteRevision, NotificationPolicy, RecordNoteRevision,

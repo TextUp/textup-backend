@@ -13,7 +13,6 @@ import org.textup.validator.*
 class OutgoingAnnouncementService {
 
     CallService callService
-    ResultFactory resultFactory
     SocketService socketService
     TextService textService
 
@@ -23,7 +22,7 @@ class OutgoingAnnouncementService {
             expiresAt:expiresAt, message:message)
         //mark as to-be-saved to avoid TransientObjectExceptions
         if (!announce.save()) {
-            return resultFactory.failWithValidationErrors(announce.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(announce.errors)
         }
         // collect relevant classes
         List<IncomingSession> textSubs = IncomingSession.findAllByPhoneAndIsSubscribedToText(p1, true),
@@ -48,13 +47,13 @@ class OutgoingAnnouncementService {
             anySuccessWithSubscribers = (textResGroup.anySuccesses || callResGroup.anySuccesses) && (textSubs || callSubs)
         if (noSubscribers || anySuccessWithSubscribers) {
             if (announce.save()) {
-                resultFactory.success(announce, ResultStatus.CREATED)
+                IOCUtils.resultFactory.success(announce, ResultStatus.CREATED)
             }
-            else { resultFactory.failWithValidationErrors(announce.errors) }
+            else { IOCUtils.resultFactory.failWithValidationErrors(announce.errors) }
         }
         // return error if all subscribers failed to receive announcement
         else {
-            resultFactory.failWithResultsAndStatus(textRes.values() + callRes.values(),
+            IOCUtils.resultFactory.failWithResultsAndStatus(textRes.values() + callRes.values(),
                 ResultStatus.INTERNAL_SERVER_ERROR)
         }
     }
@@ -73,7 +72,7 @@ class OutgoingAnnouncementService {
             c1.record.storeOutgoingText(message, author1)
                 .then { RecordText rText1 ->
                     rText1.addReceipt(receipt)
-                    resultFactory.success(rText1)
+                    IOCUtils.resultFactory.success(rText1)
                 }
         })
     }
@@ -83,14 +82,14 @@ class OutgoingAnnouncementService {
 
         Author author1 = staff.toAuthor()
         sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
-            callService.start(phone.number, s1.number,
+            callService.start(phone.number, [s1.number],
                 CallTwiml.infoForAnnouncementAndDigits(identifier, message),
                 phone.customAccountId)
         }, { Contact c1, TempRecordReceipt receipt ->
             c1.record.storeOutgoingCall(author1, message)
                 .then { RecordCall rCall1 ->
                     rCall1.addReceipt(receipt)
-                    resultFactory.success(rCall1)
+                    IOCUtils.resultFactory.success(rCall1)
                 }
         })
     }

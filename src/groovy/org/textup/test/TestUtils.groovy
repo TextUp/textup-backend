@@ -28,9 +28,10 @@ class TestUtils {
 
     private static final Random RANDOM = new Random()
     private static final MockMessageSource MESSAGE_SOURCE = new MockMessageSource()
-    private static final HashSet<String> _generatedPhoneNumbers = new HashSet<>()
+    private static final HashSet<String> GENERATED_NUMBERS = new HashSet<>()
     private static final ConfigObject CONFIG = new ConfigSlurper()
         .parse(new File("grails-app/conf/Config.groovy").toURL())
+    private static final OutputStreamCaptor OUTPUT_CAPTOR = new OutputStreamCaptor()
 
     // Display
     // -------
@@ -63,10 +64,10 @@ class TestUtils {
 
     static String randPhoneNumber() {
         String randNumber = generatePhoneNumber()
-        while (_generatedPhoneNumbers.contains(randNumber)) {
+        while (GENERATED_NUMBERS.contains(randNumber)) {
             randNumber = generatePhoneNumber()
         }
-        _generatedPhoneNumbers.add(randNumber)
+        GENERATED_NUMBERS.add(randNumber)
         randNumber
     }
     private static String generatePhoneNumber() {
@@ -74,12 +75,17 @@ class TestUtils {
         "${TestConstants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
     }
 
-    static int randIntegerUpTo(Integer max) {
-        RANDOM.nextInt(max)
+    static int randIntegerUpTo(Integer max, boolean ensurePositive = false) {
+        int rand = RANDOM.nextInt(max)
+        (ensurePositive && rand <= 0) ? 1 : rand
     }
 
     static String randString() {
         UUID.randomUUID().toString()
+    }
+
+    static String randUrl() {
+        new URI("https://www.example.com/${TestUtils.randString()}")
     }
 
     static String encodeBase64String(byte[] rawData) {
@@ -201,6 +207,13 @@ class TestUtils {
         [link: { Map m -> (m.params ?: [:]).toString() }] as LinkGenerator
     }
 
+    static LinkGenerator mockLinkGeneratorWithDomain(String domain = "https://www.example.com") {
+        [link: { Map m ->
+            Object queryParams = m.params ?: [:]
+            "${domain}?${queryParams.toString()}".toString()
+        }] as LinkGenerator
+    }
+
     static Scheduler mockScheduler() {
         [getTrigger: { TriggerKey key -> null }] as Scheduler
     }
@@ -279,6 +292,12 @@ class TestUtils {
         iReq
     }
 
+    static CustomAccountDetails buildCustomAccountDetails() {
+        CustomAccountDetails cad1 = new CustomAccountDetails(accountId: TestUtils.randString(),
+            authToken: TestUtils.randString())
+        cad1.save(flush: true, failOnError: true)
+    }
+
     // Mocking
     // -------
 
@@ -292,5 +311,15 @@ class TestUtils {
         catch (IllegalArgumentException e) {
             log.info("TestUtils.forceMock: ${e.message}")
         }
+    }
+
+    static ByteArrayOutputStream captureAllStreamsReturnStdOut() {
+        OUTPUT_CAPTOR.capture().first
+    }
+    static ByteArrayOutputStream captureAllStreamsReturnStdErr() {
+        OUTPUT_CAPTOR.capture().second
+    }
+    static void restoreAllStreams() {
+        OUTPUT_CAPTOR.restore()
     }
 }

@@ -20,7 +20,7 @@ import spock.lang.Unroll
 
 // WeeklySchedule assumes all times are in UTC
 
-@Domain([Schedule, WeeklySchedule, Organization, Location])
+@Domain([CustomAccountDetails, Schedule, WeeklySchedule, Organization, Location])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class WeeklyScheduleSpec extends Specification {

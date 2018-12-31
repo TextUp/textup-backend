@@ -59,7 +59,7 @@ class OutgoingMessageService {
         PhoneNumber fromNum = (c1 instanceof SharedContact) ? c1.sharedBy.number : p1.number,
             toNum = s1.personalPhoneNumber
         callService
-            .start(fromNum, toNum, CallTwiml.infoForFinishBridge(c1), p1.customAccountId)
+            .start(fromNum, [toNum], CallTwiml.infoForFinishBridge(c1), p1.customAccountId)
             .then(this.&afterBridgeCall.curry(c1, s1))
     }
 

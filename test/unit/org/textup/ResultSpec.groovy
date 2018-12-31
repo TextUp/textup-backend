@@ -10,7 +10,7 @@ import org.textup.type.*
 import org.textup.util.*
 import spock.lang.*
 
-@Domain([Organization, Location])
+@Domain([CustomAccountDetails, Organization, Location])
 @TestMixin(HibernateTestMixin)
 class ResultSpec extends Specification {
 

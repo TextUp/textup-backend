@@ -18,7 +18,7 @@ import org.textup.media.ImageUtils
 import org.textup.type.*
 import spock.lang.*
 
-@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class UploadItemSpec extends Specification {
 

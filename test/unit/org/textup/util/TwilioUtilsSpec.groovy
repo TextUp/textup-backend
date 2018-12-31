@@ -1,18 +1,23 @@
 package org.textup.util
 
-import org.textup.*
-import org.textup.test.*
 import com.twilio.security.RequestValidator
 import grails.test.mixin.support.GrailsUnitTestMixin
+import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
+import grails.test.runtime.DirtiesRuntime
+import grails.util.Holders
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
+import org.textup.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
+import spock.util.mop.ConfineMetaClassChanges
 
+@TestFor(CustomAccountDetails)
 @TestMixin(GrailsUnitTestMixin)
 class TwilioUtilsSpec extends Specification {
 
@@ -55,12 +60,51 @@ class TwilioUtilsSpec extends Specification {
         result == "https://www.example.com/b.html?test3=bye&"
     }
 
+    @DirtiesRuntime
+    void "test getting auth token for varying accounts"() {
+        given:
+        String masterId = TestUtils.randString()
+        String masterToken = TestUtils.randString()
+        String subId = TestUtils.randString()
+        CustomAccountDetails cad1 = GroovyStub() { getAuthToken() >> TestUtils.randString() }
+
+        TestUtils.mock(Holders, "getFlatConfig") {
+            ["textup.apiKeys.twilio.sid": masterId, "textup.apiKeys.twilio.authToken": masterToken]
+        }
+
+        when: "master account"
+        String result = TwilioUtils.getAuthToken(masterId)
+
+        then:
+        result == masterToken
+
+        when: "valid subaccount"
+        CustomAccountDetails.metaClass."static".findByAccountId = { String sid, Map opts -> cad1 }
+        result = TwilioUtils.getAuthToken(subId)
+
+        then:
+        result == cad1.authToken
+
+        when: "invalid account id"
+        CustomAccountDetails.metaClass."static".findByAccountId = { String sid, Map opts -> null }
+        result = TwilioUtils.getAuthToken(null)
+
+        then:
+        result == ""
+    }
+
+    // see global mock cleanup bug: https://github.com/spockframework/spock/issues/445
+    @ConfineMetaClassChanges([RequestValidator])
+    @DirtiesRuntime
     void "test validating request from twilio"() {
         given:
         IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
         HttpServletRequest mockRequest = GroovyMock(HttpServletRequest) // to mock forwardURI
-        RequestValidator allValidators = GroovySpy(RequestValidator,
-            constructorArgs: ["valid auth token"], global: true)
+
+        String authToken = TestUtils.randString()
+        MockedMethod getAuthToken = TestUtils.mock(TwilioUtils, "getAuthToken") { authToken }
+        GroovyMock(RequestValidator, global: true)
+
         TypeConvertingMap allParams = new TypeConvertingMap([:])
 
         when: "missing auth header"
@@ -81,7 +125,10 @@ class TwilioUtilsSpec extends Specification {
         1 * mockRequest.forwardURI
         (1.._) * mockRequest.queryString
         1 * mockRequest.parameterMap >> [:]
-        1 * allValidators.validate(*_) >> false
+
+        getAuthToken.callCount == 1
+        1 * new RequestValidator(authToken) >> Stub(RequestValidator) { validate(*_) >> false }
+
         res.status == ResultStatus.BAD_REQUEST
         res.errorMessages[0] == "twilioUtils.validate.invalid"
 
@@ -95,8 +142,14 @@ class TwilioUtilsSpec extends Specification {
         1 * mockRequest.forwardURI
         (1.._) * mockRequest.queryString
         1 * mockRequest.parameterMap >> [:]
-        1 * allValidators.validate(*_) >> true
+
+        getAuthToken.callCount == 2
+        1 * new RequestValidator(authToken) >> Stub(RequestValidator) { validate(*_) >> true }
+
         res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        getAuthToken.restore()
     }
 
     // Incoming media
@@ -116,11 +169,12 @@ class TwilioUtilsSpec extends Specification {
 
     void "test building incoming media"() {
         given:
+        String accountId = TestUtils.randString()
         String messageId = TestUtils.randString()
         String mediaId = TestUtils.randString()
         TwilioUtils.metaClass."static".extractMediaIdFromUrl = { String url -> mediaId }
 
-        TypeConvertingMap params = new TypeConvertingMap([:])
+        TypeConvertingMap params = new TypeConvertingMap([AccountSid: accountId])
         List<String> urls = []
         int numMedia = 2
         numMedia.times {
@@ -142,6 +196,7 @@ class TwilioUtilsSpec extends Specification {
         then:
         numMedia == mediaList.size()
         mediaList.every { it instanceof IncomingMediaInfo }
+        mediaList.every { it.accountId == accountId }
         mediaList.every { it.messageId == messageId }
         mediaList.every { it.mimeType == MediaType.IMAGE_JPEG.mimeType }
         mediaList.every { it.mediaId == mediaId }
@@ -150,17 +205,48 @@ class TwilioUtilsSpec extends Specification {
 
     void "test building incoming recording"() {
         given:
+        String accountId = TestUtils.randString()
         String url = TestUtils.randString()
         String sid = TestUtils.randString()
-        TypeConvertingMap params = new TypeConvertingMap(RecordingUrl: url, RecordingSid: sid)
+        TypeConvertingMap params = new TypeConvertingMap(AccountSid: accountId,
+            RecordingUrl: url,
+            RecordingSid: sid)
 
         when:
         IncomingRecordingInfo rInfo = TwilioUtils.buildIncomingRecording(params)
 
         then:
         MediaType.AUDIO_MP3.mimeType == rInfo.mimeType
+        accountId == rInfo.accountId
         url == rInfo.url
         sid == rInfo.mediaId
+    }
+
+    // Updating status
+    // ---------------
+
+    void "test if should update receipt status"() {
+        expect:
+        TwilioUtils.shouldUpdateStatus(null, null) == false
+        TwilioUtils.shouldUpdateStatus(ReceiptStatus.SUCCESS, null) == false
+        TwilioUtils.shouldUpdateStatus(ReceiptStatus.SUCCESS, ReceiptStatus.PENDING) == false
+
+        and:
+        TwilioUtils.shouldUpdateStatus(null, ReceiptStatus.SUCCESS) == true
+        TwilioUtils.shouldUpdateStatus(ReceiptStatus.PENDING, ReceiptStatus.SUCCESS) == true
+        TwilioUtils.shouldUpdateStatus(ReceiptStatus.SUCCESS, ReceiptStatus.BUSY) == true
+        TwilioUtils.shouldUpdateStatus(ReceiptStatus.SUCCESS, ReceiptStatus.FAILED) == true
+    }
+
+    void "test if should update receipt call duration"() {
+        expect:
+        TwilioUtils.shouldUpdateDuration(null, null) == false
+        TwilioUtils.shouldUpdateDuration(88, null) == false
+        TwilioUtils.shouldUpdateDuration(88, 88) == false
+
+        and:
+        TwilioUtils.shouldUpdateDuration(null, 88) == true
+        TwilioUtils.shouldUpdateDuration(88, 21) == true
     }
 
     // Twiml

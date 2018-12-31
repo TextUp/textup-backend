@@ -10,7 +10,7 @@ import org.textup.type.*
 import org.textup.util.*
 import spock.lang.*
 
-@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class MediaElementVersionSpec extends Specification {
 

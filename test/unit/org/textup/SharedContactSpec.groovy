@@ -18,7 +18,7 @@ import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Unroll
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
     MediaInfo, MediaElement, MediaElementVersion])
@@ -51,7 +51,6 @@ class SharedContactSpec extends CustomSpec {
 
     	then:
     	sc.validate() == true
-        sc.fromNum.number == p1.number.number
         sc1.status == c1.status // copied contact's status over
 
     	when: "we try to share a contact that is not our's"
@@ -76,7 +75,6 @@ class SharedContactSpec extends CustomSpec {
 
     	then: "still valid, check for same teams happens when sharing through a phone"
     	sc.validate() == true
-        sc.fromNum.number == p1.number.number
         sc1.status == c1.status // copied contact's status over
 
         when: "we set divergent statuses for a SharedContact that already has a set status"
@@ -87,6 +85,27 @@ class SharedContactSpec extends CustomSpec {
         sc.validate() == true
         sc1.status != c1.status
         sc1.status == ContactStatus.ACTIVE
+    }
+
+    void "test getting from num and subaccount id"() {
+        given:
+        String customAccountId = TestUtils.randString()
+        p1.customAccount = Stub(CustomAccountDetails) { getAccountId() >> customAccountId }
+
+        when: "active"
+        SharedContact sc1 = new SharedContact(contact: c1, sharedBy: p1, sharedWith: p2,
+            permission: SharePermission.DELEGATE)
+
+        then: "an empty record is automatically added"
+        sc1.fromNum.number == p1.number.number
+        sc1.customAccountId == p1.customAccount.accountId
+
+        when: "expired"
+        sc1.stopSharing()
+
+        then:
+        sc1.fromNum == null
+        sc1.customAccountId == null
     }
 
     @Unroll

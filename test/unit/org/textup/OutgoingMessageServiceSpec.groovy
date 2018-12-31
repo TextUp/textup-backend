@@ -14,7 +14,7 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
@@ -131,6 +131,10 @@ class OutgoingMessageServiceSpec extends CustomSpec {
 
     void "test starting bridge call"() {
         given: "baselines"
+        CustomAccountDetails cad1 = TestUtils.buildCustomAccountDetails()
+        p1.customAccount = cad1
+        p1.save(flush: true, failOnError: true)
+
         TempRecordReceipt rpt = TestUtils.buildTempReceipt()
         service.callService = Mock(CallService)
         int cBaseline = RecordCall.count()
@@ -141,7 +145,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         RecordCall.withSession { it.flush() }
 
         then:
-        1 * service.callService.start(*_) >> new Result(payload: rpt)
+        1 * service.callService.start(_, _, _, cad1.accountId) >> new Result(payload: rpt)
         res.status == ResultStatus.CREATED
         res.payload instanceof RecordCall
         res.payload.receipts[0].apiId == rpt.apiId
@@ -245,13 +249,15 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test sending outgoing messages and storing receipts"() {
         given:
+        String customAccountId = TestUtils.randString()
+        Long cId = TestUtils.randIntegerUpTo(88)
+
         OutgoingMessage msg1 = Mock()
         Contactable cont1 = Mock()
         ContactTag ct1 = Mock()
         service.tokenService = Mock(TokenService)
         service.outgoingMediaService = Mock(OutgoingMediaService)
         MockedMethod tryStoreReceipts = TestUtils.mock(service, "tryStoreReceipts") { new Result() }
-        Long cId = 88
 
         when:
         ResultGroup<?> resGroup = service.sendAndStore(null, null, msg1)
@@ -260,8 +266,9 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         1 * msg1.getContactIdToTags() >> [(cId):[ct1, ct1]]
         1 * service.tokenService.tryBuildAndPersistCallToken(*_)
         1 * msg1.toRecipients() >> [cont1]
+        1 * cont1.customAccountId >> customAccountId
         1 * cont1.contactId >> cId
-        1 * service.outgoingMediaService.send(*_) >> new Result()
+        1 * service.outgoingMediaService.send(_, _, customAccountId, _, _, _) >> new Result()
         tryStoreReceipts.callCount == 3 // once for contactable + twice for two associated tags
         resGroup.successes.size() == 3
         resGroup.anyFailures == false
@@ -319,7 +326,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
         resGroup.anySuccesses == false
         resGroup.failures.size() == 1
         resGroup.failures[0].status == ResultStatus.INTERNAL_SERVER_ERROR
-        resGroup.failures[0].errorMessages[0] == "outgoingMediaService.finishProcessingMessages.futureMissingPayload"
+        resGroup.failures[0].errorMessages[0] == "outgoingMessageService.finishProcessingMessages.futureMissingPayload"
 
         when: "has media and future resolves to appropriate result"
         resGroup = service.finishProcessingMessages(null, null, msg1, mediaFuture)

@@ -8,7 +8,7 @@ import org.textup.*
 import org.textup.util.*
 import spock.lang.*
 
-@Domain([Organization, Location])
+@Domain([CustomAccountDetails, Organization, Location])
 @TestMixin(HibernateTestMixin)
 class ActionContainerSpec extends Specification {
 

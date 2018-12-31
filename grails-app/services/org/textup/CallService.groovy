@@ -15,62 +15,40 @@ import org.textup.validator.*
 @Transactional
 class CallService {
 
-    Result<TempRecordReceipt> start(BasePhoneNumber fromNum, BasePhoneNumber toNum, Map afterPickup,
-        String customAccountId) {
+    Result<TempRecordReceipt> start(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
+        Map afterPickup, String customAccountId) {
 
-        String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS)
-        doCall(fromNum, toNum, afterPickup, callback, customAccountId)
-    }
-    Result<TempRecordReceipt> start(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, Map afterPickup, String customAccountId) {
-        // if one number we can just start without any retry logic
-        if (toNums?.size() <= 1) {
-            start(fromNum, toNums ? toNums[0] : null, afterPickup, customAccountId)
-        }
-        // if multiple numbers, we want to add in retry logic
-        // We start with the first number **that doesn't IMMEDIATELY fail**.
-        // For the first number in the list that succeeds, we append the remaining numbers to try
-        // as callback parameter so that the PublicRecordController can retry with
-        // the remaining numbers until none are left
-        else {
-            List<String> toPhoneNums = toNums
-                .collect { BasePhoneNumber pNum -> pNum.e164PhoneNumber }
-            int numRemaining = toNums.size() - 1
+        if (toNums) {
+            List<String> toPhoneNums = toNums.collect { BasePhoneNumber n1 -> n1.e164PhoneNumber }
             String afterPickupJson = DataFormatUtils.toJsonString(afterPickup)
-            for (int i = numRemaining; i >= 0 ; i--) {
-                List<String> remaining = CollectionUtils.takeRight(toPhoneNums, i)
+            int numRemaining = toNums.size()
+            for (int i = numRemaining; i > 0; i--) {
                 BasePhoneNumber toNum = toNums[numRemaining - i]
-                // If we are on the last number in the list of numbers because all of the
-                // previous numbers have IMMEDIATELY failed for whatever reason, then this
-                // is the same case as if we are only trying to call one number
-                if (!remaining) {
-                    return start(fromNum, toNum, afterPickup, customAccountId)
-                }
-                // if we still have some numbers remaining to try, then we try to start the
-                // call with this number, and if it succeeds, then we can return and the call has
-                // started. If it IMMEDIATELY fails, then we move onto the next number to use
-                // to try to start this call.
-                else {
-                    String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS,
-                        remaining: remaining, afterPickup: afterPickupJson)
-                    Result<TempRecordReceipt> res =
-                        doCall(fromNum, toNum, afterPickup, callback, customAccountId)
-                    if (res.success) {
-                        return res
-                    }
+                // subtract one because we don't want to include the number we are trying in this
+                // iteration in the list of numbers remaining
+                List<String> remaining = CollectionUtils.takeRight(toPhoneNums, i - 1)
+                // For the first number in the list that succeeds, we append the remaining numbers
+                // to try as callback parameter so that the PublicRecordController can retry with
+                // the remaining numbers until none are left.
+                String callback = buildCallbackUrl(remaining, afterPickupJson)
+                Result<TempRecordReceipt> res =
+                    doCall(fromNum, toNum, afterPickup, callback, customAccountId)
+                // We start with the first number **that doesn't IMMEDIATELY fail**. If no numbers
+                // remaining to try, we have to return
+                if (!remaining || res.success) {
+                    return res
                 }
             }
-            IOCUtils.resultFactory.failWithCodeAndStatus("callService.start.missingInfoOrAllFailed",
-                ResultStatus.UNPROCESSABLE_ENTITY)
         }
+        IOCUtils.resultFactory.failWithCodeAndStatus("callService.start.missingInfoOrAllFailed",
+            ResultStatus.UNPROCESSABLE_ENTITY)
     }
-    Result<TempRecordReceipt> retry(BasePhoneNumber fromNum,
-        List<? extends BasePhoneNumber> toNums, String apiId, Map afterPickup,
-        String customAccountId) {
+
+    Result<TempRecordReceipt> retry(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
+        String apiId, Map afterPickup, String customAccountId) {
 
         start(fromNum, toNums, afterPickup, customAccountId).then { TempRecordReceipt r1 ->
-            List<RecordItem> items = RecordItem.findEveryByApiId(apiId)
-            RecordItem.findEveryByApiId(apiId).each { RecordItem item1 ->
+            RecordItem.findEveryByApiId(apiId)?.each { RecordItem item1 ->
                 item1.addReceipt(r1)
                 item1.save()
             }
@@ -78,7 +56,6 @@ class CallService {
         }
     }
 
-    // [UNTESTED] because of limitations in mocking
     // interrupt existing call with the following Twiml
     // see https://www.twilio.com/docs/voice/api/call#update-a-call-resource
     Result<Void> interrupt(String callId, Map afterPickup, String customAccountId) {
@@ -95,18 +72,26 @@ class CallService {
     // Helpers
     // -------
 
+    protected String buildCallbackUrl(List<String> remaining, String afterPickupJson) {
+        if (remaining && afterPickupJson) {
+            IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS, remaining: remaining,
+                afterPickup: afterPickupJson)
+        }
+        // Will not add retry parameters if no numbers remaining to try
+        else { IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS) }
+    }
+
     protected Result<TempRecordReceipt> doCall(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         Map afterPickup, String callback, String customAccountId) {
 
         if (!fromNum || !toNum) {
-            IOCUtils.resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
                 ResultStatus.UNPROCESSABLE_ENTITY, null)
         }
         try {
-            Call call = callCreator(fromNum, toNum, afterPickup, customAccountId)
-                .setStatusCallback(callback)
-                .create()
-            TempRecordReceipt receipt = new TempRecordReceipt(apiId:call.sid)
+            CallCreator creator = callCreator(fromNum, toNum, afterPickup, customAccountId)
+            CallService.Outcome cOutcome = executeCall(creator, callback)
+            TempRecordReceipt receipt = new TempRecordReceipt(apiId: cOutcome.sid)
             receipt.contactNumber = toNum
             if (receipt.validate()) {
                 IOCUtils.resultFactory.success(receipt)
@@ -123,6 +108,12 @@ class CallService {
             res
         }
     }
+    protected CallService.Outcome executeCall(CallCreator creator, String callback) {
+        Call call = creator
+            .setStatusCallback(callback)
+            .create()
+        new CallService.Outcome(sid: call.sid)
+    }
 
     protected CallCreator callCreator(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         Map afterPickup, String customAccountId) {
@@ -137,5 +128,9 @@ class CallService {
     }
     protected CallUpdater callUpdater(String callId, String customAccountId) {
         customAccountId ? Call.updater(customAccountId, callId) : Call.updater(callId)
+    }
+
+    protected static class Outcome {
+        String sid
     }
 }

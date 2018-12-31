@@ -37,6 +37,7 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
 
     void "test recording and reviewing new voicemail greeting over the phone"() {
         given:
+        String accountId = TestUtils.randString()
         String callId = TestUtils.randString()
         String fromNum = TestUtils.randPhoneNumber()
         String phoneNum = remote.exec({ un, fNum ->
@@ -50,6 +51,7 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
 
         when: "recording a voicemail greeting over the phone"
         MultiValueMap<String,String> form = new LinkedMultiValueMap<>()
+        form.set("AccountSid", accountId)
         form.set("CallSid", callId)
         form.set("From", phoneNum)
         form.set("To", fromNum)

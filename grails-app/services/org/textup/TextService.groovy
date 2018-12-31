@@ -15,17 +15,17 @@ import org.textup.validator.*
 class TextService {
 
     Result<TempRecordReceipt> send(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
-        String message, Collection<URI> mediaUrls = [], String customAccountId) {
+        String message, String customAccountId, Collection<URI> mediaUrls = []) {
 
-        ResultGroup<Message> failResults = new ResultGroup<>()
-        Result<Message> res
+        ResultGroup<TextService.Outcome> failResults = new ResultGroup<>()
+        Result<TextService.Outcome> res
         for (toNum in toNums) {
-            res = tryText(fromNum, toNum, message, mediaUrls, customAccountId)
+            res = tryText(fromNum, toNum, message, customAccountId, mediaUrls)
             //record receipt and return on first success
             if (res.success) {
-                Message tMessage = res.payload
-                TempRecordReceipt receipt = new TempRecordReceipt(apiId:tMessage.sid,
-                    numSegments: TypeConversionUtils.to(Integer, tMessage.numSegments))
+                TextService.Outcome msgRes = res.payload
+                TempRecordReceipt receipt = new TempRecordReceipt(apiId:msgRes.sid,
+                    numSegments: msgRes.numSegments)
                 receipt.contactNumber = toNum
                 if (receipt.validate()) {
                     return IOCUtils.resultFactory.success(receipt)
@@ -43,8 +43,8 @@ class TextService {
         else { IOCUtils.resultFactory.failWithGroup(failResults) }
 	}
 
-    protected Result<Message> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
-        String message, Collection<URI> mediaUrls, String customAccountId) {
+    protected Result<TextService.Outcome> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
+        String message, String customAccountId, Collection<URI> mediaUrls) {
 
         String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS)
         try {
@@ -52,7 +52,9 @@ class TextService {
                 .setStatusCallback(callback)
                 .setMediaUrl(new ArrayList<URI>(mediaUrls))
                 .create()
-            IOCUtils.resultFactory.success(msg1)
+            TextService.Outcome msgRes = new TextService.Outcome(sid: msg1.sid,
+                numSegments: TypeConversionUtils.to(Integer, msg1.numSegments))
+            IOCUtils.resultFactory.success(msgRes)
         }
         catch (Throwable e) {
             log.error("TextService.tryText: ${e.class}, ${e.message}")
@@ -73,5 +75,10 @@ class TextService {
         customAccountId ?
             Message.creator(customAccountId, apiTo, apiFrom, message) :
             Message.creator(apiTo, apiFrom, message)
+    }
+
+    protected static class Outcome {
+        String sid
+        Integer numSegments
     }
 }

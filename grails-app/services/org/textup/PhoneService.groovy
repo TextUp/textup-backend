@@ -101,7 +101,7 @@ class PhoneService {
         if (!toNum.validate()) {
             return resultFactory.failWithValidationErrors(toNum.errors)
         }
-        callService.start(p1.number, toNum, CallTwiml.infoForRecordVoicemailGreeting(),
+        callService.start(p1.number, [toNum], CallTwiml.infoForRecordVoicemailGreeting(),
             p1.customAccountId)
     }
     protected String getNumberToCallForVoicemailGreeting(String possibleNum) {

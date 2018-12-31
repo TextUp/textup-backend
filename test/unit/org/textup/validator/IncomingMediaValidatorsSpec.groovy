@@ -25,6 +25,7 @@ class IncomingMediaValidatorsSpec extends Specification {
         media1.errors.errorCount > 0
 
         when: "invalid"
+        media1.accountId = TestUtils.randString()
         media1.mimeType = MediaType.AUDIO_MP3.mimeType
         media1.url = "not a url"
         media1.messageId = TestUtils.randString()
@@ -45,7 +46,9 @@ class IncomingMediaValidatorsSpec extends Specification {
 
     void "test deleting for incoming media"() {
         given: "valid incoming media"
-        IncomingMediaInfo media1 = new IncomingMediaInfo(mimeType: MediaType.AUDIO_MP3.mimeType,
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
+        IncomingMediaInfo media1 = new IncomingMediaInfo(accountId: TestUtils.randString(),
+            mimeType: MediaType.AUDIO_MP3.mimeType,
             url: "https://www.example.com",
             messageId: TestUtils.randString(),
             mediaId: TestUtils.randString(),
@@ -57,6 +60,11 @@ class IncomingMediaValidatorsSpec extends Specification {
 
         then: "gracefully handled"
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        stdErr.toString().contains("com.twilio.exception.AuthenticationException")
+        stdErr.toString().contains("SmsMediaDeleter.delete")
+
+        cleanup:
+        TestUtils.restoreAllStreams()
     }
 
     void "test validation for incoming recording"() {
@@ -68,6 +76,7 @@ class IncomingMediaValidatorsSpec extends Specification {
         recording1.errors.errorCount > 0
 
         when: "invalid"
+        recording1.accountId = TestUtils.randString()
         recording1.mimeType = MediaType.AUDIO_MP3.mimeType
         recording1.url = "not a url"
         recording1.mediaId = TestUtils.randString()
@@ -87,7 +96,9 @@ class IncomingMediaValidatorsSpec extends Specification {
 
     void "test deleting for incoming recording"() {
         given: "valid incoming media"
-        IncomingRecordingInfo recording1 = new IncomingRecordingInfo(mimeType: MediaType.AUDIO_MP3.mimeType,
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
+        IncomingRecordingInfo recording1 = new IncomingRecordingInfo(accountId: TestUtils.randString(),
+            mimeType: MediaType.AUDIO_MP3.mimeType,
             url: "https://www.example.com",
             mediaId: TestUtils.randString(),
             isPublic: true)
@@ -98,5 +109,10 @@ class IncomingMediaValidatorsSpec extends Specification {
 
         then: "gracefully handled"
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        stdErr.toString().contains("com.twilio.exception.AuthenticationException")
+        stdErr.toString().contains("CallRecordingDeleter.delete")
+
+        cleanup:
+        TestUtils.restoreAllStreams()
     }
 }

@@ -9,7 +9,7 @@ import org.textup.type.ReceiptStatus
 import org.textup.validator.PhoneNumber
 import spock.lang.*
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
+@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
 	MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 @Unroll

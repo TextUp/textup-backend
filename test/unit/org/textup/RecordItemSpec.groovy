@@ -11,7 +11,7 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText, RecordNote,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText, RecordNote,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, NotificationPolicy, RecordNoteRevision,

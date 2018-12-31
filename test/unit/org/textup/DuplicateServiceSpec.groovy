@@ -16,7 +16,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 @TestFor(DuplicateService)
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
   RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
   Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
   RecordNote, RecordNoteRevision, FutureMessage, SimpleFutureMessage,

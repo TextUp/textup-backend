@@ -13,7 +13,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 // Need to mock Organization and Location to enable rolling back transaction on resultFactory failure
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, Organization, Location,
+@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, Organization, Location,
     RecordNote, RecordNoteRevision, Location, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class RecordSpec extends Specification {

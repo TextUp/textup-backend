@@ -37,13 +37,13 @@ class OutgoingMediaService {
         ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
         // if no media, then just send message as a text
         if (!mInfo || mInfo.isEmpty()) {
-            resGroup << textService.send(fromNum, toNums, msg1, [], customAccountId)
+            resGroup << textService.send(fromNum, toNums, msg1, customAccountId, [])
         }
         else { // if yes media, then send media in as many batches as needed
             mInfo.forEachBatch({ List<MediaElement> batchSoFar ->
                 Collection<URI> mediaUrls = batchSoFar
                     .collect { MediaElement e1 -> e1.sendVersion?.link?.toURI() }
-                resGroup << textService.send(fromNum, toNums, msg1, mediaUrls, customAccountId)
+                resGroup << textService.send(fromNum, toNums, msg1, customAccountId, mediaUrls)
             }, typesToFind)
         }
         resGroup

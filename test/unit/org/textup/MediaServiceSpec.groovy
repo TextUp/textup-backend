@@ -18,7 +18,7 @@ import spock.lang.*
 
 @Unroll
 @TestFor(MediaService)
-@Domain([MediaInfo, MediaElement, MediaElementVersion])
+@Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class MediaServiceSpec extends Specification {
 

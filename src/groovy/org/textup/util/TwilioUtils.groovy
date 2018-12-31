@@ -68,11 +68,15 @@ class TwilioUtils {
     // ---------------
 
     static boolean shouldUpdateStatus(ReceiptStatus oldStatus, ReceiptStatus newStatus) {
-        !oldStatus || oldStatus.isEarlierInSequenceThan(newStatus)
+        !oldStatus && !newStatus ?
+            false :
+            !oldStatus || oldStatus.isEarlierInSequenceThan(newStatus)
     }
 
     static boolean shouldUpdateDuration(Integer oldDuration, Integer newDuration) {
-        newDuration != null && (oldDuration == null || oldDuration != newDuration)
+        !oldDuration && !newDuration ?
+            false :
+            newDuration != null && (oldDuration == null || oldDuration != newDuration)
     }
 
     // Twiml
@@ -133,8 +137,8 @@ class TwilioUtils {
         }
         else {
             // uses query cache
-            CustomAccountDetails cd1 = CustomAccountDetails.findByAccountId(sid, [cache: true])
-            cd1?.authToken ?: ""
+            CustomAccountDetails cad1 = CustomAccountDetails.findByAccountId(sid, [cache: true])
+            cad1?.authToken ?: ""
         }
     }
 

@@ -11,7 +11,7 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
     RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
     Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
     AnnouncementReceipt, Role, StaffRole, FutureMessage, SimpleFutureMessage, NotificationPolicy,
@@ -396,6 +396,10 @@ class NotificationServiceSpec extends CustomSpec {
 
     void "test sending for basic notification"() {
         given:
+        CustomAccountDetails cad1 = TestUtils.buildCustomAccountDetails()
+        p1.customAccount = cad1
+        p1.save(flush: true, failOnError: true)
+
         service.tokenService = Mock(TokenService)
         service.textService = Mock(TextService)
         service.grailsApplication = grailsApplication
@@ -424,7 +428,7 @@ class NotificationServiceSpec extends CustomSpec {
 
         then:
         1 * service.tokenService.generateNotification(*_) >> new Result(payload: [token: "hi"] as Token)
-        1 * service.textService.send(*_) >> { args ->
+        1 * service.textService.send(_, _, _, cad1.accountId) >> { args ->
             assert args[2].contains("notificationService.send.notificationSuffix")
             assert args[2].contains("notificationService.incoming.noFrom")
             new Result()
@@ -437,7 +441,7 @@ class NotificationServiceSpec extends CustomSpec {
 
         then:
         1 * service.tokenService.generateNotification(*_) >> new Result(payload: [token: "hi"] as Token)
-        1 * service.textService.send(*_) >> { args ->
+        1 * service.textService.send(_, _, _, cad1.accountId) >> { args ->
             assert args[2].contains("notificationService.send.notificationSuffix")
             assert args[2].contains("notificationService.incoming.withFrom")
             new Result()

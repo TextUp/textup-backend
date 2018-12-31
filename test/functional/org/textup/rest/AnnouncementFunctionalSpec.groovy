@@ -34,10 +34,9 @@ class AnnouncementFunctionalSpec extends RestSpec {
                 // return temp
                 ctx.resultFactory.success(temp)
             }
-            // can't use MockedMethod because incompatible overloading
-            ctx.callService.metaClass.start = { BasePhoneNumber from, BasePhoneNumber to, Map pickup ->
+            TestUtils.forceMock(ctx.callService, "start") { fromNum, toNums, pickup ->
                 TempRecordReceipt temp = TestUtils.buildTempReceipt()
-                temp.contactNumber = to
+                temp.contactNumber = toNums[0]
                 assert temp.validate()
                 // store params in config for later retrieval
                 app.config.callParamsList << pickup

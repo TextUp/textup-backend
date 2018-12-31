@@ -11,7 +11,7 @@ import org.textup.type.FutureMessageType
 import org.textup.util.*
 import spock.lang.Specification
 
-@Domain([Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage,
+@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage,
     MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class FutureMessageCleanupJobSpec extends Specification {

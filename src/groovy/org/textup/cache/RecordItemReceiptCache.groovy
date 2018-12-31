@@ -42,6 +42,9 @@ class RecordItemReceiptCache {
     List<RecordItemReceipt> updateReceipts(List<RecordItemReceipt> receipts,
         ReceiptStatus newStatus, Integer newDuration = null) {
 
+        if (!receipts) {
+            return []
+        }
         ResultGroup<RecordItemReceipt> resGroup = new ResultGroup<>()
         for (RecordItemReceipt receipt in receipts) {
             receipt.status = newStatus

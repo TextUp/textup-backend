@@ -10,7 +10,7 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
+@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
 	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
 	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
 	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
@@ -36,7 +36,6 @@ class ContactSpec extends CustomSpec {
 
     	then: "an empty record is automatically added"
     	c1.validate() == true
-        c1.fromNum.number == p1.number.number
     	c1.record != null
 
     	when: "we add a tag membership and define a too-long note"
@@ -52,6 +51,20 @@ class ContactSpec extends CustomSpec {
 
     	then:
     	c1.validate() == true
+    }
+
+    void "test getting from num and subaccount id"() {
+        given:
+        String customAccountId = TestUtils.randString()
+        p1.customAccount = Stub(CustomAccountDetails) { getAccountId() >> customAccountId }
+
+        when:
+        Contact c1 = new Contact(phone:p1)
+
+        then: "an empty record is automatically added"
+        c1.validate() == true
+        c1.fromNum.number == p1.number.number
+        c1.customAccountId == p1.customAccount.accountId
     }
 
  	void "test no duplicate numbers for one contact, autoincrement preference"() {

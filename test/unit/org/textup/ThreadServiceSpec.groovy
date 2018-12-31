@@ -17,7 +17,7 @@ import spock.lang.Specification
 // to the test class
 
 @TestFor(ThreadService)
-@Domain([Organization, Location])
+@Domain([CustomAccountDetails, Organization, Location])
 @TestMixin(HibernateTestMixin)
 class ThreadServiceSpec extends Specification {
 
