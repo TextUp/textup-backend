@@ -225,7 +225,7 @@ class PhoneServiceSpec extends CustomSpec {
         res = service.handlePhoneActions(p1, [doPhoneActions: [
             [
                 action: Constants.PHONE_ACTION_NEW_NUM_BY_NUM,
-                number: TestUtils.randPhoneNumber()
+                number: TestUtils.randPhoneNumberString()
             ]
         ]])
 
@@ -355,7 +355,7 @@ class PhoneServiceSpec extends CustomSpec {
             name: "hi",
             email:"hi@textup.org",
             org: org,
-            personalPhoneAsString: TestUtils.randPhoneNumber(),
+            personalPhoneAsString: TestUtils.randPhoneNumberString(),
             lockCode:Constants.DEFAULT_LOCK_CODE)
         staff1.save(flush: true, failOnError: true)
         int npBaseline = NotificationPolicy.count()
@@ -386,8 +386,8 @@ class PhoneServiceSpec extends CustomSpec {
 
     void "test getting number to call for voicemail greeting"() {
         given:
-        String randNum1 = TestUtils.randPhoneNumber()
-        String randNum2 = TestUtils.randPhoneNumber()
+        String randNum1 = TestUtils.randPhoneNumberString()
+        String randNum2 = TestUtils.randPhoneNumberString()
         service.authService = Mock(AuthService)
 
         when: "fall back to personal phone"
@@ -410,7 +410,7 @@ class PhoneServiceSpec extends CustomSpec {
         String customAccountId = TestUtils.randString()
         service.callService = GroovyMock(CallService)
         Phone p1 = GroovyMock(Phone)
-        String randNum1 = TestUtils.randPhoneNumber()
+        String randNum1 = TestUtils.randPhoneNumberString()
 
         when: "not requesting voicemail greeting"
         Result<?> res = service.requestVoicemailGreetingCall(p1, [:])
@@ -475,7 +475,7 @@ class PhoneServiceSpec extends CustomSpec {
             name: "hi",
             email:"hi@textup.org",
             org: org,
-            personalPhoneAsString: TestUtils.randPhoneNumber(),
+            personalPhoneAsString: TestUtils.randPhoneNumberString(),
             lockCode:Constants.DEFAULT_LOCK_CODE)
         Team team1 = new Team(name: TestUtils.randString(),
             org: org,

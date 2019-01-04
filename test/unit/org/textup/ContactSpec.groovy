@@ -171,8 +171,8 @@ class ContactSpec extends CustomSpec {
 
     void "test static finders"() {
         given: "a phone with contacts"
-        Phone phone1 = new Phone(numberAsString:TestUtils.randPhoneNumber()),
-            phone2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        Phone phone1 = new Phone(numberAsString:TestUtils.randPhoneNumberString()),
+            phone2 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         phone1.updateOwner(s1)
         phone2.updateOwner(s2)
         phone1.save(failOnError:true)
@@ -182,8 +182,8 @@ class ContactSpec extends CustomSpec {
         Map<ContactStatus,String> statusToContactNum = [:]
         Map<ContactStatus,String> statusToSharedContactNum = [:]
         ContactStatus.values().each { ContactStatus cStatus ->
-            String strNum1 = TestUtils.randPhoneNumber()
-            String strNum2 = TestUtils.randPhoneNumber()
+            String strNum1 = TestUtils.randPhoneNumberString()
+            String strNum2 = TestUtils.randPhoneNumberString()
             // creating contacts
             statusToContactNum[cStatus] = strNum1
             contacts << phone1.createContact([status:cStatus], [strNum1]).payload
@@ -210,7 +210,7 @@ class ContactSpec extends CustomSpec {
                 assert otherContact.sharedContacts.isEmpty() == true
             }
         }
-        String otherNum = TestUtils.randPhoneNumber()
+        String otherNum = TestUtils.randPhoneNumberString()
 
         expect:
         Contact.countForPhoneAndSearch(phone1, otherNum) == 0

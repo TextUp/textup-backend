@@ -86,7 +86,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         0 * service.callService._
 
         when: "has remaining numbers"
-        params = new TypeConvertingMap(remaining: [TestUtils.randPhoneNumber()], AccountSid: accountId)
+        params = new TypeConvertingMap(remaining: [TestUtils.randPhoneNumberString()], AccountSid: accountId)
         service.tryRetryParentCall(null, params)
 
         then:
@@ -98,7 +98,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         service.receiptCache = GroovyMock(RecordItemReceiptCache)
         String parentId = TestUtils.randString()
         String childId = TestUtils.randString()
-        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         ReceiptStatus status = ReceiptStatus.BUSY
         Integer duration = TestUtils.randIntegerUpTo(100, true)
 
@@ -198,7 +198,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
         given:
         String parentId = TestUtils.randString()
         String childId = TestUtils.randString()
-        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber childNumber = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         ReceiptStatus status = ReceiptStatus.SUCCESS
         Integer duration = TestUtils.randIntegerUpTo(100, true)
 
@@ -348,7 +348,7 @@ class CallbackStatusServiceSpec extends CustomSpec {
             CallStatus: ReceiptStatus.PENDING.statuses[0],
             CallDuration: "88",
             ParentCallSid: "yes",
-            (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): TestUtils.randPhoneNumber()
+            (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): TestUtils.randPhoneNumberString()
         ])
         service.process(params)
 

@@ -43,8 +43,8 @@ class CallServiceSpec extends Specification {
     @ConfineMetaClassChanges([Call])
     void "test building call creator"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         TwilioPhoneNumber apiTo = toNum.toApiPhoneNumber()
         TwilioPhoneNumber apiFrom = fromNum.toApiPhoneNumber()
         String customAccountId = TestUtils.randString()
@@ -113,8 +113,8 @@ class CallServiceSpec extends Specification {
 
     void "test do call helper errors"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         String customAccountId = TestUtils.randString()
         String callback = TestUtils.randString()
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
@@ -152,8 +152,8 @@ class CallServiceSpec extends Specification {
 
     void "test do call helper success"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         String customAccountId = TestUtils.randString()
         String callback = TestUtils.randString()
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
@@ -185,7 +185,7 @@ class CallServiceSpec extends Specification {
 
     void "test building callback url"() {
         given:
-        List<String> remaining = [TestUtils.randPhoneNumber(), TestUtils.randPhoneNumber()]
+        List<String> remaining = [TestUtils.randPhoneNumberString(), TestUtils.randPhoneNumberString()]
         String afterPickupJson = TestUtils.randString()
 
         when: "has remaining"
@@ -242,8 +242,8 @@ class CallServiceSpec extends Specification {
 
     void "test retrying call"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         String apiId = TestUtils.randString()
         String customAccountId = TestUtils.randString()
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
@@ -273,8 +273,8 @@ class CallServiceSpec extends Specification {
 
     void "test starting call errors"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
         String customAccountId = TestUtils.randString()
 
@@ -304,10 +304,10 @@ class CallServiceSpec extends Specification {
 
     void "test starting call successfully"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum3 = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum3 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
         String customAccountId = TestUtils.randString()
 
@@ -354,8 +354,8 @@ class CallServiceSpec extends Specification {
 
         PhoneNumber invalidFrom1 = new PhoneNumber(number:TestConstants.TEST_CALL_FROM_NOT_VALID)
         PhoneNumber fromNum1 = new PhoneNumber(number:TestConstants.TEST_CALL_FROM_VALID),
-            toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumber()),
-            toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumber()),
+            toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumberString()),
+            toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumberString()),
             invalidNum1 = new PhoneNumber(number:TestConstants.TEST_CALL_TO_NOT_VALID)
         assert [invalidFrom1, fromNum1, toNum1, toNum2, invalidNum1].each { it.validate() }
 

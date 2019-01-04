@@ -1,41 +1,43 @@
 package org.textup.validator
 
-import grails.compiler.GrailsTypeChecked
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
+import grails.compiler.GrailsTypeChecked
+import org.textup.util.StringUtils
 
 @GrailsTypeChecked
 abstract class BasePhoneNumber {
 
     String number
 
-    // Property Access
-    // ---------------
+    // Methods
+    // -------
 
-    String getPrettyPhoneNumber() {
-        String n = this.number
-        (n && n.size() > 6) ? "${n[0..2]} ${n[3..5]} ${n[6..-1]}" : ""
-    }
-    String getE164PhoneNumber() {
-        String n = this.number
-        n ? "+1${n}" : ""
-    }
-    void setNumber(String n) {
-        this.number = cleanPhoneNumber(n)
-    }
-    private String cleanPhoneNumber(String n) {
-        if (n) {
-            String cleaned = n.replaceAll(/\D+/, "")
-            (cleaned.size() == 11 && cleaned[0] == "1") ? cleaned.substring(1) : cleaned
-        }
-        else { n }
-    }
-
-    TwilioPhoneNumber toApiPhoneNumber() {
-        new TwilioPhoneNumber(this.number)
+    BasePhoneNumber update(BasePhoneNumber otherNum) {
+        number = otherNum?.number
+        this
     }
 
     @Override
     String toString() {
-        this.prettyPhoneNumber
+        prettyPhoneNumber
+    }
+
+    // Property Access
+    // ---------------
+
+    String getPrettyPhoneNumber() {
+        String n = number
+        (n && n.size() > 6) ? "${n[0..2]} ${n[3..5]} ${n[6..-1]}" : ""
+    }
+    String getE164PhoneNumber() {
+        String n = number
+        n ? "+1${n}" : ""
+    }
+    void setNumber(String num) {
+        number = StringUtils.cleanPhoneNumber(num)
+    }
+
+    TwilioPhoneNumber toApiPhoneNumber() {
+        new TwilioPhoneNumber(number)
     }
 }

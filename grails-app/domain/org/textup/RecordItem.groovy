@@ -136,10 +136,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static DetachedCriteria<RecordItem> forRecords(Collection<Record> records) {
         new DetachedCriteria(RecordItem)
-            .build {
-                if (records) { "in"("record", records) }
-                else { eq("record", null) }
-            }
+            .build { CriteriaUtils.inList(delegate, "record", records) }
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -150,8 +147,8 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
         new DetachedCriteria(RecordItem)
             .build {
                 or {
-                    "in"("record.id", RecordItem.forRecordOwnerPhone(Contact, phoneId))
-                    "in"("record.id", RecordItem.forRecordOwnerPhone(ContactTag, phoneId))
+                    "in"("record.id", RecordItem.forRecordIdsFromPhoneId(Contact, phoneId))
+                    "in"("record.id", RecordItem.forRecordIdsFromPhoneId(ContactTag, phoneId))
                 }
             }
             .build(RecordItem.buildForOptionalDates(start, end))
@@ -164,12 +161,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
         Collection<Class<? extends RecordItem>> types = null) {
 
         new DetachedCriteria(RecordItem)
-            .build {
-                if (recIds) {
-                    "in"("record.id", recIds)
-                }
-                else { eq("record.id", null) }
-            }
+            .build { CriteriaUtils.inList(delegate, "record.id", recIds) }
             .build(RecordItem.buildForOptionalDates(start, end))
             .build(RecordItem.buildForOptionalTypes(types))
     }
@@ -180,7 +172,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
     // we don't include the sort order by default and we have to separately add it in
     // before calling `list()`. See https://stackoverflow.com/a/19602031
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Closure buildForSort(boolean recentFirst = true) {
+    static Closure buildForSort(boolean recentFirst = true) {
         return {
             if (recentFirst) {
                 // from newer (larger # millis) to older (smaller $ millis)
@@ -190,14 +182,14 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
         }
     }
 
-
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static DetachedCriteria<Long> forRecordOwnerPhone(Class<? extends WithRecord> ownerClass,
+    protected static DetachedCriteria<Long> forRecordIdsFromPhoneId(Class<? extends WithPhoneAndRecord> clazz,
         Long phoneId) {
 
-        return new DetachedCriteria(ownerClass).build {
+        return new DetachedCriteria(clazz).build {
             projections { property("record.id") }
             eq("phone.id", phoneId)
+            eq("isDeleted", false)
         }
     }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -213,11 +205,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
     }
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static Closure buildForOptionalTypes(Collection<Class<? extends RecordItem>> types = null) {
-        return {
-            if (types) {
-                "in"("class", types*.canonicalName)
-            }
-        }
+        return { CriteriaUtils.inList(delegate, "class", types*.canonicalName) }
     }
 
     // Methods
@@ -243,7 +231,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
     }
 
     RecordItemStatus groupReceiptsByStatus() {
-        new RecordItemStatus(this.receipts)
+        new RecordItemStatus(receipts)
     }
 
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
@@ -252,14 +240,12 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
 
     void setAuthor(Author author) {
         if (author?.validate()) {
-            this.with {
-                authorName = author.name
-                authorId = author.id
-                authorType = author.type
-            }
+            authorName = author.name
+            authorId = author.id
+            authorType = author.type
         }
     }
     Author getAuthor() {
-        new Author(name:this.authorName, id:this.authorId, type:this.authorType)
+        new Author(name: authorName, id: authorId, type: authorType)
     }
 }

@@ -2,6 +2,7 @@ package org.textup.validator.action
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.TypeCheckingMode
 import org.textup.*
 import org.textup.util.*
 
@@ -27,6 +28,21 @@ abstract class BaseAction {
 
 	abstract Collection<String> getAllowedActions()
 
+	@GrailsTypeChecked(TypeCheckingMode.SKIP)
+	BaseAction update(Map<?, ?> dataMap) {
+		// set properties from map, ignoring the nonexistent properties
+		// which will throw a MissingPropertyException if we directly
+		// pass the data map into the newInstance constructor
+		dataMap?.each { Object k, Object v ->
+			String kStr = k?.toString()
+			MetaProperty propertyInfo = hasProperty(kStr)
+			if (propertyInfo) {
+				this[kStr] = TypeConversionUtils.to(propertyInfo.type, v)
+			}
+		}
+		this
+	}
+
 	boolean matches(String toMatch) {
 		StringUtils.toLowerCaseString(action) == StringUtils.toLowerCaseString(toMatch)
 	}
@@ -44,6 +60,7 @@ abstract class BaseAction {
 	boolean equals(Object other) {
 		(other instanceof BaseAction) ? this.matches((other as BaseAction).action) : false
 	}
+
 	@Override
 	String toString() {
 		this._allowedAction

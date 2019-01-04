@@ -23,7 +23,7 @@ class Result<T> {
     // Static methods
     // --------------
 
-    static <V> Result<V> createSuccess(T payload, ResultStatus status) {
+    static <V> Result<V> createSuccess(V payload, ResultStatus status = ResultStatus.OK) {
         Result<V> res = new Result<>()
         res.setSuccess(payload, status)
     }

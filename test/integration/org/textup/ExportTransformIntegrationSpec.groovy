@@ -162,7 +162,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
     void "test providing a count of types of record items contained in this export"() {
         given:
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         contact1.save(flush: true, failOnError: true)
         iReq.contacts.recipients << contact1
 
@@ -238,7 +238,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
         String phoneNumber = p1.number.prettyPhoneNumber
 
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        Contact contact1 = p1.createContact([name: ownerName], [TestUtils.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([name: ownerName], [TestUtils.randPhoneNumberString()]).payload
         contact1.save(flush: true, failOnError: true)
         iReq.contacts.recipients << contact1
 
@@ -284,7 +284,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
     void "testing displaying media"() {
         given:
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         contact1.save(flush: true, failOnError: true)
         iReq.contacts.recipients << contact1
 
@@ -331,7 +331,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
     void "test displaying receipts"() {
         given:
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         contact1.save(flush: true, failOnError: true)
         iReq.contacts.recipients << contact1
 
@@ -375,7 +375,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
     void "test displaying note"() {
         given:
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         contact1.save(flush: true, failOnError: true)
         iReq.contacts.recipients << contact1
 
@@ -403,7 +403,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
     void "test displaying text"() {
         given:
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         contact1.save(flush: true, failOnError: true)
         iReq.contacts.recipients << contact1
 
@@ -426,7 +426,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
     void "test displaying call"() {
         given:
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact contact1 = p1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         contact1.save(flush: true, failOnError: true)
         iReq.contacts.recipients << contact1
 

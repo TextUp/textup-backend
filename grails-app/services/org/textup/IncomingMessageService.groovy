@@ -16,7 +16,7 @@ class IncomingMessageService {
     AnnouncementService announcementService
     IncomingMediaService incomingMediaService
     NotificationService notificationService
-    ResultFactory resultFactory
+    OutgoingNotificationService outgoingNotificationService
     SocketService socketService
     ThreadService threadService
     VoicemailService voicemailService
@@ -31,8 +31,9 @@ class IncomingMessageService {
         buildTexts(p1, text, sess1)
             .then { Tuple<List<RecordText>, List<Contact>> processed ->
                 List<RecordText> rTexts = processed.first
-                List<Contact> notBlockedContacts = processed.second
-                List<BasicNotification> notifs = notificationService.build(p1, notBlockedContacts)
+                notificationService.build(rTexts).curry(rTexts)
+            }
+            .then { List<RecordText> rTexts, List<OutgoingNotification> notifs ->
                 // step 2: in a new thread, handle long-running tasks. Delay required to allow texts
                 // created in this thread to save. Otherwise, when we try to get texts with the
                 // following ids, they will have be saved yet and we will get `null` in return
@@ -41,18 +42,16 @@ class IncomingMessageService {
                         .logFail("IncomingMessageService.processText: finishing processing")
                 }
                 // step 3: return the appropriate response while long-running tasks still processing
-                if (notBlockedContacts) {
-                    buildTextResponse(p1, sess1, rTexts, notifs)
-                }
-                else { TextTwiml.blocked() }
+                buildTextResponse(p1, sess1, rTexts, notifs)
             }
     }
 
+    // TODO simplify signature?
     protected Result<Tuple<List<RecordText>, List<Contact>>> buildTexts(Phone p1, IncomingText text,
         IncomingSession sess1) {
         List<RecordText> rTexts = []
         storeForNumber(p1, sess1.number, this.&buildTextsHelper.curry(text, sess1, rTexts.&add))
-            .then { List<Contact> cList -> resultFactory.success(rTexts, cList) }
+            .then { List<Contact> cList -> IOCUtils.resultFactory.success(rTexts, cList) }
     }
     protected void buildTextsHelper(IncomingText text, IncomingSession sess1,
         Closure<Void> doStoreText, Contact c1) {
@@ -64,20 +63,24 @@ class IncomingMessageService {
     }
 
     protected Result<Closure> buildTextResponse(Phone p1, IncomingSession sess1,
-        List<RecordText> rTexts, List<BasicNotification> notifs) {
-        List<String> responses = []
-        if (notifs.isEmpty()) {
-            rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
-            responses << p1.buildAwayMessage()
+        List<RecordText> rTexts, List<OutgoingNotification> notifs) {
+
+        if (rTexts) {
+            List<String> responses = []
+            if (notifs.isEmpty()) {
+                rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
+                responses << p1.buildAwayMessage()
+            }
+            // remind about instructions if phone has announcements enabled
+            announcementService
+                .tryBuildTextInstructions(p1, sess1)
+                .then { List<String> instructions -> TextTwiml.build(responses + instructions) }
         }
-        // remind about instructions if phone has announcements enabled
-        announcementService
-            .tryBuildTextInstructions(p1, sess1)
-            .then { List<String> instructions -> TextTwiml.build(responses + instructions) }
+        else { TextTwiml.blocked() }
     }
 
     protected Result<Void> finishProcessingText(IncomingText text, List<Long> textIds,
-        List<BasicNotification> notifs, TypeConvertingMap params) {
+        List<OutgoingNotification> notifs, TypeConvertingMap params) {
 
         Integer numMedia = params.int("NumMedia", 0)
         // if needed, process media, which includes generating versions, uploading versions,
@@ -92,12 +95,12 @@ class IncomingMessageService {
             if (mInfo.save()) {
                 finishProcessingTextHelper(text, textIds, notifs, mInfo)
             }
-            else { resultFactory.failWithValidationErrors(mInfo.errors) }
+            else { IOCUtils.resultFactory.failWithValidationErrors(mInfo.errors) }
         }
         else { finishProcessingTextHelper(text, textIds, notifs) }
     }
     protected Result<Void> finishProcessingTextHelper(IncomingText text, List<Long> textIds,
-        List<BasicNotification> notifs, MediaInfo mInfo = null) {
+        List<OutgoingNotification> notifs, MediaInfo mInfo = null) {
 
         Collection<RecordText> rTexts = rebuildRecordTexts(textIds)
         int numNotified = notifs.size()
@@ -106,21 +109,21 @@ class IncomingMessageService {
             rText.media = mInfo
             rText.numNotified = numNotified
             if (!rText.save()) {
-                outcomes << resultFactory.failWithValidationErrors(rText.errors)
+                outcomes << IOCUtils.resultFactory.failWithValidationErrors(rText.errors)
             }
         }
         if (!outcomes.anyFailures) {
             // send out notifications
-            notificationService.send(notifs, false, text.message)
+            outgoingNotificationService.send(notifs, false, text.message)
                 .logFail("IncomingMessageService.finishProcessingTextHelper: notifying staff")
             // For outgoing messages and all calls, we rely on status callbacks
             // to push record items to the frontend. However, for incoming texts
             // no status callback happens so we need to push the item here
             socketService.sendItems(rTexts)
                 .logFail("IncomingMessageService.finishProcessingTextHelper: sending via socket")
-            resultFactory.success()
+            IOCUtils.resultFactory.success()
         }
-        else { resultFactory.failWithGroup(outcomes) }
+        else { IOCUtils.resultFactory.failWithGroup(outcomes) }
     }
     protected Collection<RecordText> rebuildRecordTexts(Collection<Long> textIds) {
         Collection<RecordText> rTexts = []
@@ -181,24 +184,27 @@ class IncomingMessageService {
             return CallTwiml.blocked()
         }
         // try notify available staff members
-        List<BasicNotification> notifs = notificationService.build(p1, notBlockedContacts)
-        if (notifs) {
-            handleNotificationsForIncomingCall(p1, sess1, notifs)
-        }
-        else { handleAwayForIncomingCall(p1, sess1, rCalls) }
+        notificationService.build(rCalls)
+            .then { List<OutgoingNotification> notifs ->
+                if (notifs) {
+                    handleNotificationsForIncomingCall(p1, sess1, notifs)
+                }
+                else { handleAwayForIncomingCall(p1, sess1, rCalls) }
+            }
     }
 
     protected Result<Closure> handleNotificationsForIncomingCall(Phone p1, IncomingSession sess1,
-        List<BasicNotification> notifs) {
+        List<OutgoingNotification> notifs) {
 
-        HashSet<String> numsToCall = new HashSet<>()
-        notifs.each { BasicNotification bn1 ->
-            Staff s1 = bn1.staff
-            if (s1?.personalPhoneAsString) {
-                numsToCall << s1.personalPhoneNumber.e164PhoneNumber
-            }
-        }
-        CallTwiml.connectIncoming(p1.number, sess1.number, numsToCall)
+        // TODO restore
+        // HashSet<String> numsToCall = new HashSet<>()
+        // notifs.each { OutgoingNotification bn1 ->
+        //     Staff s1 = bn1.staff
+        //     if (s1?.personalPhoneAsString) {
+        //         numsToCall << s1.personalPhoneNumber.e164PhoneNumber
+        //     }
+        // }
+        // CallTwiml.connectIncoming(p1.number, sess1.number, numsToCall)
     }
 
     protected Result<Closure> handleAwayForIncomingCall(Phone p1, IncomingSession sess1,
@@ -239,53 +245,47 @@ class IncomingMessageService {
     // Screening
     // ---------
 
-    Result<Closure> screenIncomingCall(Phone p1, IncomingSession session) {
-        List<Contact> notBlockedContacts = getDeliverableContacts(p1, session.number).second
-        HashSet<String> idents = new HashSet<>()
-        notBlockedContacts.each { Contact c1 -> idents.add(c1.getNameOrNumber()) }
-        CallTwiml.screenIncoming(idents)
+    Result<Closure> screenIncomingCall(Phone p1, IncomingSession sess1) {
+
+        Contact.findEveryByNumbers(p1, [sess1.number], false)
+            .then { Map<PhoneNumber, List<Contact>> numberToContacts ->
+                HashSet<String> idents = new HashSet<>()
+                numberToContacts.each { PhoneNumber pNum, List<Contact> contacts ->
+                    contacts.each { Contact c1 ->
+                        idents.add(c1.getNameOrNumber())
+                    }
+                }
+                CallTwiml.screenIncoming(idents)
+            }
     }
 
     // Helpers
     // -------
 
-    protected Tuple<List<Contact>, List<Contact>> getDeliverableContacts(Phone phone, PhoneNumber pNum) {
-        List<Contact> contacts = Contact.listForPhoneAndNum(phone, pNum),
-            notBlockedContacts = contacts.findAll { Contact c1 ->
-                c1.status != ContactStatus.BLOCKED
-            } as List<Contact>
-        Tuple.create(contacts, notBlockedContacts)
-    }
-
-    protected Result<List<Contact>> storeForNumber(Phone phone, PhoneNumber pNum,
+    protected Result<List<Contact>> storeForNumber(Phone p1, PhoneNumber pNum,
         Closure<Void> storeContact) {
 
-        Tuple<List<Contact>, List<Contact>> deliverables = getDeliverableContacts(phone, pNum)
-        List<Contact> contacts = deliverables.first,
-            notBlockedContacts = deliverables.second
-        // only create new contact if no blocked contact either because
-        // we don't want to create a new contact if there is a blocked contact associated
-        // with the incoming number
-        if (contacts.isEmpty()) {
-            Result res = phone.createContact([:], [pNum.number])
-            if (res.success) {
-                notBlockedContacts = [res.payload]
+        Contact.findEveryByNumbers(p1, [pNum], true)
+            .then { Map<PhoneNumber, List<Contact>> numberToContacts ->
+                Result.<Contact>createSuccess(CollectionUtils.flattenValues(numberToContacts))
             }
-            else { return res }
-        }
-        //add text to contact records
-        //note that blocked contacts will not even have the incoming message be stored
-        for (Contact c1 in notBlockedContacts) {
-            Result<Void> res = storeAndUpdateStatusForContact(storeContact, c1)
-            if (!res.success) { return res }
-        }
-        // socket notify of new contact and/or unread contacts
-        socketService.sendContacts(notBlockedContacts)
-        resultFactory.success(notBlockedContacts)
+            .then { Collection<Contact> contacts ->
+                ResultGroup<Void> resGroup = new ResultGroup<>()
+                contacts.each { c1 ->
+                    resGroup << storeAndUpdateStatusForContact(storeContact, c1)
+                }
+                if (resGroup.anyFailures) {
+                    IOCUtils.resultFactory.failWithGroup(resGroup)
+                }
+                else {
+                    socketService.sendContacts(contacts)
+                    IOCUtils.resultFactory.success(contacts)
+                }
+            }
     }
 
     protected Result<Void> storeAndUpdateStatusForContact(Closure<Void> storeContact, Contact c1) {
-        storeContact(c1)
+        storeContact.call(c1)
         // only change status to unread
         // dont' have to worry about blocked contacts since we already filtered those out
         c1.status = ContactStatus.UNREAD
@@ -302,10 +302,12 @@ class IncomingMessageService {
             if (sc1.status != ContactStatus.BLOCKED) {
                 sc1.status = ContactStatus.UNREAD
                 if (!sc1.save()) {
-                    return resultFactory.failWithValidationErrors(sc1.errors)
+                    return IOCUtils.resultFactory.failWithValidationErrors(sc1.errors)
                 }
             }
         }
-        c1.save() ? resultFactory.success() : resultFactory.failWithValidationErrors(c1.errors)
+        c1.save() ?
+            IOCUtils.resultFactory.success() :
+            IOCUtils.resultFactory.failWithValidationErrors(c1.errors)
     }
 }

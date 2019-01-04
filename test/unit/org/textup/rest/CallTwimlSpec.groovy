@@ -204,7 +204,7 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "voicemail -- robot reading away message"
-        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         Map callbackParams = [handle: CallResponse.VOICEMAIL_DONE, From: fromNum.e164PhoneNumber,
             To: p1.number.e164PhoneNumber]
         Map actionParams = [handle: CallResponse.END_CALL]
@@ -273,9 +273,9 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "connect incoming valid"
-        PhoneNumber dispNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        PhoneNumber originalFrom = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        String num = TestUtils.randPhoneNumber()
+        PhoneNumber dispNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        PhoneNumber originalFrom = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        String num = TestUtils.randPhoneNumberString()
         Map voicemailParams = [handle: CallResponse.CHECK_IF_VOICEMAIL]
         Map screenParams = CallTwiml.infoForScreenIncoming(originalFrom)
         res = CallTwiml.connectIncoming(dispNum, originalFrom, [num])
@@ -586,8 +586,8 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "valid"
-        PhoneNumber phoneNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        PhoneNumber sessNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber phoneNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        PhoneNumber sessNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         Map processingParams = [handle: CallResponse.VOICEMAIL_GREETING_PROCESSING]
         Map doneParams = CallTwiml.infoForVoicemailGreetingFinishedProcessing(phoneNum, sessNum)
         res = CallTwiml.recordVoicemailGreeting(phoneNum, sessNum)
@@ -631,7 +631,7 @@ class CallTwimlSpec extends CustomSpec {
         res.errorMessages[0] == "twimlBuilder.invalidCode"
 
         when: "valid"
-        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         URL greetingLink = new URL("http://www.example.com/${TestUtils.randString()}")
         Map recordParams = CallTwiml.infoForRecordVoicemailGreeting()
         res = CallTwiml.playVoicemailGreeting(fromNum, greetingLink)

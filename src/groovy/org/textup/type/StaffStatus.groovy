@@ -9,6 +9,8 @@ enum StaffStatus {
 	STAFF,
 	ADMIN
 
+	static List<StaffStatus> ACTIVE_STATUSES = [STAFF, ADMIN]
+
 	boolean getIsPending() {
 		this == PENDING
 	}

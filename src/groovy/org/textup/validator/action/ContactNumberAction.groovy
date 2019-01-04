@@ -3,10 +3,12 @@ package org.textup.validator.action
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.textup.Constants
-import org.textup.validator.PhoneNumber
+import org.textup.*
+import org.textup.util.*
+import org.textup.validator.*
 
 // documented as [numberAction] in CustomApiDocs.groovy
+
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
@@ -38,7 +40,10 @@ class ContactNumberAction extends BaseAction {
 	// ---------------
 
 	void setNumber(String num) {
-		// clean number before validate
-		this.number = (new PhoneNumber(number:num)).number
+		number = StringUtils.cleanPhoneNumber(num)
+	}
+
+	PhoneNumber getPhoneNumber() {
+		PhoneNumber.create(number)
 	}
 }

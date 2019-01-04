@@ -9,12 +9,15 @@ import org.textup.util.*
 @GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
-class ActionContainer {
+class ActionContainer<T extends BaseAction> {
 
 	Object data
+	Class<T> clazz
+	List<T> actions = []
 
-	ActionContainer(Object data) {
-		this.data = data
+	ActionContainer(Class<T> clazz, Object data) {
+		data = data
+		clazz = clazz
 	}
 
 	static constraints = {
@@ -29,47 +32,25 @@ class ActionContainer {
 			}
 			else { ["emptyOrNotACollection"] }
 		}
+		actions cascadeValidation: true
 	}
 
-	// Methods
-	// -------
+	// Property access
+	// ---------------
 
-	public <T extends BaseAction> List<T> validateAndBuildActions(Class<T> clazz) {
+	void setData(Object obj) {
+		data = obj
+		actions = tryBuildActions()
+	}
+
+	protected List<T> tryBuildActions() {
 		List<T> actions = []
-		if (!validate()) {
-			return actions
-		}
-		if (!clazz) { // even if clazz is null, we still want to validate
-			return actions
-		}
-		Collection dataCollection = TypeConversionUtils.to(Collection, data)
-		List<String> errorMessages = []
-		if (dataCollection) {
-			for (Object dataObj in dataCollection) {
-				Map dataMap = TypeConversionUtils.to(Map, dataObj)
-				if (dataMap) {
-					T action = (clazz.newInstance() as T)
-					// set properties from map, ignoring the nonexistent properties
-					// which will throw a MissingPropertyException if we directly
-					// pass the data map into the newInstance constructor
-					dataMap.each { Object k, Object v ->
-						String kStr = k?.toString()
-						MetaProperty propertyInfo = action.hasProperty(kStr)
-						if (propertyInfo) {
-							action[kStr] = TypeConversionUtils.to(propertyInfo.type, v)
-						}
-					}
-					if (action.validate()) { actions << action }
-					else {
-						Result res = IOCUtils.resultFactory.failWithValidationErrors(action.errors)
-						errorMessages += res.errorMessages
-					}
-				}
+		if (validate(["data"])) {
+			TypeConversionUtils.to(Collection, data)?.each { Object obj ->
+				T action = (clazz.newInstance() as T)
+				action.update(TypeConversionUtils.to(Map, obj))
+				actions << action
 			}
-		}
-		if (errorMessages) {
-			this.errors.reject("actionContainer.invalidActions", [errorMessages] as Object[],
-				"Invalid action items")
 		}
 		actions
 	}

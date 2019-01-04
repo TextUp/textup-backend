@@ -13,6 +13,7 @@ import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.util.*
 import org.textup.validator.*
+import org.textup.validator.action.*
 
 // [UNTESTED] cannot mock for testing because all Twilio SDK methods are final
 
@@ -21,9 +22,29 @@ import org.textup.validator.*
 class NumberService {
 
 	GrailsApplication grailsApplication
-	ResultFactory resultFactory
     TokenService tokenService
     TextService textService
+
+    Result<Void> handleActions(Contact c1, Map body) {
+        ActionContainer ac1 = new ActionContainer<>(ContactNumberAction, body.doNumberActions)
+        if (!ac1.validate()) {
+            return IOCUtils.resultFactory.failWithValidationErrors(ac1.errors)
+        }
+        ResultGroup<?> resGroup = new ResultGroup<>()
+        ac1.actions.each { ContactNumberAction a1 ->
+            switch (a1) {
+                case Constants.NUMBER_ACTION_MERGE:
+                    resGroup << c1.mergeNumber(a1.phoneNumber, a1.preference)
+                    break
+                default: // Constants.NUMBER_ACTION_DELETE
+                    resGroup << c1.deleteNumber(a1.phoneNumber)
+            }
+        }
+        if (resGroup.anyFailures) {
+            IOCUtils.resultFactory.failWithGroup(resGroup)
+        }
+        else { IOCUtils.resultFactory.success() }
+    }
 
     // Verifying ownership
     // -------------------
@@ -32,7 +53,7 @@ class NumberService {
     Result<Void> startVerifyOwnership(PhoneNumber toNum) {
         // validate to number
         if (!toNum.validate()) {
-            return resultFactory.failWithValidationErrors(toNum.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(toNum.errors)
         }
         // Notification number will always be on our main account so no need for customAccountId
         String customAccountId = null
@@ -70,14 +91,14 @@ class NumberService {
 	        	aNum.sid = iNum.sid
 	        	if (aNum.validate()) { aNums << aNum }
 	        	else {
-	        		return resultFactory.failWithValidationErrors(aNum.errors)
+	        		return IOCUtils.resultFactory.failWithValidationErrors(aNum.errors)
 	        	}
 	        }
-	        resultFactory.success(aNums)
+	        IOCUtils.resultFactory.success(aNums)
     	}
     	catch (TwilioException e) {
             log.error("NumberService.listExistingNumbers: ${e.message}")
-            resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
 
@@ -118,16 +139,16 @@ class NumberService {
 		    	aNum.region = "${lNum.region}, ${lNum.isoCountry}"
 		    	if (aNum.validate()) { aNums << aNum }
 		    	else {
-		    		return resultFactory.failWithValidationErrors(aNum.errors)
+		    		return IOCUtils.resultFactory.failWithValidationErrors(aNum.errors)
 		    	}
 		    }
-		    resultFactory.success(aNums)
+		    IOCUtils.resultFactory.success(aNums)
     	}
     	catch (TwilioException e) {
             // we accept freeform input so we should expect TwilioException errors
             // return an empty array on error
             log.debug("NumberService.listNewNumbers: ${e.message}")
-            resultFactory.success([])
+            IOCUtils.resultFactory.success([])
         }
     }
 
@@ -141,14 +162,14 @@ class NumberService {
     		aNum.phoneNumber = returnedNum.phoneNumber.endpoint
     		aNum.region = returnedNum.countryCode
     		if (aNum.validate()) {
-    			resultFactory.success(aNum)
+    			IOCUtils.resultFactory.success(aNum)
     		}
-    		else { resultFactory.failWithValidationErrors(aNum.errors) }
+    		else { IOCUtils.resultFactory.failWithValidationErrors(aNum.errors) }
     	}
     	catch (TwilioException e) {
     		// don't log because we are validating numbers here and expect some to
     		// result in an exception when they are invalid
-    		resultFactory.failWithThrowable(e)
+    		IOCUtils.resultFactory.failWithThrowable(e)
     	}
     }
 
@@ -173,10 +194,10 @@ class NumberService {
                 .setVoiceApplicationSid(appId)
                 .setVoiceMethod(HttpMethod.POST)
                 .create()
-            resultFactory.success(iNum)
+            IOCUtils.resultFactory.success(iNum)
         }
         catch (TwilioException e) {
-            resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
 
@@ -193,10 +214,10 @@ class NumberService {
                 .setVoiceApplicationSid(appId)
                 .setVoiceMethod(HttpMethod.POST)
                 .update()
-            resultFactory.success(uNum)
+            IOCUtils.resultFactory.success(uNum)
         }
         catch (TwilioException e) {
-            resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
 
@@ -206,9 +227,9 @@ class NumberService {
         p1.apiId = newNum.sid
         p1.number = new PhoneNumber(number:newNum.phoneNumber as String)
         if (oldApiId) {
-            freeExistingNumberToInternalPool(oldApiId).then({ resultFactory.success(p1) })
+            freeExistingNumberToInternalPool(oldApiId).then({ IOCUtils.resultFactory.success(p1) })
         }
-        else { resultFactory.success(p1) }
+        else { IOCUtils.resultFactory.success(p1) }
     }
 
     // [UNTESTED] due to mocking constraints
@@ -219,10 +240,10 @@ class NumberService {
                 .updater(oldApiId)
                 .setFriendlyName(available)
                 .update()
-            resultFactory.success(uNum)
+            IOCUtils.resultFactory.success(uNum)
         }
         catch (TwilioException e) {
-            resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
 
@@ -242,10 +263,10 @@ class NumberService {
                 }
                 else { errorNumberIds << iNum.sid }
             }
-            resultFactory.success(deletedNumberIds, errorNumberIds)
+            IOCUtils.resultFactory.success(deletedNumberIds, errorNumberIds)
         }
         catch (TwilioException e) {
-            resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
 }

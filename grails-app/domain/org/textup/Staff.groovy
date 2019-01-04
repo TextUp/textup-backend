@@ -139,7 +139,7 @@ class Staff implements Schedulable, WithId {
                 ilike("username", query)
                 ilike("email", query)
             }
-            "in"("status", [StaffStatus.STAFF, StaffStatus.ADMIN])
+            CriteriaUtils.inList(delegate, "status", StaffStatus.ACTIVE_STATUSES)
         }
     }
 
@@ -340,7 +340,7 @@ class Staff implements Schedulable, WithId {
                 if (teams) {
                     and{
                         eq("type", PhoneOwnershipType.GROUP)
-                        "in"("ownerId", teams*.id)
+                        CriteriaUtils.inList(delegate, "ownerId", teams*.id)
                     }
                 }
             }

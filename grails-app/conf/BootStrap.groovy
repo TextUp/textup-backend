@@ -122,9 +122,12 @@ class BootStrap {
 				t2.save(flush:true, failOnError:true)
 
 		    	//create contacts with items
-		    	Contact c1 = p1.createContact([name:"John Smith"], ["4018681240"]).payload
-				Contact c2 = p2.createContact([:], ["4018681240"]).payload
-				Contact tC1 = tPh1.createContact([:], ["1112223333", "4018681240"]).payload
+		    	PhoneNumber testNum1 = PhoneNumber.create("4018681240"),
+		    		testNum2 = PhoneNumber.create("1112223333")
+		    	Contact c1 = Contact.create(p1, [testNum1]).payload
+		    	c1.name = "John Smith"
+				Contact c2 = Contact.create(p2, [testNum1]).payload
+				Contact tC1 = Contact.create(tPh1, [testNum2, testNum1]).payload
 				[c1, c2, tC1]*.save(flush:true, failOnError:true)
 				RecordText rText1 = c1.record
 					.storeOutgoingText("Hi! Hope you're doing well today.", null).payload

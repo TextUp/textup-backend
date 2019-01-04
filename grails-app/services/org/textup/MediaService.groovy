@@ -76,14 +76,12 @@ class MediaService {
 
     protected ResultGroup<UploadItem> handleActions(MediaInfo mInfo, Map body) {
         // validate actions
-        ActionContainer ac1 = new ActionContainer(getMediaActions(body))
-        List<MediaAction> actions = ac1.validateAndBuildActions(MediaAction)
-        if (ac1.hasErrors()) {
+        ActionContainer ac1 = new ActionContainer<>(MediaAction, getMediaActions(body))
+        if (!ac1.validate()) {
             return resultFactory.failWithValidationErrors(ac1.errors).toGroup()
         }
         ResultGroup<UploadItem> outcomes = new ResultGroup<>()
-        // process actions
-        actions.each { MediaAction a1 ->
+        ac1.actions.each { MediaAction a1 ->
             switch (a1) {
                 case Constants.MEDIA_ACTION_ADD:
                     outcomes << MediaPostProcessor.buildInitialData(a1.type, a1.byteData)

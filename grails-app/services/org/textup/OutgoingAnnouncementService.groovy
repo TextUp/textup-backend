@@ -32,10 +32,12 @@ class OutgoingAnnouncementService {
         Map<String, Result<TempRecordReceipt>> textRes = sendTextAnnouncement(p1, message, identifier, textSubs, staff)
         Map<String, Result<TempRecordReceipt>> callRes = startCallAnnouncement(p1, message, identifier, callSubs, staff)
         // collect sessions that we successfully reached
-        Collection<IncomingSession> successTexts =  textSubs
-            .findAll { textRes[it.numberAsString]?.success}
-        Collection<IncomingSession> successCalls = callSubs
-            .findAll { callRes[it.numberAsString]?.success }
+        Collection<IncomingSession> successTexts =  textSubs.findAll {
+            textRes[it.numberAsString]?.success
+        }
+        Collection<IncomingSession> successCalls = callSubs.findAll {
+            callRes[it.numberAsString]?.success
+        }
         // add sessions to announcement as receipts
         ResultGroup<AnnouncementReceipt> textResGroup = announce.addToReceipts(RecordItemType.TEXT, successTexts),
             callResGroup = announce.addToReceipts(RecordItemType.CALL, successCalls)
@@ -94,49 +96,42 @@ class OutgoingAnnouncementService {
         })
     }
 
-    protected Map<String, Result<TempRecordReceipt>> sendAnnouncementHelper(Phone phone,
+    protected Map<String, Result<TempRecordReceipt>> sendAnnouncementHelper(Phone p1,
         List<IncomingSession> sessions, Closure<Result<TempRecordReceipt>> receiptAction,
         Closure<Result<? extends RecordItem>> addToRecordAction) {
 
         Map<String, Result<TempRecordReceipt>> resMap = new HashMap<>()
         Map<String,TempRecordReceipt> numberAsStringToReceipt = [:]
-        sessions.each { IncomingSession s1 ->
-            Result<TempRecordReceipt> res = receiptAction(s1)
-                .logFail("AnnouncementService.sendAnnouncementHelper: sending and returning receipt")
+        sessions.each { IncomingSession sess1 ->
+            Result<TempRecordReceipt> res = receiptAction(sess1)
+                .logFail("sendAnnouncementHelper: sending and returning receipt")
             if (res.success) {
                 TempRecordReceipt receipt = res.payload
-                numberAsStringToReceipt[s1.numberAsString] = receipt
+                numberAsStringToReceipt[sess1.numberAsString] = receipt
             }
-            resMap[s1.numberAsString] = res
+            resMap[sess1.numberAsString] = res
         }
         // find contacts that have the same number as this session, if any
         // if no contacts share this number, we will create a new contact
-        List<Contact> newContacts = []
-        ContactNumber
-            .getContactsForPhoneAndNumbers(phone, numberAsStringToReceipt.keySet())
-            .each { String numAsString, List<Contact> contacts ->
-                TempRecordReceipt receipt = numberAsStringToReceipt[numAsString]
-                if (!contacts) { // create new contact if none found for session
-                    phone.createContact([:], [numAsString])
-                        .logFail("AnnouncementService.sendAnnouncementHelper: create contact")
-                        .thenEnd({ Contact newC ->
-                            newContacts << newC
-                            contacts << newC
-                        })
-                }
-                if (receipt) {
-                    contacts.each { Contact c1 ->
-                        addToRecordAction(c1, receipt)
-                            .logFail("AnnouncementService.sendAnnouncementHelper: add to record")
-                            .thenEnd({ RecordItem item -> item.isAnnouncement = true })
+        List<Contact> allContacts = []
+        Contact.findEveryByNumbers(p1, sessions*.number, true)
+            .then { Map<PhoneNumber, List<Contact>> numberToContacts ->
+                numberToContacts.each { PhoneNumber pNum, List<Contact> contacts ->
+                    TempRecordReceipt receipt = numberAsStringToReceipt[pNum.number]
+                    if (receipt) {
+                        allContacts.addAll(contacts)
+                        contacts.each { Contact c1 ->
+                            addToRecordAction(c1, receipt)
+                                .logFail("sendAnnouncementHelper: add to record")
+                                .thenEnd({ RecordItem item -> item.isAnnouncement = true })
+                        }
                     }
-                }
-                else {
-                    log.error("AnnouncementService.sendAnnouncementHelper: no receipt for $numAsString")
+                    else { log.error("sendAnnouncementHelper: no receipt for ${pNum.number}") }
                 }
             }
-        // notify of new contacts
-        socketService.sendContacts(newContacts)
+            .logFail("sendAnnouncementHelper: findEveryByNumbers for sessions with id `${sessions*.id}`")
+        // send all contacts, so that frontend also has newly created contacts
+        socketService.sendContacts(allContacts)
         //return result map
         resMap
     }

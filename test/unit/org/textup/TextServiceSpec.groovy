@@ -31,8 +31,8 @@ class TextServiceSpec extends Specification {
     @ConfineMetaClassChanges([Message])
     void "test building message creator"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         TwilioPhoneNumber apiTo = toNum.toApiPhoneNumber()
         TwilioPhoneNumber apiFrom = fromNum.toApiPhoneNumber()
         String message = TestUtils.randString()
@@ -97,7 +97,7 @@ class TextServiceSpec extends Specification {
 
         PhoneNumber fromNum = new PhoneNumber(number: TestConstants.TEST_SMS_FROM_VALID)
         assert fromNum.validate()
-        PhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         assert toNum1.validate()
 
         MessageCreator mockMsgCreator = GroovyMock()
@@ -141,8 +141,8 @@ class TextServiceSpec extends Specification {
         String customAccountId = TestUtils.randString()
         Collection<URI> mediaLinks = [TestUtils.randUrl(), TestUtils.randUrl()]
 
-        PhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumber()),
-            toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumberString()),
+            toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         assert toNum1.validate() && toNum2.validate()
 
         TextService.Outcome mockMsgResult = GroovyMock()

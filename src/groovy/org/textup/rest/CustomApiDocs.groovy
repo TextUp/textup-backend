@@ -29,6 +29,7 @@ class CustomResponseDoc {
     ])
     static def newPasswordRequest
 
+    // TODO update once stabilized
     @RestApiObjectField(description = "A message notification sent to a staff")
     @RestApiObjectFields(params=[
         @RestApiObjectField(
@@ -68,7 +69,7 @@ class CustomResponseDoc {
             description = "name of the other party",
             allowedType = "String")
     ])
-    static def notification
+    static def redeemedNotification
 
     @RestApiObjectField(description = "A message notification sent to a staff")
     @RestApiObjectFields(params=[

@@ -37,4 +37,10 @@ class CollectionUtils {
         list?.removeAll { it == null }
         list
     }
+
+    static <T> Collection<T> flattenValues(Map<?, Collection<T>> map) {
+        Collection<T> allValues = []
+        map.values().each { Collection<T> values -> allValues.addAll(values) }
+        allValues
+    }
 }

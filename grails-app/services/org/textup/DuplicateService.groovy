@@ -2,33 +2,32 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.apache.commons.lang3.tuple.Pair
-import org.springframework.transaction.annotation.Propagation
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.MergeGroup
-import org.textup.validator.PhoneNumber
+import org.textup.validator.*
+
+// For some reason, TypeCheckingMode.SKIP argument passsed to @GrailsTypeChecked doesn't
+// cause type checking to be skipped here
 
 @Transactional
 class DuplicateService {
 
-    ResultFactory resultFactory
-
-	// Building merge groups
-	// ---------------------
-
     Result<List<MergeGroup>> findDuplicates(Collection<Long> contactIds) {
     	if (contactIds) {
-    		findDuplicatesHelper(buildContactsData(getContactsData({ "in"("id", contactIds) })))
+            List<Object[]> data = getContactsData { CriteriaUtils.inList(delegate, "id", contactIds) }
+    		findDuplicatesHelper(buildContactsData(data))
     	}
     	else {
-    		resultFactory.failWithCodeAndStatus("duplicateService.findDuplicates.missingContactIds",
+    		IOCUtils.resultFactory.failWithCodeAndStatus(
+                "duplicateService.findDuplicates.missingContactIds",
     			ResultStatus.UNPROCESSABLE_ENTITY)
     	}
     }
-    Result<List<MergeGroup>> findDuplicates(Phone phone) {
+
+    Result<List<MergeGroup>> findAllDuplicates(Phone phone) {
     	findDuplicatesHelper(buildContactsData(getContactsData({ eq("phone", phone) })))
     }
+
     protected List<Object[]> getContactsData(Closure<?> filterAction) {
         Contact.createCriteria()
             .list {
@@ -48,8 +47,9 @@ class DuplicateService {
                 filterAction()
             }
     }
-    @GrailsTypeChecked
-	protected Map<Long, HashSet<String>> buildContactsData(List<Object[]> contactsData) {
+
+	@GrailsTypeChecked
+    protected Map<String, HashSet<Long>> buildContactsData(List<Object[]> contactsData) {
         Map<String, HashSet<Long>> numToContactIds = new HashMap<>()
 		contactsData.each { Object[] itemWrapper ->
 			Object[] items = itemWrapper[0] as Object[] // each item is a 1-item array, inner is a 2-item array
@@ -63,20 +63,22 @@ class DuplicateService {
 		}
 		numToContactIds
 	}
-    @GrailsTypeChecked
-	protected Result<List<MergeGroup>> findDuplicatesHelper(Map<String, HashSet<Long>> numToContactIds) {
+
+	@GrailsTypeChecked
+    protected Result<List<MergeGroup>> findDuplicatesHelper(Map<String, HashSet<Long>> numToContactIds) {
 		buildPossibleMerges(numToContactIds)
-			.then({ Pair<Map<Long, Collection<String>>, Collection<String>> pair ->
-				Map<Long, Collection<String>> contactIdToMergeNums = pair.left
-				Collection<String> possibleMergeNums = pair.right
+			.then({ Tuple<Map<Long, Collection<String>>, Collection<String>> outcomes ->
+				Map<Long, Collection<String>> contactIdToMergeNums = outcomes.first
+				Collection<String> possibleMergeNums = outcomes.second
 				confirmPossibleMerges(numToContactIds, contactIdToMergeNums, possibleMergeNums)
 			})
 			.then({ Map<Long,Collection<String>> targetIdToConfirmedNums ->
 				buildMergeGroups(numToContactIds, targetIdToConfirmedNums)
 			})
     }
+
     @GrailsTypeChecked
-    protected Result<Pair<Map<Long, Collection<String>>, Collection<String>>> buildPossibleMerges(
+    protected Result<Tuple<Map<Long, Collection<String>>, Collection<String>>> buildPossibleMerges(
     	Map<String, HashSet<Long>> numToContactIds) {
 
     	Map<Long, Collection<String>> contactIdToMergeNums = new HashMap<>()
@@ -95,8 +97,9 @@ class DuplicateService {
                 }
 			}
 		}
-		resultFactory.success(Pair.of(contactIdToMergeNums, possibleMergeNums))
+		IOCUtils.resultFactory.success(contactIdToMergeNums, possibleMergeNums)
     }
+
     @GrailsTypeChecked
     protected Result<Map<Long,Collection<String>>> confirmPossibleMerges(
         Map<String, HashSet<Long>> numToContactIds, Map<Long, Collection<String>> contactIdToMergeNums,
@@ -130,8 +133,9 @@ class DuplicateService {
                 else { targetIdToConfirmedNums[idToAdd] = [str] }
 			}
 		}
-		resultFactory.success(targetIdToConfirmedNums)
+		IOCUtils.resultFactory.success(targetIdToConfirmedNums)
     }
+
     @GrailsTypeChecked
     protected Result<List<MergeGroup>> buildMergeGroups(Map<String, HashSet<Long>> numToContactIds,
     	Map<Long,Collection<String>> targetIdToConfirmedNums) {
@@ -144,146 +148,11 @@ class DuplicateService {
 			if (m1.deepValidate()) {
 				mGroups << m1
 			}
-			else { errors << resultFactory.failWithValidationErrors(m1.errors) }
+			else { errors << IOCUtils.resultFactory.failWithValidationErrors(m1.errors) }
 		}
     	if (errors) {
-    		resultFactory.failWithResultsAndStatus(errors, ResultStatus.INTERNAL_SERVER_ERROR)
+    		IOCUtils.resultFactory.failWithResultsAndStatus(errors, ResultStatus.INTERNAL_SERVER_ERROR)
     	}
-    	else { resultFactory.success(mGroups) }
-    }
-
-    // Merging
-    // -------
-
-    // (1) We made the merge method require a new transaction in order to insulate it from
-    // potential changes made to the merged-in contacts. Changes to the merged-in contacts
-    // will trigger a cascade on save that will undo the merge operations. For example, if we
-    // set the isDeleted flag to true for the merged-in contacts within this method, then the
-    // tags that contact the merged-in contacts will continue to have these as their members
-    // because their membership we re-saved in the save cascade.
-    // (2) Requiring a new transaction for this method only works when this method is called
-    // from another service. Self-calls by another method in DuplicateService will not trigger
-    // the interceptor and this merge method will execute in the same transaction. This is the
-    // behavior of the underlying Spring Transaction abstraction. See
-    // http://www.tothenew.com/blog/grails-transactions-using-transactional-annotations-and-propagation-requires_new/
-    @GrailsTypeChecked
-    @RollbackOnResultFailure
-    @Transactional(propagation=Propagation.REQUIRES_NEW)
-    Result<Contact> merge(Contact targetContact, Collection<Contact> toMergeIn) {
-    	if (!toMergeIn) {
-    		return resultFactory.failWithCodeAndStatus("duplicateService.merge.missingMergeContacts",
-    			ResultStatus.BAD_REQUEST)
-    	}
-        // BECAUSE OF THE PROPAGATION REQUIRES NEW, all of the contacts passed in as parameters
-        // are detached from the session since opening a new transaction also starts a new session
-        // We don't make any modifications on the merged-in contacts so it is all right if they
-        // are detached. However, we do modify the targetContact so we must manually re-fetch it
-        // before we can proceed. We can't just reattach it because we can't have one object
-        // attached simultaneously to two open sessions
-        if (!targetContact.isAttached()) {
-            targetContact = Contact.get(targetContact.id)
-        }
-        // find the tags we are interested BEFORE we delete mark the contact we are merging in
-        // as deleted because this finder will ignore deleted contacts
-        Collection<ContactTag> mergeContactTags = ContactTag.findEveryByContactIds(toMergeIn*.id)
-    	// collate items
-    	Collection<ContactStatus> statuses = [targetContact.status]
-    	Collection<Record> toMergeRecords = []
-    	Collection<ContactNumber> mergeNums = []
-    	for (Contact mergeContact in toMergeIn) {
-      		mergeNums += mergeContact.numbers
-    		toMergeRecords << mergeContact.record
-    		statuses << mergeContact.status
-    	}
-    	// transfer appropriate associations
-        targetContact.status = findMostPermissibleStatus(statuses)
-        Result<Void> res = mergeTags(targetContact, mergeContactTags, toMergeIn)
-            .then({ mergeSharedContacts(targetContact, toMergeIn) })
-            .then({ mergeRecords(targetContact.record, toMergeRecords) })
-            .then({ mergeNumbers(targetContact, mergeNums) })
-		if (!res.success) {
-			return resultFactory.failWithResultsAndStatus([res], res.status)
-		}
-		// save target contact
-        if (targetContact.record.save()) {
-        	if (targetContact.save()) {
-        		resultFactory.success(targetContact)
-        	}
-        	else { resultFactory.failWithValidationErrors(targetContact.errors) }
-        }
-        else { resultFactory.failWithValidationErrors(targetContact.record.errors) }
-    }
-    @GrailsTypeChecked
-    protected ContactStatus findMostPermissibleStatus(Collection<ContactStatus> statuses) {
-    	if ([ContactStatus.UNREAD, ContactStatus.ACTIVE].any { ContactStatus s -> s in statuses }) {
-    		ContactStatus.ACTIVE
-    	}
-    	else if (ContactStatus.ARCHIVED in statuses) {
-    		ContactStatus.ARCHIVED
-    	}
-    	else { ContactStatus.BLOCKED }
-    }
-    @GrailsTypeChecked
-    protected Result<Void> mergeNumbers(Contact targetContact, Collection<ContactNumber> mergeNums) {
-    	for (ContactNumber num in mergeNums) {
-    		Result<ContactNumber> res = targetContact.mergeNumber(num.number, [preference:num.preference])
-    		if (!res.success) {
-    			return resultFactory.failWithResultsAndStatus([res], res.status)
-    		}
-    	}
-    	resultFactory.success()
-    }
-    @GrailsTypeChecked
-    protected Result<Void> mergeTags(Contact targetContact, Collection<ContactTag> mergeContactTags,
-        Collection<Contact> mergeContacts) {
-        try {
-            HashSet<Long> mergeIds = new HashSet<>(mergeContacts*.id)
-            mergeContactTags
-                .each { ContactTag tag1 ->
-                    Collection<Contact> contactsToRemove = tag1.members.findAll { Contact c1 -> c1.id in mergeIds }
-                    contactsToRemove.each { Contact c1 ->
-                        tag1.removeFromMembers(c1)
-                    }
-                    tag1.addToMembers(targetContact)
-                    tag1.save()
-                }
-            resultFactory.success()
-        }
-        catch (Throwable e) {
-            log.error("DuplicateService.mergeTags: ${e.message}")
-            e.printStackTrace()
-            resultFactory.failWithThrowable(e)
-        }
-    }
-    @GrailsTypeChecked
-    protected Result<Void> mergeSharedContacts(Contact targetContact, Collection<Contact> mergeContacts) {
-        try {
-            SharedContact
-                .buildForContacts(mergeContacts)
-                .updateAll(contact:targetContact)
-            resultFactory.success()
-        }
-        catch (Throwable e) {
-            log.error("DuplicateService.mergeSharedContacts: ${e.message}")
-            e.printStackTrace()
-            resultFactory.failWithThrowable(e)
-        }
-    }
-    @GrailsTypeChecked
-    protected Result<Void> mergeRecords(Record targetRecord, Collection<Record> toMergeRecords) {
-        try {
-            RecordItem
-                .forRecords(toMergeRecords)
-                .updateAll(record:targetRecord)
-            FutureMessage
-                .forRecords(toMergeRecords)
-                .updateAll(record:targetRecord)
-            resultFactory.success()
-        }
-        catch (Throwable e) {
-            log.error("DuplicateService.mergeRecords: ${e.message}")
-            e.printStackTrace()
-            resultFactory.failWithThrowable(e)
-        }
+    	else { IOCUtils.resultFactory.success(mGroups) }
     }
 }

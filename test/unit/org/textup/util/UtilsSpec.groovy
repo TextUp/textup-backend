@@ -50,7 +50,7 @@ class UtilsSpec extends Specification {
         res.errorMessages.size() > 0
 
         when: "valid notification number"
-        String notifNum = TestUtils.randPhoneNumber()
+        String notifNum = TestUtils.randPhoneNumberString()
         Holders.metaClass."static".getFlatConfig = { ->
             ["textup.apiKeys.twilio.notificationNumber": notifNum]
         }

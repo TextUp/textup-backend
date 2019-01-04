@@ -190,7 +190,7 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         aList2[0].monthString == DateTimeUtils.DISPLAYED_MONTH_FORMAT.print(dt)
 
         when: "has prior data too"
-        Contact newContact1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact newContact1 = p1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         RecordCall rCall1 = newContact1.record.storeOutgoingCall().payload
         rCall1.whenCreated = dt.minusMonths(numMonthsInPast)
         rCall1.addReceipt(TestUtils.buildTempReceipt())
@@ -210,10 +210,10 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         given:
         int numNotified = 88
         int numVoicemailSeconds = 23
-        Phone phone1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        Phone phone1 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         phone1.updateOwner(s1)
         phone1.save(flush: true, failOnError: true)
-        Contact c1 = phone1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact c1 = phone1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         c1.save(flush: true, failOnError: true)
 
         RecordText rText1 = c1.record.storeOutgoingText("outgoing").payload

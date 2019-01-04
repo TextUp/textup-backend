@@ -3,147 +3,38 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
-import groovy.util.logging.Log4j
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
 import org.textup.rest.NotificationStatus
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.Author
-import org.textup.validator.IncomingText
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.validator.*
 
-@Log4j
 @EqualsAndHashCode
-@RestApiObject(name="Contact", description="A contact")
+@GrailsTypeChecked
 class Contact implements Contactable, WithId {
 
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-
-    Phone phone //phone that owns this contact
-    Record record
+    String note
     boolean isDeleted = false
-
-    @RestApiObjectField(
-        description    = "Name of this contact",
-        mandatory      = false,
-        defaultValue   = "",
-        useForCreation = true)
+    ContactStatus status = ContactStatus.ACTIVE
+    DateTime lastTouched = DateTime.now()
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    List<ContactNumber> numbers
+    PhoneRecord context
     String name
 
-    @RestApiObjectField(
-        description = "Notes on this contact",
-        mandatory      = false,
-        defaultValue   = "",
-        useForCreation = true)
-	String note
-
-    @RestApiObjectField(
-        description    = "Status of this contact. Allowed: ACTIVE, UNREAD, ARCHIVED, BLOCKED",
-        defaultValue   = "ACTIVE",
-        mandatory      = false,
-        useForCreation = true)
-    ContactStatus status = ContactStatus.ACTIVE
-
-    DateTime lastTouched = DateTime.now()
-
-    @RestApiObjectField(
-        apiFieldName   = "numbers",
-        description    = "Numbers that pertain to this contact. Order in this \
-            list determines priority",
-        allowedType    = "List<ContactNumber>",
-        useForCreation = false)
-    List<ContactNumber> numbers
-
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName = "language",
-            description  = "Language to use when speaking during calls. Allowed: \
-                CHINESE, ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, PORTUGUESE, RUSSIAN, SPANISH",
-            mandatory    = false,
-            allowedType  = "String",
-            defaultValue = "ENGLISH"),
-        @RestApiObjectField(
-            apiFieldName   = "lastRecordActivity",
-            description    = "Date and time of the most recent communication with this contact",
-            allowedType    = "DateTime",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName      = "doShareActions",
-            description       = "List of actions that modify sharing permissions",
-            allowedType       = "List<[shareAction]>",
-            useForCreation    = false,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "doNumberActions",
-            description       = "List of actions to add, remove or update contact's numbers",
-            allowedType       = "List<[numberAction]>",
-            useForCreation    = true,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "doNotificationActions",
-            description       = "List of actions that customize notification settings for specific staff members",
-            allowedType       = "List<[notificationAction]>",
-            useForCreation    = false,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName   = "notificationStatuses",
-            description    = "Whether or not a specified staff member will be notified of updates for this specific contact",
-            allowedType    = "List<NotificationStatus>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "sharedWith",
-            description    = "A list of other staff you'ved shared this contact with. Will always be empty if contact is BLOCKED.",
-            allowedType    = "List<SharedContact>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "sharedBy",
-            description    = "Name of the staff member who shared this contact with you",
-            allowedType    = "String",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "startedSharing",
-            description    = "Date and time this contact was shared with you",
-            allowedType    = "DateTime",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "permissions",
-            description    = "Level of permissions you have with this contact. \
-                Allowed: delegate, view",
-            allowedType    = "String",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "subscribed",
-            description    = "In the context of a Tag, tells whether this \
-            contact is a subscriber",
-            allowedType    = "Boolean",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "tags",
-            description    = "List of tags this contact belongs to, if any. \
-                Note that this will be empty for a shared contact.",
-            allowedType    = "List<Tag>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "unreadInfo",
-            description    = "If this contact is unread and has specific record items that have not \
-                been viewed yet, this object provides counts by record item type.",
-            allowedType    = "UnreadInfo",
-            useForCreation = false)
-    ])
-    static transients = ["language"]
-    static constraints = {
-    	name blank:true, nullable:true
-    	note blank:true, nullable:true, size:1..1000
-    }
-    static hasMany = [numbers:ContactNumber]
+    static hasMany = [numbers: ContactNumber]
     static mapping = {
-        whenCreated type:PersistentDateTime
-        lastTouched type:PersistentDateTime
-        numbers lazy:false, cascade:"all-delete-orphan"
+        whenCreated type: PersistentDateTime
+        lastTouched type: PersistentDateTime
+        numbers lazy: false, cascade: "all-delete-orphan"
+        context fetch: "join", cascade: "save-update"
+    }
+    static constraints = {
+        name blank: true, nullable: true
+        note blank: true, nullable: true, size: 1..1000
+        context cascadeValidation: true
     }
     static namedQueries = {
         forPhoneAndStatuses { Phone thisPhone,
@@ -153,9 +44,7 @@ class Contact implements Contactable, WithId {
                 // if my contact, check status directly on this contact
                 and {
                     eq("phone", thisPhone)
-                    if (statuses) {
-                        "in"("status", statuses)
-                    }
+                    CriteriaUtils.inList(delegate, "status", statuses)
                 }
                 // if not my contact (shared with me), check the status on the shared contact
                 // NOTE: by default, this finder will NOT show shared contacts for contacts
@@ -168,7 +57,7 @@ class Contact implements Contactable, WithId {
                     // this `if` statement. Otherwise, an empty `and` clause inside of an
                     // `or` clause will be interpreted as permitting ALL contacts to be displayed
                     and {
-                        "in"("id", shareds*.contact*.id)
+                        CriteriaUtils.inList(delegate, "id", shareds*.contact*.id)
                     }
                 }
             }
@@ -188,11 +77,11 @@ class Contact implements Contactable, WithId {
                     .sharedWithMe(thisPhone, ContactStatus.VISIBLE_STATUSES)
                     .list()
                 if (shareds) {
-                    "in"("id", shareds*.contact*.id)
+                    CriteriaUtils.inList(delegate, "id", shareds*.contact*.id)
                 }
             }
             // search results should include all contacts EXCEPT blocked contacts
-            "in"("status", ContactStatus.VISIBLE_STATUSES)
+            CriteriaUtils.inList(delegate, "status", ContactStatus.VISIBLE_STATUSES)
             // must not be deleted
             eq("isDeleted", false)
             // conduct search in contact name and associated numbers
@@ -210,8 +99,22 @@ class Contact implements Contactable, WithId {
         }
     }
 
-    // Static finders
+    // Static methods
     // --------------
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static DetachedCriteria<Contact> forPhoneIdWithOptions(Long phoneId, String query = null,
+        Collection<ContactStatus> statuses = ContactStatus.VISIBLE_STATUSES) {
+
+        new DetachedCriteria(Contact)
+            .build { eq("context.phone.id", phoneId) }
+            .build(Contact.buildForOptionalQuery(query))
+            .build(Contact.buildForOptionalStatuses(statuses))
+    }
+
+
+
+
 
     static int countForPhoneAndSearch(Phone thisPhone, String query) {
         if (!query) {
@@ -252,14 +155,67 @@ class Contact implements Contactable, WithId {
             forPhoneAndStatuses(thisPhone).list(params)
         }
     }
-    // purposefully also allow blocked contacts to show up here. We want ALL contacts EXCEPT deleted ones
-    static List<Contact> listForPhoneAndNum(Phone thisPhone, PhoneNumber num) {
-        Contact.createCriteria().list {
-            eq("phone", thisPhone)
-            numbers { eq("number", num?.number) }
-            // must not be deleted
-            eq("isDeleted", false)
+
+
+
+
+
+    // TODO can't type check because use association in criteria?
+    static Result<Map<PhoneNumber, List<Contact>>> findEveryByNumbers(Phone p1,
+        List<? extends BasePhoneNumber> bNums, boolean createIfAbsent) {
+
+        // step 1: find all contact numbers that match the ones passed ine
+        List<ContactNumber> cNums = ContactNumber.createCriteria().list {
+            eq("owner.context.phone", p1)
+            eq("owner.isDeleted", false)
+            ne("owner.status", ContactStatus.BLOCKED)
+            CriteriaUtils.inList(delegate, "number", bNums)
+        } as List<ContactNumber>
+        // step 2: group contacts by the passed-in phone numbers
+        Map<PhoneNumber, List<Contact>> numberToContacts = [:].withDefault { [] as List<Contact> }
+        cNums.each { ContactNumber cNum -> numberToContacts[cNum] << cNum.owner }
+        // step 3: if allowed, create new contacts for any phone numbers without any contacts
+        if (createIfAbsent) {
+            Contact.createContactIfNone(p1, numberToContacts)
         }
+        else { IOCUtils.resultFactory.success(numberToContacts) }
+    }
+
+    protected static Result<Map<PhoneNumber, List<Contact>>> createContactIfNone(Phone p1,
+        Map<PhoneNumber, List<Contact>> numberToContacts) {
+
+        ResultGroup<Contact> resGroup = new ResultGroup<>()
+        numberToContacts.each { PhoneNumber pNum, List<Contact> contacts ->
+            if (contacts.isEmpty()) {
+                resGroup << Contact.create(p1, [pNum]).then { Contact c1 ->
+                    contacts << c1
+                    IOCUtils.resultFactory.success(c1)
+                }
+            }
+        }
+        if (resGroup.anyFailures) {
+            IOCUtils.failWithGroup(resGroup)
+        }
+        else { IOCUtils.resultFactory.success(numberToContacts) }
+    }
+
+
+    static Result<Contact> create(Phone p1, List<? extends BasePhoneNumber> bNums = []) {
+        Contact c1 = new Contact()
+        c1.context = new PhoneRecord(phone: p1)
+        // need to save contact before adding numbers so that the contact domain is assigned an
+        // ID to be associated with the ContactNumbers to avoid a TransientObjectException
+        if (c1.save()) {
+            ResultGroup<ContactNumber> resGroup = new ResultGroup<>()
+            bNums.unique().eachWithIndex { BasePhoneNumber bNum, int preference ->
+                resGroup << c1.mergeNumber(bNum, preference)
+            }
+            if (resGroup.anyFailures) {
+                IOCUtils.resultFactory.failWithGroup(resGroup)
+            }
+            else { IOCUtils.resultFactory.success(c1, ResultStatus.CREATED) }
+        }
+        else { IOCUtils.resultFactory.failWithValidationErrors(c1.errors) }
     }
 
     // Events
@@ -267,45 +223,45 @@ class Contact implements Contactable, WithId {
 
     @GrailsTypeChecked
     def beforeValidate() {
-        if (!this.record) {
-            this.record = new Record([:])
-        }
-        handleNumberPreferences()
+        tryReconcileNumberPreferences()
     }
 
     // Numbers
     // -------
 
     @GrailsTypeChecked
-    Result<ContactNumber> mergeNumber(String num, Map params=[:]) {
-        PhoneNumber temp = new PhoneNumber(number:num)
-        ContactNumber thisNum = this.numbers?.find { it.number == temp.number }
-        if (thisNum) {
-            thisNum.properties = params
-            thisNum.number = num
-            if (thisNum.save()) {
-                IOCUtils.resultFactory.success(thisNum)
-            }
-            else { IOCUtils.resultFactory.failWithValidationErrors(thisNum.errors) }
+    Result<ContactNumber> mergeNumber(BasePhoneNumber bNum, int preference) {
+        ContactNumber cNum = this.numbers?.find { it.number == bNum?.number }
+        if (!cNum) {
+            cNum = new ContactNumber()
+            cNum.update(bNum)
+            addToNumbers(cNum)
+        }
+        cNum.preference = preference
+        if (cNum.save()) {
+            IOCUtils.resultFactory.success(cNum)
+        }
+        else { IOCUtils.resultFactory.failWithValidationErrors(cNum.errors) }
+    }
+
+    @GrailsTypeChecked
+    Result<Void> deleteNumber(BasePhoneNumber bNum) {
+        ContactNumber cNum = this.numbers?.find { it.number == bNum?.number }
+        if (cNum) {
+            removeFromNumbers(cNum)
+            cNum.delete()
+            IOCUtils.resultFactory.success()
         }
         else {
-            thisNum = new ContactNumber()
-            thisNum.properties = params
-            thisNum.number = num
-            this.addToNumbers(thisNum)
-            handleNumberPreferences()
-            if (thisNum.save()) {
-                IOCUtils.resultFactory.success(thisNum)
-            }
-            else { IOCUtils.resultFactory.failWithValidationErrors(thisNum.errors) }
+            IOCUtils.resultFactory.failWithCodeAndStatus("contact.numberNotFound",
+                ResultStatus.NOT_FOUND, [bNum?.prettyPhoneNumber])
         }
     }
+
     @GrailsTypeChecked
-    protected void handleNumberPreferences() {
-        // autoincrement numbers' preference for new numbers if blank'
-        Collection<ContactNumber> initialNums = this.numbers.findAll {
-            it.id == null && it.preference == null
-        }
+    protected void tryReconcileNumberPreferences() {
+        // autoincrement numbers' preference for new numbers if blank
+        Collection<ContactNumber> initialNums = this.numbers?.findAll { !it.id && !it.preference }
         if (initialNums) {
             Collection<ContactNumber> existingNums = this.numbers - initialNums
             int greatestPref = 0
@@ -318,97 +274,36 @@ class Contact implements Contactable, WithId {
             }
         }
     }
-    @GrailsTypeChecked
-    Result<Void> deleteNumber(String num) {
-        PhoneNumber temp = new PhoneNumber(number:num)
-        ContactNumber number = this.numbers?.find { it.number == temp.number }
-        if (number) {
-            this.removeFromNumbers(number)
-            number.delete()
-            IOCUtils.resultFactory.success()
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("contact.numberNotFound",
-                ResultStatus.NOT_FOUND, [number])
-        }
-    }
 
-    // Additional Contactable methods
-    // ------------------------------
+    // Methods
+    // -------
 
-    @GrailsTypeChecked
-    ReadOnlyRecord getReadOnlyRecord() {
-        this.record
-    }
-    @GrailsTypeChecked
-    Long getContactId() {
-        this.id
-    }
-    @GrailsTypeChecked
-    PhoneNumber getFromNum() {
-        this.phone.number
-    }
-    @GrailsTypeChecked
-    String getCustomAccountId() {
-        this.phone.customAccountId
-    }
-
-    @GrailsTypeChecked
-    List<NotificationStatus> getNotificationStatuses() {
-        this.phone.owner.getNotificationStatusesForRecords([this.record.id])
-    }
-    @GrailsTypeChecked
     Result<Record> tryGetRecord() {
-        IOCUtils.resultFactory.success(this.record)
+        IOCUtils.resultFactory.success(contex.record)
     }
-    @GrailsTypeChecked
+
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
-        IOCUtils.resultFactory.success(this.record)
+        IOCUtils.resultFactory.success(contex.record)
     }
 
-    // Property Access
-    // ---------------
+    // Properties
+    // ----------
 
-    @GrailsTypeChecked
-    void setRecord(Record r) {
-        this.record = r
-        this.record?.save()
-    }
-    @GrailsTypeChecked
     String getNameOrNumber() {
         if (name) {
             name
         }
         else { numbers ? (numbers[0] as ContactNumber)?.number : "" }
     }
-    List<ContactTag> getTags(Map params=[:]) {
-        ContactTag.createCriteria().list(params) {
-            members { idEq(this.id) }
-            eq("isDeleted", false)
-        } as List
-    }
-    List<SharedContact> getSharedContacts() {
-        SharedContact.createCriteria().list {
-            eq("contact", this)
-            eq("sharedBy", this.phone)
-            or {
-                isNull("dateExpired") //not expired if null
-                gt("dateExpired", DateTime.now())
-            }
-            contact {
-                "in"("status", [ContactStatus.ACTIVE, ContactStatus.UNREAD, ContactStatus.ARCHIVED])
-                // must not be deleted
-                eq("isDeleted", false)
-            }
-        }
-    }
-    List<IncomingSession> getSessions(Map params=[:]) {
-        this.numbers ? IncomingSession.findAllByPhoneAndNumberAsStringInList(this.phone,
-            this.numbers*.number) : []
-    }
-    List<ContactNumber> getSortedNumbers() {
-        this.numbers ? this.numbers.sort(false) { ContactNumber n1, ContactNumber n2 ->
-            n1.preference <=> n2.preference
-        } : []
-    }
+
+    // false means NOT mutate
+    List<ContactNumber> getSortedNumbers() { numbers?.sort(false) ?: [] }
+
+    Long getContactId() { id }
+
+    PhoneNumber getFromNum() { context.phone.number }
+
+    String getCustomAccountId() { context.phone.customAccountId }
+
+    ReadOnlyRecord getReadOnlyRecord() { contex.record }
 }

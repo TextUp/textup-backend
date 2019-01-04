@@ -14,8 +14,6 @@ import org.textup.validator.*
 @Transactional
 class TokenService {
 
-    ResultFactory resultFactory
-
     // Initiate
     // --------
 
@@ -27,11 +25,13 @@ class TokenService {
         generate(TokenType.VERIFY_NUMBER, [toVerifyNumber: toNum.number])
     }
 
-    Result<Token> generateNotification(Map tokenData) {
+    // TODO
+    Result<Token> generateNotification(OutgoingNotification notif1) {
+        Map tokenData
         generate(TokenType.NOTIFY_STAFF, tokenData, Constants.MAX_NUM_ACCESS_NOTIFICATION_TOKEN)
             .then { Token t1 ->
                 t1.expires = DateTime.now(DateTimeZone.UTC).plusDays(1)
-                resultFactory.success(t1)
+                IOCUtils.resultFactory.success(t1)
             }
     }
 
@@ -70,13 +70,13 @@ class TokenService {
             .then { Token resetToken ->
         		Staff s1 = Staff.get(TypeConversionUtils.to(Long, resetToken.data.toBeResetId))
     	        if (s1) {
-                    resultFactory.success(s1)
+                    IOCUtils.resultFactory.success(s1)
     	        }
                 else {
                     log.error("tokenService.resetPassword: for token '$token' \
                         with toBeResetId '${resetToken.data.toBeResetId}', \
                         could not find a staff with that id")
-                    resultFactory.failWithCodeAndStatus("tokenService.resetPassword.couldNotComplete",
+                    IOCUtils.resultFactory.failWithCodeAndStatus("tokenService.resetPassword.couldNotComplete",
                         ResultStatus.INTERNAL_SERVER_ERROR)
                 }
     		}
@@ -89,19 +89,24 @@ class TokenService {
                 log.error("tokenService.verifyNumber: for token '$token' \
                     with toVerifyNumber '${tok.data.toVerifyNumber}', \
                     number is invalid: ${stored.errors}")
-                return resultFactory.failWithCodeAndStatus("tokenService.verifyNumber.couldNotComplete",
+                return IOCUtils.resultFactory.failWithCodeAndStatus("tokenService.verifyNumber.couldNotComplete",
                     ResultStatus.INTERNAL_SERVER_ERROR)
             }
             (stored.number == toVerify.number) ?
-                resultFactory.success() :
-                resultFactory.failWithCodeAndStatus("tokenService.verifyNumber.numbersNoMatch",
+                IOCUtils.resultFactory.success() :
+                IOCUtils.resultFactory.failWithCodeAndStatus("tokenService.verifyNumber.numbersNoMatch",
                     ResultStatus.NOT_FOUND)
 		}
     }
 
-    Result<Token> findNotification(String token) {
+    // TODO implement
+    Result<RedeemedNotification> findNotification(String token) {
         findToken(TokenType.NOTIFY_STAFF, token)
             .then { Token tok -> incrementTimesAccessed(tok) }
+            .then { Token tok ->
+
+
+            }
     }
 
     Result<Token> findDirectMessage(String token) {
@@ -115,30 +120,30 @@ class TokenService {
     protected Result<Token> incrementTimesAccessed(Token tok) {
         tok.timesAccessed++
         if (tok.save()) {
-            resultFactory.success(tok)
+            IOCUtils.resultFactory.success(tok)
         }
-        else { resultFactory.failWithValidationErrors(tok.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(tok.errors) }
     }
 
     protected Result<Token> generate(TokenType type, Map data, Integer maxNumAccess = null) {
         Token token = new Token(type: type, maxNumAccess: maxNumAccess)
         token.data = data
         if (token.save()) {
-            resultFactory.success(token)
+            IOCUtils.resultFactory.success(token)
         }
-        else { resultFactory.failWithValidationErrors(token.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(token.errors) }
     }
 
     protected Result<Token> findToken(TokenType type, String token) {
     	Token t1 = Token.findByTypeAndToken(type, token)
         if (!t1) {
-            return resultFactory.failWithCodeAndStatus("tokenService.tokenNotFound",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("tokenService.tokenNotFound",
                 ResultStatus.NOT_FOUND, [token])
         }
         else if (t1.isExpired) {
-            return resultFactory.failWithCodeAndStatus("tokenService.tokenExpired",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("tokenService.tokenExpired",
                 ResultStatus.BAD_REQUEST)
         }
-        resultFactory.success(t1)
+        IOCUtils.resultFactory.success(t1)
     }
 }

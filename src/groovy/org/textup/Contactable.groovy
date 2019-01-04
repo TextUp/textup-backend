@@ -8,7 +8,7 @@ import org.textup.validator.PhoneNumber
 import org.textup.validator.TempRecordReceipt
 
 @GrailsTypeChecked
-interface Contactable extends WithRecord {
+interface Contactable extends WithRecord, WithName {
     Long getContactId()
     String getName()
     String getNote()

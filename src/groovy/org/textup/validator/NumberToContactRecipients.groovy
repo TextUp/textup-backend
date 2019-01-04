@@ -22,7 +22,9 @@ class NumberToContactRecipients extends Recipients<String, Contact> {
     @Override
     protected List<Contact> buildRecipientsFromIds(List<String> rawNums) {
         // validate to clear out old errors object, if present
-        if (!phone) { return [] }
+        if (!phone) {
+            return []
+        }
         List<String> msgs = []
         List<Contact> contacts = []
         for (String num in rawNums) {
@@ -30,21 +32,12 @@ class NumberToContactRecipients extends Recipients<String, Contact> {
             if (num == null) {
                 continue
             }
-            PhoneNumber pNum = new PhoneNumber(number:num)
-            if (!pNum.validate()) {
-                msgs += IOCUtils.resultFactory.failWithValidationErrors(pNum.errors).errorMessages
-                continue
-            }
-            // add existing contacts to recipients
-            List<Contact> existing = Contact.listForPhoneAndNum(phone, pNum)
-            if (existing) { contacts += existing }
-            else { // if no existing, create new contact with this number
-                Result<Contact> res = phone.createContact([:], [pNum.number])
-                if (res.success) {
-                    contacts << res.payload
-                }
-                else { msgs += res.errorMessages }
-            }
+            PhoneNumber.createAndValidate(num)
+                .then({ PhoneNumber pNum -> Contact.findEveryByNumbers(phone, [pNum], true) },
+                    { Result failRes -> msgs += failRes.errorMessages })
+                .then({ Map<PhoneNumber, List<Contact>> numberToContacts ->
+                        numberToContacts.values().each { contacts.addAll(it) }
+                    }, { Result failRes -> msgs += failRes.errorMessages })
         }
         _errorMessages = msgs
         contacts

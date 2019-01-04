@@ -16,7 +16,7 @@ class FutureMessageJobService {
     AuthService authService
     NotificationService notificationService
     OutgoingMessageService outgoingMessageService
-    ResultFactory resultFactory
+    OutgoingNotificationService outgoingNotificationService
     Scheduler quartzScheduler
     SocketService socketService
     ThreadService threadService
@@ -32,14 +32,14 @@ class FutureMessageJobService {
             Date nextFire = trig ? quartzScheduler.rescheduleJob(trigKey, newTrig) :
                 quartzScheduler.scheduleJob(newTrig)
             if (nextFire) { // rescheduleJob can return null if unsuccessful
-                resultFactory.success()
+                IOCUtils.resultFactory.success()
             }
             else {
-                resultFactory.failWithCodeAndStatus("futureMessageService.schedule.unspecifiedError",
+                IOCUtils.resultFactory.failWithCodeAndStatus("futureMessageService.schedule.unspecifiedError",
                     ResultStatus.INTERNAL_SERVER_ERROR)
             }
         }
-        catch (Throwable e) { resultFactory.failWithThrowable(e) }
+        catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
     }
 
     @Transactional(readOnly=true)
@@ -50,9 +50,9 @@ class FutureMessageJobService {
                     nonexistent trigger with key ${fMsg.triggerKey} for \
                     message with id ${fMsg.id}")
             }
-            resultFactory.success()
+            IOCUtils.resultFactory.success()
         }
-        catch (Throwable e) { resultFactory.failWithThrowable(e) }
+        catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
     }
 
     ResultGroup<FutureMessage> cancelAll(Collection<FutureMessage> fMsgs) {
@@ -66,9 +66,9 @@ class FutureMessageJobService {
             .then {
                 fMsg.isDone = true
                 if (fMsg.save()) {
-                    resultFactory.success(fMsg)
+                    IOCUtils.resultFactory.success(fMsg)
                 }
-                else { resultFactory.failWithValidationErrors(fMsg.errors) }
+                else { IOCUtils.resultFactory.failWithValidationErrors(fMsg.errors) }
             }
     }
 
@@ -76,7 +76,7 @@ class FutureMessageJobService {
     ResultGroup<RecordItem> execute(String futureKey, Long staffId) {
         FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
         if (!fMsg) {
-            return resultFactory.failWithCodeAndStatus(
+            return IOCUtils.resultFactory.failWithCodeAndStatus(
                 "futureMessageService.execute.messageNotFound", ResultStatus.NOT_FOUND).toGroup()
         }
         Result<OutgoingMessage> msgRes = fMsg.tryGetOutgoingMessage()
@@ -86,7 +86,7 @@ class FutureMessageJobService {
         OutgoingMessage msg = msgRes.payload
         Phone[] phones = msg.phones.toArray() as Phone[]
         if (!phones || !phones[0]) {
-            return resultFactory.failWithCodeAndStatus(
+            return IOCUtils.resultFactory.failWithCodeAndStatus(
                 "futureMessageService.execute.phoneNotFound", ResultStatus.NOT_FOUND).toGroup()
         }
         Phone p1 = phones[0]
@@ -100,27 +100,29 @@ class FutureMessageJobService {
         resGroup.payload.each { RecordItem item1 -> item1.wasScheduled = true }
         // notify staffs is any successes
         if (fMsg.notifySelf && resGroup.anySuccesses) {
-            List<BasicNotification> notifs = notificationService
-                .build(p1, msg.contacts.recipients, msg.tags.recipients)
-            // wait for the future to finish ASYNCHRONOUSLY to avoid blocking this method
-            // to allow the record items to save. Otherwise, when the future resolves, the ids
-            // will point to non-existent items because we blocked the parent method from saving here
-            threadService.submit {
-                notifySelf(future, resGroup.payload*.id, fMsg.message, notifs)
-                    .logFail("execute: notifying self")
-            }
+            notificationService.build(resGroup.payload)
+                .then { List<OutgoingNotification> notifs ->
+                    // wait for the future to finish ASYNCHRONOUSLY to avoid blocking this method
+                    // to allow the record items to save. Otherwise, when the future resolves, the ids
+                    // will point to non-existent items because we blocked the parent method from saving here
+                    threadService.submit {
+                        notifySelf(future, resGroup.payload*.id, fMsg.message, notifs)
+                            .logFail("execute: notifying self")
+                    }
+                }
+                .logFail("execute: building notifications for notify self")
         }
         resGroup
     }
 
     protected ResultGroup<RecordItem> notifySelf(Future<?> future, Collection<Long> itemIds,
-        String message, List<BasicNotification> notifs) {
+        String message, List<OutgoingNotification> notifs) {
         // wait for processing and sending to finish. This Future SHOULD be resolve quickly
         // because media processing already took place when creating the future message
         // so in this future, we are simply sending and storing the outgoing message, including
         // the already-processed media referred to in the `media` prop of the  OutgoingMessage
         future.get()
-        notificationService.send(notifs, true, message)
+        outgoingNotificationService.send(notifs, true, message)
             .logFail("FutureMessageService.execute: sending notifications")
         int numNotified = notifs.size()
         ResultGroup<RecordItem> saveFailiures = new ResultGroup<>()
@@ -130,7 +132,7 @@ class FutureMessageJobService {
             if (rItem) {
                 rItem.numNotified = numNotified
                 if (!rItem.save()) {
-                    saveFailiures << resultFactory.failWithValidationErrors(rItem.errors)
+                    saveFailiures << IOCUtils.resultFactory.failWithValidationErrors(rItem.errors)
                 }
             }
             else { didFindAll = false }
@@ -143,15 +145,15 @@ class FutureMessageJobService {
     Result<FutureMessage> markDone(String futureKey) {
         FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
         if (!fMsg) {
-            return resultFactory.failWithCodeAndStatus("futureMessageService.markDone.messageNotFound",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("futureMessageService.markDone.messageNotFound",
                 ResultStatus.NOT_FOUND, [futureKey])
         }
         fMsg.isDone = true
         if (fMsg.save()) {
             socketService.sendFutureMessages([fMsg]) // socketService will refresh trigger
-            resultFactory.success(fMsg)
+            IOCUtils.resultFactory.success(fMsg)
         }
-        else { resultFactory.failWithValidationErrors(fMsg.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(fMsg.errors) }
     }
 
     // Helpers

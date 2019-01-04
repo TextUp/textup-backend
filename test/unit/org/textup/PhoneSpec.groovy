@@ -51,7 +51,7 @@ class PhoneSpec extends CustomSpec {
         p1.errors.getFieldErrorCount("voice") == 1
 
     	when: "we have a phone with a unique number"
-        String num = TestUtils.randPhoneNumber()
+        String num = TestUtils.randPhoneNumberString()
         p1.voice = VoiceType.FEMALE
     	p1.numberAsString = num
         p1.updateOwner(s1)
@@ -78,7 +78,7 @@ class PhoneSpec extends CustomSpec {
 
     void "test away message constraints"() {
         given: "a phone"
-        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumber())
+        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumberString())
         p1.updateOwner(s1)
         assert p1.validate()
 
@@ -124,7 +124,7 @@ class PhoneSpec extends CustomSpec {
         given: "a phone"
         String pAway = TestUtils.randString(),
             oAway = TestUtils.randString()
-        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumber(), awayMessage: pAway)
+        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumberString(), awayMessage: pAway)
         p1.owner = GroovyMock(PhoneOwnership)
         assert p1.validate()
 
@@ -261,7 +261,7 @@ class PhoneSpec extends CustomSpec {
 
     void "test owner and availability"() {
         given: "a phone belonging to a team with no policies"
-        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumber())
+        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumberString())
         p1.updateOwner(t1)
         p1.save(flush:true, failOnError:true)
         assert p1.owner.policies == null

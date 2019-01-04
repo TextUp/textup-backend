@@ -111,10 +111,7 @@ class AuthService {
             Contact.createCriteria().count {
                 eq("id", cId)
                 eq("isDeleted", false)
-                if (phones) {
-                    "in"("phone", phones)
-                }
-                else { eq("phone", null) }
+                CriteriaUtils.inList(delegate, "phone", phones)
             } > 0
         }
         else { false }
@@ -140,10 +137,7 @@ class AuthService {
                     eq("id", cId)
                     eq("isDeleted", false)
                 }
-                if (allPhones) {
-                    "in"("sharedWith", allPhones)
-                }
-                else { eq("sharedWith", null) }
+                CriteriaUtils.inList(delegate, "sharedWith", allPhones)
                 or {
                     isNull("dateExpired") //not expired if null
                     gt("dateExpired", DateTime.now())
@@ -213,10 +207,7 @@ class AuthService {
             ContactTag.createCriteria().count {
                 eq("id", tId)
                 eq("isDeleted", false)
-                if (phones) {
-                    "in"("phone", phones)
-                }
-                else { eq("phone", null) }
+                CriteriaUtils.inList(delegate, "phone", phones)
             } > 0
         }
         else { false }
@@ -262,10 +253,7 @@ class AuthService {
             List<Phone> phones = s1.allPhones
             IncomingSession.createCriteria().count {
                 eq("id", sId)
-                if (phones) {
-                    "in"("phone", phones)
-                }
-                else { eq("phone", null) }
+                CriteriaUtils.inList(delegate, "phone", phones)
             } > 0
         }
         else { false }
@@ -280,10 +268,7 @@ class AuthService {
             List<Phone> phones = s1.allPhones
             FeaturedAnnouncement.createCriteria().count {
                 eq("id", aId)
-                if (phones) {
-                    "in"("owner", phones)
-                }
-                else { eq("owner", null) }
+                CriteriaUtils.inList(delegate, "owner", phones)
             } > 0
         }
         else { false }

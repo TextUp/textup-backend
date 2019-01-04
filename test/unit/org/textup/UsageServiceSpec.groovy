@@ -170,7 +170,7 @@ class UsageServiceSpec extends Specification {
         s1.phoneNumber.validate() == false
 
         when: "set properties"
-        s1.number = TestUtils.randPhoneNumber()
+        s1.number = TestUtils.randPhoneNumberString()
 
         then:
         s1.phoneNumber.validate() == true
@@ -189,7 +189,7 @@ class UsageServiceSpec extends Specification {
         t1.phoneNumber.validate() == false
 
         when: "set properties"
-        t1.number = TestUtils.randPhoneNumber()
+        t1.number = TestUtils.randPhoneNumberString()
 
         then:
         t1.phoneNumber.validate() == true

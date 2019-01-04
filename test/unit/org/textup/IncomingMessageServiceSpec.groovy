@@ -41,7 +41,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test getting deliverable contacts"() {
         given: "blocked and non-blocked contacts for a single phone number within a TextUp phone"
-        String numAsString = TestUtils.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumberString()
         PhoneNumber pNum = new PhoneNumber(number: numAsString)
         assert pNum.validate()
         Contact c1 = p1.createContact([status: "blocked"], [numAsString]).payload
@@ -59,7 +59,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test storing and updating status for a single contact"() {
         given:
-        String numAsString = TestUtils.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumberString()
         Contact c1 = p1.createContact([:], [numAsString]).payload
         SharedContact sc1 = p1.share(c1, p2, SharePermission.DELEGATE).payload
         [c1, sc1]*.save(flush: true, failOnError: true)
@@ -93,7 +93,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         ] as SocketService
         int cBaseline = Contact.count()
         int cnBaseline = ContactNumber.count()
-        String numAsString = TestUtils.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumberString()
         PhoneNumber pNum = new PhoneNumber(number: numAsString)
         assert pNum.validate()
 
@@ -113,7 +113,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         service.socketService = [
             sendContacts: { List<Contact> contacts -> new ResultGroup() }
         ] as SocketService
-        String numAsString = TestUtils.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumberString()
         PhoneNumber pNum = new PhoneNumber(number: numAsString)
         assert pNum.validate()
         Contact c1 = p1.createContact([status: "blocked"], [numAsString]).payload
@@ -145,7 +145,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test storing incoming call"() {
         given:
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumber())
+        IncomingSession session = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumberString())
         assert session.save(flush: true, failOnError: true)
         RecordCall rCall1
         Closure<Void> storeCall = { rCall1 = it }
@@ -210,11 +210,11 @@ class IncomingMessageServiceSpec extends CustomSpec {
 
     void "test handling notifications for incoming call"() {
         given:
-        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumber())
+        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumberString())
         assert sess1.save(flush: true, failOnError: true)
         List<BasicNotification> notifs = []
-        notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestUtils.randPhoneNumber()))
-        notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestUtils.randPhoneNumber()))
+        notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestUtils.randPhoneNumberString()))
+        notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestUtils.randPhoneNumberString()))
 
         when:
         Result<Closure> res = service.handleNotificationsForIncomingCall(p1, sess1, notifs)
@@ -240,7 +240,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test handling away for incoming call"() {
         given:
-        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumber())
+        IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumberString())
         assert sess1.save(flush: true, failOnError: true)
         List<RecordCall> rCalls = []
         10.times { rCalls << c1.record.storeOutgoingCall().payload }
@@ -257,7 +257,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test relaying incoming call overall"() {
         given:
-        String numAsString = TestUtils.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumberString()
         IncomingSession session = new IncomingSession(phone:p1, numberAsString: numAsString)
         assert session.save(flush: true, failOnError: true)
         Contact c1 = p1.createContact([:], [numAsString]).payload
@@ -290,7 +290,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         MockedMethod relayCall = TestUtils.mock(service, "relayCall") { new Result() }
         service.announcementService = GroovyMock(AnnouncementService)
         Phone p1 = GroovyMock(Phone)
-        String pNum = TestUtils.randPhoneNumber()
+        String pNum = TestUtils.randPhoneNumberString()
         IncomingSession sess1 = Stub(IncomingSession) { getNumberAsString() >> pNum }
 
         when: "self call"
@@ -386,7 +386,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         TestUtils.buildXml(res.payload).contains("twimlBuilder.call.selfInvalidDigits")
 
         when: "valid phone number for missing apiId"
-        res = service.handleSelfCall(p1, null, TestUtils.randPhoneNumber(), s1)
+        res = service.handleSelfCall(p1, null, TestUtils.randPhoneNumberString(), s1)
 
         then:
         0 * service.socketService._
@@ -397,7 +397,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
         TestUtils.buildXml(res.payload).contains("twimlBuilder.error")
 
         when: "valid phone number and valid apiId"
-        String numAsString = TestUtils.randPhoneNumber()
+        String numAsString = TestUtils.randPhoneNumberString()
         res = service.handleSelfCall(p1, "apiId", numAsString, s1)
         Phone.withSession { it.flush() }
 
@@ -437,7 +437,7 @@ class IncomingMessageServiceSpec extends CustomSpec {
     void "test building texts overall"() {
         given:
         service.socketService = GroovyMock(SocketService)
-        Phone newPhone = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        Phone newPhone = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         newPhone.updateOwner(s1)
         newPhone.save(flush:true, failOnError:true)
         IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)

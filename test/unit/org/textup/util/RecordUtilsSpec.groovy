@@ -242,7 +242,7 @@ class RecordUtilsSpec extends CustomSpec {
             sendToContacts: [c1.id],
             sendToSharedContacts: [sc2.contactId],
             sendToTags: [tag1.id],
-            sendToPhoneNumbers: [TestUtils.randPhoneNumber()])
+            sendToPhoneNumbers: [TestUtils.randPhoneNumberString()])
         res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
         Contact.withSession { it.flush() }
 

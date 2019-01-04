@@ -2,12 +2,10 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import org.hibernate.Session
-import org.textup.type.VoiceLanguage
+import org.textup.type.*
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.action.ActionContainer
-import org.textup.validator.action.ContactTagAction
+import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
@@ -15,8 +13,7 @@ class TagService {
 
     AuthService authService
     FutureMessageJobService futureMessageJobService
-    NotificationService notificationService
-    ResultFactory resultFactory
+    NotificationSettingsService notificationSettingsService
 
     // Create
     // ------
@@ -31,10 +28,11 @@ class TagService {
     @RollbackOnResultFailure
     protected Result<ContactTag> create(Phone p1, Map body) {
         if (p1) {
-            p1.createTag(body)
+            // // TODO fix
+            // p1.createTag(body)
         }
         else {
-            resultFactory.failWithCodeAndStatus("tagService.create.noPhone",
+            IOCUtils.resultFactory.failWithCodeAndStatus("tagService.create.noPhone",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
     }
@@ -45,17 +43,17 @@ class TagService {
     @RollbackOnResultFailure
     Result<ContactTag> update(Long tId, Map body) {
         findTagFromId(tId)
-            .then({ ContactTag ct1 -> handleNotificationActions(ct1, body) })
-            .then({ ContactTag ct1 -> doTagActions(ct1, body) })
-            .then({ ContactTag ct1 -> updateTagInfo(ct1, body) })
+            .then { ContactTag ct1 -> handleNotificationActions(ct1, body).curry(ct1) }
+            .then { ContactTag ct1 -> doTagActions(ct1, body) }
+            .then { ContactTag ct1 -> updateTagInfo(ct1, body) }
     }
     protected Result<ContactTag> findTagFromId(Long ctId) {
         ContactTag ct1 = ContactTag.get(ctId)
         if (ct1) {
-            resultFactory.success(ct1)
+            IOCUtils.resultFactory.success(ct1)
         }
         else {
-            resultFactory.failWithCodeAndStatus("tagService.update.notFound",
+            IOCUtils.resultFactory.failWithCodeAndStatus("tagService.update.notFound",
                 ResultStatus.NOT_FOUND, [ctId])
         }
     }
@@ -66,32 +64,28 @@ class TagService {
             if (body.language) language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
         }
         if (ct1.save()) {
-            resultFactory.success(ct1)
+            IOCUtils.resultFactory.success(ct1)
         }
-        else { resultFactory.failWithValidationErrors(ct1.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(ct1.errors) }
     }
-    protected Result<ContactTag> handleNotificationActions(ContactTag ct1, Map body) {
+    protected Result<Void> handleNotificationActions(ContactTag ct1, Map body) {
         if (body.doNotificationActions) {
-            Result<Void> res = notificationService.handleNotificationActions(ct1.phone,
-                ct1.record.id, body.doNotificationActions)
-            if (!res.success) {
-                return resultFactory.failWithResultsAndStatus([res], res.status)
-            }
+            notificationSettingsService.handleActions(ct1.phone, ct1.record.id, body.doNotificationActions)
         }
-        resultFactory.success(ct1)
+        else { IOCUtils.resultFactory.success() }
     }
     protected Result<ContactTag> doTagActions(ContactTag ct1, Map body) {
         if (body.doTagActions) {
-            ActionContainer ac1 = new ActionContainer(body.doTagActions)
-            List<ContactTagAction> actions = ac1.validateAndBuildActions(ContactTagAction)
-            if (ac1.hasErrors()) {
-                return resultFactory.failWithValidationErrors(ac1.errors)
+            ActionContainer ac1 = new ActionContainer<>(ContactTagAction, body.doTagActions)
+            if (!ac1.validate()) {
+                return IOCUtils.resultFactory.failWithValidationErrors(ac1.errors)
             }
-            for (ContactTagAction a1 in actions) {
+            ResultGroup<?> resGroup = new ResultGroup<>()
+            ac1.actions.each { ContactTagAction a1 ->
                 Contact c1 = a1.contact
                 if (ct1.phone?.id != c1.phone?.id) {
-                    return resultFactory.failWithCodeAndStatus("tagService.update.contactForbidden",
-                        ResultStatus.FORBIDDEN, [a1.id])
+                    resGroup << IOCUtils.resultFactory.failWithCodeAndStatus(
+                        "tagService.update.contactForbidden", ResultStatus.FORBIDDEN, [a1.id])
                 }
                 switch (a1) {
                     case Constants.TAG_ACTION_ADD:
@@ -101,8 +95,11 @@ class TagService {
                         ct1.removeFromMembers(c1)
                 }
             }
+            if (resGroup.anyFailures) {
+                return IOCUtils.resultFactory.failWithGroup(resGroup)
+            }
         }
-        resultFactory.success(ct1)
+        IOCUtils.resultFactory.success(ct1)
     }
 
     // Delete
@@ -117,14 +114,14 @@ class TagService {
                 Collection<FutureMessage> fMsgs = t1.record.getFutureMessages()
                 ResultGroup<?> resGroup = futureMessageJobService.cancelAll(fMsgs)
                 if (resGroup.anyFailures) {
-                    resultFactory.failWithGroup(resGroup)
+                    IOCUtils.resultFactory.failWithGroup(resGroup)
                 }
-                else { resultFactory.success() }
+                else { IOCUtils.resultFactory.success() }
             }
-            else { resultFactory.failWithValidationErrors(t1.errors) }
+            else { IOCUtils.resultFactory.failWithValidationErrors(t1.errors) }
     	}
     	else {
-    		resultFactory.failWithCodeAndStatus("tagService.delete.notFound",
+    		IOCUtils.resultFactory.failWithCodeAndStatus("tagService.delete.notFound",
                 ResultStatus.NOT_FOUND, [tId])
     	}
     }

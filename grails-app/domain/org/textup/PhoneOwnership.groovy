@@ -24,7 +24,7 @@ class PhoneOwnership implements WithId {
             }
     	}
     }
-    static hasMany = [policies:NotificationPolicy]
+    static hasMany = [policies: NotificationPolicy]
     static mapping = {
         policies lazy:false, cascade:"all-delete-orphan"
     }

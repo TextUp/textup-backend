@@ -61,7 +61,7 @@ class RecordItemReceiptCacheSpec extends Specification {
         RecordItem rItem = new RecordItem(record: rec1)
         rItem.save(flush: true, failOnError: true)
         RecordItemReceipt rpt1 = new RecordItemReceipt(item: rItem,
-            contactNumberAsString: TestUtils.randPhoneNumber(),
+            contactNumberAsString: TestUtils.randPhoneNumberString(),
             apiId: TestUtils.randString())
         assert rpt1.validate()
 

@@ -6,69 +6,32 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
 import org.textup.rest.NotificationStatus
-import org.textup.type.AuthorType
-import org.textup.type.ContactStatus
-import org.textup.type.VoiceLanguage
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.Author
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-@RestApiObject(name="Tag", description="A tag for grouping contacts")
-class ContactTag implements WithRecord, WithId {
+class ContactTag implements WithId, WithRecord, WithName {
 
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    // TODO
+    // Phone phone
+    // Record record
 
-	Phone phone
-    Record record
     boolean isDeleted = false
-
-    @RestApiObjectField(description = "Name of this tag")
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    PhoneRecord context
+    String hexColor = Constants.DEFAULT_BRAND_COLOR
     String name
 
-    @RestApiObjectField(
-        description  = "Hex color code for labels for this tag",
-        defaultValue = "#1BA5E0",
-        mandatory    = false)
-	String hexColor = "#1BA5E0"
-
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName = "language",
-            description  = "Language to use when speaking during calls. Allowed: \
-                CHINESE, ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, PORTUGUESE, RUSSIAN, SPANISH",
-            mandatory    = false,
-            allowedType  = "String",
-            defaultValue = "ENGLISH"),
-        @RestApiObjectField(
-            apiFieldName   = "lastRecordActivity",
-            description    = "Date and time of the most recent communication \
-                if this tag keeps a record",
-            allowedType    = "DateTime",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName      = "doTagActions",
-            description       = "List of some actions to perform on contacts \
-                with relation to this tag",
-            allowedType       = "List<[tagAction]>",
-            useForCreation    = false,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "doNotificationActions",
-            description       = "List of actions that customize notification settings for specific staff members",
-            allowedType       = "List<[notificationAction]>",
-            useForCreation    = true,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName   = "notificationStatuses",
-            description    = "Whether or not a specified staff member will be notified of updates for this specific contact",
-            allowedType    = "List<notificationStatus>",
-            useForCreation = false)
-    ])
-    static transients = ["language"]
     static hasMany = [members:Contact]
+    static mappedBy = [members: "none"] // members is a unidirectional association
+    static mapping = {
+        whenCreated type: PersistentDateTime
+        members lazy: false, cascade: "save-update"
+        context fetch: "join", cascade: "save-update"
+    }
     static constraints = {
         name blank:false, nullable:false, validator:{ String val, ContactTag obj ->
             //for each phone, tags must have unique name
@@ -82,20 +45,7 @@ class ContactTag implements WithRecord, WithId {
             //String must be a valid hex color
             if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
         }
-    }
-    static mappedBy = [members: "none"] // members is a unidirectional association
-    static mapping = {
-        whenCreated type:PersistentDateTime
-        members lazy:false, cascade:"save-update"
-    }
-
-    // Events
-    // ------
-
-    def beforeValidate() {
-        if (!this.record) {
-            this.record = new Record([:])
-        }
+        context cascadeValidation: true
     }
 
     // Static finders
@@ -106,15 +56,22 @@ class ContactTag implements WithRecord, WithId {
         if (!cIds) {
             return []
         }
-        ContactTag
-            .createCriteria()
-            .listDistinct {
-                members {
-                    "in"("id", cIds)
-                    eq("isDeleted", false)
-                }
+        ContactTag.createCriteria().listDistinct {
+            members {
+                CriteriaUtils.inList(delegate, "id", cIds)
                 eq("isDeleted", false)
             }
+            eq("isDeleted", false)
+        }
+    }
+
+    static Result<ContactTag> create(Phone p1, String name) {
+        ContactTag ct1 = new ContactTag(name: name)
+        c1.context = new PhoneRecord(phone: p1)
+        if (ct1.save()) {
+            IOCUtils.resultFactory.success(ct1)
+        }
+        else { IOCUtils.resultFactory.failWithValidationErrors(ct1.errors) }
     }
 
     // Property access
@@ -125,24 +82,6 @@ class ContactTag implements WithRecord, WithId {
     }
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
         IOCUtils.resultFactory.success(this.record)
-    }
-
-    void setRecord(Record r) {
-        this.record = r
-        this.record?.save()
-    }
-    List<NotificationStatus> getNotificationStatuses() {
-        this.phone.owner.getNotificationStatusesForRecords([this.record.id])
-    }
-
-    void setLanguage(VoiceLanguage lang) {
-        if (this.record && lang) {
-            this.record.language = lang
-            this.record.save()
-        }
-    }
-    VoiceLanguage getLanguage() {
-        this.record?.language
     }
 
     // Members

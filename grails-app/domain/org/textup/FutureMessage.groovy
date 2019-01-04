@@ -5,18 +5,13 @@ import grails.gorm.DetachedCriteria
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import java.util.concurrent.TimeUnit
-import java.util.UUID
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.jadira.usertype.dateandtime.joda.PersistentDateTimeZoneAsString
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.quartz.ScheduleBuilder
-import org.quartz.SimpleScheduleBuilder
-import org.quartz.Trigger
-import org.quartz.TriggerKey
+import org.quartz.*
 import org.restapidoc.annotation.*
-import org.textup.type.FutureMessageType
-import org.textup.type.VoiceLanguage
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
@@ -171,10 +166,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static DetachedCriteria<FutureMessage> forRecords(Collection<Record> records) {
         new DetachedCriteria(FutureMessage)
-            .build {
-                if (records) { "in"("record", records) }
-                else { eq("record", null) }
-            }
+            .build { CriteriaUtils.inList(delegate, "record", records) }
     }
 
     // Methods

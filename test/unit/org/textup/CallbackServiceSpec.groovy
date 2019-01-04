@@ -135,9 +135,9 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test handling sessions"() {
         given:
-        PhoneNumber originalFromNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        PhoneNumber fromNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        PhoneNumber toNumber = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber originalFromNumber = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        PhoneNumber fromNumber = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        PhoneNumber toNumber = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         [originalFromNumber, fromNumber, toNumber].each { assert it.validate() }
         TypeConvertingMap params = new TypeConvertingMap([originalFrom: originalFromNumber.number])
         int iBaseline = IncomingSession.count()
@@ -209,8 +209,8 @@ class CallbackServiceSpec extends CustomSpec {
 
     void "test getting number for phone"() {
         given:
-        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
-        PhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        PhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
 
         expect:
         service.getNumberForPhone(fromNum, toNum, new TypeConvertingMap(handle: handle)).number ==
@@ -322,7 +322,7 @@ class CallbackServiceSpec extends CustomSpec {
         service.announcementService = Mock(AnnouncementService)
         service.outgoingMessageService = Mock(OutgoingMessageService)
         service.incomingMessageService = Mock(IncomingMessageService)
-        IncomingSession is1 = [number: TestUtils.randPhoneNumber()] as IncomingSession
+        IncomingSession is1 = [number: TestUtils.randPhoneNumberString()] as IncomingSession
 
         when: "starting voicemail"
         String clientNum = URLEncoder.encode("+1233834920", "UTF-8")
@@ -418,8 +418,8 @@ class CallbackServiceSpec extends CustomSpec {
         Result<Closure> res = service.processCall(thisPhone, is1, null, params)
 
         then:
-        1 * thisPhone.number >> new PhoneNumber(number: TestUtils.randPhoneNumber())
-        1 * is1.number >> new PhoneNumber(number: TestUtils.randPhoneNumber())
+        1 * thisPhone.number >> new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        1 * is1.number >> new PhoneNumber(number: TestUtils.randPhoneNumberString())
         res.status == ResultStatus.OK
         TestUtils.buildXml(res.payload).contains("twimlBuilder.call.recordVoicemailGreeting")
 
@@ -438,7 +438,7 @@ class CallbackServiceSpec extends CustomSpec {
         res = service.processCall(thisPhone, null, null, params)
 
         then:
-        1 * thisPhone.number >> new PhoneNumber(number: TestUtils.randPhoneNumber())
+        1 * thisPhone.number >> new PhoneNumber(number: TestUtils.randPhoneNumberString())
         1 * thisPhone.voicemailGreetingUrl >> new URL("https://www.example.com")
         res.status == ResultStatus.OK
         TestUtils.buildXml(res.payload).contains("twimlBuilder.call.finishedVoicemailGreeting")

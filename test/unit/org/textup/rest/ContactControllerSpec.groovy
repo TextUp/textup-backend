@@ -35,8 +35,8 @@ class ContactControllerSpec extends CustomSpec {
         JodaConverters.registerJsonAndXmlMarshallers()
 
         Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        Contact cont1 = loggedIn.phone.createContact([:], [TestUtils.randPhoneNumber()]).payload
-        Contact cont2 = loggedIn.phone.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact cont1 = loggedIn.phone.createContact([:], [TestUtils.randPhoneNumberString()]).payload
+        Contact cont2 = loggedIn.phone.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         [cont1, cont2]*.save(flush:true, failOnError:true)
         assert loggedIn.phone.countContacts() > 0
     }

@@ -39,7 +39,7 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
         given:
         String accountId = TestUtils.randString()
         String callId = TestUtils.randString()
-        String fromNum = TestUtils.randPhoneNumber()
+        String fromNum = TestUtils.randPhoneNumberString()
         String phoneNum = remote.exec({ un, fNum ->
             Staff s1 = Staff.findByUsername(un)
             s1.manualSchedule = true

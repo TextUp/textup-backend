@@ -242,13 +242,13 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	notificationRenderer(ApiJsonRenderer, Notification) {
+	notificationRenderer(ApiJsonRenderer, RedeemedNotification) {
 		label = tRestConfig.v1.notification.singular
 	}
-	notificationCollectionRenderer(ApiJsonCollectionRenderer, Notification) {
+	notificationCollectionRenderer(ApiJsonCollectionRenderer, RedeemedNotification) {
 		label = tRestConfig.v1.notification.plural
 	}
-	notificationJsonMarshaller(NotificationJsonMarshaller) {
+	notificationJsonMarshaller(RedeemedNotificationJsonMarshaller) {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}

@@ -25,7 +25,7 @@ class CustomTokenJsonRendererIntegrationSpec extends Specification {
         org1.save(flush:true, failOnError:true)
 
         Staff s1 = new Staff(username: TestUtils.randString(), password: "password",
-            name: "Name", org: org1, personalPhoneAsString: TestUtils.randPhoneNumber(),
+            name: "Name", org: org1, personalPhoneAsString: TestUtils.randPhoneNumberString(),
             email: "ok@ok.com", lockCode: Constants.DEFAULT_LOCK_CODE)
         s1.save(flush:true, failOnError:true)
 

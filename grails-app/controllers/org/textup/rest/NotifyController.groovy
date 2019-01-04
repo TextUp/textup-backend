@@ -5,7 +5,7 @@ import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import org.textup.validator.Notification
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @RestApi(name="Notification", description="Claim notifications")
@@ -34,7 +34,7 @@ class NotifyController extends BaseController {
     ])
     def show() {
     	String token = params.id
-        respondWithResult(Notification, notificationService.show(token))
+        respondWithResult(RedeemedNotification, notificationService.redeem(token))
     }
 
     def index() { notAllowed() }

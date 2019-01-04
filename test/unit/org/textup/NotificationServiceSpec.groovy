@@ -410,7 +410,7 @@ class NotificationServiceSpec extends CustomSpec {
             staff: s1,
             record: c1.record
         ] as BasicNotification
-        PhoneNumber personalNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber personalNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
 
         when: "no personal phone"
         bn1.staff.personalPhoneAsString = null

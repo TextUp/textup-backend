@@ -62,7 +62,7 @@ class AnnouncementServiceSpec extends CustomSpec {
         res.errorMessages[0] == "phone.isInactive"
 
         when: "expiration time is missing or in the past"
-        p1.numberAsString = TestUtils.randPhoneNumber()
+        p1.numberAsString = TestUtils.randPhoneNumberString()
         params.expiresAt = DateTime.now().minusDays(1).toString()
         res = service.create(p1, params)
 

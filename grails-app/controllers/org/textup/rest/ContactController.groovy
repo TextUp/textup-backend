@@ -102,7 +102,7 @@ class ContactController extends BaseController {
     }
     protected def listForPhone(Phone p1, GrailsParameterMap params) {
         if (params.boolean("duplicates")) {
-            return listForDuplicates(duplicateService.findDuplicates(p1), params)
+            return listForDuplicates(duplicateService.findAllDuplicates(p1), params)
         }
         Closure<Integer> count
         Closure<List<? extends Contactable>> list
@@ -232,14 +232,17 @@ class ContactController extends BaseController {
             Long tId = params.long("teamId")
             if (authService.exists(Team, tId)) {
                 if (authService.hasPermissionsForTeam(tId)) {
-                    respondWithResult(Contactable, contactService.createForTeam(tId, contactInfo))
+                    respondWithResult(Contactable,
+                        contactService.create(tId, PhoneOwnershipType.GROUP, contactInfo))
                 }
                 else { forbidden() }
             }
             else { notFound() }
         }
         else {
-            respondWithResult(Contactable, contactService.createForStaff(contactInfo))
+            Long loggedInId = authService.loggedInAndActive?.id
+            respondWithResult(Contactable,
+                contactService.create(loggedInId, PhoneOwnershipType.INDIVIDUAL, contactInfo))
         }
     }
 

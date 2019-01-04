@@ -110,10 +110,10 @@ class CustomSpec extends Specification {
         t2.save(flush:true, failOnError:true)
 
         //add team phones
-        tPh1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        tPh1 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         tPh1.updateOwner(t1)
         tPh1.save(flush:true, failOnError:true)
-        tPh2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        tPh2 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         tPh2.updateOwner(t2)
         tPh2.save(flush:true, failOnError:true)
 
@@ -125,10 +125,10 @@ class CustomSpec extends Specification {
         otherT1.save(flush:true, failOnError:true)
         otherT2.save(flush:true, failOnError:true)
         //add a team phone
-        otherTPh1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        otherTPh1 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         otherTPh1.updateOwner(otherT1)
         otherTPh1.save(flush:true, failOnError:true)
-        otherTPh2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        otherTPh2 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         otherTPh2.updateOwner(otherT2)
         otherTPh2.save(flush:true, failOnError:true)
     }
@@ -153,13 +153,13 @@ class CustomSpec extends Specification {
         s3.save(flush:true, failOnError:true)
 
         //phone numbers for staff at our org
-        p1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        p1 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         p1.updateOwner(s1)
         p1.save(flush:true, failOnError:true)
-        p2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        p2 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         p2.updateOwner(s2)
         p2.save(flush:true, failOnError:true)
-        p3 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        p3 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         p3.updateOwner(s3)
         p3.save(flush:true, failOnError:true)
 
@@ -180,13 +180,13 @@ class CustomSpec extends Specification {
         otherS2.save(flush:true, failOnError:true)
         otherS3.save(flush:true, failOnError:true)
         //phone numbers for staff at our org
-        otherP1 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        otherP1 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         otherP1.updateOwner(otherS1)
         otherP1.save(flush:true, failOnError:true)
-        otherP2 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        otherP2 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         otherP2.updateOwner(otherS2)
         otherP2.save(flush:true, failOnError:true)
-        otherP3 = new Phone(numberAsString:TestUtils.randPhoneNumber())
+        otherP3 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
         otherP3.updateOwner(otherS3)
         otherP3.save(flush:true, failOnError:true)
         // staff roles

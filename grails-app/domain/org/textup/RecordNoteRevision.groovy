@@ -54,7 +54,7 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId {
         useForCreation = false)
     MediaInfo media
 
-	static belongsTo = [note:RecordNote]
+	static belongsTo = [note: RecordNote]
     static constraints = {
     	importFrom RecordItem
     	importFrom RecordNote

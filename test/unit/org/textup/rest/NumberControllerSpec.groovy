@@ -120,7 +120,7 @@ class NumberControllerSpec extends CustomSpec {
     void "test request verify success"() {
         given:
         controller.numberService = Mock(NumberService)
-        String num = TestUtils.randPhoneNumber()
+        String num = TestUtils.randPhoneNumberString()
 
         when:
         request.method = "POST"
@@ -142,7 +142,7 @@ class NumberControllerSpec extends CustomSpec {
         given:
         controller.numberService = Mock(NumberService)
         String tok = TestUtils.randString()
-        String num = TestUtils.randPhoneNumber()
+        String num = TestUtils.randPhoneNumberString()
 
         when:
         request.method = "POST"

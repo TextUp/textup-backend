@@ -62,7 +62,12 @@ class TestUtils {
     // Utilities
     // ---------
 
-    static String randPhoneNumber() {
+    static PhoneNumber randPhoneNumber() {
+        PhoneNumber pNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        assert pNum.validate()
+        pNum
+    }
+    static String randPhoneNumberString() {
         String randNumber = generatePhoneNumber()
         while (GENERATED_NUMBERS.contains(randNumber)) {
             randNumber = generatePhoneNumber()
@@ -260,14 +265,14 @@ class TestUtils {
 
     static RecordItemReceipt buildReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
         RecordItemReceipt rpt = new RecordItemReceipt(status: status,
-            contactNumberAsString: TestUtils.randPhoneNumber(),
+            contactNumberAsString: TestUtils.randPhoneNumberString(),
             apiId: UUID.randomUUID().toString())
         rpt
     }
 
     static TempRecordReceipt buildTempReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
         TempRecordReceipt rpt = new TempRecordReceipt(status: status,
-            contactNumberAsString: TestUtils.randPhoneNumber(),
+            contactNumberAsString: TestUtils.randPhoneNumberString(),
             apiId: UUID.randomUUID().toString(),
             numSegments: TestUtils.randIntegerUpTo(10))
         assert rpt.validate()

@@ -177,7 +177,7 @@ class IncomingTextFunctionalSpec extends RestSpec {
         given: "new phone number + media item + staff is available"
         String encodedData = TestUtils.encodeBase64String(TestUtils.getJpegSampleData512())
         String checksum = TestUtils.getChecksum(encodedData)
-        PhoneNumber fromNum = new PhoneNumber(number:TestUtils.randPhoneNumber())
+        PhoneNumber fromNum = new PhoneNumber(number:TestUtils.randPhoneNumberString())
         String sid = TestUtils.randString()
         String sampleUrl = "${TestConstants.TEST_HTTP_ENDPOINT}/image/jpeg"
         String toNum = remote.exec({ un ->

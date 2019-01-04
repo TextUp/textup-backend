@@ -12,7 +12,7 @@ import org.textup.type.PhoneOwnershipType
     Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
     MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class BasicNotificationSpec extends CustomSpec {
+class OutgoingNotificationSpec extends CustomSpec {
 
 	static doWithSpring = {
 		resultFactory(ResultFactory)
@@ -26,7 +26,7 @@ class BasicNotificationSpec extends CustomSpec {
 
 	void "test constraints"() {
 		when: "an empty notification"
-		BasicNotification bNotif1 = new BasicNotification()
+		OutgoingNotification bNotif1 = new OutgoingNotification()
 
 		then: "invalid"
 		bNotif1.validate() == false

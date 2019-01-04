@@ -65,7 +65,7 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
     def cleanup() {
         cleanupIntegrationData()
         // to avoid duplicate errors because we need to use fixed Twilio test numbers
-        _phone.numberAsString = TestUtils.randPhoneNumber();
+        _phone.numberAsString = TestUtils.randPhoneNumberString();
         _phone.save(flush:true, failOnError:true)
     }
 
@@ -80,7 +80,7 @@ class OutgoingMessageServiceIntegrationSpec extends CustomSpec {
         _phone.number = new PhoneNumber(number:fromNum)
         // create contacts
         numContacts.times {
-            Contact c1 = _phone.createContact([:], [TestUtils.randPhoneNumber()]).payload
+            Contact c1 = _phone.createContact([:], [TestUtils.randPhoneNumberString()]).payload
             _receipientNumbers.addAll(c1.numbers*.e164PhoneNumber)
             _contacts << c1
         }

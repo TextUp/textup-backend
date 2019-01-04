@@ -22,7 +22,7 @@ class NumberServiceSpec extends Specification {
     void "test start verifying ownership"() {
         given:
         PhoneNumber invalidNum = new PhoneNumber(number: "abc")
-        PhoneNumber validNum = new PhoneNumber(number: TestUtils.randPhoneNumber())
+        PhoneNumber validNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
         assert invalidNum.validate() == false
         assert validNum.validate()
         service.tokenService = Mock(TokenService)

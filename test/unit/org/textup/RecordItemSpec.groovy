@@ -355,7 +355,7 @@ class RecordItemSpec extends CustomSpec {
 
     void "test fetching all records for a phone id"() {
         given: "phone + records"
-        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumber())
+        Phone p1 = new Phone(numberAsString: TestUtils.randPhoneNumberString())
         p1.updateOwner(t1)
         p1.save(flush:true, failOnError:true)
 
@@ -363,7 +363,7 @@ class RecordItemSpec extends CustomSpec {
         Record rec2 = new Record()
         [rec1, rec2]*.save(flush: true, failOnError: true)
 
-        Contact c1 = p1.createContact([:], [TestUtils.randPhoneNumber()]).payload
+        Contact c1 = p1.createContact([:], [TestUtils.randPhoneNumberString()]).payload
         c1.record = rec1
         ContactTag ct1 = p1.createTag(name: TestUtils.randString()).payload
         ct1.record = rec2

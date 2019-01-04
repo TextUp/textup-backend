@@ -17,27 +17,26 @@ class PhoneService {
     AuthService authService
     CallService callService
     MediaService mediaService
-    NotificationService notificationService
+    NotificationSettingsService notificationSettingsService
     NumberService numberService
-    ResultFactory resultFactory
 
     Result<Staff> mergePhone(Staff s1, Map body, String timezone) {
         if (body.phone instanceof Map && Utils.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = s1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(s1)
             mergeHelper(p1, body.phone as Map, timezone)
-                .then({ resultFactory.success(s1) })
+                .then { IOCUtils.resultFactory.success(s1) }
         }
-        else { resultFactory.success(s1) }
+        else { IOCUtils.resultFactory.success(s1) }
     }
     Result<Team> mergePhone(Team t1, Map body, String timezone) {
         if (body.phone instanceof Map && Utils.<Boolean>doWithoutFlush{ authService.isActive }) {
             Phone p1 = t1.phoneWithAnyStatus ?: new Phone([:])
             p1.updateOwner(t1)
             mergeHelper(p1, body.phone as Map, timezone)
-                .then({ resultFactory.success(t1) })
+                .then { IOCUtils.resultFactory.success(t1) }
         }
-        else { resultFactory.success(t1) }
+        else { IOCUtils.resultFactory.success(t1) }
     }
 
     // Updating helpers
@@ -78,28 +77,28 @@ class PhoneService {
                 .to(Boolean, body.useVoicemailRecordingIfPresent, p1.useVoicemailRecordingIfPresent)
         }
         if (p1.save()) {
-            resultFactory.success(p1)
+            IOCUtils.resultFactory.success(p1)
         }
-        else { resultFactory.failWithValidationErrors(p1.errors) }
+        else { IOCUtils.resultFactory.failWithValidationErrors(p1.errors) }
     }
 
     protected Result<Phone> handleAvailability(Phone p1, Map body, String timezone) {
         if (body.availability instanceof Map) {
             NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authService.loggedIn.id)
-            Result<?> res = notificationService.update(np1, body.availability as Map, timezone)
+            Result<?> res = notificationSettingsService.update(np1, body.availability as Map, timezone)
             if (!res.success) { return res }
         }
-        resultFactory.success(p1)
+        IOCUtils.resultFactory.success(p1)
     }
 
     protected Result<?> requestVoicemailGreetingCall(Phone p1, Map body) {
         String num = body.requestVoicemailGreetingCall
         if (!num) {
-            return resultFactory.success()
+            return IOCUtils.resultFactory.success()
         }
         PhoneNumber toNum = new PhoneNumber(number: getNumberToCallForVoicemailGreeting(num))
         if (!toNum.validate()) {
-            return resultFactory.failWithValidationErrors(toNum.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(toNum.errors)
         }
         callService.start(p1.number, [toNum], CallTwiml.infoForRecordVoicemailGreeting(),
             p1.customAccountId)
@@ -113,70 +112,67 @@ class PhoneService {
 
     protected Result<Phone> handlePhoneActions(Phone p1, Map body) {
         if (body.doPhoneActions) {
-            ActionContainer ac1 = new ActionContainer(body.doPhoneActions)
-            List<PhoneAction> actions = ac1.validateAndBuildActions(PhoneAction)
-            if (ac1.hasErrors()) {
-                return resultFactory.failWithValidationErrors(ac1.errors)
-            }
             if (p1.customAccountId) {
-                return resultFactory.failWithCodeAndStatus(
+                return IOCUtils.resultFactory.failWithCodeAndStatus(
                     "phoneService.handlePhoneActions.disabledWhenDebugging",
                     ResultStatus.FORBIDDEN, [p1.number.prettyPhoneNumber])
             }
-            Collection<Result<?>> failResults = []
-            for (PhoneAction a1 in actions) {
-                Result<Phone> res
+            ActionContainer ac1 = new ActionContainer<>(PhoneAction, body.doPhoneActions)
+            if (!ac1.validate()) {
+                return IOCUtils.resultFactory.failWithValidationErrors(ac1.errors)
+            }
+            ResultGroup<?> resGroup = new ResultGroup<>()
+            ac1.actions.each { PhoneAction a1 ->
                 switch (a1) {
                     case Constants.PHONE_ACTION_DEACTIVATE:
-                        res = deactivatePhone(p1)
+                        resGroup << deactivatePhone(p1)
                         break
                     case Constants.PHONE_ACTION_TRANSFER:
-                        res = transferPhone(p1, a1.id, a1.typeAsEnum)
+                        resGroup << transferPhone(p1, a1.id, a1.typeAsEnum)
                         break
                     case Constants.PHONE_ACTION_NEW_NUM_BY_NUM:
-                        res = updatePhoneForNumber(p1, a1.phoneNumber)
+                        resGroup << updatePhoneForNumber(p1, a1.phoneNumber)
                         break
                     default: // Constants.PHONE_ACTION_NEW_NUM_BY_ID
-                        res = updatePhoneForApiId(p1, a1.numberId)
+                        resGroup << updatePhoneForApiId(p1, a1.numberId)
                 }
-                if (!res.success) { failResults << res }
             }
-            if (failResults) {
-                return resultFactory.failWithResultsAndStatus(failResults, ResultStatus.BAD_REQUEST)
+            if (resGroup.anyFailures) {
+                return IOCUtils.resultFactory.failWithGroup(resGroup)
             }
         }
-        resultFactory.success(p1)
+        IOCUtils.resultFactory.success(p1)
     }
 
     protected Result<Phone> deactivatePhone(Phone p1) {
         String oldApiId = p1.apiId
         p1.deactivate()
         if (!p1.validate()) {
-            return resultFactory.failWithValidationErrors(p1.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(p1.errors)
         }
         if (oldApiId) {
             numberService
                 .freeExistingNumberToInternalPool(oldApiId)
-                .then { resultFactory.success(p1) }
+                .then { IOCUtils.resultFactory.success(p1) }
         }
-        else { resultFactory.success(p1) }
+        else { IOCUtils.resultFactory.success(p1) }
     }
 
     protected Result<Phone> transferPhone(Phone p1, Long id, PhoneOwnershipType type) {
         p1
             .transferTo(id, type)
-            .then { resultFactory.success(p1) }
+            .then { IOCUtils.resultFactory.success(p1) }
     }
 
     protected Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {
         if (!pNum.validate()) {
-            return resultFactory.failWithValidationErrors(pNum.errors)
+            return IOCUtils.resultFactory.failWithValidationErrors(pNum.errors)
         }
         if (pNum.number == p1.numberAsString) {
-            return resultFactory.success(p1)
+            return IOCUtils.resultFactory.success(p1)
         }
         if (Utils.<Boolean>doWithoutFlush({ Phone.countByNumberAsString(pNum.number) > 0 })) {
-            return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         numberService.changeForNumber(pNum)
@@ -185,10 +181,10 @@ class PhoneService {
 
     protected Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
         if (apiId == p1.apiId) {
-            return resultFactory.success(p1)
+            return IOCUtils.resultFactory.success(p1)
         }
         if (Utils.<Boolean>doWithoutFlush({ Phone.countByApiId(apiId) > 0 })) {
-            return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         numberService.changeForApiId(apiId)

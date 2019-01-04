@@ -275,7 +275,7 @@ class BaseController {
             case MediaElement: return "mediaElement"
             case MediaInfo: return "mediaInfo"
             case MergeGroup: return "mergeGroup"
-            case Notification: return "notification"
+            case RedeemedNotification: return "notification"
             case NotificationStatus: return "notificationStatus"
             case Organization: return "organization"
             case Phone: return "phone"
@@ -297,7 +297,7 @@ class BaseController {
             case FeaturedAnnouncement: return "announcement"
             case FutureMessage: return "futureMessage"
             case IncomingSession: return "session"
-            case Notification: return "notify"
+            case RedeemedNotification: return "notify"
             case Organization: return isPublic ? "publicOrganization" : "organization"
             case RecordItem: return "record" // will never return records via public API
             case Staff: return isPublic ? "publicStaff" : "staff"

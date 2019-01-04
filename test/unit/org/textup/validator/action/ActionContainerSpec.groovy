@@ -18,7 +18,7 @@ class ActionContainerSpec extends Specification {
 
 	void "test constraints"() {
 		when: "empty"
-		ActionContainer ac1 = new ActionContainer()
+		ActionContainer ac1 = new ActionContainer<>()
 
 		then:
 		ac1.validate() == false
@@ -49,7 +49,7 @@ class ActionContainerSpec extends Specification {
 
 	void "test building actions"() {
 		when: "invalid format"
-		ActionContainer ac1 = new ActionContainer("not a collection")
+		ActionContainer ac1 = new ActionContainer<>("not a collection")
 
 		then:
 		ac1.hasErrors() == false

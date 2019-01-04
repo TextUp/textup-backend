@@ -83,12 +83,7 @@ class Team implements WithId {
     static namedQueries = {
         forStaffs { Collection<Staff> staffs ->
             eq("isDeleted", false)
-            members {
-                if (staffs) {
-                    "in"("id", staffs*.id)
-                }
-                else { eq("id", null) }
-            }
+            members { CriteriaUtils.inList(delegate, "id", staffs*.id) }
         }
     }
 

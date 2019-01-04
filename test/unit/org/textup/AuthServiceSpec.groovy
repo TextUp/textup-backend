@@ -114,7 +114,7 @@ class AuthServiceSpec extends CustomSpec {
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
 
-        Contact deletedContact = s1.phone.createContact([isDeleted:true], [TestUtils.randPhoneNumber()]).payload
+        Contact deletedContact = s1.phone.createContact([isDeleted:true], [TestUtils.randPhoneNumberString()]).payload
         deletedContact.save(flush:true, failOnError:true)
 
         expect: "This is your contact"
@@ -282,7 +282,7 @@ class AuthServiceSpec extends CustomSpec {
         s1.status = StaffStatus.STAFF
         s1.save(flush:true, failOnError:true)
 
-        ContactTag deletedTag = s1.phone.createTag([name:TestUtils.randPhoneNumber(), isDeleted:true]).payload
+        ContactTag deletedTag = s1.phone.createTag([name:TestUtils.randPhoneNumberString(), isDeleted:true]).payload
         deletedTag.save(flush:true, failOnError:true)
 
     	expect: "This tag belongs to you"

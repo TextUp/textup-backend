@@ -2,7 +2,6 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import groovy.util.logging.Log4j
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -13,9 +12,8 @@ import org.textup.validator.BasePhoneNumber
 import org.textup.validator.PhoneNumber
 
 @GrailsTypeChecked
-@Log4j
 @EqualsAndHashCode
-class IncomingSession implements WithId {
+class IncomingSession implements WithId, WithPhone {
 
     Phone phone
     String numberAsString
@@ -68,36 +66,33 @@ class IncomingSession implements WithId {
     ])
     static transients = ["number"]
     static mapping = {
-        whenCreated type:PersistentDateTime
-        lastSentInstructions type:PersistentDateTime
+        whenCreated type: PersistentDateTime
+        lastSentInstructions type: PersistentDateTime
     }
-
-    /*
-    Has many:
-        AnnouncementReceipt
-     */
 
     // Instructions
     // ------------
 
     void updateLastSentInstructions() {
-        this.lastSentInstructions = DateTime.now(DateTimeZone.UTC)
+        lastSentInstructions = DateTime.now(DateTimeZone.UTC)
     }
 
     // Property Access
     // ---------------
 
     Author toAuthor() {
-        new Author(id:this.id, type:AuthorType.SESSION, name:this.numberAsString)
+        new Author(id: id, type:AuthorType.SESSION, name: numberAsString)
     }
 
     boolean getShouldSendInstructions() {
-        this.lastSentInstructions.isBefore(DateTime.now().withTimeAtStartOfDay())
+        lastSentInstructions.isBefore(DateTime.now().withTimeAtStartOfDay())
     }
+
     void setNumber(BasePhoneNumber pNum) {
-        this.numberAsString = pNum?.number
+        numberAsString = pNum?.number
     }
+
     PhoneNumber getNumber() {
-        new PhoneNumber(number:this.numberAsString)
+        PhoneNumber.create(numberAsString)
     }
 }

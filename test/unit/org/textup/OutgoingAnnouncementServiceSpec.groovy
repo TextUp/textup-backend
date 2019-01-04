@@ -41,7 +41,7 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int nBaseline = ContactNumber.count()
         IncomingSession session = new IncomingSession(phone:p1,
-            numberAsString: TestUtils.randPhoneNumber())
+            numberAsString: TestUtils.randPhoneNumberString())
         assert IncomingSession.findByPhoneAndNumberAsString(p1,
             session.numberAsString) == null
         session.save(flush:true, failOnError:true)
@@ -94,7 +94,7 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
         int cBaseline = Contact.count()
         int nBaseline = ContactNumber.count()
         IncomingSession session = new IncomingSession(phone:p1,
-            numberAsString: TestUtils.randPhoneNumber())
+            numberAsString: TestUtils.randPhoneNumberString())
         assert IncomingSession.findByPhoneAndNumberAsString(p1,
             session.numberAsString) == null
         session.save(flush:true, failOnError:true)
@@ -151,7 +151,7 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
 
         when: "none reached with some subscribers"
         // add a subscriber
-        String subNum = TestUtils.randPhoneNumber()
+        String subNum = TestUtils.randPhoneNumberString()
         IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
             isSubscribedToText:true, isSubscribedToCall:true)
         sess.save(flush:true, failOnError:true)
@@ -170,7 +170,7 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
     void "test announcement success"() {
         given: "phone and incoming sessions, some coinciding with contacts"
         // subscriber
-        String subNum = TestUtils.randPhoneNumber()
+        String subNum = TestUtils.randPhoneNumberString()
         IncomingSession sess = new IncomingSession(phone:p1, numberAsString:subNum,
             isSubscribedToText:true, isSubscribedToCall:true)
         sess.save(flush:true, failOnError:true)

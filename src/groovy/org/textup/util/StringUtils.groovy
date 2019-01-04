@@ -11,6 +11,14 @@ class StringUtils {
 
     static final List<String> ALPHABET = Collections.unmodifiableList(buildAlphabet())
 
+    static String cleanPhoneNumber(String num) {
+        if (num) {
+            String cleaned = num.replaceAll(/\D+/, "")
+            (cleaned.size() == 11 && cleaned[0] == "1") ? cleaned.substring(1) : cleaned
+        }
+        else { num }
+    }
+
     static String toLowerCaseString(Object val) {
         "$val".toString().toLowerCase()
     }

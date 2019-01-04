@@ -32,7 +32,7 @@ class NotificationPolicy implements Schedulable, WithId {
     // constructor. Since we don't update notification policies
     // to match the current phone owners, it seems needlessly exactly
     // to force existence of staff in the staff id either. If the staff
-    // id corresponds to a nonexistence staff member, then it will simply
+    // id corresponds to a nonexistent staff member, then it will simply
     // be ignored to no great detriment.
     static constraints = {
     	blacklistData nullable:true, blank:true
