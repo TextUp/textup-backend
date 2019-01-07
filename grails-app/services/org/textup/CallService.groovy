@@ -48,7 +48,7 @@ class CallService {
         String apiId, Map afterPickup, String customAccountId) {
 
         start(fromNum, toNums, afterPickup, customAccountId).then { TempRecordReceipt r1 ->
-            RecordItem.findEveryByApiId(apiId)?.each { RecordItem item1 ->
+            RecordItems.findEveryForApiId(apiId)?.each { RecordItem item1 ->
                 item1.addReceipt(r1)
                 item1.save()
             }

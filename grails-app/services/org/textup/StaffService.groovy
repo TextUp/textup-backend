@@ -196,10 +196,13 @@ class StaffService {
     @RollbackOnResultFailure
     Result<Staff> update(Long staffId, Map body, String timezone) {
         findStaffForId(staffId)
-            .then({ Staff s1 -> fillStaffInfo(s1, body, timezone) })
-            .then({ Staff s1 -> tryUpdateStatus(s1, body) })
-            .then({ Staff s1 -> phoneService.mergePhone(s1, body, timezone) })
-            .then({ Staff s1 ->
+            .then { Staff s1 -> fillStaffInfo(s1, body, timezone) }
+            .then { Staff s1 -> tryUpdateStatus(s1, body) }
+            .then { Staff s1 ->
+                Phones.mustFindForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, true).curry(s1)
+            }
+            .then { Staff s1, Phone p1 -> phoneService.merge(p1, body, timezone).curry(s1) }
+            .then { Staff s1 ->
                 StaffStatus oldStatus = s1.getPersistentValue("status") as StaffStatus
                 // email notifications if changing away from pending
                 if (oldStatus.isPending && !s1.status.isPending) {
@@ -211,7 +214,7 @@ class StaffService {
                     }
                 }
                 resultFactory.success(s1)
-            })
+            }
     }
     protected Result<Staff> findStaffForId(Long sId) {
         Staff s1 = Staff.get(sId)

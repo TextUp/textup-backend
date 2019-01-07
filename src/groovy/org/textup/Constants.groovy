@@ -36,6 +36,9 @@ class Constants {
 	static final String CACHE_RECEIPTS = "receiptsCache"
 	static final String CACHE_RECEIPTS_MAX_SIZE = 500
 
+	static final String CACHE_PHONES = "phonesCache"
+	static final String CACHE_PHONES_MAX_SIZE = 500
+
 	// Billing
 	// -------
 

@@ -60,9 +60,8 @@ class AnnouncementController extends BaseController {
             }
             p1 = s1.phone
         }
-        Closure<Integer> count = { p1.countAnnouncements() }
-        Closure<List<FeaturedAnnouncement>> list = { Map params -> p1.getAnnouncements(params) }
-        respondWithMany(FeaturedAnnouncement, count, list, params)
+        DetachedCriteria<FeaturedAnnouncement> query = FeaturedAnnouncement.forPhoneId(p1.id)
+        respondWithMany(FeaturedAnnouncement, { query.count() }, { Map p -> query.list(p) }, params)
     }
 
     // Show

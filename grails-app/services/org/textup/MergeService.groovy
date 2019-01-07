@@ -145,9 +145,9 @@ class MergeService {
 
     protected Result<Void> mergeSharedContacts(Contact targetContact, Collection<Contact> mergeContacts) {
         try {
-            SharedContact
-                .buildForContacts(mergeContacts)
-                .updateAll(contact:targetContact)
+            SharedContacts
+                .forContactsNoJoins(mergeContacts)
+                .updateAll(contact: targetContact)
             IOCUtils.resultFactory.success()
         }
         catch (Throwable e) {
@@ -161,10 +161,10 @@ class MergeService {
         try {
             RecordItem
                 .forRecords(toMergeRecords)
-                .updateAll(record:targetRecord)
+                .updateAll(record: targetRecord)
             FutureMessage
                 .forRecords(toMergeRecords)
-                .updateAll(record:targetRecord)
+                .updateAll(record: targetRecord)
             IOCUtils.resultFactory.success()
         }
         catch (Throwable e) {

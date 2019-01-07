@@ -4,14 +4,14 @@ import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
-import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
+import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.restapidoc.annotation.*
 import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.MergeGroup
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @RestApi(name="Contact", description="Operations on contacts, after logging in.")
@@ -80,7 +80,7 @@ class ContactController extends BaseController {
         }
         else { listForStaff(params) }
     }
-    protected def listForTeam(GrailsParameterMap params) {
+    protected def listForTeam(TypeConvertingMap params) {
         Team t1 = Team.get(params.long("teamId"))
         if (!t1 || !t1.phone) {
             return notFound()
@@ -90,7 +90,7 @@ class ContactController extends BaseController {
         }
         listForPhone(t1.phone, params)
     }
-    protected def listForStaff(GrailsParameterMap params) {
+    protected def listForStaff(TypeConvertingMap params) {
         Staff s1 = authService.loggedInAndActive
         if (!s1) {
             return forbidden()
@@ -100,55 +100,8 @@ class ContactController extends BaseController {
         }
         listForPhone(s1.phone, params)
     }
-    protected def listForPhone(Phone p1, GrailsParameterMap params) {
-        if (params.boolean("duplicates")) {
-            return listForDuplicates(duplicateService.findAllDuplicates(p1), params)
-        }
-        Closure<Integer> count
-        Closure<List<? extends Contactable>> list
-        if (params.search) {
-            count = { Map ps -> p1.countContacts(ps.search as String) }
-            list = { Map ps -> p1.getContacts(ps.search as String, ps) }
-        }
-        else if (params.shareStatus == "sharedByMe") { // returns CONTACTS
-            count = { Map ps -> p1.countSharedByMe() }
-            list = { Map ps -> p1.getSharedByMe(ps) }
-        }
-        else if (params.shareStatus == "sharedWithMe") { // returns SHARED CONTACTS
-            count = { Map ps -> p1.countSharedWithMe() }
-            list = { Map ps -> p1.getSharedWithMe(ps) }
-        }
-        else {
-            params.statuses = params.list("status[]")
-            count = { Map ps -> p1.countContacts(ps) }
-            list = { Map ps -> p1.getContacts(ps) }
-        }
-        respondWithMany(Contactable, count, list, params)
-    }
-    protected def listForTag(GrailsParameterMap params) {
-        ContactTag ct1 = ContactTag.get(params.long("tagId"))
-        if (!ct1) {
-            return notFound()
-        }
-        else if (!authService.hasPermissionsForTag(ct1.id)) {
-            return forbidden()
-        }
-        Collection<Contact> contacts = ct1.getMembersByStatus(params.list("status[]"))
-        if (params.boolean("duplicates")) {
-            listForDuplicates(duplicateService.findDuplicates(contacts*.id), params)
-        }
-        else { respondWithMany(Contactable, { contacts.size() }, { contacts }) }
-    }
-    protected def listForDuplicates(Result<List<MergeGroup>> res, GrailsParameterMap params) {
-        if (!res.success) {
-            return respondWithResult(Object, res)
-        }
-        List<MergeGroup> merges = res.payload
-        Closure<Integer> count = { merges.size() }
-        Closure<List<MergeGroup>> list = { merges }
-        respondWithMany(MergeGroup, count, list, params)
-    }
-    protected def listForIds(GrailsParameterMap params) {
+
+    protected def listForIds(TypeConvertingMap params) {
         Collection<Long> ids = TypeConversionUtils.allTo(Long, TypeConversionUtils.to(Collection, params.list("ids[]"))),
             cIds = [],
             scIds = []
@@ -168,6 +121,56 @@ class ContactController extends BaseController {
         results.addAll(Contact.getAll(cIds as Iterable))
         results.addAll(SharedContact.getAll(scIds as Iterable))
         respondWithMany(Contactable, { results.size() }, { results })
+    }
+    protected def listForTag(TypeConvertingMap params) {
+        ContactTag ct1 = ContactTag.get(params.long("tagId"))
+        if (!ct1) {
+            return notFound()
+        }
+        else if (!authService.hasPermissionsForTag(ct1.id)) {
+            return forbidden()
+        }
+        Collection<Contact> contacts = ct1.getMembersByStatus(params.list("status[]"))
+        if (params.boolean("duplicates")) {
+            listForDuplicates(duplicateService.findDuplicates(contacts*.id), params)
+        }
+        else { respondWithMany(Contactable, { contacts.size() }, { contacts }) }
+    }
+    protected def listForPhone(Long phoneId, TypeConvertingMap params) {
+        if (params.boolean("duplicates")) {
+            return listForDuplicates(duplicateService.findAllDuplicates(p1.id), params)
+        }
+        Closure<Integer> count
+        Closure<List<Contactable>> list
+        if (params.shareStatus == "sharedByMe") {
+            DetachedCriteria<SharedContact> query = SharedContact.forOptions(null, p1.id)
+            count = { query.count() }
+            list = { Map p -> query.list(p) }
+        }
+        else if (params.shareStatus == "sharedWithMe") {
+            DetachedCriteria<SharedContact> query = SharedContact.forOptions(null, null, p1.id)
+            count = { query.count() }
+            list = { Map p -> query.list(p) }
+        }
+        else {
+            List<ContactStatus> statuses = TypeConversionUtils.toEnumList(ContactStatus,
+                params.list("status[]"), ContactStatus.VISIBLE_STATUSES)
+            String searchVal = params.search
+            DetachedCriteria<Contact> query = ContactableUtils
+                .allForPhoneIdWithOptions(p1.id, searchVal, statuses)
+            count = { query.count() }
+            list = { Map p -> query.build(ContactableUtils.buildForSort()).list() }
+        }
+        respondWithMany(Contactable, count, { Map p -> ContactableUtils.normalize(list(p)) }, params)
+    }
+    protected def listForDuplicates(Result<List<MergeGroup>> res, TypeConvertingMap params) {
+        if (!res.success) {
+            return respondWithResult(Object, res)
+        }
+        List<MergeGroup> merges = res.payload
+        Closure<Integer> count = { merges.size() }
+        Closure<List<MergeGroup>> list = { merges }
+        respondWithMany(MergeGroup, count, list, params)
     }
 
     // Show

@@ -63,21 +63,15 @@ class SessionController extends BaseController {
             }
             p1 = s1.phone
         }
-        Closure<Integer> count
-        Closure<List<IncomingSession>> list
+        DetachedCriteria<IncomingSession> query
         if (params.subscribed == "call") {
-        	count = { p1.countCallSubscribedSessions() }
-        	list = { Map params -> p1.getCallSubscribedSessions(params) }
+            query = IncomingSession.forPhoneIdWithOptions(p1.id, true)
         }
         else if (params.subscribed == "text") {
-        	count = { p1.countTextSubscribedSessions() }
-        	list = { Map params -> p1.getTextSubscribedSessions(params) }
+            query = IncomingSession.forPhoneIdWithOptions(p1.id, null, true)
         }
-        else {
-        	count = { p1.countSessions() }
-        	list = { Map params -> p1.getSessions(params) }
-        }
-        respondWithMany(IncomingSession, count, list, params)
+        else { query = IncomingSession.forPhoneIdWithOptions(p1.id) }
+        respondWithMany(IncomingSession, { query.count() }, { Map p -> query.list(p) }, params)
     }
 
     // Show

@@ -74,7 +74,7 @@ class SocketService {
 
     @GrailsTypeChecked
     protected Collection<Staff> getStaffsForRecords(Collection<Record> recs) {
-        HashSet<Phone> phones = Phone.getPhonesForRecords(recs)
+        HashSet<Phone> phones = Phones.findEveryForRecords(recs)
         HashSet<Staff> staffList = new HashSet<>()
         phones*.owner.each { PhoneOwnership po1 -> staffList.addAll(po1.buildAllStaff()) }
         staffList

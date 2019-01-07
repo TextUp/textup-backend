@@ -20,7 +20,7 @@ class TypeConversionUtils {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, def enumsOrStrings,
-        List<T> fallbackList = []) {
+        List<T> fallbackVal = []) {
         if (enumsOrStrings instanceof Collection) {
             enumsOrStrings
                 ?.collect { enumOrString ->
@@ -28,9 +28,9 @@ class TypeConversionUtils {
                         ? enumOrString
                         : convertEnum(enumClass, enumOrString)
                 }
-                ?: fallbackList
+                ?: fallbackVal
         }
-        else { fallbackList }
+        else { fallbackVal }
     }
 
     // For some reason, cannot combine these two method signatures into one using a default

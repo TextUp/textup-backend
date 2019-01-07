@@ -24,8 +24,8 @@ class DuplicateService {
     	}
     }
 
-    Result<List<MergeGroup>> findAllDuplicates(Phone phone) {
-    	findDuplicatesHelper(buildContactsData(getContactsData({ eq("phone", phone) })))
+    Result<List<MergeGroup>> findAllDuplicates(Long phoneId) {
+    	findDuplicatesHelper(buildContactsData(getContactsData({ eq("context.phone.id", phoneId) })))
     }
 
     protected List<Object[]> getContactsData(Closure<?> filterAction) {

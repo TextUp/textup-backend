@@ -10,7 +10,7 @@ import org.textup.util.*
 @EqualsAndHashCode
 class PhoneOwnership implements WithId {
 
-	Phone phone
+	// Phone phone // TODO remove?
 	Long ownerId
 	PhoneOwnershipType type
 

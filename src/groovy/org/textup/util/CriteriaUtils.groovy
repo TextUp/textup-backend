@@ -23,4 +23,12 @@ class CriteriaUtils {
         inCriteria.delegate = delegate
         inCriteria.call()
     }
+
+    static Closure buildForId() {
+        return {
+            projections {
+                property("id")
+            }
+        }
+    }
 }

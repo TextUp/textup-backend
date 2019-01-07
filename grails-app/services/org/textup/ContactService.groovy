@@ -22,7 +22,7 @@ class ContactService {
 
     @RollbackOnResultFailure
 	Result<Contact> create(Long ownerId, PhoneOwnershipType type, Map body) {
-        Phone.findByOwner(ownerId, type)
+        Phones.mustFindForOwner(ownerId, type)
             .then { Phone p1 -> Contact.create(p1) }
             .then { Contact c1 -> handleNotificationActions(c1, body).curry(c1) } // delegate ok
             .then { Contact c1 -> handleNumberActions(c1, body).curry(c1) } // delegate ok
@@ -76,40 +76,17 @@ class ContactService {
     // Helpers
     // -------
 
-    protected Result<Contact> updateContactInfo(Contact c1, Map body, SharedContact sc1 = null) {
-        if (!sc1 || sc1.canModify) {
-            //update other fields only if my contact or with modify permissions
-            c1.with {
-                if (body.name) name = body.name
-                if (body.note) note = body.note
-            }
-            // since we are updating an existing contact, we can be sure that this contact's
-            // record has already been initialized
-            if (body.language) {
-                c1.record.language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
-            }
-        }
+    protected Result<Contactable> updateContactInfo(Contact c1, Map body, SharedContact sc1 = null) {
         // both owner of the contact and active collaborators of all permissions can modify status
         // if updating the status, update on the shared contact if available to avoid overwriting
         // the status on the original contact
-        if (body.status) {
-            ContactStatus newStat1 = TypeConversionUtils.convertEnum(ContactStatus, body.status)
-            if (sc1) {
-                sc1.status = newStat1
-                sc1.lastTouched = DateTime.now()
-                if (!sc1.save()) {
-                    return IOCUtils.resultFactory.failWithValidationErrors(sc1.errors)
+        Contactables.updateStatus(sc1 ?: c1, body.status)
+            .then {
+                if (!sc1 || sc1.canModify) {
+                    Contacts.update(c1, body.name, body.name, body.language)
                 }
+                else { IOCUtils.resultFactory.success(c1) }
             }
-            else {
-                c1.status = newStat1
-                c1.lastTouched = DateTime.now()
-            }
-        }
-        if (c1.save()) {
-            IOCUtils.resultFactory.success(c1)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(c1.errors) }
     }
 
     protected Result<Void> handleNotificationActions(Contact c1, Map body, SharedContact sc1 = null) {

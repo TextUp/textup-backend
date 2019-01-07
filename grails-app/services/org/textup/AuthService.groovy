@@ -107,11 +107,10 @@ class AuthService {
     boolean hasPermissionsForContact(Long cId) {
         Staff s1 = getLoggedInAndActive()
         if (s1 && cId) {
-            List<Phone> phones = s1.allPhones
             Contact.createCriteria().count {
                 eq("id", cId)
                 eq("isDeleted", false)
-                CriteriaUtils.inList(delegate, "phone", phones)
+                "in"("context.phone", Phones.forAllPhonesFromStaffId(s1.id))
             } > 0
         }
         else { false }
@@ -130,14 +129,13 @@ class AuthService {
     Long getSharedContactIdForContact(Long cId) {
         Staff s1 = getLoggedInAndActive()
         if (s1 && cId) {
-            List<Phone> allPhones = s1.allPhones
             SharedContact.createCriteria().list(max:1) {
                 projections { property("id") }
                 contact {
                     eq("id", cId)
                     eq("isDeleted", false)
                 }
-                CriteriaUtils.inList(delegate, "sharedWith", allPhones)
+                "in"("sharedWith", Phones.forAllPhonesFromStaffId(s1.id))
                 or {
                     isNull("dateExpired") //not expired if null
                     gt("dateExpired", DateTime.now())
@@ -203,11 +201,10 @@ class AuthService {
     boolean hasPermissionsForTag(Long tId) {
         Staff s1 = getLoggedInAndActive()
         if (s1 && tId) {
-            List<Phone> phones = s1.allPhones
             ContactTag.createCriteria().count {
                 eq("id", tId)
                 eq("isDeleted", false)
-                CriteriaUtils.inList(delegate, "phone", phones)
+                "in"("context.phone", Phones.forAllPhonesFromStaffId(s1.id))
             } > 0
         }
         else { false }
@@ -236,12 +233,13 @@ class AuthService {
         if (!rec) {
             return false
         }
-        List<Phone> staffPhones = getLoggedInAndActive()?.allPhones
-        if (staffPhones) {
-            HashSet<Phone> allowedPhones = Phone.getPhonesForRecords([rec])
-            staffPhones.any { it in allowedPhones }
-        }
-        else { false }
+        // // TODO fix
+        // List<Phone> staffPhones = getLoggedInAndActive()?.allPhones
+        // if (staffPhones) {
+        //     HashSet<Phone> allowedPhones = Phones.findEveryForRecords([rec])
+        //     staffPhones.any { it in allowedPhones }
+        // }
+        // else { false }
     }
 
     // Session
@@ -250,10 +248,9 @@ class AuthService {
     boolean hasPermissionsForSession(Long sId) {
         Staff s1 = getLoggedInAndActive()
         if (s1 && sId) {
-            List<Phone> phones = s1.allPhones
             IncomingSession.createCriteria().count {
                 eq("id", sId)
-                CriteriaUtils.inList(delegate, "phone", phones)
+                "in"("phone", Phones.forAllPhonesFromStaffId(s1.id))
             } > 0
         }
         else { false }
@@ -265,10 +262,9 @@ class AuthService {
     boolean hasPermissionsForAnnouncement(Long aId) {
         Staff s1 = getLoggedInAndActive()
         if (s1 && aId) {
-            List<Phone> phones = s1.allPhones
             FeaturedAnnouncement.createCriteria().count {
                 eq("id", aId)
-                CriteriaUtils.inList(delegate, "owner", phones)
+                "in"("owner", Phones.forAllPhonesFromStaffId(s1.id))
             } > 0
         }
         else { false }

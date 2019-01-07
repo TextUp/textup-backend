@@ -63,8 +63,9 @@ class TagController extends BaseController {
             }
             p1 = s1.phone
         }
-        Closure<Integer> count = { p1.countTags() }
-        Closure<List<ContactTag>> list = { Map params -> p1.getTags(params) }
+        DetachedCriteria<ContactTag> query = ContactTag.forPhoneIdAndOptions(p1.id)
+        Closure<Integer> count = { query.count() }
+        Closure<List<ContactTag>> list = { Map p -> query.build(ContactTag.buildForSort()).list(p) }
         respondWithMany(ContactTag, count, list, params)
     }
 

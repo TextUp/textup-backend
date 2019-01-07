@@ -21,7 +21,7 @@ class NotificationService {
         // find all staff to send to for each phone
         // group eligible records to report on for each staff for each phone
 
-        Phone.findEveryByItems(rItems).then { Map<Phone, List<RecordItem>> phoneToItems ->
+        Phone.findEveryForItems(rItems).then { Map<Phone, List<RecordItem>> phoneToItems ->
             List<OutgoingNotification> notifs = []
             phoneToItems.each { Phone p1, List<RecordItem> phoneItems ->
                 notifs << new OutgoingNotification(phone: p1, items: phoneItems)
@@ -36,6 +36,7 @@ class NotificationService {
         // find all staff to sent to for each phone
         // group eligible records to report on for each staff for each phone
 
+        // TODO
         List<RecordItem> rItems = RecordItem.createCriteria().list {
             ne("class", RecordNote.class)
             ge("whenCreated", DateTime.now().minus(TimeUnit.toMillis(timeSince)))

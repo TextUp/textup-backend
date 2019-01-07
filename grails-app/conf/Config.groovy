@@ -219,6 +219,7 @@ grails.cache.enabled = true
 grails.cache.clearAtStartup = true
 grails.cache.config = {
    cache { name Constants.CACHE_RECEIPTS }
+   cache { name Constants.CACHE_PHONES }
 }
 
 // this property seems to only set CORS headers in response to the preflight request

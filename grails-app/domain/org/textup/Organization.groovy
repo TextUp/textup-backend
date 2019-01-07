@@ -81,31 +81,6 @@ class Organization implements WithId {
     static mapping = {
         whenCreated type:PersistentDateTime
     }
-    static namedQueries = {
-        ilikeForNameAndAddress { String query ->
-            or {
-                ilike("name", query)
-                location { ilike("address", query) }
-            }
-            eq("status", OrgStatus.APPROVED)
-        }
-    }
-
-	/*
-	Has many:
-		Staff
-		Team
-	*/
-
-    // Static finders
-    // --------------
-
-    static int countSearch(String query) {
-        ilikeForNameAndAddress(query).count()
-    }
-    static List<Organization> search(String query, Map params=[:]) {
-        ilikeForNameAndAddress(query).list(params)
-    }
 
     // Staff
     // -----

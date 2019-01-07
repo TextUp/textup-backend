@@ -56,9 +56,13 @@ class TeamService {
     @RollbackOnResultFailure
     Result<Team> update(Long tId, Map body, String timezone) {
         findTeamFromId(tId)
-            .then({ Team t1 -> handleTeamActions(t1, body) })
-            .then({ Team t1 -> updateTeamInfo(t1, body) })
-            .then({ Team t1 -> phoneService.mergePhone(t1, body, timezone) })
+            .then { Team t1 -> handleTeamActions(t1, body) }
+            .then { Team t1 -> updateTeamInfo(t1, body) }
+            .then { Team t1 ->
+                Phones.mustFindForOwner(t1.id, PhoneOwnershipType.GROUP, true).curry(t1)
+            }
+            .then { Team t1, Phone p1 -> phoneService.merge(p1, body, timezone).curry(t1) }
+            .then { Team t1 -> IOCUtils.resultFactory.success(t1) }
     }
     protected Result<Team> findTeamFromId(Long tId) {
         Team t1 = Team.get(tId)

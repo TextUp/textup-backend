@@ -45,6 +45,62 @@ class SharedContactService {
         }
     }
 
+    // TODO integrate
+    // boolean canShare(Phone sWith) {
+    //     if (!sWith) { return false }
+    //     Collection<Team> myTeams = Team.listForStaffs(owner.buildAllStaff()),
+    //         sharedWithTeams = Team.listForStaffs(sWith.owner.buildAllStaff())
+    //     HashSet<Team> allowedTeams = new HashSet<>(myTeams)
+    //     sharedWithTeams.any { it in allowedTeams }
+    // }
+    // Result<SharedContact> share(Contact c1, Phone sWith, SharePermission perm) {
+    //     if (c1?.phone?.id != id) {
+    //         return IOCUtils.resultFactory.failWithCodeAndStatus("phone.contactNotMine",
+    //             ResultStatus.BAD_REQUEST, [c1?.name])
+    //     }
+    //     if (!canShare(sWith)) {
+    //         return IOCUtils.resultFactory.failWithCodeAndStatus("phone.share.cannotShare",
+    //             ResultStatus.FORBIDDEN, [sWith?.name])
+    //     }
+    //     //check to see that there isn't already an active shared contact
+    //     SharedContact sc = SharedContact.listForContactAndSharedWith(c1, sWith, [max:1])[0]
+    //     if (sc) {
+    //         sc.startSharing(c1.status, perm)
+    //     }
+    //     else {
+    //         sc = new SharedContact(contact:c1, sharedBy:this, sharedWith:sWith, permission:perm)
+    //     }
+    //     if (sc.save()) {
+    //         IOCUtils.resultFactory.success(sc)
+    //     }
+    //     else { IOCUtils.resultFactory.failWithValidationErrors(sc.errors) }
+    // }
+    // Result<Void> stopShare(Phone sWith) {
+    //     List<SharedContact> shareds = SharedContact.listForSharedByAndSharedWith(this, sWith)
+    //     shareds.each { SharedContact sc -> sc.stopSharing() }
+    //     IOCUtils.resultFactory.success()
+    // }
+    // Result<Void> stopShare(Contact c1, Phone sWith) {
+    //     SharedContact sc1 = SharedContact.listForContactAndSharedWith(c1, sWith, [max:1])[0]
+    //     if (sc1) {
+    //         sc1.stopSharing()
+    //     }
+    //     IOCUtils.resultFactory.success()
+    // }
+    // Result<Void> stopShare(Contact contact) {
+    //     // Hibernate proxying magic sometimes results in either contact,phone or this phone being
+    //     // a proxy and therefore not equal to each other when they should be. We get around this
+    //     // problem by comparing the ids of the two objects to ascertain identity
+    //     if (contact?.phone?.id != id) {
+    //         return IOCUtils.resultFactory.failWithCodeAndStatus("phone.contactNotMine",
+    //             ResultStatus.BAD_REQUEST, [contact?.getNameOrNumber()])
+    //     }
+    //     List<SharedContact> shareds = SharedContact.listForContact(contact)
+    //     shareds?.each { SharedContact sc -> sc.stopSharing() }
+    //     IOCUtils.resultFactory.success()
+    // }
+
+
     protected ResultGroup<RecordNote> recordSharingChanges(Record rec,
         Map<Phone,SharePermission> sharedWithToPermission, Collection<Phone> stopSharingPhones) {
 

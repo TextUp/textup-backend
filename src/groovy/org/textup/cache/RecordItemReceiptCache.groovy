@@ -3,7 +3,6 @@ package org.textup.cache
 import grails.compiler.GrailsTypeChecked
 import grails.plugin.cache.*
 import grails.transaction.Transactional
-import org.springframework.transaction.annotation.Propagation
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*

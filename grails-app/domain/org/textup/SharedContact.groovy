@@ -15,26 +15,23 @@ import org.textup.validator.*
 @EqualsAndHashCode
 class SharedContact implements Contactable, WithId {
 
-    Contact contact // Should not access contact object directly
+    ContactPhoneRecord context
     ContactStatus status
-    DateTime dateExpired // active if dateExpired is null or in the future
     DateTime lastTouched = DateTime.now(DateTimeZone.UTC)
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-    Phone sharedBy
-    Phone sharedWith
     SharePermission permission
 
     static mapping = {
-        dateExpired type: PersistentDateTime
         lastTouched type: PersistentDateTime
         whenCreated type: PersistentDateTime
+        context fetch: "join", cascade: "save-update"
     }
     static constraints = {
-    	dateExpired nullable:true
-        contact validator:{ Contact val, SharedContact obj ->
+    	context cascadeValidation: true
+        contact validator: { Contact val, SharedContact obj ->
             if (val.phone?.id != obj.sharedBy?.id) { ["contactOwnership", val.name] }
         }
-        sharedBy validator:{ Phone sBy, SharedContact obj ->
+        sharedBy validator: { Phone sBy, SharedContact obj ->
             if (sBy?.id == obj.sharedWith?.id) { ["shareWithMyself"] }
         }
     }
@@ -44,47 +41,6 @@ class SharedContact implements Contactable, WithId {
         if (!status) {
             status = contact?.status
         }
-    }
-
-    static DetachedCriteria<SharedContact> forContactsNoJoins(Collection<Contact> contacts) {
-        // do not exclude deleted contacts here becuase this detached criteria is used for
-        // bulk operations. For bulk operations, joins are not allowed, so we cannot join the
-        // SharedContact table with the Contact table to screen out deleted contacts
-        new DetachedCriteria(SharedContact)
-            .build { CriteriaUtils.inList(delegate, "contact", contacts) }
-    }
-
-    static DetachedCriteria<SharedContact> forOptions(Collection<Long> contactIds = [],
-        Collection<ContactStatus> statuses = ContactStatus.VISIBLE_STATUSES,
-        Long sharedById = null, Long sharedWithId = null) {
-
-        new DetachedCriteria(SharedContact)
-            .build {
-                projections {
-                    distinct("contact")
-                }
-                or {
-                    isNull("dateExpired") //not expired if null
-                    gt("dateExpired", DateTime.now(DateTimeZone.UTC))
-                }
-                contact {
-                    CriteriaUtils.inList(delegate, "id", contactIds, true)
-                    CriteriaUtils.inList(delegate, "status", ContactStatus.VISIBLE_STATUSES)
-                    eq("isDeleted", false)
-                }
-                CriteriaUtils.inList(delegate, "status", statuses)
-                sharedBy {
-                    isNotNull("numberAsString")
-                    if (sharedById) {
-                        idEq(sharedById)
-                    }
-                }
-                if (sharedWithId) {
-                    sharedWith {
-                        idEq(sharedWithId)
-                    }
-                }
-            }
     }
 
     // Methods

@@ -7,114 +7,43 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
 import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
 @EqualsAndHashCode
-@RestApiObject(
-    name        = "Staff",
-    description = "A staff member at an organization.")
+@GrailsTypeChecked
 class Staff implements Schedulable, WithId {
 
 	SpringSecurityService springSecurityService
     PasswordEncoder passwordEncoder
-
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
     boolean enabled = true
     boolean accountExpired
     boolean accountLocked
     boolean passwordExpired
 
-    String personalPhoneAsString
-
-    @RestApiObjectField(description = "Username of the staff member.")
-	String username
-
-    @RestApiObjectField(
-        description       = "Password of the staff member.",
-        presentInResponse = false)
-	String password
-
-    @RestApiObjectField(
-        description       = "Lock code of the staff member.",
-        presentInResponse = false)
-    String lockCode = Constants.DEFAULT_LOCK_CODE
-
-    @RestApiObjectField(description = "Full name of the staff member.")
-	String name
-
-    @RestApiObjectField(description = "Email address of the staff member.")
-	String email
-
-    @RestApiObjectField(
-        description    = "The organization this staff member belongs to",
-        allowedType    = "Number",
-        useForCreation = false)
-	Organization org
-
-    @RestApiObjectField(
-        description  = "Status of the staff member. Allowed: BLOCKED, PENDING, STAFF, ADMIN",
-        mandatory    = false,
-        allowedType  = "String",
-        defaultValue = "PENDING")
-	StaffStatus status = StaffStatus.PENDING
-
-    @RestApiObjectField(
-        description    = "Schedule of the staff member.",
-        allowedType    = "Schedule",
-        useForCreation = false)
-	Schedule schedule
-
-    //If manual schedule is true then ignore the Schedule object and
-    //look only at the 'available' boolean
-    @RestApiObjectField(
-        description  = "If the staff member wants to manually manage schedule.",
-        mandatory    = false,
-        defaultValue = "false")
-    boolean manualSchedule = true
-
-    @RestApiObjectField(
-        description  = "If the staff member is available. Can only be mutated \
-            if the staff member is manually managing the schedule.",
-        mandatory    = false,
-        defaultValue = "true")
     boolean isAvailable = true
+    boolean manualSchedule = true
+    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    Organization org
+    Schedule schedule
+    StaffStatus status = StaffStatus.PENDING
+    String email
+    String lockCode = Constants.DEFAULT_LOCK_CODE
+    String name
+    String password
+    String personalPhoneAsString
+    String username
 
-    @RestApiObjectFields(params = [
-        @RestApiObjectField(
-            apiFieldName  = "phone",
-            description   = "TextUp phone",
-            allowedType   = "Phone"),
-        @RestApiObjectField(
-            apiFieldName = "hasInactivePhone",
-            description  = "Whether this staff has an inactive TextUp phone",
-            allowedType  = "Boolean",
-            mandatory    = false),
-        @RestApiObjectField(
-            apiFieldName   = "teams",
-            description    = "List of teams the staff member is a member of.",
-            allowedType    = "List<Team>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName = "personalPhoneNumber",
-            description  = "Personal phone number of the staff member. To remove a staff member's personal phone number, pass in an empty string in the update request",
-            allowedType  = "String"),
-        @RestApiObjectField(
-            apiFieldName      = "captcha",
-            description       = "reCaptcha code verifying that request is not a bot only required if you are not logged in when creating a staff",
-            useForCreation    = true,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "channelName",
-            description       = "Pusher websocket channel name",
-            useForCreation    = false,
-            presentInResponse = true)
-    ])
     static transients = ["personalPhoneNumber", "phone", "springSecurityService", "passwordEncoder"]
+    static mapping = {
+        whenCreated type: PersistentDateTime
+        org lazy: false
+        password column: "`password`"
+        schedule cascade: "save-update"
+    }
 	static constraints = {
 		username blank:false, unique:true, validator: { String un, Staff s1 ->
             if (!(un ==~ /^[-_=@.,;A-Za-z0-9]+$/)) { ["format"] } // for Pusher channel
@@ -125,39 +54,20 @@ class Staff implements Schedulable, WithId {
         personalPhoneAsString blank:true, nullable:true, validator:{ String val, Staff obj ->
             if (val && !(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
         }
+        schedule cascadeValidation: true
 	}
-	static mapping = {
-        whenCreated type:PersistentDateTime
-        org lazy:false
-		password column: '`password`'
-	}
-    static namedQueries = {
-        ilikeForOrgAndQuery { Organization org, String query ->
-            eq("org", org)
-            or {
-                ilike("name", query)
-                ilike("username", query)
-                ilike("email", query)
-            }
-            CriteriaUtils.inList(delegate, "status", StaffStatus.ACTIVE_STATUSES)
-        }
-    }
 
-	// Events
-    // ------
-
-    @GrailsTypeChecked
     def beforeValidate() {
-        if (!this.schedule) {
-            this.schedule = new WeeklySchedule([:])
+        if (!schedule) {
+            schedule = new WeeklySchedule()
         }
     }
-    @GrailsTypeChecked
+
     def beforeInsert() {
         encodePassword()
         encodeLockCode()
     }
-    @GrailsTypeChecked
+
     def beforeUpdate() {
         if (isDirty("password")) {
             encodePassword()
@@ -167,97 +77,36 @@ class Staff implements Schedulable, WithId {
         }
     }
 
-    // Lock code
-    // ---------
+    // Methods
+    // -------
 
     boolean isLockCodeValid(String inputLockCode) {
-        passwordEncoder.isPasswordValid(this.lockCode, inputLockCode, null)
-    }
-    protected void encodeLockCode() {
-        this.lockCode = passwordEncoder ?
-            passwordEncoder.encodePassword(this.lockCode, null) : this.lockCode
+        passwordEncoder.isPasswordValid(lockCode, inputLockCode, null)
     }
 
-    // SpringSecurityCore methods
-    // --------------------------
-
-    Set<Role> getAuthorities() {
-        StaffRole.findAllByStaff(this).collect { it.role }
-    }
-    @GrailsTypeChecked
-    protected void encodePassword() {
-        password = springSecurityService?.passwordEncoder ?
-            springSecurityService.encodePassword(password) : password
-    }
-
-    // Schedule
-    // --------
-
-    @GrailsTypeChecked
     boolean isAvailableNow() {
         manualSchedule ? isAvailable : schedule.isAvailableNow()
     }
-    @GrailsTypeChecked
-    Result<Boolean> isAvailableAt(DateTime dt) {
-        if (!manualSchedule) {
-            IOCUtils.resultFactory.success(schedule.isAvailableAt(dt))
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
-                ResultStatus.BAD_REQUEST)
-        }
-    }
-    @GrailsTypeChecked
-    Result<ScheduleChange> nextChange(String timezone=null) {
-        if (!manualSchedule) {
-            schedule.nextChange(timezone)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
-                ResultStatus.BAD_REQUEST)
-        }
-    }
-    @GrailsTypeChecked
-    Result<DateTime> nextAvailable(String timezone=null) {
-        if (!manualSchedule) {
-            schedule.nextAvailable(timezone)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
-                ResultStatus.BAD_REQUEST)
-        }
-    }
-    @GrailsTypeChecked
-    Result<DateTime> nextUnavailable(String timezone=null) {
-        if (!manualSchedule) {
-            schedule.nextUnavailable(timezone)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("staff.scheduleInfoUnavailable",
-                ResultStatus.BAD_REQUEST)
-        }
-    }
-    @GrailsTypeChecked
+
     Result<Schedule> updateSchedule(Map params) {
         schedule.update(params)
     }
 
-    // Team
-    // ----
-
-    @GrailsTypeChecked
     boolean sharesTeamWith(Staff s1) {
-        HashSet<Team> myTeams = new HashSet<>(this.getTeams())
+        HashSet<Team> myTeams = new HashSet<>(getTeams())
         s1?.getTeams()?.any { it in myTeams }
     }
 
-    // Sharing
-    // -------
+    Author toAuthor() {
+        new Author(id: id, type: AuthorType.STAFF, name: name)
+    }
 
-    @GrailsTypeChecked
+    // Properties
+    // ----------
+
     Collection<Staff> getCanShareWith(Collection<String> statuses=[]) {
         HashSet<Staff> staffCanShare = new HashSet<>()
-        this.getTeams().each { Team t1 ->
+        getTeams().each { Team t1 ->
             Collection<Staff> members = t1.getMembersByStatus(statuses)
             // add only staff members that have a phone!
             staffCanShare.addAll(members.findAll { it.phone })
@@ -266,84 +115,26 @@ class Staff implements Schedulable, WithId {
         staffCanShare
     }
 
+    Set<Role> getAuthorities() { StaffRole.findAllByStaff(this).collect { it.role } }
 
-    // Property Access
-    // ---------------
+    void setUsername(String un) { username = un?.toLowerCase() }
 
-    @GrailsTypeChecked
-    Author toAuthor() {
-        new Author(id:this.id, type:AuthorType.STAFF, name:this.name)
-    }
+    void setPersonalPhoneNumber(BasePhoneNumber num) { personalPhoneAsString = num?.number }
 
-    int countTeams() {
-        Team.forStaffs([this]).count()
-    }
-    List<Team> getTeams(Map params=[:]) {
-        Team.forStaffs([this]).list(params)
-    }
+    PhoneNumber getPersonalPhoneNumber() { PhoneNumber.create(personalPhoneAsString) }
 
-    @GrailsTypeChecked
-    void setUsername(String un) {
-        this.username = un?.toLowerCase()
+    String getChannelName() { username ? "private-${username}" : "" }
+
+    // Helpers
+    // -------
+
+    protected void encodeLockCode() {
+        lockCode = passwordEncoder ?
+            passwordEncoder.encodePassword(lockCode, null) : lockCode
     }
 
-    @GrailsTypeChecked
-    void setSchedule(Schedule s) {
-        this.schedule = s
-        this.schedule?.save()
-    }
-
-    @GrailsTypeChecked
-    void setPersonalPhoneNumber(BasePhoneNumber num) {
-        this.personalPhoneAsString = num?.number
-    }
-    @GrailsTypeChecked
-    PhoneNumber getPersonalPhoneNumber() {
-        new PhoneNumber(number:this.personalPhoneAsString)
-    }
-
-    @GrailsTypeChecked
-    String getChannelName() {
-        username ? "private-${username}" : ""
-    }
-
-    @GrailsTypeChecked
-    boolean getHasInactivePhone() {
-        Phone ph = this.phoneWithAnyStatus
-        ph ? !ph.isActive : false
-    }
-    Phone getPhoneWithAnyStatus() {
-        PhoneOwnership.createCriteria().list {
-            projections { property("phone") }
-            eq("type", PhoneOwnershipType.INDIVIDUAL)
-            eq("ownerId", this.id)
-        }[0]
-    }
-    Phone getPhone() {
-        PhoneOwnership.createCriteria().list {
-            projections { property("phone") }
-            phone { isNotNull("numberAsString") }
-            eq("type", PhoneOwnershipType.INDIVIDUAL)
-            eq("ownerId", this.id)
-        }[0]
-    }
-    List<Phone> getAllPhones() {
-        List<Team> teams = this.teams
-        PhoneOwnership.createCriteria().list {
-            projections { property("phone") }
-            phone { isNotNull("numberAsString") }
-            or {
-                and {
-                    eq("type", PhoneOwnershipType.INDIVIDUAL)
-                    eq("ownerId", this.id)
-                }
-                if (teams) {
-                    and{
-                        eq("type", PhoneOwnershipType.GROUP)
-                        CriteriaUtils.inList(delegate, "ownerId", teams*.id)
-                    }
-                }
-            }
-        }
+    protected void encodePassword() {
+        password = springSecurityService?.passwordEncoder ?
+            springSecurityService.encodePassword(password) : password
     }
 }

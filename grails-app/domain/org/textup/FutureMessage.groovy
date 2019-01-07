@@ -147,9 +147,6 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
         media lazy: false, cascade: "save-update"
     }
 
-    // Events
-    // ------
-
     def afterInsert() {
         refreshTrigger()
     }
@@ -158,15 +155,6 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId {
     }
     def afterLoad() {
     	refreshTrigger()
-    }
-
-    // Static finders
-    // --------------
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<FutureMessage> forRecords(Collection<Record> records) {
-        new DetachedCriteria(FutureMessage)
-            .build { CriteriaUtils.inList(delegate, "record", records) }
     }
 
     // Methods

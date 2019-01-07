@@ -48,7 +48,10 @@ beans = {
 	}
 	// Override cache manager to support constraining the in-memory cache size
 	grailsCacheManager(ConstrainedSizeCacheManager) {
-		cacheNameToMaxSize = [(Constants.CACHE_RECEIPTS): Constants.CACHE_RECEIPTS_MAX_SIZE]
+		cacheNameToMaxSize = [
+			(Constants.CACHE_RECEIPTS): Constants.CACHE_RECEIPTS_MAX_SIZE,
+			(Constants.CACHE_PHONES): Constants.CACHE_PHONES_MAX_SIZE
+		]
 	}
 	receiptCache(RecordItemReceiptCache)
 

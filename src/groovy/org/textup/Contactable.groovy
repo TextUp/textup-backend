@@ -2,19 +2,19 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import org.joda.time.DateTime
+import org.springframework.validation.Errors
 import org.textup.rest.NotificationStatus
-import org.textup.type.ContactStatus
-import org.textup.validator.PhoneNumber
-import org.textup.validator.TempRecordReceipt
+import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 interface Contactable extends WithRecord, WithName {
     Long getContactId()
-    String getName()
+    String getSecureName()
+    String getPublicName()
     String getNote()
     PhoneNumber getFromNum()
     String getCustomAccountId()
-    List<ContactNumber> getNumbers()
     List<ContactNumber> getSortedNumbers()
     List<NotificationStatus> getNotificationStatuses()
 
@@ -25,4 +25,7 @@ interface Contactable extends WithRecord, WithName {
     void setLastTouched(DateTime val)
 
     boolean instanceOf(Class clazz)
+
+    Contactable save()
+    Errors getErrors()
 }
