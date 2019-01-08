@@ -5,7 +5,14 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class IncomingSessions {
 
-    static DetachedCriteria<IncomingSession> forPhoneIdWithOptions(Long phoneId,
+    // TODO hasPermissionsForSession
+    static Result<Void> isAllowed(Long thisId) {
+        AuthUtils.tryGetAuthId().then { Long authId ->
+            AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0)
+        }
+    }
+
+    static DetachedCriteria<IncomingSession> buildForPhoneIdWithOptions(Long phoneId,
         Boolean hasCall = null, Boolean hasText = null) {
 
         new DetachedCriteria(IncomingSession).build {
@@ -16,6 +23,16 @@ class IncomingSessions {
             if (hasText != null) {
                 eq("isSubscribedToText", hasText)
             }
+        }
+    }
+
+    // Helpers
+    // -------
+
+    protected static DetachedCriteria<IncomingSession> buildForAuth(Long thisId, Long authId) {
+        new DetachedCriteria(IncomingSession).build {
+            idEq(thisId)
+            "in"("phone", Phones.buildAllPhonesForStaffId(authId))
         }
     }
 }

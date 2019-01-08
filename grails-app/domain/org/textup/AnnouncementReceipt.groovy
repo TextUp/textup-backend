@@ -10,7 +10,7 @@ import groovy.transform.TypeCheckingMode
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class AnnouncementReceipt implements WithId {
+class AnnouncementReceipt implements WithId, Saveable {
 
 	DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 	FeaturedAnnouncement announcement

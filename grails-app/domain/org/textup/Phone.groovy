@@ -13,7 +13,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes = "owner")
-class Phone implements WithMedia, WithId {
+class Phone implements WithMedia, WithId, Saveable {
 
     AvailableTextAction availableTextAction = AvailableTextAction.NOTIFY_TEXT_IMMEDIATELY // TODO
     boolean sendPreviewLinkWithNotification = true // TODO
@@ -34,7 +34,7 @@ class Phone implements WithMedia, WithId {
         whenCreated type: PersistentDateTime
         owner fetch: "join", cascade: "all-delete-orphan"
         customAccount fetch: "join"
-        media lazy: false, cascade: "save-update"
+        media fetch: "join", cascade: "save-update"
     }
     static constraints = {
         apiId blank:true, nullable:true, unique:true
@@ -64,7 +64,7 @@ class Phone implements WithMedia, WithId {
     // Methods
     // -------
 
-    Phone deactivate() {
+    Phone deactivate() {  // TODO add history
         this.numberAsString = null
         this.apiId = null
         this
@@ -77,9 +77,9 @@ class Phone implements WithMedia, WithId {
     // Properties
     // ----------
 
-    String getName() { owner.buildName() }
+    // String getName() { owner.buildName() } // TODO remove
 
-    boolean getIsActive() { getNumber().validate() }
+    boolean getIsActive() { getNumber().validate() } // TODO add history
 
     void setNumber(BasePhoneNumber pNum) { numberAsString = pNum?.number }
 

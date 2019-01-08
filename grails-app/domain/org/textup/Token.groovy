@@ -12,7 +12,7 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Token implements WithId {
+class Token implements WithId, Saveable {
 
     DateTime expires = DateTime.now(DateTimeZone.UTC).plusHours(1)
     String token

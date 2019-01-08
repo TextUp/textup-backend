@@ -10,7 +10,7 @@ import org.textup.type.*
 @RestApiObject(
     name        = "MediaInfo",
     description = "Contains all media elements for a message or batch of messages")
-class MediaInfo implements ReadOnlyMediaInfo, WithId {
+class MediaInfo implements ReadOnlyMediaInfo, WithId, Saveable {
 
     private Set<MediaElement> _originalMediaElements = Collections.emptySet()
 

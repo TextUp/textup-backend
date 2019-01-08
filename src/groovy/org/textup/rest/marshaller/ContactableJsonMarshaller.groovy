@@ -6,7 +6,7 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
-import org.textup.type.ContactStatus
+import org.textup.type.PhoneRecordStatus
 
 @GrailsTypeChecked
 @Log4j
@@ -35,7 +35,7 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         json.status = c1.status?.toString()
         // when manually marking as unread, a contact that is unread may not
         // have any unread counts to report
-        if (c1.status == ContactStatus.UNREAD && rec1.hasUnreadInfo(c1.lastTouched)) {
+        if (c1.status == PhoneRecordStatus.UNREAD && rec1.hasUnreadInfo(c1.lastTouched)) {
             json.unreadInfo = rec1.getUnreadInfo(c1.lastTouched)
         }
         // add fields specific to Contacts or SharedContacts

@@ -1,6 +1,7 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
+import grails.plugin.springsecurity.SpringSecurityService
 import grails.util.Holders
 import groovy.util.logging.Log4j
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
@@ -13,15 +14,20 @@ import org.textup.*
 @Log4j
 class IOCUtils {
 
-    static ResultFactory getResultFactory() {
-        Holders
-            .applicationContext
-            .getBean(ResultFactory) as ResultFactory
+    static <T> T getBean(Class<T> clazz) {
+        Holders.applicationContext.getBean(clazz)>.asType(clazz)
     }
+
+    static SpringSecurityService getSecurity() {
+        IOCUtils.getBean(SpringSecurityService)
+    }
+
+    static ResultFactory getResultFactory() {
+        IOCUtils.getBean(ResultFactory)
+    }
+
     static Scheduler getQuartzScheduler() {
-        Holders
-            .applicationContext
-            .getBean(Scheduler) as Scheduler
+        IOCUtils.getBean(Scheduler)
     }
 
     static String getWebhookLink(Map linkParams = [:]) {
@@ -30,11 +36,6 @@ class IOCUtils {
             action: "save",
             absolute: true,
             params: linkParams)
-    }
-    protected static LinkGenerator getLinkGenerator() {
-        Holders
-            .applicationContext
-            .getBean(LinkGenerator) as LinkGenerator
     }
 
     static String getMessage(String code, List params = []) {
@@ -46,6 +47,7 @@ class IOCUtils {
             ""
         }
     }
+
     static String getMessage(MessageSourceResolvable resolvable) {
         try {
             IOCUtils.messageSource.getMessage(resolvable, LCH.getLocale())
@@ -55,9 +57,15 @@ class IOCUtils {
             ""
         }
     }
+
+    // Helpers
+    // -------
+
+    protected static LinkGenerator getLinkGenerator() {
+        IOCUtils.getBean(LinkGenerator)
+    }
+
     protected static MessageSource getMessageSource() {
-        Holders
-            .applicationContext
-            .getBean(MessageSource) as MessageSource
+        IOCUtils.getBean(MessageSource)
     }
 }

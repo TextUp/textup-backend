@@ -10,7 +10,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class IncomingSession implements WithId {
+class IncomingSession implements WithId, Saveable {
 
     Boolean isSubscribedToCall = false
     Boolean isSubscribedToText = false

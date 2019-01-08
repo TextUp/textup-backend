@@ -14,7 +14,7 @@ import org.textup.validator.UploadItem
 @RestApiObject(
     name        = "MediaElement",
     description = "A media element contained within a media info object contains various versions optimized for sending or display")
-class MediaElement implements ReadOnlyMediaElement, WithId {
+class MediaElement implements ReadOnlyMediaElement, WithId, Saveable {
 
     @RestApiObjectField(
         description    = "unique id for this media element, used for deletion",

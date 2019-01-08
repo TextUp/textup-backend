@@ -9,11 +9,11 @@ import groovy.transform.TypeCheckingMode
 @Sortable(includes = ["preference"])
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true, includes=["number", "preference"])
-class ContactNumber extends BasePhoneNumber implements WithId {
+class ContactNumber extends BasePhoneNumber implements WithId, Saveable {
 
 	Integer preference
 
-    static belongsTo = [owner: Contact]
+    static belongsTo = [owner: IndividualPhoneRecord]
     static constraints = {
         number validator:{ String val ->
             if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }

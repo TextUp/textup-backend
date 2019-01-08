@@ -12,7 +12,7 @@ import org.textup.util.*
 
 @EqualsAndHashCode
 @RestApiObject(name="Organization", description="An organization of staff members and teams.")
-class Organization implements WithId {
+class Organization implements WithId, Saveable {
 
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
 
@@ -77,9 +77,11 @@ class Organization implements WithId {
         timeout min: Constants.DEFAULT_LOCK_TIMEOUT_MILLIS, max: Constants.MAX_LOCK_TIMEOUT_MILLIS
         // leave one character for the space for joining this suffix with an away message
         awayMessageSuffix nullable: true, blank: true, size: 1..(Constants.TEXT_LENGTH - 1)
+        location cascadeValidation: true
     }
     static mapping = {
-        whenCreated type:PersistentDateTime
+        whenCreated type: PersistentDateTime
+        location cascade: "save-update"
     }
 
     // Staff
@@ -118,62 +120,5 @@ class Organization implements WithId {
         t.org = this
         if (t.save()) { IOCUtils.resultFactory.success(t) }
         else { IOCUtils.resultFactory.failWithValidationErrors(t.errors) }
-    }
-
-    // Property Access
-    // ---------------
-
-    @GrailsTypeChecked
-    void setLocation(Location l) {
-        this.location = l
-        l.save()
-    }
-    int countStaff(String searchString) {
-        Staff.ilikeForOrgAndQuery(this, StringUtils.toQuery(searchString)).count()
-    }
-    List<Staff> getStaff(String searchString, Map params = [:]) {
-        Staff.ilikeForOrgAndQuery(this, StringUtils.toQuery(searchString)).list(params)
-    }
-    @GrailsTypeChecked
-    List<Staff> getAdmins(Map params=[:]) {
-        getPeople(params + [statuses:[StaffStatus.ADMIN]])
-    }
-    @GrailsTypeChecked
-    List<Staff> getStaff(Map params=[:]) {
-        getPeople(params + [statuses:[StaffStatus.STAFF]])
-    }
-    @GrailsTypeChecked
-    List<Staff> getPending(Map params=[:]) {
-        getPeople(params + [statuses:[StaffStatus.PENDING]])
-    }
-    @GrailsTypeChecked
-    List<Staff> getBlocked(Map params=[:]) {
-        getPeople(params + [statuses:[StaffStatus.BLOCKED]])
-    }
-    @GrailsTypeChecked
-    int countPeople(Map params=[:]) {
-        List<StaffStatus> statusEnums =
-            TypeConversionUtils.toEnumList(StaffStatus, params.statuses)
-        if (statusEnums) {
-            Staff.countByOrgAndStatusInList(this, statusEnums)
-        }
-        else { Staff.countByOrg(this) }
-    }
-    @GrailsTypeChecked
-    List<Staff> getPeople(Map params=[:]) {
-        List<StaffStatus> statusEnums =
-            TypeConversionUtils.toEnumList(StaffStatus, params.statuses)
-        if (statusEnums) {
-            Staff.findAllByOrgAndStatusInList(this, statusEnums, params)
-        }
-        else { Staff.findAllByOrg(this, params) }
-    }
-    @GrailsTypeChecked
-    int countTeams() {
-        Team.countByOrgAndIsDeleted(this, false)
-    }
-    @GrailsTypeChecked
-    List<Team> getTeams(Map params=[:]) {
-        Team.findAllByOrgAndIsDeleted(this, false, params)
     }
 }

@@ -21,7 +21,7 @@ class NotificationService {
         // find all staff to send to for each phone
         // group eligible records to report on for each staff for each phone
 
-        Phone.findEveryForItems(rItems).then { Map<Phone, List<RecordItem>> phoneToItems ->
+        Phones.findEveryModifiableForItems(rItems).then { Map<Phone, List<RecordItem>> phoneToItems ->
             List<OutgoingNotification> notifs = []
             phoneToItems.each { Phone p1, List<RecordItem> phoneItems ->
                 notifs << new OutgoingNotification(phone: p1, items: phoneItems)

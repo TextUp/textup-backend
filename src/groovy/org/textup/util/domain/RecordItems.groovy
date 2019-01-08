@@ -5,6 +5,13 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class RecordItems {
 
+    // TODO hasPermissionsForItem
+    static Result<Void> isAllowed(Long thisId) {
+        AuthUtils.tryGetAuthId().then { Long authId ->
+            AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0)
+        }
+    }
+
     static List<RecordItem> findEveryForApiId(String apiId) {
         List<RecordItem> results = []
         HashSet<Long> itemIds = new HashSet<>()
@@ -19,29 +26,29 @@ class RecordItems {
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<RecordItem> forPhoneIdWithOptions(Long phoneId,
+    static DetachedCriteria<RecordItem> buildForPhoneIdWithOptions(Long phoneId,
         DateTime start = null, DateTime end = null,
         Collection<Class<? extends RecordItem>> types = null) {
 
         new DetachedCriteria(RecordItem)
             .build {
-                "in"("record.id", PhoneRecords
-                    .forPhoneIds([phoneId])
-                    .build(PhoneRecords.buildForRecordId()))
+                "in"("record", PhoneRecords
+                    .buildActiveForPhoneIds([phoneId])
+                    .build(PhoneRecords.returnsRecord()))
             }
-            .build(RecordItem.buildForOptionalDates(start, end))
-            .build(RecordItem.buildForOptionalTypes(types))
+            .build(forDates(start, end))
+            .build(forTypes(types))
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<RecordItem> forRecordIdsWithOptions(Collection<Long> recordIds,
+    static DetachedCriteria<RecordItem> buildForRecordIdsWithOptions(Collection<Long> recordIds,
         DateTime start = null, DateTime end = null,
         Collection<Class<? extends RecordItem>> types = null) {
 
         new DetachedCriteria(RecordItem)
             .build { CriteriaUtils.inList(delegate, "record.id", recordIds) }
-            .build(RecordItem.buildForOptionalDates(start, end))
-            .build(RecordItem.buildForOptionalTypes(types))
+            .build(forDates(start, end))
+            .build(forTypes(types))
     }
 
     // Specify sort order separately because when we call `count()` on a DetachedCriteria
@@ -50,7 +57,7 @@ class RecordItems {
     // we don't include the sort order by default and we have to separately add it in
     // before calling `list()`. See https://stackoverflow.com/a/19602031
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static Closure buildForSort(boolean recentFirst = true) {
+    static Closure forSort(boolean recentFirst = true) {
         return { // from newer (larger # millis) to older (smaller $ millis)
             if (recentFirst) {
                 order("whenCreated", "desc")
@@ -63,19 +70,27 @@ class RecordItems {
     // -------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Closure buildForOptionalDates(DateTime s = null, DateTime e = null) {
+    protected static Closure forDates(DateTime start, DateTime end) {
         return {
-            if (s && e) {
-                between("whenCreated", s, e)
+            if (start && end) {
+                between("whenCreated", s, end)
             }
-            else if (s) {
+            else if (start) {
                 ge("whenCreated", s)
             }
         }
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Closure buildForOptionalTypes(Collection<Class<? extends RecordItem>> types = null) {
+    protected static Closure forTypes(Collection<Class<? extends RecordItem>> types) {
         return { CriteriaUtils.inList(delegate, "class", types*.canonicalName) }
+    }
+
+    protected static DetachedCriteria<RecordItem> buildForAuth(Long thisId, Long authId) {
+        new DetachedCriteria(RecordItem).build {
+            idEq(thisId)
+            "in"("record", PhoneRecords.buildActiveForStaffId(authId)
+                .build(PhoneRecords.returnsRecord())
+        }
     }
 }

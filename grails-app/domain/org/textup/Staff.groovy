@@ -1,23 +1,18 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
-import grails.plugin.springsecurity.SpringSecurityService
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Staff implements Schedulable, WithId {
-
-	SpringSecurityService springSecurityService
-    PasswordEncoder passwordEncoder
+class Staff implements Schedulable, WithId, Saveable {
 
     boolean enabled = true
     boolean accountExpired
@@ -37,8 +32,9 @@ class Staff implements Schedulable, WithId {
     String personalPhoneAsString
     String username
 
-    static transients = ["personalPhoneNumber", "phone", "springSecurityService", "passwordEncoder"]
+    static transients = ["personalPhoneNumber"]
     static mapping = {
+        cache usage: "read-write", include: "non-lazy"
         whenCreated type: PersistentDateTime
         org lazy: false
         password column: "`password`"
@@ -80,10 +76,6 @@ class Staff implements Schedulable, WithId {
     // Methods
     // -------
 
-    boolean isLockCodeValid(String inputLockCode) {
-        passwordEncoder.isPasswordValid(lockCode, inputLockCode, null)
-    }
-
     boolean isAvailableNow() {
         manualSchedule ? isAvailable : schedule.isAvailableNow()
     }
@@ -92,28 +84,12 @@ class Staff implements Schedulable, WithId {
         schedule.update(params)
     }
 
-    boolean sharesTeamWith(Staff s1) {
-        HashSet<Team> myTeams = new HashSet<>(getTeams())
-        s1?.getTeams()?.any { it in myTeams }
-    }
-
     Author toAuthor() {
         new Author(id: id, type: AuthorType.STAFF, name: name)
     }
 
     // Properties
     // ----------
-
-    Collection<Staff> getCanShareWith(Collection<String> statuses=[]) {
-        HashSet<Staff> staffCanShare = new HashSet<>()
-        getTeams().each { Team t1 ->
-            Collection<Staff> members = t1.getMembersByStatus(statuses)
-            // add only staff members that have a phone!
-            staffCanShare.addAll(members.findAll { it.phone })
-        }
-        staffCanShare.remove(this)
-        staffCanShare
-    }
 
     Set<Role> getAuthorities() { StaffRole.findAllByStaff(this).collect { it.role } }
 
@@ -128,13 +104,7 @@ class Staff implements Schedulable, WithId {
     // Helpers
     // -------
 
-    protected void encodeLockCode() {
-        lockCode = passwordEncoder ?
-            passwordEncoder.encodePassword(lockCode, null) : lockCode
-    }
+    protected void encodeLockCode() { lockCode = AuthUtils.encodeSecureString(lockCode) }
 
-    protected void encodePassword() {
-        password = springSecurityService?.passwordEncoder ?
-            springSecurityService.encodePassword(password) : password
-    }
+    protected void encodePassword() { password = AuthUtils.encodeSecureString(password) }
 }

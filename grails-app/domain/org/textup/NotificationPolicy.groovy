@@ -7,7 +7,7 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class NotificationPolicy implements Schedulable, WithId {
+class NotificationPolicy implements Schedulable, WithId, Saveable {
 
 	private HashSet<Long> _blacklist // transient
 	private HashSet<Long> _whitelist // transient

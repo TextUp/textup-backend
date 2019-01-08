@@ -75,7 +75,7 @@ class MergeService {
         // as deleted because this finder will ignore deleted contacts
         Collection<ContactTag> tagsToMerge = ContactTag.findEveryByContactIds(contactsToMerge*.id)
         // collate items
-        Collection<ContactStatus> statuses = [targetContact.status]
+        Collection<PhoneRecordStatus> statuses = [targetContact.status]
         Collection<Record> toMergeRecords = []
         Collection<ContactNumber> mergeNums = []
         for (Contact mergeContact in contactsToMerge) {
@@ -84,7 +84,7 @@ class MergeService {
             statuses << mergeContact.status
         }
         // transfer appropriate associations
-        targetContact.status = findMostPermissibleContactStatus(statuses)
+        targetContact.status = findMostPermissiblePhoneRecordStatus(statuses)
         Result<Void> res =
 
         mergeContactTags(targetContact, tagsToMerge, contactsToMerge)
@@ -100,14 +100,14 @@ class MergeService {
             }
     }
 
-    protected ContactStatus findMostPermissibleContactStatus(Collection<ContactStatus> statuses) {
-        if ([ContactStatus.UNREAD, ContactStatus.ACTIVE].any { ContactStatus s -> s in statuses }) {
-            ContactStatus.ACTIVE
+    protected PhoneRecordStatus findMostPermissiblePhoneRecordStatus(Collection<PhoneRecordStatus> statuses) {
+        if ([PhoneRecordStatus.UNREAD, PhoneRecordStatus.ACTIVE].any { PhoneRecordStatus s -> s in statuses }) {
+            PhoneRecordStatus.ACTIVE
         }
-        else if (ContactStatus.ARCHIVED in statuses) {
-            ContactStatus.ARCHIVED
+        else if (PhoneRecordStatus.ARCHIVED in statuses) {
+            PhoneRecordStatus.ARCHIVED
         }
-        else { ContactStatus.BLOCKED }
+        else { PhoneRecordStatus.BLOCKED }
     }
 
     protected Result<Void> mergeContactNumbers(Contact targetContact, Collection<ContactNumber> mergeNums) {
@@ -144,17 +144,18 @@ class MergeService {
     }
 
     protected Result<Void> mergeSharedContacts(Contact targetContact, Collection<Contact> mergeContacts) {
-        try {
-            SharedContacts
-                .forContactsNoJoins(mergeContacts)
-                .updateAll(contact: targetContact)
-            IOCUtils.resultFactory.success()
-        }
-        catch (Throwable e) {
-            log.error("DuplicateService.mergeSharedContacts: ${e.message}")
-            e.printStackTrace()
-            IOCUtils.resultFactory.failWithThrowable(e)
-        }
+        // TODO need to fundamentally change
+        // try {
+        //     new DetachedCriteria(PhoneRecords)
+        //         .build(PhoneRecords.forShareSourceIds(mergeContacts*.id))
+        //         .updateAll(contact: targetContact)
+        //     IOCUtils.resultFactory.success()
+        // }
+        // catch (Throwable e) {
+        //     log.error("DuplicateService.mergeSharedContacts: ${e.message}")
+        //     e.printStackTrace()
+        //     IOCUtils.resultFactory.failWithThrowable(e)
+        // }
     }
 
     protected Result<Void> mergeRecords(Record targetRecord, Collection<Record> toMergeRecords) {

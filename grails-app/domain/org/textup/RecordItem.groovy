@@ -12,7 +12,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class RecordItem implements ReadOnlyRecordItem, WithId {
+class RecordItem implements ReadOnlyRecordItem, WithId, Saveable {
 
     AuthorType authorType
     boolean hasAwayMessage = false

@@ -24,7 +24,7 @@ class CriteriaUtils {
         inCriteria.call()
     }
 
-    static Closure buildForId() {
+    static Closure returnsId() {
         return {
             projections {
                 property("id")

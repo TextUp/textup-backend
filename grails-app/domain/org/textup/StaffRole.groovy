@@ -31,7 +31,7 @@ class StaffRole implements Serializable {
 			if (ur.staff == null) return
 			boolean existing = false
 			StaffRole.withNewSession {
-				existing = StaffRoleUtils.exists(ur.staff.id, r.id)
+				existing = StaffRoles.exists(ur.staff.id, r.id)
 			}
 			if (existing) {
 				return 'userRole.exists'

@@ -1,7 +1,6 @@
 package org.textup.test
 
 import grails.compiler.GrailsTypeChecked
-import org.textup.type.ContactStatus
 
 @GrailsTypeChecked
 class TestConstants {

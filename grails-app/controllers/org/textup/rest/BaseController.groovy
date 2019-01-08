@@ -123,7 +123,7 @@ class BaseController {
                         resource:resolveClassToResourceName(clazz),
                         absolute:true,
                         action:"show",
-                        id:getId(res.payload)
+                        id: Utils.getId(res.payload)
                     )
                 )
                 render(status:res.status.apiStatus)
@@ -143,7 +143,7 @@ class BaseController {
             Map errorObj = [errors: buildErrorObj(resGroup.failures)]
             if (resGroup.anySuccesses) {
                 List<Result<T>> successes = resGroup.successes
-                Long resourceId = getId(successes.toArray(new Result<T>[successes.size()])[0]?.payload)
+                Long resourceId = Utils.getId(successes.toArray(new Result<T>[successes.size()])[0]?.payload)
                 response.addHeader(HttpHeaders.LOCATION,
                     createLink(
                         namespace:getNamespaceAsString(),
@@ -227,18 +227,6 @@ class BaseController {
         // must provide all necessary information (e.g., id for show/update/delete)
         g.createLink(linkParams)
     }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected Long getId(Object obj) {
-        Long thisId
-        try {
-            obj?.id
-        }
-        catch(Throwable e) {
-            log.error("BaseController.getId: obj $obj, with error ${e.message}")
-            e.printStackTrace()
-        }
-        thisId
-    }
 
     // Helper methods
     // --------------
@@ -263,6 +251,8 @@ class BaseController {
             code = "textup.rest.${getNamespaceAsString()}.${key}.plural"
         grailsApplication.flatConfig[code] ?: Constants.FALLBACK_PLURAL
     }
+
+    // TODO contact --> IndividualPhoneRecordWrapper, tag --> GroupPhoneRecordWrapper
     protected String resolveClassToConfigKey(Class clazz) {
         switch (clazz) {
             case AvailablePhoneNumber: return "availableNumber"
@@ -289,6 +279,8 @@ class BaseController {
             default: return "result"
         }
     }
+
+    // TODO contact --> IndividualPhoneRecordWrapper, tag --> GroupPhoneRecordWrapper
     protected String resolveClassToResourceName(Class clazz, boolean isPublic = false) {
         switch (clazz) {
             case AvailablePhoneNumber: return "number"

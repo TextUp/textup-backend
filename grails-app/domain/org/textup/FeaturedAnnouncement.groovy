@@ -10,11 +10,11 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class FeaturedAnnouncement implements WithId {
+class FeaturedAnnouncement implements WithId, Saveable {
 
     DateTime expiresAt
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-    Phone owner
+    Phone phone
     String message
 
     // holds receipts that we are about to save in the next flush

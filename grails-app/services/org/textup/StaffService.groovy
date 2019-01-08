@@ -31,7 +31,7 @@ class StaffService {
                 return resultFactory.failWithValidationErrors(role.errors)
             }
             try {
-                StaffRole.create(s1, role, true)
+                StaffRoles.create(s1, role, true)
                 resultFactory.success(s1)
             }
             catch (Throwable e) {
@@ -205,8 +205,8 @@ class StaffService {
             .then { Staff s1 ->
                 StaffStatus oldStatus = s1.getPersistentValue("status") as StaffStatus
                 // email notifications if changing away from pending
-                if (oldStatus.isPending && !s1.status.isPending) {
-                    Result<?> res = s1.status.isActive ?
+                if (oldStatus.isPending() && !s1.status.isPending()) {
+                    Result<?> res = s1.status.isActive() ?
                         mailService.notifyApproval(s1) :
                         mailService.notifyRejection(s1)
                     if (!res.success) {

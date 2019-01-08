@@ -10,7 +10,7 @@ import grails.compiler.GrailsTypeChecked
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Schedule implements WithId {
+class Schedule implements WithId, Saveable {
 
     static constraints = {
     }

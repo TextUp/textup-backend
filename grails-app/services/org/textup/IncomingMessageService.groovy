@@ -288,7 +288,7 @@ class IncomingMessageService {
         storeContact.call(c1)
         // only change status to unread
         // dont' have to worry about blocked contacts since we already filtered those out
-        c1.status = ContactStatus.UNREAD
+        c1.status = PhoneRecordStatus.UNREAD
         // NOTE: because we've already screened out all contacts that have been blocked
         // by the owner of the contact, this effectively means that blocking also effectively
         // stops all sharing relationships because we do not even attempt to deliver
@@ -299,8 +299,8 @@ class IncomingMessageService {
             // only marked the shared contact's status as unread IF the shared contact's
             // status is NOT blocked. If the collaborator has blocked this contact then
             // we want to respect that decision.
-            if (sc1.status != ContactStatus.BLOCKED) {
-                sc1.status = ContactStatus.UNREAD
+            if (sc1.status != PhoneRecordStatus.BLOCKED) {
+                sc1.status = PhoneRecordStatus.UNREAD
                 if (!sc1.save()) {
                     return IOCUtils.resultFactory.failWithValidationErrors(sc1.errors)
                 }

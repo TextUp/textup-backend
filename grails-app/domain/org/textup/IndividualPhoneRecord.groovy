@@ -2,39 +2,26 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import groovy.transform.TypeCheckingMode
-import org.jadira.usertype.dateandtime.joda.PersistentDateTime
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
-import org.textup.rest.NotificationStatus
-import org.textup.type.*
-import org.textup.util.*
-import org.textup.validator.*
 
-@EqualsAndHashCode
 @GrailsTypeChecked
-class Contact implements Contactable, WithId {
+@EqualsAndHashCode
+class IndividualPhoneRecord extends PhoneRecord {
 
     boolean isDeleted = false
-    ContactPhoneRecord context
-    ContactStatus status = ContactStatus.ACTIVE
-    DateTime lastTouched = DateTime.now()
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-    List<ContactNumber> numbers
     String name
     String note
 
     static hasMany = [numbers: ContactNumber]
     static mapping = {
-        whenCreated type: PersistentDateTime
-        lastTouched type: PersistentDateTime
-        numbers lazy: false, cascade: "all-delete-orphan"
-        context fetch: "join", cascade: "save-update"
+        numbers fetch: "join", cascade: "all-delete-orphan"
+        isDeleted column: "individual_is_deleted"
+        name column: "individual_name"
+        note column: "individual_note", type: "text"
     }
     static constraints = {
+        numbers minSize: 1
         name blank: true, nullable: true
-        note blank: true, nullable: true, size: 1..1000
-        context cascadeValidation: true
+        note blank: true, nullable: true, maxSize: Constants.MAX_TEXT_COLUMN_SIZE
     }
 
     def beforeValidate() {
@@ -44,8 +31,15 @@ class Contact implements Contactable, WithId {
     // Methods
     // -------
 
+    @Override
+    IndividualPhoneRecordWrapper toWrapper(PhoneRecord sharingOverride = null) {
+        sharingOverride ?
+            new IndividualPhoneRecordWrapper(this, sharingOverride.toPermissions(), sharingOverride)
+            new IndividualPhoneRecordWrapper(this, toPermissions())
+    }
+
     Result<ContactNumber> mergeNumber(BasePhoneNumber bNum, int preference) {
-        ContactNumber cNum = this.numbers?.find { it.number == bNum?.number }
+        ContactNumber cNum = numbers?.find { it.number == bNum?.number }
         if (!cNum) {
             cNum = new ContactNumber()
             cNum.update(bNum)
@@ -59,7 +53,7 @@ class Contact implements Contactable, WithId {
     }
 
     Result<Void> deleteNumber(BasePhoneNumber bNum) {
-        ContactNumber cNum = this.numbers?.find { it.number == bNum?.number }
+        ContactNumber cNum = numbers?.find { it.number == bNum?.number }
         if (cNum) {
             removeFromNumbers(cNum)
             cNum.delete()
@@ -71,44 +65,22 @@ class Contact implements Contactable, WithId {
         }
     }
 
-    @Override
-    Result<Record> tryGetRecord() { IOCUtils.resultFactory.success(context.record) }
-
-    @Override
-    Result<ReadOnlyRecord> tryGetReadOnlyRecord() { IOCUtils.resultFactory.success(context.record) }
-
     // Properties
     // ----------
 
     @Override
     String getSecureName() { name ?: numbers?.getAt(0)?.prettyPhoneNumber ?: "" }
 
-    @Override
-    String getPublicName() { StringUtils.buildInitials(name) }
-
-    @Override
     List<ContactNumber> getSortedNumbers() { numbers?.sort(false) ?: [] }
-
-    @Override
-    Long getContactId() { id }
-
-    @Override
-    PhoneNumber getFromNum() { context.phone.number }
-
-    @Override
-    String getCustomAccountId() { context.phone.customAccountId }
-
-    @Override
-    ReadOnlyRecord getReadOnlyRecord() { contex.record }
 
     // Helpers
     // -------
 
     protected void tryReconcileNumberPreferences() {
         // autoincrement numbers' preference for new numbers if blank
-        Collection<ContactNumber> initialNums = this.numbers?.findAll { !it.id && !it.preference }
+        Collection<ContactNumber> initialNums = numbers?.findAll { !it.id && !it.preference }
         if (initialNums) {
-            Collection<ContactNumber> existingNums = this.numbers - initialNums
+            Collection<ContactNumber> existingNums = numbers - initialNums
             int greatestPref = 0
             if (existingNums) {
                 ContactNumber greatestPrefNum = existingNums.max { it.preference }

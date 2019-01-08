@@ -140,28 +140,23 @@ class ContactController extends BaseController {
         if (params.boolean("duplicates")) {
             return listForDuplicates(duplicateService.findAllDuplicates(p1.id), params)
         }
-        Closure<Integer> count
-        Closure<List<Contactable>> list
+
+        DetachedCriteria<IndividualPhoneRecord> query
+        String searchVal = params.search
+        List<PhoneRecordStatus> statuses = TypeConversionUtils.toEnumList(PhoneRecordStatus,
+            params.list("status[]"), PhoneRecordStatus.VISIBLE_STATUSES)
         if (params.shareStatus == "sharedByMe") {
-            DetachedCriteria<SharedContact> query = SharedContact.forOptions(null, p1.id)
-            count = { query.count() }
-            list = { Map p -> query.list(p) }
+            query = IndividualPhoneRecords.forSharedByIdWithOptions(p1.id, searchVal, statuses)
         }
         else if (params.shareStatus == "sharedWithMe") {
-            DetachedCriteria<SharedContact> query = SharedContact.forOptions(null, null, p1.id)
-            count = { query.count() }
-            list = { Map p -> query.list(p) }
+            query = IndividualPhoneRecords.forPhoneIdWithOptions(p1.id, searchVal, statuses, true)
         }
-        else {
-            List<ContactStatus> statuses = TypeConversionUtils.toEnumList(ContactStatus,
-                params.list("status[]"), ContactStatus.VISIBLE_STATUSES)
-            String searchVal = params.search
-            DetachedCriteria<Contact> query = ContactableUtils
-                .allForPhoneIdWithOptions(p1.id, searchVal, statuses)
-            count = { query.count() }
-            list = { Map p -> query.build(ContactableUtils.buildForSort()).list() }
+        else { query = IndividualPhoneRecords.forPhoneIdWithOptions(p1.id, searchVal, statuses) }
+
+        Closure<List<IndividualPhoneRecordWrapper>> list = { Map opts ->
+            query.build(IndividualPhoneRecords.buildForSort()).list(opts)*.toWrapper()
         }
-        respondWithMany(Contactable, count, { Map p -> ContactableUtils.normalize(list(p)) }, params)
+        respondWithMany(IndividualPhoneRecordWrapper, { query.count() }, list, params)
     }
     protected def listForDuplicates(Result<List<MergeGroup>> res, TypeConvertingMap params) {
         if (!res.success) {

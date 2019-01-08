@@ -10,20 +10,21 @@ import org.textup.util.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Team implements WithId {
+class Team implements WithId, Saveable {
 
     boolean isDeleted = false
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-	String name
-	Location location
-	Organization org
+    Location location
+    Organization org
     String hexColor = Constants.DEFAULT_BRAND_COLOR
+    String name
 
     static hasMany = [members: Staff]
     static mapping = {
+        cache usage: "read-write", include: "non-lazy"
         whenCreated type: PersistentDateTime
-        members lazy: false, cascade: "save-update"
-        location fetch: "join", cascade: "save-update"
+        members fetch: "join", cascade: "save-update" // TODO should be lazy for cache?
+        location fetch: "join", cascade: "save-update" // TODO should be lazy for cache?
     }
     static constraints = {
     	name blank:false, validator: { String val, Team obj ->
@@ -50,20 +51,16 @@ class Team implements WithId {
     // Properties
     // ----------
 
-    List<Staff> getActiveMembers() {
-        (this.members?.findAll { Staff s1 ->
-            s1.status == StaffStatus.STAFF || s1.status == StaffStatus.ADMIN
-        } ?: []) as List<Staff>
+    Collection<Staff> getActiveMembers() {
+        members?.findAll { Staff s1 -> s1.status.isActive() } ?: new ArrayList<Staff>()
     }
 
-    Collection<Staff> getMembersByStatus(Collection statuses = []) {
+    // Can't move to static class because Grails manages this relationship so no direct queries
+    Collection<Staff> getMembersByStatus(Collection<StaffStatus> statuses) {
         if (statuses) {
-            HashSet<StaffStatus> findStatuses =
-                new HashSet<>(TypeConversionUtils.toEnumList(StaffStatus, statuses))
-            this.members.findAll { Staff s1 ->
-                s1.status in findStatuses
-            }
+            HashSet<StaffStatus> statusesToFind = new HashSet<>(statuses)
+            members?.findAll { Staff s1 -> statusesToFind.contains(s1.status) }
         }
-        else { this.members }
+        else { members }
     }
 }

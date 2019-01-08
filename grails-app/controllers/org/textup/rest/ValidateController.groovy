@@ -32,12 +32,15 @@ class ValidateController extends BaseController {
         if (data == null) { return }
 		String un = data.username
 		if (un && data.password) {
-			authService.isValidUsernamePassword(un, data.password as String) ?
-				noContent() : forbidden()
+            AuthUtils.isValidCredentials(un, data.password as String) ? noContent() : forbidden()
 		}
 		else if (un && data.lockCode) {
-			authService.isValidLockCode(un, data.lockCode as String) ?
-				noContent() : forbidden()
+            // TODO
+            Result<Staff> res = AuthUtils.tryGetAuthUser()
+            if (AuthUtils.isSecureStringValid(res.payload?.lockCode, data.lockCode as String)) {
+                noContent()
+            }
+            else { forbidden() }
 		}
 		else { badRequest() }
 	}

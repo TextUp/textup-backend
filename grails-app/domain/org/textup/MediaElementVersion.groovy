@@ -11,7 +11,7 @@ import org.textup.util.*
 @RestApiObject(
     name        = "MediaElementVersion",
     description = "A version of media optimized for either sending or displaying on a particular device size")
-class MediaElementVersion implements ReadOnlyMediaElementVersion, WithId {
+class MediaElementVersion implements ReadOnlyMediaElementVersion, WithId, Saveable {
 
     String versionId
     Long sizeInBytes

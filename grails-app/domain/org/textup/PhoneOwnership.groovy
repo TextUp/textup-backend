@@ -8,11 +8,12 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class PhoneOwnership implements WithId {
+class PhoneOwnership implements WithId, Saveable {
 
-	// Phone phone // TODO remove?
+	Phone phone
 	Long ownerId
 	PhoneOwnershipType type
+    boolean allowSharingWithOtherTeams = false // TODO
 
     static constraints = {
     	ownerId validator: { Long val, PhoneOwnership obj ->
@@ -26,7 +27,7 @@ class PhoneOwnership implements WithId {
     }
     static hasMany = [policies: NotificationPolicy]
     static mapping = {
-        policies lazy:false, cascade:"all-delete-orphan"
+        policies fetch: "join", cascade:"all-delete-orphan"
     }
 
     // Property access
@@ -74,25 +75,25 @@ class PhoneOwnership implements WithId {
         statuses
     }
     List<Staff> buildAllStaff() {
-        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
-            Staff s1 = Staff.get(this.ownerId)
+        if (type == PhoneOwnershipType.INDIVIDUAL) {
+            Staff s1 = Staff.get(ownerId)
             s1 ? [s1] : []
         }
         else { // group
-            Team.get(this.ownerId)?.getActiveMembers() ?: []
+            Team.get(ownerId)?.getActiveMembers() ?: []
         }
     }
     Organization buildOrganization() {
-        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
-            Staff.get(this.ownerId)?.org
+        if (type == PhoneOwnershipType.INDIVIDUAL) {
+            Staff.get(ownerId)?.org
         }
-        else { Team.get(this.ownerId)?.org }
+        else { Team.get(ownerId)?.org }
     }
     String buildName() {
-        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
-            Staff.get(this.ownerId)?.name ?: ''
+        if (type == PhoneOwnershipType.INDIVIDUAL) {
+            Staff.get(ownerId)?.name ?: ""
         }
-        else { Team.get(this.ownerId)?.name ?: '' }
+        else { Team.get(ownerId)?.name ?: "" }
     }
     // Notification Policies might not all correspond to staff members that are owners on this phone
     // because we also include staff members that can access one of this phone's contacts
@@ -102,11 +103,11 @@ class PhoneOwnership implements WithId {
         NotificationPolicy np1 = findPolicyForStaff(staffId)
         if (!np1) { // create a new notification policy if none currently exists for this staff id
             np1 = new NotificationPolicy(staffId:staffId)
-            this.addToPolicies(np1)
+            addToPolicies(np1)
         }
         np1
     }
     NotificationPolicy findPolicyForStaff(Long staffId) {
-        this.policies?.find { NotificationPolicy np1 -> np1.staffId == staffId }
+        policies?.find { NotificationPolicy np1 -> np1.staffId == staffId }
     }
 }

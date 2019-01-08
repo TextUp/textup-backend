@@ -5,6 +5,7 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class StaffRoles {
 
+    // TODO not used
     static StaffRole get(long staffId, long roleId) {
         StaffRole.where {
             staff == Staff.load(staffId) &&
@@ -25,6 +26,7 @@ class StaffRoles {
         instance
     }
 
+    // TODO not used
     static boolean remove(Staff u, Role r, boolean flush = false) {
         if (u == null || r == null) return false
 
@@ -38,6 +40,7 @@ class StaffRoles {
         rowCount > 0
     }
 
+    // TODO not used
     static void removeAll(Staff u, boolean flush = false) {
         if (u == null) return
 
@@ -48,6 +51,7 @@ class StaffRoles {
         if (flush) { StaffRole.withSession { it.flush() } }
     }
 
+    // TODO not used
     static void removeAll(Role r, boolean flush = false) {
         if (r == null) return
 

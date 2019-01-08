@@ -9,12 +9,12 @@ enum StaffStatus {
 	STAFF,
 	ADMIN
 
-	static List<StaffStatus> ACTIVE_STATUSES = [STAFF, ADMIN]
+	static final List<StaffStatus> ACTIVE_STATUSES = Collections.unmodifiableList([STAFF, ADMIN])
 
-	boolean getIsPending() {
+	boolean isPending() {
 		this == PENDING
 	}
-	boolean getIsActive() {
+	boolean isActive() {
 		this == STAFF || this == ADMIN
 	}
 }

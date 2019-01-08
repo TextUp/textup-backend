@@ -2,14 +2,15 @@ package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
+import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.hibernate.*
 import org.textup.*
-import org.textup.validator.*
 import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
@@ -67,15 +68,21 @@ class Utils {
         }
     }
 
-    // Setters
-    // -------
+    // Properties
+    // ----------
 
     static <T> T withDefault(T val, T defaultVal) {
         val ? val : defaultVal
     }
 
-    // Validator
-    // ---------
+    // TODO test
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static Object getId(Object obj) {
+        obj?.metaClass?.hasProperty(obj, "id") ? obj.id : null
+    }
+
+    // Data helpers
+    // ------------
 
     static <T> T doWithoutFlush(Closure<T> doThis) {
         T result
@@ -88,6 +95,22 @@ class Utils {
             finally { session.flushMode = FlushMode.AUTO }
         }
         result
+    }
+
+    static <T extends Saveable> Result<T> trySave(T obj) {
+        if (obj.save()) {
+            IOCUtils.resultFactory.success(obj)
+        }
+        else { IOCUtils.resultFactory.failWithValidationErrors(obj.errors) }
+    }
+
+    static <T extends Saveable> Result<Void> trySaveAllAsResult(Collection<T> objList) {
+        ResultGroup<T> resGroup = new ResultGroup<>()
+        objList?.each { T obj -> resGroup << Utils.trySave(obj) }
+        if (resGroup.anyFailures) {
+            IOCUtils.resultFactory.failWithGroup(resGroup)
+        }
+        else { IOCUtils.resultFactory.success() }
     }
 
     // Pagination

@@ -5,7 +5,7 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
-import org.textup.type.ContactStatus
+import org.textup.type.PhoneRecordStatus
 
 @GrailsTypeChecked
 class ContactTagJsonMarshaller extends JsonNamedMarshaller {
@@ -18,7 +18,7 @@ class ContactTagJsonMarshaller extends JsonNamedMarshaller {
             name = ct.name
             hexColor = ct.hexColor
             lastRecordActivity = ct.record.lastRecordActivity
-            numMembers = ct.getMembersByStatus([ContactStatus.ACTIVE, ContactStatus.UNREAD]).size()
+            numMembers = ct.getMembersByStatus([PhoneRecordStatus.ACTIVE, PhoneRecordStatus.UNREAD]).size()
             futureMessages = ct.record.getFutureMessages()
             notificationStatuses = ct.getNotificationStatuses()
             language = ct.language?.toString()

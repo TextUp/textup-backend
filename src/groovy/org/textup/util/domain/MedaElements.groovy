@@ -10,10 +10,6 @@ class MediaElements {
         alternates?.each { UploadItem uItem ->
             e1.addToAlternateVersions(uItem.toMediaElementVersion())
         }
-
-        if (e1.save()) {
-            IOCUtils.resultFactory.success(e1)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(e1.errors) }
+        Utils.trySave(e1)
     }
 }
