@@ -8,7 +8,7 @@ import groovy.util.logging.Log4j
 @Log4j
 class IndividualPhoneRecordWrappers {
 
-    // TODO move to service?
+    // TODO move to service
     static Result<IndividualPhoneRecordWrapper> update(IndividualPhoneRecordWrapper w1,
         Object name, Object note, Object lang, Object status) {
 

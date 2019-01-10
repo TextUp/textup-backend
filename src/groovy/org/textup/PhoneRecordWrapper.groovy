@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import org.joda.time.DateTime
+import org.textup.interface.*
 
 @GrailsTypeChecked
 class PhoneRecordWrapper {
@@ -17,7 +18,7 @@ class PhoneRecordWrapper {
     // Methods
     // -------
 
-    Result<? extends PhoneRecordWrapper> trySave() { Utils.trySave(_pRec) }
+    Result<? extends PhoneRecordWrapper> trySave() { DomainUtils.trySave(_pRec) }
 
     // Getters
     // -------

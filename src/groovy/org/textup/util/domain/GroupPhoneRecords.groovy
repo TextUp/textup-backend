@@ -5,13 +5,6 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class GroupPhoneRecords {
 
-    static Result<GroupPhoneRecord> create(Phone p1, String name) {
-        Records.create()
-            .then { Record rec1 ->
-                Utils.trySave(new GroupPhoneRecord(name: name, phone: p1, record: rec1))
-            }
-    }
-
     static DetachedCriteria<GroupPhoneRecord> buildForPhoneIdAndOptions(Long phoneId, String name = null) {
         new DetachedCriteria(GroupPhoneRecord)
             .build {

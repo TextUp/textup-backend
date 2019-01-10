@@ -186,7 +186,9 @@ class WeeklySchedule extends Schedule {
             IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
-    Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params, String timezone="UTC") {
+    Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params,
+        String timezone= DateTimeZone.UTC.toString()) {
+
         DateTimeZone zone = DateTimeUtils.getZoneFromId(timezone)
         List<String> daysOfWeek = Constants.DAYS_OF_WEEK
         int numDaysPerWeek = daysOfWeek.size()

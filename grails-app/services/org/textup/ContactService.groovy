@@ -17,7 +17,7 @@ class ContactService {
     MergeService mergeService
     NotificationSettingsService notificationSettingsService
     NumberService numberService
-    SharedContactService sharedContactService
+    SharedPhoneRecordService sharedPhoneRecordService
     SocketService socketService
 
     @RollbackOnResultFailure
@@ -94,7 +94,7 @@ class ContactService {
         // because they also receive notifications and also need the ability to have fine-grained
         // notification settings just as the original contact owner.
         if (body.doNotificationActions  && (!sc1 || sc1.canModify)) {
-            notificationSettingsService.handleActions(c1.phone, c1.record.id, body.doNotificationActions)
+            notificationSettingsService.handleActions(Tuple.create(c1.phone, c1.record.id), body)
         }
         else { IOCUtils.resultFactory.success() }
     }
@@ -110,7 +110,7 @@ class ContactService {
 
     protected Result<Void> handleShareActions(Contact c1, Map body, SharedContact sc1 = null) {
         if (body.doShareActions && !sc1) {
-            sharedContactService.handleActions(c1, body)
+            sharedPhoneRecordService.handleActions(c1, body)
         }
         else { IOCUtils.resultFactory.success() }
     }

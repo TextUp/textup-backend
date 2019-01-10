@@ -9,8 +9,8 @@ class Staffs {
     // [NOTE] have to make two calls because can't figure out how to return an association
     // property projection. Seems to work for Criteria but not DetachedCriteria
     static Result<Void> isAllowed(Long thisId) {
-        AuthUtils.tryGetAuthId()
-            .then { Long authId -> AuthUtils.isAllowed(thisId != null).curry(authId) }
+        AuthUtils.isAllowed(thisId != null)
+            .then { AuthUtils.tryGetAuthId() }
             .then { Long authId ->
                 // Can have permission for this staff if...
                 AuthUtils.isAllowed(
@@ -22,6 +22,17 @@ class Staffs {
                     buildForAdminAtSameOrg(thisId, authId).count() > 0
                 )
             }
+    }
+
+    static Result<Staff> mustFindForId(Long staffId) {
+        Staff s1 = staffId ? Staff.get(staffId) : null
+        if (s1) {
+            IOCUtils.resultFactory.success(s1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("staffService.update.notFound", // TODO
+                ResultStatus.NOT_FOUND, [staffId])
+        }
     }
 
     static DetachedCriteria<Staff> buildForIdsAndStatuses(Collection<Long> ids,
@@ -89,6 +100,7 @@ class Staffs {
         }
     }
 
+    // TODO move to `Organizations`?
     protected static DetachedCriteria<Staff> buildForAdminAtSameOrg(Long thisId, Long authId) {
         new DetachedCriteria(Staff).build {
             idEq(thisId)

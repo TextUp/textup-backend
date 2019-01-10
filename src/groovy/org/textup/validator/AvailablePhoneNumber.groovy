@@ -16,7 +16,7 @@ class AvailablePhoneNumber extends BasePhoneNumber {
 		info nullable:false
 		infoType nullable:false, inList:["sid", "region"]
         number nullable:false, validator:{ String val ->
-	        if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+	        if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
 	    }
     }
 

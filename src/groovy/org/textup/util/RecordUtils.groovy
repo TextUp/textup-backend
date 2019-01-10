@@ -147,7 +147,7 @@ class RecordUtils {
 
     protected static Result<OutgoingMessage> checkOutgoingMessageRecipients(OutgoingMessage msg1) {
         Collection<Contactable> recipients = msg1.toRecipients()
-        if (recipients.size() > Constants.MAX_NUM_TEXT_RECIPIENTS) {
+        if (recipients.size() > ValidationUtils.MAX_NUM_TEXT_RECIPIENTS) {
             IOCUtils.resultFactory.failWithCodeAndStatus(
                 "recordUtils.checkOutgoingMessageRecipients.tooMany",
                 ResultStatus.UNPROCESSABLE_ENTITY)

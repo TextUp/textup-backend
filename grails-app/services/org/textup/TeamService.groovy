@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 import org.textup.validator.action.*
 
@@ -11,113 +12,65 @@ import org.textup.validator.action.*
 @Transactional
 class TeamService {
 
-    AuthService authService
+    LocationService locationService
     PhoneService phoneService
-
-    // Create
-    // ------
+    TeamActionService teamActionService
 
     @RollbackOnResultFailure
-    Result<Team> create(Map body, String timezone) {
-        Organization o1 = Organization.get(TypeConversionUtils.to(Long, body.org))
-        if (!o1) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("teamService.create.orgNotFound",
-                ResultStatus.NOT_FOUND, [body.org])
-        }
-        updateTeamInfo(new Team(org:o1), body)
-            .then({ Team t1 -> phoneService.mergePhone(t1, body, timezone) })
-            .then({ Team t1 -> IOCUtils.resultFactory.success(t1, ResultStatus.CREATED) })
-    }
-    protected Result<Team> updateTeamInfo(Team t1, Map body) {
-        if (body.name) { t1.name = body.name }
-        if (body.hexColor) { t1.hexColor = body.hexColor }
-        if (body.location instanceof Map) {
-            Map l = body.location as Map
-            Location loc = t1.location ?: new Location()
-            loc.with {
-                if (l.address) address = l.address
-                if (l.lat) lat = TypeConversionUtils.to(BigDecimal, l.lat)
-                if (l.lon) lon = TypeConversionUtils.to(BigDecimal, l.lon)
+    Result<Team> create(TypeMap body, String timezone) {
+        Organizations.mustFindForId(body.long("org"))
+            .then { Organization org1 ->
+                locationService.create(body.typeMapNoNull("location")).curry(org1)
             }
-            t1.location = loc
-            if (!loc.save()) {
-                return IOCUtils.resultFactory.failWithValidationErrors(loc.errors)
+            .then { Organization org1, Location loc1 ->
+                Team.create(org1, body.string("name"), loc1)
             }
-        }
-        if (t1.save()) {
-            IOCUtils.resultFactory.success(t1)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(t1.errors) }
+            .then { Team t1 -> trySetFields(t1, body) }
+            .then { Team t1 -> teamActionService.tryHandleActions(t1, body) }
+            .then { Team t1 -> tryUpdatePhone(t1, body.typeMapNoNull("phone"), timezone).curry(t1) }
+            .then { Team t1 -> IOCUtils.resultFactory.success(t1, ResultStatus.CREATED) }
     }
-
-    // Update
-    // ------
 
     @RollbackOnResultFailure
-    Result<Team> update(Long tId, Map body, String timezone) {
-        findTeamFromId(tId)
-            .then { Team t1 -> handleTeamActions(t1, body) }
-            .then { Team t1 -> updateTeamInfo(t1, body) }
-            .then { Team t1 ->
-                Phones.mustFindForOwner(t1.id, PhoneOwnershipType.GROUP, true).curry(t1)
+    Result<Team> update(Long tId, TypeMap body, String timezone) {
+        Teams.mustFindForId(tId)
+            .then { Team t1 -> trySetFields(t1, body) }
+            .then { Team t1  ->
+                locationService.tryUpdate(t1.location, body.typeMapNoNull("location")).curry(t1)
             }
-            .then { Team t1, Phone p1 -> phoneService.merge(p1, body, timezone).curry(t1) }
+            .then { Team t1 -> teamActionService.tryHandleActions(t1, body) }
+            .then { Team t1 -> tryUpdatePhone(t1, body.typeMapNoNull("phone"), timezone).curry(t1) }
             .then { Team t1 -> IOCUtils.resultFactory.success(t1) }
     }
-    protected Result<Team> findTeamFromId(Long tId) {
-        Team t1 = Team.get(tId)
-        if (t1) {
-            IOCUtils.resultFactory.success(t1)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("teamService.update.notFound",
-                ResultStatus.NOT_FOUND, [tId])
-        }
-    }
-    protected Result<Team> handleTeamActions(Team t1, Map body) {
-        if (body.doTeamActions) {
-            ActionContainer ac1 = new ActionContainer<>(TeamAction, body.doTeamActions)
-            if (!ac1.validate()) {
-                return IOCUtils.resultFactory.failWithValidationErrors(ac1.errors)
-            }
-            ResultGroup<?> resGroup = new ResultGroup<>()
-            ac1.actions.each { TeamAction a1 ->
-                Staff s1 = a1.staff
-                if (!authService.hasPermissionsForStaff(s1.id)) {
-                    resGroup << IOCUtils.resultFactory.failWithCodeAndStatus(
-                        "teamService.update.staffForbidden", ResultStatus.FORBIDDEN, [s1.id])
-                }
-                switch (a1) {
-                    case Constants.TEAM_ACTION_ADD:
-                        t1.addToMembers(s1)
-                        break
-                    default: // Constants.TEAM_ACTION_REMOVE
-                        t1.removeFromMembers(s1)
-                }
-            }
-            if (resGroup.anyFailures) {
-                return IOCUtils.resultFactory.failWithGroup(resGroup)
-            }
-        }
-        IOCUtils.resultFactory.success(t1)
-    }
-
-    // Delete
-    // ------
 
     @RollbackOnResultFailure
     Result<Void> delete(Long tId) {
-    	Team t1 = Team.get(tId)
-    	if (t1) {
-    		t1.isDeleted = true
-            if (t1.save()) {
-                IOCUtils.resultFactory.success()
+        Teams.mustFindForId(tId)
+            .then { Team t1 ->
+                t1.isDeleted = true
+                DomainUtils.trySave(t1)
             }
-            else { IOCUtils.resultFactory.failWithValidationErrors(t1.errors) }
-    	}
-    	else {
-    		IOCUtils.resultFactory.failWithCodeAndStatus("teamService.delete.notFound",
-                ResultStatus.NOT_FOUND, [tId])
-    	}
+    }
+
+    // Helpers
+    // -------
+
+    protected Result<Team> trySetFields(Team t1, TypeMap body) {
+        t1.with {
+            if (body.name) name = body.name
+            if (body.hexColor) hexColor = body.hexColor
+        }
+        DomainUtils.trySave(t1)
+    }
+
+    protected Result<?> tryUpdatePhone(Team t1, TypeMap phoneInfo, String timezone) {
+        // Only want to do admin check if the user is attempting to update this
+        if (!phoneInfo) {
+            return IOCUtils.resultFactory.success()
+        }
+        AuthUtils.tryGetAuthId()
+            .then { Long authId -> Organizations.tryIfAdmin(t1.org.id, authId) }
+            .then { Phones.mustFindForOwner(t1.id, PhoneOwnershipType.GROUP, true) }
+            .then { Phone p1 -> phoneService.update(p1, phoneInfo, timezone) }
     }
 }

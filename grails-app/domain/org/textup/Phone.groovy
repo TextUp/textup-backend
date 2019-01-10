@@ -51,7 +51,7 @@ class Phone implements WithMedia, WithId, Saveable {
             if (Utils.<Boolean>doWithoutFlush(existsWithSameNumber)) {
                 return ["duplicate"]
             }
-            if (!(num.toString() ==~ /^(\d){10}$/)) {
+            if (!ValidationUtils.isValidPhoneNumber(num)) {
                 return ["format"]
             }
         }
@@ -59,6 +59,12 @@ class Phone implements WithMedia, WithId, Saveable {
         owner cascadeValidation: true
         media nullable: true, cascadeValidation: true
         customAccount nullable: true
+    }
+
+    static Result<Phone> create(Long ownerId, PhoneOwnershipType type) {
+        Phone p1 = new Phone()
+        p1.owner = new PhoneOwnership(ownerId: ownerId, type: type, phone: p1)
+        DomainUtils.trySave(p1)
     }
 
     // Methods

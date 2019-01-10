@@ -27,7 +27,7 @@ class Token implements WithId, Saveable {
     	token unique:true
         maxNumAccess nullable:true
         // [SHARED maxSize] 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
-    	stringData maxSize: Constants.MAX_TEXT_COLUMN_SIZE, validator: { String data, Token obj ->
+    	stringData maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE, validator: { String data, Token obj ->
     		if (!obj.type?.requiredKeys.every { String key -> data.contains(key) }) {
     			["requiredKeys", obj.type, obj.type.requiredKeys]
     		}

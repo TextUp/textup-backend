@@ -15,7 +15,7 @@ class MergeGroupItem {
 
 	static constraints = {
 		numberAsString validator:{ String val ->
-	        if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+	        if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
 	    }
 	    contactIds minSize:1
 	}

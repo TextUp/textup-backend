@@ -113,7 +113,8 @@ class BaseController {
             render(status:res.status.apiStatus)
         }
         else if (clazz == Closure) {
-            render([contentType: "text/xml", encoding: "UTF-8"], res.payload as Closure)
+            render([contentType: "text/xml", encoding: Constants.DEFAULT_CHAR_ENCODING],
+                res.payload as Closure)
         }
         else {
             withJsonFormat {

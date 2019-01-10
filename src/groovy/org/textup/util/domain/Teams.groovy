@@ -12,6 +12,17 @@ class Teams {
         }
     }
 
+    static Result<Team> mustFindForId(Long teamId) {
+        Team t1 = teamId ? Team.get(teamId) : null
+        if (t1) {
+            IOCUtils.resultFactory.success(t1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("teamService.update.notFound", // TODO
+                ResultStatus.NOT_FOUND, [teamId])
+        }
+    }
+
     static DetachedCriteria<Team> buildForOrgIds(Collection<Long> orgIds) {
         new DetachedCriteria(Team)
             .build { CriteriaUtils.inList(delegate, "org.id", orgIds) }

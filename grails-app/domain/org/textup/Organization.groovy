@@ -5,55 +5,28 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
-import org.textup.type.OrgStatus
-import org.textup.type.StaffStatus
+import org.textup.interface.*
+import org.textup.type.*
 import org.textup.util.*
 
 @EqualsAndHashCode
-@RestApiObject(name="Organization", description="An organization of staff members and teams.")
+@GrailsTypeChecked
 class Organization implements WithId, Saveable {
 
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-
-    @RestApiObjectField(
-        description    = "Name of the organization",
-        useForCreation = true,
-        allowedType    = "String")
 	String name
-
-    @RestApiObjectField(
-        description    = "Location of the organization",
-        useForCreation = true,
-        allowedType    = "Location")
 	Location location
-
-    @RestApiObjectField(
-        description    = "Status of the overall organization. \
-            One of REJECTED, PENDING, or APPROVED",
-        useForCreation = false)
     OrgStatus status = OrgStatus.PENDING
-
-    @RestApiObjectField(
-        description    = "Time to wait to lock all users' screens in milliseconds \
-            minimum is 15 seconds, maximum is 60 seconds",
-        useForCreation = true,
-        allowedType    = "int")
     int timeout = Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
-
-    @RestApiObjectField(
-        description    = "Message to append to the end of all text message away messages",
-        useForCreation = true,
-        allowedType    = "String")
     String awayMessageSuffix = Constants.DEFAULT_AWAY_MESSAGE_SUFFIX
 
-    @RestApiObjectField(
-        apiFieldName   = "numAdmins",
-        description    = "Number of admins this organization has",
-        useForCreation = false,
-        allowedType    = "Number")
+    static mapping = {
+        whenCreated type: PersistentDateTime
+        location cascade: "save-update"
+    }
     static constraints = {
     	name blank:false, validator:{ String val, Organization obj ->
+            // TODO move to Organizations
     		//must have unique (name, location) combination
             Closure<Boolean> hasNameAndLocation = {
                 List<Organization> orgs = Organization.createCriteria().list {
@@ -74,51 +47,13 @@ class Organization implements WithId, Saveable {
             }
     	}
         status blank: false, nullable: false
-        timeout min: Constants.DEFAULT_LOCK_TIMEOUT_MILLIS, max: Constants.MAX_LOCK_TIMEOUT_MILLIS
+        timeout min: 0, max: ValidationUtils.MAX_LOCK_TIMEOUT_MILLIS
         // leave one character for the space for joining this suffix with an away message
         awayMessageSuffix nullable: true, blank: true, size: 1..(Constants.TEXT_LENGTH - 1)
         location cascadeValidation: true
     }
-    static mapping = {
-        whenCreated type: PersistentDateTime
-        location cascade: "save-update"
-    }
 
-    // Staff
-    // -----
-
-    /**
-     * Creates a staff for this organization
-     * @param  params Map of parameters for this staff with some exceptions:
-     *                personalPhoneNumber must be passed in with the key
-     *                'personalPhoneAsString' and this methods DOES NOT
-     *                support adding a StaffPhone.
-     * @return        Result object containing the new Staff is success,
-     *                ValidationError otherwise
-     */
-    @GrailsTypeChecked
-    Result<Staff> addStaff(Map params) {
-        Staff s = new Staff()
-        //prevent intervening on these internal fields
-        ["enabled", "accountExpired", "accountLocked", "passwordExpired"].each {
-            params.remove(it)
-        }
-        s.properties = params
-        s.personalPhoneAsString = params.personalPhoneAsString
-        s.org = this
-        if (s.save()) { IOCUtils.resultFactory.success(s) }
-        else { IOCUtils.resultFactory.failWithValidationErrors(s.errors) }
-    }
-
-    // Teams
-    // -----
-
-    @GrailsTypeChecked
-    Result<Team> addTeam(Map params) {
-        Team t = new Team()
-        t.properties = params
-        t.org = this
-        if (t.save()) { IOCUtils.resultFactory.success(t) }
-        else { IOCUtils.resultFactory.failWithValidationErrors(t.errors) }
+    static Result<Organization> create(String name, Location loc1) {
+        DomainUtils.trySave(new Organization(name: name, location: loc1), ResultStatus.CREATED)
     }
 }

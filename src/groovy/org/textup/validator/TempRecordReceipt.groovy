@@ -29,7 +29,7 @@ class TempRecordReceipt {
         apiId blank:false, nullable:false
         status blank:false, nullable:false
 		contactNumberAsString nullable:false, validator:{ String val, TempRecordReceipt obj ->
-            if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+            if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
         }
         numSegments nullable: true, min: 0
 	}

@@ -19,14 +19,21 @@ class GroupPhoneRecord extends PhoneRecord {
         hexColor column: "group_hex_color"
     }
     static constraints = {
-        hexColor validator: { String val -> // String must be a valid hex color
-            if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
+        hexColor validator: { String val ->
+            if (!ValidationUtils.isValidHexCode(val)) { ["invalidHex"] }
         }
         members validator: { Collection<PhoneRecord> val ->
             if (val.any { PhoneRecord pr1 -> pr1.instanceOf(GroupPhoneRecord) }) {
                 ["nestingNotSupported"]
             }
         }
+    }
+
+    static Result<GroupPhoneRecord> create(Phone p1, String name) {
+        Record.create()
+            .then { Record rec1 ->
+                DomainUtils.trySave(new GroupPhoneRecord(name: name, phone: p1, record: rec1))
+            }
     }
 
     // Properties

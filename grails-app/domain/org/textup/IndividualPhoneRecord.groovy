@@ -21,7 +21,27 @@ class IndividualPhoneRecord extends PhoneRecord {
     static constraints = {
         numbers minSize: 1
         name blank: true, nullable: true
-        note blank: true, nullable: true, maxSize: Constants.MAX_TEXT_COLUMN_SIZE
+        note blank: true, nullable: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
+    }
+
+    static Result<IndividualPhoneRecordWrapper> create(Phone p1, List<? extends BasePhoneNumber> bNums = []) {
+        Record.create()
+            .then { Record rec1 ->
+                IndividualPhoneRecord ipr1 = new IndividualPhoneRecord(phone: p1, record: rec1)
+                // need to save before adding numbers so that the domain is assigned an
+                // ID to be associated with the ContactNumbers to avoid a TransientObjectException
+                DomainUtils.trySave(ipr1)
+            }
+            .then { IndividualPhoneRecord ipr1 ->
+                ResultGroup<ContactNumber> resGroup = new ResultGroup<>()
+                bNums.unique().eachWithIndex { BasePhoneNumber bNum, int preference ->
+                    resGroup << ipr1.mergeNumber(bNum, preference)
+                }
+                if (resGroup.anyFailures) {
+                    IOCUtils.resultFactory.failWithGroup(resGroup)
+                }
+                else { IOCUtils.resultFactory.success(ipr1, ResultStatus.CREATED) }
+            }
     }
 
     def beforeValidate() {

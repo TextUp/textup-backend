@@ -35,7 +35,7 @@ class MediaElement implements ReadOnlyMediaElement, WithId, Saveable {
     static hasMany = [alternateVersions: MediaElementVersion]
     static constraints = { // all nullable:false by default
         sendVersion nullable: true, cascadeValidation: true, validator: { MediaElementVersion send1 ->
-            if (send1 && send1.sizeInBytes > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
+            if (send1 && send1.sizeInBytes > ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
                 return ["sizeTooBig"]
             }
         }
@@ -45,6 +45,14 @@ class MediaElement implements ReadOnlyMediaElement, WithId, Saveable {
         whenCreated type: PersistentDateTime
         sendVersion lazy: false, cascade: "save-update"
         alternateVersions lazy: false, cascade: "save-update"
+    }
+
+    static Result<MediaElement> create(UploadItem sVersion, Collection<UploadItem> alternates) {
+        MediaElement e1 = new MediaElement(sendVersion: sVersion?.toMediaElementVersion())
+        alternates?.each { UploadItem uItem ->
+            e1.addToAlternateVersions(uItem.toMediaElementVersion())
+        }
+        DomainUtils.trySave(e1)
     }
 
     // Methods

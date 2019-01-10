@@ -24,7 +24,7 @@ class Staff implements Schedulable, WithId, Saveable {
     DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
     Organization org
     Schedule schedule
-    StaffStatus status = StaffStatus.PENDING
+    StaffStatus status
     String email
     String lockCode = Constants.DEFAULT_LOCK_CODE
     String name
@@ -36,27 +36,31 @@ class Staff implements Schedulable, WithId, Saveable {
     static mapping = {
         cache usage: "read-write", include: "non-lazy"
         whenCreated type: PersistentDateTime
-        org lazy: false
         password column: "`password`"
-        schedule cascade: "save-update"
+        schedule fetch: "join", cascade: "save-update"
     }
 	static constraints = {
-		username blank:false, unique:true, validator: { String un, Staff s1 ->
-            if (!(un ==~ /^[-_=@.,;A-Za-z0-9]+$/)) { ["format"] } // for Pusher channel
+		username blank:false, unique:true, validator: { String val ->
+            if (!ValidationUtils.isValidForPusher(val)) { ["format"] }
         }
 		password blank:false
         lockCode blank:false
 		email email:true
         personalPhoneAsString blank:true, nullable:true, validator:{ String val, Staff obj ->
-            if (val && !(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+            if (val && !ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
         }
         schedule cascadeValidation: true
 	}
 
-    def beforeValidate() {
-        if (!schedule) {
-            schedule = new WeeklySchedule()
-        }
+    static Result<Staff> create(Role r1, Organization org1, String name, String username,
+        String password, String email) {
+
+        Staff s1 = new Staff(name: name, username: username, password: password, email: email,
+            org: org1, schedule: new WeeklySchedule())
+        s1.status = DomainUtils.isNew(org1) ? StaffStatus.ADMIN : StaffStatus.PENDING
+        DomainUtils.trySave(s1)
+            .then { StaffRole.create(s1, r1) }
+            .then { IOCUtils.resultFactory.success(s1, ResultStatus.CREATED) }
     }
 
     def beforeInsert() {
@@ -76,12 +80,9 @@ class Staff implements Schedulable, WithId, Saveable {
     // Methods
     // -------
 
+    @Override
     boolean isAvailableNow() {
         manualSchedule ? isAvailable : schedule.isAvailableNow()
-    }
-
-    Result<Schedule> updateSchedule(Map params) {
-        schedule.update(params)
     }
 
     Author toAuthor() {

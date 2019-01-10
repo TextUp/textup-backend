@@ -133,8 +133,7 @@ class FutureMessageService {
         }
         // for some reason, calling save here instantly persists the message
         if (fMsg.validate()) {
-            boolean isNew = !fMsg.id // is new if no id yet
-            if (isNew || fMsg.shouldReschedule) {
+            if (DomainUtils.isNew(fMsg) || fMsg.shouldReschedule) {
                 Result res = futureMessageJobService.schedule(fMsg)
                 if (!res.success) {
                     return resultFactory.failWithResultsAndStatus([res], res.status)

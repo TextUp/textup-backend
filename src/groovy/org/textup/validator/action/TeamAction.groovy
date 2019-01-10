@@ -13,6 +13,9 @@ import org.textup.util.*
 @Validateable
 class TeamAction extends BaseAction {
 
+	static final String ADD = "add"
+	static final String REMOVE = "remove"
+
 	Long id // id of the staff to modify
 
 	final Staff staff
@@ -30,14 +33,12 @@ class TeamAction extends BaseAction {
 	// ------------------
 
 	@Override
-	Collection<String> getAllowedActions() {
-		[Constants.TEAM_ACTION_ADD, Constants.TEAM_ACTION_REMOVE]
-	}
+	Collection<String> getAllowedActions() { [TeamAction.ADD, TeamAction.REMOVE] }
 
 	// Methods
 	// -------
 
 	Staff getStaff() {
-		this.id ? Staff.get(this.id) : null
+		id ? Staff.get(id) : null
 	}
 }

@@ -36,7 +36,7 @@ class RecordItemReceipt implements WithId, Saveable {
     static belongsTo = [item: RecordItem]
     static constraints = {
         contactNumberAsString validator:{ String val, RecordItemReceipt obj ->
-            if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+            if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
         }
         numBillable nullable: true, min: 0
     }

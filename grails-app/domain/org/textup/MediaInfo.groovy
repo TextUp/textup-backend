@@ -71,8 +71,8 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, Saveable {
     }
 
     void forEachBatch(Closure<?> doAction, Collection<MediaType> typesToRetrieve = []) {
-        int maxFileCount = Constants.MAX_NUM_MEDIA_PER_MESSAGE
-        long maxFileSize = Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES,
+        int maxFileCount = ValidationUtils.MAX_NUM_MEDIA_PER_MESSAGE
+        long maxFileSize = ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES,
             currentBatchSize = 0
         List<MediaElement> batchSoFar = []
         List<MediaElement> allElements = getMediaElementsByType(typesToRetrieve)

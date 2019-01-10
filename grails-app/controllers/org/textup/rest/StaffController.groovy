@@ -181,10 +181,7 @@ class StaffController extends BaseController {
         if (tz) { //for the json marshaller
             request.setAttribute(Constants.REQUEST_TIMEZONE, tz)
         }
-        Result<Staff> res = staffService.create(sInfo, tz)
-            .then { Staff s1 -> staffService.addRoleToStaff(s1.id) }
-            .then { Staff s1 -> resultFactory.success(s1, ResultStatus.CREATED) }
-        respondWithResult(Staff, res)
+        respondWithResult(Staff, staffService.create(sInfo, tz))
     }
 
     // Update

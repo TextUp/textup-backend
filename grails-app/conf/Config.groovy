@@ -307,10 +307,6 @@ textup {
             apiKey    = System.getenv("TEXTUP_BACKEND_PUSHER_API_KEY") ?: System.getProperty("TEXTUP_BACKEND_PUSHER_API_KEY")
             apiSecret = System.getenv("TEXTUP_BACKEND_PUSHER_API_SECRET") ?: System.getProperty("TEXTUP_BACKEND_PUSHER_API_SECRET")
         }
-        reCaptcha {
-            verifyEndpoint = "https://www.google.com/recaptcha/api/siteverify"
-            secret         = System.getenv("TEXTUP_BACKEND_RECAPTCHA_SECRET") ?: System.getProperty("TEXTUP_BACKEND_RECAPTCHA_SECRET")
-        }
     }
     rest {
         defaultLabel = "default" //default is to link to relationships

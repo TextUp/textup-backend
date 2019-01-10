@@ -12,9 +12,6 @@ import grails.compiler.GrailsTypeChecked
 @EqualsAndHashCode
 class Schedule implements WithId, Saveable {
 
-    static constraints = {
-    }
-
     // Availability
     // ------------
 

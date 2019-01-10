@@ -21,7 +21,7 @@ class IndividualPhoneRecordWrapper extends PhoneRecordWrapper{
     // -------
 
     @Override
-    Result<? extends IndividualPhoneRecordWrapper> trySave() { Utils.trySave(_pRec) }
+    Result<? extends IndividualPhoneRecordWrapper> trySave() { DomainUtils.trySave(_pRec) }
 
     // Getters
     // -------

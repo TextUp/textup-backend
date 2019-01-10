@@ -14,14 +14,17 @@ import org.textup.validator.*
 @Validateable
 class ContactNumberAction extends BaseAction {
 
+	static final String MERGE = "merge"
+	static final String DELETE = "delete"
+
 	int preference = 0
 	String number
 
 	static constraints =  {
 		preference min:0
 		number validator:{ String val, ContactNumberAction obj  ->
-	        if (!obj.matches(Constants.NUMBER_ACTION_DELETE) &&
-	        	!(val?.toString() ==~ /^(\d){10}$/)) {
+	        if (!obj.matches(ContactNumberAction.DELETE) &&
+	        	!ValidationUtils.isValidPhoneNumber(val)) {
 
 	        	["format"]
 	        }
@@ -33,7 +36,7 @@ class ContactNumberAction extends BaseAction {
 
 	@Override
 	Collection<String> getAllowedActions() {
-		[Constants.NUMBER_ACTION_MERGE, Constants.NUMBER_ACTION_DELETE]
+		[ContactNumberAction.MERGE, ContactNumberAction.DELETE]
 	}
 
 	// Property access

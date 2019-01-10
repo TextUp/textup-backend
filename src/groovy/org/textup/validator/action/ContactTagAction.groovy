@@ -13,6 +13,9 @@ import org.textup.util.*
 @Validateable
 class ContactTagAction extends BaseAction {
 
+	static final String ADD = "add"
+	static final String REMOVE = "remove"
+
 	Long id // id of contact to modify
 
 	final Contact contact
@@ -30,9 +33,7 @@ class ContactTagAction extends BaseAction {
 	// ------------------
 
 	@Override
-	Collection<String> getAllowedActions() {
-		[Constants.TAG_ACTION_ADD, Constants.TAG_ACTION_REMOVE]
-	}
+	Collection<String> getAllowedActions() { [ContactTagAction.ADD, ContactTagAction.REMOVE] }
 
 	Contact getContact() {
 		this.id ? Contact.get(this.id) : null

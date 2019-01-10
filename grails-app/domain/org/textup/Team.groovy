@@ -41,11 +41,14 @@ class Team implements WithId, Saveable {
                 ["duplicate", obj.org?.name]
             }
         }
-        hexColor blank:false, nullable:false, validator:{ String val, Team obj ->
-            //String must be a valid hex color
-            if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
+        hexColor blank:false, nullable:false, validator:{ String val ->
+            if (!ValidationUtils.isValidHexCode(val)) { ["invalidHex"] }
         }
         location cascadeValidation: true
+    }
+
+    static Result<Team> create(Organization org1, String name, Location loc1) {
+        DomainUtils.trySave(new Team(org: org1, name: name, location: loc1, ResultStatus.CREATED)
     }
 
     // Properties

@@ -5,29 +5,6 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class Phones {
 
-    static Result<Phone> create(Long ownerId, PhoneOwnershipType type) {
-        Phone p1 = new Phone()
-        p1.owner = new PhoneOwnership(ownerId: ownerId, type: type, phone: p1)
-        Utils.trySave(p1)
-    }
-
-    static Result<Phone> update(Phone p1, Object awayMsg, Object voice, Object lang, Object useVoicemail) {
-        if (awayMsg) {
-            p1.awayMessage = awayMsg
-        }
-        if (voice) {
-            p1.voice = TypeConversionUtils.convertEnum(VoiceType, voice)
-        }
-        if (lang) {
-            p1.language = TypeConversionUtils.convertEnum(VoiceLanguage, lang)
-        }
-        if (useVoicemail != null) {
-            p1.useVoicemailRecordingIfPresent = TypeConversionUtils
-                .to(Boolean, useVoicemail, p1.useVoicemailRecordingIfPresent)
-        }
-        Utils.trySave(p1)
-    }
-
     static Result<Phone> mustFindForOwner(Long ownerId, PhoneOwnershipType type, boolean createIfAbsent) {
         Phone p1 = Holders.applicationContext.getBean(PhoneCache).findPhone(ownerId, type, false)
         if (p1) {

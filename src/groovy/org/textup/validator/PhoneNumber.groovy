@@ -15,7 +15,7 @@ class PhoneNumber extends BasePhoneNumber {
 
     static constraints = {
         number nullable:false, validator:{ String val ->
-	        if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+	        if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
 	    }
     }
 
@@ -38,7 +38,7 @@ class PhoneNumber extends BasePhoneNumber {
         String decodedNum = num
         if (decodedNum) {
             try {
-                decodedNum = URLDecoder.decode(num, "UTF-8")
+                decodedNum = URLDecoder.decode(num, Constants.DEFAULT_CHAR_ENCODING)
             }
             catch (Throwable e) { log.debug("urlDecode: could not decode `${num}`") }
         }

@@ -34,7 +34,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId, Saveable {
     	authorId nullable:true
         authorType nullable:true
         media nullable:true, cascadeValidation: true // can be null for backwards compatibility for RecordItems that predate this
-        noteContents blank:true, nullable:true, maxSize: Constants.MAX_TEXT_COLUMN_SIZE
+        noteContents blank:true, nullable:true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
         numNotified min: 0
     }
     static mapping = {

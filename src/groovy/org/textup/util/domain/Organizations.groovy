@@ -5,6 +5,13 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class Organizations {
 
+    static Result<Void> tryIfAdmin(Long org1, Long staffId) {
+        AuthUtils.tryGetAuthUser()
+            .then { Staff s1 ->
+                AuthUtils.isAllowed(s1.status == StaffStatus.ADMIN && s1.org.id == org1)
+            }
+    }
+
     static DetachedCriteria<Organization> buildActiveForAdminIds(Collection<Long> adminIds) {
         new DetachedCriteria(Organization)
             .build {
@@ -20,6 +27,18 @@ class Organizations {
             .build(forQuery())
             .build(forStatuses())
     }
+
+    static Result<Organization> mustFindForId(Long orgId) {
+        Organization org1 = orgId ? Organization.get(orgId) : null
+        if (org1) {
+            IOCUtils.resultFactory.success(org1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("staffService.create.orgNotFound", // TODO
+                ResultStatus.NOT_FOUND, [orgId])
+        }
+    }
+
 
     // Helpers
     // -------

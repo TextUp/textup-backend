@@ -19,6 +19,18 @@ class Tuple<X, Y> {
         new Tuple<X, Y>(arg1, arg2)
     }
 
+    // Methods
+    // -------
+
+    Result<Tuple<X. Y>> checkBothPresent() {
+        first != null && second != null ?
+            IOCUtils.resultFactory.success(this) : // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("tuple.missingData", ResultStatus.BAD_REQUEST)
+    }
+
+    // Properties
+    // ----------
+
     X getFirst() { first }
     Y getSecond() { second }
 }

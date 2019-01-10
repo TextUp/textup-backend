@@ -17,13 +17,10 @@ class MediaService {
     StorageService storageService
     ThreadService threadService
 
-    boolean hasMediaActions(Map body) { !!body?.doMediaActions }
-    protected Object getMediaActions(Map body) { body?.doMediaActions }
-
     Result<Tuple<WithMedia, Future<Result<MediaInfo>>>> tryProcess(WithMedia withMedia, Map body,
         boolean isPublic = false) {
 
-        if (!hasMediaActions(body)) {
+        if (!hasActions(body)) {
             return resultFactory.success(withMedia, AsyncUtils.noOpFuture(withMedia.media))
         }
         tryProcess(withMedia.media ?: new MediaInfo(), body, isPublic)
@@ -36,62 +33,41 @@ class MediaService {
     Result<Tuple<MediaInfo, Future<Result<MediaInfo>>>> tryProcess(MediaInfo mInfo, Map body,
         boolean isPublic = false) {
 
-        if (!hasMediaActions(body)) {
+        if (!hasActions(body)) {
             return resultFactory.success(mInfo, AsyncUtils.noOpFuture(mInfo))
         }
-        ResultGroup<UploadItem> uploadGroup = handleActions(mInfo, body)
-            .logFail("MediaService.tryProcess: building initial version")
-        ResultGroup<?> elementCreationFailures = new ResultGroup<>()
-        List<Tuple<UploadItem, Long>> toProcessIds = []
-        uploadGroup.payload.each { UploadItem initialUpload ->
-            initialUpload.isPublic = isPublic
-
-            MediaElement e1 = new MediaElement()
-            e1.addToAlternateVersions(initialUpload.toMediaElementVersion())
-            mInfo.addToMediaElements(e1)
-            // need to call save first so that these newly-created elements are assigned an id
-            if (e1.save()) {
-                toProcessIds << Tuple.create(initialUpload, e1.id)
+        tryHandleActions(mInfo, body)
+            .logFail("tryProcess: building initial version")
+            .then { Result<ResultGroup<UploadItem>> uploadGroup ->
+                ResultGroup<MediaElement> elGroup = new ResultGroup<>()
+                uploadGroup.payload.each { UploadItem initialUpload ->
+                    initialUpload.isPublic = isPublic
+                    elGroup << MediaElement.create(null, [initialUpload.toMediaElementVersion()])
+                }
+                elGroup.toResult().curry(uploadGroup.payload, elGroup.payload)
             }
-            else { elementCreationFailures << resultFactory.failWithValidationErrors(e1.errors) }
-        }
-        if (mInfo.save()) {
-            Collection<String> errorMsgs = []
-            storageService.uploadAsync(uploadGroup.payload)
-                .logFail("MediaService.tryProcess: uploading initial media")
-                .failures
-                .each { Result<?> failRes -> errorMsgs += failRes.errorMessages }
-            Utils.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMsgs)
-                .logFail("MediaService.tryProcess: setting upload errors on request")
-            Future<Result<MediaInfo>> fut = threadService.delay(5, TimeUnit.SECONDS) {
-                tryFinishProcessing(mInfo.id, toProcessIds)
+            .then { List<UploadItem> uItems, List<MediaElement> elements ->
+                List<Tuple<UploadItem, Long>> toProcessIds = []
+                elements.each { MediaElement e1 ->
+                    mInfo.addToMediaElements(e1)
+                    toProcessIds << Tuple.create(initialUpload, e1.id)
+                }
+                DomainUtils.trySave(mInfo).curry(uItems, toProcessIds)
             }
-            resultFactory.success(mInfo, fut)
-        }
-        else { resultFactory.failWithValidationErrors(mInfo.errors) }
+            .then { List<UploadItem> uItems, List<Tuple<UploadItem, Long>> pInfo, MediaInfo mInfo ->
+                List<String> errors = storageService.uploadAsync(uItems)
+                    .logFail("tryProcess: uploading initial media")
+                    .errorMessages
+                Utils.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errors)
+                    .logFail("tryProcess: setting upload errors on request")
+                resultFactory.success(mInfo, threadService.delay(5, TimeUnit.SECONDS) {
+                    tryFinishProcessing(mInfo.id, pInfo)
+                })
+            }
     }
 
     // Helpers
     // -------
-
-    protected ResultGroup<UploadItem> handleActions(MediaInfo mInfo, Map body) {
-        // validate actions
-        ActionContainer ac1 = new ActionContainer<>(MediaAction, getMediaActions(body))
-        if (!ac1.validate()) {
-            return resultFactory.failWithValidationErrors(ac1.errors).toGroup()
-        }
-        ResultGroup<UploadItem> outcomes = new ResultGroup<>()
-        ac1.actions.each { MediaAction a1 ->
-            switch (a1) {
-                case Constants.MEDIA_ACTION_ADD:
-                    outcomes << MediaPostProcessor.buildInitialData(a1.type, a1.byteData)
-                    break
-                default: // Constants.MEDIA_ACTION_REMOVE
-                    mInfo.removeMediaElement(a1.uid)
-            }
-        }
-        outcomes
-    }
 
     protected Result<MediaInfo> tryFinishProcessing(Long mediaId,
         List<Tuple<UploadItem, Long>> toProcessIds) {
@@ -99,7 +75,7 @@ class MediaService {
         // step 1: re-fetch all domain objects from ids so that these are attached to this session
         MediaInfo mInfo = MediaInfo.get(mediaId)
         if (!mInfo) {
-            return resultFactory.failWithCodeAndStatus("mediaService.tryFinishProcessing.mediaInfoNotFound",
+            return resultFactory.failWithCodeAndStatus("tryFinishProcessing.mediaInfoNotFound",
                 ResultStatus.NOT_FOUND, [mediaId])
         }
         List<Tuple<UploadItem, MediaElement>> toProcess = rebuildElementsToProcess(toProcessIds)
@@ -108,14 +84,14 @@ class MediaService {
         toProcess.each { Tuple<UploadItem, MediaElement> processed ->
             outcomes << processElement(processed.first, processed.second)
         }
-        outcomes.logFail("MediaService.tryFinishProcessing")
+        outcomes.logFail("tryFinishProcessing")
         // step 3: upload all successes
         List<UploadItem> toUpload = []
         outcomes.payload.each { Tuple<List<UploadItem>, MediaElement> processed ->
             toUpload.addAll(processed.first)
         }
         storageService.uploadAsync(toUpload)
-            .logFail("MediaService.tryProcess: uploading initial media")
+            .logFail("tryProcess: uploading initial media")
 
         if (mInfo.save()) {
             resultFactory.success(mInfo)

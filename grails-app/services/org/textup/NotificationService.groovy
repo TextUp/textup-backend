@@ -52,4 +52,26 @@ class NotificationService {
     Result<RedeemedNotification> redeem(String token) {
         tokenService.findNotification(token)
     }
+
+    Result<NotificationPolicy> update(NotificationPolicy np1, TypeMap body, String timezone) {
+        trySetFields(np1, body)
+            .then { tryUpdateSchedule(np1, body, timezone) }
+            .then { DomainUtils.trySave(np1) }
+    }
+
+    // Helpers
+    // -------
+
+    protected Result<NotificationPolicy> trySetFields(NotificationPolicy np1, TypeMap body) {
+        if (body.useStaffAvailability != null) {
+            np1.useStaffAvailability = body.bool("useStaffAvailability")
+        }
+        DomainUtils.trySave(np1)
+    }
+
+    protected Result<?> tryUpdateSchedule(NotificationPolicy np1, TypeMap body, String timezone) {
+        body.typeMapNoNull("schedule") ?
+            scheduleService.update(np1, body, timezone) :
+            IOCUtils.resultFactory.success()
+    }
 }

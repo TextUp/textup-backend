@@ -16,7 +16,7 @@ class ContactNumber extends BasePhoneNumber implements WithId, Saveable {
     static belongsTo = [owner: IndividualPhoneRecord]
     static constraints = {
         number validator:{ String val ->
-            if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+            if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
         }
     }
 }

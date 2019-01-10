@@ -14,6 +14,10 @@ import org.textup.util.*
 @Validateable
 class NotificationPolicyAction extends BaseAction {
 
+	static final String DEFAULT = "changedefault"
+	static final String ENABLE = "enable"
+	static final String DISABLE = "disable"
+
 	Long id // id of staff member to customize notifications for
 	String level // required for default, level to change the default to
 
@@ -27,7 +31,7 @@ class NotificationPolicyAction extends BaseAction {
 			}
 		}
 		level nullable:true, blank:true, validator: { String level, NotificationPolicyAction obj ->
-			if (obj.matches(Constants.NOTIFICATION_ACTION_DEFAULT)) {
+			if (obj.matches(NotificationPolicyAction.DEFAULT)) {
 				if (!level) {
 					return ["requiredForChangingDefault"]
 				}
@@ -44,8 +48,8 @@ class NotificationPolicyAction extends BaseAction {
 
 	@Override
 	Collection<String> getAllowedActions() {
-		[Constants.NOTIFICATION_ACTION_DEFAULT, Constants.NOTIFICATION_ACTION_ENABLE,
-			Constants.NOTIFICATION_ACTION_DISABLE]
+		[NotificationPolicyAction.DEFAULT, NotificationPolicyAction.ENABLE,
+			NotificationPolicyAction.DISABLE]
 	}
 
 	// Methods

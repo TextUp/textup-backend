@@ -25,7 +25,7 @@ class OutgoingMessage {
 
 	static constraints = { // default nullable: false
 		// [SHARED maxSize] 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
-		message blank: true, nullable: true, maxSize: Constants.MAX_TEXT_COLUMN_SIZE
+		message blank: true, nullable: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
 		media nullable: true, validator: { MediaInfo mInfo, OutgoingMessage obj ->
 			// message must have at least one of text and media
 			if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }

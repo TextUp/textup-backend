@@ -75,11 +75,6 @@ class Utils {
         val ? val : defaultVal
     }
 
-    // TODO test
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static Object getId(Object obj) {
-        obj?.metaClass?.hasProperty(obj, "id") ? obj.id : null
-    }
 
     // Data helpers
     // ------------
@@ -95,22 +90,6 @@ class Utils {
             finally { session.flushMode = FlushMode.AUTO }
         }
         result
-    }
-
-    static <T extends Saveable> Result<T> trySave(T obj) {
-        if (obj.save()) {
-            IOCUtils.resultFactory.success(obj)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(obj.errors) }
-    }
-
-    static <T extends Saveable> Result<Void> trySaveAllAsResult(Collection<T> objList) {
-        ResultGroup<T> resGroup = new ResultGroup<>()
-        objList?.each { T obj -> resGroup << Utils.trySave(obj) }
-        if (resGroup.anyFailures) {
-            IOCUtils.resultFactory.failWithGroup(resGroup)
-        }
-        else { IOCUtils.resultFactory.success() }
     }
 
     // Pagination

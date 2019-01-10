@@ -35,6 +35,16 @@ class ActionContainer<T extends BaseAction> {
 		actions cascadeValidation: true
 	}
 
+	static <T extends BaseAction> Result<List<T>> tryProcess(Class<T> clazz, Object data) {
+		if (!data) {
+			return IOCUtils.resultFactory.success([])
+		}
+		ActionContainer ac1 = new ActionContainer<>(clazz, data)
+		ac1.validate() ?
+			IOCUtils.resultFactory.success(ac1.actions) :
+			IOCUtils.resultFactory.failWithValidationErrors(ac1.errors)
+	}
+
 	// Property access
 	// ---------------
 
@@ -42,6 +52,9 @@ class ActionContainer<T extends BaseAction> {
 		data = obj
 		actions = tryBuildActions()
 	}
+
+	// Helpers
+	// -------
 
 	protected List<T> tryBuildActions() {
 		List<T> actions = []

@@ -103,7 +103,7 @@ class TestUtils {
 
     static String buildVeryLongString() {
         StringBuilder sBuilder = new StringBuilder()
-        Constants.MAX_TEXT_COLUMN_SIZE.times { it -> sBuilder << it }
+        ValidationUtils.MAX_TEXT_COLUMN_SIZE.times { it -> sBuilder << it }
         sBuilder.toString()
     }
 

@@ -13,6 +13,9 @@ import org.textup.util.*
 @Validateable
 class MergeAction extends BaseAction {
 
+	static final String DEFAULT = "default"
+	static final String RECONCILE = "reconcile"
+
 	Object mergeIds
 	Long nameId
 	Long noteId
@@ -40,7 +43,7 @@ class MergeAction extends BaseAction {
 			}
 		}
 		nameId nullable:true, validator:{ Long id, MergeAction obj ->
-			if (obj.matches(Constants.MERGE_ACTION_RECONCILE) && !id) {
+			if (obj.matches(MergeAction.RECONCILE) && !id) {
 				return ["requiredForReconciliation"]
 			}
 			if (id && !obj.ids.contains(id)) {
@@ -48,7 +51,7 @@ class MergeAction extends BaseAction {
 			}
 		}
 		noteId nullable:true, validator:{ Long id, MergeAction obj ->
-			if (obj.matches(Constants.MERGE_ACTION_RECONCILE) && !id) {
+			if (obj.matches(MergeAction.RECONCILE) && !id) {
 				return ["requiredForReconciliation"]
 			}
 			if (id && !obj.ids.contains(id)) {
@@ -61,9 +64,7 @@ class MergeAction extends BaseAction {
 	// ------------------
 
 	@Override
-	Collection<String> getAllowedActions() {
-		[Constants.MERGE_ACTION_DEFAULT, Constants.MERGE_ACTION_RECONCILE]
-	}
+	Collection<String> getAllowedActions() { [MergeAction.DEFAULT, MergeAction.RECONCILE] }
 
 	// Property access
 	// ---------------

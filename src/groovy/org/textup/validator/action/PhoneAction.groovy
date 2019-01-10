@@ -12,9 +12,14 @@ import org.textup.validator.PhoneNumber
 // documented as [phoneAction] in CustomApiDocs.groovy
 
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
+@EqualsAndHashCode(callSuper = true)
 @Validateable
 class PhoneAction extends BaseAction {
+
+	static final String DEACTIVATE = "deactivate"
+	static final String TRANSFER = "transfer"
+	static final String NEW_NUM_BY_NUM  = "numbynum"
+	static final String NEW_NUM_BY_ID = "numbyid"
 
 	// required for transfer
 	Long id // id of the staff/team to transfer this phone to
@@ -31,12 +36,12 @@ class PhoneAction extends BaseAction {
 		phoneNumber nullable: true
 		id nullable:true, validator: { Long val, PhoneAction obj ->
 			// existence check for this id happens already in Phone.transferTo
-			if (obj.matches(Constants.PHONE_ACTION_TRANSFER) && !val) {
+			if (obj.matches(PhoneAction.TRANSFER) && !val) {
 				["requiredForTransfer"]
 			}
 		}
 		type nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(Constants.PHONE_ACTION_TRANSFER)) {
+			if (obj.matches(PhoneAction.TRANSFER)) {
 				if (!val) {
 					return ["requiredForTransfer"]
 				}
@@ -47,7 +52,7 @@ class PhoneAction extends BaseAction {
 			}
 		}
 		number nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(Constants.PHONE_ACTION_NEW_NUM_BY_NUM)) {
+			if (obj.matches(PhoneAction.NEW_NUM_BY_NUM)) {
 				if (!val) {
 					return ["requiredForChangeToNewNumber"]
 				}
@@ -59,7 +64,7 @@ class PhoneAction extends BaseAction {
 			}
 		}
 		numberId nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(Constants.PHONE_ACTION_NEW_NUM_BY_ID) && !val) {
+			if (obj.matches(PhoneAction.NEW_NUM_BY_ID) && !val) {
 				["requiredForChangeToExistingNumber"]
 			}
 		}
@@ -70,8 +75,8 @@ class PhoneAction extends BaseAction {
 
 	@Override
 	Collection<String> getAllowedActions() {
-		[Constants.PHONE_ACTION_DEACTIVATE, Constants.PHONE_ACTION_TRANSFER,
-			Constants.PHONE_ACTION_NEW_NUM_BY_NUM, Constants.PHONE_ACTION_NEW_NUM_BY_ID]
+		[PhoneAction.DEACTIVATE, PhoneAction.TRANSFER, PhoneAction.NEW_NUM_BY_NUM,
+			PhoneAction.NEW_NUM_BY_ID]
 	}
 
 	// Methods

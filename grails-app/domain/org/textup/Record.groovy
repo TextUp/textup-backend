@@ -17,16 +17,13 @@ class Record implements ReadOnlyRecord, WithId, Saveable {
     DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
     VoiceLanguage language = VoiceLanguage.ENGLISH
 
-    static constraints = {
-    }
     static mapping = {
         lastRecordActivity type:PersistentDateTime
     }
 
-    /*
-	Has many:
-		RecordItem
-	*/
+    static Result<Record> create() {
+        DomainUtils.trySave(new Record())
+    }
 
     // Timestamp
     // ---------

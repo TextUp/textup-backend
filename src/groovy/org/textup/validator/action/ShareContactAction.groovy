@@ -14,6 +14,9 @@ import org.textup.util.*
 @Validateable
 class ShareContactAction extends BaseAction {
 
+	static final String MERGE = "merge"
+	static final String STOP = "stop"
+
 	Long id // id of phone that we are sharing with
 	String permission
 
@@ -29,7 +32,7 @@ class ShareContactAction extends BaseAction {
 			}
 		}
 		permission nullable:true, blank:true, validator: { String permission, ShareContactAction obj ->
-			if (obj.matches(Constants.SHARE_ACTION_MERGE)) {
+			if (obj.matches(ShareContactAction.MERGE)) {
 				Collection<String> options = SharePermission.values().collect { it.toString() }
 				if (!CollectionUtils.inListIgnoreCase(permission, options)) {
 					["invalid", options]
@@ -42,9 +45,7 @@ class ShareContactAction extends BaseAction {
 	// ------------------
 
 	@Override
-	Collection<String> getAllowedActions() {
-		[Constants.SHARE_ACTION_MERGE, Constants.SHARE_ACTION_STOP]
-	}
+	Collection<String> getAllowedActions() { [ShareContactAction.MERGE, ShareContactAction.STOP] }
 
 	// Methods
 	// -------

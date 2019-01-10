@@ -6,6 +6,7 @@ import java.util.concurrent.Future
 import org.textup.rest.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 import org.textup.validator.action.*
 
@@ -13,64 +14,76 @@ import org.textup.validator.action.*
 @Transactional
 class PhoneService {
 
-    AuthService authService
     CallService callService
     MediaService mediaService
     NotificationSettingsService notificationSettingsService
-    PhoneStateService phoneStateService
+    PhoneActionsService phoneActionsService
 
-    Result<Phone> merge(Phone p1, Map body, String timezone) {
-        if (!body) {
-            return IOCUtils.resultFactory.success(p1)
-        }
+    Result<Phone> update(Phone p1, TypeMap body, String timezone) {
         Future<?> future
-        Result<Phone> res = mediaService.tryProcess(p1, body, true)
+        Result<?> res = mediaService.tryProcess(p1, body, true)
             .then { Tuple<WithMedia, Future<?>> processed ->
                 future = processed.second
-                phoneStateService.handleActions(p1, body)
+                phoneActionsService.tryHandleActions(p1, body)
             }
-            .then { handleAvailability(p1, body, timezone) }
             .then {
-                Phones.update(p1, body.awayMessage, body.voice, body.language,
-                    body.useVoicemailRecordingIfPresent)
+                tryUpdateNotificationPolicies(p1, body.typeMapNoNull("availability"), timezone)
             }
-        // try to initiate voicemail greeting call at very end if successful so far
-        if (res.success) {
-            requestVoicemailGreetingCall(p1, body)
-                .logFail("PhoneService.mergeHelper: trying to start voicemail greeting call")
-        }
-        else { // cancel media processing if this request is unsuccessful
-            if (future) { future.cancel(true) }
-        }
-        res
+            .then { trySetFields(p1, body) }
+            .then {
+                tryRequestVoicemailGreetingCall(p1, body.string("requestVoicemailGreetingCall"))
+            }
+        res.then({
+            DomainUtils.trySave(p1)
+        }, { Result<?> failRes ->
+            future?.cancel(true)
+            failRes
+        })
     }
 
     // Helpers
     // -------
 
-    protected Result<Phone> handleAvailability(Phone p1, Map body, String timezone) {
-        if (body.availability instanceof Map) {
-            NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authService.loggedIn.id)
-            Result<?> res = notificationSettingsService.update(np1, body.availability as Map, timezone)
-            if (!res.success) { return res }
+    protected Result<Phone> trySetFields(Phone p1, TypeMap body) {
+        p1.with {
+            if (body.awayMessage) awayMessage = body.awayMessage
+            if (body.voice) voice = body.enum(VoiceType, "voice")
+            if (body.language) language = body.enum(VoiceLanguage, "language")
+            if (body.useVoicemailRecordingIfPresent != null) {
+                p1.useVoicemailRecordingIfPresent = body.bool("useVoicemailRecordingIfPresent")
+            }
+        }
+        DomainUtils.trySave(p1)
+    }
+
+    protected Result<Phone> tryUpdateNotificationPolicies(Phone p1, TypeMap aInfo, String timezone) {
+        if (aInfo) {
+            AuthUtils.tryGetAuthId()
+                .then { Long authId ->
+                    NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authId)
+                    notificationSettingsService.update(np1, aInfo, timezone)
+                }
         }
         IOCUtils.resultFactory.success(p1)
     }
 
-    protected Result<?> requestVoicemailGreetingCall(Phone p1, Map body) {
-        String num = body.requestVoicemailGreetingCall
-        if (!num) {
-            return IOCUtils.resultFactory.success()
+    protected Result<?> tryRequestVoicemailGreetingCall(Phone p1, String numToCall) {
+        if (numToCall) {
+            AuthUtils.tryGetAuthUser()
+                .then { Staff authUser ->
+                    tryGetGreetingCallNum(numToCall, authUser.personalPhone)
+                }
+                .then { PhoneNumber toNum ->
+                    callService.start(p1.number,
+                        [toNum],
+                        CallTwiml.infoForRecordVoicemailGreeting(),
+                        p1.customAccountId)
+                }
         }
-        PhoneNumber
-            .createAndValidate(getNumberToCallForVoicemailGreeting(num))
-            .then { PhoneNumber toNum ->
-                callService.start(p1.number, [toNum], CallTwiml.infoForRecordVoicemailGreeting(),
-                    p1.customAccountId)
-            }
+        else { IOCUtils.resultFactory.success() }
     }
 
-    protected String getNumberToCallForVoicemailGreeting(String possibleNum) {
-        possibleNum == "true" ? authService.loggedInAndActive?.personalPhoneAsString : possibleNum
+    protected Result<PhoneNumber> tryGetGreetingCallNum(String possibleNum, PhoneNumber authNum) {
+        possibleNum == "true" ? authNum : PhoneNumber.createAndValidate(possibleNum)
     }
 }

@@ -74,33 +74,7 @@ class TagService {
         }
         else { IOCUtils.resultFactory.success() }
     }
-    protected Result<ContactTag> doTagActions(ContactTag ct1, Map body) {
-        if (body.doTagActions) {
-            ActionContainer ac1 = new ActionContainer<>(ContactTagAction, body.doTagActions)
-            if (!ac1.validate()) {
-                return IOCUtils.resultFactory.failWithValidationErrors(ac1.errors)
-            }
-            ResultGroup<?> resGroup = new ResultGroup<>()
-            ac1.actions.each { ContactTagAction a1 ->
-                Contact c1 = a1.contact
-                if (ct1.phone?.id != c1.phone?.id) {
-                    resGroup << IOCUtils.resultFactory.failWithCodeAndStatus(
-                        "tagService.update.contactForbidden", ResultStatus.FORBIDDEN, [a1.id])
-                }
-                switch (a1) {
-                    case Constants.TAG_ACTION_ADD:
-                        ct1.addToMembers(c1)
-                        break
-                    default: // Constants.TAG_ACTION_REMOVE
-                        ct1.removeFromMembers(c1)
-                }
-            }
-            if (resGroup.anyFailures) {
-                return IOCUtils.resultFactory.failWithGroup(resGroup)
-            }
-        }
-        IOCUtils.resultFactory.success(ct1)
-    }
+
 
     // Delete
     // ------
@@ -112,11 +86,9 @@ class TagService {
 			t1.isDeleted = true
             if (t1.save()) {
                 Collection<FutureMessage> fMsgs = t1.record.getFutureMessages()
-                ResultGroup<?> resGroup = futureMessageJobService.cancelAll(fMsgs)
-                if (resGroup.anyFailures) {
-                    IOCUtils.resultFactory.failWithGroup(resGroup)
-                }
-                else { IOCUtils.resultFactory.success() }
+                futureMessageJobService
+                    .cancelAll(fMsgs)
+                    .toResult()
             }
             else { IOCUtils.resultFactory.failWithValidationErrors(t1.errors) }
     	}

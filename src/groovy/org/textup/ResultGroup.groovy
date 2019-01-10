@@ -16,29 +16,23 @@ class ResultGroup<T> {
 	private Map<ResultStatus,Integer> successStatusToCount = new HashMap<>()
 	private Map<ResultStatus,Integer> failureStatusToCount = new HashMap<>()
 
-	// Constructors
-	// ------------
-
-	ResultGroup() {}
-	ResultGroup(Collection<Result<? extends T>> manyRes) {
-		add(manyRes)
+	ResultGroup(Collection<Result<? extends T>> manyRes = null) {
+		if (manyRes) {
+			add(manyRes)
+		}
 	}
 
-	// Add items
-	// ---------
+	// Methods
+	// -------
 
-	ResultGroup<T> leftShift(Result<? extends T> res) {
-		add(res)
-	}
-	ResultGroup<T> leftShift(Collection<Result<? extends T>> manyRes) {
-		add(manyRes)
-	}
-	ResultGroup<T> leftShift(ResultGroup<? extends T> resGroup) {
-		add(resGroup)
-	}
-	ResultGroup<T> add(Result<? extends T> res) {
-		add([res])
-	}
+	ResultGroup<T> leftShift(Result<? extends T> res) { add(res) }
+
+	ResultGroup<T> leftShift(Collection<Result<? extends T>> manyRes) { add(manyRes) }
+
+	ResultGroup<T> leftShift(ResultGroup<? extends T> resGroup) { add(resGroup) }
+
+	ResultGroup<T> add(Result<? extends T> res) { add([res]) }
+
 	ResultGroup<T> add(Collection<Result<? extends T>> manyRes) {
 		manyRes?.each { Result<? extends T> res ->
 			if (res.success) {
@@ -48,10 +42,51 @@ class ResultGroup<T> {
 		}
 		this
 	}
+
 	ResultGroup<T> add(ResultGroup<? extends T> resGroup) {
 		add(resGroup.successes)
 		add(resGroup.failures)
 	}
+
+	ResultGroup<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {
+		failureItems.each { Result<T> res -> res.logFail(prefix, level) }
+		this
+	}
+
+	Result<Void> toResult() {
+		getAnyFailures() ?
+			IOCUtils.resultFactory.failWithGroup(this) :
+			IOCUtils.resultFactory.success()
+	}
+
+	// Properties
+	// ----------
+
+	List<Result<T>> getSuccesses() { Collections.unmodifiableList(successItems) }
+
+	List<Result<T>> getFailures() { Collections.unmodifiableList(failureItems) }
+
+	List<T> getPayload() { successItems.collect { Result<T> res -> res.payload } }
+
+	List<String> getErrorMessages() { // TODO test
+		List<String> errors = []
+		failureItems.each { Result<T> res -> errors.addAll(res.errorMessages) }
+		errors
+	}
+
+	boolean getIsEmpty() { successItems.isEmpty() && failureItems.isEmpty() }
+
+	boolean getAnySuccesses() { !successItems.isEmpty() }
+
+	boolean getAnyFailures() { !failureItems.isEmpty() }
+
+	ResultStatus getSuccessStatus() { MapUtils.findHighestValue(successStatusToCount)?.key }
+
+	ResultStatus getFailureStatus() { MapUtils.findHighestValue(failureStatusToCount)?.key }
+
+	// Helpers
+	// -------
+
 	protected void addHelper(Result<? extends T> res, List<Result<T>> items,
 		Map<ResultStatus,Integer> statusToCount) {
 		// we used to use HashSets to ensure uniqueness of the results in this group
@@ -67,43 +102,5 @@ class ResultGroup<T> {
 			statusToCount[res.status] = statusToCount[res.status] + 1
 		}
 		else { statusToCount[res.status] = 1 }
-	}
-
-	// Groupings
-	// ---------
-
-	List<Result<T>> getSuccesses() {
-		Collections.unmodifiableList(this.successItems)
-	}
-	List<Result<T>> getFailures() {
-		Collections.unmodifiableList(this.failureItems)
-	}
-	List<T> getPayload() {
-		this.successItems.collect { Result<T> res -> res.payload }
-	}
-
-	// Status
-	// ------
-
-	boolean getIsEmpty() {
-		this.successItems.isEmpty() && this.failureItems.isEmpty()
-	}
-	boolean getAnySuccesses() {
-		!this.successItems.isEmpty()
-	}
-	boolean getAnyFailures() {
-		!this.failureItems.isEmpty()
-	}
-
-	ResultStatus getSuccessStatus() {
-		MapUtils.findHighestValue(successStatusToCount)?.key
-	}
-	ResultStatus getFailureStatus() {
-		MapUtils.findHighestValue(failureStatusToCount)?.key
-	}
-
-	ResultGroup<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {
-		this.failureItems.each { Result<T> res -> res.logFail(prefix, level) }
-		this
 	}
 }

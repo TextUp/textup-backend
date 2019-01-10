@@ -1,8 +1,11 @@
 package org.textup
 
-import org.apache.commons.lang.builder.HashCodeBuilder
+import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import org.textup.util.domain.*
 
+@EqualsAndHashCode(includes = ["id"])
+@GrailsTypeChecked
 class StaffRole implements Serializable {
 
 	private static final long serialVersionUID = 1
@@ -10,37 +13,21 @@ class StaffRole implements Serializable {
 	Staff staff
 	Role role
 
-	boolean equals(other) {
-		if (!(other instanceof StaffRole)) {
-			return false
-		}
-
-		other.staff?.id == staff?.id &&
-		other.role?.id == role?.id
-	}
-
-	int hashCode() {
-		def builder = new HashCodeBuilder()
-		if (staff) builder.append(staff.id)
-		if (role) builder.append(role.id)
-		builder.toHashCode()
-	}
-
-	static constraints = {
-		role validator: { Role r, StaffRole ur ->
-			if (ur.staff == null) return
-			boolean existing = false
-			StaffRole.withNewSession {
-				existing = StaffRoles.exists(ur.staff.id, r.id)
-			}
-			if (existing) {
-				return 'userRole.exists'
-			}
-		}
-	}
-
 	static mapping = {
-		id composite: ['role', 'staff']
+		id composite: ["role", "staff"]
 		version false
 	}
+	static constraints = {
+		role validator: { Role val, StaffRole obj ->
+			if (obj.staff && Helpers.<Boolean>doWithoutFlush {
+					StaffRole.countByStaffAndRole(obj.staff, val) > 0
+				}) {
+				return "userRole.exists"
+			}
+		}
+	}
+
+	static Result<StaffRole> create(Staff staff, Role role) {
+		DomainUtils.trySave(new StaffRole(staff: staff, role: role))
+    }
 }

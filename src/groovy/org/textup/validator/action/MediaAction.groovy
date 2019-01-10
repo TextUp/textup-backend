@@ -24,6 +24,9 @@ import org.textup.validator.UploadItem
 @Validateable
 class MediaAction extends BaseAction {
 
+	static final String REMOVE = "remove"
+	static final String ADD = "add"
+
 	// required when adding
 	String mimeType
 	String data
@@ -39,7 +42,7 @@ class MediaAction extends BaseAction {
 		byteData nullable:true
 		type nullable:true
 		mimeType nullable:true, blank:true, validator: { String mimeType, MediaAction obj ->
-			if (obj.matches(Constants.MEDIA_ACTION_ADD)) {
+			if (obj.matches(MediaAction.ADD)) {
 				if (!mimeType) {
 					return ["requiredForAdd"]
 				}
@@ -49,7 +52,7 @@ class MediaAction extends BaseAction {
 			}
 		}
 		data nullable:true, blank:true, validator: { String data, MediaAction obj ->
-			if (obj.matches(Constants.MEDIA_ACTION_ADD)) {
+			if (obj.matches(MediaAction.ADD)) {
 				if (!data) {
 					return ["requiredForAdd"]
 				}
@@ -58,14 +61,14 @@ class MediaAction extends BaseAction {
 		        	return ["invalidFormat"]
 		        }
 				if (isCorrectFormat &&
-					Base64.decodeBase64(data).length > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
+					Base64.decodeBase64(data).length > ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
 
-					return ["tooLarge", Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES]
+					return ["tooLarge", ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES]
 		        }
 			}
 		}
 		checksum nullable:true, blank:true, validator: { String checksum, MediaAction obj ->
-			if (obj.matches(Constants.MEDIA_ACTION_ADD)) {
+			if (obj.matches(MediaAction.ADD)) {
 				if (!checksum) {
 					return ["requiredForAdd"]
 				}
@@ -75,7 +78,7 @@ class MediaAction extends BaseAction {
 			}
 		}
 		uid nullable:true, blank:true, validator: { String uid, MediaAction obj ->
-			if (obj.matches(Constants.MEDIA_ACTION_REMOVE) && !obj.uid) {
+			if (obj.matches(MediaAction.REMOVE) && !obj.uid) {
 				return ["missingForRemove"]
 			}
 		}
@@ -85,9 +88,7 @@ class MediaAction extends BaseAction {
 	// ------------------
 
 	@Override
-	Collection<String> getAllowedActions() {
-		[Constants.MEDIA_ACTION_ADD, Constants.MEDIA_ACTION_REMOVE]
-	}
+	Collection<String> getAllowedActions() { [MediaAction.ADD, MediaAction.REMOVE] }
 
 	// Property access
 	// ---------------

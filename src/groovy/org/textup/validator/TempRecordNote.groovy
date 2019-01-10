@@ -90,10 +90,9 @@ class TempRecordNote {
 				.list(max:1)[0]
 			: null
 		if (beforeItem) {
-			BigDecimal midpointMillis  = (new Duration(afterTime,
-				beforeItem.whenCreated).millis / 2)
-			long lowerBound = Constants.MIN_NOTE_SPACING_MILLIS,
-				upperBound = Constants.MAX_NOTE_SPACING_MILLIS
+			BigDecimal midpointMillis  = new Duration(afterTime, beforeItem.whenCreated).millis / 2
+			long lowerBound = ValidationUtils.MIN_NOTE_SPACING_MILLIS,
+				upperBound = ValidationUtils.MAX_NOTE_SPACING_MILLIS
 			// # millis to be add should be half the # of millis between time we need to be after
 			// and the time that we need to be before (to avoid passing next item)
 			// BUT this # must be between the specified lower and upper bounds

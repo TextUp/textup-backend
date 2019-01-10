@@ -28,7 +28,7 @@ class TokenService {
     // TODO
     Result<Token> generateNotification(OutgoingNotification notif1) {
         Map tokenData
-        generate(TokenType.NOTIFY_STAFF, tokenData, Constants.MAX_NUM_ACCESS_NOTIFICATION_TOKEN)
+        generate(TokenType.NOTIFY_STAFF, tokenData, ValidationUtils.MAX_NUM_ACCESS_NOTIFICATION_TOKEN)
             .then { Token t1 ->
                 t1.expires = DateTime.now(DateTimeZone.UTC).plusDays(1)
                 IOCUtils.resultFactory.success(t1)
