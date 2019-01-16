@@ -13,113 +13,89 @@ import org.textup.validator.*
 @Transactional
 class ContactService {
 
-    FutureMessageJobService futureMessageJobService
-    MergeService mergeService
-    NotificationSettingsService notificationSettingsService
-    NumberService numberService
-    SharedPhoneRecordService sharedPhoneRecordService
-    SocketService socketService
+    MergeActionService mergeActionService
+    NotificationActionService notificationActionService
+    NumberActionsService numberActionsService
+    ShareActionService shareActionService
 
     @RollbackOnResultFailure
-	Result<Contact> create(Long ownerId, PhoneOwnershipType type, Map body) {
-        Phones.mustFindForOwner(ownerId, type)
-            .then { Phone p1 -> Contact.create(p1) }
-            .then { Contact c1 -> handleNotificationActions(c1, body).curry(c1) } // delegate ok
-            .then { Contact c1 -> handleNumberActions(c1, body).curry(c1) } // delegate ok
-            .then { Contact c1 -> handleShareActions(c1, body).curry(c1) } // only owner
-            .then { Contact c1 -> handleMergeActions(c1, body).curry(c1) } // only owner
-            .then { Contact c1 -> updateContactInfo(c1, body) } // all collaborators
-            .then { Contact c1 -> IOCUtils.resultFactory.success(c1, ResultStatus.CREATED) }
-	}
-
-    @RollbackOnResultFailure
-	Result<Contactable> update(Long cId, Map body, Long scId = null) {
-        Contact c1 = Contact.get(cId)
-        SharedContact sc1 = scId ? SharedContact.get(scId) : null
-        // only mandate existence for the shared contact if a shared contact id is provided
-        if (!c1 || (scId && !sc1)) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("contactService.update.notFound",
-                ResultStatus.NOT_FOUND, [cId])
-        }
-        handleNotificationActions(c1, body, sc1) // delegate ok
-            .then { handleNumberActions(c1, body, sc1) } // delegate ok
-            .then { handleShareActions(c1, body, sc1) } // only owner
-            .then { handleMergeActions(c1, body, sc1) } // only owner
-            .then { updateContactInfo(c1, body, sc1) } // all collaborators
-            // if passing in a shared contact to update, we want to return the shared contact
-            // to the json marshaller so we don't accidentally return the original contact's status
-            // when we mean to return the shared contact's status, for example
-            .then { IOCUtils.resultFactory.success(sc1 ?: c1) }
-	}
-
-    @RollbackOnResultFailure
-    Result<Void> delete(Long cId) {
-        Contact c1 = Contact.get(cId)
-        if (c1) {
-            c1.isDeleted = true
-            if (c1.save()) {
-                Collection<FutureMessage> fMsgs = c1.record.getFutureMessages()
-                ResultGroup<?> resGroup = futureMessageJobService.cancelAll(fMsgs)
-                if (resGroup.anyFailures) {
-                    IOCUtils.resultFactory.failWithGroup(resGroup)
-                }
-                else { IOCUtils.resultFactory.success() }
+	Result<IndividualPhoneRecordWrapper> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
+        Phones.mustFindActiveForOwner(ownerId, type)
+            .then { Phone p1 -> IndividualPhoneRecordWrappers.tryCreate(p1) }
+            .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 -> tryNumbers(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 -> trySharing(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 -> tryMerge(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 ->
+                IOCUtils.resultFactory.success(w1, ResultStatus.CREATED)
             }
-            else { IOCUtils.resultFactory.failWithValidationErrors(c1.errors) }
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("contactService.delete.notFound",
-                ResultStatus.NOT_FOUND, [cId])
-        }
+	}
+
+    @RollbackOnResultFailure
+	Result<IndividualPhoneRecordWrapper> update(Long iprId, TypeMap body) {
+        IndividualPhoneRecordWrappers.mustFindForId(iprId)
+            .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 -> tryNumbers(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 -> trySharing(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 -> tryMerge(w1, body) }
+	}
+
+    @RollbackOnResultFailure
+    Result<Void> delete(Long iprId) {
+        IndividualPhoneRecordWrappers.mustFindForId(iprId)
+            .then { IndividualPhoneRecordWrapper w1 -> w1.tryDelete() }
+            .then { DomainUtils.trySave(w1) }
+            .then { IOCUtils.resultFactory.success() }
     }
 
     // Helpers
     // -------
 
-    protected Result<Contactable> updateContactInfo(Contact c1, Map body, SharedContact sc1 = null) {
-        // both owner of the contact and active collaborators of all permissions can modify status
-        // if updating the status, update on the shared contact if available to avoid overwriting
-        // the status on the original contact
-        Contactables.updateStatus(sc1 ?: c1, body.status)
-            .then {
-                if (!sc1 || sc1.canModify) {
-                    Contacts.update(c1, body.name, body.name, body.language)
-                }
-                else { IOCUtils.resultFactory.success(c1) }
+    protected Result<IndividualPhoneRecordWrapper> trySetFields(IndividualPhoneRecordWrapper w1,
+        TypeMap body) {
+
+        w1.trySetNameIfPresent(body.string("name"))
+            .then { w1.trySetNoteIfPresent(body.string("note")) }
+            .then { w1.trySetLanguageIfPresent(body.enum(VoiceLanguage, "language")) }
+            .then { w1.trySetStatusIfPresent(body.enum(PhoneRecordStatus, "status")) }
+            .then { DomainUtils.trySave(w1) }
+    }
+
+    protected Result<IndividualPhoneRecordWrapper> tryNotifications(IndividualPhoneRecordWrapper w1,
+        TypeMap body) {
+
+        w1.tryGetPhone()
+            .then { Phone p1 -> w1.tryGetRecord().curry(p1) }
+            .then { Phone p1, Record rec1 ->
+                notificationActionService.tryHandleActions(Tuple.create(p1, rec1.id), body)
             }
+            .then { DomainUtils.trySave(w1) }
     }
 
-    protected Result<Void> handleNotificationActions(Contact c1, Map body, SharedContact sc1 = null) {
-        // collaborators with delegate permissions should be able to modify notification settings
-        // because they also receive notifications and also need the ability to have fine-grained
-        // notification settings just as the original contact owner.
-        if (body.doNotificationActions  && (!sc1 || sc1.canModify)) {
-            notificationSettingsService.handleActions(Tuple.create(c1.phone, c1.record.id), body)
-        }
-        else { IOCUtils.resultFactory.success() }
+    protected Result<IndividualPhoneRecordWrapper> tryNumbers(IndividualPhoneRecordWrapper w1,
+        TypeMap body) {
+
+        numberActionsService.tryHandleActions(w1, body)
     }
 
-    protected Result<Void> handleNumberActions(Contact c1, Map body, SharedContact sc1 = null) {
-        //do at the beginning so we don't need to discard any field changes
-        //number actions validate only, see below for number actions
-        if (body.doNumberActions && (!sc1 || sc1.canModify)) {
-            numberService.handleActions(c1, body)
-        }
-        else { IOCUtils.resultFactory.success() }
-    }
+    protected Result<IndividualPhoneRecordWrapper> trySharing(IndividualPhoneRecordWrapper w1,
+        TypeMap body) {
 
-    protected Result<Void> handleShareActions(Contact c1, Map body, SharedContact sc1 = null) {
-        if (body.doShareActions && !sc1) {
-            sharedPhoneRecordService.handleActions(c1, body)
-        }
-        else { IOCUtils.resultFactory.success() }
+        w1.tryUnwrap()
+            .then { IndividualPhoneRecord ipr1 -> shareActionService.tryHandleActions(ipr1, body) }
+            .then { DomainUtils.trySave(w1) }
     }
 
 
-    protected Result<Void> handleMergeActions(Contact c1, Map body, SharedContact sc1 = null) {
-        if (body.doMergeActions && !sc1) {
-            mergeService.handleActions(c1, body)
-        }
-        else { IOCUtils.resultFactory.success() }
+    protected Result<IndividualPhoneRecordWrapper> tryMerge(IndividualPhoneRecordWrapper w1,
+        TypeMap body) {
+
+        w1.tryUnwrap()
+            .then { IndividualPhoneRecord ipr1 ->
+                mergeActionService.tryHandleActions(ipr1.id, body)
+            }
+            .then { DomainUtils.trySave(w1) }
     }
 }

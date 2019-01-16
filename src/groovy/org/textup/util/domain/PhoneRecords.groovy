@@ -38,6 +38,12 @@ class PhoneRecords {
         }
     }
 
+    static Closure forIds(Collection<Long> ids) {
+        return {
+            CriteriaUtils.inList(delegate, "id", ids)
+        }
+    }
+
     static Closure returnsPhone() {
         return {
             projections {
@@ -59,10 +65,10 @@ class PhoneRecords {
             eq("isDeleted", false) // TODO does this work?
             or {
                 isNull("dateExpired") // not expired if null
-                gt("dateExpired", DateTime.now(DateTimeZone.UTC))
+                gt("dateExpired", DateTimeUtils.now())
             }
             phone {
-                Phones.forActive().setDelegate(delgate).call()
+                CriteriaUtils.compose(delegate, Phones.forActive())
             }
         }
     }

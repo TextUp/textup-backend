@@ -4,66 +4,97 @@ import grails.compiler.GrailsTypeChecked
 import org.joda.time.DateTime
 
 @GrailsTypeChecked
-class IndividualPhoneRecordWrapper extends PhoneRecordWrapper{
+class IndividualPhoneRecordWrapper extends PhoneRecordWrapper {
 
-    private final IndividualPhoneRecord _pRec
-    private final PhoneRecordPermissions _perm
+    private final IndividualPhoneRecord individualWrapper
 
-    IndividualPhoneRecordWrapper(IndividualPhoneRecord phoneRecord, PhoneRecordPermissions permissions,
+    IndividualPhoneRecordWrapper(IndividualPhoneRecord ipr1, PhoneRecordPermissions permissions,
         PhoneRecord overrides = null) {
 
-        super(overrides ?: phoneRecord, permissions)
-        _pRec = ipRec
-        _perm = permissions
+        super(overrides ?: ipr1, permissions)
+        individualWrapper = ipr1
     }
 
     // Methods
     // -------
 
     @Override
-    Result<? extends IndividualPhoneRecordWrapper> trySave() { DomainUtils.trySave(_pRec) }
+    IndividualPhoneRecordWrapper save() { individualWrapper.save() ? this : null }
+
+    @Override
+    Result<? extends IndividualPhoneRecord> tryUnwrap() {
+        permissions.isOwner() ?
+            IOCUtils.resultFactory.success(individualWrapper) :
+            insufficientPermission()
+    }
+
+    Result<Void> tryDelete() {
+        if (permissions.isOwner()) {
+            individualWrapper.isDeleted = true
+            individualWrapper.tryCancelFutureMessages().then { IOCUtils.resultFactory.success() }
+        }
+        else { insufficientPermission() }
+    }
 
     // Getters
     // -------
 
     Result<Boolean> tryGetIsDeleted() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.isDeleted) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(individualWrapper.isDeleted) :
             insufficientPermission()
     }
 
     Result<PhoneRecordStatus> tryGetNote() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.note) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(individualWrapper.note) :
             insufficientPermission()
     }
 
-    Result<List<? extends ReadOnlyContactNumber>> tryGetSortedNumbers() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.sortedNumbers) :
+    Result<List<ReadOnlyContactNumber>> tryGetSortedNumbers() {
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(individualWrapper.sortedNumbers) :
+            insufficientPermission()
+    }
+
+    @Override
+    Result<Phone> tryGetPhone() {
+        permissions.canModify() ?
+            IOCUtils.resultFactory.success(individualWrapper.phone) :
+            insufficientPermission()
+    }
+
+    // TODO do we need this?
+    @Override
+    Result<ReadOnlyPhone> tryGetReadOnlyPhone() {
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(individualWrapper.phone) :
+            insufficientPermission()
+    }
+
+    @Override
+    Result<String> tryGetSecureName() {
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(individualWrapper.secureName) :
+            insufficientPermission()
+    }
+
+    @Override
+    Result<String> tryGetPublicName() {
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(individualWrapper.publicName) :
             insufficientPermission()
     }
 
     // Setters
     // -------
 
-    Result<Void> trySetIsDeletedIfPresent(Boolean isDeleted) {
-        if (isDeleted == null) {
-            return IOCUtils.resultFactory.success()
-        }
-        if (_perm.isOwner()) {
-            _pRec.isDeleted = isDeleted
-            IOCUtils.resultFactory.success()
-        }
-        else { insufficientPermission() }
-    }
-
     Result<Void> trySetNameIfPresent(String name) {
         if (!name) {
             return IOCUtils.resultFactory.success()
         }
-        if (_perm.canModify()) {
-            _pRec.name = name
+        if (permissions.canModify()) {
+            individualWrapper.name = name
             IOCUtils.resultFactory.success()
         }
         else { insufficientPermission() }
@@ -73,18 +104,22 @@ class IndividualPhoneRecordWrapper extends PhoneRecordWrapper{
         if (!note) {
             return IOCUtils.resultFactory.success()
         }
-        if (_perm.canModify()) {
-            _pRec.note = note
+        if (permissions.canModify()) {
+            individualWrapper.note = note
             IOCUtils.resultFactory.success()
         }
         else { insufficientPermission() }
     }
 
     Result<ContactNumber> tryMergeNumber(BasePhoneNumber bNum, int preference) {
-        _perm.canModify() ? _pRec.mergeNumber(bNum, preference) : insufficientPermission()
+        permissions.canModify() ?
+            individualWrapper.mergeNumber(bNum, preference) :
+            insufficientPermission()
     }
 
     Result<Void> tryDeleteNumber(BasePhoneNumber bNum) {
-        _perm.canModify() ? _pRec.deleteNumber(bNum) : insufficientPermission()
+        permissions.canModify() ?
+            individualWrapper.deleteNumber(bNum) :
+            insufficientPermission()
     }
 }

@@ -8,18 +8,21 @@ import org.joda.time.DateTime
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class PhoneRecord implements WithId, Saveable {
+class PhoneRecord implements WithId, Saveable<PhoneRecord> {
 
-    DateTime lastTouched = DateTime.now(DateTimeZone.UTC)
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    FutureMessageJobService futureMessageJobService
+
+    DateTime lastTouched = DateTimeUtils.now()
+    DateTime whenCreated = DateTimeUtils.now()
     Phone phone
     PhoneRecordStatus status = PhoneRecordStatus.ACTIVE
     Record record
 
-    DateTime dateExpired // active if dateExpired is null or in the future
     PhoneRecord shareSource
+    DateTime dateExpired // active if dateExpired is null or in the future
     SharePermission permission // null implies ownership and therefore full permissions
 
+    static transients = ["futureMessageJobService"]
     static mapping = {
         dateExpired type: PersistentDateTime
         lastTouched type: PersistentDateTime
@@ -30,16 +33,20 @@ class PhoneRecord implements WithId, Saveable {
     static constraints = { // default nullable: false
         record cascadeValidation: true
         dateExpired nullable: true
-        permission nullable: true, validator: { SharePermission val, PhoneRecord obj ->
-            if (obj.shareSource != null && val == null) { ["mustSpecifySharingPermission"] }
-        }
-        shareSource cascadeValidation: true, validator: { PhoneRecord val, PhoneRecord obj ->
-            if (val.phone?.id == obj.phone?.id) { ["shareWithMyself"] }
+        permission nullable: true
+        shareSource nullable: true, cascadeValidation: true, validator: { PhoneRecord val, PhoneRecord obj ->
+            if (val) {
+                if (val.phone?.id == obj.phone?.id) { ["shareWithMyself"] }
+                if (val.record?.id != obj.record?.id) { ["mismatchedRecord"] }
+                if (!obj.permission) { ["mustSpecifySharingPermission"] }
+            }
         }
     }
 
     // Methods
     // -------
+
+    boolean isActive() { toPermissions().isNotExpired() }
 
     PhoneRecordPermissions toPermissions() { new PhoneRecordPermissions(dateExpired, permission) }
 
@@ -48,6 +55,16 @@ class PhoneRecord implements WithId, Saveable {
     PhoneRecordWrapper toWrapper(PhoneRecord sharingOverride = null) {
         shareSource?.toWrapper(this) ?: new PhoneRecordWrapper(this, toPermissions())
     }
+
+    Result<List<FutureMessage>> tryCancelFutureMessages() {
+        List<FutureMessage> fMsgs = FutureMessages.buildForRecordIds([record.id]).list()
+        futureMessageJobService.cancelAll(fMsgs)
+            .logFail("tryCancelFutureMessages")
+            .toResult(true)
+    }
+
+    Collection<Record> buildRecords() { [record] }
+
 
     // TODO how to integrate this?
     // @Override

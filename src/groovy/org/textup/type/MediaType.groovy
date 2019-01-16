@@ -36,6 +36,16 @@ enum MediaType {
             MediaType.values().find { MediaType mType -> mType.mimeTypes?.contains(lowerCased) }
         }
     }
+
+    static Result<MediaType> tryConvertMimeType(String inputType) {
+        MediaType type = MediaType.convertMimeType(inputType)
+        type ?
+            IOCUtils.resultFactory.success(type) :
+            IOCUtils.resultFactory.failWithCodeAndStatus(
+                "incomingMediaService.processElement.invalidMimeType", // TODO
+                ResultStatus.UNPROCESSABLE_ENTITY, [inputType])
+    }
+
     static boolean isValidMimeType(String inputType) {
         MediaType.convertMimeType(inputType) != null
     }

@@ -19,37 +19,27 @@ class IndividualPhoneRecord extends PhoneRecord {
         note column: "individual_note", type: "text"
     }
     static constraints = {
-        numbers minSize: 1
         name blank: true, nullable: true
         note blank: true, nullable: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
     }
 
-    static Result<IndividualPhoneRecordWrapper> create(Phone p1, List<? extends BasePhoneNumber> bNums = []) {
-        Record.create()
+    static Result<IndividualPhoneRecord> tryCreate(Phone p1) {
+        Record.tryCreate()
             .then { Record rec1 ->
                 IndividualPhoneRecord ipr1 = new IndividualPhoneRecord(phone: p1, record: rec1)
-                // need to save before adding numbers so that the domain is assigned an
-                // ID to be associated with the ContactNumbers to avoid a TransientObjectException
-                DomainUtils.trySave(ipr1)
-            }
-            .then { IndividualPhoneRecord ipr1 ->
-                ResultGroup<ContactNumber> resGroup = new ResultGroup<>()
-                bNums.unique().eachWithIndex { BasePhoneNumber bNum, int preference ->
-                    resGroup << ipr1.mergeNumber(bNum, preference)
-                }
-                if (resGroup.anyFailures) {
-                    IOCUtils.resultFactory.failWithGroup(resGroup)
-                }
-                else { IOCUtils.resultFactory.success(ipr1, ResultStatus.CREATED) }
+                DomainUtils.trySave(ipr1, ResultStatus.CREATED)
             }
     }
 
-    def beforeValidate() {
-        tryReconcileNumberPreferences()
-    }
+    def beforeInsert() { normalizeNumberPreferences() }
+
+    def beforeUpdate() { normalizeNumberPreferences() }
 
     // Methods
     // -------
+
+    @Override
+    boolean isActive() { super.isActive() && !isDeleted }
 
     @Override
     IndividualPhoneRecordWrapper toWrapper(PhoneRecord sharingOverride = null) {
@@ -59,17 +49,12 @@ class IndividualPhoneRecord extends PhoneRecord {
     }
 
     Result<ContactNumber> mergeNumber(BasePhoneNumber bNum, int preference) {
-        ContactNumber cNum = numbers?.find { it.number == bNum?.number }
-        if (!cNum) {
-            cNum = new ContactNumber()
-            cNum.update(bNum)
-            addToNumbers(cNum)
+        ContactNumber cNum = numbers?.find { it.number == bNum.number }
+        if (cNum) {
+            cNum.preference = preference
+            DomainUtils.trySave(cNum)
         }
-        cNum.preference = preference
-        if (cNum.save()) {
-            IOCUtils.resultFactory.success(cNum)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(cNum.errors) }
+        else { ContactNumber.tryCreate(this, bNum, preference) }
     }
 
     Result<Void> deleteNumber(BasePhoneNumber bNum) {
@@ -96,19 +81,7 @@ class IndividualPhoneRecord extends PhoneRecord {
     // Helpers
     // -------
 
-    protected void tryReconcileNumberPreferences() {
-        // autoincrement numbers' preference for new numbers if blank
-        Collection<ContactNumber> initialNums = numbers?.findAll { !it.id && !it.preference }
-        if (initialNums) {
-            Collection<ContactNumber> existingNums = numbers - initialNums
-            int greatestPref = 0
-            if (existingNums) {
-                ContactNumber greatestPrefNum = existingNums.max { it.preference }
-                greatestPref = greatestPrefNum.preference
-            }
-            initialNums.eachWithIndex { ContactNumber cn, int i ->
-                cn.preference = greatestPref + i + 1 // zero-indexed
-            }
-        }
+    protected void normalizeNumberPreferences() {
+        getSortedNumbers().eachWithIndex { ContactNumber cn1, int pref -> cn1.preference = pref }
     }
 }

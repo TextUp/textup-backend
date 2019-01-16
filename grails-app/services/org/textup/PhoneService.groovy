@@ -16,14 +16,14 @@ class PhoneService {
 
     CallService callService
     MediaService mediaService
-    NotificationSettingsService notificationSettingsService
+    NotificationService notificationService
     PhoneActionsService phoneActionsService
 
     Result<Phone> update(Phone p1, TypeMap body, String timezone) {
         Future<?> future
-        Result<?> res = mediaService.tryProcess(p1, body, true)
-            .then { Tuple<WithMedia, Future<?>> processed ->
-                future = processed.second
+        mediaService.tryCreateOrUpdate(p1, body, true)
+            .then { Future<?> fut1 ->
+                future = fut1
                 phoneActionsService.tryHandleActions(p1, body)
             }
             .then {
@@ -33,12 +33,11 @@ class PhoneService {
             .then {
                 tryRequestVoicemailGreetingCall(p1, body.string("requestVoicemailGreetingCall"))
             }
-        res.then({
-            DomainUtils.trySave(p1)
-        }, { Result<?> failRes ->
-            future?.cancel(true)
-            failRes
-        })
+            .then { DomainUtils.trySave(p1) }
+            .ifFail { Result<?> failRes ->
+                future?.cancel(true)
+                failRes
+            }
     }
 
     // Helpers
@@ -61,7 +60,7 @@ class PhoneService {
             AuthUtils.tryGetAuthId()
                 .then { Long authId ->
                     NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authId)
-                    notificationSettingsService.update(np1, aInfo, timezone)
+                    notificationService.update(np1, aInfo, timezone)
                 }
         }
         IOCUtils.resultFactory.success(p1)
@@ -84,6 +83,6 @@ class PhoneService {
     }
 
     protected Result<PhoneNumber> tryGetGreetingCallNum(String possibleNum, PhoneNumber authNum) {
-        possibleNum == "true" ? authNum : PhoneNumber.createAndValidate(possibleNum)
+        possibleNum == "true" ? authNum : PhoneNumber.tryCreate(possibleNum)
     }
 }

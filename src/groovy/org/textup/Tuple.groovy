@@ -19,6 +19,14 @@ class Tuple<X, Y> {
         new Tuple<X, Y>(arg1, arg2)
     }
 
+    static <T, X, Y> T split(Collection<Tuple<X, Y>> tuples, <Closure<T> action) {
+        action(tuples*.first, tuples*.second)
+    }
+
+    static <T, X, Y> T split(Tuple<X, Y> tuple, <Closure<T> action) {
+        action(tuple.first, tuple.second)
+    }
+
     // Methods
     // -------
 

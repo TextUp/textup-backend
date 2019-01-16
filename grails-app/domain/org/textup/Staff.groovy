@@ -12,7 +12,7 @@ import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Staff implements Schedulable, WithId, Saveable {
+class Staff implements Schedulable, WithId, Saveable<Staff> {
 
     boolean enabled = true
     boolean accountExpired
@@ -21,7 +21,7 @@ class Staff implements Schedulable, WithId, Saveable {
 
     boolean isAvailable = true
     boolean manualSchedule = true
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    DateTime whenCreated = DateTimeUtils.now()
     Organization org
     Schedule schedule
     StaffStatus status
@@ -52,14 +52,14 @@ class Staff implements Schedulable, WithId, Saveable {
         schedule cascadeValidation: true
 	}
 
-    static Result<Staff> create(Role r1, Organization org1, String name, String username,
+    static Result<Staff> tryCreate(Role r1, Organization org1, String name, String username,
         String password, String email) {
 
         Staff s1 = new Staff(name: name, username: username, password: password, email: email,
             org: org1, schedule: new WeeklySchedule())
         s1.status = DomainUtils.isNew(org1) ? StaffStatus.ADMIN : StaffStatus.PENDING
         DomainUtils.trySave(s1)
-            .then { StaffRole.create(s1, r1) }
+            .then { StaffRole.tryCreate(s1, r1) }
             .then { IOCUtils.resultFactory.success(s1, ResultStatus.CREATED) }
     }
 

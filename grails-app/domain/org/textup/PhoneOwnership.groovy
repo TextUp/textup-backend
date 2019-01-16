@@ -8,13 +8,17 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class PhoneOwnership implements WithId, Saveable {
+class PhoneOwnership implements WithId, Saveable<PhoneOwnership> {
 
 	Phone phone
 	Long ownerId
 	PhoneOwnershipType type
     boolean allowSharingWithOtherTeams = false // TODO
 
+    static hasMany = [policies: NotificationPolicy]
+    static mapping = {
+        policies fetch: "join", cascade:"all-delete-orphan"
+    }
     static constraints = {
     	ownerId validator: { Long val, PhoneOwnership obj ->
             Closure<Boolean> doesOwnerExist = {
@@ -24,10 +28,6 @@ class PhoneOwnership implements WithId, Saveable {
                 ["invalidId"]
             }
     	}
-    }
-    static hasMany = [policies: NotificationPolicy]
-    static mapping = {
-        policies fetch: "join", cascade:"all-delete-orphan"
     }
 
     // Property access

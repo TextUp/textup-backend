@@ -33,10 +33,8 @@ class ContactableJsonMarshaller extends JsonNamedMarshaller {
         json.notificationStatuses = c1.getNotificationStatuses()
         json.language = rec1.getLanguage()?.toString()
         json.status = c1.status?.toString()
-        // when manually marking as unread, a contact that is unread may not
-        // have any unread counts to report
-        if (c1.status == PhoneRecordStatus.UNREAD && rec1.hasUnreadInfo(c1.lastTouched)) {
-            json.unreadInfo = rec1.getUnreadInfo(c1.lastTouched)
+        if (c1.status == PhoneRecordStatus.UNREAD) {
+            json.unreadInfo = new UnreadInfo(rec1.id, c1.lastTouched)
         }
         // add fields specific to Contacts or SharedContacts
         if (c1.instanceOf(Contact)) {

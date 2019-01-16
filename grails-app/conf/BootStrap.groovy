@@ -40,7 +40,7 @@ class BootStrap {
 	    		name:"Mallory Pending1", email:"connect@textup.org", org:org1,
 	    		status:StaffStatus.ADMIN, lockCode:Constants.DEFAULT_LOCK_CODE)
 	    	pendingOrgStaff.save(flush:true, failOnError:true)
-			StaffRoles.create(pendingOrgStaff, userRole, true)
+			StaffRole.tryCreate(pendingOrgStaff, userRole)
 
     		//create our full-fledged demo org
     		Organization org = new Organization(name:"Rhode Island House",
@@ -54,7 +54,7 @@ class BootStrap {
 	    		name:"Super", email:"connect@textup.org", org:org,
 	    		status:StaffStatus.ADMIN, lockCode:Constants.DEFAULT_LOCK_CODE)
     		superUser.save(flush:true, failOnError:true)
-    		StaffRoles.create(superUser, adminRole, true)
+    		StaffRole.tryCreate(superUser, adminRole)
 
 	    	//create teams
 	    	Team t1 = new Team(name:"Rapid Rehousing", org:org)
@@ -104,9 +104,9 @@ class BootStrap {
 	    	p3.updateOwner(s2)
 	    	p3.save(flush:true, failOnError:true)
 	    	// create roles for staff
-	    	StaffRoles.create(admin, userRole, true)
-	    	StaffRoles.create(s1, userRole, true)
-	    	StaffRoles.create(s2, userRole, true)
+	    	StaffRole.tryCreate(admin, userRole)
+	    	StaffRole.tryCreate(s1, userRole)
+	    	StaffRole.tryCreate(s2, userRole)
 	    	//add staff to teams
 	    	t1.addToMembers(admin)
 	    	t1.addToMembers(s1)

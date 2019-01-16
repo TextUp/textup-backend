@@ -23,30 +23,25 @@ class ContactNumberAction extends BaseAction {
 	static constraints =  {
 		preference min:0
 		number validator:{ String val, ContactNumberAction obj  ->
-	        if (!obj.matches(ContactNumberAction.DELETE) &&
+	        if (!obj.matches(DELETE) &&
 	        	!ValidationUtils.isValidPhoneNumber(val)) {
-
 	        	["format"]
 	        }
 	    }
 	}
 
-	// Validation helpers
-	// ------------------
+	// Methods
+	// -------
+
+	PhoneNumber buildPhoneNumber() { PhoneNumber.create(number) }
+
+	// Properties
+	// ----------
 
 	@Override
-	Collection<String> getAllowedActions() {
-		[ContactNumberAction.MERGE, ContactNumberAction.DELETE]
-	}
-
-	// Property access
-	// ---------------
+	Collection<String> getAllowedActions() { [MERGE, DELETE] }
 
 	void setNumber(String num) {
 		number = StringUtils.cleanPhoneNumber(num)
-	}
-
-	PhoneNumber getPhoneNumber() {
-		PhoneNumber.create(number)
 	}
 }

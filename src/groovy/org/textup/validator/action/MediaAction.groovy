@@ -35,14 +35,9 @@ class MediaAction extends BaseAction {
 	// required when removing
 	String uid
 
-	final byte[] byteData
-	final MediaType type
-
 	static constraints = {
-		byteData nullable:true
-		type nullable:true
 		mimeType nullable:true, blank:true, validator: { String mimeType, MediaAction obj ->
-			if (obj.matches(MediaAction.ADD)) {
+			if (obj.matches(ADD)) {
 				if (!mimeType) {
 					return ["requiredForAdd"]
 				}
@@ -52,7 +47,7 @@ class MediaAction extends BaseAction {
 			}
 		}
 		data nullable:true, blank:true, validator: { String data, MediaAction obj ->
-			if (obj.matches(MediaAction.ADD)) {
+			if (obj.matches(ADD)) {
 				if (!data) {
 					return ["requiredForAdd"]
 				}
@@ -62,13 +57,12 @@ class MediaAction extends BaseAction {
 		        }
 				if (isCorrectFormat &&
 					Base64.decodeBase64(data).length > ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
-
 					return ["tooLarge", ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES]
 		        }
 			}
 		}
 		checksum nullable:true, blank:true, validator: { String checksum, MediaAction obj ->
-			if (obj.matches(MediaAction.ADD)) {
+			if (obj.matches(ADD)) {
 				if (!checksum) {
 					return ["requiredForAdd"]
 				}
@@ -78,28 +72,26 @@ class MediaAction extends BaseAction {
 			}
 		}
 		uid nullable:true, blank:true, validator: { String uid, MediaAction obj ->
-			if (obj.matches(MediaAction.REMOVE) && !obj.uid) {
+			if (obj.matches(REMOVE) && !obj.uid) {
 				return ["missingForRemove"]
 			}
 		}
 	}
 
-	// Validation helpers
-	// ------------------
+	// Methods
+	// -------
 
-	@Override
-	Collection<String> getAllowedActions() { [MediaAction.ADD, MediaAction.REMOVE] }
-
-	// Property access
-	// ---------------
-
-	byte[] getByteData() {
+	byte[] buildByteData() {
 		if (data && Base64.isBase64(data)) {
             Base64.decodeBase64(data)
         }
 	}
 
-	MediaType getType() {
-		MediaType.convertMimeType(this.mimeType)
-	}
+	MediaType buildType() { MediaType.convertMimeType(mimeType) }
+
+	// Properties
+	// ----------
+
+	@Override
+	Collection<String> getAllowedActions() { [ADD, REMOVE] }
 }

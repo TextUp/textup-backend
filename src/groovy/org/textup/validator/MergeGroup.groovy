@@ -7,81 +7,49 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @Validateable
-class MergeGroup {
+class MergeGroup implements Validateable {
 
-	Long targetContactId
+	Long targetId
 	Collection<MergeGroupItem> possibleMerges = []
 
-	final Contact targetContact
-
 	static constraints = {
-		targetContact nullable: true
-		targetContactId validator:{ Long id ->
-			if (id && !Utils.<Boolean>doWithoutFlush({ Contact.exists(id) })) {
+		targetId validator: { Long id ->
+			if (!Utils.<Boolean>doWithoutFlush { IndividualPhoneRecord.exists(id) }) {
 				["doesNotExist"]
 			}
 		}
-		possibleMerges minSize:1, validator:{ Collection<MergeGroupItem> val, MergeGroup obj ->
-			// shortcircuit custom validation if no possible merges
-			if (!val) { return }
-			// check that all items contain unique ids
-			HashSet<Long> alreadySeenIds = new HashSet<>([obj.targetContactId])
-			HashSet<Long> allToBeMerged = new HashSet<Long>()
-			for (MergeGroupItem i1 in val) {
-				Collection<Long> cIds = i1.contactIds
-				allToBeMerged.addAll(cIds)
-				for (cId in cIds) {
-					if (alreadySeenIds.contains(cId)) {
-						return ["overlappingId", cId]
+		possibleMerges cascadeValidation: true, minSize: 1,
+			validator: { Collection<MergeGroupItem> val, MergeGroup obj ->
+				if (val) {
+					Collection<Long> allIds = CollectionUtils.mergeUnique(*val*.mergeids)
+					// check for no self merge
+					if (allIds.contains(obj.targetId)) {
+						return ["cannotMergeWithSelf", obj.targetId]
 					}
-					alreadySeenIds.add(cId)
+					// check for no overlapping ids in suggested merges
+					Map<Long, Collection<Long>> invalidIds = MapUtils
+						.<Long, Long>buildManyObjectsMap(allIds, { it })
+						.findAll { it.value.size() > 1 }
+					if (invalidIds) {
+						return ["overlappingIds", invalidIds.keySet()]
+					}
 				}
 			}
-			// batch check existence
-			Collection<Contact> found = Utils.<Collection<Contact>>doWithoutFlush({
-				Contact
-					.getAll(allToBeMerged as Iterable<Serializable>)
-					.findAll { Contact c1 -> c1 != null }
-			})
-			if (found.size() != allToBeMerged.size()) {
-				return ["someDoNotExist", allToBeMerged - found*.id]
-			}
-		}
 	}
 
-	// Validation
-	// ----------
-
-	boolean deepValidate() {
-		boolean isAllSuccess = this.validate()
-		Collection<String> errorMessages = []
-		this.possibleMerges.each { MergeGroupItem i1 ->
-			if (!i1.validate()) {
-				isAllSuccess = false
-				errorMessages += IOCUtils.resultFactory.failWithValidationErrors(i1.errors).errorMessages
-			}
-		}
-		if (errorMessages) {
-			this.errors.rejectValue("possibleMerges", "mergeGroup.possibleMerges.invalidItems",
-				errorMessages as Object[], "Invalid possible merges")
-		}
-		isAllSuccess
+	static Result<MergeGroup> tryCreate(Long tId, Collection<MergeGroupItem> possibleMerges) {
+		MergeGroup mGroup = new MergeGroup(targetId: tId, possibleMerges: possibleMerges)
+		DomainUtils.tryValidate(mGroup, ResultStatus.CREATED)
 	}
 
 	// Methods
 	// -------
 
-	MergeGroup add(PhoneNumber mergeGroupNumber, Collection<Long> contactIds) {
-		Collection<Long> itemIds = new ArrayList<Long>(contactIds)
-		itemIds.remove(this.targetContactId)
-		possibleMerges << new MergeGroupItem(number:mergeGroupNumber, contactIds:itemIds)
+	IndividualPhoneRecord buildTarget() { IndividualPhoneRecord.get(targetId) }
+
+	MergeGroup add(PhoneNumber pNum, Collection<Long> mergeIds) {
+		Collection<Long> itemIds = mergeIds.findAll { Long cId -> cId != targetId }
+		possibleMerges << new MergeGroupItem(number: pNum, mergeIds: itemIds)
 		this
-	}
-
-	// Property access
-	// ---------------
-
-	Contact getTargetContact() {
-		Contact.get(this.targetContactId)
 	}
 }

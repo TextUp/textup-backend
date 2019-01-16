@@ -13,129 +13,96 @@ import org.textup.validator.action.*
 @Transactional
 class MediaService {
 
-    ResultFactory resultFactory
     StorageService storageService
     ThreadService threadService
+    MediaActionService mediaActionService
 
-    Result<Tuple<WithMedia, Future<Result<MediaInfo>>>> tryProcess(WithMedia withMedia, Map body,
+    Result<Future<Result<?>>> tryCreateOrUpdate(WithMedia withMedia, Map body,
         boolean isPublic = false) {
 
-        if (!hasActions(body)) {
-            return resultFactory.success(withMedia, AsyncUtils.noOpFuture(withMedia.media))
-        }
-        tryProcess(withMedia.media ?: new MediaInfo(), body, isPublic)
-            .then { Tuple<MediaInfo, Future<?>> processed ->
-                withMedia.media = processed.first
-                resultFactory.success(withMedia, processed.second)
+        if (mediaActionService.hasActions(body)) {
+            MediaInfo.tryCreate(withMedia.media).then { MediaInfo mInfo ->
+                tryStartProcessing(mInfo, body, isPublic)
             }
+        }
+        else { IOCUtils.resultFactory.success(null, AsyncUtils.noOpFuture(mInfo)) }
     }
 
-    Result<Tuple<MediaInfo, Future<Result<MediaInfo>>>> tryProcess(MediaInfo mInfo, Map body,
-        boolean isPublic = false) {
-
-        if (!hasActions(body)) {
-            return resultFactory.success(mInfo, AsyncUtils.noOpFuture(mInfo))
+    Result<Tuple<MediaInfo, Future<Result<?>>>> tryCreate(Map body, boolean isPublic = false) {
+        if (mediaActionService.hasActions(body)) {
+            MediaInfo.tryCreate()
+                .then { MediaInfo mInfo -> tryStartProcessing(mInfo, body, isPublic).curry(mInfo) }
+                .then { MediaInfo mInfo, Future<?> fut1 ->
+                    IOCUtils.resultFactory.success(mInfo, fut1)
+                }
         }
-        tryHandleActions(mInfo, body)
-            .logFail("tryProcess: building initial version")
-            .then { Result<ResultGroup<UploadItem>> uploadGroup ->
-                ResultGroup<MediaElement> elGroup = new ResultGroup<>()
-                uploadGroup.payload.each { UploadItem initialUpload ->
-                    initialUpload.isPublic = isPublic
-                    elGroup << MediaElement.create(null, [initialUpload.toMediaElementVersion()])
-                }
-                elGroup.toResult().curry(uploadGroup.payload, elGroup.payload)
-            }
-            .then { List<UploadItem> uItems, List<MediaElement> elements ->
-                List<Tuple<UploadItem, Long>> toProcessIds = []
-                elements.each { MediaElement e1 ->
-                    mInfo.addToMediaElements(e1)
-                    toProcessIds << Tuple.create(initialUpload, e1.id)
-                }
-                DomainUtils.trySave(mInfo).curry(uItems, toProcessIds)
-            }
-            .then { List<UploadItem> uItems, List<Tuple<UploadItem, Long>> pInfo, MediaInfo mInfo ->
-                List<String> errors = storageService.uploadAsync(uItems)
-                    .logFail("tryProcess: uploading initial media")
-                    .errorMessages
-                Utils.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errors)
-                    .logFail("tryProcess: setting upload errors on request")
-                resultFactory.success(mInfo, threadService.delay(5, TimeUnit.SECONDS) {
-                    tryFinishProcessing(mInfo.id, pInfo)
-                })
-            }
+        else { IOCUtils.resultFactory.success(null, AsyncUtils.noOpFuture(mInfo)) }
     }
 
     // Helpers
     // -------
 
-    protected Result<MediaInfo> tryFinishProcessing(Long mediaId,
-        List<Tuple<UploadItem, Long>> toProcessIds) {
-
-        // step 1: re-fetch all domain objects from ids so that these are attached to this session
-        MediaInfo mInfo = MediaInfo.get(mediaId)
-        if (!mInfo) {
-            return resultFactory.failWithCodeAndStatus("tryFinishProcessing.mediaInfoNotFound",
-                ResultStatus.NOT_FOUND, [mediaId])
-        }
-        List<Tuple<UploadItem, MediaElement>> toProcess = rebuildElementsToProcess(toProcessIds)
-        // step 2: start processing elements
-        ResultGroup<Tuple<List<UploadItem>, MediaElement>> outcomes = new ResultGroup<>()
-        toProcess.each { Tuple<UploadItem, MediaElement> processed ->
-            outcomes << processElement(processed.first, processed.second)
-        }
-        outcomes.logFail("tryFinishProcessing")
-        // step 3: upload all successes
-        List<UploadItem> toUpload = []
-        outcomes.payload.each { Tuple<List<UploadItem>, MediaElement> processed ->
-            toUpload.addAll(processed.first)
-        }
-        storageService.uploadAsync(toUpload)
-            .logFail("tryProcess: uploading initial media")
-
-        if (mInfo.save()) {
-            resultFactory.success(mInfo)
-        }
-        else { resultFactory.failWithValidationErrors(mInfo.errors) }
-    }
-    protected List<Tuple<UploadItem, MediaElement>> rebuildElementsToProcess(List<Tuple<UploadItem, Long>> toProcessIds) {
-        // step 1: collect ids so that we can fetch all from db in one call
-        Iterable<Serializable> elIds = []
-        toProcessIds.each { Tuple<UploadItem, Long> processed -> elIds << processed.second }
-        // step 2: fetch from ids and build as map for efficient retrieval
-        Map<Long, MediaElement> idToObject = AsyncUtils.idMap(MediaElement.getAll(elIds))
-        // step 3: replace ids with objects in passed-in list of tuples
-        List<Tuple<UploadItem, MediaElement>> toProcess = []
-        toProcessIds.each { Tuple<UploadItem, Long> processed ->
-            MediaElement el = idToObject[processed.second]
-            if (el) {
-                toProcess << Tuple.create(processed.first, el)
+    protected Result<Future<?>> tryStartProcessing(MediaInfo mInfo, Map body, boolean isPublic) {
+        mediaActionService.tryHandleActions(mInfo, body)
+            .logFail("tryStartProcessing: building initial version")
+            .then { List<UploadItem> uItems ->
+                PartialUploads pu1 = new PartialUploads()
+                uItems.each { UploadItem initialUpload ->
+                    initialUpload.isPublic = isPublic
+                    pu1.createAndAdd(initialUpload).then { MediaElement el1 ->
+                        mInfo.addToMediaElements(el1)
+                    }
+                }
+                DomainUtils.tryValidate(pu1)
             }
-            else { log.error("rebuildElementsToProcess: element `${processed.second}` not found") }
-        }
-        toProcess
+            .then { PartialUploads pu1 ->
+                storageService.uploadAsync(pu1.uploads)
+                    .logFail("tryStartProcessing: uploading initial media")
+                    .ifFail { Result<?> failRes ->
+                        Utils
+                            .trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, failRes.errorMessages)
+                            .logFail("tryStartProcessing: setting upload errors on request")
+                    }
+                IOCUtils.resultFactory.success(threadService.delay(5, TimeUnit.SECONDS) {
+                    tryFinishProcessing(mInfo.id, pu1.dehydrate())
+                        .logFail("trying to finish processing for MediaInfo `${mInfo.id}`")
+                })
+            }
     }
 
-    protected Result<Tuple<List<UploadItem>, MediaElement>> processElement(UploadItem initialUpload,
-        MediaElement e1) {
+    protected Result<MediaInfo> tryFinishProcessing(Long mediaId,
+        Rehydratable<PartialUploads> dPartials) {
 
-        MediaPostProcessor
-            .process(initialUpload.type, initialUpload.data)
+        MediaInfos.mustFindForId(mediaId)
+            .then { MediaInfo mInfo -> dPartials.tryRehydrate().curry(mInfo) }
+            .then { MediaInfo mInfo, PartialUploads partials ->
+                ResultGroup<List<UploadItem>> resGroup = new ResultGroup<>()
+                partials.eachUpload { UploadItem uItem1, MediaElement el1 ->
+                    resGroup << completeUpload(uItem1, el1)
+                }
+                resGroup.toResult(true).curry(mInfo)
+            }
+            .then { MediaInfo mInfo, List<List<UploadItem>> uItems ->
+                storageService.uploadAsync(CollectionUtils.mergeUnique(*uItems))
+                    .logFail("tryFinishProcessing: uploading")
+                DomainUtils.trySave(mInfo)
+            }
+    }
+
+    protected Result<List<UploadItem>> completeUpload(UploadItem initialUpload, MediaElement el1) {
+        MediaPostProcessor.process(initialUpload.type, initialUpload.data)
             .then { Tuple<UploadItem, List<UploadItem>> processed ->
-                UploadItem uItem1 = processed.first
-                uItem1.isPublic = initialUpload.isPublic
-                e1.sendVersion = uItem1.toMediaElementVersion()
-
-                processed.second.each { UploadItem uItem2 ->
-                    uItem2.isPublic = initialUpload.isPublic
-                    e1.addToAlternateVersions(uItem2.toMediaElementVersion())
+                Tuple.split(processed) { UploadItem sendItem, List<UploadItem>> altItems ->
+                    sendItem.isPublic = initialUpload.isPublic
+                    el1.sendVersion = sendItem.toMediaElementVersion()
+                    altItems.each { UploadItem uItem ->
+                        uItem.isPublic = initialUpload.isPublic
+                        el1.addToAlternateVersions(uItem.toMediaElementVersion())
+                    }
+                    DomainUtils.trySave(el1).then {
+                        IOCUtils.resultFactory.success(CollectionUtils.mergeUnique([sendItem], altItems))
+                    }
                 }
-                if (e1.save()) {
-                    List<UploadItem> uItems = new ArrayList<UploadItem>(processed.second)
-                    uItems << processed.first
-                    resultFactory.success(uItems, e1)
-                }
-                else { resultFactory.failWithValidationErrors(e1.errors) }
             }
     }
 }

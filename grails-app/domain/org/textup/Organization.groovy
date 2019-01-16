@@ -11,9 +11,9 @@ import org.textup.util.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Organization implements WithId, Saveable {
+class Organization implements WithId, Saveable<Organization> {
 
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    DateTime whenCreated = DateTimeUtils.now()
 	String name
 	Location location
     OrgStatus status = OrgStatus.PENDING
@@ -53,7 +53,7 @@ class Organization implements WithId, Saveable {
         location cascadeValidation: true
     }
 
-    static Result<Organization> create(String name, Location loc1) {
+    static Result<Organization> tryCreate(String name, Location loc1) {
         DomainUtils.trySave(new Organization(name: name, location: loc1), ResultStatus.CREATED)
     }
 }

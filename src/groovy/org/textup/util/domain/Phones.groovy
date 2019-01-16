@@ -5,18 +5,30 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class Phones {
 
-    static Result<Phone> mustFindForOwner(Long ownerId, PhoneOwnershipType type, boolean createIfAbsent) {
-        Phone p1 = Holders.applicationContext.getBean(PhoneCache).findPhone(ownerId, type, false)
+    static Result<Phone> mustFindActiveForOwner(Long ownerId, PhoneOwnershipType type, boolean createIfAbsent) {
+        Phone p1 = Holders.applicationContext.getBean(PhoneCache).findPhone(ownerId, type)
         if (p1) {
             IOCUtils.resultFactory.success(p1)
         }
         else {
             if (createIfAbsent) {
-                Phones.create(ownerId, type)
+                Phone.tryCreate(ownerId, type)
             }
             else { // TODO add message
                 IOCUtils.resultFactory.failWithCodeAndStatus("phone.notFound", ResultStatus.NOT_FOUND)
             }
+        }
+    }
+
+    static Result<Phone> mustFindActiveForId(Long pId) {
+        Phone p1 = Phone.get(pId)
+        if (p1) {
+            IOCUtils.resultFactory.success(p1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus(
+                "voicemailService.finishedProcessingVoicemailGreeting.phoneNotFound", // TODO
+                ResultStatus.NOT_FOUND, [pId])
         }
     }
 

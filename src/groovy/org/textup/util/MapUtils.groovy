@@ -8,13 +8,13 @@ import org.textup.*
 @Log4j
 class MapUtils {
 
-    static <T, I> Map<T, I> buildObjectMap(Closure<T> getProp, Collection<I> objs) {
+    static <T, I> Map<T, I> buildObjectMap(Collection<I> objs, Closure<T> getProp) {
         Map<T, I> idToObject = [:]
         objs?.each { I obj -> if (obj) { idToObject[getProp(obj)] = obj } }
         idToObject
     }
 
-    static <T, I> Map<T, Collection<I>> buildManyObjectsMap(Closure<T> getProp, Collection<I> objs) {
+    static <T, I> Map<T, Collection<I>> buildManyObjectsMap(Collection<I> objs, Closure<T> getProp) {
         Map<T, Collection<I>> idToManyObjects = [:].withDefault { [] as Collection<I> }
         objs?.each { I obj -> if (obj) { idToManyObjects[getProp(obj)] << obj } }
         idToManyObjects

@@ -11,15 +11,19 @@ import org.textup.util.domain.*
 class LocationService {
 
     Result<Location> create(TypeMap body) {
-        Location.create(body.long("address"), body.double("lat"), body.double("lng"))
+        Location.tryCreate(body.long("address"), body.double("lat"), body.double("lng"))
     }
 
-    Result<Location> tryUpdate(Location loc1, TypeMap body) {
-        loc1.with {
-            if (body.address) address = body.address
-            if (body.lat != null) lat = body.double("lat")
-            if (body.lng != null) lng = body.double("lng")
+    Result<Void> tryUpdate(Location loc1, TypeMap body) {
+        if (loc1) {
+            loc1.with {
+                if (body.address) address = body.address
+                if (body.lat != null) lat = body.double("lat")
+                if (body.lng != null) lng = body.double("lng")
+            }
+            DomainUtils.trySave(loc1)
+                .then { IOCUtils.resultFactory.success() }
         }
-        DomainUtils.trySave(loc1)
+        else { IOCUtils.resultFactory.success() }
     }
 }

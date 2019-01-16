@@ -12,9 +12,9 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Token implements WithId, Saveable {
+class Token implements WithId, Saveable<Token> {
 
-    DateTime expires = DateTime.now(DateTimeZone.UTC).plusHours(1)
+    DateTime expires = DateTimeUtils.now().plusHours(1)
     String token
     Integer maxNumAccess
     int timesAccessed = 0
@@ -23,6 +23,10 @@ class Token implements WithId, Saveable {
     String stringData
 
     static transients = ["data"]
+    static mapping = {
+        expires type: PersistentDateTime
+        stringData type: "text"
+    }
     static constraints = {
     	token unique:true
         maxNumAccess nullable:true
@@ -33,61 +37,57 @@ class Token implements WithId, Saveable {
     		}
     	}
     }
-    static mapping = {
-        expires type:PersistentDateTime
-        stringData type:"text"
-    }
 
-    // Hooks
-    // -----
+    static Result<Token> tryCreate(TokenType type, Map data) {
+        DomainUtils.trySave(new Token(type: type, data: data), ResultStatus.CREATED)
+    }
 
     def beforeValidate() {
-        if (!this.token) { generateToken() }
+        if (!token) { generateToken() }
     }
+
+    // Properties
+    // ----------
+
+    boolean getIsExpired() { expires.isBeforeNow() || !isAllowedNumAccess() }
+
+    void setData(Map p) {
+        if (p != null) {
+            stringData = DataFormatUtils.toJsonString(p)
+        }
+    }
+
+    TypeMap<String, ?> getData() {
+        try {
+            stringData ?
+                new TypeMap(DataFormatUtils.jsonToObject(stringData)) :
+                new TypeMap()
+        }
+        catch (Throwable e) {
+            log.error("Token.getData: invalid json string '${stringData}'")
+            e.printStackTrace()
+            [:]
+        }
+    }
+
+    // Helpers
+    // -------
+
     protected void generateToken() {
         // can't flush in GORM event hooks and calling dynamic finders
         // auto-flushes by default
         Utils.doWithoutFlush({
-            Integer tokenSize = this.type?.tokenSize ?: Constants.DEFAULT_TOKEN_LENGTH
+            Integer tokenSize = type?.tokenSize ?: Constants.DEFAULT_TOKEN_LENGTH
             String tokenString = StringUtils.randomAlphanumericString(tokenSize)
             //ensure that our generated token is unique
             while (Token.countByToken(tokenString) != 0) {
                 tokenString = StringUtils.randomAlphanumericString(tokenSize)
             }
-            this.token = tokenString
+            token = tokenString
         })
     }
 
-    // Expiration
-    // ----------
-
-    boolean getIsExpired() {
-        expires.isBeforeNow() || !isAllowedNumAccess()
-    }
     protected boolean isAllowedNumAccess() {
         !maxNumAccess || maxNumAccess < 0 || timesAccessed < maxNumAccess
-    }
-
-    // Data
-    // ----
-
-    void setData(Map p) {
-        if (p != null) {
-            this.stringData = DataFormatUtils.toJsonString(p)
-        }
-    }
-
-    Map getData() {
-        if (!this.stringData) {
-        	return [:]
-    	}
-        try {
-            DataFormatUtils.jsonToObject(this.stringData) as Map
-        }
-        catch (Throwable e) {
-            log.error("Token.getData: invalid json string '${this.stringData}'")
-            e.printStackTrace()
-            [:]
-        }
     }
 }

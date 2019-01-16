@@ -12,7 +12,22 @@ class FeaturedAnnouncements {
         }
     }
 
-    static DetachedCriteria<FeaturedAnnouncement> buildForPhoneId(Long phoneId) {
+    static Result<FeaturedAnnouncement> mustFindForId(Long aId) {
+        FeaturedAnnouncement fa1 = aId ? FeaturedAnnouncement.get(aId) : null
+        if (fa1) {
+            IOCUtils.resultFactory.success(fa1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("announcementService.update.notFound", // TODO
+                ResultStatus.NOT_FOUND, [aId])
+        }
+    }
+
+    static boolean anyForPhoneId(Long phoneId) {
+        FeaturedAnnouncements.buildActiveForPhoneId(p1.id).count() > 0
+    }
+
+    static DetachedCriteria<FeaturedAnnouncement> buildActiveForPhoneId(Long phoneId) {
         new DetachedCriteria(FeaturedAnnouncement).build {
             eq("phone.id", phoneId)
             gt(expiresAt, DateTime.now())

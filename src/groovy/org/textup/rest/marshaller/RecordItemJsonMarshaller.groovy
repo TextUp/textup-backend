@@ -46,7 +46,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 isReadOnly = item.isReadOnly
                 revisions = item.revisions
                 location = item.readOnlyLocation
-                type = "NOTE"
+                type = RecordItemType.NOTE.toString()
             }
         }
         Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)

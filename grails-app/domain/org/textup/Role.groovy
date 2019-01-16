@@ -17,7 +17,7 @@ class Role {
         cache true
     }
 
-    static Result<Role> create(String authority) {
-        DomainUtils.trySave(new Role(authority: authority))
+    static Result<Role> tryCreate(String authority) {
+        DomainUtils.trySave(new Role(authority: authority), ResultStatus.CREATED)
     }
 }

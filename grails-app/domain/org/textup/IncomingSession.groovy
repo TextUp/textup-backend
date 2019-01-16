@@ -10,12 +10,12 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class IncomingSession implements WithId, Saveable {
+class IncomingSession implements WithId, Saveable<IncomingSession> {
 
     Boolean isSubscribedToCall = false
     Boolean isSubscribedToText = false
-    DateTime lastSentInstructions = DateTime.now(DateTimeZone.UTC).minusDays(2)
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    DateTime lastSentInstructions = DateTimeUtils.now().minusDays(2)
+    DateTime whenCreated = DateTimeUtils.now()
     Phone phone
     String numberAsString
 
@@ -29,7 +29,7 @@ class IncomingSession implements WithId, Saveable {
     // -------
 
     void updateLastSentInstructions() {
-        lastSentInstructions = DateTime.now(DateTimeZone.UTC)
+        lastSentInstructions = DateTimeUtils.now()
     }
 
     Author toAuthor() {

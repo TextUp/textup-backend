@@ -26,7 +26,7 @@ class PhoneNumber extends BasePhoneNumber {
         new PhoneNumber(number: num)
     }
 
-    static Result<? extends PhoneNumber> createAndValidate(String num) {
+    static Result<PhoneNumber> tryCreate(String num) {
         PhoneNumber pNum = PhoneNumber.create(num)
         if (pNum.validate()) {
             IOCUtils.resultFactory.success(pNum)

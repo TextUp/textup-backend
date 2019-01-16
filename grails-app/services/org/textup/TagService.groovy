@@ -5,96 +5,59 @@ import grails.transaction.Transactional
 import org.textup.type.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
 class TagService {
 
-    AuthService authService
-    FutureMessageJobService futureMessageJobService
-    NotificationSettingsService notificationSettingsService
+    NotificationActionService notificationActionService
+    TagActionService tagActionService
 
-    // Create
-    // ------
-
-    Result<ContactTag> createForTeam(Long tId, Map body) {
-        create(Team.get(tId)?.phone, body)
-    }
-    Result<ContactTag> createForStaff(Map body) {
-        create(authService.loggedInAndActive?.phone, body)
+    @RollbackOnResultFailure
+    Result<GroupPhoneRecord> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
+        Phones.mustFindActiveForOwner(ownerId, type)
+            .then { Phone p1 -> GroupPhoneRecord.tryCreate(p1, body.string("name")) }
+            .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
+            .then { GroupPhoneRecord gpr1 -> tryNotifications(gpr1, body) }
+            .then { GroupPhoneRecord gpr1 -> tagActionService.tryHandleActions(gpr1, body) }
+            .then { Phone p1 -> DomainUtils.trySave(gpr1, ResultStatus.OK) }
     }
 
     @RollbackOnResultFailure
-    protected Result<ContactTag> create(Phone p1, Map body) {
-        if (p1) {
-            // // TODO fix
-            // p1.createTag(body)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("tagService.create.noPhone",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
+    Result<GroupPhoneRecord> update(Long grpId, TypeMap body) {
+        GroupPhoneRecords.mustFindForId(gprId)
+            .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
+            .then { GroupPhoneRecord gpr1 -> tryNotifications(gpr1, body) }
+            .then { GroupPhoneRecord gpr1 -> tagActionService.tryHandleActions(gpr1, body) }
     }
-
-    // Update
-    // ------
-
-    @RollbackOnResultFailure
-    Result<ContactTag> update(Long tId, Map body) {
-        findTagFromId(tId)
-            .then { ContactTag ct1 -> handleNotificationActions(ct1, body).curry(ct1) }
-            .then { ContactTag ct1 -> doTagActions(ct1, body) }
-            .then { ContactTag ct1 -> updateTagInfo(ct1, body) }
-    }
-    protected Result<ContactTag> findTagFromId(Long ctId) {
-        ContactTag ct1 = ContactTag.get(ctId)
-        if (ct1) {
-            IOCUtils.resultFactory.success(ct1)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("tagService.update.notFound",
-                ResultStatus.NOT_FOUND, [ctId])
-        }
-    }
-    protected Result<ContactTag> updateTagInfo(ContactTag ct1, Map body) {
-        ct1.with {
-            if (body.name) name = body.name
-            if (body.hexColor) hexColor = body.hexColor
-            if (body.language) language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
-        }
-        if (ct1.save()) {
-            IOCUtils.resultFactory.success(ct1)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(ct1.errors) }
-    }
-    protected Result<Void> handleNotificationActions(ContactTag ct1, Map body) {
-        if (body.doNotificationActions) {
-            notificationSettingsService.handleActions(ct1.phone, ct1.record.id, body.doNotificationActions)
-        }
-        else { IOCUtils.resultFactory.success() }
-    }
-
-
-    // Delete
-    // ------
 
     @RollbackOnResultFailure
     Result<Void> delete(Long tId) {
-		ContactTag t1 = ContactTag.get(tId)
-    	if (t1) {
-			t1.isDeleted = true
-            if (t1.save()) {
-                Collection<FutureMessage> fMsgs = t1.record.getFutureMessages()
-                futureMessageJobService
-                    .cancelAll(fMsgs)
-                    .toResult()
+        GroupPhoneRecords.mustFindForId(gprId)
+            .then { GroupPhoneRecord gpr1 ->
+                gpr1.isDeleted = true
+                gpr1.tryCancelFutureMessages()
             }
-            else { IOCUtils.resultFactory.failWithValidationErrors(t1.errors) }
-    	}
-    	else {
-    		IOCUtils.resultFactory.failWithCodeAndStatus("tagService.delete.notFound",
-                ResultStatus.NOT_FOUND, [tId])
-    	}
+            .then { DomainUtils.trySave(gpr1) }
+            .then { IOCUtils.resultFactory.success() }
+    }
+
+    // Helpers
+    // -------
+
+    protected Result<GroupPhoneRecord> trySetFields(GroupPhoneRecord gpr1, TypeMap body) {
+        gpr1.with {
+            if (body.name) name = body.name
+            if (body.hexColor) hexColor = body.hexColor
+            if (body.language) language = body.enum(VoiceLanguage, "language")
+        }
+        DomainUtils.trySave(gpr1)
+    }
+
+    protected Result<GroupPhoneRecord> tryNotifications(GroupPhoneRecord gpr1, TypeMap body) {
+        notificationActionService.tryHandleActions(Tuple.create(gpr1.phone, gpr1.record.id), body)
+            .then { DomainUtils.trySave(gpr1) }
     }
 }

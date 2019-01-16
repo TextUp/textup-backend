@@ -2,8 +2,10 @@ package org.textup.interface
 
 import grails.compiler.GrailsTypeChecked
 
+// TODO remove
+
 @GrailsTypeChecked
-interface Schedulable extends Saveable {
+interface Schedulable<T> extends Saveable<T> {
 
     boolean isAvailableNow()
     // Result<Schedule> updateSchedule(Map params) // TODO remove?

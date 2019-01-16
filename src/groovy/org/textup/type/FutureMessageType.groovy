@@ -9,9 +9,10 @@ enum FutureMessageType {
 	TEXT(RecordItemType.TEXT)
 
 	private final RecordItemType recordType
+
 	FutureMessageType(RecordItemType type) {
-		this.recordType = type
+		recordType = type
 	}
 
-	RecordItemType toRecordItemType() { this.recordType }
+	RecordItemType toRecordItemType() { recordType }
 }

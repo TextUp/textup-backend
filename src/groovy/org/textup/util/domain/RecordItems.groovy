@@ -51,6 +51,10 @@ class RecordItems {
             .build(forTypes(types))
     }
 
+    static Closure forIncoming() {
+        return { eq("outgoing", false) }
+    }
+
     // Specify sort order separately because when we call `count()` on a DetachedCriteria
     // we are grouping fields and, according to the SQL spec, we need to specify a GROUP BY
     // if we also have an ORDER BY clause. Therefore, to avoid GROUP BY errors when calling `count()`

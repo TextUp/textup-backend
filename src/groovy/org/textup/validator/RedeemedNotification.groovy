@@ -13,7 +13,7 @@ import org.textup.util.*
 @Validateable
 // TODO fix names of properties?
 @ToString(includes = ["tokenId", "contact", "tag"]) // avoid leaking message contents
-class RedeemedNotification implements WithId {
+class RedeemedNotification implements WithId, Validateable {
 
 	PhoneOwnership owner
 

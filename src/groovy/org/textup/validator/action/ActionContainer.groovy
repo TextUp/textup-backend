@@ -9,7 +9,7 @@ import org.textup.util.*
 @GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
-class ActionContainer<T extends BaseAction> {
+class ActionContainer<T extends BaseAction> implements Validateable {
 
 	Object data
 	Class<T> clazz

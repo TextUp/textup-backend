@@ -4,58 +4,40 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
-import org.restapidoc.annotation.*
 import org.textup.type.ReceiptStatus
 import org.textup.validator.TempRecordReceipt
 
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
-@RestApiObject(name = "RecordCall", description = "A phone call entry in a contact's record.")
 class RecordCall extends RecordItem implements ReadOnlyRecordCall {
 
-    @RestApiObjectField(
-        description    = "Duration of the voicemail",
-        allowedType    = "Number",
-        useForCreation = false)
     int voicemailInSeconds = 0
 
-    @RestApiObjectFields(params = [
-        @RestApiObjectField(
-            apiFieldName      = "callContact",
-            description       = "Id of a contact to call",
-            allowedType       = "Number",
-            mandatory         = false,
-            useForCreation    = true,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName      = "callSharedContact",
-            description       = "Id of a contact shared with us to call",
-            allowedType       = "Number",
-            mandatory         = false,
-            useForCreation    = true,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName   = "durationInSeconds",
-            description    = "Duration of the call",
-            allowedType    = "Number",
-            useForCreation = false)
-    ])
     static constraints = { // default nullable: false
         voicemailInSeconds minSize:0
     }
 
-    // Property Access
-    // ---------------
-
-    int getDurationInSeconds() {
-        int duration = 0
-        this.receipts?.each { RecordItemReceipt rpt1 ->
-            if (rpt1.numBillable && rpt1.numBillable > duration) {
-                duration = rpt1.numBillable
-            }
-        }
-        duration
+    static Result<RecordCall> tryCreate(Record rec1) {
+        DomainUtils.trySave(new RecordCall(record: rec1), ResultStatus.CREATED)
     }
+    static Result<RecordCall> tryUpdateVoicemail(RecordCall rCall1, int duration,
+        List<MediaElement> elements) {
+
+        rCall.record.updateLastRecordActivity()
+        DomainUtils.trySave(rCall.record)
+            .then { MediaInfos.tryCreate(rCall.media) }
+            .then { MediaInfo mInfo ->
+                elements.each { MediaElement el1 -> mInfo.addToMediaElements(el1) }
+                rCall1.with {
+                    hasAwayMessage = true
+                    voicemailInSeconds = duration
+                }
+                DomainUtils.trySave(rCall1)
+            }
+    }
+
+    // Methods
+    // -------
 
     @Override
     RecordItemStatus groupReceiptsByStatus() {
@@ -64,10 +46,27 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
         // Also, do not exclude max numBillable for not doing this for outgoing scheduled calls
         // because in this case, these are  direct message calls and not a bridge calls so
         // we don’t have to call the staff member first
-        if (this.outgoing && !this.wasScheduled) {
+        if (outgoing && !wasScheduled) {
             new RecordItemStatus(showOnlyContactReceipts())
         }
-        else { new RecordItemStatus(this.receipts) }
+        else { new RecordItemStatus(receipts) }
+    }
+
+    // Properties
+    // ----------
+
+    int getIsVoicemail() {
+        voicemailInSeconds == 0
+    }
+
+    int getDurationInSeconds() {
+        int duration = 0
+        receipts?.each { RecordItemReceipt rpt1 ->
+            if (rpt1.numBillable && rpt1.numBillable > duration) {
+                duration = rpt1.numBillable
+            }
+        }
+        duration
     }
 
     // Helpers
@@ -77,7 +76,7 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
         List<RecordItemReceipt> rpts = []
         Integer longestReceiptIndex
         int longestDurationSoFar = 0, numSkipped = 0
-        this.receipts?.eachWithIndex { RecordItemReceipt rpt1, int thisIndex ->
+        receipts?.eachWithIndex { RecordItemReceipt rpt1, int thisIndex ->
             if (rpt1.numBillable) {
                 if (rpt1.numBillable > longestDurationSoFar) {
                     longestReceiptIndex = thisIndex

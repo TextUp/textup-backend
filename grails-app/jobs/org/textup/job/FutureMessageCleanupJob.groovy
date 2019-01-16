@@ -19,7 +19,7 @@ class FutureMessageCleanupJob implements Job {
 
     @GrailsTypeChecked
     void execute(JobExecutionContext context = null) {
-        DateTime now = DateTime.now(DateTimeZone.UTC)
+        DateTime now = DateTimeUtils.now()
         // examine messages that are NOT done but have started either today or earlier
         DetachedCriteria query = FutureMessage.where {
             isDone == false && startDate <= DateTime.now()

@@ -8,10 +8,7 @@ import grails.compiler.GrailsTypeChecked
 class ScheduleService {
 
     Result<Schedulable> update(Schedulable sched1, TypeMap body, String timezone) {
-        sched1.with {
-            if (body.manualSchedule != null) manualSchedule = body.manualSchedule
-            if (body.isAvailable != null) isAvailable = body.isAvailable
-        }
+
 
         // TODO
         // if (body.schedule instanceof Map && s1.schedule.instanceOf(WeeklySchedule)) {
@@ -26,6 +23,19 @@ class ScheduleService {
         //     }
         // }
 
+
+
+    }
+
+    // Helpers
+    // -------
+
+    // TODO
+    protected def trySetFields(Schedulable sched1, TypeMap body) {
+        sched1.with {
+            if (body.manualSchedule != null) manualSchedule = body.manualSchedule
+            if (body.isAvailable != null) isAvailable = body.isAvailable
+        }
 
         DomainUtils.trySave(sched1)
     }

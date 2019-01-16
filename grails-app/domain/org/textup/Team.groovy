@@ -10,10 +10,10 @@ import org.textup.util.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Team implements WithId, Saveable {
+class Team implements WithId, Saveable<Team> {
 
     boolean isDeleted = false
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    DateTime whenCreated = DateTimeUtils.now()
     Location location
     Organization org
     String hexColor = Constants.DEFAULT_BRAND_COLOR
@@ -47,7 +47,7 @@ class Team implements WithId, Saveable {
         location cascadeValidation: true
     }
 
-    static Result<Team> create(Organization org1, String name, Location loc1) {
+    static Result<Team> tryCreate(Organization org1, String name, Location loc1) {
         DomainUtils.trySave(new Team(org: org1, name: name, location: loc1, ResultStatus.CREATED)
     }
 

@@ -5,83 +5,94 @@ import org.joda.time.DateTime
 import org.textup.interface.*
 
 @GrailsTypeChecked
-class PhoneRecordWrapper {
+class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
 
-    private final PhoneRecord _pRec
-    private final PhoneRecordPermissions _perm
+    private final PhoneRecord phoneRecord
+    final PhoneRecordPermissions permissions
 
-    PhoneRecordWrapper(PhoneRecord phoneRecord, PhoneRecordPermissions permissions) {
-        _pRec = phoneRecord
-        _perm = permissions
+    PhoneRecordWrapper(PhoneRecord pr1, PhoneRecordPermissions permissions) {
+        phoneRecord = pr1
+        permissions = permissions
     }
 
     // Methods
     // -------
 
-    Result<? extends PhoneRecordWrapper> trySave() { DomainUtils.trySave(_pRec) }
+    PhoneWrapper save() { phoneRecord.save() ? this : null }
+
+    Errors getErrors() { phoneRecord.errors }
+
+    boolean validate() { phoneRecord.validate() }
+
+    Result<? extends PhoneRecord> tryUnwrap() {
+        permissions.isOwner() ?
+            IOCUtils.resultFactory.success(phoneRecord) :
+            insufficientPermission()
+    }
 
     // Getters
     // -------
 
     Result<Long> tryGetId() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.id) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.id) :
             insufficientPermission()
     }
 
     Result<DateTime> tryGetLastTouched() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.lastTouched) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.lastTouched) :
             insufficientPermission()
     }
 
     Result<DateTime> tryGetWhenCreated() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.whenCreated) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.whenCreated) :
             insufficientPermission()
     }
 
     Result<Phone> tryGetPhone() {
-        _perm.canModify() ?
-            IOCUtils.resultFactory.success(_pRec.phone) :
+        permissions.canModify() ?
+            IOCUtils.resultFactory.success(phoneRecord.phone) :
             insufficientPermission()
     }
 
+    // TODO do we need this?
     // create ReadOnlyPhone interface
     Result<ReadOnlyPhone> tryGetReadOnlyPhone() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.phone) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.phone) :
             insufficientPermission()
     }
 
-    // TODO PhoneRecordStatus --> PhoneRecordStatus
+    // TODO ContactStatus --> PhoneRecordStatus
     Result<PhoneRecordStatus> tryGetStatus() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.status) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.status) :
             insufficientPermission()
     }
 
     Result<Record> tryGetRecord() {
-        _perm.canModify() ?
-            IOCUtils.resultFactory.success(_pRec.record) :
+        permissions.canModify() ?
+            IOCUtils.resultFactory.success(phoneRecord.record) :
             insufficientPermission()
     }
 
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.record) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.record) :
             insufficientPermission()
     }
 
     Result<String> tryGetSecureName() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.secureName) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.secureName) :
             insufficientPermission()
     }
 
     Result<String> tryGetPublicName() {
-        _perm.canView() ?
-            IOCUtils.resultFactory.success(_pRec.publicName) :
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.publicName) :
             insufficientPermission()
     }
 
@@ -92,9 +103,19 @@ class PhoneRecordWrapper {
         if (!status) {
             return IOCUtils.resultFactory.success()
         }
-        if (_perm.canView()) { // all sharing relationships have their own status
-            _pRec.status = status
-            _pRec.lastTouched = DateTime.now()
+        if (permissions.canView()) { // all sharing relationships have their own status
+            phoneRecord.status = status
+            phoneRecord.lastTouched = DateTime.now()
+            IOCUtils.resultFactory.success()
+        }
+        else { insufficientPermission() }
+    }
+
+    Result<Void> trySetStatusIfNotBlocked(PhoneRecordStatus status) {
+        if (permissions.canView()) { // all sharing relationships have their own status
+            if (phoneRecord.status != PhoneRecordStatus.BLOCKED) {
+                phoneRecord.status = status // do not update lastTouched timestamp
+            }
             IOCUtils.resultFactory.success()
         }
         else { insufficientPermission() }
@@ -105,8 +126,8 @@ class PhoneRecordWrapper {
         if (!lang) {
             return IOCUtils.resultFactory.success()
         }
-        if (_perm.canModify()) {
-            _pRec.record.language = lang
+        if (permissions.canModify()) {
+            phoneRecord.record.language = lang
             IOCUtils.resultFactory.success()
         }
         else { insufficientPermission() }

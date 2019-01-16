@@ -8,11 +8,13 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.ScheduleStatus
 
+// TODO remove?
+
 @GrailsTypeChecked
 @ToString
 @Validateable
 @Log4j
-class ScheduleChange {
+class ScheduleChange implements Validateable {
 
     ScheduleStatus type
     DateTime when //assume UTC timezone

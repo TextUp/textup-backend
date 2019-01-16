@@ -64,8 +64,7 @@ class TypeConversionUtils {
     static <T> List<T> allTo(Class<T> clazz, Collection<? extends Object> val) {
         allTo(clazz, val, null)
     }
-    static <T> List<T> allTo(Class<T> clazz, Collection<? extends Object> val,
-        T replaceFailWith) {
+    static <T> List<T> allTo(Class<T> clazz, Collection<? extends Object> val, T replaceFailWith) {
         List<T> results = []
         if (!val) {
             return results
@@ -73,7 +72,7 @@ class TypeConversionUtils {
         for (obj in val) {
             results << to(clazz, obj, replaceFailWith)
         }
-        results
+        CollectionUtils.ensureNoNull(results)
     }
 
     static TypeConvertingMap extractParams(GrailsParameterMap params) {

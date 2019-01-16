@@ -8,21 +8,22 @@ import groovy.util.logging.Log4j
 @Log4j
 class IndividualPhoneRecordWrappers {
 
-    // TODO move to service
-    static Result<IndividualPhoneRecordWrapper> update(IndividualPhoneRecordWrapper w1,
-        Object name, Object note, Object lang, Object status) {
+    static Result<IndividualPhoneRecordWrapper> tryCreate(Phone p1) {
+        IndividualPhoneRecord.tryCreate(p1).then { IndividualPhoneRecord ipr1 ->
+            IOCUtils.resultFactory.success(ipr1.toWrapper())
+        }
+    }
 
-        w1.trySetNameIfPresent(TypeConversionUtils.to(String, name))
-            .then {
-                w1.trySetNoteIfPresent(TypeConversionUtils.to(String, note))
-            }
-            .then {
-                w1.trySetLanguageIfPresent(TypeConversionUtils.convertEnum(VoiceLanguage, lang))
-            }
-            .then {
-                w1.trySetStatusIfPresent(TypeConversionUtils.convertEnum(PhoneRecordStatus, status))
-            }
-            .then { w1.trySave() }
+    static Result<IndividualPhoneRecordWrapper> mustFindForId(Long iprId) {
+        PhoneRecord pr1 = PhoneRecord.get(prId)
+        PhoneRecordWrapper w1 = pr1?.toWrapper()
+        if (w1 instanceof IndividualPhoneRecordWrapper) {
+            IOCUtils.resultFactory.success(w1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("contactService.update.notFound", //TODO
+                ResultStatus.NOT_FOUND, [prId])
+        }
     }
 
     static DetachedCriteria<PhoneRecord> buildForPhoneIdWithOptions(Long phoneId,
@@ -48,6 +49,59 @@ class IndividualPhoneRecordWrappers {
             order("record.lastRecordActivity", "desc") // more recent first
         }
     }
+
+    // TODO returns both contacts and shared contacts
+    static Result<List<IndividualPhoneRecordWrapper>> tryFindEveryByNumbers(Phone p1,
+        List<? extends BasePhoneNumber> bNums, boolean createIfAbsent)
+
+    }
+
+    // TODO
+    // IndividualPhoneRecords.tryFindEveryByNumbers(p1, [pNum], true)
+    //     .then { Map<PhoneNumber, List<Contact>> numberToContacts ->
+    //         Result.<Contact>createSuccess(CollectionUtils.mergeUnique(*numberToContacts.values()))
+    //     }
+    //     .then { Collection<Contact> contacts ->
+    //         ResultGroup<Void> resGroup = new ResultGroup<>()
+    //         contacts.each { c1 ->
+    //             resGroup << storeAndUpdateStatusForContact(storeContact, c1)
+    //         }
+    //         if (resGroup.anyFailures) {
+    //             IOCUtils.resultFactory.failWithGroup(resGroup)
+    //         }
+    //         else {
+    //             socketService.sendContacts(contacts)
+    //             IOCUtils.resultFactory.success(contacts)
+    //         }
+    //     }
+
+    // TODO
+    // protected Result<Void> storeAndUpdateStatusForContact(Closure<Void> storeContact, Contact c1) {
+    //     storeContact.call(c1)
+    //     // only change status to unread
+    //     // dont' have to worry about blocked contacts since we already filtered those out
+    //     c1.status = PhoneRecordStatus.UNREAD
+    //     // NOTE: because we've already screened out all contacts that have been blocked
+    //     // by the owner of the contact, this effectively means that blocking also effectively
+    //     // stops all sharing relationships because we do not even attempt to deliver
+    //     // message to shared contacts that have had their original contact blocked by
+    //     // the original owner
+    //     List<SharedContact> sharedContacts = c1.sharedContacts
+    //     for (SharedContact sc1 in sharedContacts) {
+    //         // only marked the shared contact's status as unread IF the shared contact's
+    //         // status is NOT blocked. If the collaborator has blocked this contact then
+    //         // we want to respect that decision.
+    //         if (sc1.status != PhoneRecordStatus.BLOCKED) {
+    //             sc1.status = PhoneRecordStatus.UNREAD
+    //             if (!sc1.save()) {
+    //                 return IOCUtils.resultFactory.failWithValidationErrors(sc1.errors)
+    //             }
+    //         }
+    //     }
+    //     c1.save() ?
+    //         IOCUtils.resultFactory.success() :
+    //         IOCUtils.resultFactory.failWithValidationErrors(c1.errors)
+    // }
 
     // Helpers
     // -------

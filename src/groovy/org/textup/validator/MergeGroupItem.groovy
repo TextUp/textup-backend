@@ -6,38 +6,34 @@ import org.textup.*
 
 @GrailsTypeChecked
 @Validateable
-class MergeGroupItem {
+class MergeGroupItem implements Validateable {
 
-	String numberAsString
-	Collection<Long> contactIds = [] // initialize to empty collection to set off minSize constraint
-
-	private Collection<Contact> mergeWith // dependent on setting contactIds
+	PhoneNumber number
+	Collection<Long> mergeIds = [] // initialize to empty collection to set off minSize constraint
 
 	static constraints = {
-		numberAsString validator:{ String val ->
-	        if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
+		number cascadeValidation: true
+	    mergeIds minSize: 1, validator: { Collection<Long> val ->
+			Collection<Long> foundIds = Utils.<Collection<Long>>doWithoutFlush {
+				IndividualPhoneRecords
+					.buildForIds(mergeIds)
+					.build(CriteriaUtils.returnsId())
+					.list()
+			}
+			if (allToBeMerged.size() != foundIds.size()) {
+				return ["someDoNotExist", allToBeMerged - foundIds]
+			}
 	    }
-	    contactIds minSize:1
 	}
 
-	// Property access
-	// ---------------
-
-	void setNumber(PhoneNumber pNum) {
-		this.numberAsString = pNum.number
-	}
-	PhoneNumber getNumber() {
-		new PhoneNumber(number:this.numberAsString)
+	static MergeGroupItem create(PhoneNumber number, Collection<Long> mergeIds) {
+		new MergeGroupItem(number: number, mergeIds: mergeIds)
 	}
 
-	void setContactIds(Collection<Long> cIds) {
-		this.contactIds = cIds
-		this.mergeWith = Contact
-			.getAll(cIds as Iterable<Serializable>)
-			.findAll { Contact c1 -> c1 != null  }
-	}
+	// Methods
+	// -------
 
-	Collection<Contact> getMergeWith() {
-		this.mergeWith ?: []
+	Collection<IndividualPhoneRecord> buildMergeWith() {
+		CollectionUtils.ensureNoNull(IndividualPhoneRecord.getAll(mergeIds))
 	}
 }

@@ -5,7 +5,7 @@ import groovy.transform.EqualsAndHashCode
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Location implements ReadOnlyLocation, WithId, Saveable {
+class Location implements ReadOnlyLocation, WithId, Saveable<Location> {
 
 	String address
     BigDecimal lat
@@ -21,7 +21,7 @@ class Location implements ReadOnlyLocation, WithId, Saveable {
         }
     }
 
-    static Result<Location> create(String address, Number lat, Number lng) {
+    static Result<Location> tryCreate(String address, Number lat, Number lng) {
         Location loc1 = new Location(address: address, lat: lat, lng: lng)
         DomainUtils.trySave(loc1, ResultStatus.CREATED)
     }

@@ -33,17 +33,6 @@ class Utils {
         else { IOCUtils.resultFactory.failWithValidationErrors(fromNum.errors) }
     }
 
-    // Closures
-    // --------
-
-    static <T> T callClosure(Closure<T> action, Object[] args) {
-        switch (args.length) {
-            case 0: return action.call()
-            case 1: return action.call(args[0])
-            default: return action.call(args)
-        }
-    }
-
     // Request
     // -------
 
@@ -75,6 +64,9 @@ class Utils {
         val ? val : defaultVal
     }
 
+    static <T extends Number> T inclusiveBound(T val, T min, T max) {
+        Math.max(min, Math.min(val, max))
+    }
 
     // Data helpers
     // ------------

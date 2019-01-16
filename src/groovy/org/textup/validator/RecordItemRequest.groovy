@@ -11,7 +11,7 @@ import org.textup.util.*
 @EqualsAndHashCode
 @GrailsTypeChecked
 @Validateable
-class RecordItemRequest {
+class RecordItemRequest implements Validateable {
 
     Phone phone
     Collection<Class<? extends RecordItem>> types
@@ -73,7 +73,7 @@ class RecordItemRequest {
         // to getting record items for the phone overall
         if (hasAnyRecipients() && groupByEntity) {
             Map<Long, Collection<RecordItem>> recordIdToItems = MapUtils
-                .<Long, RecordItem>buildManyObjectsMap({ RecordItem i1 -> i1.record.id }, rItems)
+                .<Long, RecordItem>buildManyObjectsMap(rItems) { RecordItem i1 -> i1.record.id }
             buildSectionsByEntity(phoneName, phoneNumber, recordIdToItems)
         }
         else {

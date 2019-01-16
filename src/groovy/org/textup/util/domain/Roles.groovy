@@ -13,7 +13,7 @@ class Roles {
         if (r1) {
             IOCUtils.resultFactory.success(r1)
         }
-        else { Role.create(USER) }
+        else { Role.tryCreate(USER) }
     }
 
     static Result<Role> tryGetAdminRole() {
@@ -21,6 +21,6 @@ class Roles {
         if (r1) {
             IOCUtils.resultFactory.success(r1)
         }
-        else { Role.create(ADMIN) }
+        else { Role.tryCreate(ADMIN) }
     }
 }

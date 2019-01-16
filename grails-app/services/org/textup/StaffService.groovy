@@ -21,7 +21,7 @@ class StaffService {
         organizationService.tryFindOrCreate(body.typeMapNoNull("org"))
             .then { Organization org1 -> Roles.tryGetUserRole().curry(org1) }
             .then { Organization org1, Role r1 ->
-                Staff.create(r1, org1, body.string("name"), body.string("username"),
+                Staff.tryCreate(r1, org1, body.string("name"), body.string("username"),
                     body.string("password"), body.string("email"))
             }
             .then { Staff s1 -> trySetFields(s1, body, timezone) }
@@ -137,7 +137,7 @@ class StaffService {
         }
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(s1.org.id, authId) }
-            .then { Phones.mustFindForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, true) }
+            .then { Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, true) }
             .then { Phone p1 -> phoneService.update(p1, phoneInfo, timezone) }
     }
 }

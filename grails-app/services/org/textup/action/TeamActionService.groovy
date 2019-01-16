@@ -21,10 +21,10 @@ class TeamActionService implements HandlesActions<Team, Team> {
                 actions.each { TeamAction a1 ->
                     switch (a1) {
                         case TeamAction.ADD:
-                            t1.addToMembers(a1.staff)
+                            t1.addToMembers(a1.buildStaff())
                             break
                         default: TeamAction.REMOVE
-                            t1.removeFromMembers(a1.staff)
+                            t1.removeFromMembers(a1.buildStaff())
                     }
                 }
                 DomainUtils.trySave(t1)

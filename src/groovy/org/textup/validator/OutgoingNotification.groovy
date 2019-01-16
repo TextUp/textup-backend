@@ -7,7 +7,7 @@ import org.textup.type.*
 
 @GrailsTypeChecked
 @Validateable
-class OutgoingNotification {
+class OutgoingNotification implements Validateable {
 
 	// TODO efficiently fetch
 	// - whether the phone belongs to a team or an individual

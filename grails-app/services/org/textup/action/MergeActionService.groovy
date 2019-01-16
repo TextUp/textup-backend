@@ -10,43 +10,38 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class MergeActionService implements HandlesActions<Contact, Void> {
+class MergeActionService implements HandlesActions<Long, Void> {
 
     @Override
-    boolean hasActions(Map body) { !!body?.doMergeActions }
+    boolean hasActions(Map body) { !!body.doMergeActions }
 
     @Override
     @RollbackOnResultFailure
     @Transactional(propagation=Propagation.REQUIRES_NEW)
-    Result<Void> tryHandleActions(Contact c1, Map body) {
-        ActionContainer.tryProcess(MergeAction, body?.doMergeActions)
-            .then { List<MergeAction> actions ->
+    Result<Void> tryHandleActions(Long iprId, Map body) {
+        IndividualPhoneRecord.mustFindActiveForId(iprId)
+            .then { IndividualPhoneRecord ipr1 ->
+                ActionContainer.tryProcess(MergeIndividualAction, body.doMergeActions).curry(ipr1)
+            }
+            .then { IndividualPhoneRecord ipr1, List<MergeIndividualAction> actions ->
                 ResultGroup<Contact> resGroup = new ResultGroup<>()
-                actions.each { MergeAction a1 ->
+                actions.each { MergeIndividualAction a1 ->
+                    Collection<IndividualPhoneRecord> toBeMerged = IndividualPhoneRecords
+                        .findEveryByIdsAndPhoneId(a1.toBeMergedIds, ipr1.phone.id)
                     switch (a1) {
-                        case MergeAction.DEFAULT:
-                            resGroup << mergeContacts(c1, a1.contacts)
+                        case MergeIndividualAction.DEFAULT:
+                            resGroup << tryMerge(ipr1, toBeMerged)
                             break
-                        default: // MergeAction.RECONCILE
-                            resGroup << mergeContacts(c1, a1.contacts, a1.name, a1.note)
+                        default: // MergeIndividualAction.RECONCILE
+                            resGroup << tryMerge(ipr1, toBeMerged, a1.buildName(), a1.buildNote())
                     }
                 }
-                resGroup.toResult()
+                resGroup.toEmptyResult(false)
             }
     }
 
     // Helpers
     // -------
-
-    protected Result<Contact> mergeContacts(Contact targetContact, Collection<Contact> contactsToMerge,
-        String newName, String newNote) {
-
-        mergeContacts(targetContact, contactsToMerge, newName, newNote).then { Contact c1 ->
-            c1.name = newName
-            c1.note = newNote
-            IOCUtils.resultFactory.success(c1)
-        }
-    }
 
     // (1) We made the merge method require a new transaction in order to insulate it from
     // potential changes made to the merged-in contacts. Changes to the merged-in contacts
@@ -59,118 +54,89 @@ class MergeActionService implements HandlesActions<Contact, Void> {
     // the interceptor and this merge method will execute in the same transaction. This is the
     // behavior of the underlying Spring Transaction abstraction. See
     // http://www.tothenew.com/blog/grails-transactions-using-transactional-annotations-and-propagation-requires_new/
-    protected Result<Contact> mergeContacts(Contact targetContact, Collection<Contact> contactsToMerge) {
-        if (!contactsToMerge) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("duplicateService.merge.missingMergeContacts",
-                ResultStatus.BAD_REQUEST)
-        }
-        // BECAUSE OF THE PROPAGATION REQUIRES NEW, all of the contacts passed in as parameters
-        // are detached from the session since opening a new transaction also starts a new session
-        // We don't make any modifications on the merged-in contacts so it is all right if they
-        // are detached. However, we do modify the targetContact so we must manually re-fetch it
-        // before we can proceed. We can't just reattach it because we can't have one object
-        // attached simultaneously to two open sessions
-        if (!targetContact.isAttached()) {
-            targetContact = Contact.get(targetContact.id)
-        }
-        // find the tags we are interested BEFORE we delete mark the contact we are merging in
-        // as deleted because this finder will ignore deleted contacts
-        Collection<ContactTag> tagsToMerge = ContactTag.findEveryByContactIds(contactsToMerge*.id)
-        // collate items
-        Collection<PhoneRecordStatus> statuses = [targetContact.status]
-        Collection<Record> toMergeRecords = []
-        Collection<ContactNumber> mergeNums = []
-        for (Contact mergeContact in contactsToMerge) {
-            mergeNums += mergeContact.numbers
-            toMergeRecords << mergeContact.record
-            statuses << mergeContact.status
-        }
-        // transfer appropriate associations
-        targetContact.status = findMostPermissiblePhoneRecordStatus(statuses)
-        // Result<Void> res = // TODO delete this line?
+    protected Result<IndividualPhoneRecord> tryMerge(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
 
-        mergeContactTags(targetContact, tagsToMerge, contactsToMerge)
-            .then { mergeSharedContacts(targetContact, contactsToMerge) }
-            .then { mergeRecords(targetContact.record, toMergeRecords) }
-            .then { mergeContactNumbers(targetContact, mergeNums) }
-            .then { deleteMergedContacts(contactsToMerge) }
-            .then { DomainUtils.trySave(targetContact) }
+        mergeFields(ipr1, toBeMerged)
+            .then { mergeNumbers(ipr1, toBeMerged) }
+            .then { mergeGroups(ipr1, toBeMerged) }
+            .then { mergeSharing(ipr1, toBeMerged) }
+            .then { mergeRecords(ipr1, toBeMerged) }
+            .then { DomainUtils.trySave(ipr1) }
     }
 
-    protected PhoneRecordStatus findMostPermissiblePhoneRecordStatus(Collection<PhoneRecordStatus> statuses) {
-        if ([PhoneRecordStatus.UNREAD, PhoneRecordStatus.ACTIVE].any { PhoneRecordStatus s -> s in statuses }) {
-            PhoneRecordStatus.ACTIVE
+    protected Result<IndividualPhoneRecord> tryMerge(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged, String newName, String newNote) {
+
+        tryMerge(ipr1, toBeMerged).then { IndividualPhoneRecord ipr1 ->
+            ipr1.name = newName
+            ipr1.note = newNote
+            DomainUtils.trySave(ipr1)
         }
-        else if (PhoneRecordStatus.ARCHIVED in statuses) {
-            PhoneRecordStatus.ARCHIVED
-        }
-        else { PhoneRecordStatus.BLOCKED }
     }
 
-    protected Result<Void> mergeContactNumbers(Contact targetContact, Collection<ContactNumber> mergeNums) {
-        ResultGroup<?> resGroup = new ResultGroup<>()
-        mergeNums.each { ContactNumber num ->
-            resGroup << targetContact.mergeNumber(num, num.preference)
-        }
-        resGroup.toResult()
+    protected Result<Void> mergeFields(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
+
+        ipr1.status = PhoneRecordStatus
+            .reconcile(CollectionUtils.mergeUnique([ipr1.status], *toBeMerged*.status))
+        toBeMerged.each { it.isDeleted = true }
+        DomainUtils.trySaveAll(CollectionUtils.mergeUnique([ipr1], toBeMerged))
     }
 
-    protected Result<Void> mergeContactTags(Contact targetContact, Collection<ContactTag> mergeContactTags,
-        Collection<Contact> mergeContacts) {
+    protected Result<Void> mergeNumbers(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
+
+        ResultGroup<ContactNumber> resGroup = new ResultGroup<>()
+        CollectionUtils
+            .mergeUnique(*toBeMerged*.numbers)
+            .each { ContactNumber cNum -> resGroup << ipr1.mergeNumber(cNum, cNum.preference) }
+        resGroup.toEmptyResult(false)
+    }
+
+    protected Result<Void> mergeGroups(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
+
         try {
-            HashSet<Long> mergeIds = new HashSet<>(mergeContacts*.id)
-            mergeContactTags
-                .each { ContactTag tag1 ->
-                    Collection<Contact> contactsToRemove = tag1.members.findAll { Contact c1 -> c1.id in mergeIds }
-                    contactsToRemove.each { Contact c1 ->
-                        tag1.removeFromMembers(c1)
-                    }
-                    tag1.addToMembers(targetContact)
-                    tag1.save()
-                }
+            List<GroupPhoneRecord> gprs = GroupPhoneRecords
+                .buildForMemberIds(toBeMerged*.id)
+                .list()
+            gprs.each { GroupPhoneRecord gpr1 -> gpr1.addToMembers(ipr1) }
+            DomainUtils.trySaveAll(gprs)
+        }
+        catch (Throwable e) {
+            IOCUtils.resultFactory.failWithThrowable(e, "mergeTags", true)
+        }
+    }
+
+    protected Result<Void> mergeSharing(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
+
+        try {
+            new DetachedCriteria(PhoneRecords)
+                .build(PhoneRecords.forShareSourceIds(toBeMerged*.id))
+                .updateAll(record: ipr1.record, shareSource: ipr1)
             IOCUtils.resultFactory.success()
         }
         catch (Throwable e) {
-            log.error("DuplicateService.mergeTags: ${e.message}")
-            e.printStackTrace()
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "mergeSharing", true)
         }
     }
 
-    protected Result<Void> mergeSharedContacts(Contact targetContact, Collection<Contact> mergeContacts) {
-        // TODO need to fundamentally change
-        // try {
-        //     new DetachedCriteria(PhoneRecords)
-        //         .build(PhoneRecords.forShareSourceIds(mergeContacts*.id))
-        //         .updateAll(contact: targetContact)
-        //     IOCUtils.resultFactory.success()
-        // }
-        // catch (Throwable e) {
-        //     log.error("DuplicateService.mergeSharedContacts: ${e.message}")
-        //     e.printStackTrace()
-        //     IOCUtils.resultFactory.failWithThrowable(e)
-        // }
-    }
+    protected Result<Void> mergeRecords(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
 
-    protected Result<Void> mergeRecords(Record targetRecord, Collection<Record> toMergeRecords) {
         try {
-            RecordItem
-                .forRecords(toMergeRecords)
-                .updateAll(record: targetRecord)
+            RecordItems
+                .buildForRecordIdsWithOptions(toMergeRecords*.record*.id)
+                .updateAll(record: ipr1.record)
             FutureMessage
-                .forRecords(toMergeRecords)
-                .updateAll(record: targetRecord)
+                .buildForRecordIds(toMergeRecords*.record*.id)
+                .updateAll(record: ipr1.record)
             IOCUtils.resultFactory.success()
         }
         catch (Throwable e) {
-            log.error("DuplicateService.mergeRecords: ${e.message}")
-            e.printStackTrace()
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "mergeRecords", true)
         }
-    }
-
-    protected Result<Void> deleteMergedContacts(Collection<Contact> contactsToMerge) {
-        contactsToMerge.each { Contact mc1 -> mc1.isDeleted = true }
-        DomainUtils.trySaveAll(contactsToMerge)
     }
 }

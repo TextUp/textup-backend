@@ -13,13 +13,13 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes = "owner")
-class Phone implements WithMedia, WithId, Saveable {
+class Phone implements WithMedia, WithId, Saveable<Phone> {
 
     AvailableTextAction availableTextAction = AvailableTextAction.NOTIFY_TEXT_IMMEDIATELY // TODO
     boolean sendPreviewLinkWithNotification = true // TODO
     boolean useVoicemailRecordingIfPresent = false
     CustomAccountDetails customAccount
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    DateTime whenCreated = DateTimeUtils.now()
     MediaInfo media // public media assets related to phone, for example, recorded voicemail greeting
     PhoneOwnership owner
     String apiId
@@ -61,10 +61,10 @@ class Phone implements WithMedia, WithId, Saveable {
         customAccount nullable: true
     }
 
-    static Result<Phone> create(Long ownerId, PhoneOwnershipType type) {
+    static Result<Phone> tryCreate(Long ownerId, PhoneOwnershipType type) {
         Phone p1 = new Phone()
         p1.owner = new PhoneOwnership(ownerId: ownerId, type: type, phone: p1)
-        DomainUtils.trySave(p1)
+        DomainUtils.trySave(p1, ResultStatus.CREATED)
     }
 
     // Methods

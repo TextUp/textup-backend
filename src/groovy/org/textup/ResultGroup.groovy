@@ -22,6 +22,12 @@ class ResultGroup<T> {
 		}
 	}
 
+	static <I, O> ResultGroup<O> collect(List<I> objs, Closure<Result<O>> action) {
+		ResultGroup<O> resGroup = new ResultGroup<>()
+		objs?.each { I obj -> resGroup << action(obj) }
+		resGroup
+	}
+
 	// Methods
 	// -------
 
@@ -53,10 +59,14 @@ class ResultGroup<T> {
 		this
 	}
 
-	Result<Void> toResult() {
-		getAnyFailures() ?
-			IOCUtils.resultFactory.failWithGroup(this) :
-			IOCUtils.resultFactory.success()
+	Result<Void> toEmptyResult(boolean allowSomeFailures) {
+		ResultUtils.convertGroupToResult(this, IOCUtils.resultFactory.success(), allowSomeFailures)
+	}
+
+	Result<List<T>> toResult(boolean allowSomeFailures) {
+		Result<List<T>> successRes = IOCUtils.resultFactory.success(getPayload(),
+			getSuccessStatus() ?: ResultStatus.OK)
+		ResultUtils.convertGroupToResult(this, successRes, allowSomeFailures)
 	}
 
 	// Properties

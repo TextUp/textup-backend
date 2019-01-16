@@ -5,28 +5,28 @@ import grails.transaction.Transactional
 
 @GrailsTypeChecked
 @Transactional
-class TagActionService implements HandlesActions<ContactTag, ContactTag> {
+class TagActionService implements HandlesActions<GroupPhoneRecord, GroupPhoneRecord> {
 
     @Override
     boolean hasActions(Map body) { !!body.doTagActions }
 
     @Override
-    Result<ContactTag> tryHandleActions(ContactTag ct1, Map body) {
-        ActionContainer.tryProcess(ContactTagAction, body.doTagActions)
-            .then { List<ContactTagAction> actions ->
-                // Do not need to check if each contact's phone matches the ContactTag's phone
+    Result<GroupPhoneRecord> tryHandleActions(GroupPhoneRecord gpr1, Map body) {
+        ActionContainer.tryProcess(GroupMemberAction, body.doTagActions)
+            .then { List<GroupMemberAction> actions ->
+                // Do not need to check if each contact's phone matches the tag's phone
                 // because we may want to support tags that span multiple phones. The key thing
                 // is that the logged-in user has appropriate permissions to modify this tag
-                actions.each { ContactTagAction a1 ->
+                actions.each { GroupMemberAction a1 ->
                     switch (a1) {
-                        case ContactTagAction.ADD:
-                            ct1.addToMembers(a1.contact)
+                        case GroupMemberAction.ADD:
+                            gpr1.addToMembers(a1.buildPhoneRecord())
                             break
-                        default: // ContactTagAction.REMOVE
-                            ct1.removeFromMembers(a1.contact)
+                        default: // GroupMemberAction.REMOVE
+                            gpr1.removeFromMembers(a1.buildPhoneRecord())
                     }
                 }
-                DomainUtils.trySave(ct1)
+                DomainUtils.trySave(gpr1)
             }
     }
 }

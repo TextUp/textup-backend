@@ -12,7 +12,7 @@ import org.textup.type.ReceiptStatus
 @GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
-class TempRecordReceipt {
+class TempRecordReceipt implements Validateable {
 
 	//unique id assigned to this record by the communications provider
     //used for finding the RecordItem in a StatusCallback
@@ -34,13 +34,15 @@ class TempRecordReceipt {
         numSegments nullable: true, min: 0
 	}
 
+    static Result<TempRecordReceipt> tryCreate(String apiId, BasePhoneNumber bNum) {
+        TempRecordReceipt tRpt1 = new TempRecordReceipt(apiId: apiId, contactNumber: bNum)
+        DomainUtils.tryValidate(tRpt1, ResultStatus.CREATED)
+    }
+
 	// Property Access
     // ---------------
 
-    void setContactNumber(BasePhoneNumber pNum) {
-        this.contactNumberAsString = pNum?.number
-    }
-    PhoneNumber getContactNumber() {
-        new PhoneNumber(number:this.contactNumberAsString)
-    }
+    void setContactNumber(BasePhoneNumber pNum) { contactNumberAsString = pNum?.number }
+
+    PhoneNumber getContactNumber() { PhoneNumber.create(contactNumberAsString) }
 }

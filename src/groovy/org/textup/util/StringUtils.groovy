@@ -19,8 +19,8 @@ class StringUtils {
         else { num }
     }
 
-    static String toLowerCaseString(Object val) {
-        "$val".toString().toLowerCase()
+    static boolean equalsIgnoreCase(String str1, String str2) {
+        str1?.toLowerCase() == str2?.toLowerCase()
     }
 
     static String toQuery(Object raw) {

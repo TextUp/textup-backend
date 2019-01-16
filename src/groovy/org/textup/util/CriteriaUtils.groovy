@@ -12,7 +12,7 @@ class CriteriaUtils {
     static void inList(Object delegate, String propName, Collection<?> objList,
         boolean optional = false) {
 
-        Closure inCriteria = {
+        CriteriaUtils.compose(delegate) {
             if (objList) {
                 "in"(propName, objList)
             }
@@ -20,8 +20,11 @@ class CriteriaUtils {
                 eq(propName, null)
             }
         }
-        inCriteria.delegate = delegate
-        inCriteria.call()
+    }
+
+    static void compose(Object delegate, Closure action) {
+        action.delegate = delegate
+        action.call()
     }
 
     static Closure returnsId() {

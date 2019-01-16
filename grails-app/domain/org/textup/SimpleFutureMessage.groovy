@@ -3,51 +3,21 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import java.util.concurrent.TimeUnit
-import java.util.UUID
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.quartz.ScheduleBuilder
-import org.quartz.Scheduler
-import org.quartz.SimpleScheduleBuilder
-import org.quartz.SimpleTrigger
-import org.quartz.Trigger
-import org.quartz.TriggerKey
-import org.restapidoc.annotation.*
-import org.textup.type.FutureMessageType
+import org.quartz.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.OutgoingMessage
+import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-@RestApiObject(name="Simple Future Message", description='''Message to be sent at \
-    some point in the future. Can repeat at a regular interval.''')
 class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureMessage {
 
 	long repeatIntervalInMillis = TimeUnit.DAYS.toMillis(1)
-
-	@RestApiObjectField(
-        description    = "Number of times to repeat",
-        allowedType    = "Integer",
-        mandatory      = false,
-        useForCreation = true)
 	Integer repeatCount
 
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName   = "repeatIntervalInDays",
-            description    = "Number of repeat days between firings",
-            allowedType    = "Integer",
-            defaultValue   = "1",
-            mandatory      = true,
-            useForCreation = true),
-        @RestApiObjectField(
-            apiFieldName   = "timesTriggered",
-            description    = "Number of times the message has been fired in its lifetime",
-            allowedType    = "Integer",
-            defaultValue   = "0",
-            useForCreation = false),
-    ])
 	static transients = ["repeatIntervalInDays"]
     static constraints = {
         repeatIntervalInMillis min:TypeConversionUtils.to(Long, TimeUnit.DAYS.toMillis(1))
@@ -58,42 +28,51 @@ class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureM
 		}
     }
 
-    // Helper Methods
-    // --------------
+    static SimpleFutureMessage tryCreate(Record rec1, String message, MediaInfo mInfo) {
+        SimpleFutureMessage sMsg = new SimpleFutureMessage(record: rec1,
+            message: message,
+            media: mInfo)
+        DomainUtils.trySave(sMsg, ResultStatus.CREATED)
+    }
+
+    // Properties
+    // ----------
+
+    @Override
+    boolean getIsRepeating() {
+    	repeatCount || super.endDate
+    }
+
+    Integer getTimesTriggered() {
+    	(trigger instanceof SimpleTrigger) ? trigger.getTimesTriggered() : null
+    }
+
+    long getRepeatIntervalInDays() {
+        TimeUnit.MILLISECONDS.toDays(repeatIntervalInMillis)
+    }
+
+    void setRepeatIntervalInDays(long numDays) {
+    	repeatIntervalInMillis = TimeUnit.DAYS.toMillis(numDays)
+    }
+
+    // Helpers
+    // -------
 
     @Override
     protected ScheduleBuilder getScheduleBuilder() {
         SimpleScheduleBuilder builder = SimpleScheduleBuilder.simpleSchedule()
-    	if (!this.getIsRepeating()) {
-    		return builder
-    	}
-        builder.withIntervalInMilliseconds(this.repeatIntervalInMillis)
-       	super.endDate ?
-       		builder.repeatForever() :
-            builder.withRepeatCount(this.repeatCount)
+        if (!getIsRepeating()) {
+            return builder
+        }
+        builder.withIntervalInMilliseconds(repeatIntervalInMillis)
+        super.endDate ?
+            builder.repeatForever() :
+            builder.withRepeatCount(repeatCount)
     }
+
     @Override
     protected boolean getShouldReschedule() {
-    	super.getShouldReschedule() ||
-    		["repeatIntervalInMillis", "repeatCount", "endDate"].any(this.&isDirty)
-    }
-
-    // Property Access
-    // ---------------
-
-    @Override
-    boolean getIsRepeating() {
-    	this.repeatCount || super.endDate
-    }
-
-    Integer getTimesTriggered() {
-    	(this.trigger instanceof SimpleTrigger) ? this.trigger.getTimesTriggered() : null
-    }
-
-    long getRepeatIntervalInDays() {
-        TimeUnit.MILLISECONDS.toDays(this.repeatIntervalInMillis)
-    }
-    void setRepeatIntervalInDays(long numDays) {
-    	this.repeatIntervalInMillis = TimeUnit.DAYS.toMillis(numDays)
+        super.getShouldReschedule() ||
+            ["repeatIntervalInMillis", "repeatCount", "endDate"].any(this.&isDirty)
     }
 }

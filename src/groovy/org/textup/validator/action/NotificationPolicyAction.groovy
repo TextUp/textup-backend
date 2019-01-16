@@ -21,17 +21,14 @@ class NotificationPolicyAction extends BaseAction {
 	Long id // id of staff member to customize notifications for
 	String level // required for default, level to change the default to
 
-	final NotificationLevel levelAsEnum
-
 	static constraints = {
-		levelAsEnum nullable: true
 		id validator: { Long staffId ->
-			if (staffId && !Utils.<Boolean>doWithoutFlush({ Staff.exists(staffId) })) {
+			if (staffId && !Utils.<Boolean>doWithoutFlush { Staff.exists(staffId) }) {
 				["doesNotExist"]
 			}
 		}
 		level nullable:true, blank:true, validator: { String level, NotificationPolicyAction obj ->
-			if (obj.matches(NotificationPolicyAction.DEFAULT)) {
+			if (obj.matches(DEFAULT)) {
 				if (!level) {
 					return ["requiredForChangingDefault"]
 				}
@@ -43,19 +40,16 @@ class NotificationPolicyAction extends BaseAction {
 		}
 	}
 
-	// Validation helpers
-	// ------------------
-
-	@Override
-	Collection<String> getAllowedActions() {
-		[NotificationPolicyAction.DEFAULT, NotificationPolicyAction.ENABLE,
-			NotificationPolicyAction.DISABLE]
-	}
-
 	// Methods
 	// -------
 
-	NotificationLevel getLevelAsEnum() {
-		TypeConversionUtils.convertEnum(NotificationLevel, this.level)
+	NotificationLevel buildNotificationLevel() {
+		TypeConversionUtils.convertEnum(NotificationLevel, level)
 	}
+
+	// Properties
+	// ----------
+
+	@Override
+	Collection<String> getAllowedActions() { [DEFAULT, ENABLE, DISABLE] }
 }

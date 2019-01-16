@@ -31,7 +31,7 @@ class WeeklySchedule extends Schedule {
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
-	String sunday = ""
+    String sunday = ""
     @RestApiObjectField(
         description    = "Available times on Monday. Strings must be in format \
             'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
@@ -39,7 +39,7 @@ class WeeklySchedule extends Schedule {
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
-	String monday = ""
+    String monday = ""
     @RestApiObjectField(
         description    = "Available times on Tuesday. Strings must be in format \
             'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
@@ -47,7 +47,7 @@ class WeeklySchedule extends Schedule {
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
-	String tuesday = ""
+    String tuesday = ""
     @RestApiObjectField(
         description    = "Available times on Wednesday. Strings must be in format \
             'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
@@ -55,7 +55,7 @@ class WeeklySchedule extends Schedule {
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
-	String wednesday = ""
+    String wednesday = ""
     @RestApiObjectField(
         description    = "Available times on Thursday. Strings must be in format \
             'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
@@ -63,7 +63,7 @@ class WeeklySchedule extends Schedule {
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
-	String thursday = ""
+    String thursday = ""
     @RestApiObjectField(
         description    = "Available times on Friday. Strings must be in format \
             'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
@@ -71,7 +71,7 @@ class WeeklySchedule extends Schedule {
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
-	String friday = ""
+    String friday = ""
     @RestApiObjectField(
         description    = "Available times on Saturday. Strings must be in format \
             'HHmm:HHmm'. We expect all times passed into already be converted into UTC.",
@@ -79,7 +79,7 @@ class WeeklySchedule extends Schedule {
         defaultValue   = "",
         mandatory      = false,
         useForCreation = true)
-	String saturday = ""
+    String saturday = ""
 
     protected String _rangeDelimiter = ";"
     protected String _timeDelimiter = ","
@@ -186,9 +186,7 @@ class WeeklySchedule extends Schedule {
             IOCUtils.resultFactory.failWithThrowable(e)
         }
     }
-    Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params,
-        String timezone= DateTimeZone.UTC.toString()) {
-
+    Result<Schedule> updateWithIntervalStrings(Map<String,List<String>> params, String timezone="UTC") {
         DateTimeZone zone = DateTimeUtils.getZoneFromId(timezone)
         List<String> daysOfWeek = Constants.DAYS_OF_WEEK
         int numDaysPerWeek = daysOfWeek.size()

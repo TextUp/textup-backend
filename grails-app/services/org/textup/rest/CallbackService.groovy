@@ -156,9 +156,8 @@ class CallbackService {
                 int duration = params.int("RecordingDuration", 0)
                 IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
                 threadService.delay(5, TimeUnit.SECONDS) {
-                    voicemailService
-                        .processVoicemailMessage(callId, duration, im1)
-                        .logFail("CallbackService.processCall: VOICEMAIL_DONE")
+                    voicemailService.processVoicemailMessage(callId, duration, im1)
+                        .logFail("processCall: VOICEMAIL_DONE")
                 }
                 TwilioUtils.noResponseTwiml()
                 break
@@ -168,9 +167,8 @@ class CallbackService {
             case CallResponse.VOICEMAIL_GREETING_PROCESSED.toString():
                 IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
                 threadService.delay(5, TimeUnit.SECONDS) {
-                    voicemailService
-                        .finishedProcessingVoicemailGreeting(p1.id, callId, im1)
-                        .logFail("CallbackService.processCall: VOICEMAIL_GREETING_PROCESSED")
+                    voicemailService.finishProcessingVoicemailGreeting(p1.id, callId, im1)
+                        .logFail("processCall: VOICEMAIL_GREETING_PROCESSED")
                 }
                 TwilioUtils.noResponseTwiml()
                 break

@@ -23,7 +23,7 @@ class TeamService {
                 locationService.create(body.typeMapNoNull("location")).curry(org1)
             }
             .then { Organization org1, Location loc1 ->
-                Team.create(org1, body.string("name"), loc1)
+                Team.tryCreate(org1, body.string("name"), loc1)
             }
             .then { Team t1 -> trySetFields(t1, body) }
             .then { Team t1 -> teamActionService.tryHandleActions(t1, body) }
@@ -70,7 +70,7 @@ class TeamService {
         }
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(t1.org.id, authId) }
-            .then { Phones.mustFindForOwner(t1.id, PhoneOwnershipType.GROUP, true) }
+            .then { Phones.mustFindActiveForOwner(t1.id, PhoneOwnershipType.GROUP, true) }
             .then { Phone p1 -> phoneService.update(p1, phoneInfo, timezone) }
     }
 }

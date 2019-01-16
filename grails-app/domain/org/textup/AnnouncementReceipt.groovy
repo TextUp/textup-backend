@@ -9,22 +9,27 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.TypeCheckingMode
 
 @GrailsTypeChecked
-@EqualsAndHashCode
-class AnnouncementReceipt implements WithId, Saveable {
+@EqualsAndHashCode(includes = ["session"])
+class AnnouncementReceipt implements WithId, Saveable<AnnouncementReceipt> {
 
-	DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+	DateTime whenCreated = DateTimeUtils.now()
 	FeaturedAnnouncement announcement
 	IncomingSession session
 	RecordItemType type
 
+    static mapping = {
+        whenCreated type:PersistentDateTime
+    }
     static constraints = {
-    	announcement validator: { FeaturedAnnouncement val, AnnouncementReceipt obj ->
-    		if (val.owner?.id != obj.session.phone?.id) {
-    			["differentPhones"]
-    		}
+    	announcement validator: { FeaturedAnnouncement fa1, AnnouncementReceipt obj ->
+    		if (fa1?.phone?.id != obj.session?.phone?.id) { ["differentPhones"] }
     	}
     }
-    static mapping = {
-    	whenCreated type:PersistentDateTime
+
+    static Result<AnnouncementReceipt> tryCreate(FeaturedAnnouncement fa1, IncomingSession is1,
+        RecordItemType type) {
+
+        AnnouncementReceipt rpt = new AnnouncementReceipt(type: type, session: is1, announcement: fa1)
+        DomainUtils.trySave(rpt, ResultStatus.CREATED)
     }
 }

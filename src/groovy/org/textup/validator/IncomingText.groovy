@@ -7,7 +7,7 @@ import groovy.transform.EqualsAndHashCode
 @GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
-class IncomingText {
+class IncomingText implements Validateable {
 
 	String apiId
 	String message

@@ -8,7 +8,7 @@ import org.textup.type.AuthorType
 @GrailsTypeChecked
 @ToString
 @Validateable
-class Author {
+class Author implements Validateable {
 	Long id
     String name
     AuthorType type

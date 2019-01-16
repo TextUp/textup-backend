@@ -5,39 +5,27 @@ import grails.compiler.GrailsTypeChecked
 import org.textup.util.StringUtils
 
 @GrailsTypeChecked
-abstract class BasePhoneNumber {
+abstract class BasePhoneNumber implements Validateable {
 
     String number
 
     // Methods
     // -------
 
-    BasePhoneNumber update(BasePhoneNumber otherNum) {
-        number = otherNum?.number
-        this
-    }
-
     @Override
-    String toString() {
-        prettyPhoneNumber
-    }
+    String toString() { prettyPhoneNumber }
 
-    // Property Access
-    // ---------------
+    // Properties
+    // ----------
 
     String getPrettyPhoneNumber() {
-        String n = number
-        (n && n.size() > 6) ? "${n[0..2]} ${n[3..5]} ${n[6..-1]}" : ""
-    }
-    String getE164PhoneNumber() {
-        String n = number
-        n ? "+1${n}" : ""
-    }
-    void setNumber(String num) {
-        number = StringUtils.cleanPhoneNumber(num)
+        String num1 = number
+        (num1 && num1.size() > 6) ? "${num1[0..2]} ${num1[3..5]} ${num1[6..-1]}" : ""
     }
 
-    TwilioPhoneNumber toApiPhoneNumber() {
-        new TwilioPhoneNumber(number)
-    }
+    String getE164PhoneNumber() { number ? "+1${number}" : "" }
+
+    void setNumber(String num) { number = StringUtils.cleanPhoneNumber(num) }
+
+    TwilioPhoneNumber toApiPhoneNumber() { new TwilioPhoneNumber(number) }
 }

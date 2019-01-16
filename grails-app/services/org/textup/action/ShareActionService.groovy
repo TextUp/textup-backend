@@ -19,23 +19,25 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
 
     @Override
     Result<Void> tryHandleActions(PhoneRecord pr1, Map body) {
-        ActionContainer.tryProcess(ShareContactAction, body.doShareActions)
-            .then { List<ShareContactAction> actions ->
+        ActionContainer.tryProcess(ShareAction, body.doShareActions)
+            .then { List<ShareAction> actions ->
                 ResultGroup<?> resGroup = new ResultGroup<>()
                 Map<SharePermission, HashSet<String>> permissionToNames = [:]
                     .withDefault { new HashSet<String>() }
-                actions.each { ShareContactAction a1 ->
+                actions.each { ShareAction a1 ->
+                    Phone p1 = a1.buildPhone()
                     switch (a1) {
-                        case ShareContactAction.MERGE:
-                            resGroup << tryStartShare(pr1, a1.phone, a1.permissionAsEnum)
-                            permissionToNames[a1.permissionAsEnum] << a1.phone.owner.buildName()
+                        case ShareAction.MERGE:
+                            SharePermission perm1 = a1.buildSharePermission()
+                            resGroup << tryStartShare(pr1, p1, a1perm1)
+                            permissionToNames[a1perm1] << p1.owner.buildName()
                             break
-                        default: // ShareContactAction.STOP
-                            resGroup << stopShare(pr1, a1.phone)
-                            permissionToNames[SharePermission.NONE] << a1.phone.owner.buildName()
+                        default: // ShareAction.STOP
+                            resGroup << stopShare(pr1, p1)
+                            permissionToNames[SharePermission.NONE] << p1.owner.buildName()
                     }
                 }
-                resGroup.toResult().curry(permissionToNames)
+                resGroup.toEmptyResult(false).curry(permissionToNames)
             }
             .then { Map<SharePermission, HashSet<String>> permissionToNames ->
                 AuthUtils.tryGetAuthUser().curry(permissionToNames)
@@ -43,7 +45,7 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
             .then { Map<SharePermission, HashSet<String>> permissionToNames, Staff s1 ->
                 tryRecordSharingChanges(pr1.record, s1.toAuthor(), permissionToNames)
                     .logFail("handleActions: record sharing changes")
-                    .toResult()
+                    .toEmptyResult(false)
             }
     }
 

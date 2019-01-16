@@ -10,7 +10,7 @@ import com.sendgrid.Email
 @EqualsAndHashCode
 @ToString
 @Validateable
-class EmailEntity {
+class EmailEntity implements Validateable {
 
     String name
     String email

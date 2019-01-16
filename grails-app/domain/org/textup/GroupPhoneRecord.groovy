@@ -29,11 +29,23 @@ class GroupPhoneRecord extends PhoneRecord {
         }
     }
 
-    static Result<GroupPhoneRecord> create(Phone p1, String name) {
-        Record.create()
+    static Result<GroupPhoneRecord> tryCreate(Phone p1, String name) {
+        Record.tryCreate()
             .then { Record rec1 ->
-                DomainUtils.trySave(new GroupPhoneRecord(name: name, phone: p1, record: rec1))
+                GroupPhoneRecord gpr1 = new GroupPhoneRecord(name: name, phone: p1, record: rec1)
+                DomainUtils.trySave(gpr1, ResultStatus.CREATED)
             }
+    }
+
+    // Methods
+    // -------
+
+    @Override
+    boolean isActive() { super.isActive() && !isDeleted }
+
+    @Override
+    Collection<Record> buildRecords() {
+        CollectionUtils.mergeUnique([record], getActiveMembers()*.record)
     }
 
     // Properties
@@ -43,16 +55,15 @@ class GroupPhoneRecord extends PhoneRecord {
     String getSecureName() { name }
 
     Collection<PhoneRecord> getActiveMembers() {
-        members?.findAll { PhoneRecord pr1 -> pr1.toPermissions().isNotExpired() } ?:
-            new ArrayList<PhoneRecord>()
+        members?.findAll { PhoneRecord pr1 -> pr1.isActive() } ?: new ArrayList<PhoneRecord>()
     }
 
     // Can't move to static class because Grails manages this relationship so no direct queries
     Collection<PhoneRecord> getMembersByStatus(Collection<PhoneRecordStatus> statuses) {
         if (statuses) {
             HashSet<PhoneRecordStatus> statusesToFind = new HashSet<>(statuses)
-            members?.findAll { PhoneRecord pr1 -> statusesToFind.contains(pr1.status) }
+            getActiveMembers().findAll { PhoneRecord pr1 -> statusesToFind.contains(pr1.status) }
         }
-        else { members }
+        else { getActiveMembers() }
     }
 }

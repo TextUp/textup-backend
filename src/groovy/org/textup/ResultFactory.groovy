@@ -45,7 +45,15 @@ class ResultFactory {
         Result.<T>createError([IOCUtils.getMessage(code, params)], status)
     }
 
-	public <T> Result<T> failWithThrowable(Throwable t) {
+	public <T> Result<T> failWithThrowable(Throwable t, String logPrefix = null,
+        boolean printStacktrace = false ) {
+
+        if (logPrefix) {
+            log.error("${logPrefix}: ${t.message}")
+        }
+        if (printStacktrace) {
+            t.printStacktrace()
+        }
         Result.<T>createError([t.message], ResultStatus.INTERNAL_SERVER_ERROR)
 	}
 

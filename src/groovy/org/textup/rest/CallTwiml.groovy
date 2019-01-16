@@ -194,8 +194,8 @@ class CallTwiml {
     // -------------
 
     // CallResponse.FINISH_BRIDGE
-    static Map<String, String> infoForFinishBridge(Contactable cont1) {
-        [contactId: cont1.contactId, handle: CallResponse.FINISH_BRIDGE]
+    static Map<String, String> infoForFinishBridge(Long prId) {
+        [contactId: prId, handle: CallResponse.FINISH_BRIDGE] // TODO change contactId?
     }
     static Result<Closure> finishBridge(Contact c1) {
         if (!c1) {

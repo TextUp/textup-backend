@@ -31,7 +31,7 @@ class UsageUtils {
         }
         List<T> clonedOwners = []
         activityOwners.each { T ha1 -> clonedOwners << ha1.clone() }
-        Map<BigInteger, T> ownerMap = MapUtils.buildObjectMap({ T ha1 -> ha1.id }, clonedOwners)
+        Map<BigInteger, T> ownerMap = MapUtils.buildObjectMap(clonedOwners) { T ha1 -> ha1.id }
         activityList.each { UsageService.ActivityRecord a1 ->
             ownerMap.get(a1.ownerId)?.setActivity(a1)
         }
@@ -42,7 +42,7 @@ class UsageUtils {
         // do not short circuit if aList is an empty or null because we still want to ensure
         // the proper number of months even if all months are empty
         Map<String, UsageService.ActivityRecord> monthStringToActivity = MapUtils
-            .buildObjectMap({ UsageService.ActivityRecord a1 -> a1.monthString }, aList)
+            .buildObjectMap(aList) { UsageService.ActivityRecord a1 -> a1.monthString }
         getAvailableMonthStrings().each { String monthString ->
             if (!monthStringToActivity.containsKey(monthString)) {
                 UsageService.ActivityRecord a1 = new UsageService.ActivityRecord()

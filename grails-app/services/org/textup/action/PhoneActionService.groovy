@@ -29,16 +29,16 @@ class PhoneActionService implements HandlesActions<Phone, Phone> {
                             resGroup << deactivatePhone(p1)
                             break
                         case PhoneAction.TRANSFER:
-                            resGroup << transferPhone(p1, a1.id, a1.typeAsEnum)
+                            resGroup << transferPhone(p1, a1.id, a1.buildPhoneOwnershipType())
                             break
                         case PhoneAction.NEW_NUM_BY_NUM:
-                            resGroup << updatePhoneForNumber(p1, a1.phoneNumber)
+                            resGroup << updatePhoneForNumber(p1, a1.buildPhoneNumber())
                             break
                         default: // PhoneAction.NEW_NUM_BY_ID
                             resGroup << updatePhoneForApiId(p1, a1.numberId)
                     }
                 }
-                resGroup.toResult()
+                resGroup.toEmptyResult(false)
             }
             .then { DomainUtils.trySave(p1) }
     }

@@ -4,35 +4,24 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.*
-import org.restapidoc.annotation.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.UploadItem
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-@RestApiObject(
-    name        = "MediaElement",
-    description = "A media element contained within a media info object contains various versions optimized for sending or display")
-class MediaElement implements ReadOnlyMediaElement, WithId, Saveable {
+class MediaElement implements ReadOnlyMediaElement, WithId, Saveable<MediaElement> {
 
-    @RestApiObjectField(
-        description    = "unique id for this media element, used for deletion",
-        allowedType    = "String",
-        useForCreation = false)
+    DateTime whenCreated = DateTimeUtils.now()
+    MediaElementVersion sendVersion
     String uid = UUID.randomUUID().toString()
 
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-    MediaElementVersion sendVersion
-
-    @RestApiObjectFields(params=[
-         @RestApiObjectField(
-            apiFieldName   = "versions",
-            description    = "various versions for display",
-            allowedType    = "MediaElementVersion",
-            useForCreation = false)
-    ])
     static hasMany = [alternateVersions: MediaElementVersion]
+    static mapping = {
+        whenCreated type: PersistentDateTime
+        sendVersion lazy: false, cascade: "save-update"
+        alternateVersions lazy: false, cascade: "save-update"
+    }
     static constraints = { // all nullable:false by default
         sendVersion nullable: true, cascadeValidation: true, validator: { MediaElementVersion send1 ->
             if (send1 && send1.sizeInBytes > ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
@@ -41,18 +30,13 @@ class MediaElement implements ReadOnlyMediaElement, WithId, Saveable {
         }
         alternateVersions nullable: true, cascadeValidation: true
     }
-    static mapping = {
-        whenCreated type: PersistentDateTime
-        sendVersion lazy: false, cascade: "save-update"
-        alternateVersions lazy: false, cascade: "save-update"
-    }
 
-    static Result<MediaElement> create(UploadItem sVersion, Collection<UploadItem> alternates) {
+    static Result<MediaElement> tryCreate(UploadItem sVersion, Collection<UploadItem> alternates) {
         MediaElement e1 = new MediaElement(sendVersion: sVersion?.toMediaElementVersion())
         alternates?.each { UploadItem uItem ->
             e1.addToAlternateVersions(uItem.toMediaElementVersion())
         }
-        DomainUtils.trySave(e1)
+        DomainUtils.trySave(e1, ResultStatus.CREATED)
     }
 
     // Methods

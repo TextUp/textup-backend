@@ -19,7 +19,7 @@ class OrganizationService {
         }
         else {
             locationService.create(orgInfo.typeMapNoNull("location"))
-                .then { Location loc1 -> Organization.create(orgInfo.string("name"), loc1) }
+                .then { Location loc1 -> Organization.tryCreate(orgInfo.string("name"), loc1) }
         }
     }
 

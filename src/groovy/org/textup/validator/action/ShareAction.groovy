@@ -12,7 +12,7 @@ import org.textup.util.*
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
 @Validateable
-class ShareContactAction extends BaseAction {
+class ShareAction extends BaseAction {
 
 	static final String MERGE = "merge"
 	static final String STOP = "stop"
@@ -20,19 +20,14 @@ class ShareContactAction extends BaseAction {
 	Long id // id of phone that we are sharing with
 	String permission
 
-	final SharePermission permissionAsEnum
-	final Phone phone
-
 	static constraints = {
-		permissionAsEnum nullable: true
-		phone nullable: true
-		id validator: { Long phoneId, ShareContactAction ->
-			if (!Utils.<Boolean>doWithoutFlush({ Phone.exists(phoneId) })) {
+		id validator: { Long phoneId, ShareAction ->
+			if (!Utils.<Boolean>doWithoutFlush { Phone.exists(phoneId) }) {
 				["doesNotExist"]
 			}
 		}
-		permission nullable:true, blank:true, validator: { String permission, ShareContactAction obj ->
-			if (obj.matches(ShareContactAction.MERGE)) {
+		permission nullable:true, blank:true, validator: { String permission, ShareAction obj ->
+			if (obj.matches(MERGE)) {
 				Collection<String> options = SharePermission.values().collect { it.toString() }
 				if (!CollectionUtils.inListIgnoreCase(permission, options)) {
 					["invalid", options]
@@ -41,19 +36,18 @@ class ShareContactAction extends BaseAction {
 		}
 	}
 
-	// Validation helpers
-	// ------------------
-
-	@Override
-	Collection<String> getAllowedActions() { [ShareContactAction.MERGE, ShareContactAction.STOP] }
-
 	// Methods
 	// -------
 
-	SharePermission getPermissionAsEnum() {
-		TypeConversionUtils.convertEnum(SharePermission, this.permission)
+	SharePermission buildSharePermission() {
+		TypeConversionUtils.convertEnum(SharePermission, permission)
 	}
-	Phone getPhone() {
-		this.id ? Phone.get(this.id) : null
-	}
+
+	Phone buildPhone() { id ? Phone.get(id) : null }
+
+	// Properties
+	// ----------
+
+	@Override
+	Collection<String> getAllowedActions() { [MERGE, STOP] }
 }

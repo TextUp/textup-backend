@@ -7,38 +7,23 @@ import org.textup.type.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-@RestApiObject(
-    name        = "MediaInfo",
-    description = "Contains all media elements for a message or batch of messages")
-class MediaInfo implements ReadOnlyMediaInfo, WithId, Saveable {
+class MediaInfo implements ReadOnlyMediaInfo, WithId, Saveable<MediaInfo> {
 
     private Set<MediaElement> _originalMediaElements = Collections.emptySet()
 
-    @RestApiObjectFields(params = [
-        @RestApiObjectField(
-            apiFieldName   = "audio",
-            description    = "Audio files",
-            allowedType    = "Set<MediaElement>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "images",
-            description    = "Images",
-            allowedType    = "Set<MediaElement>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName      = "doMediaActions",
-            description       = "Actions for adding and removing elements from this media object",
-            allowedType       = "Collection<[mediaAction]>",
-            useForCreation    = true,
-            presentInResponse = false ),
-    ])
     static transients = ["_originalMediaElements"]
     static hasMany = [mediaElements: MediaElement]
+    static mapping = {
+        mediaElements lazy: false, cascade: "save-update"
+    }
     static constraints = { // all nullable:false by default
         mediaElements cascadeValidation: true
     }
-    static mapping = {
-        mediaElements lazy: false, cascade: "save-update"
+
+    static Result<MediaInfo> tryCreate(MediaInfo mInfo) {
+        mInfo ?
+            DomainUtils.trySave(mInfo) :
+            DomainUtils.trySave(new MediaInfo(), ResultStatus.CREATED)
     }
 
     // Events
@@ -47,6 +32,7 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, Saveable {
     void afterLoad() { tryUpdateOriginalMediaElements() }
     void afterInsert() { tryUpdateOriginalMediaElements() }
     void afterUpdate() { tryUpdateOriginalMediaElements() }
+
     protected void tryUpdateOriginalMediaElements() {
         if (mediaElements) {
             _originalMediaElements = new HashSet<MediaElement>(mediaElements)
@@ -70,7 +56,7 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, Saveable {
         }
     }
 
-    void forEachBatch(Closure<?> doAction, Collection<MediaType> typesToRetrieve = []) {
+    void eachBatchForTypes(Collection<MediaType> typesToRetrieve, Closure<?> doAction) {
         int maxFileCount = ValidationUtils.MAX_NUM_MEDIA_PER_MESSAGE
         long maxFileSize = ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES,
             currentBatchSize = 0
@@ -78,7 +64,7 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, Saveable {
         List<MediaElement> allElements = getMediaElementsByType(typesToRetrieve)
         for (MediaElement e1 in allElements) {
             if (!e1.sendVersion) {
-                log.error("MediaInfo.forEachBatch: tried sending media element with id `${e1.id}` \
+                log.error("eachBatchForTypes: tried sending media element with id `${e1.id}` \
                     that has not finished processing yet")
                 continue
             }

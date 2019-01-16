@@ -12,14 +12,14 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class RecordItem implements ReadOnlyRecordItem, WithId, Saveable {
+class RecordItem implements ReadOnlyRecordItem, WithId, Saveable<RecordItem> {
 
     AuthorType authorType
     boolean hasAwayMessage = false
     boolean isAnnouncement = false
     boolean outgoing = true // true is CM->client, false is CM<-client
     boolean wasScheduled = false
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
+    DateTime whenCreated = DateTimeUtils.now()
     Integer numNotified = 0 // texts = # staff notified, future messages = # "notify-me"
     Long authorId
     MediaInfo media
@@ -29,6 +29,12 @@ class RecordItem implements ReadOnlyRecordItem, WithId, Saveable {
 
 	static transients = ["author"]
     static hasMany = [receipts: RecordItemReceipt]
+    static mapping = {
+        receipts lazy: false, cascade: "all-delete-orphan"
+        media lazy: false, cascade: "save-update"
+        whenCreated type: PersistentDateTime
+        noteContents type: "text"
+    }
     static constraints = {
     	authorName blank:true, nullable:true
     	authorId nullable:true
@@ -36,12 +42,6 @@ class RecordItem implements ReadOnlyRecordItem, WithId, Saveable {
         media nullable:true, cascadeValidation: true // can be null for backwards compatibility for RecordItems that predate this
         noteContents blank:true, nullable:true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
         numNotified min: 0
-    }
-    static mapping = {
-        receipts lazy: false, cascade: "all-delete-orphan"
-        media lazy: false, cascade: "save-update"
-        whenCreated type: PersistentDateTime
-        noteContents type: "text"
     }
 
     // Methods

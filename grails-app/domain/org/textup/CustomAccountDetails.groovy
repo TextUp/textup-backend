@@ -3,7 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 
 @GrailsTypeChecked
-class CustomAccountDetails implements WithId, Saveable {
+class CustomAccountDetails implements WithId, Saveable<CustomAccountDetails> {
 
     String accountId
     String authToken

@@ -24,24 +24,24 @@ class NotificationActionService implements HandlesActions<Tuple<Phone, Long>, Vo
                 ActionContainer.tryProcess(NotificationPolicyAction, body.doNotificationActions)
             }
             .then { List<NotificationPolicyAction> actions ->
-                Phone p1 = phoneAndRecordId.first
-                Long recordId = phoneAndRecordId.second
-                ResultGroup<?> resGroup = new ResultGroup<>()
-                actions.each { NotificationPolicyAction a1 ->
-                    NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(a1.id)
-                    switch (a1) {
-                        case NotificationPolicyAction.DEFAULT:
-                            np1.level = a1.levelAsEnum
-                            break
-                        case NotificationPolicyAction.ENABLE:
-                            np1.enable(recordId)
-                            break
-                        default: // NotificationPolicyAction.DISABLE
-                            np1.disable(recordId)
+                Tuple.split(phoneAndRecordId) { Phone p1, Long recordId ->
+                    ResultGroup<?> resGroup = new ResultGroup<>()
+                    actions.each { NotificationPolicyAction a1 ->
+                        NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(a1.id)
+                        switch (a1) {
+                            case NotificationPolicyAction.DEFAULT:
+                                np1.level = a1.buildNotificationLevel()
+                                break
+                            case NotificationPolicyAction.ENABLE:
+                                np1.enable(recordId)
+                                break
+                            default: // NotificationPolicyAction.DISABLE
+                                np1.disable(recordId)
+                        }
+                        resGroup << DomainUtils.trySave(np1)
                     }
-                    resGroup << DomainUtils.trySave(np1)
+                    resGroup.toEmptyResult(false)
                 }
-                resGroup.toResult()
             }
     }
 }

@@ -4,11 +4,12 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.TypeCheckingMode
 import org.textup.*
+import org.textup.interface.*
 import org.textup.util.*
 
 @GrailsTypeChecked
 @Validateable
-abstract class BaseAction {
+abstract class BaseAction implements Validateable {
 
 	String action
 
@@ -43,35 +44,36 @@ abstract class BaseAction {
 		this
 	}
 
-	boolean matches(String toMatch) {
-		StringUtils.toLowerCaseString(action) == StringUtils.toLowerCaseString(toMatch)
-	}
+	@Override
+	boolean matches(String toMatch) { StringUtils.equalsIgnoreCase(action, toMatch) }
 
 	// enable use of this class in switch statements
 	// http://www.javaworld.com/article/2073225/scripting-jvm-languages/groovy-switch-on-steroids.html
 	// NOTE: this method is only called when the case clause in the switch statement is
 	// of type BaseAction. When matching against something else (for example, a String), this method
 	// is NOT called!
+	@Override
 	boolean isCase(BaseAction otherAction) {
 		otherAction?.equals(this)
 	}
 
 	@Override
 	boolean equals(Object other) {
-		(other instanceof BaseAction) ? this.matches((other as BaseAction).action) : false
+		(other instanceof BaseAction) ? matches((other as BaseAction).action) : false
 	}
 
 	@Override
 	String toString() {
-		this._allowedAction
+		_allowedAction
 	}
 
-	// Property access
-	// ---------------
+	// Properties
+	// ----------
 
-	void setAction(String toSetAction) {
-		this.action = toSetAction
+	void setAction(String newAction) {
+		action = newAction
 		// also set case-appropriate action for correct switch-base matching, if possible
-		this._allowedAction = this.getAllowedActions().find(this.&matches) ?: toSetAction
+		_allowedAction = getAllowedActions()
+			.find { String str1 -> StringUtils.equalsIgnoreCase(str1, newAction) } ?: newAction
 	}
 }

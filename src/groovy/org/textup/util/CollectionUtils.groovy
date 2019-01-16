@@ -19,11 +19,9 @@ class CollectionUtils {
         }
         else { data[(totalNum - numToTake)..(totalNum - 1)] }
     }
+
     static boolean inListIgnoreCase(String toFind, Collection<String> options) {
-        String lowerCaseToFind = StringUtils.toLowerCaseString(toFind)
-        (options
-            ?.collect(StringUtils.&toLowerCaseString) as Collection<String>)
-            ?.any { String allowed -> allowed == lowerCaseToFind }
+        options?.any { String str1 -> StringUtils.equalsIgnoreCase(toFind, str1) }
     }
 
     static String joinWithDifferentLast(List list, String delim, String lastDelim) {
@@ -38,9 +36,14 @@ class CollectionUtils {
         list
     }
 
-    static <T> Collection<T> flattenValues(Map<?, Collection<T>> map) {
-        Collection<T> allValues = []
-        map.values().each { Collection<T> values -> allValues.addAll(values) }
-        allValues
+    // TODO test
+    static <T> List<T> mergeUnique(Collection<T>... toBeMerged) {
+        List<T> allItems = []
+        toBeMerged?.each { Collection<T> items ->
+            if (items) {
+                allItems.addAll(items)
+            }
+        }
+        CollectionUtils.ensureNoNull(allItems.unique())
     }
 }

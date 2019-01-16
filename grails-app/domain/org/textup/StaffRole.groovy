@@ -27,7 +27,7 @@ class StaffRole implements Serializable {
 		}
 	}
 
-	static Result<StaffRole> create(Staff staff, Role role) {
-		DomainUtils.trySave(new StaffRole(staff: staff, role: role))
+	static Result<StaffRole> tryCreate(Staff staff, Role role) {
+		DomainUtils.trySave(new StaffRole(staff: staff, role: role), ResultStatus.CREATED)
     }
 }

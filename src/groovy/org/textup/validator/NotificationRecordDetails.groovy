@@ -5,7 +5,7 @@ import grails.validation.Validateable
 
 @GrailsTypeChecked
 @Validateable
-class NotificationRecordDetails {
+class NotificationRecordDetails implements Validateable {
 
     // TODO
     // Long id

@@ -10,7 +10,7 @@ import org.textup.type.*
 @EqualsAndHashCode
 @GrailsTypeChecked
 @Validateable
-class UploadItem {
+class UploadItem implements Validateable {
 
     String key = UUID.randomUUID().toString()
     MediaType type

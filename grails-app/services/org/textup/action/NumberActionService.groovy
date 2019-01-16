@@ -5,27 +5,28 @@ import grails.transaction.Transactional
 
 @GrailsTypeChecked
 @Transactional
-class NumberActionService implements HandlesActions<IndividualPhoneRecord, IndividualPhoneRecord> {
+class NumberActionService
+    implements HandlesActions<IndividualPhoneRecordWrapper, IndividualPhoneRecordWrapper> {
 
     @Override
     boolean hasActions(Map body) { !!body.doNumberActions }
 
     @Override
-    Result<IndividualPhoneRecord> tryHandleActions(IndividualPhoneRecord ipr1, Map body) {
+    Result<IndividualPhoneRecordWrapper> tryHandleActions(IndividualPhoneRecordWrapper w1, Map body) {
         ActionContainer.tryProcess(ContactNumberAction, body.doNumberActions)
             .then { List<ContactNumberAction> actions ->
                 ResultGroup<?> resGroup = new ResultGroup<>()
                 actions.each { ContactNumberAction a1 ->
                     switch (a1) {
                         case ContactNumberAction.MERGE:
-                            resGroup << ipr1.mergeNumber(a1.phoneNumber, a1.preference)
+                            resGroup << w1.tryMergeNumber(a1.buildPhoneNumber(), a1.preference)
                             break
                         default: // ContactNumberAction.DELETE
-                            resGroup << ipr1.deleteNumber(a1.phoneNumber)
+                            resGroup << w1.tryDeleteNumber(a1.buildPhoneNumber())
                     }
                 }
-                resGroup.toResult()
+                resGroup.toEmptyResult(false)
             }
-            .then { DomainUtils.trySave(ipr1) }
+            .then { DomainUtils.trySave(w1) }
     }
 }

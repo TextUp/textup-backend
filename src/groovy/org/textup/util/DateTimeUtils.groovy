@@ -11,6 +11,8 @@ import org.textup.validator.*
 @Log4j
 class DateTimeUtils {
 
+    static DateTime now() { DateTimeUtils.now() }
+
     // Printing DateTimes
     // ------------------
 
@@ -73,17 +75,5 @@ class DateTimeUtils {
 
     static DateTime toZoneDateTimeTodayThenUTC(LocalTime lt, DateTimeZone zone = DateTimeZone.UTC) {
         lt.toDateTimeToday(zone).withZone(DateTimeZone.UTC)
-    }
-
-    static int getDaysBetween(DateTime dt1, DateTime dt2) {
-        if (!dt1 || !dt2) {
-            return 0
-        }
-        Days.daysBetween(dt1.toLocalDate(), dt2.toLocalDate()).getDays()
-    }
-
-    //0 corresponds to sunday, 6 to saturday
-    static int getDayOfWeekIndex(int num) {
-        Math.abs(num % 7)
     }
 }

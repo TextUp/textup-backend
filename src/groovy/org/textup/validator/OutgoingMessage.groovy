@@ -9,10 +9,12 @@ import org.textup.type.RecordItemType
 import org.textup.type.VoiceLanguage
 import org.textup.util.*
 
+// TODO remove this class
+
 @GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
-class OutgoingMessage {
+class OutgoingMessage implements Validateable {
 
 	String message
 	MediaInfo media

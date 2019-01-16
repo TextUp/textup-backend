@@ -2,7 +2,6 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -12,110 +11,82 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Record implements ReadOnlyRecord, WithId, Saveable {
+class Record implements ReadOnlyRecord, WithId, Saveable<Record> {
 
-    DateTime lastRecordActivity = DateTime.now(DateTimeZone.UTC)
+    DateTime lastRecordActivity = DateTimeUtils.now()
     VoiceLanguage language = VoiceLanguage.ENGLISH
 
     static mapping = {
-        lastRecordActivity type:PersistentDateTime
+        lastRecordActivity type: PersistentDateTime
     }
 
-    static Result<Record> create() {
-        DomainUtils.trySave(new Record())
+    static Result<Record> tryCreate() {
+        DomainUtils.trySave(new Record(), ResultStatus.CREATED)
     }
 
-    // Timestamp
+    // Methods
     // ---------
 
     void updateLastRecordActivity() {
-        this.lastRecordActivity = DateTime.now(DateTimeZone.UTC)
+        lastRecordActivity = DateTimeUtils.now()
     }
 
-    // Add to record
-    // -------------
+    Result<? extends RecordItem> storeOutgoing(RecordItemType type, Author a1 = null,
+        String msg = null, MediaInfo mInfo = null) {
 
-    Result<RecordText> storeOutgoingText(String message, Author author = null, MediaInfo mInfo = null) {
-        add(new RecordText(outgoing: true, contents: message, media: mInfo), author)
-    }
-    Result<RecordCall> storeOutgoingCall(Author author = null, String message = null, MediaInfo mInfo = null) {
-        add(new RecordCall(outgoing: true, noteContents: message, media: mInfo), author)
-    }
-
-    Result<RecordText> storeIncomingText(IncomingText text, IncomingSession session1, MediaInfo mInfo = null) {
-        RecordText rText1 = new RecordText(outgoing: false, contents: text.message, media: mInfo)
-        add(rText1, session1.toAuthor()).then {
-            RecordItemReceipt receipt = new RecordItemReceipt(status: ReceiptStatus.SUCCESS,
-                apiId:text.apiId,
-                numBillable: text.numSegments)
-            receipt.contactNumber = session1.number
-            rText1.addToReceipts(receipt)
-            rText1.save() ? IOCUtils.resultFactory.success(rText1) :
-                IOCUtils.resultFactory.failWithValidationErrors(rText1.errors)
-        }
-    }
-    Result<RecordCall> storeIncomingCall(String apiId, IncomingSession session1) {
-        RecordCall rCall1 = new RecordCall(outgoing: false)
-        add(rCall1, session1.toAuthor()).then {
-            RecordItemReceipt receipt = new RecordItemReceipt(status: ReceiptStatus.SUCCESS,
-                apiId: apiId)
-            receipt.contactNumber = session1.number
-            rCall1.addToReceipts(receipt)
-            rCall1.save() ? IOCUtils.resultFactory.success(rCall1) :
-                IOCUtils.resultFactory.failWithValidationErrors(rCall1.errors)
-        }
-    }
-
-    // No method to addNote because we handle adding in TempRecordNote
-    // we don't do add notes here because we adding a note should not
-    // trigger a record activity update like adding a text or a call should
-    protected Result<RecordItem> add(RecordItem item, Author author = null) {
-        if (item) {
-            item.author = author
-            item.record = this
-            if (item.save()) {
-                this.updateLastRecordActivity()
-                IOCUtils.resultFactory.success(item, ResultStatus.CREATED)
+        tryCreateItem(type, msg)
+            .then { RecordItem rItem1 ->
+                rItem1.outgoing = true
+                if (type == RecordItemType.CALL) {
+                    rItem1.noteContents = msg
+                }
+                finishAdd(rItem1, a1, mInfo)
             }
-            else { IOCUtils.resultFactory.failWithValidationErrors(item.errors) }
-        }
-        else { IOCUtils.resultFactory.failWithCodeAndStatus("record.noRecordItem", ResultStatus.BAD_REQUEST) }
     }
 
-    // Property Access
-    // ---------------
-
-    boolean hasUnreadInfo(DateTime lastTouched) {
-        RecordItem.forRecordIdsWithOptions([this.id], lastTouched).count() > 0
+    Result<RecordText> storeIncomingText(IncomingText text, IncomingSession is1, MediaInfo mInfo = null) {
+        tryCreateItem(RecordItemType.TEXT, text.message)
+            .then { RecordText rText1 ->
+                rText1.outgoing = false
+                finishAdd(rText1, is1.toAuthor(), mInfo)
+            }
+            .then { RecordText rText1 ->
+                RecordItemReceipt
+                    .tryCreate(rText1, text.apiId, ReceiptStatus.SUCCESS, is1.number)
+                    .curry(rText1)
+            }
+            .then { RecordText rText1, RecordItemReceipt rpt1 ->
+                rpt1.numBillable = text.numSegments
+                DomainUtils.trySave(rText1, ResultStatus.CREATED)
+            }
     }
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    UnreadInfo getUnreadInfo(DateTime lastTouched) {
-        Closure notOutgoing = { eq("outgoing", false) }
-        UnreadInfo uInfo = new UnreadInfo()
-        uInfo.with {
-            numTexts = RecordItem
-                .forRecordIdsWithOptions([this.id], lastTouched, null, [RecordText])
-                .build(notOutgoing)
-                .count()
-            numCalls = RecordItem
-                .forRecordIdsWithOptions([this.id], lastTouched, null, [RecordCall])
-                .build(notOutgoing)
-                .build { eq("voicemailInSeconds", 0) }
-                .count()
-            numVoicemails = RecordItem
-                .forRecordIdsWithOptions([this.id], lastTouched, null, [RecordCall])
-                .build(notOutgoing)
-                .build { gt("voicemailInSeconds", 0) }
-                .count()
-        }
-        uInfo
+    Result<RecordCall> storeIncomingCall(String apiId, IncomingSession is1) {
+        tryCreateItem(RecordItemType.CALL, null)
+            .then { RecordCall rCall1 ->
+                rCall1.outgoing = false
+                finishAdd(rCall1, is1.toAuthor(), null)
+            }
+            .then { RecordCall rCall1 ->
+                RecordItemReceipt
+                    .tryCreate(rCall1, apiId, ReceiptStatus.SUCCESS, is1.number)
+                    .curry(rCall1)
+            }
+            .then { RecordCall rCall1 -> DomainUtils.trySave(rCall1, ResultStatus.CREATED) }
     }
 
-    List<FutureMessage> getFutureMessages(Map params=[:]) {
-        FutureMessage.findAllByRecordAndIsDone(this, false, params)
+    // Helpers
+    // -------
+
+    protected Result<? extends RecordItem> tryCreateItem(RecordItemType type, String msg) {
+        type == RecordItemType.TEXT ? RecordText.tryCreate(this, msg) : RecordCall.tryCreate(this)
     }
-    int countFutureMessages() {
-        FutureMessage.countByRecordAndIsDone(this, false)
+
+    // don't handle note here because adding note should not update record timestamp
+    protected Result<? extends RecordItem> finishAdd(RecordItem rItem1, Author a1, MediaInfo mInfo) {
+        rItem1.author = a1
+        rItem.media = mInfo
+        updateLastRecordActivity()
+        DomainUtils.trySave(rItem1, ResultStatus.CREATED)
     }
 }

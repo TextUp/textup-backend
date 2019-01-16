@@ -12,10 +12,32 @@ class FutureMessages {
         }
     }
 
+    static Result<FutureMessage> mustFindForId(Long fId) {
+        FutureMessage fMsg = FutureMessage.get(fId)
+        if (fMsg) {
+            IOCUtils.resultFactory.success(fMsg)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("futureMessageService.update.notFound", // TODO
+                ResultStatus.NOT_FOUND, [fId])
+        }
+    }
+
+    static Result<FutureMessage> mustFindForKey(String futureKey) {
+        FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
+        if (fMsg) {
+            IOCUtils.resultFactory.success(fMsg)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("futureMessageService.execute.messageNotFound", // TODO
+                ResultStatus.NOT_FOUND, [futureKey])
+        }
+    }
+
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<FutureMessage> buildForRecords(Collection<Record> records) {
+    static DetachedCriteria<FutureMessage> buildForRecordIds(Collection<Long> recordIds) {
         new DetachedCriteria(FutureMessage)
-            .build { CriteriaUtils.inList(delegate, "record", records) }
+            .build { CriteriaUtils.inList(delegate, "record.id", recordIds) }
     }
 
     // Helpers

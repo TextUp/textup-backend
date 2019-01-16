@@ -28,20 +28,15 @@ class PhoneAction extends BaseAction {
 	String number // required when creating new phone with specified number
 	String numberId // required when creating new phone with existing number
 
-	final PhoneOwnershipType typeAsEnum
-	final PhoneNumber phoneNumber
-
 	static constraints = {
-		typeAsEnum nullable: true
-		phoneNumber nullable: true
 		id nullable:true, validator: { Long val, PhoneAction obj ->
 			// existence check for this id happens already in Phone.transferTo
-			if (obj.matches(PhoneAction.TRANSFER) && !val) {
+			if (obj.matches(TRANSFER) && !val) {
 				["requiredForTransfer"]
 			}
 		}
 		type nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(PhoneAction.TRANSFER)) {
+			if (obj.matches(TRANSFER)) {
 				if (!val) {
 					return ["requiredForTransfer"]
 				}
@@ -52,7 +47,7 @@ class PhoneAction extends BaseAction {
 			}
 		}
 		number nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(PhoneAction.NEW_NUM_BY_NUM)) {
+			if (obj.matches(NEW_NUM_BY_NUM)) {
 				if (!val) {
 					return ["requiredForChangeToNewNumber"]
 				}
@@ -64,37 +59,26 @@ class PhoneAction extends BaseAction {
 			}
 		}
 		numberId nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(PhoneAction.NEW_NUM_BY_ID) && !val) {
+			if (obj.matches(NEW_NUM_BY_ID) && !val) {
 				["requiredForChangeToExistingNumber"]
 			}
 		}
 	}
 
-	// Validation helpers
-	// ------------------
-
-	@Override
-	Collection<String> getAllowedActions() {
-		[PhoneAction.DEACTIVATE, PhoneAction.TRANSFER, PhoneAction.NEW_NUM_BY_NUM,
-			PhoneAction.NEW_NUM_BY_ID]
-	}
-
 	// Methods
 	// -------
 
-	PhoneOwnershipType getTypeAsEnum() {
-		TypeConversionUtils.convertEnum(PhoneOwnershipType, this.type)
+	PhoneOwnershipType buildPhoneOwnershipType() {
+		TypeConversionUtils.convertEnum(PhoneOwnershipType, type)
 	}
 
-	PhoneNumber getPhoneNumber() {
-		new PhoneNumber(number:this.number)
-	}
+	PhoneNumber buildPhoneNumber() { PhoneNumber.create(number) }
 
-	// Property access
-	// ---------------
+	// Properties
+	// ----------
 
-	void setNumber(String num) {
-		// clean number before validate
-		this.number = (new PhoneNumber(number:num)).number
-	}
+	@Override
+	Collection<String> getAllowedActions() { [DEACTIVATE, TRANSFER, NEW_NUM_BY_NUM, NEW_NUM_BY_ID] }
+
+	void setNumber(String num) { number = StringUtils.cleanPhoneNumber(num) }
 }

@@ -10,36 +10,59 @@ import grails.compiler.GrailsTypeChecked
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Schedule implements WithId, Saveable {
+class Schedule implements WithId, Saveable<Schedule> {
 
-    // Availability
-    // ------------
+    boolean manualSchedule = true
+    boolean manualIsAvailable = true
 
-    boolean isAvailableAt(DateTime dt) {
-        IOCUtils.resultFactory.success(false)
+    String sunday = ""
+    String monday = ""
+    String tuesday = ""
+    String wednesday = ""
+    String thursday = ""
+    String friday = ""
+    String saturday = ""
+
+    static constraints = {
+        sunday validator:{ String val ->
+            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+        }
+        monday validator:{ String val ->
+            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+        }
+        tuesday validator:{ String val ->
+            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+        }
+        wednesday validator:{ String val ->
+            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+        }
+        thursday validator:{ String val ->
+            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+        }
+        friday validator:{ String val ->
+            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+        }
+        saturday validator:{ String val ->
+            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+        }
     }
+
+    static Result<Schedule> tryCreate() {
+
+    }
+
+    // Methods
+    // -------
+
     boolean isAvailableNow() {
-        isAvailableAt(DateTime.now(DateTimeZone.UTC))
+        isAvailableAt(DateTimeUtils.now())
     }
 
-    // Status changes
-    // --------------
-
-    Result<ScheduleChange> nextChange(String timezone=null) {
-        IOCUtils.resultFactory.success(new ScheduleChange(type:ScheduleStatus.AVAILABLE,
-            when:DateTime.now(DateTimeZone.UTC).minusDays(1)))
-    }
     Result<DateTime> nextAvailable(String timezone=null) {
-        IOCUtils.resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
+        IOCUtils.resultFactory.success(DateTimeUtils.now().minusDays(1))
     }
+
     Result<DateTime> nextUnavailable(String timezone=null) {
-        IOCUtils.resultFactory.success(DateTime.now(DateTimeZone.UTC).minusDays(1))
-    }
-
-    // Modify the Schedule
-    // -------------------
-
-    Result<Schedule> update(Map params) {
-        IOCUtils.resultFactory.success(this)
+        IOCUtils.resultFactory.success(DateTimeUtils.now().minusDays(1))
     }
 }

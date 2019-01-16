@@ -19,6 +19,7 @@ class Result<T> {
 
     private final List<Object> successArgs = []
     private final List<Object> failureArgs = []
+    private hasErrorBeenHandled = false // ensure only one failure handler is called in the chain
 
     // Static methods
     // --------------
@@ -36,16 +37,30 @@ class Result<T> {
     // -------
 
     public void thenEnd(Closure<?> successAction, Closure<?> failAction = null) {
-        this.success ? executeSuccess(successAction) : executeFailure(failAction)
+        getSuccess() ? tryExecuteSuccess(successAction) : tryExecuteFailure(failAction)
     }
 
     public <V> Result<V> then(Closure<Result<V>> successAction, Closure<Result<V>> failAction = null) {
-        this.success ? executeSuccess(successAction) : executeFailure(failAction)
+        getSuccess() ? tryExecuteSuccess(successAction) : tryExecuteFailure(failAction)
+    }
+
+    public <V> Result<V> ifFail(Closure<Result<V>> failAction) {
+        getSuccess() ? tryExecuteSuccess(null) : tryExecuteFailure(failAction)
+    }
+
+    public <V> Result<V> ifFail(String prefix, Closure<Result<V>> failAction) {
+        logFail(prefix)
+        ifFail(failAction)
+    }
+
+    public <V> Result<V> ifFail(String prefix, LogLevel level, Closure<Result<V>> failAction) {
+        logFail(prefix, level)
+        ifFail(failAction)
     }
 
     Result<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {
-        if (!this.success) {
-            String statusString = this.status.intStatus.toString()
+        if (!getSuccess()) {
+            String statusString = status.intStatus.toString()
             String msg = prefix
                 ? "${prefix}: ${statusString}: ${errorMessages}"
                 : "${statusString}: ${errorMessages}"
@@ -100,55 +115,43 @@ class Result<T> {
     // ---------------
 
     boolean getSuccess() {
-        this.status.isSuccess
+        status.isSuccess
     }
     Result<T> setSuccess(T success, ResultStatus status = ResultStatus.OK) {
-        this.status = status
-        this.payload = success
+        status = status
+        payload = success
         this
     }
     Result<T> setError(List<String> errors, ResultStatus status) {
-        this.status = status
-        this.errorMessages = errors
+        status = status
+        errorMessages = errors
         this
     }
 
     // Helpers
     // -------
 
-    protected <W> W executeSuccess(Closure<W> action) {
-        List<Object> args = new ArrayList<Object>(successArgs)
-        args << payload
-        args << status
-        execute(action, args)
+    protected <W> W tryExecuteSuccess(Closure<W> action) {
+        if (action) {
+            List<Object> args = new ArrayList<Object>(successArgs)
+            args << payload
+            args << status
+            execute(action, args)
+        }
+        else { this }
     }
-    protected <W> W executeFailure(Closure<W> action) {
-        List<Object> args = new ArrayList<Object>(failureArgs)
-        args << this
-        execute(action, args)
+    protected <W> W tryExecuteFailure(Closure<W> action) {
+        if (action && !hasErrorBeenHandled) {
+            hasErrorBeenHandled = true
+            List<Object> args = new ArrayList<Object>(failureArgs)
+            args << this
+            execute(action, args)
+        }
+        else { this }
     }
     protected <W> W execute(Closure<W> action, List<Object> args) {
-        if (!action) {
-            return this
-        }
         int maxNumArgs = action.maximumNumberOfParameters
-        List<Object> builtArgs = buildArgs(maxNumArgs, args)
-        Utils.callClosure(action, builtArgs.toArray())
-    }
-    protected List<Object> buildArgs(int maxNumArgs, List<Object> args) {
-        int numArgs = args.size()
-        if (maxNumArgs == 0) {
-            []
-        }
-        else if (numArgs == maxNumArgs) {
-            args
-        }
-        else if (numArgs > maxNumArgs) {
-            args[0..(maxNumArgs - 1)]
-        }
-        else { // numArgs < maxNumArgs
-            args.addAll(Collections.nCopies(maxNumArgs - numArgs, null))
-            args
-        }
+        List<Object> validArgs = ResultUtils.buildArgs(maxNumArgs, args)
+        ResultUtils.callClosure(action, validArgs.toArray())
     }
 }

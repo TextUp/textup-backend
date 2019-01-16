@@ -13,42 +13,45 @@ import org.textup.type.*
 @Transactional
 class FutureMessageJobService {
 
-    AuthService authService
     NotificationService notificationService
     OutgoingMessageService outgoingMessageService
     OutgoingNotificationService outgoingNotificationService
-    Scheduler quartzScheduler
     SocketService socketService
     ThreadService threadService
 
-    @Transactional(readOnly=true)
-    Result<Void> schedule(FutureMessage fMsg) {
+    @Transactional(readOnly = true)
+    Result<Void> trySchedule(FutureMessage fMsg) {
+        // TODO check to see if calling save before messes up the isNew check
+        if (!DomainUtils.isNew(fMsg) && !fMsg.shouldReschedule) {
+            return IOCUtils.resultFactory.success()
+        }
         try {
-            TriggerKey trigKey = fMsg.triggerKey
-            Trigger trig = quartzScheduler.getTrigger(trigKey)
-            TriggerBuilder builder = trig ? trig.triggerBuilder : TriggerBuilder.newTrigger()
-            Trigger newTrig = buildTrigger(trigKey, builder, fMsg)
-            // schedule or reschedule trigger
-            Date nextFire = trig ? quartzScheduler.rescheduleJob(trigKey, newTrig) :
-                quartzScheduler.scheduleJob(newTrig)
-            if (nextFire) { // rescheduleJob can return null if unsuccessful
-                IOCUtils.resultFactory.success()
-            }
-            else {
-                IOCUtils.resultFactory.failWithCodeAndStatus("futureMessageService.schedule.unspecifiedError",
-                    ResultStatus.INTERNAL_SERVER_ERROR)
-            }
+            QuartzUtils.tryBuildTrigger(fMsg)
+                .then { Tuple<Trigger, Trigger> tup1 ->
+                    Tuple.split(tup1) { Trigger newTrigger, Trigger oldTrigger ->
+                        Date nextFire = oldTrigger ?
+                            IOCUtils.quartzScheduler.rescheduleJob(fMsg.triggerKey, newTrigger) :
+                            IOCUtils.quartzScheduler.scheduleJob(newTrigger)
+                        // rescheduleJob can return null if unsuccessful
+                        if (nextFire) {
+                            IOCUtils.resultFactory.success()
+                        }
+                        else {
+                            IOCUtils.resultFactory.failWithCodeAndStatus(
+                                "futureMessageService.schedule.unspecifiedError",
+                                ResultStatus.INTERNAL_SERVER_ERROR)
+                        }
+                    }
+                }
         }
         catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
     }
 
-    @Transactional(readOnly=true)
+    @Transactional(readOnly = true)
     Result<Void> unschedule(FutureMessage fMsg) {
         try {
-            if (!quartzScheduler.unscheduleJob(fMsg.triggerKey)) {
-                log.debug("FutureMessageService.unschedule: tried to unschedule \
-                    nonexistent trigger with key ${fMsg.triggerKey} for \
-                    message with id ${fMsg.id}")
+            if (!IOCUtils.quartzScheduler.unscheduleJob(fMsg.triggerKey)) {
+                log.debug("unschedule: tried to unschedule nonexistent trigger with key ${fMsg.triggerKey} for message with id ${fMsg.id}")
             }
             IOCUtils.resultFactory.success()
         }
@@ -60,61 +63,75 @@ class FutureMessageJobService {
         fMsgs?.each { FutureMessage fMsg -> resGroup << cancel(fMsg) }
         resGroup
     }
-    protected Result<FutureMessage> cancel(FutureMessage fMsg) {
-        unschedule(fMsg)
-            .logFail("FutureMessageJobService.cancel")
-            .then {
-                fMsg.isDone = true
-                if (fMsg.save()) {
-                    IOCUtils.resultFactory.success(fMsg)
+
+    @RollbackOnResultFailure
+    Result<Void> execute(String futureKey, Long staffId) {
+        FutureMessages.mustFindForKey(futureKey)
+            .then { FutureMessage fMsg -> Staffs.mustFindForId(staffId) }
+            .then { FutureMessage fMsg, Staff s1 ->
+                TempRecordItem.tryCreate(fMsg.message, fMsg.media, null).curry(fMsg, s1)
+            }
+            .then { FutureMessage fMsg, Staff s1, TempRecordItem temp1 ->
+                Collection<PhoneRecord> pRecs = PhoneRecords
+                    .buildActiveForRecordIds([fMsg.record.id])
+                    .list()
+                int max = ValidationUtils.MAX_NUM_TEXT_RECIPIENTS
+                Recipients.tryCreate(pRecs, fMsg.language, max).curry(fMsg, s1, temp1)
+            }
+            .then { FutureMessage fMsg, Staff s1, TempRecordItem temp1, Recipients r1 ->
+                RecordItemType rType = fMsg.type.toRecordItemType()
+                outgoingMessageService.tryStart(rType, r1, temp1, s1.toAuthor()).curry(fMsg)
+            }
+            .then { FutureMessage fMsg, Tuple<List<RecordItem>, Future<?>> processed ->
+                Tuple.split(processed) { List<RecordItem> rItems, Future<?> fut1 ->
+                    rItems.each { RecordItem item1 -> item1.wasScheduled = true }
+                    tryNotifySelf(fMsg, fut1, rItems)
+                    DomainUtils.trySaveAll(rItems)
                 }
-                else { IOCUtils.resultFactory.failWithValidationErrors(fMsg.errors) }
             }
     }
 
-    @RollbackOnResultFailure
-    ResultGroup<RecordItem> execute(String futureKey, Long staffId) {
-        FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
-        if (!fMsg) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus(
-                "futureMessageService.execute.messageNotFound", ResultStatus.NOT_FOUND).toGroup()
-        }
-        Result<OutgoingMessage> msgRes = fMsg.tryGetOutgoingMessage()
-        if (!msgRes.success) {
-            return msgRes.toGroup()
-        }
-        OutgoingMessage msg = msgRes.payload
-        Phone[] phones = msg.phones.toArray() as Phone[]
-        if (!phones || !phones[0]) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus(
-                "futureMessageService.execute.phoneNotFound", ResultStatus.NOT_FOUND).toGroup()
-        }
-        Phone p1 = phones[0]
-        // Don't need to send through socket here because status callback will send through socket
-        // after the messages and processed and sent out
-        Tuple<ResultGroup<RecordItem>, Future<?>> processed = outgoingMessageService
-            .processMessage(p1, msg, Staff.get(staffId))
-        ResultGroup<RecordItem> resGroup = processed.first
-        Future<?> future = processed.second
-        // mark all these record items as having been scheduled originally
-        resGroup.payload.each { RecordItem item1 -> item1.wasScheduled = true }
-        // notify staffs is any successes
-        if (fMsg.notifySelf && resGroup.anySuccesses) {
-            notificationService.build(resGroup.payload)
+    @OptimisticLockingRetry
+    Result<FutureMessage> markDone(String futureKey) {
+        FutureMessages.mustFindForKey(futureKey)
+            .then { FutureMessage fMsg ->
+                fMsg.isDone = true
+                socketService.sendFutureMessages([fMsg]) // socketService will refresh trigger
+                DomainUtils.trySave(fMsg)
+            }
+    }
+
+    // Helpers
+    // -------
+
+    protected Result<FutureMessage> cancel(FutureMessage fMsg) {
+        unschedule(fMsg)
+            .logFail("cancel")
+            .then {
+                fMsg.isDone = true
+                DomainUtils.trySave(fMsg)
+            }
+    }
+
+    // TODO finish when notifications revamped
+    protected void tryNotifySelf(FutureMessage fMsg, Future<?> future, Collection<RecordItem> rItems) {
+        if (fMsg.notifySelf) {
+            notificationService
+                .build(rItems)
+                .logFail("execute: building notify self")
                 .then { List<OutgoingNotification> notifs ->
                     // wait for the future to finish ASYNCHRONOUSLY to avoid blocking this method
                     // to allow the record items to save. Otherwise, when the future resolves, the ids
                     // will point to non-existent items because we blocked the parent method from saving here
                     threadService.submit {
-                        notifySelf(future, resGroup.payload*.id, fMsg.message, notifs)
+                        notifySelf(future, rItems*.id, fMsg.message, notifs)
                             .logFail("execute: notifying self")
                     }
                 }
-                .logFail("execute: building notifications for notify self")
         }
-        resGroup
     }
 
+    // TODO finish when notifications revamped
     protected ResultGroup<RecordItem> notifySelf(Future<?> future, Collection<Long> itemIds,
         String message, List<OutgoingNotification> notifs) {
         // wait for processing and sending to finish. This Future SHOULD be resolve quickly
@@ -137,42 +154,9 @@ class FutureMessageJobService {
             }
             else { didFindAll = false }
         }
-        if (!didFindAll) { log.error("notifySelf: did not find all items with ids: ${itemIds}") }
+        if (!didFindAll) {
+            log.error("notifySelf: did not find all items with ids: ${itemIds}")
+        }
         saveFailiures
-    }
-
-    @OptimisticLockingRetry
-    Result<FutureMessage> markDone(String futureKey) {
-        FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
-        if (!fMsg) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("futureMessageService.markDone.messageNotFound",
-                ResultStatus.NOT_FOUND, [futureKey])
-        }
-        fMsg.isDone = true
-        if (fMsg.save()) {
-            socketService.sendFutureMessages([fMsg]) // socketService will refresh trigger
-            IOCUtils.resultFactory.success(fMsg)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(fMsg.errors) }
-    }
-
-    // Helpers
-    // -------
-
-    protected Trigger buildTrigger(TriggerKey trigKey, TriggerBuilder builder, FutureMessage fMsg) {
-        builder
-            .forJob(FutureMessageJob.class.canonicalName)
-            .withIdentity(trigKey)
-            .startAt(fMsg.startDate?.toDate())
-            .usingJobData(Constants.JOB_DATA_FUTURE_MESSAGE_KEY, fMsg.keyName)
-            .usingJobData(Constants.JOB_DATA_STAFF_ID, authService.loggedInAndActive?.id)
-        if (fMsg.endDate) {
-            builder.endAt(fMsg.endDate.toDate())
-        }
-        ScheduleBuilder sBuilder = fMsg.scheduleBuilder
-        if (sBuilder) {
-            builder.withSchedule(sBuilder)
-        }
-        builder.build()
     }
 }

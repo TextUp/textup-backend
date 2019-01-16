@@ -16,20 +16,21 @@ class MediaActionService implements HandlesActions<MediaInfo, ResultGroup<Upload
     boolean hasActions(Map body) { !!body.doMediaActions }
 
     @Override
-    Result<ResultGroup<UploadItem>> tryHandleActions(MediaInfo mInfo, Map body) {
+    Result<List<UploadItem>> tryHandleActions(MediaInfo mInfo, Map body) {
         ActionContainer.tryProcess(MediaAction, body.doMediaActions)
             .then { List<MediaAction> actions ->
                 ResultGroup<UploadItem> outcomes = new ResultGroup<>()
                 actions.each { MediaAction a1 ->
                     switch (a1) {
                         case MediaAction.ADD:
-                            outcomes << MediaPostProcessor.buildInitialData(a1.type, a1.byteData)
+                            outcomes << MediaPostProcessor
+                                .buildInitialData(a1.buildType(), a1.buildByteData())
                             break
                         default: // MediaAction.REMOVE
                             mInfo.removeMediaElement(a1.uid)
                     }
                 }
-                IOCUtils.resultFactory.success(outcomes)
+                outcomes.toResult(false)
             }
     }
 }
