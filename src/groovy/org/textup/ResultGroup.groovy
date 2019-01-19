@@ -28,6 +28,12 @@ class ResultGroup<T> {
 		resGroup
 	}
 
+	static <K, V, O> ResultGroup<O> collect(Map<K, V> objs, Closure<Result<O>> action) {
+		ResultGroup<O> resGroup = new ResultGroup<>()
+		objs?.each { K key, V value -> resGroup << action(key, value) }
+		resGroup
+	}
+
 	// Methods
 	// -------
 

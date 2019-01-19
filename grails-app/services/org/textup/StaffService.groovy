@@ -25,7 +25,6 @@ class StaffService {
                     body.string("password"), body.string("email"))
             }
             .then { Staff s1 -> trySetFields(s1, body, timezone) }
-            .then { Staff s1 -> tryUpdateSchedule(s1, body, timezone) }
             .then { Staff s1 -> trySetLockCode(s1, body.string("lockCode")) }
             .then { Staff s1 -> trySetStatus(s1, body.enum(StaffStatus, "status")) }
             .then { Staff s1 ->
@@ -38,7 +37,6 @@ class StaffService {
     Result<Staff> update(Long staffId, TypeMap body, String timezone) {
         Staffs.mustFindForId(staffId)
             .then { Staff s1 -> trySetFields(s1, body, timezone) }
-            .then { Staff s1 -> tryUpdateSchedule(s1, body, timezone) }
             .then { Staff s1 -> trySetLockCode(s1, body.string("lockCode")) }
             .then { Staff s1 -> trySetStatus(s1, body.enum(StaffStatus, "status")) }
             .then { Staff s1 ->
@@ -98,12 +96,6 @@ class StaffService {
         DomainUtils.trySave(s1)
     }
 
-    protected Result<?> tryUpdateSchedule(Staff s1, TypeMap body, String timezone) {
-        body.typeMapNoNull("schedule") ?
-            scheduleService.update(s1, body, timezone) :
-            IOCUtils.resultFactory.success()
-    }
-
     protected Result<Status> trySetLockCode(Staff s1, String lockCode) {
         if (lockCode) {
             // Need to validate here because, once saved, the lock code is obfuscated
@@ -116,6 +108,7 @@ class StaffService {
         DomainUtils.trySave(s1)
     }
 
+    // TODO should be prevent against the zero admin scenario???
     protected Result<Staff> trySetStatus(Staff s1, StaffStatus newStatus) {
         // Only want to do admin check if the user is attempting to update this
         if (!newStatus) {

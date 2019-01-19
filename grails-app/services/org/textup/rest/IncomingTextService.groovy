@@ -10,41 +10,42 @@ class IncomingTextService {
     AnnouncementCallbackService announcementCallbackService
     IncomingMediaService incomingMediaService
     NotificationService notificationService
-    OutgoingNotificationService outgoingNotificationService
     SocketService socketService
     ThreadService threadService
 
-    Result<Closure> processText(Phone p1, IncomingText text, IncomingSession sess1,
-        TypeMap params) {
-
+    Result<Closure> process(Phone p1, IncomingSession is1, String apiId, String message,
+        Integer numSegments, List<IncomingMediaInfo> media = null) {
         // step 1: build texts
-        buildTexts(p1, text, sess1)
-            .then { List<RecordText> texts -> notificationService.build(texts).curry(texts) }
-            .then { List<RecordText> texts, List<OutgoingNotification> notifs ->
+        buildTexts(p1, is1, apiId, message, numSegments)
+            .then { List<RecordText> texts ->
+                NotificationUtils.tryBuildNotificationGroup(texts).curry(texts)
+            }
+            .then { List<RecordText> texts, NotificationGroup notifGroup ->
                 // step 2: in a new thread, handle long-running tasks. Delay required to allow texts
                 // created in this thread to save. Otherwise, when we try to get texts with the
                 // following ids, they will have be saved yet and we will get `null` in return
                 threadService.delay(5, TimeUnit.SECONDS) {
-                    finishProcessingText(text, texts*.id, notifs, params)
-                        .logFail("processText: finishing processing")
+                    processMedia(apiId, media, notifGroup.dehydrate())
+                        .logFail("process: finishing processing")
                 }
                 // step 3: return the appropriate response while long-running tasks still processing
-                buildTextResponse(p1, sess1, texts, notifs)
+                buildTextResponse(p1, is1, texts, notifGroup)
             }
     }
 
-    protected Result<Tuple<List<RecordText>, List<Contact>>> buildTexts(Phone p1, IncomingText text,
-        IncomingSession is1) {
+    protected Result<Tuple<List<RecordText>, List<Contact>>> buildTexts(Phone p1,
+        IncomingSession is1, String apiId, String message, Integer numSegments) {
 
         PhoneRecordUtils.tryMarkUnread(p1, is1.number)
             .then { List<IndividualPhoneRecordWrapper> wrappers ->
-
-                // socketService.sendContacts(wrappers) // TODO
-                //     .logFail("PhoneRecordUtils.tryMarkUnread: sending via socket")
-
-                ResultGroup.collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
+                socketService.sendIndividualWrappers(wrappers)
+                ResultGroup
+                    .collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
                         w1.tryGetRecord()
-                            .then { Record rec1 -> rec1.storeIncomingText(text, is1) }
+                            .then { Record rec1 ->
+                                rec1.storeIncoming(RecordItemType.TEXT, is1.toAuthor(), is1.number,
+                                    apiId, message, numSegments)
+                            }
                             .then { RecordText rText1 ->
                                 rText1.addReceipt(rpt)
                                 DomainUtils.trySave(rText1)
@@ -56,11 +57,11 @@ class IncomingTextService {
     }
 
     protected Result<Closure> buildTextResponse(Phone p1, IncomingSession is1,
-        List<RecordText> rTexts, List<OutgoingNotification> notifs) {
+        List<RecordText> rTexts, NotificationGroup notifGroup) {
 
         if (rTexts) {
             List<String> responses = []
-            if (notifs.isEmpty()) {
+            if (!notifGroup.canNotifyAny(NotificationFrequency.IMMEDIATELY)) {
                 rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
                 responses << p1.buildAwayMessage()
             }
@@ -72,68 +73,41 @@ class IncomingTextService {
         else { TextTwiml.blocked() }
     }
 
-    protected Result<Void> finishProcessingText(IncomingText text, List<Long> textIds,
-        List<OutgoingNotification> notifs, TypeMap params) {
+    protected Result<Void> processMedia(String apiId, List<IncomingMediaInfo> media,
+        Rehydratable<NotificationGroup> dnGroup) {
 
-        Integer numMedia = params.int("NumMedia", 0)
-        // if needed, process media, which includes generating versions, uploading versions,
-        // and deleting copies stored by Twilio
-        if (numMedia > 0) {
-            ResultGroup<MediaElement> outcomes = incomingMediaService
-                .process(TwilioUtils.buildIncomingMedia(numMedia, text.apiId, params))
-            MediaInfo mInfo = new MediaInfo()
-            for (MediaElement el1 in outcomes.payload) {
-                mInfo.addToMediaElements(el1)
-            }
-            if (mInfo.save()) {
-                finishProcessingTextHelper(text, textIds, notifs, mInfo)
-            }
-            else { IOCUtils.resultFactory.failWithValidationErrors(mInfo.errors) }
-        }
-        else { finishProcessingTextHelper(text, textIds, notifs) }
-    }
-
-    protected Result<Void> finishProcessingTextHelper(IncomingText text, List<Long> textIds,
-        List<OutgoingNotification> notifs, MediaInfo mInfo = null) {
-
-        Collection<RecordText> rTexts = rebuildRecordTexts(textIds)
-        int numNotified = notifs.size()
-        ResultGroup<RecordText> outcomes = new ResultGroup<>()
-        rTexts.each { RecordText rText ->
-            rText.media = mInfo
-            rText.numNotified = numNotified
-            if (!rText.save()) {
-                outcomes << IOCUtils.resultFactory.failWithValidationErrors(rText.errors)
-            }
-        }
-        if (!outcomes.anyFailures) {
-            // send out notifications
-            outgoingNotificationService.send(notifs, false, text.message)
-                .logFail("finishProcessingTextHelper: notifying staff")
-            // For outgoing messages and all calls, we rely on status callbacks
-            // to push record items to the frontend. However, for incoming texts
-            // no status callback happens so we need to push the item here
-            socketService.sendItems(rTexts)
-                .logFail("finishProcessingTextHelper: sending via socket")
-            IOCUtils.resultFactory.success()
-        }
-        else { IOCUtils.resultFactory.failWithGroup(outcomes) }
-    }
-
-    protected Collection<RecordText> rebuildRecordTexts(Collection<Long> textIds) {
-        Collection<RecordText> rTexts = []
-        boolean didFindAll = true
-        RecordText
-            .getAll(textIds as Iterable<Serializable>)
-            .each { RecordText rText ->
-                if (rText) {
-                    rTexts << rText
+        dnGroup.tryRehydrate()
+            .then { NotificationGroup notifGroup ->
+                if (media) {
+                    incomingMediaService.process(media)
+                        .then { List<MediaElement> els -> MediaInfo.tryCreate().curry(els) }
+                        .then { List<MediaElement> els, MediaInfo mInfo ->
+                            els.each { MediaElement el1 -> mInfo.addToMediaElements(el1) }
+                            DomainUtils.trySave(mInfo)
+                        }
+                        .then { MediaInfo mInfo -> finishProcessing(notifGroup, mInfo) }
                 }
-                else { didFindAll = false }
+                else { finishProcessing(notifGroup) }
             }
-        if (!didFindAll) {
-            log.error("rebuildRecordTexts: not all texts found from ids `${textIds}`")
+    }
+
+    protected Result<Void> finishProcessing(NotificationGroup notifGroup, MediaInfo mInfo = null) {
+        ResultGroup<RecordItem> resGroup = new ResultGroup<>()
+        notifGroup.eachItem { RecordItem rItem1 ->
+            rItem1.media = mInfo
+            rItem1.numNotified = notifGroup.getNumNotifiedForItemId(rItem1.id)
+            resGroup << DomainUtils.trySave(rItem1)
         }
-        rTexts
+        resGroup.toResult(false)
+            .then { List<RecordItem> rItems ->
+                // send out notifications
+                notificationService.send(NotificationFrequency.IMMEDIATELY, notifGroup)
+                    .logFail("finishProcessing: notifying staff")
+                // For outgoing messages and all calls, we rely on status callbacks
+                // to push record items to the frontend. However, for incoming texts
+                // no status callback happens so we need to push the item here
+                socketService.sendItems(rItems)
+                IOCUtils.resultFactory.success()
+            }
     }
 }

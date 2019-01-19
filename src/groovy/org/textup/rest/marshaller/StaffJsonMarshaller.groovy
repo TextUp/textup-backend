@@ -20,16 +20,11 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             name = s1.name
             email = s1.email
             status = s1.status.toString()
-            schedule  = s1.schedule
             phone = s1.phone
             hasInactivePhone = s1.hasInactivePhone
             channelName = s1.channelName
-            // manual schedule fields
-            manualSchedule = s1.manualSchedule
-            if (s1.manualSchedule == true) {
-                isAvailable = s1.isAvailable
-            }
         }
+        // TODO
         AuthService authService = grailsApplication.mainContext.getBean(AuthService)
         if (authService.isLoggedIn(s1.id) || authService.isAdminAtSameOrgAs(s1.id)) {
             json.with {

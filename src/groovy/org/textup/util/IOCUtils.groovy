@@ -38,6 +38,15 @@ class IOCUtils {
             params: linkParams)
     }
 
+    static String getHandleLink(String handle, Map linkParams = [:]) {
+        linkParams.put(CallbackUtils.PARAM_HANDLE, handle)
+        IOCUtils.linkGenerator.link(namespace: "v1",
+            resource: "publicRecord",
+            action: "save",
+            absolute: true,
+            params: linkParams)
+    }
+
     static String getMessage(String code, List params = []) {
         try {
             IOCUtils.messageSource.getMessage(code, params as Object[], LCH.getLocale())

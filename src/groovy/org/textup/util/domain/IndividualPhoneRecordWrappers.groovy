@@ -70,7 +70,7 @@ class IndividualPhoneRecordWrappers {
     //             IOCUtils.resultFactory.failWithGroup(resGroup)
     //         }
     //         else {
-    //             socketService.sendContacts(contacts)
+    //             socketService.sendIndividualWrappers(contacts)
     //             IOCUtils.resultFactory.success(contacts)
     //         }
     //     }

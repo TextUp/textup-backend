@@ -33,30 +33,6 @@ class Utils {
         else { IOCUtils.resultFactory.failWithValidationErrors(fromNum.errors) }
     }
 
-    // Request
-    // -------
-
-    static Result<Void> trySetOnRequest(String key, Object obj) {
-        try {
-            WebUtils.retrieveGrailsWebRequest().currentRequest.setAttribute(key, obj)
-            IOCUtils.resultFactory.success()
-        }
-        catch (IllegalStateException e) {
-            IOCUtils.resultFactory.failWithThrowable(e)
-        }
-    }
-
-    static <T> Result<T> tryGetFromRequest(String key) {
-        try {
-            HttpServletRequest req = WebUtils.retrieveGrailsWebRequest().currentRequest
-            Object obj = req.getAttribute(key) ?: req.getParameter(key)
-            IOCUtils.resultFactory.success(TypeConversionUtils.to(T, obj))
-        }
-        catch (IllegalStateException e) {
-            IOCUtils.resultFactory.failWithThrowable(e)
-        }
-    }
-
     // Properties
     // ----------
 

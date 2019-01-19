@@ -96,7 +96,7 @@ class UsageService {
         BigDecimal getNumTexts() { numOutgoingTexts + numIncomingTexts }
         BigDecimal getNumSegments() { numOutgoingSegments + numIncomingSegments }
         BigDecimal getTextCost() {
-            (numSegments + numNotificationTexts) * Constants.UNIT_COST_TEXT
+            (numSegments + numNotificationTexts) * UsageUtils.UNIT_COST_TEXT
         }
 
         BigDecimal getNumCalls() { numOutgoingCalls + numIncomingCalls }
@@ -104,7 +104,7 @@ class UsageService {
         BigDecimal getNumBillableMinutes() { numOutgoingBillableMinutes + numIncomingBillableMinutes }
 
         BigDecimal getCallCost() {
-            (numBillableMinutes + numBillableVoicemailMinutes) * Constants.UNIT_COST_CALL
+            (numBillableMinutes + numBillableVoicemailMinutes) * UsageUtils.UNIT_COST_CALL
         }
     }
 
@@ -114,7 +114,7 @@ class UsageService {
         UsageService.ActivityRecord activity = new ActivityRecord()
 
         BigDecimal getTotalCost() {
-            activity.textCost + activity.callCost + Constants.UNIT_COST_NUMBER
+            activity.textCost + activity.callCost + UsageUtils.UNIT_COST_NUMBER
         }
     }
 
@@ -124,7 +124,7 @@ class UsageService {
 
         @Override
         BigDecimal getTotalCost() {
-            activity.textCost + activity.callCost + (totalNumPhones * Constants.UNIT_COST_NUMBER)
+            activity.textCost + activity.callCost + (totalNumPhones * UsageUtils.UNIT_COST_NUMBER)
         }
     }
 

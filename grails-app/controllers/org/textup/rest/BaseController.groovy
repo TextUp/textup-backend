@@ -272,7 +272,7 @@ class BaseController {
             case Phone: return "phone"
             case RecordItem: return "record"
             case RecordItemRequest: return "recordItemRequest"
-            case RecordItemStatus: return "recordItemStatus"
+            case RecordItemReceiptInfo: return "recordItemReceiptInfo"
             case RecordNoteRevision: return "revision"
             case Schedule: return "schedule"
             case Staff: return "staff"

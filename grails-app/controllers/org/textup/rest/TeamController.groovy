@@ -50,7 +50,7 @@ class TeamController extends BaseController {
     @Transactional(readOnly=true)
     def index() {
         if (params.timezone) { //for the json marshaller
-            request.setAttribute(Constants.REQUEST_TIMEZONE, params.timezone as String)
+            request.setAttribute(RequestUtils.TIMEZONE, params.timezone as String)
         }
         Closure<Integer> count
         Closure<List<Team>> list
@@ -94,7 +94,7 @@ class TeamController extends BaseController {
     @Transactional(readOnly=true)
     def show() {
         if (params.timezone) { //for the json marshaller
-            request.setAttribute(Constants.REQUEST_TIMEZONE, params.timezone as String)
+            request.setAttribute(RequestUtils.TIMEZONE, params.timezone as String)
         }
         Team t1 = Team.get(params.long("id"))
         if (t1) {
@@ -132,7 +132,7 @@ class TeamController extends BaseController {
         if (tInfo == null) { return }
         String tz = params.timezone as String
         if (tz) { //for the json marshaller
-            request.setAttribute(Constants.REQUEST_TIMEZONE, tz)
+            request.setAttribute(RequestUtils.TIMEZONE, tz)
         }
         respondWithResult(Team, teamService.create(tInfo, tz))
     }
@@ -162,7 +162,7 @@ class TeamController extends BaseController {
         if (tInfo == null) { return }
         String tz = params.timezone as String
         if (params.timezone) { //for the json marshaller
-            request.setAttribute(Constants.REQUEST_TIMEZONE, tz)
+            request.setAttribute(RequestUtils.TIMEZONE, tz)
         }
         Long id = params.long("id")
         if (authService.exists(Team, id)) {

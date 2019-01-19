@@ -3,6 +3,8 @@ package org.textup.rest
 import org.textup.*
 import grails.compiler.GrailsTypeChecked
 
+// TODO remove this class
+
 @GrailsTypeChecked
 class StaffPolicyAvailability {
 
@@ -25,7 +27,7 @@ class StaffPolicyAvailability {
         jointId = buildJointId(p1, s1)
         name = s1.name
 
-        NotificationPolicy np1 = p1.owner.findPolicyForStaff(s1.id)
+        OwnerPolicy np1 = p1.owner.findPolicyForStaff(s1.id)
         if (np1) {
             useStaffAvailability = np1.useStaffAvailability
             initAvailability(np1, true)
@@ -36,6 +38,7 @@ class StaffPolicyAvailability {
         }
     }
 
+    // TODO remove Schedulable
     protected void initAvailability(Schedulable sched1, boolean includeDetails) {
         isAvailableNow = sched1.isAvailableNow()
 

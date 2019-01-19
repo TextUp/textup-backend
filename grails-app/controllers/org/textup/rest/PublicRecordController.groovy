@@ -33,7 +33,7 @@ class PublicRecordController extends BaseController {
         if (!res.success) {
             respondWithResult(Void, res)
         }
-        else if (paramsMap.handle == Constants.CALLBACK_STATUS) {
+        else if (paramsMap.handle == CallbackUtils.STATUS) {
             // Moved creation of new thread to PublicRecordController to avoid self-calls.
             // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
             // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies

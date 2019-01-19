@@ -1,6 +1,6 @@
 import org.codehaus.groovy.grails.validation.ConstrainedProperty
-import org.textup.Constants
-import org.textup.util.CascadeValidationConstraint
+import org.textup.*
+import org.textup.util.*
 
 // locations to search for config files that get merged into the main config;
 // config files can be ConfigSlurper scripts, Java properties files, or classes
@@ -236,7 +236,7 @@ grails.plugins.restapidoc.outputFileReading="restapidoc.json"
 grails.doc.title    = "TextUp"
 grails.doc.subtitle = "A getting started guide to the backend and frontend codebases that make up the TextUp application"
 grails.doc.authors  = "Eric Bai"
-grails.doc.license  = "MIT"
+grails.doc.license  = "Apache 2.0"
 
 // Custom constraints
 ConstrainedProperty.registerNewConstraint(
@@ -273,16 +273,16 @@ textup {
         setupAccount   = System.getenv("TEXTUP_BACKEND_URL_SETUP_ACCOUNT") ?: System.getProperty("TEXTUP_BACKEND_URL_SETUP_ACCOUNT")
         superDashboard = System.getenv("TEXTUP_BACKEND_URL_SUPER_DASHBOARD") ?: System.getProperty("TEXTUP_BACKEND_URL_SUPER_DASHBOARD")
         passwordReset  = System.getenv("TEXTUP_BACKEND_URL_PASSWORD_RESET") ?: System.getProperty("TEXTUP_BACKEND_URL_PASSWORD_RESET")
-        notifyMessage  = System.getenv("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE") ?: System.getProperty("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE")
+        notification   = System.getenv("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE") ?: System.getProperty("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE")
     }
     apiKeys {
         twilio {
             appId              = System.getenv("TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID")
             authToken          = System.getenv("TEXTUP_BACKEND_TWILIO_AUTH") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_AUTH")
-            available          ="unassigned"
+            available          = "unassigned"
             notificationNumber = System.getenv("TEXTUP_BACKEND_TWILIO_NOTIFICATIONS_NUMBER") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_NOTIFICATIONS_NUMBER")
             sid                = System.getenv("TEXTUP_BACKEND_TWILIO_SID") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_SID")
-            unavailable        ="assigned"
+            unavailable        = "assigned"
         }
         aws {
             accessKey = System.getenv("TEXTUP_BACKEND_AWS_ACCESS_KEY") ?: System.getProperty("TEXTUP_BACKEND_AWS_ACCESS_KEY")
@@ -291,12 +291,13 @@ textup {
         sendGrid {
             apiKey = System.getenv("TEXTUP_BACKEND_SENDGRID_API_KEY") ?: System.getProperty("TEXTUP_BACKEND_SENDGRID_API_KEY")
             templateIds {
-                invited       = "87c36daa-c4a8-4f33-8539-22005cd252a8"
-                approved      = "7346d586-4466-4982-abfe-7a891e51c0a1"
-                pendingOrg    = "0f13e96f-e673-481f-95a0-8d1044b5afe9"
-                pendingStaff  = "9bb56ba3-902f-4207-8e75-3b2ebf347a51"
-                passwordReset = "b4e228a7-2b1e-4f80-a4dc-42eb3205c538"
-                rejected      = "d3287be3-b427-4010-9591-71d7aaf5f040"
+                invited       = "d-f142b47a7b5049e49cca2871132f4485"
+                approved      = "d-6aa01fad5a6947a2b1c81743f1de3727"
+                pendingOrg    = "d-04a41952661142f7a53f22b1f41b7724"
+                pendingStaff  = "d-7c84d21d641841a1878516b3af446d1e"
+                passwordReset = "d-9c05ebecf05f4c3695d6287866881040"
+                rejected      = "d-f3db46277d3e4c45a7d9bf808250e269"
+                notification  = "d-2afe7b9cd5ae44fc82debdd165ceeb05"
             }
             groupIds {
                 account = 8717
@@ -311,29 +312,29 @@ textup {
     rest {
         defaultLabel = "default" //default is to link to relationships
         v1 {
-            announcement            = [singular:"announcement", plural:"announcements"]
-            availableNumber         = [singular:"number", plural:"numbers"]
-            contact                 = [singular:"contact", plural:"contacts"]
-            futureMessage           = [singular:"future-message", plural:"future-messages"]
-            location                = [singular:"location", plural:"locations"]
-            mediaElement            = [singular:"mediaElement", plural: "mediaElements"]
-            mediaInfo               = [singular:"medium", plural: "media"]
-            mergeGroup              = [singular:"contact", plural: "contacts"]
-            notification            = [singular:"notification", plural:"notifications"]
-            notificationStatus      = [singular:"notification-status", plural:"notification-statuses"]
-            organization            = [singular:"organization", plural:"organizations"]
-            phone                   = [singular:"phone", plural:"phones"]
-            record                  = [singular:"record", plural:"records"]
-            recordItemRequest       = [singular:"record-request", plural:"record-requests"]
-            recordItemStatus        = [singular:"record-status", plural:"record-statuses"]
-            result                  = [singular:"result", plural:"results"]
-            revision                = [singular:"revision", plural:"revisions"]
-            schedule                = [singular:"schedule", plural:"schedules"]
-            session                 = [singular:"session", plural:"sessions"]
-            staff                   = [singular:"staff", plural:"staff"]
-            staffPolicyAvailability = [singular:"availability", plural:"availabilities"]
-            tag                     = [singular:"tag", plural:"tags"]
-            team                    = [singular:"team", plural:"teams"]
+            announcement            = [singular: "announcement", plural: "announcements"]
+            availableNumber         = [singular: "number", plural: "numbers"]
+            contact                 = [singular: "contact", plural: "contacts"]
+            futureMessage           = [singular: "future-message", plural: "future-messages"]
+            location                = [singular: "location", plural: "locations"]
+            mediaElement            = [singular: "mediaElement", plural:  "mediaElements"]
+            mediaInfo               = [singular: "medium", plural:  "media"]
+            mergeGroup              = [singular: "contact", plural:  "contacts"]
+            notification            = [singular: "notification", plural: "notifications"]
+            notificationStatus      = [singular: "notification-status", plural: "notification-statuses"]
+            organization            = [singular: "organization", plural: "organizations"]
+            phone                   = [singular: "phone", plural: "phones"]
+            record                  = [singular: "record", plural: "records"]
+            recordItemRequest       = [singular: "record-request", plural: "record-requests"]
+            recordItemReceiptInfo   = [singular: "receipt-info", plural: "receipt-info"]
+            result                  = [singular: "result", plural: "results"]
+            revision                = [singular: "revision", plural: "revisions"]
+            schedule                = [singular: "schedule", plural: "schedules"]
+            session                 = [singular: "session", plural: "sessions"]
+            staff                   = [singular: "staff", plural: "staff"]
+            staffPolicyAvailability = [singular: "availability", plural: "availabilities"]
+            tag                     = [singular: "tag", plural: "tags"]
+            team                    = [singular: "team", plural: "teams"]
         }
     }
 }

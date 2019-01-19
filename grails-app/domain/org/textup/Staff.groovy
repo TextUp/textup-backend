@@ -12,18 +12,15 @@ import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Staff implements Schedulable, WithId, Saveable<Staff> {
+class Staff implements WithId, Saveable<Staff> {
 
     boolean enabled = true
     boolean accountExpired
     boolean accountLocked
     boolean passwordExpired
 
-    boolean isAvailable = true
-    boolean manualSchedule = true
     DateTime whenCreated = DateTimeUtils.now()
     Organization org
-    Schedule schedule
     StaffStatus status
     String email
     String lockCode = Constants.DEFAULT_LOCK_CODE
@@ -37,7 +34,6 @@ class Staff implements Schedulable, WithId, Saveable<Staff> {
         cache usage: "read-write", include: "non-lazy"
         whenCreated type: PersistentDateTime
         password column: "`password`"
-        schedule fetch: "join", cascade: "save-update"
     }
 	static constraints = {
 		username blank:false, unique:true, validator: { String val ->
@@ -49,14 +45,12 @@ class Staff implements Schedulable, WithId, Saveable<Staff> {
         personalPhoneAsString blank:true, nullable:true, validator:{ String val, Staff obj ->
             if (val && !ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
         }
-        schedule cascadeValidation: true
 	}
 
-    static Result<Staff> tryCreate(Role r1, Organization org1, String name, String username,
-        String password, String email) {
+    static Result<Staff> tryCreate(Role r1, Organization org1, String name, String un,
+        String pwd, String email) {
 
-        Staff s1 = new Staff(name: name, username: username, password: password, email: email,
-            org: org1, schedule: new WeeklySchedule())
+        Staff s1 = new Staff(name: name, username: un, password: pwd, email: email, org: org1)
         s1.status = DomainUtils.isNew(org1) ? StaffStatus.ADMIN : StaffStatus.PENDING
         DomainUtils.trySave(s1)
             .then { StaffRole.tryCreate(s1, r1) }
@@ -80,14 +74,7 @@ class Staff implements Schedulable, WithId, Saveable<Staff> {
     // Methods
     // -------
 
-    @Override
-    boolean isAvailableNow() {
-        manualSchedule ? isAvailable : schedule.isAvailableNow()
-    }
-
-    Author toAuthor() {
-        new Author(id: id, type: AuthorType.STAFF, name: name)
-    }
+    Author toAuthor() { new Author(id: id, type: AuthorType.STAFF, name: name) }
 
     // Properties
     // ----------

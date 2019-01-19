@@ -25,6 +25,11 @@ class IncomingSession implements WithId, Saveable<IncomingSession> {
         lastSentInstructions type: PersistentDateTime
     }
 
+    static Result<IncomingSession> tryCreate(Phone p1, BasePhoneNumber bNum) {
+        IncomingSession = is1 = new IncomingSession(phone: p1, number: bNum)
+        DomainUtils.trySave(is1, ResultStatus.CREATED)
+    }
+
     // Methods
     // -------
 

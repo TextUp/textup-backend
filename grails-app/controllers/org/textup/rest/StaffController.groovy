@@ -62,7 +62,7 @@ class StaffController extends BaseController {
     @Transactional(readOnly=true)
     def index() {
         if (params.timezone) { //for the json marshaller
-            request.setAttribute(Constants.REQUEST_TIMEZONE, params.timezone as String)
+            request.setAttribute(RequestUtils.TIMEZONE, params.timezone as String)
         }
         if (params.search) {
             listSearch(params)
@@ -145,7 +145,7 @@ class StaffController extends BaseController {
     @Transactional(readOnly=true)
     def show() {
         if (params.timezone) { //for the json marshaller
-            request.setAttribute(Constants.REQUEST_TIMEZONE, params.timezone as String)
+            request.setAttribute(RequestUtils.TIMEZONE, params.timezone as String)
         }
         Staff s1 = Staff.get(params.long("id"))
         if (s1) {
@@ -179,7 +179,7 @@ class StaffController extends BaseController {
         if (sInfo == null) { return }
         String tz = params.timezone as String
         if (tz) { //for the json marshaller
-            request.setAttribute(Constants.REQUEST_TIMEZONE, tz)
+            request.setAttribute(RequestUtils.TIMEZONE, tz)
         }
         respondWithResult(Staff, staffService.create(sInfo, tz))
     }
@@ -207,7 +207,7 @@ class StaffController extends BaseController {
         if (sInfo == null) { return }
         String tz = params.timezone as String
         if (params.timezone) { //for the json marshaller
-            request.setAttribute(Constants.REQUEST_TIMEZONE, tz)
+            request.setAttribute(RequestUtils.TIMEZONE, tz)
         }
         Long id = params.long("id")
         if (authService.exists(Staff, id)) {

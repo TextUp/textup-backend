@@ -124,13 +124,13 @@ beans = {
 		namespace = v1Namespace
 	}
 
-	recordItemStatusRenderer(ApiJsonRenderer, RecordItemStatus) {
-		label = tRestConfig.v1.recordItemStatus.singular
+	recordItemReceiptInfoRenderer(ApiJsonRenderer, RecordItemReceiptInfo) {
+		label = tRestConfig.v1.recordItemReceiptInfo.singular
 	}
-	recordItemStatusCollectionRenderer(ApiJsonCollectionRenderer, RecordItemStatus) {
-		label = tRestConfig.v1.recordItemStatus.plural
+	recordItemReceiptInfoCollectionRenderer(ApiJsonCollectionRenderer, RecordItemReceiptInfo) {
+		label = tRestConfig.v1.recordItemReceiptInfo.plural
 	}
-	recordItemStatusJsonMarshaller(RecordItemStatusJsonMarshaller) {
+	recordItemReceiptInfoJsonMarshaller(RecordItemReceiptInfoJsonMarshaller) {
 		name = tRestConfig.defaultLabel
 		namespace = v1Namespace
 	}

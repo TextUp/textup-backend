@@ -100,8 +100,8 @@ class RecordController extends BaseController {
         if (!res.success) {
             return respondWithResult(null, res)
         }
-        Utils.trySetOnRequest(Constants.REQUEST_PAGINATION_OPTIONS, params)
-        Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, params.timezone)
+        RequestUtils.trySetOnRequest(RequestUtils.PAGINATION_OPTIONS, params)
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.timezone)
         // step 3: return data in specified format
         RecordItemRequest itemRequest = res.payload
         if (params.format == "pdf") {

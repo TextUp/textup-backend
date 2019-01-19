@@ -1,7 +1,6 @@
 package org.textup.util
 
 import com.pusher.rest.data.Result as PusherResult
-import com.pusher.rest.data.Result.Status as PusherStatus
 import com.pusher.rest.Pusher
 import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
@@ -10,101 +9,85 @@ import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
 import org.textup.util.*
 
-@Transactional(readOnly=true)
+@GrailsTypeChecked
+@Transactional(readOnly = true)
 class SocketService {
 
+    private static final int PAYLOAD_BATCH_SIZE = 20
+    private static final String EVENT_CONTACTS = "contacts"
+    private static final String EVENT_FUTURE_MESSAGES = "futureMessages"
+    private static final String EVENT_RECORDS_ITEMS = "recordItems"
+    private static final String EVENT_PHONES = "phones"
+
     Pusher pusherService
-    ResultFactory resultFactory
 
-    @GrailsTypeChecked
-    ResultGroup<Staff> sendItems(Collection<? extends RecordItem> items) {
-        if (!items) {
-            return new ResultGroup<Staff>()
-        }
-        send(items*.record, items, Constants.SOCKET_EVENT_RECORDS)
+    void sendItems(Collection<? extends RecordItem> items) {
+        trySend(EVENT_RECORDS_ITEMS, Staffs.findEveryForRecordIds(items*.record*.id), items)
+            .logFail("sendItems: `${items*.id}`")
     }
 
-    @GrailsTypeChecked
-    ResultGroup<Staff> sendContacts(Collection<Contact> contacts) {
-        if (!contacts) {
-            return new ResultGroup<Staff>()
-        }
-        send(contacts*.record, contacts, Constants.SOCKET_EVENT_CONTACTS)
+    void sendIndividualWrappers(Collection<? extends IndividualPhoneRecordWrapper> wraps) {
+        ResultGroup
+            .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
+                w1.tryGetReadOnlyRecord()
+            }
+            .toResult(true)
+            .then { List<ReadOnlyRecord> rRecs ->
+                trySend(EVENT_CONTACTS, Staffs.findEveryForRecordIds(rRecs*.id), wraps)
+                    .logFail("sendIndividualWrappers: phone records `${wraps*.id}`")
+            }
     }
 
-    @GrailsTypeChecked
-    ResultGroup<Staff> sendFutureMessages(Collection<FutureMessage> fMsgs) {
-        if (!fMsgs) {
-            return new ResultGroup<Staff>()
-        }
+    void sendFutureMessages(Collection<FutureMessage> fMsgs) {
         // refresh trigger so we get the most up-to-date job detail info
-        fMsgs.each({ FutureMessage fMsg -> fMsg.refreshTrigger() })
-        Collection<Record> recs = fMsgs.collect { FutureMessage fMsg -> fMsg.getRecord() }
-        send(recs, fMsgs, Constants.SOCKET_EVENT_FUTURE_MESSAGES)
+        fMsgs?.each { FutureMessage fMsg -> fMsg.refreshTrigger() }
+        trySend(EVENT_FUTURE_MESSAGES, Staffs.findEveryForRecordIds(fMsgs*.record*.id), fMsgs)
+            .logFail("sendFutureMessages: future messages `${fMsgs*.id}`")
     }
 
-    ResultGroup<Staff> sendPhone(Phone p1) {
-        ResultGroup<Staff> resGroup = new ResultGroup<>()
-        if (!p1) {
-            return resGroup
-        }
-        Collection serialized = DataFormatUtils.jsonToObject([p1])
-        p1.owner.buildAllStaff().each { Staff s1 ->
-            resGroup << sendToDataToStaff(s1, Constants.SOCKET_EVENT_PHONES, serialized)
-        }
-        resGroup
+    void sendPhone(Phone p1) {
+        trySend(EVENT_PHONES, p1.owner.buildAllStaff(), [p1])
+            .logFail("sendPhone: phone `${p1.id}`")
     }
 
-    // Helper methods
-    // --------------
+    // Helpers
+    // -------
 
-    protected ResultGroup<Staff> send(Collection<Record> recs, Collection<?> toSend, String event) {
-        ResultGroup<Staff> resGroup = new ResultGroup<>()
-        if (!toSend) { return resGroup }
-        toSend
-            .collate(Constants.SOCKET_PAYLOAD_BATCH_SIZE) // prevent exceeding payload max size
-            .each { Collection<?> batch ->
-                Collection serialized = DataFormatUtils.jsonToObject(batch)
-                getStaffsForRecords(recs).each { Staff s1 ->
-                    resGroup << sendToDataToStaff(s1, event, serialized)
+    protected Result<Void> trySend(String event, Collection<Staff> staffs, Collection<?> toSend) {
+        ResultGroup<?> resGroup = new ResultGroup<>()
+        if (staffs && toSend) {
+            toSend.collate(PAYLOAD_BATCH_SIZE) // prevent exceeding payload max size
+                .each { Collection<?> batch ->
+                    Collection serialized = DataFormatUtils.jsonToObject(batch)
+                    staffs.each { Staff s1 ->
+                        resGroup << trySendToDataToStaff(event, s1, serialized)
+                    }
+                }
+        }
+        resGroup.toEmptyResult(false)
+    }
+
+    protected Result<Void> trySendToDataToStaff(String event, Staff s1, Object data) {
+        try {
+            String channelName = s1.channelName
+            PusherResult pRes = pusherService.get("/channels/$channelName")
+            if (pRes.status == PusherResult.Status.SUCCESS) {
+                Map channelInfo = DataFormatUtils.jsonToObject(pRes.message) as Map
+                if (channelInfo.occupied) {
+                    pRes = pusherService.trigger(channelName, event, data)
                 }
             }
-        resGroup
-    }
 
-    @GrailsTypeChecked
-    protected Collection<Staff> getStaffsForRecords(Collection<Record> recs) {
-        HashSet<Phone> phones = Phones.findEveryForRecords(recs)
-        HashSet<Staff> staffList = new HashSet<>()
-        phones*.owner.each { PhoneOwnership po1 -> staffList.addAll(po1.buildAllStaff()) }
-        staffList
-    }
-
-    @GrailsTypeChecked
-    protected Result<Staff> sendToDataToStaff(Staff s1, String eventName, Object data) {
-        String channelName = s1.channelName
-        PusherResult pRes = pusherService.get("/channels/$channelName")
-        if (pRes.status != PusherStatus.SUCCESS) {
-            log.error("SocketService.sendToDataToStaff: error: ${pRes}, \
-                pRes.status: ${pRes.status}, \
-                pRes.message: ${pRes.message}")
-            return resultFactory.failForPusher(pRes)
-        }
-        try {
-            Map channelInfo = DataFormatUtils.jsonToObject(pRes.message) as Map
-            if (!channelInfo.occupied) {
-                return resultFactory.success(s1)
+            if (pRes.status == PusherResult.Status.SUCCESS) {
+                IOCUtils.resultFactory.success()
             }
-            pRes = pusherService.trigger(channelName, eventName, data)
-            if (pRes.status == PusherStatus.SUCCESS) {
-                resultFactory.success(s1)
+            else {
+                log.error("trySendToDataToStaff: ${pRes.properties}")
+                IOCUtils.resultFactory.failForPusher(pRes)
             }
-            else { resultFactory.failForPusher(pRes) }
         }
         catch (Throwable e) {
-            log.error("SocketService.sendToDataToStaff: error: ${e.message}")
-            e.printStackTrace()
-            resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "trySendToDataToStaff", true)
         }
     }
 }

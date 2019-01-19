@@ -40,23 +40,23 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
     // -------
 
     @Override
-    RecordItemStatus groupReceiptsByStatus() {
+    RecordItemReceiptInfo groupReceiptsByStatus() {
         // for outgoing calls, exclude the receipt with the longest duration because this is the
         // parent bridge call from TextUp to the staff member’s personal phone.
         // Also, do not exclude max numBillable for not doing this for outgoing scheduled calls
         // because in this case, these are  direct message calls and not a bridge calls so
         // we don’t have to call the staff member first
         if (outgoing && !wasScheduled) {
-            new RecordItemStatus(showOnlyContactReceipts())
+            new RecordItemReceiptInfo(showOnlyContactReceipts())
         }
-        else { new RecordItemStatus(receipts) }
+        else { new RecordItemReceiptInfo(receipts) }
     }
 
     // Properties
     // ----------
 
     int getIsVoicemail() {
-        voicemailInSeconds == 0
+        voicemailInSeconds != 0
     }
 
     int getDurationInSeconds() {

@@ -20,10 +20,15 @@ class EmailEntity implements Validateable {
     	email blank:false, nullable:false, email:true
     }
 
+    static Result<EmailEntity> tryCreate(String name, String email) {
+        EmailEntity ee1 = new EmailEntity(name: name, email: email)
+        DomainUtils.tryValidate(ee1, ResultStatus.CREATED)
+    }
+
     // Methods
     // -------
 
-    Email toEmail() {
+    Email toSendGridEmail() {
         new Email(email, name)
     }
 }

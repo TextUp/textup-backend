@@ -18,11 +18,10 @@ class OutgoingCallService {
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         w1.tryGetPhone()
-            .then { Phone p1 -> w1.tryGetId().curry(p1) }
-            .then { Phone p1, Long prId ->
+            .then { Phone p1 ->
                 callService.start(p1.number,
                     [personalNum],
-                    CallTwiml.infoForFinishBridge(prId),
+                    CallTwiml.infoForFinishBridge(w1.id),
                     p1.customAccountId)
             }
             .then { TempRecordReceipt rpt -> afterBridgeCall(w1, author1, rpt) }

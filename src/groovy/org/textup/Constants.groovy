@@ -34,56 +34,6 @@ class Constants {
 	static final String CACHE_PHONES = "phonesCache"
 	static final String CACHE_PHONES_MAX_SIZE = 500
 
-	// Billing
-	// -------
-
-	static final double UNIT_COST_NUMBER = 5
-	static final double UNIT_COST_TEXT = 0.01
-	static final double UNIT_COST_CALL = 0.015
-
-	// HTTP
-	// ----
-
-	static final String REQUEST_TIMEZONE = "timezone"
-	static final String REQUEST_UPLOAD_ERRORS = "uploadErrors"
-	static final String REQUEST_PAGINATION_OPTIONS = "paginationOptions"
-
-	static final String PROTOCOL_HTTP = "http"
-	static final String PROTOCOL_HTTPS = "https"
-
-	// Schedule
-	// --------
-
-	static final List<String> DAYS_OF_WEEK = ["sunday", "monday", "tuesday",
-		"wednesday", "thursday", "friday", "saturday"]
-
-    // Messages
-    // --------
-
-    static final int TEXT_LENGTH = 160
-	static final int DIRECT_MESSAGE_MAX_REPEATS = 5
-
-	static final String CALLBACK_STATUS = "status"
-	static final String CALLBACK_CHILD_CALL_NUMBER_KEY = "childStatusNumber"
-
-	static final String TEXT_SEE_ANNOUNCEMENTS = "0"
-	static final String TEXT_TOGGLE_SUBSCRIBE = "1"
-
-	static final String CALL_HEAR_ANNOUNCEMENTS = "1"
-	static final String CALL_TOGGLE_SUBSCRIBE = "2"
-	static final String CALL_ANNOUNCEMENT_UNSUBSCRIBE = "1"
-
-	static final String CALL_HOLD_MUSIC_URL = "http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3"
-
-	// Socket events
-	// -------------
-
-	static final int SOCKET_PAYLOAD_BATCH_SIZE = 20
-	static final String SOCKET_EVENT_CONTACTS = "contacts"
-	static final String SOCKET_EVENT_FUTURE_MESSAGES = "futureMessages"
-	static final String SOCKET_EVENT_RECORDS = "records"
-	static final String SOCKET_EVENT_PHONES = "phones"
-
 	// Quartz jobs
 	// -----------
 

@@ -9,6 +9,10 @@ import org.textup.type.*
 @GrailsTypeChecked
 class UsageUtils {
 
+    static final double UNIT_COST_NUMBER = 5
+    static final double UNIT_COST_TEXT = 0.01
+    static final double UNIT_COST_CALL = 0.015
+
     // Query helpers
     // -------------
 

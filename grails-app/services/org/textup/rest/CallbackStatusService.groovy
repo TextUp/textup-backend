@@ -3,7 +3,6 @@ package org.textup.rest
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.TimeUnit
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.cache.*
 import org.textup.type.*
 import org.textup.util.*
@@ -22,31 +21,27 @@ class CallbackStatusService {
     // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
     // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies
     @OptimisticLockingRetry
-    void process(TypeConvertingMap params) {
-        if (params?.CallSid) {
-            ReceiptStatus status = ReceiptStatus.translate(params.CallStatus as String)
-            Integer duration = TypeConversionUtils.to(Integer, params.CallDuration)
+    void process(TypeMap params) {
+        String callId = params.string(TwilioUtils.ID_CALL),
+            textId = params.string(TwilioUtils.ID_TEXT)
+        if (callId) {
+            ReceiptStatus status = ReceiptStatus.translate(params.string(TwilioUtils.STATUS_CALL))
+            Integer duration = params.int(TwilioUtils.CALL_DURATION)
             if (status && duration) {
-                if (params.ParentCallSid) {
-                    PhoneNumber childNumber = PhoneNumber
-                        .urlDecode(params[Constants.CALLBACK_CHILD_CALL_NUMBER_KEY] as String)
-                    if (childNumber.validate()) {
-                        handleUpdateForChildCall(params.ParentCallSid as String,
-                                params.CallSid as String, childNumber, status, duration)
-                            .logFail("CallbackStatusService: child call: params: $params")
-                    }
+                String parentId = params.string(TwilioUtils.ID_PARENT_CALL)
+                if (parentId) {
+                    PhoneNumber.tryUrlDecode(params.string(CallbackUtils.PARAM_CHILD_CALL_NUMBER))
+                        .thenEnd { PhoneNumber childNum ->
+                            handleUpdateForChildCall(parentId, callId, childNum, status, duration)
+                        }
                 }
-                else {
-                    handleUpdateForParentCall(params.CallSid as String, status, duration, params)
-                        .logFail("CallbackStatusService: parent call: params: $params")
-                }
+                else { handleUpdateForParentCall(callId, status, duration, params) }
             }
         }
-        else if (params?.MessageSid) {
-            ReceiptStatus status = ReceiptStatus.translate(params.MessageStatus as String)
+        else if (textId) {
+            ReceiptStatus status = ReceiptStatus.translate(params.string(TwilioUtils.STATUS_TEXT))
             if (status) {
-                handleUpdateForText(params.MessageSid as String, status)
-                    .logFail("CallbackStatusService: text message: params: $params")
+                handleUpdateForText(textId, status)
             }
         }
     }
@@ -55,119 +50,110 @@ class CallbackStatusService {
     // ---------------------------------------------
 
     // From the statusCallback attribute on the original POST request to the Text resource
-    protected Result<Void> handleUpdateForText(String textId, ReceiptStatus status) {
+    protected void handleUpdateForText(String textId, ReceiptStatus status) {
         updateExistingReceipts(textId, status)
-            .then { List<RecordItemReceipt> rpts ->
-                sendItemsThroughSocket(rpts)
-                IOCUtils.resultFactory.success()
-            }
+            .logFail("handleUpdateForText")
+            .thenEnd { List<RecordItemReceipt.Info> infos -> sendAfterDelay(infos) }
     }
 
     // From statusCallback attribute on the Number verb
-    protected Result<Void> handleUpdateForChildCall(String parentId, String childId,
+    protected void handleUpdateForChildCall(String parentId, String childId,
         PhoneNumber childNumber, ReceiptStatus status, Integer duration) {
 
         createNewReceipts(parentId, childId, childNumber, status, duration)
-            .then { List<RecordItemReceipt> rpts ->
-                sendItemsThroughSocket(rpts)
-                IOCUtils.resultFactory.success()
-            }
+            .logFail("handleUpdateForChildCall")
+            .thenEnd { List<RecordItemReceipt.Info> infos -> sendAfterDelay(infos) }
     }
 
     // From the statusCallback attribute on the original POST request to the Call resource
-    protected Result<Void> handleUpdateForParentCall(String callId, ReceiptStatus status,
-        Integer duration, TypeConvertingMap params) {
+    protected void handleUpdateForParentCall(String callId, ReceiptStatus status,
+        Integer duration, TypeMap params) {
 
         updateExistingReceipts(callId, status, duration)
-            .then { List<RecordItemReceipt> rpts ->
+            .logFail("handleUpdateForParentCall")
+            .thenEnd { List<RecordItemReceipt.Info> infos ->
                 // try to retry parent call if failed
-                if (status == ReceiptStatus.FAILED) { tryRetryParentCall(callId, params) }
-                sendItemsThroughSocket(rpts)
-                IOCUtils.resultFactory.success()
+                if (status == ReceiptStatus.FAILED) {
+                    tryRetryParentCall(callId, params)
+                }
+                sendAfterDelay(infos)
             }
     }
 
     // Shared helpers
     // --------------
 
-    protected Result<List<RecordItemReceipt>> createNewReceipts(String parentId,
+    protected Result<List<RecordItemReceipt.Info>> createNewReceipts(String parentId,
         String childId, PhoneNumber childNumber, ReceiptStatus status, Integer duration) {
 
-        List<RecordItemReceipt> receipts = receiptCache.findReceiptsByApiId(parentId),
-            childReceipts = []
-        if (receipts) {
-            for (RecordItemReceipt receipt in receipts) {
-                RecordItemReceipt newReceipt = new RecordItemReceipt(apiId: childId,
-                    contactNumber: childNumber, status: status, numBillable: duration)
-                receipt.item.addToReceipts(newReceipt)
-                if (!receipt.item.merge()) {
-                    return IOCUtils.resultFactory.failWithValidationErrors(receipt.item.errors)
-                }
-                childReceipts << newReceipt
+        List<RecordItemReceipt.Info> infos = receiptCache.findEveryReceiptInfoByApiId(parentId)
+        ResultGroup
+            .collect(AsyncUtils.getAllIds(RecordItem, infos*.itemId)) { RecordItem rItem1 ->
+                RecordItemReceipt.tryCreate(rItem1, childId, status, childNumber)
+                    .then { RecordItemReceipt rpt2 ->
+                        rpt2.numBillable = duration
+                        DomainUtils.trySave(rpt2)
+                    }
             }
-        }
-        IOCUtils.resultFactory.success(childReceipts)
+            .toEmptyResult(false)
+            .then { IOCUtils.resultFactory.success(infos) }
     }
 
-    protected Result<List<RecordItemReceipt>> updateExistingReceipts(String apiId,
+    protected Result<List<RecordItemReceipt.Info>> updateExistingReceipts(String apiId,
         ReceiptStatus newStatus, Integer newDuration = null) {
 
-        List<RecordItemReceipt> receipts = receiptCache.findReceiptsByApiId(apiId)
+        List<RecordItemReceipt.Info> infos = receiptCache.findEveryReceiptInfoByApiId(apiId)
         // (1) It's okay if we don't find any receipts for a certain apiId because we aren't interested
         // in recording the status of certain messages such as notification messages we send out
         // to staff members.
         // (2) We assume that all the receipts have the same status, so we only check the status
         // of the first receipt
-        if (receipts) {
-            ReceiptStatus oldStatus = receipts[0]?.status
-            Integer oldDuration = receipts[0]?.numBillable
-            if (TwilioUtils.shouldUpdateStatus(oldStatus, newStatus) ||
-                TwilioUtils.shouldUpdateDuration(oldDuration, newDuration)) {
-                receipts = receiptCache.updateReceipts(receipts, newStatus, newDuration)
+        if (infos) {
+            ReceiptStatus oldStatus = infos[0]?.status
+            Integer oldDuration = infos[0]?.numBillable
+            if (CallbackUtils.shouldUpdateStatus(oldStatus, newStatus) ||
+                CallbackUtils.shouldUpdateDuration(oldDuration, newDuration)) {
+                receipts = receiptCache.updateReceipts(apiId, infos*.id, newStatus, newDuration)
             }
         }
-        IOCUtils.resultFactory.success(receipts)
+        IOCUtils.resultFactory.success(infos)
     }
 
-    protected void sendItemsThroughSocket(List<RecordItemReceipt> receipts) {
-        // Collect item id and refetch in new thread to avoid LazyInitializationExceptions
+    protected void sendAfterDelay(List<RecordItemReceipt.Info> infos) {
+        // Use ids and refetch in new thread to avoid LazyInitializationExceptions
         // caused by trying to interact with detached Hibernate objects
-        Collection<Long> itemIds = receipts
-            ?.collect { RecordItemReceipt rpt -> rpt.item.id }
-            ?.unique()
-        if (itemIds) {
+        if (infos) {
             // send items after a delay because we need this current transaction to commit before
             // attempting to send the items because, in the JSON marshaller, the receipts
             // sent are the PERSISTENT values. If the receipts in the current transaction haven't
             // saved yet, then we won't be sending any of the latest updates
             threadService.delay(5, TimeUnit.SECONDS) {
                 //send items with updated status through socket
-                Collection<RecordItem> items = RecordItem.getAll(itemIds as Iterable<Serializable>)
-                socketService.sendItems(items)
-                    .logFail("CallbackStatusService.sendItemsThroughSocket: receipts: $receipts")
+                socketService.sendItems(AsyncUtils.getAllIds(RecordItem, infos*.itemId))
             }
         }
     }
 
     // If multiple phone numbers on a call and the status is failure, then retry the call.
     // See CallService.start for the parameters passed into the status callback
-    protected void tryRetryParentCall(String callId, TypeConvertingMap params) {
-        PhoneNumber fromNum = new PhoneNumber(number: params.From as String)
-        List<PhoneNumber> toNums = params.list("remaining")?.collect { Object num ->
-            new PhoneNumber(number: num as String)
-        } ?: new ArrayList<PhoneNumber>()
-        if (!toNums) {
-            return
-        }
-        try {
-            Map afterPickup = (DataFormatUtils.jsonToObject(params.afterPickup) ?: [:]) as Map
-            callService
-                .retry(fromNum, toNums, callId, afterPickup, params.AccountSid as String)
-                .logFail("CallbackStatusService: retrying call: params: ${params}")
-        }
-        catch (Throwable e) {
-            log.error("CallbackStatusService: retry: ${e.message}")
-            e.printStackTrace()
-        }
+    protected void tryRetryParentCall(String callId, TypeMap params) {
+        PhoneNumber.tryUrlDecode(params.string(TwilioUtils.FROM))
+            .thenEnd { PhoneNumber fromNum ->
+                List<PhoneNumber> toNums = params.phoneNumberList(CallService.RETRY_REMAINING, [])
+                if (toNums) {
+                    try {
+                        String accountId = params.string(TwilioUtils.ID_ACCOUNT)
+                        Object afterData = params[CallService.RETRY_AFTER_PICKUP]
+                        Map afterPickup = (DataFormatUtils.jsonToObject(afterData) ?: [:]) as Map
+                        callService
+                            .retry(fromNum, toNums, callId, afterPickup, accountId)
+                            .logFail("tryRetryParentCall: ${params}")
+                    }
+                    catch (Throwable e) {
+                        log.error("tryRetryParentCall: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+            }
     }
 }

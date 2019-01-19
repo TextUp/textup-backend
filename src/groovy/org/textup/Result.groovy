@@ -36,12 +36,12 @@ class Result<T> {
     // Methods
     // -------
 
-    public void thenEnd(Closure<?> successAction, Closure<?> failAction = null) {
+    public void end(Closure<?> successAction, Closure<?> failAction = null) {
         getSuccess() ? tryExecuteSuccess(successAction) : tryExecuteFailure(failAction)
     }
 
-    public <V> Result<V> then(Closure<Result<V>> successAction, Closure<Result<V>> failAction = null) {
-        getSuccess() ? tryExecuteSuccess(successAction) : tryExecuteFailure(failAction)
+    public <V> Result<V> then(Closure<Result<V>> successAction) {
+        getSuccess() ? tryExecuteSuccess(successAction) : tryExecuteFailure(null)
     }
 
     public <V> Result<V> ifFail(Closure<Result<V>> failAction) {

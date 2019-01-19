@@ -7,6 +7,8 @@ import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
 
+// TODO remove this class
+
 // See [redeemedNotification] in CustomApiDocs.groovy for documentation
 
 @GrailsTypeChecked

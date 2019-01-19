@@ -13,6 +13,7 @@ class ValidationUtils {
     // 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
     static final int MAX_TEXT_COLUMN_SIZE = 15000
 
+    static final int TEXT_BODY_LENGTH = 160
     static final int LOCK_CODE_LENGTH = 4
     static final int MAX_NUM_ACCESS_NOTIFICATION_TOKEN = 3
     static final int MAX_LOCK_TIMEOUT_MILLIS = 60000

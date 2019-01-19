@@ -62,7 +62,7 @@ class OutgoingAnnouncementService {
         tryStoreForAnnouncement(type, fa1, sess)
             .then { tryStoreForRecords(type, fa1.phone, author, msg, sess, rpts) }
             .then { List<IndividualPhoneRecord> iprList ->
-                socketService.sendContacts(iprList).logFail("store: $type, $fa1")
+                socketService.sendIndividualWrappers(iprList)
                 IOCUtils.resultFactory.success()
             }
     }

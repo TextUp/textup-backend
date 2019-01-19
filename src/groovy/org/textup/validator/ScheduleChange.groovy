@@ -8,8 +8,6 @@ import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.textup.type.ScheduleStatus
 
-// TODO remove?
-
 @GrailsTypeChecked
 @ToString
 @Validateable

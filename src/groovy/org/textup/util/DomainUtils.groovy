@@ -28,7 +28,7 @@ class DomainUtils {
         else { false }
     }
 
-    // TODO null handling
+    // TODO null handling, return error if null is passed in
     static <T extends Saveable> Result<T> trySave(T obj, ResultStatus status = ResultStatus.OK) {
         if (obj.save()) {
             IOCUtils.resultFactory.success(obj, status)
@@ -36,7 +36,7 @@ class DomainUtils {
         else { IOCUtils.resultFactory.failWithValidationErrors(obj.errors) }
     }
 
-    // TODO null handling
+    // TODO null handling, return error if null is passed in
     static <T extends Saveable> Result<Void> trySaveAll(Collection<T> objList) {
         ResultGroup<T> resGroup = new ResultGroup<>()
         objList?.each { T obj -> resGroup << DomainUtils.trySave(obj) }
@@ -46,7 +46,7 @@ class DomainUtils {
         else { IOCUtils.resultFactory.success() }
     }
 
-    // TODO null handling
+    // TODO null handling, return error if null is passed in
     static <T extends Validateable> Result<T> tryValidate(T obj,
         ResultStatus status = ResultStatus.OK) {
 
@@ -56,7 +56,7 @@ class DomainUtils {
         else { IOCUtils.resultFactory.failWithValidationErrors(obj.errors) }
     }
 
-    // TODO null handling
+    // TODO null handling, return error if null is passed in
     static <T extends Validateable> Result<Void> tryValidateAll(Collection<T> objList) {
         ResultGroup<T> resGroup = new ResultGroup<>()
         objList?.each { T obj -> resGroup << DomainUtils.tryValidate(obj) }

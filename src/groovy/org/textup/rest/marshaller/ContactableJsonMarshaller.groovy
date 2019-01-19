@@ -8,6 +8,9 @@ import org.textup.*
 import org.textup.rest.*
 import org.textup.type.PhoneRecordStatus
 
+// TODO need to change to PhoneRecordWrapper marshaller??
+
+
 @GrailsTypeChecked
 @Log4j
 class ContactableJsonMarshaller extends JsonNamedMarshaller {

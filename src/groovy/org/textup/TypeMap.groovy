@@ -30,9 +30,9 @@ class TypeMap extends TypeConvertingMap {
         DateTimeUtils.toDateTimeWithZone(get(propName), timezone) ?: fallbackVal
     }
 
-    List<Long> longList(String propName, List<Long> fallbackVal = null) {
+    public <T> List<T> typedList(Class<T> clazz, String propName, List<T> fallbackVal = null) {
         List<?> vals = list(propName)
-        vals ? TypeConversionUtils.allTo(Long, vals) : fallbackVal
+        vals ? TypeConversionUtils.allTo(clazz, vals) : fallbackVal
     }
 
     List<PhoneNumber> phoneNumberList(String propName, List<PhoneNumber> fallbackVal = null) {

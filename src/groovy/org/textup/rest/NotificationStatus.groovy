@@ -5,6 +5,8 @@ import grails.validation.Validateable
 import groovy.transform.ToString
 import org.textup.Staff
 
+// TODO remove?
+
 // Container class to enable customized json output from the API endpoint
 // Custom marshalled JSON documented as [notificationStatus] in CustomApiDocs.groovy
 

@@ -63,7 +63,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, Saveabl
     static constraints = {
         // removed the constraint the prohibited message from being null because a future message
         // can now have media so outgoing message can have either text only, media only, or both.
-        message blank: true, nullable: true, maxSize:(Constants.TEXT_LENGTH * 2)
+        message blank: true, nullable: true, maxSize:(ValidationUtils.TEXT_BODY_LENGTH * 2)
         media nullable: true, validator: { MediaInfo mInfo, FutureMessage obj ->
             // message must have at least one of text and media
             if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }

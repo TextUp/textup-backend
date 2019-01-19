@@ -17,13 +17,14 @@ class PhoneRecordUtils {
     static Result<List<IndividualPhoneRecordWrapper>> tryMarkUnread(Phone p1, PhoneNumber pNum) {
         IndividualPhoneRecordWrappers.tryFindEveryByNumbers(p1, [pNum], true)
             .then { List<IndividualPhoneRecordWrapper> wrappers ->
-                ResultGroup.collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
+                ResultGroup
+                    .collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
                         w1.trySetStatusIfNotBlocked(PhoneRecordStatus.UNREAD)
                     }
                     .toEmptyResult(true)
                     .curry(wrappers)
             }
-            .logFail("tryMarkUnread: marking unread")
+            .logFail("tryMarkUnread")
             .then { IOCUtils.resultFactory.success(wrappers) }
     }
 }

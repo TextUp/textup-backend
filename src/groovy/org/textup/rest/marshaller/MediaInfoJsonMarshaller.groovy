@@ -17,8 +17,7 @@ class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
             audio  : mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES)
         ]
         // Display upload error from uploading the initial versions
-        Result<?> res = Utils.tryGetFromRequest(Constants.REQUEST_UPLOAD_ERRORS)
-            .logFail("MediaInfoJsonMarshaller: no available request", LogLevel.DEBUG)
+        Result<?> res = RequestUtils.tryGetFromRequest(RequestUtils.UPLOAD_ERRORS)
         if (res.success) { json.uploadErrors = res.payload }
 
         json

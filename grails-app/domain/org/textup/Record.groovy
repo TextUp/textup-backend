@@ -31,48 +31,36 @@ class Record implements ReadOnlyRecord, WithId, Saveable<Record> {
         lastRecordActivity = DateTimeUtils.now()
     }
 
-    Result<? extends RecordItem> storeOutgoing(RecordItemType type, Author a1 = null,
-        String msg = null, MediaInfo mInfo = null) {
+    Result<? extends RecordItem> storeOutgoing(RecordItemType type, Author a1,
+        String message = null, MediaInfo mInfo = null) {
 
-        tryCreateItem(type, msg)
+        tryCreateItem(type, message)
             .then { RecordItem rItem1 ->
                 rItem1.outgoing = true
                 if (type == RecordItemType.CALL) {
-                    rItem1.noteContents = msg
+                    rItem1.noteContents = message
                 }
                 finishAdd(rItem1, a1, mInfo)
             }
     }
 
-    Result<RecordText> storeIncomingText(IncomingText text, IncomingSession is1, MediaInfo mInfo = null) {
-        tryCreateItem(RecordItemType.TEXT, text.message)
-            .then { RecordText rText1 ->
-                rText1.outgoing = false
-                finishAdd(rText1, is1.toAuthor(), mInfo)
-            }
-            .then { RecordText rText1 ->
-                RecordItemReceipt
-                    .tryCreate(rText1, text.apiId, ReceiptStatus.SUCCESS, is1.number)
-                    .curry(rText1)
-            }
-            .then { RecordText rText1, RecordItemReceipt rpt1 ->
-                rpt1.numBillable = text.numSegments
-                DomainUtils.trySave(rText1, ResultStatus.CREATED)
-            }
-    }
+    Result<? extends RecordItem> storeIncoming(RecordItemType type, Author a1, BasePhoneNumber bNum,
+        String apiId, String message = null, Integer numBillable = null) {
 
-    Result<RecordCall> storeIncomingCall(String apiId, IncomingSession is1) {
-        tryCreateItem(RecordItemType.CALL, null)
-            .then { RecordCall rCall1 ->
-                rCall1.outgoing = false
-                finishAdd(rCall1, is1.toAuthor(), null)
+        tryCreateItem(type, message)
+            .then { RecordItem rItem1 ->
+                rItem1.outgoing = false
+                finishAdd(rItem1, a1, null)
             }
-            .then { RecordCall rCall1 ->
+            .then { RecordItem rItem1 ->
                 RecordItemReceipt
-                    .tryCreate(rCall1, apiId, ReceiptStatus.SUCCESS, is1.number)
-                    .curry(rCall1)
+                    .tryCreate(rItem1, apiId, ReceiptStatus.SUCCESS, bNum)
+                    .curry(rItem1)
             }
-            .then { RecordCall rCall1 -> DomainUtils.trySave(rCall1, ResultStatus.CREATED) }
+            .then { RecordItem rItem1, RecordItemReceipt rpt1 ->
+                rpt1.numBillable = numBillable
+                DomainUtils.trySave(rItem1, ResultStatus.CREATED)
+            }
     }
 
     // Helpers

@@ -58,7 +58,7 @@ class FutureMessageService {
     @RollbackOnResultFailure
     Result<Void> delete(Long fId) {
         FutureMessages.mustFindForId(fId)
-            .then { FutureMessage fMsg -> futureMessageJobService.unschedule(fMsg).curry(fMsg) }
+            .then { FutureMessage fMsg -> futureMessageJobService.tryUnschedule(fMsg).curry(fMsg) }
             .then { FutureMessage fMsg ->
                 fMsg.isDone = true
                 DomainUtils.trySave(fMsg)

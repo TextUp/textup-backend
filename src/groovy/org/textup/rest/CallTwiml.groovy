@@ -10,21 +10,39 @@ import org.textup.util.*
 
 class CallTwiml {
 
+    static final String DIGITS_HEAR_ANNOUNCEMENTS = "1"
+    static final String DIGITS_TOGGLE_SUBSCRIBE = "2"
+    static final String DIGITS_ANNOUNCEMENT_UNSUBSCRIBE = "1"
+
+    private static final int DIRECT_MESSAGE_MAX_REPEATS = 5
+    private static final String ANNOUNCEMENT_AND_DIGITS_IDENT = "identifier"
+    private static final String ANNOUNCEMENT_AND_DIGITS_MSG = "message"
+    private static final String DIRECT_MESSAGE_TOKEN = "token"
+    private static final String FINISH_BRIDGE_CONTACT_ID = "contactId"
+    private static final String HOLD_MUSIC_URL = "http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3"
+    private static final String SCREEN_INCOMING_FROM = "originalFrom"
+
     // CallResponse.DIRECT_MESSAGE
     static Map<String, String> infoForDirectMessage(String token) {
-        [handle: CallResponse.DIRECT_MESSAGE, token: token]
+        [
+            (CallbackUtils.PARAM_HANDLE): CallResponse.DIRECT_MESSAGE,
+            (DIRECT_MESSAGE_TOKEN): token
+        ]
     }
+
+    static String extractDirectMessageToken(TypeMap params) { params.string(DIRECT_MESSAGE_TOKEN) }
+
     static Result<Closure> directMessage(String ident, String message, VoiceLanguage lang,
         List<URL> recordingUrls = []) {
+
         if (!ident || !message || !lang || recordingUrls == null) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.DIRECT_MESSAGE.toString())
         }
         String messageIntro = IOCUtils.getMessage("twimlBuilder.call.messageIntro", [ident])
-        int maxRepeats = Constants.DIRECT_MESSAGE_MAX_REPEATS
         TwilioUtils.wrapTwiml {
             Say(messageIntro)
             Pause(length: 1)
-            maxRepeats.times {
+            DIRECT_MESSAGE_MAX_REPEATS.times {
                 Say(language: lang.toTwimlValue(), message)
                 recordingUrls.each { URL url -> Play(url.toString()) }
             }
@@ -95,7 +113,7 @@ class CallTwiml {
         TwilioUtils.wrapTwiml {
             Say(connecting)
             Dial(callerId: displayedNumber) {
-                Number(statusCallback: CallTwiml.childCallStatus(numToCall), numToCall)
+                Number(statusCallback: childCallStatus(numToCall), numToCall)
             }
             Say(goodbye)
             Hangup()
@@ -119,12 +137,12 @@ class CallTwiml {
 
     // CallResponse.CONNECT_INCOMING
     static Result<Closure> connectIncoming(BasePhoneNumber displayed, BasePhoneNumber originalFrom,
-        Collection<String> numsToCall) {
+        Collection<? extends BasePhoneNumber> numsToCall) {
 
         if (!displayed?.validate() || !originalFrom?.validate() || !numsToCall) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.CONNECT_INCOMING.toString())
         }
-        String voicemailLink = IOCUtils.getWebhookLink(handle: CallResponse.CHECK_IF_VOICEMAIL),
+        String voicemailLink = IOCUtils.getHandleLink(CallResponse.CHECK_IF_VOICEMAIL),
             screenLink = IOCUtils.getWebhookLink(CallTwiml.infoForScreenIncoming(originalFrom))
         TwilioUtils.wrapTwiml {
             // have a short timeout here because we want to avoid having one
@@ -132,17 +150,25 @@ class CallTwiml {
             // take the voicemail instead of TextUp storing the voicemail
             Dial(callerId: displayed.e164PhoneNumber, timeout: 15, answerOnBridge: true,
                 action: voicemailLink) {
-                numsToCall.each { String num ->
-                    Number(statusCallback: CallTwiml.childCallStatus(num), url: screenLink, num)
+                numsToCall.each { BasePhoneNumber bNum ->
+                    Number(statusCallback: childCallStatus(bNum), url: screenLink,
+                        bNum.e164PhoneNumber)
                 }
             }
         }
     }
 
-    // CallResponse.SCREEN_INCOMING
-    static Map<String, String> infoForScreenIncoming(BasePhoneNumber originalFrom) {
-        [handle: CallResponse.SCREEN_INCOMING, originalFrom: originalFrom.e164PhoneNumber]
+    static Map<String, String> infoForScreenIncoming(BasePhoneNumber bNum) {
+        [
+            (CallbackUtils.PARAM_HANDLE): CallResponse.SCREEN_INCOMING,
+            (SCREEN_INCOMING_FROM): bNum.e164PhoneNumber
+        ]
     }
+
+    static Result<PhoneNumber> tryExtractScreenIncomingFrom(TypeMap params) {
+        PhoneNumber.tryUrlDecode(params.string(SCREEN_INCOMING_FROM))
+    }
+
     static Result<Closure> screenIncoming(Collection<String> idents) {
         if (!idents) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.SCREEN_INCOMING.toString())
@@ -151,7 +177,7 @@ class CallTwiml {
         String identifier = CollectionUtils.joinWithDifferentLast(copiedIdents, ", ", " or "),
             directions = TwilioUtils.say("twimlBuilder.call.screenIncoming", [identifier]),
             goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye"),
-            finishScreenWebhook = IOCUtils.getWebhookLink(handle: CallResponse.DO_NOTHING)
+            finishScreenWebhook = IOCUtils.getHandleLink(CallResponse.DO_NOTHING)
         TwilioUtils.wrapTwiml {
             Gather(numDigits: 1, action:finishScreenWebhook) {
                 Pause(length: 1)
@@ -170,11 +196,14 @@ class CallTwiml {
         String directions = IOCUtils.getMessage("twimlBuilder.call.voicemailDirections"),
             goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye"),
             // no-op for Record Twiml verb to call because recording might not be ready
-            actionWebhook = IOCUtils.getWebhookLink(handle: CallResponse.END_CALL),
+            actionWebhook = IOCUtils.getHandleLink(CallResponse.END_CALL),
             // need to population From and To parameters to help in finding
             // phone and session in the recording status hook
-            callbackWebhook = IOCUtils.getWebhookLink(handle: CallResponse.VOICEMAIL_DONE,
-                From: fromNum.e164PhoneNumber, To: p1.number.e164PhoneNumber)
+            callbackWebhook = IOCUtils.getHandleLink(CallResponse.VOICEMAIL_DONE,
+                [
+                    (TwilioUtils.FROM): fromNum.e164PhoneNumber,
+                    (TwilioUtils.TO): p1.number.e164PhoneNumber
+                ])
         boolean shouldUseRecording = p1.useVoicemailRecordingIfPresent
         URL recordingUrl = p1.voicemailGreetingUrl
         TwilioUtils.wrapTwiml {
@@ -193,43 +222,52 @@ class CallTwiml {
     // Outgoing call
     // -------------
 
-    // CallResponse.FINISH_BRIDGE
     static Map<String, String> infoForFinishBridge(Long prId) {
-        [contactId: prId, handle: CallResponse.FINISH_BRIDGE] // TODO change contactId?
+        [
+            (CallbackUtils.PARAM_HANDLE): CallResponse.FINISH_BRIDGE,
+            (FINISH_BRIDGE_CONTACT_ID): prId
+        ]
     }
-    static Result<Closure> finishBridge(Contact c1) {
-        if (!c1) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.FINISH_BRIDGE.toString())
-        }
-        List<ContactNumber> nums = c1.sortedNumbers ?: []
-        int lastIndex = nums.size() - 1
-        String nameOrNum = c1.getNameOrNumber()
-        TwilioUtils.wrapTwiml {
-            Pause(length: 1)
-            if (nums) {
-                nums.eachWithIndex { ContactNumber num, int index ->
-                    String numForSay = TwilioUtils.say(num)
-                    Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberStart",
-                        [numForSay, index + 1, lastIndex + 1]))
-                    if (index != lastIndex) {
-                        Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberSkip"))
+
+    static Result<Closure> finishBridge(TypeMap params) {
+        IndividualPhoneRecords.mustFindActiveForId(params.long(FINISH_BRIDGE_CONTACT_ID))
+            .ifFail { TwilioUtils.invalidTwimlInputs(CallResponse.FINISH_BRIDGE.toString()) }
+            .then { IndividualPhoneRecord ipr1 ->
+                IndividualPhoneRecordWrapper w1 = ipr1.toWrapper()
+                w1.tryGetSortedNumbers().curry(w1)
+            }
+            .then { IndividualPhoneRecordWrapper w1, List<ContactNumber> nums ->
+                w1.tryGetSecureName().curry(nums)
+            }
+            .then { List<ContactNumber> nums, String nameOrNum ->
+                int lastIndex = nums.size() - 1
+                TwilioUtils.wrapTwiml {
+                    Pause(length: 1)
+                    if (nums) {
+                        nums.eachWithIndex { ContactNumber num, int index ->
+                            String numForSay = TwilioUtils.say(num)
+                            Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberStart",
+                                [numForSay, index + 1, lastIndex + 1]))
+                            if (index != lastIndex) {
+                                Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberSkip"))
+                            }
+                            // increase the timeout a bit to allow a longer window
+                            // for the called party's voicemail to answer
+                            Dial(timeout: 60, hangupOnStar: true) {
+                                Number(statusCallback: childCallStatus(num.e164PhoneNumber),
+                                    num.e164PhoneNumber)
+                            }
+                            Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberFinish", [numForSay]))
+                        }
+                        Pause(length: 5)
+                        Say(TwilioUtils.say("twimlBuilder.call.bridgeDone", [nameOrNum]))
                     }
-                    // increase the timeout a bit to allow a longer window
-                    // for the called party's voicemail to answer
-                    Dial(timeout: 60, hangupOnStar: true) {
-                        Number(statusCallback: CallTwiml.childCallStatus(num.e164PhoneNumber),
-                            num.e164PhoneNumber)
+                    else {
+                        Say(TwilioUtils.say("twimlBuilder.call.bridgeNoNumbers", [nameOrNum]))
                     }
-                    Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberFinish", [numForSay]))
+                    Hangup()
                 }
-                Pause(length: 5)
-                Say(TwilioUtils.say("twimlBuilder.call.bridgeDone", [nameOrNum]))
             }
-            else {
-                Say(TwilioUtils.say("twimlBuilder.call.bridgeNoNumbers", [nameOrNum]))
-            }
-            Hangup()
-        }
     }
 
     // Voicemail greeting
@@ -237,15 +275,16 @@ class CallTwiml {
 
     // CallResponse.VOICEMAIL_GREETING_RECORD
     static Map<String, String> infoForRecordVoicemailGreeting() {
-        [handle: CallResponse.VOICEMAIL_GREETING_RECORD]
+        [(CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_RECORD]
     }
+
     static Result<Closure> recordVoicemailGreeting(BasePhoneNumber phoneNum, BasePhoneNumber sessNum) {
         if (!phoneNum || !sessNum) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_RECORD.toString())
         }
         String directions = TwilioUtils.say("twimlBuilder.call.recordVoicemailGreeting", [phoneNum.number]),
             goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye"),
-            processingLink = IOCUtils.getWebhookLink(handle: CallResponse.VOICEMAIL_GREETING_PROCESSING),
+            processingLink = IOCUtils.getHandleLink(CallResponse.VOICEMAIL_GREETING_PROCESSING),
             doneLink = IOCUtils.getWebhookLink(CallTwiml
                 .infoForVoicemailGreetingFinishedProcessing(phoneNum, sessNum))
         TwilioUtils.wrapTwiml {
@@ -262,9 +301,9 @@ class CallTwiml {
         String processingMessage = IOCUtils.getMessage("twimlBuilder.call.processingVoicemailGreeting")
         TwilioUtils.wrapTwiml {
             Say(loop: 2, processingMessage)
-            Play(Constants.CALL_HOLD_MUSIC_URL)
+            Play(HOLD_MUSIC_URL)
             Say(loop: 2, processingMessage)
-            Play(loop: 0, Constants.CALL_HOLD_MUSIC_URL)
+            Play(loop: 0, HOLD_MUSIC_URL)
         }
     }
 
@@ -273,16 +312,17 @@ class CallTwiml {
         BasePhoneNumber sessionNum) {
 
         [
-            handle: CallResponse.VOICEMAIL_GREETING_PROCESSED,
-            To: sessionNum.number,
-            From: phoneNum.number
+            (CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PROCESSED,
+            (TwilioUtils.TO): sessionNum.number,
+            (TwilioUtils.FROM): phoneNum.number
         ]
     }
 
     // CallResponse.VOICEMAIL_GREETING_PLAY
     static Map<String, String> infoForPlayVoicemailGreeting() {
-        [handle: CallResponse.VOICEMAIL_GREETING_PLAY]
+        [(CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PLAY]
     }
+
     static Result<Closure> playVoicemailGreeting(BasePhoneNumber fromNum, URL greetingLink) {
         if (!fromNum || !greetingLink) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_PLAY.toString())
@@ -312,11 +352,11 @@ class CallTwiml {
             return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_GREETING.toString())
         }
         String welcome = IOCUtils.getMessage("twimlBuilder.call.announcementGreetingWelcome",
-                [name, Constants.CALL_HEAR_ANNOUNCEMENTS]),
+                [name, CallTwiml.DIGITS_HEAR_ANNOUNCEMENTS]),
             connectToStaff = IOCUtils.getMessage("twimlBuilder.call.connectToStaff"),
             sAction = isSubscribed
-                ? IOCUtils.getMessage("twimlBuilder.call.announcementUnsubscribe", [Constants.CALL_TOGGLE_SUBSCRIBE])
-                : IOCUtils.getMessage("twimlBuilder.call.announcementSubscribe", [Constants.CALL_TOGGLE_SUBSCRIBE])
+                ? IOCUtils.getMessage("twimlBuilder.call.announcementUnsubscribe", [CallTwiml.DIGITS_TOGGLE_SUBSCRIBE])
+                : IOCUtils.getMessage("twimlBuilder.call.announcementSubscribe", [CallTwiml.DIGITS_TOGGLE_SUBSCRIBE])
         TwilioUtils.wrapTwiml {
             Gather(numDigits: 1) {
                 Say(welcome)
@@ -334,9 +374,10 @@ class CallTwiml {
         if (!announcements || isSubscribed == null) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.HEAR_ANNOUNCEMENTS.toString())
         }
-        String sAction = isSubscribed
-                ? IOCUtils.getMessage("twimlBuilder.call.announcementUnsubscribe", [Constants.CALL_TOGGLE_SUBSCRIBE])
-                : IOCUtils.getMessage("twimlBuilder.call.announcementSubscribe", [Constants.CALL_TOGGLE_SUBSCRIBE]),
+        String toggleVal = CallTwiml.DIGITS_TOGGLE_SUBSCRIBE,
+            sAction = isSubscribed ?
+                IOCUtils.getMessage("twimlBuilder.call.announcementUnsubscribe", [toggleVal]) :
+                IOCUtils.getMessage("twimlBuilder.call.announcementSubscribe", [toggleVal]),
             connectToStaff = IOCUtils.getMessage("twimlBuilder.call.connectToStaff")
         TwilioUtils.wrapTwiml {
             Gather(numDigits: 1) {
@@ -348,22 +389,28 @@ class CallTwiml {
         }
     }
 
-    // CallResponse.ANNOUNCEMENT_AND_DIGITS
     static Map<String, String> infoForAnnouncementAndDigits(String identifier, String message) {
-        [handle: CallResponse.ANNOUNCEMENT_AND_DIGITS, identifier: identifier, message: message]
+        [
+            (CallbackUtils.PARAM_HANDLE): CallResponse.ANNOUNCEMENT_AND_DIGITS,
+            (ANNOUNCEMENT_AND_DIGITS_IDENT): identifier,
+            (ANNOUNCEMENT_AND_DIGITS_MSG): message
+        ]
     }
-    static Result<Closure> announcementAndDigits(String identifier, String message) {
+
+    static Result<Closure> announcementAndDigits(TypeMap params) {
+        String identifier = params.string(ANNOUNCEMENT_AND_DIGITS_IDENT),
+            message = params.string(ANNOUNCEMENT_AND_DIGITS_MSG)
         if (!identifier || !message) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_AND_DIGITS.toString())
         }
         String announcementIntro = IOCUtils.getMessage("twimlBuilder.call.announcementIntro",
                 [identifier]),
             unsubscribe = IOCUtils.getMessage("twimlBuilder.call.announcementUnsubscribe",
-                [Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE]),
+                [CallTwiml.DIGITS_ANNOUNCEMENT_UNSUBSCRIBE]),
             // must have same handle or else from and to numbers are still
             // reversed and will result in a "no phone for that number" error
-            repeatWebhook = IOCUtils.getWebhookLink(handle: CallResponse.ANNOUNCEMENT_AND_DIGITS,
-                identifier: identifier, message: message)
+            repeatWebhook = IOCUtils.getWebhookLink(CallTwiml
+                .infoForAnnouncementAndDigits(identifier, message))
         TwilioUtils.wrapTwiml {
             Say(announcementIntro)
             Gather(numDigits: 1) {
@@ -401,9 +448,7 @@ class CallTwiml {
     // -------
 
     protected static String childCallStatus(String number) {
-        IOCUtils.getWebhookLink([
-            handle: Constants.CALLBACK_STATUS,
-            (Constants.CALLBACK_CHILD_CALL_NUMBER_KEY): number
-        ])
+        IOCUtils.getHandleLink(CallbackUtils.STATUS,
+            [(CallbackUtils.PARAM_CHILD_CALL_NUMBER): number])
     }
 }

@@ -1,8 +1,10 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 class IndividualPhoneRecordWrapper extends PhoneRecordWrapper {
 
@@ -51,7 +53,7 @@ class IndividualPhoneRecordWrapper extends PhoneRecordWrapper {
             insufficientPermission()
     }
 
-    Result<List<ReadOnlyContactNumber>> tryGetSortedNumbers() {
+    Result<List<ContactNumber>> tryGetSortedNumbers() {
         permissions.canView() ?
             IOCUtils.resultFactory.success(individualWrapper.sortedNumbers) :
             insufficientPermission()

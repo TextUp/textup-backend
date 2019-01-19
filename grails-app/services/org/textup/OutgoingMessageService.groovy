@@ -67,19 +67,19 @@ class OutgoingMessageService {
                 // a call. See `outgoingMediaService.trySend` to see how this is handled
                 tokenService.tryBuildAndPersistCallToken(type, r1, temp1).curry(r1, temp1)
             }
-            .thenEnd { Recipients r1, TempRecordItem temp1, Token callToken ->
+            .end { Recipients r1, TempRecordItem temp1, Token callToken ->
                 Collection<RecordItem> rItems = AsyncUtils.getAllIds(RecordItem, itemIds)
                 Map<Long, Collection<RecordItem>> recIdToItems = MapUtils
                     .buildManyObjectsMap(rItems) { RecordItem rItem1 -> rItem.record.id }
-                r1.eachIndividualWithRecords { IndividualPhoneWrapper w1, Collection<Record> recs ->
+                r1.eachIndividualWithRecords { IndividualPhoneRecordWrapper w1, Collection<Record> recs ->
                     sendAndStore(w1, recs, temp1, recIdToItems, callToken)
-                        .logFail("finishProcessing: sending PhoneRecord `${w1.tryGetId().payload}`")
+                        .logFail("finishProcessing: sending PhoneRecord `${w1.id}`")
                 }
             }
     }
 
     // No need to send items through socket here. Status callbacks will send items.
-    protected Result<Void> sendAndStore(IndividualPhoneWrapper w1, Collection<Record> records,
+    protected Result<Void> sendAndStore(IndividualPhoneRecordWrapper w1, Collection<Record> records,
         TempRecordItem temp1, Map<Long, Collection<RecordItem>> recIdToItems, Token callToken) {
 
         w1.tryGetPhone()

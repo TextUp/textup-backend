@@ -8,7 +8,7 @@ import org.textup.Result
 import org.textup.util.IOCUtils
 
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
+@EqualsAndHashCode(callSuper = true)
 @Validateable
 @Log4j
 class PhoneNumber extends BasePhoneNumber {
@@ -27,21 +27,16 @@ class PhoneNumber extends BasePhoneNumber {
     }
 
     static Result<PhoneNumber> tryCreate(String num) {
-        PhoneNumber pNum = PhoneNumber.create(num)
-        if (pNum.validate()) {
-            IOCUtils.resultFactory.success(pNum)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(pNum.errors) }
+        DomainUtils.tryValidate(PhoneNumber.create(num), ResultStatus.CREATED)
     }
 
-    static PhoneNumber urlDecode(String num) {
-        String decodedNum = num
-        if (decodedNum) {
-            try {
-                decodedNum = URLDecoder.decode(num, Constants.DEFAULT_CHAR_ENCODING)
-            }
-            catch (Throwable e) { log.debug("urlDecode: could not decode `${num}`") }
+    static Result<PhoneNumber> tryUrlDecode(String num) {
+        try {
+            String decodedNum = URLDecoder.decode(num, Constants.DEFAULT_CHAR_ENCODING)
+            PhoneNumber.tryCreate(decodedNum)
         }
-        PhoneNumber.create(decodedNum)
+        catch (Throwable e) {
+            IOCUtils.resultFactory.failWithThrowable(e, "tryUrlDecode", LogLevel.DEBUG)
+        }
     }
 }

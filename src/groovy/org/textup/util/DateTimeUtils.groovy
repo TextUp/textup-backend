@@ -11,31 +11,12 @@ import org.textup.validator.*
 @Log4j
 class DateTimeUtils {
 
-    static DateTime now() { DateTimeUtils.now() }
-
-    // Printing DateTimes
-    // ------------------
-
     static final DateTimeFormatter CURRENT_TIME_FORMAT = DateTimeFormat.forPattern("MMM dd, y h:mm a")
     static final DateTimeFormatter DISPLAYED_MONTH_FORMAT = DateTimeFormat.forPattern("MMM yyyy")
     static final DateTimeFormatter FILE_TIMESTAMP_FORMAT = DateTimeFormat.forPattern("MMM-dd-yyyy")
     static final DateTimeFormatter QUERY_MONTH_FORMAT = DateTimeFormat.forPattern("yyyy-MM")
 
-    static String printLocalInterval(LocalInterval localInt) {
-        if (localInt) {
-            String start1 = localInt.start.hourOfDay.toString().padLeft(2, "0"),
-                start2 = localInt.start.minuteOfHour.toString().padLeft(2, "0"),
-                end1 = localInt.end.hourOfDay.toString().padLeft(2, "0"),
-                end2 = localInt.end.minuteOfHour.toString().padLeft(2, "0"),
-                start = "${start1}${start2}",
-                end = "${end1}${end2}"
-            "${start}:${end}"
-        }
-        else { "" }
-    }
-
-    // Operations on DateTimes
-    // -----------------------
+    static DateTime now() { DateTimeUtils.now() }
 
     static DateTimeZone getZoneFromId(String id) {
         try {

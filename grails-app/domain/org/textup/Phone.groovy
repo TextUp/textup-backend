@@ -15,8 +15,6 @@ import org.textup.validator.*
 @EqualsAndHashCode(excludes = "owner")
 class Phone implements WithMedia, WithId, Saveable<Phone> {
 
-    AvailableTextAction availableTextAction = AvailableTextAction.NOTIFY_TEXT_IMMEDIATELY // TODO
-    boolean sendPreviewLinkWithNotification = true // TODO
     boolean useVoicemailRecordingIfPresent = false
     CustomAccountDetails customAccount
     DateTime whenCreated = DateTimeUtils.now()
@@ -37,25 +35,25 @@ class Phone implements WithMedia, WithId, Saveable<Phone> {
         media fetch: "join", cascade: "save-update"
     }
     static constraints = {
-        apiId blank:true, nullable:true, unique:true
-        voice blank:false, nullable:false
-        numberAsString blank:true, nullable:true, validator:{ String num, Phone obj ->
-            if (!num) { // short circuit if number is blank
-                return;
-            }
-            //phone number must be unique for phones
-            Closure<Boolean> existsWithSameNumber = {
-                Phone ph = Phone.findByNumberAsString(new PhoneNumber(number:num).number)
-                ph && ph.id != obj.id
-            }
-            if (Utils.<Boolean>doWithoutFlush(existsWithSameNumber)) {
-                return ["duplicate"]
-            }
-            if (!ValidationUtils.isValidPhoneNumber(num)) {
-                return ["format"]
+        apiId blank: true, nullable: true, unique: true
+        voice blank: false, nullable: false
+        numberAsString blank: true, nullable: true, validator: { String num, Phone obj ->
+            if (num) {
+                // TODO move to static class?
+                //phone number must be unique for phones
+                Closure<Boolean> existsWithSameNumber = {
+                    Phone ph = Phone.findByNumberAsString(new PhoneNumber(number: num).number)
+                    ph && ph.id != obj.id
+                }
+                if (Utils.<Boolean>doWithoutFlush(existsWithSameNumber)) {
+                    return ["duplicate"]
+                }
+                if (!ValidationUtils.isValidPhoneNumber(num)) {
+                    return ["format"]
+                }
             }
         }
-        awayMessage blank:false, size:1..(Constants.TEXT_LENGTH * 2)
+        awayMessage blank: false, size: 1..(ValidationUtils.TEXT_BODY_LENGTH * 2)
         owner cascadeValidation: true
         media nullable: true, cascadeValidation: true
         customAccount nullable: true
@@ -71,8 +69,8 @@ class Phone implements WithMedia, WithId, Saveable<Phone> {
     // -------
 
     Phone deactivate() {  // TODO add history
-        this.numberAsString = null
-        this.apiId = null
+        numberAsString = null
+        apiId = null
         this
     }
 

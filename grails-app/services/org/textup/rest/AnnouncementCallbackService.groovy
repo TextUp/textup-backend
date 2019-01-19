@@ -7,12 +7,22 @@ import grails.transaction.Transactional
 @Transactional
 class AnnouncementCallbackService {
 
-    Result<Closure> textSeeAnnouncements(Collection<FeaturedAnnouncement> faList, IncomingSession is1) {
-        ResultGroup.collect(faList) { FeaturedAnnouncement fa1 ->
-                AnnouncementReceipt.tryCreate(fa1, is1, RecordItemType.TEXT)
-            }
-            .logFail("textSeeAnnouncements")
-        TextTwiml.seeAnnouncements(faList)
+    Result<Closure> textSeeAnnouncements(Phone p1, IncomingSession is1,
+        Closure<Result<Closure>> fallbackAction) {
+
+        Collection<FeaturedAnnouncement> announces = FeaturedAnnouncements
+            .buildActiveForPhoneId(p1.id)
+            .list()
+        if (announces) {
+            ResultGroup
+                .collect(announces) { FeaturedAnnouncement fa1 ->
+                    AnnouncementReceipt.tryCreate(fa1, is1, RecordItemType.TEXT)
+                }
+                .logFail("textSeeAnnouncements")
+            TextTwiml.build(TwilioUtils.formatAnnouncementsForRequest(announces))
+
+        }
+        else { fallbackAction() }
     }
 
     Result<Closure> textToggleSubscribe(IncomingSession is1) {
@@ -32,25 +42,25 @@ class AnnouncementCallbackService {
             is1.updateLastSentInstructions()
             if (is1.isSubscribedToText) {
                 textInstructions << IOCUtils.getMessage("twimlBuilder.text.instructionsSubscribed",
-                    [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
+                    [TextTwiml.BODY_SEE_ANNOUNCEMENTS, TextTwiml.BODY_TOGGLE_SUBSCRIBE])
             }
             else {
                 textInstructions << IOCUtils.getMessage("twimlBuilder.text.instructionsUnsubscribed",
-                    [Constants.TEXT_SEE_ANNOUNCEMENTS, Constants.TEXT_TOGGLE_SUBSCRIBE])
+                    [TextTwiml.BODY_SEE_ANNOUNCEMENTS, TextTwiml.BODY_TOGGLE_SUBSCRIBE])
             }
         }
         IOCUtils.resultFactory.success(textInstructions)
     }
 
-    Result<Closure> handleAnnouncementCall(Phone p1, String digits, IncomingSession is1,
+    Result<Closure> handleAnnouncementCall(Phone p1, IncomingSession is1, String digits,
         Closure<Result<Closure>> fallbackAction) {
 
         if (digits) {
             switch(digits) {
-                case Constants.CALL_HEAR_ANNOUNCEMENTS:
+                case CallTwiml.DIGITS_HEAR_ANNOUNCEMENTS:
                     callHearAnnouncements(p1.id, is1)
                     break
-                case Constants.CALL_TOGGLE_SUBSCRIBE:
+                case CallTwiml.DIGITS_TOGGLE_SUBSCRIBE:
                     callToggleSubscribe(is1)
                     break
                 default:
@@ -63,14 +73,12 @@ class AnnouncementCallbackService {
         else { fallbackAction() }
     }
 
-    Result<Closure> completeCallAnnouncement(String digits, String message,
-        String identifier, IncomingSession is1) {
-
-        if (digits == Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE) {
-            is1.setIsSubscribedToCall(false)
+    Result<Closure> completeCallAnnouncement(IncomingSession is1, String digits, TypeMap params) {
+        if (digits == CallTwiml.DIGITS_ANNOUNCEMENT_UNSUBSCRIBE) {
+            is1.isSubscribedToCall = false
             CallTwiml.unsubscribed()
         }
-        else { CallTwiml.announcementAndDigits(identifier, message) }
+        else { CallTwiml.announcementAndDigits(params) }
     }
 
     // Helpers
@@ -78,7 +86,8 @@ class AnnouncementCallbackService {
 
     protected Result<Closure> callHearAnnouncements(Long pId, IncomingSession is1) {
         List<FeaturedAnnouncement> fas = FeaturedAnnouncements.buildActiveForPhoneId(pId).list()
-        ResultGroup.collect(fas) { FeaturedAnnouncement fa1 ->
+        ResultGroup
+            .collect(fas) { FeaturedAnnouncement fa1 ->
                 AnnouncementReceipt.tryCreate(fa1, is1, RecordItemType.CALL)
             }
             .logFail("callHearAnnouncements")

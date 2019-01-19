@@ -64,6 +64,16 @@ class Staffs {
         shareCandidates.findAll { Staff s1 -> s1.id != shareWithStaffId }
     }
 
+    static Collection<Staff> findEveryForRecordIds(Collection<Long> recIds) {
+        if (recIds) {
+            List<Phone> phones = PhoneRecords.buildActiveForRecordIds(recIds)
+                .build(PhoneRecords.returnsPhone())
+                .list() as List<Phone>
+            CollectionUtils.mergeUnique(*phones*.owner*.buildAllStaff())
+        }
+        else { [] }
+    }
+
     static Closure returnsOrgId() {
         return {
             projections {

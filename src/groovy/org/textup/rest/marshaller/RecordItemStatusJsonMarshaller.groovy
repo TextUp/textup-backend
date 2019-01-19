@@ -5,9 +5,9 @@ import org.textup.*
 import org.textup.rest.*
 
 @GrailsTypeChecked
-class RecordItemStatusJsonMarshaller extends JsonNamedMarshaller {
+class RecordItemReceiptInfoJsonMarshaller extends JsonNamedMarshaller {
 
-	static final Closure marshalClosure = { RecordItemStatus stat1 ->
+	static final Closure marshalClosure = { RecordItemReceiptInfo stat1 ->
 		[
 			success: stat1.success,
 			pending: stat1.pending,
@@ -16,7 +16,7 @@ class RecordItemStatusJsonMarshaller extends JsonNamedMarshaller {
 		]
 	}
 
-	RecordItemStatusJsonMarshaller() {
-		super(RecordItemStatus, marshalClosure)
+	RecordItemReceiptInfoJsonMarshaller() {
+		super(RecordItemReceiptInfo, marshalClosure)
 	}
 }

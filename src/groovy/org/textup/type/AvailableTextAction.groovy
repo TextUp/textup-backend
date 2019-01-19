@@ -2,6 +2,8 @@ package org.textup.type
 
 import grails.compiler.GrailsTypeChecked
 
+// TODO remove??
+
 @GrailsTypeChecked
 enum AvailableTextAction {
     DO_NOTHING(false, false),

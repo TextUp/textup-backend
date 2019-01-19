@@ -43,7 +43,9 @@ class Token implements WithId, Saveable<Token> {
     }
 
     def beforeValidate() {
-        if (!token) { generateToken() }
+        if (!token) {
+            generateToken()
+        }
     }
 
     // Properties
@@ -57,16 +59,16 @@ class Token implements WithId, Saveable<Token> {
         }
     }
 
-    TypeMap<String, ?> getData() {
+    TypeMap getData() {
         try {
             stringData ?
                 new TypeMap(DataFormatUtils.jsonToObject(stringData)) :
                 new TypeMap()
         }
         catch (Throwable e) {
-            log.error("Token.getData: invalid json string '${stringData}'")
+            log.error("getData: invalid json string `${stringData}`")
             e.printStackTrace()
-            [:]
+            new TypeMap()
         }
     }
 
@@ -76,7 +78,7 @@ class Token implements WithId, Saveable<Token> {
     protected void generateToken() {
         // can't flush in GORM event hooks and calling dynamic finders
         // auto-flushes by default
-        Utils.doWithoutFlush({
+        Utils.doWithoutFlush {
             Integer tokenSize = type?.tokenSize ?: Constants.DEFAULT_TOKEN_LENGTH
             String tokenString = StringUtils.randomAlphanumericString(tokenSize)
             //ensure that our generated token is unique
@@ -84,7 +86,7 @@ class Token implements WithId, Saveable<Token> {
                 tokenString = StringUtils.randomAlphanumericString(tokenSize)
             }
             token = tokenString
-        })
+        }
     }
 
     protected boolean isAllowedNumAccess() {

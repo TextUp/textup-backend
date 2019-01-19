@@ -8,46 +8,31 @@ import org.textup.util.*
 
 class TextTwiml {
 
+    static final String TEXT_SEE_ANNOUNCEMENTS = "0"
+    static final String TEXT_TOGGLE_SUBSCRIBE = "1"
+
     static Result<Closure> build(Collection<String> responses) {
         TwilioUtils.wrapTwiml { responses.each { Message(it) } }
     }
 
-    // TextResponse.BLOCKED
     static Result<Closure> blocked() {
         message("twimlBuilder.text.blocked")
     }
-
-    // Errors
-    // ------
 
     static Result<Closure> invalid() {
         message("twimlBuilder.invalidNumber")
     }
 
-
     static Result<Closure> notFound() {
         message("twimlBuilder.notFound")
     }
 
-    // Announcements
-    // -------------
-
-    // TextResponse.SEE_ANNOUNCEMENTS
-    static Result<Closure> seeAnnouncements(Collection<FeaturedAnnouncement> announces) {
-        if (announces == null) {
-            return TwilioUtils.invalidTwimlInputs(TextResponse.SEE_ANNOUNCEMENTS.toString())
-        }
-        build(TwilioUtils.formatAnnouncementsForRequest(announces))
-    }
-
-    // TextResponse.SUBSCRIBED
     static Result<Closure> subscribed() {
-        message("twimlBuilder.text.subscribed", [Constants.TEXT_TOGGLE_SUBSCRIBE])
+        message("twimlBuilder.text.subscribed", [TextTwiml.BODY_TOGGLE_SUBSCRIBE])
     }
 
-    // TextResponse.UNSUBSCRIBED
     static Result<Closure> unsubscribed() {
-        message("twimlBuilder.text.unsubscribed", [Constants.TEXT_TOGGLE_SUBSCRIBE])
+        message("twimlBuilder.text.unsubscribed", [TextTwiml.BODY_TOGGLE_SUBSCRIBE])
     }
 
     // Helpers

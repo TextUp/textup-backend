@@ -12,8 +12,6 @@ import org.textup.validator.action.*
 @Transactional
 class NotificationActionService implements HandlesActions<Tuple<Phone, Long>, Void>{
 
-    ScheduleService scheduleService
-
     @Override
     boolean hasActions(Map body) { !!body.doNotificationActions }
 
@@ -21,26 +19,25 @@ class NotificationActionService implements HandlesActions<Tuple<Phone, Long>, Vo
     Result<Void> tryHandleActions(Tuple<Phone, Long> phoneAndRecordId, Map body) {
         phoneAndRecordId.checkBothPresent()
             .then {
-                ActionContainer.tryProcess(NotificationPolicyAction, body.doNotificationActions)
+                ActionContainer.tryProcess(NotificationAction, body.doNotificationActions)
             }
-            .then { List<NotificationPolicyAction> actions ->
+            .then { List<NotificationAction> actions ->
                 Tuple.split(phoneAndRecordId) { Phone p1, Long recordId ->
-                    ResultGroup<?> resGroup = new ResultGroup<>()
-                    actions.each { NotificationPolicyAction a1 ->
-                        NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(a1.id)
-                        switch (a1) {
-                            case NotificationPolicyAction.DEFAULT:
-                                np1.level = a1.buildNotificationLevel()
-                                break
-                            case NotificationPolicyAction.ENABLE:
-                                np1.enable(recordId)
-                                break
-                            default: // NotificationPolicyAction.DISABLE
-                                np1.disable(recordId)
+                    ResultGroup
+                        .collect(actions) { NotificationAction a1 ->
+                            OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, a1.id)
+                                .then { OwnerPolicy np1 ->
+                                    switch (a1) {
+                                        case NotificationAction.ENABLE:
+                                            np1.enable(recordId)
+                                            break
+                                        default: // NotificationAction.DISABLE
+                                            np1.disable(recordId)
+                                    }
+                                    DomainUtils.trySave(np1)
+                                }
                         }
-                        resGroup << DomainUtils.trySave(np1)
-                    }
-                    resGroup.toEmptyResult(false)
+                        .toEmptyResult(false)
                 }
             }
     }

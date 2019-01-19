@@ -30,14 +30,10 @@ class NumberService {
 
     @RollbackOnResultFailure
     Result<Void> startVerifyOwnership(PhoneNumber toNum) {
-        // validate to number
-        if (!toNum.validate()) {
-            return IOCUtils.resultFactory.failWithValidationErrors(toNum.errors)
-        }
         // Notification number will always be on our main account so no need for customAccountId
         String customAccountId = null
-        Utils
-            .tryGetNotificationNumber()
+        DomainUtils.tryValidate(toNum)
+            .then { Utils.tryGetNotificationNumber() }
             .then { PhoneNumber fromNum -> tokenService.generateVerifyNumber(toNum).curry(fromNum) }
             .then { PhoneNumber fromNum, Token tok1 ->
                 String msg = IOCUtils.getMessage("numberService.startVerifyOwnership.message", [tok1.token])
@@ -49,7 +45,14 @@ class NumberService {
 
     @RollbackOnResultFailure
     Result<Void> finishVerifyOwnership(String token, PhoneNumber toVerify) {
-        tokenService.verifyNumber(token, toVerify)
+        tokenService.findVerifyNumber(token)
+            .then { PhoneNumber storedNum ->
+                storedNum == toVerify ?
+                    IOCUtils.resultFactory.success() :
+                    IOCUtils.resultFactory.failWithCodeAndStatus(
+                        "tokenService.verifyNumber.numbersNoMatch", // TODO
+                        ResultStatus.NOT_FOUND)
+            }
     }
 
     // Numbers utility methods
@@ -204,7 +207,7 @@ class NumberService {
     Result<Phone> updatePhoneWithNewNumber(IncomingPhoneNumber newNum, Phone p1) {
         String oldApiId = p1.apiId
         p1.apiId = newNum.sid
-        p1.number = new PhoneNumber(number:newNum.phoneNumber as String)
+        p1.number = new PhoneNumber(number: newNum.phoneNumber as String)
         if (oldApiId) {
             freeExistingNumberToInternalPool(oldApiId).then({ IOCUtils.resultFactory.success(p1) })
         }

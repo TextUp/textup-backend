@@ -28,13 +28,19 @@ class PhoneRecords {
 
     static DetachedCriteria<PhoneRecord> buildActiveForPhoneIds(Collection<Long> phoneIds) {
         new DetachedCriteria(PhoneRecord)
-            .build { CriteriaUtils.inList(delegate, "phone.id", recordIds) }
+            .build(PhoneRecords.forPhoneIds(phoneIds), false)
             .build(PhoneRecords.forActive())
     }
 
     static Closure forShareSourceIds(Collection<Long> shareSourceIds) {
         return {
             CriteriaUtils.inList(delegate, "shareSource.id", shareSourceIds)
+        }
+    }
+
+    static Closure forPhoneIds(Collection<Long> phoneIds, boolean optional) {
+        return {
+            CriteriaUtils.inList(delegate, "phone.id", phoneIds, optional)
         }
     }
 

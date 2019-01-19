@@ -26,7 +26,7 @@ class PasswordResetService {
         }
         tokenService
             .generatePasswordReset(s1.id)
-            .then { Token tok1 -> mailService.notifyPasswordReset(s1, tok1.token) }
+            .then { Token tok1 -> mailService.notifyPasswordReset(s1, tok1) }
     }
 
     @RollbackOnResultFailure

@@ -16,7 +16,7 @@ class PhoneService {
 
     CallService callService
     MediaService mediaService
-    NotificationService notificationService
+    OwnerPolicyService ownerPolicyService
     PhoneActionsService phoneActionsService
 
     Result<Phone> update(Phone p1, TypeMap body, String timezone) {
@@ -26,9 +26,7 @@ class PhoneService {
                 future = fut1
                 phoneActionsService.tryHandleActions(p1, body)
             }
-            .then {
-                tryUpdateNotificationPolicies(p1, body.typeMapNoNull("availability"), timezone)
-            }
+            .then { tryUpdateOwnerPolicy(p1, body.typeMapNoNull("owner"), timezone) }
             .then { trySetFields(p1, body) }
             .then {
                 tryRequestVoicemailGreetingCall(p1, body.string("requestVoicemailGreetingCall"))
@@ -55,15 +53,16 @@ class PhoneService {
         DomainUtils.trySave(p1)
     }
 
-    protected Result<Phone> tryUpdateNotificationPolicies(Phone p1, TypeMap aInfo, String timezone) {
-        if (aInfo) {
+    protected Result<Phone> tryUpdateOwnerPolicy(Phone p1, TypeMap oInfo, String timezone) {
+        if (oInfo) {
             AuthUtils.tryGetAuthId()
                 .then { Long authId ->
-                    NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authId)
-                    notificationService.update(np1, aInfo, timezone)
+                    OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, authId)
                 }
+                .then { OwnerPolicy op1 -> ownerPolicyService.update(op1, oInfo, timezone) }
+                .then { DomainUtils.trySave(p1) }
         }
-        IOCUtils.resultFactory.success(p1)
+        else { DomainUtils.trySave(p1) }
     }
 
     protected Result<?> tryRequestVoicemailGreetingCall(Phone p1, String numToCall) {

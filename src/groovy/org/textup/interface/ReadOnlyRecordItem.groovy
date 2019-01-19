@@ -2,7 +2,7 @@ package org.textup.interface
 
 import grails.compiler.GrailsTypeChecked
 import org.joda.time.DateTime
-import org.textup.RecordItemStatus
+import org.textup.RecordItemReceiptInfo
 
 @GrailsTypeChecked
 interface ReadOnlyRecordItem extends Authorable, WithMedia {
@@ -16,5 +16,5 @@ interface ReadOnlyRecordItem extends Authorable, WithMedia {
     boolean getWasScheduled()
 
     String getNoteContents()
-    RecordItemStatus groupReceiptsByStatus()
+    RecordItemReceiptInfo groupReceiptsByStatus()
 }

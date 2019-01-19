@@ -20,21 +20,23 @@ class TextService {
         ResultGroup<TextService.Outcome> failResults = new ResultGroup<>()
         Result<TextService.Outcome> res
         for (toNum in toNums) {
-            res = tryText(fromNum, toNum, message, customAccountId, mediaUrls)
-            //record receipt and return on first success
-            if (res.success) {
-                TextService.Outcome msgRes = res.payload
-                TempRecordReceipt receipt = new TempRecordReceipt(apiId:msgRes.sid,
-                    numSegments: msgRes.numSegments)
-                receipt.contactNumber = toNum
-                if (receipt.validate()) {
-                    return IOCUtils.resultFactory.success(receipt)
+            if (toNum) {
+                res = tryText(fromNum, toNum, message, customAccountId, mediaUrls)
+                //record receipt and return on first success
+                if (res.success) {
+                    TextService.Outcome msgRes = res.payload
+                    TempRecordReceipt receipt = new TempRecordReceipt(apiId:msgRes.sid,
+                        numSegments: msgRes.numSegments)
+                    receipt.contactNumber = toNum
+                    if (receipt.validate()) {
+                        return IOCUtils.resultFactory.success(receipt)
+                    }
+                    else {
+                        return IOCUtils.resultFactory.failWithValidationErrors(receipt.errors)
+                    }
                 }
-                else {
-                    return IOCUtils.resultFactory.failWithValidationErrors(receipt.errors)
-                }
+                else { failResults << res }
             }
-            else { failResults << res }
         }
         if (failResults.isEmpty) {
             IOCUtils.resultFactory.failWithCodeAndStatus("textService.text.noNumbers",
@@ -46,7 +48,7 @@ class TextService {
     protected Result<TextService.Outcome> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         String message, String customAccountId, Collection<URI> mediaUrls) {
 
-        String callback = IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS)
+        String callback = IOCUtils.getHandleLink(CallbackUtils.STATUS)
         try {
             Message msg1 = messageCreator(fromNum, toNum, message, customAccountId)
                 .setStatusCallback(callback)

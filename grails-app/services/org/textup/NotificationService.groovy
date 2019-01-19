@@ -13,65 +13,37 @@ import org.textup.validator.action.*
 @Transactional
 class NotificationService {
 
+    MailService mailService
+    TextService textService
     TokenService tokenService
 
-    // TODO
-    Result<List<OutgoingNotification>> build(Collection<? extends RecordItem> rItems) {
-        // find phones
-        // find all staff to send to for each phone
-        // group eligible records to report on for each staff for each phone
+    Result<Void> send(NotificationFrequency freq1, NotificationGroup notifGroup) {
+        ResultGroup<?> resGroup = new ResultGroup<>()
+        notifGroup.eachNotification(freq1) { OwnerPolicy op1, Notification notif1 ->
+            resGroup << tokenService.tryGeneratePreviewInfo(op1, notif1)
+                .then { Token tok1 = null ->
+                    NotificationInfo notifInfo = NotificationInfo.create(op1, notif1)
+                    if (op1.method == NotificationMethod.TEXT) {
+                        textService
+                            .send(notif1.phone.number,
+                                [op1.staff.personalPhoneNumber],
+                                notifInfo.buildTextMessage(tok1),
+                                notif1.phone.customAccountId)
+                            .logFail("send: text to staff `${s1.id}`")
+                    }
+                    else { mailService.notifyMessages(freq1, op1.staff, notifInfo, tok1) }
+                }
+        }
+        resGroup.toEmptyResult(false)
+    }
 
-        Phones.findEveryModifiableForItems(rItems).then { Map<Phone, List<RecordItem>> phoneToItems ->
-            List<OutgoingNotification> notifs = []
-            phoneToItems.each { Phone p1, List<RecordItem> phoneItems ->
-                notifs << new OutgoingNotification(phone: p1, items: phoneItems)
+    Result<Notification> redeem(String token) {
+        tokenService.tryFindPreviewInfo(token)
+            .then { Tuple<Long, Notification> tup1 ->
+                Tuple.split(tup1) { Long ownerPolicyId, Notification notif1 ->
+                    RequestUtils.trySetOnRequest(RequestUtils.OWNER_POLICY_ID, ownerPolicyId)
+                    DomainUtils.tryValidate(notif1)
+                }
             }
-            IOCUtils.resultFactory.success(notifs)
-        }
-    }
-
-    // TODO
-    Result<List<OutgoingNotification>> collectIncoming(long timeSince, TimeUnit unit) {
-        // find phones with changes in the specified time amount
-        // find all staff to sent to for each phone
-        // group eligible records to report on for each staff for each phone
-
-        // TODO
-        List<RecordItem> rItems = RecordItem.createCriteria().list {
-            ne("class", RecordNote.class)
-            ge("whenCreated", DateTime.now().minus(TimeUnit.toMillis(timeSince)))
-            eq("outgoing", false)
-            order("whenCreated", "asc")
-        } as List<RecordItem>
-        build(rItems)
-    }
-
-    // TODO
-    // wrap this call to token service in case we need to do additional processing on redeemed
-    // notification in the future
-    Result<RedeemedNotification> redeem(String token) {
-        tokenService.findNotification(token)
-    }
-
-    Result<NotificationPolicy> update(NotificationPolicy np1, TypeMap body, String timezone) {
-        trySetFields(np1, body)
-            .then { tryUpdateSchedule(np1, body, timezone) }
-            .then { DomainUtils.trySave(np1) }
-    }
-
-    // Helpers
-    // -------
-
-    protected Result<NotificationPolicy> trySetFields(NotificationPolicy np1, TypeMap body) {
-        if (body.useStaffAvailability != null) {
-            np1.useStaffAvailability = body.bool("useStaffAvailability")
-        }
-        DomainUtils.trySave(np1)
-    }
-
-    protected Result<?> tryUpdateSchedule(NotificationPolicy np1, TypeMap body, String timezone) {
-        body.typeMapNoNull("schedule") ?
-            scheduleService.update(np1, body, timezone) :
-            IOCUtils.resultFactory.success()
     }
 }

@@ -86,7 +86,6 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
         }
         // push new system notes to the app
         socketService.sendItems(resGroup.payload)
-            .logFail("tryRecordSharingChanges: sending items through socket")
         resGroup
     }
 }

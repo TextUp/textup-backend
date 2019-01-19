@@ -30,8 +30,8 @@ class RecordItem implements ReadOnlyRecordItem, WithId, Saveable<RecordItem> {
 	static transients = ["author"]
     static hasMany = [receipts: RecordItemReceipt]
     static mapping = {
-        receipts lazy: false, cascade: "all-delete-orphan"
-        media lazy: false, cascade: "save-update"
+        receipts cascade: "all-delete-orphan"
+        media fetch: "join", cascade: "save-update"
         whenCreated type: PersistentDateTime
         noteContents type: "text"
     }
@@ -59,7 +59,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId, Saveable<RecordItem> {
         this
     }
 
-    RecordItemStatus groupReceiptsByStatus() { new RecordItemStatus(receipts) }
+    RecordItemReceiptInfo groupReceiptsByStatus() { new RecordItemReceiptInfo(receipts) }
 
     // Properties
     // ----------

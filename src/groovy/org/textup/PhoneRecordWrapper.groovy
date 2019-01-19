@@ -1,9 +1,11 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 import org.textup.interface.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
 
@@ -33,11 +35,7 @@ class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
     // Getters
     // -------
 
-    Result<Long> tryGetId() {
-        permissions.canView() ?
-            IOCUtils.resultFactory.success(phoneRecord.id) :
-            insufficientPermission()
-    }
+    Long getId() { phoneRecord.id }
 
     Result<DateTime> tryGetLastTouched() {
         permissions.canView() ?

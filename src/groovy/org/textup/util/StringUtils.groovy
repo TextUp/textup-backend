@@ -42,6 +42,13 @@ class StringUtils {
             .join(".") + "." // put a period after each initial
     }
 
+    protected String withUnits(int val, String measureWord) {
+        if (val == 1) {
+            "${val} ${measureWord}"
+        }
+        else { "${val} ${measureWord}s" }
+    }
+
     static String randomAlphanumericString(Integer length = 22) {
         int lastIndex = ALPHABET.size() - 1
         StringBuffer result = new StringBuffer()
@@ -51,6 +58,19 @@ class StringUtils {
         }
         result.toString()
     }
+
+    static String cleanForSay(String msg) {
+        if (msg) {
+            msg.replaceAll(/(\/|\-)/, "") // remove slashes and dashes because these are pronouned
+                .replaceAll(/(\d)/, / $0 /) // surround digits with spaces
+                .replaceAll(/\s+/, " ") // replace multiple sequential spaces with just one
+                .trim() // trim any surround whitespace
+        }
+        else { "" }
+    }
+
+    // Helpers
+    // -------
 
     protected static List<String> buildAlphabet() {
         List<String> alphabet = []

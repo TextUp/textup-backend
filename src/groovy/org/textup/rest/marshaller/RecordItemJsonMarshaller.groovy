@@ -49,9 +49,8 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 type = RecordItemType.NOTE.toString()
             }
         }
-        Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
-            .logFail("RecordItemJsonMarshaller: no available request", LogLevel.DEBUG)
-            .thenEnd { String tz = null ->
+        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
+            .end { String tz = null ->
                 json.whenCreated = DateTimeUtils.toDateTimeWithZone(json.whenCreated, tz)
                 json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
             }

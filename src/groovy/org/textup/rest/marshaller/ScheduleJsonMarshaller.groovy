@@ -11,27 +11,29 @@ import org.textup.validator.LocalInterval
 
 @GrailsTypeChecked
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { Schedule sched ->
+    static final Closure marshalClosure = { Schedule sched1 ->
         Map json = [:]
-
-        Result<String> res = Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
-            .logFail("ScheduleJsonMarshaller: no available request", LogLevel.DEBUG)
-        String tz = res.success ? res.payload : null
-
-        json.with {
-            id = sched.id
-            isAvailableNow = sched.isAvailableNow()
-            timezone = tz
-        }
-        sched.nextAvailable(tz).thenEnd({ DateTime dt -> json.nextAvailable = dt })
-        sched.nextUnavailable(tz).thenEnd({ DateTime dt -> json.nextUnavailable = dt })
-        // also return local intervals if a weekly schedule
-        if (sched.instanceOf(WeeklySchedule)) {
-            WeeklySchedule.get(sched.id)?.getAllAsLocalIntervals(tz).each {
-                String day, List<LocalInterval> intervals ->
-                json["${day}"] = intervals.collect(DateTimeUtils.&printLocalInterval)
+        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
+            .then { String tz ->
+                json.with {
+                    timezone = tz
+                    nextAvailable = sched1.nextAvailable(tz)
+                    nextUnavailable = sched1.nextUnavailable(tz)
+                }
             }
+            .ifFail("request", LogLevel.DEBUG) {
+                json.with {
+                    nextAvailable = sched1.nextAvailable()
+                    nextUnavailable = sched1.nextUnavailable()
+                }
+            }
+        json.with {
+            id = sched1.id
+            isAvailableNow = sched1.isAvailableNow()
+            manual = sched1.manual
+            manualIsAvailable = sched1.manualIsAvailable
         }
+        json.putAll(sched1.getAllAsLocalIntervals(tz))
         json
     }
 

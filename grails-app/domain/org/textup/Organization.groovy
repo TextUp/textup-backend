@@ -49,7 +49,7 @@ class Organization implements WithId, Saveable<Organization> {
         status blank: false, nullable: false
         timeout min: 0, max: ValidationUtils.MAX_LOCK_TIMEOUT_MILLIS
         // leave one character for the space for joining this suffix with an away message
-        awayMessageSuffix nullable: true, blank: true, size: 1..(Constants.TEXT_LENGTH - 1)
+        awayMessageSuffix nullable: true, blank: true, size: 1..(ValidationUtils.TEXT_BODY_LENGTH - 1)
         location cascadeValidation: true
     }
 

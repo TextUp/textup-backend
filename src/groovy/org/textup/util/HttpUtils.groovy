@@ -14,6 +14,9 @@ import org.textup.*
 @Log4j
 class HttpUtils {
 
+    static final String PROTOCOL_HTTP = "http"
+    static final String PROTOCOL_HTTPS = "https"
+
     // From http://www.baeldung.com/httpclient-4-basic-authentication
     // Twilio has inconsistent behavior with a basic authentication header string.
     // Therefore, use Credential Provider

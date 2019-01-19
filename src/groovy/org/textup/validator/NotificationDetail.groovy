@@ -1,0 +1,49 @@
+package org.textup.validator
+
+import grails.compiler.GrailsTypeChecked
+import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
+
+@EqualsAndHashCode
+@GrailsTypeChecked
+@Validateable
+class NotificationDetail implements Validateable {
+
+    final PhoneRecordWrapper wrapper
+    final HashSet<RecordItem> items = new HashSet<>()
+
+    static constraints = {
+        wrapper validator: { PhoneRecordWrapper val,
+            if (!val.permissions.canModify()) { ["insufficientPermission"] }
+        }
+        items validator: { HashSet<RecordItem> val, NotificationDetail obj ->
+            Record rec1 = obj.wrapper?.tryGetRecord()?.payload
+            if (rec1 && val?.any { RecordItem rItem1 -> rItem1.record.id != rec1.id }) {
+                ["mismatched", rec1.id]
+            }
+        }
+    }
+
+    static Result<NotificationDetail> tryCreate(PhoneRecordWrapper w1) {
+        DomainUtils.tryValidate(new NotificationDetail(wrapper: w1), ResultStatus.CREATED)
+    }
+
+    // Methods
+    // -------
+
+    int countItemsForOutgoingAndOptions(boolean isOut, OwnerPolicy op1 = null,
+        Clazz<T extends RecordItem> clazz = null) {
+
+        items.count { RecordItem rItem1 ->
+            rItem1.outgoing == isOut &&
+                (!op1 || op1.isAllowed(rItem1.id)) && // owner policy is optional
+                (!clazz || rItem1 instanceof clazz) // class is optional
+        }
+    }
+
+    int countVoicemails(OwnerPolicy op1) {
+        items.count { RecordItem rItem1 ->
+            op1.isAllowed(rItem1.id) && rItem1.isVoicemail && rItem1 instanceof RecordCall
+        }
+    }
+}

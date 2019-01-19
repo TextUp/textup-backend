@@ -26,14 +26,12 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
             phoneNumber = itemRequest.phone?.number?.prettyPhoneNumber
         }
         // fetching sections with appropriate pagination options
-    	Utils.tryGetFromRequest(Constants.REQUEST_PAGINATION_OPTIONS)
-            .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
-            .thenEnd({ Map options = null -> json.sections = itemRequest.getSections(options)},
+    	RequestUtils.tryGetFromRequest(RequestUtils.PAGINATION_OPTIONS)
+            .end({ Map options = null -> json.sections = itemRequest.getSections(options)},
                 { json.sections = itemRequest.getSections() })
         // setting timestamps with appropriate
-        Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
-            .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
-            .thenEnd { String tz = null ->
+        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
+            .end { String tz = null ->
                 json.with {
                     startDate = itemRequest.start
                         ? DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(

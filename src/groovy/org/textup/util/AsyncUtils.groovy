@@ -21,7 +21,7 @@ class AsyncUtils {
     // TODO skip type checking?
     // TODO this needs to return domain objects in the SAME order as the passed-in ids
     static <T extends Saveable> Collection<T> getAllIds(Clazz<T> clazz, Collection<Long> ids) {
-        Collection<T> found = clazz.getAll(ids as Iterable<Serializable>)
+        Collection<T> found = clazz.getAll(ids?.unique() as Iterable<Serializable>)
         if (found.size() != ids.size()) {
             log.error("getAllIds: did not find all for `$clazz` and `$ids`")
         }

@@ -22,9 +22,8 @@ class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
             if (rev.authorId) authorId = rev.authorId
             if (rev.authorType) authorType = rev.authorType.toString()
         }
-        Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
-            .logFail("RecordNoteRevisionJsonMarshaller: no available request", LogLevel.DEBUG)
-            .thenEnd { String tz = null ->
+        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
+            .end { String tz = null ->
                 json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
             }
         json

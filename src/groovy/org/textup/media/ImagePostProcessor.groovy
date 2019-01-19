@@ -54,7 +54,7 @@ class ImagePostProcessor implements CanProcessMedia {
                 .then { Tuple<byte[], BufferedImage> after ->
                     ImageUtils.tryCompress(_type, after.first, after.second, target.maxSizeInBytes)
                 }
-                .thenEnd { Tuple<byte[], BufferedImage> after ->
+                .end { Tuple<byte[], BufferedImage> after ->
                     uItem.data = after.first
                     uItem.image = after.second
                 }

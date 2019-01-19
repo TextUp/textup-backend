@@ -7,40 +7,27 @@ import grails.transaction.Transactional
 @Transactional
 class CallCallbackService {
 
+    TokenService tokenService
+
+    Result<Closure> checkIfVoicemail(Phone p1, IncomingSession is1, TypeMap params) {
+        ReceiptStatus stat = ReceiptStatus.translate(params.string(TwilioUtils.STATUS_DIALED_CALL))
+        if (stat == ReceiptStatus.SUCCESS) { // call already connected so no voicemail
+            TwilioUtils.noResponseTwiml()
+        }
+        else { CallTwiml.recordVoicemailMessage(p1, is1.number) }
+    }
+
     Result<Closure> directMessageCall(String token) {
-        tokenService.findDirectMessage(token).then({ Token tok1 ->
-            TypeMap<String, ?> data = tok1.data
-            List<URL> recordings = []
-            if (data.mediaId) {
-                MediaInfo.get(data.long("mediaId"))
-                    ?.getMediaElementsByType(MediaType.AUDIO_TYPES)
-                    ?.each { MediaElement el1 ->
-                        if (el1.sendVersion) { recordings << el1.sendVersion.link }
-                    }
-            }
-            CallTwiml.directMessage(data.string("identifier"), data.string("message"),
-                data.enum(VoiceLanguage, "language"), recordings)
-        }, { Result<Token> failRes ->
-            failRes.logFail("OutgoingMessageService.directMessageCall")
-            CallTwiml.error()
-        })
+        tokenService.buildDirectMessageCall(token)
+            .ifFail("directMessageCall") { CallTwiml.error() }
     }
 
-    Result<Closure> finishBridgeCall(TypeMap params) {
-        Contact c1 = Contact.get(params.long("contactId"))
-        CallTwiml.finishBridge(c1)
-    }
-
-    Result<Closure> screenIncomingCall(Phone p1, IncomingSession sess1) {
-        IndividualPhoneRecords.tryFindEveryByNumbers(p1, [sess1.number], false)
-            .then { Map<PhoneNumber, List<Contact>> numberToContacts ->
-                HashSet<String> idents = new HashSet<>()
-                numberToContacts.each { PhoneNumber pNum, List<Contact> contacts ->
-                    contacts.each { Contact c1 ->
-                        idents.add(c1.getNameOrNumber())
-                    }
-                }
-                CallTwiml.screenIncoming(idents)
+    Result<Closure> screenIncomingCall(Phone p1, IncomingSession is1) {
+        IndividualPhoneRecords.tryFindEveryByNumbers(p1, [is1.number], false)
+            .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numberToPhoneRecords ->
+                Collection<String> names = CollectionUtils
+                    .mergeUnique(*numberToPhoneRecords.values())*.secureName
+                CallTwiml.screenIncoming(names)
             }
     }
 }

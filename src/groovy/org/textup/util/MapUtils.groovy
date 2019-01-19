@@ -15,7 +15,7 @@ class MapUtils {
     }
 
     static <T, I> Map<T, Collection<I>> buildManyObjectsMap(Collection<I> objs, Closure<T> getProp) {
-        Map<T, Collection<I>> idToManyObjects = [:].withDefault { [] as Collection<I> }
+        Map<T, Collection<I>> idToManyObjects = [:].withDefault { new HashSet<I>() }
         objs?.each { I obj -> if (obj) { idToManyObjects[getProp(obj)] << obj } }
         idToManyObjects
     }

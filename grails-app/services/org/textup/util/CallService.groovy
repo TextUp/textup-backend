@@ -15,6 +15,9 @@ import org.textup.validator.*
 @Transactional
 class CallService {
 
+    static final String RETRY_REMAINING = "remaining"
+    static final String RETRY_AFTER_PICKUP = "afterPickup"
+
     Result<TempRecordReceipt> start(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
         Map afterPickup, String customAccountId) {
 
@@ -62,7 +65,7 @@ class CallService {
         try {
             callUpdater(callId, customAccountId)
                 .setUrl(IOCUtils.getWebhookLink(afterPickup))
-                .setStatusCallback(IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS))
+                .setStatusCallback(IOCUtils.getHandleLink(CallbackUtils.STATUS))
                 .update()
             IOCUtils.resultFactory.success()
         }
@@ -72,13 +75,20 @@ class CallService {
     // Helpers
     // -------
 
+    protected static class Outcome {
+        String sid
+    }
+
     protected String buildCallbackUrl(List<String> remaining, String afterPickupJson) {
         if (remaining && afterPickupJson) {
-            IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS, remaining: remaining,
-                afterPickup: afterPickupJson)
+            IOCUtils.getHandleLink(CallbackUtils.STATUS,
+                [
+                    (CallService.RETRY_REMAINING): remaining,
+                    (CallService.RETRY_AFTER_PICKUP): afterPickupJson
+                ])
         }
         // Will not add retry parameters if no numbers remaining to try
-        else { IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS) }
+        else { IOCUtils.getHandleLink(CallbackUtils.STATUS) }
     }
 
     protected Result<TempRecordReceipt> doCall(BasePhoneNumber fromNum, BasePhoneNumber toNum,
@@ -90,19 +100,12 @@ class CallService {
         }
         try {
             CallCreator creator = callCreator(fromNum, toNum, afterPickup, customAccountId)
-            CallService.Outcome cOutcome = executeCall(creator, callback)
-            TempRecordReceipt receipt = new TempRecordReceipt(apiId: cOutcome.sid)
-            receipt.contactNumber = toNum
-            if (receipt.validate()) {
-                IOCUtils.resultFactory.success(receipt)
-            }
-            else { IOCUtils.resultFactory.failWithValidationErrors(receipt.errors) }
+            CallService.Outcome outcome = executeCall(creator, callback)
+            TempRecordReceipt.tryCreate(outcome.sid, toNum)
         }
         catch (Throwable e) {
-            log.error("CallService.doCall: ${e.class}, ${e.message}")
-            // if an ApiException from Twilio, then would be a validation error
-            Result res = IOCUtils.resultFactory.failWithThrowable(e)
-            if (e instanceof ApiException) {
+            Result<?> res = IOCUtils.resultFactory.failWithThrowable(e, "doCall")
+            if (e instanceof ApiException) { // Twilio ApiException --> is validation error
                 res.status = ResultStatus.UNPROCESSABLE_ENTITY
             }
             res
@@ -126,11 +129,8 @@ class CallService {
             Call.creator(customAccountId, apiTo, apiFrom, afterUri) :
             Call.creator(apiTo, apiFrom, afterUri)
     }
+
     protected CallUpdater callUpdater(String callId, String customAccountId) {
         customAccountId ? Call.updater(customAccountId, callId) : Call.updater(callId)
-    }
-
-    protected static class Outcome {
-        String sid
     }
 }

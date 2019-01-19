@@ -12,6 +12,35 @@ class IncomingSessions {
         }
     }
 
+    static Result<IncomingSession> mustFindForId(Long isId) {
+        IncomingSession is1 = IncomingSession.get(isId)
+        if (is1) {
+            IOCUtils.resultFactory.success(is1)
+        }
+        else {
+            resultFactory.failWithCodeAndStatus("sessionService.update.notFound", // TODO
+                ResultStatus.NOT_FOUND, [isId])
+        }
+    }
+
+    static Result<IncomingSession> mustFindForPhoneAndNumber(Phone p1, BasePhoneNumber bNum,
+        boolean createIfAbsent) {
+
+        IncomingSession is1 = IncomingSession.findByPhoneAndNumberAsString(p1, bNum?.number)
+        if (is1) {
+            IOCUtils.resultFactory.success(is1)
+        }
+        else {
+            if (createIfAbsent) {
+                IncomingSession.tryCreate(p1, bNum)
+            }
+            else {
+                IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+                    ResultStatus.NOT_FOUND)
+            }
+        }
+    }
+
     static DetachedCriteria<IncomingSession> buildForPhoneIdWithOptions(Long phoneId,
         Boolean hasCall = null, Boolean hasText = null) {
 

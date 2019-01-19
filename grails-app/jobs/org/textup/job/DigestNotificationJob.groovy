@@ -23,5 +23,9 @@ class DigestNotificationJob implements Job {
     @GrailsTypeChecked
     void execute(JobExecutionContext context = null) {
 
+        // TODO IF OUTGOING needds to be SCHEDULED< not any outgoing messages
+        // DateTime dt1 = DateTime.now().minus(unit.toMillis(timeSince))
+        // Collection<RecordItem> rItems = RecordItems.buildIncomingMessagesAfter(dt1).list()
+        // NotificationUtils.tryBuildNotificationGroup(rItems)
     }
 }

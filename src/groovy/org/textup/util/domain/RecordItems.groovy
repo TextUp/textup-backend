@@ -25,6 +25,13 @@ class RecordItems {
         results
     }
 
+    static DetachedCriteria<RecordItem> buildIncomingMessagesAfter(DateTime afterTime) {
+        new DetachedCriteria(RecordItem)
+            .build { ne("class", RecordNote.class) }
+            .build(forDates(afterTime, null))
+            .build(Recorditems.forIncoming())
+    }
+
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static DetachedCriteria<RecordItem> buildForPhoneIdWithOptions(Long phoneId,
         DateTime start = null, DateTime end = null,
