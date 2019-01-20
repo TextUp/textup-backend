@@ -17,39 +17,45 @@ class TextService {
     Result<TempRecordReceipt> send(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
         String message, String customAccountId, Collection<URI> mediaUrls = []) {
 
-        ResultGroup<TextService.Outcome> failResults = new ResultGroup<>()
-        Result<TextService.Outcome> res
-        for (toNum in toNums) {
-            if (toNum) {
-                res = tryText(fromNum, toNum, message, customAccountId, mediaUrls)
-                //record receipt and return on first success
-                if (res.success) {
-                    TextService.Outcome msgRes = res.payload
-                    TempRecordReceipt receipt = new TempRecordReceipt(apiId:msgRes.sid,
-                        numSegments: msgRes.numSegments)
-                    receipt.contactNumber = toNum
-                    if (receipt.validate()) {
-                        return IOCUtils.resultFactory.success(receipt)
-                    }
-                    else {
-                        return IOCUtils.resultFactory.failWithValidationErrors(receipt.errors)
-                    }
+        ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
+        CollectionUtils.ensureNoNull(toNums)
+            .each { BasePhoneNumber toNum ->
+                if (resGroup.anySuccesses == false) { // keep trying until first success
+                    resGroup << tryText(fromNum, toNum, message, customAccountId, mediaUrls)
+                        .then { TextService.Outcome msgRes ->
+                            TempRecordReceipt.tryCreate(msgRes.sid, toNum).curry(msgRes)
+                        }
+                        .then { TextService.Outcome msgRes, TempRecordReceipt rpt1 ->
+                            rpt1.numSegments = msgRes.numSegments
+                            DomainUtils.tryValidate(rpt1)
+                        }
                 }
-                else { failResults << res }
             }
+        if (resGroup.anySuccesses) {
+            IOCUtils.resultFactory.success(resGroup.payload[0])
         }
-        if (failResults.isEmpty) {
-            IOCUtils.resultFactory.failWithCodeAndStatus("textService.text.noNumbers",
-                ResultStatus.UNPROCESSABLE_ENTITY, null)
+        else {
+            if (resGroup.isEmpty) {
+                IOCUtils.resultFactory.failWithCodeAndStatus("textService.text.noNumbers",
+                    ResultStatus.UNPROCESSABLE_ENTITY)
+            }
+            else { IOCUtils.resultFactory.failWithGroup(resGroup) }
         }
-        else { IOCUtils.resultFactory.failWithGroup(failResults) }
 	}
+
+    // Helpers
+    // -------
+
+    protected static class Outcome {
+        String sid
+        Integer numSegments
+    }
 
     protected Result<TextService.Outcome> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
         String message, String customAccountId, Collection<URI> mediaUrls) {
 
-        String callback = IOCUtils.getHandleLink(CallbackUtils.STATUS)
         try {
+            String callback = IOCUtils.getHandleLink(CallbackUtils.STATUS)
             Message msg1 = messageCreator(fromNum, toNum, message, customAccountId)
                 .setStatusCallback(callback)
                 .setMediaUrl(new ArrayList<URI>(mediaUrls))
@@ -59,7 +65,7 @@ class TextService {
             IOCUtils.resultFactory.success(msgRes)
         }
         catch (Throwable e) {
-            log.error("TextService.tryText: ${e.class}, ${e.message}")
+            log.error("tryText: ${e.class}, ${e.message}")
             // if an ApiException from Twilio, then would be a validation error
             Result res = IOCUtils.resultFactory.failWithThrowable(e)
             if (e instanceof ApiException) {
@@ -77,10 +83,5 @@ class TextService {
         customAccountId ?
             Message.creator(customAccountId, apiTo, apiFrom, message) :
             Message.creator(apiTo, apiFrom, message)
-    }
-
-    protected static class Outcome {
-        String sid
-        Integer numSegments
     }
 }

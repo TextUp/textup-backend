@@ -10,7 +10,6 @@ import org.textup.*
 @Log4j
 class AsyncUtils {
 
-    static final int SEND_BATCH_SIZE = 20
     static final int UPLOAD_BATCH_SIZE = 8
 
     // TODO still need this?
@@ -37,9 +36,7 @@ class AsyncUtils {
         ] as Future<?>
     }
 
-    static <K, T> List<T> doAsyncInBatches(Collection<K> data, Closure<T> doAction,
-        int batchSize = SEND_BATCH_SIZE) {
-
+    static <K, T> List<T> doAsyncInBatches(Collection<K> data, int batchSize, Closure<T> doAction) {
         if (!data) {
             return []
         }

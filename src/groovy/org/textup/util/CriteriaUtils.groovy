@@ -34,4 +34,10 @@ class CriteriaUtils {
             }
         }
     }
+
+    static Closure forNotId(Long thisId) {
+        return {
+            ne("id", thisId)
+        }
+    }
 }

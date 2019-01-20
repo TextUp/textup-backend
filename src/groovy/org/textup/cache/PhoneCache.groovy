@@ -10,7 +10,7 @@ import org.textup.util.*
 @GrailsTypeChecked
 class PhoneCache {
 
-    // TODO propagate?
+    // TODO propagate? -- need to decide once we redefine when a phone is active or not
     boolean hasInactivePhone(Long ownerId, PhoneOwnershipType type) {
         Phone p1 = findPhone(ownerId, type, true)
         p1?.isActive == false
@@ -26,7 +26,7 @@ class PhoneCache {
     // Must be a non-static public method for Spring AOP advice to apply
     // Key is a SpEL list, see: https://stackoverflow.com/a/17406598
     @CacheEvict(values = "phonesCache", key = "{ #p1, #p2 }")
-    Result<Phone> updateOwner(Phone p1, Long ownerId, PhoneOwnershipType type) {
+    Result<Phone> tryUpdateOwner(Phone p1, Long ownerId, PhoneOwnershipType type) {
         p1.owner.ownerId = ownerId
         p1.owner.type = type
         DomainUtils.trySave(p1)

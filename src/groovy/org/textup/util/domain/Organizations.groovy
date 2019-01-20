@@ -28,6 +28,17 @@ class Organizations {
             .build(forStatuses())
     }
 
+    static DetachedCriteria<Organization> buildForNameAndLatLng(String name, BigDecimal lat,
+        BigDecimal lng) {
+
+        new DetachedCriteria(Organization)
+            .build {
+                eq("name", name)
+                eq("location.lat", lat)
+                eq("location.lng", lng)
+            }
+    }
+
     static Result<Organization> mustFindForId(Long orgId) {
         Organization org1 = orgId ? Organization.get(orgId) : null
         if (org1) {

@@ -43,6 +43,14 @@ class PhoneRecord implements WithId, Saveable<PhoneRecord> {
         }
     }
 
+    static Result<PhoneRecord> tryCreate(SharePermission perm, PhoneRecord toShare, Phone sWith) {
+        PhoneRecord pr1 = new PhoneRecord(shareSource: toShare,
+            record: toShare.record,
+            phone: sWith,
+            permission: perm)
+        DomainUtils.trySave(pr1, ResultStatus.CREATED)
+    }
+
     // Methods
     // -------
 
@@ -64,26 +72,6 @@ class PhoneRecord implements WithId, Saveable<PhoneRecord> {
     }
 
     Collection<Record> buildRecords() { [record] }
-
-
-    // TODO how to integrate this?
-    // @Override
-    // List<NotificationStatus> getNotificationStatuses() {
-    //     WITH THE NEW CHANGES THIS HAS CHANGED BECAUSE WE NOW STORE NOTIFICATION SETTINGS
-    //     ON THE `PHONE` PROPERTY WHICH IS THE SHAREDWITH PHONE FOR SHARED RELATIONSHIPS
-    //
-    //
-    //     // If we are modifying through a shared contact in contactService, we use the contact id
-    //     // so it's indistinguishable whether we own the contact being updated or we are a collaborator
-    //     // Therefore, any notification policies for collaborators will be stored in the sharedBy phone
-    //     // and when we are getting notification statuses for the sharedWith collabors, we must
-    //     // go to the sharedBy phone to retrieve the notification policies
-    //     if (canView) {
-    //         sharedBy.owner.getNotificationStatusesForStaffsAndRecords(sharedWith.owner.buildAllStaff(),
-    //             [contact.context.record.id])
-    //     }
-    //     else { [] }
-    // }
 
     // Properties
     // ----------

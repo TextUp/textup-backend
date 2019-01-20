@@ -26,7 +26,7 @@ class VoicemailCallbackService {
                     .each { RecordItem item ->
                         if (item.instanceOf(RecordCall)) {
                             resGroup << RecordCall
-                                .tryUpdateVoicemail(item as RecordCall, duration, mediaElements)
+                                .tryUpdateVoicemail(item as RecordCall, duration, elements)
                         }
                     }
                 // send updated items with receipts through socket

@@ -37,9 +37,8 @@ class OutgoingMediaService {
         }
         else { // if yes media, then send media in as many batches as needed
             mInfo.eachBatchForTypes(typesToFind) { List<MediaElement> batchSoFar ->
-                Collection<URI> mediaUrls = batchSoFar.collect { MediaElement e1 ->
-                    e1.sendVersion?.link?.toURI()
-                }
+                Collection<URI> mediaUrls = batchSoFar
+                    .collect { MediaElement e1 -> e1.sendVersion?.link?.toURI() }
                 resGroup << textService.send(fromNum, toNums, msg1, customAccountId, mediaUrls)
             }
         }

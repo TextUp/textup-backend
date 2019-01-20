@@ -22,7 +22,7 @@ class TagService {
             .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tryNotifications(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tagActionService.tryHandleActions(gpr1, body) }
-            .then { Phone p1 -> DomainUtils.trySave(gpr1, ResultStatus.OK) }
+            .then { Phone p1 -> DomainUtils.trySave(gpr1, ResultStatus.CREATED) }
     }
 
     @RollbackOnResultFailure

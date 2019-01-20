@@ -39,17 +39,16 @@ class Phone implements WithMedia, WithId, Saveable<Phone> {
         voice blank: false, nullable: false
         numberAsString blank: true, nullable: true, validator: { String num, Phone obj ->
             if (num) {
-                // TODO move to static class?
-                //phone number must be unique for phones
-                Closure<Boolean> existsWithSameNumber = {
-                    Phone ph = Phone.findByNumberAsString(new PhoneNumber(number: num).number)
-                    ph && ph.id != obj.id
-                }
-                if (Utils.<Boolean>doWithoutFlush(existsWithSameNumber)) {
-                    return ["duplicate"]
-                }
                 if (!ValidationUtils.isValidPhoneNumber(num)) {
                     return ["format"]
+                }
+                //phone number must be unique for phones
+                if (Utils.<Boolean>doWithoutFlush {
+                        Phones.buildForNumber(PhoneNumber.create(num))
+                            .build(CriteriaUtils.forNotId(obj.id))
+                            .count() > 0
+                    }) {
+                    return ["duplicate"]
                 }
             }
         }
@@ -80,8 +79,6 @@ class Phone implements WithMedia, WithId, Saveable<Phone> {
 
     // Properties
     // ----------
-
-    // String getName() { owner.buildName() } // TODO remove
 
     boolean getIsActive() { getNumber().validate() } // TODO add history
 

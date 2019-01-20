@@ -20,18 +20,17 @@ class AnnouncementCallbackService {
                 }
                 .logFail("textSeeAnnouncements")
             TextTwiml.build(TwilioUtils.formatAnnouncementsForRequest(announces))
-
         }
         else { fallbackAction() }
     }
 
     Result<Closure> textToggleSubscribe(IncomingSession is1) {
         if (is1.isSubscribedToText) {
-            is1.setIsSubscribedToText(false)
+            is1.isSubscribedToText = false
             TextTwiml.unsubscribed()
         }
         else {
-            is1.setIsSubscribedToText(true)
+            is1.isSubscribedToText = true
             TextTwiml.subscribed()
         }
     }

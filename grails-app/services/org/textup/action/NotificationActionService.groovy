@@ -18,9 +18,7 @@ class NotificationActionService implements HandlesActions<Tuple<Phone, Long>, Vo
     @Override
     Result<Void> tryHandleActions(Tuple<Phone, Long> phoneAndRecordId, Map body) {
         phoneAndRecordId.checkBothPresent()
-            .then {
-                ActionContainer.tryProcess(NotificationAction, body.doNotificationActions)
-            }
+            .then { ActionContainer.tryProcess(NotificationAction, body.doNotificationActions) }
             .then { List<NotificationAction> actions ->
                 Tuple.split(phoneAndRecordId) { Phone p1, Long recordId ->
                     ResultGroup

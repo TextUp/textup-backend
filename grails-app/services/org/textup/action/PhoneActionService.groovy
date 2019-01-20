@@ -9,6 +9,7 @@ import grails.transaction.Transactional
 class PhoneActionService implements HandlesActions<Phone, Phone> {
 
     NumberService numberService
+    PhoneCache phoneCache
 
     @Override
     boolean hasActions(Map body) { !!body.doPhoneActions }
@@ -22,23 +23,23 @@ class PhoneActionService implements HandlesActions<Phone, Phone> {
         }
         ActionContainer.tryProcess(PhoneAction, body.doPhoneActions)
             .then { List<PhoneAction> actions ->
-                ResultGroup<?> resGroup = new ResultGroup<>()
-                actions.each { PhoneAction a1 ->
-                    switch (a1) {
-                        case PhoneAction.DEACTIVATE:
-                            resGroup << deactivatePhone(p1)
-                            break
-                        case PhoneAction.TRANSFER:
-                            resGroup << transferPhone(p1, a1.id, a1.buildPhoneOwnershipType())
-                            break
-                        case PhoneAction.NEW_NUM_BY_NUM:
-                            resGroup << updatePhoneForNumber(p1, a1.buildPhoneNumber())
-                            break
-                        default: // PhoneAction.NEW_NUM_BY_ID
-                            resGroup << updatePhoneForApiId(p1, a1.numberId)
+                ResultGroup
+                    .collect(actions) { PhoneAction a1 ->
+                        switch (a1) {
+                            case PhoneAction.DEACTIVATE:
+                                tryDeactivatePhone(p1)
+                                break
+                            case PhoneAction.TRANSFER:
+                                tryExchangePhone(p1, a1.id, a1.buildPhoneOwnershipType())
+                                break
+                            case PhoneAction.NEW_NUM_BY_NUM:
+                                tryUpdatePhoneForNumber(p1, a1.buildPhoneNumber())
+                                break
+                            default: // PhoneAction.NEW_NUM_BY_ID
+                                tryUpdatePhoneForApiId(p1, a1.numberId)
+                        }
                     }
-                }
-                resGroup.toEmptyResult(false)
+                    .toEmptyResult(false)
             }
             .then { DomainUtils.trySave(p1) }
     }
@@ -46,7 +47,8 @@ class PhoneActionService implements HandlesActions<Phone, Phone> {
     // Helpers
     // -------
 
-    protected Result<Phone> deactivatePhone(Phone p1) {
+    // TODO re-defined deactivate after usage is rewritten
+    protected Result<Phone> tryDeactivatePhone(Phone p1) {
         String oldApiId = p1.apiId
         p1.deactivate()
         if (!p1.validate()) {
@@ -60,58 +62,35 @@ class PhoneActionService implements HandlesActions<Phone, Phone> {
         else { IOCUtils.resultFactory.success(p1) }
     }
 
-    protected Result<Phone> transferPhone(Phone p1, Long id, PhoneOwnershipType type) {
-
-        // TODO use phoneCache.updateOwner()
-        // p1
-        //     .transferTo(id, type)
-        //     .then { IOCUtils.resultFactory.success(p1) }
-        // // From phone
-        // PhoneOwnership own = this.owner
-        // Phone otherPhone = (type == PhoneOwnershipType.INDIVIDUAL) ?
-        //     Staff.get(id)?.phoneWithAnyStatus : Team.get(id)?.phoneWithAnyStatus
-        // // if other phone is present, copy this owner over
-        // if (otherPhone?.owner) {
-        //     PhoneOwnership otherOwn = otherPhone.owner
-        //     otherOwn.type = own.type
-        //     otherOwn.ownerId = own.ownerId
-        //     if (!otherOwn.save()) {
-        //         return IOCUtils.resultFactory.failWithValidationErrors(otherOwn.errors)
-        //     }
-        // }
-        // // then associate this phone with new owner
-        // own.type = type
-        // own.ownerId = id
-        // if (own.save()) {
-        //     IOCUtils.resultFactory.success(own)
-        // }
-        // else { IOCUtils.resultFactory.failWithValidationErrors(own.errors) }
+    protected Result<Phone> tryExchangePhone(Phone p1, Long ownerId, PhoneOwnershipType type) {
+        Phone otherPhone = phoneCache.findPhone(ownerId, type, true)
+        if (otherPhone) {
+            phoneCache.tryUpdateOwner(otherPhone, p1.owner.ownerId, p1.owner.type)
+                .then { phoneCache.tryUpdateOwner(p1, ownerId, type) }
+        }
+        else { phoneCache.tryUpdateOwner(p1, ownerId, type) }
     }
 
-    protected Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {
-        if (!pNum.validate()) {
-            return IOCUtils.resultFactory.failWithValidationErrors(pNum.errors)
-        }
+    protected Result<Phone> tryUpdatePhoneForNumber(Phone p1, PhoneNumber pNum) {
         if (pNum.number == p1.numberAsString) {
             return IOCUtils.resultFactory.success(p1)
         }
-        if (Utils.<Boolean>doWithoutFlush({ Phone.countByNumberAsString(pNum.number) > 0 })) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        numberService.changeForNumber(pNum)
-            .then({ IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) })
+        DomainUtils.tryValidate(pNum)
+            .then {
+                p1.number = pNum
+                DomainUtils.trySave(p1) // uniqueness check for phone number
+            }
+            .then { numberService.changeForNumber(pNum) }
+            .then { IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) }
     }
 
-    protected Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
+    protected Result<Phone> tryUpdatePhoneForApiId(Phone p1, String apiId) {
         if (apiId == p1.apiId) {
             return IOCUtils.resultFactory.success(p1)
         }
-        if (Utils.<Boolean>doWithoutFlush({ Phone.countByApiId(apiId) > 0 })) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        numberService.changeForApiId(apiId)
-            .then({ IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) })
+        p1.apiId = apiId
+        DomainUtils.trySave(p1) // uniqueness check for apiId
+            .then { numberService.changeForApiId(apiId) }
+            .then { IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) }
     }
 }

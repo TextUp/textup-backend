@@ -25,7 +25,8 @@ class PdfService {
 
     GrailsApplication grailsApplication
 
-    private final String XSLT_PROCESSOR_CLASS = "net.sf.saxon.TransformerFactoryImpl"
+    private static final String XSLT_PROCESSOR_CLASS = "net.sf.saxon.TransformerFactoryImpl"
+
     private FopFactory _fopFactory
     private Templates _pdfTransformTemplate
 

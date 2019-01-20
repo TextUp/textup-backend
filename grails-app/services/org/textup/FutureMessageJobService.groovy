@@ -48,7 +48,7 @@ class FutureMessageJobService {
     Result<Void> tryUnschedule(FutureMessage fMsg) {
         try {
             if (!IOCUtils.quartzScheduler.unscheduleJob(fMsg.triggerKey)) {
-                log.debug("tryUnschedule: nonexistent trigger key ${fMsg.triggerKey} for id ${fMsg.id}")
+                log.debug("tryUnschedule: missing trigger key ${fMsg.triggerKey} for id ${fMsg.id}")
             }
             IOCUtils.resultFactory.success()
         }

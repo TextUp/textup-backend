@@ -24,7 +24,9 @@ class ContactService {
             .then { Phone p1 -> IndividualPhoneRecordWrappers.tryCreate(p1) }
             .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }
-            .then { IndividualPhoneRecordWrapper w1 -> tryNumbers(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 ->
+                numberActionsService.tryHandleActions(w1, body)
+            }
             .then { IndividualPhoneRecordWrapper w1 -> trySharing(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryMerge(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 ->
@@ -37,7 +39,9 @@ class ContactService {
         IndividualPhoneRecordWrappers.mustFindForId(iprId)
             .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }
-            .then { IndividualPhoneRecordWrapper w1 -> tryNumbers(w1, body) }
+            .then { IndividualPhoneRecordWrapper w1 ->
+                numberActionsService.tryHandleActions(w1, body)
+            }
             .then { IndividualPhoneRecordWrapper w1 -> trySharing(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryMerge(w1, body) }
 	}
@@ -72,12 +76,6 @@ class ContactService {
                 notificationActionService.tryHandleActions(Tuple.create(p1, rec1.id), body)
             }
             .then { DomainUtils.trySave(w1) }
-    }
-
-    protected Result<IndividualPhoneRecordWrapper> tryNumbers(IndividualPhoneRecordWrapper w1,
-        TypeMap body) {
-
-        numberActionsService.tryHandleActions(w1, body)
     }
 
     protected Result<IndividualPhoneRecordWrapper> trySharing(IndividualPhoneRecordWrapper w1,

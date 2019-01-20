@@ -10,7 +10,7 @@ import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
-class MediaActionService implements HandlesActions<MediaInfo, ResultGroup<UploadItem>> {
+class MediaActionService implements HandlesActions<MediaInfo, List<UploadItem>> {
 
     @Override
     boolean hasActions(Map body) { !!body.doMediaActions }

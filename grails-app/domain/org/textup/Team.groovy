@@ -23,21 +23,17 @@ class Team implements WithId, Saveable<Team> {
     static mapping = {
         cache usage: "read-write", include: "non-lazy"
         whenCreated type: PersistentDateTime
-        members fetch: "join", cascade: "save-update" // TODO should be lazy for cache?
-        location fetch: "join", cascade: "save-update" // TODO should be lazy for cache?
+        members cascade: "save-update"
+        location fetch: "join", cascade: "save-update"
     }
     static constraints = {
     	name blank:false, validator: { String val, Team obj ->
-            Closure<Boolean> hasExistingTeamName = {
-                // uniqueness check should ignore deleted teams
-                Team t1 = Team.findByOrgAndNameAndIsDeleted(obj.org, val, false)
-                // HAS DUPLICATE IF (1) there is a team `t1` that belonging to this organization
-                // that has name and is not deleted, and (2) this team `t1` is NOT the same as
-                // the team we are validating
-                t1 != null && t1.id != obj.id
-            }
-            //within an Org, team name must be unique
-            if (val && Utils.<Boolean>doWithoutFlush(hasExistingTeamName)) {
+            //within an org, team name must be unique
+            if (val && Utils.<Boolean>doWithoutFlush {
+                    Teams.buildActiveForOrgIdAndName(obj.org?.id, val)
+                        .build(CriteriaUtils.forNotId(obj.id))
+                        .count() > 0
+                }) {
                 ["duplicate", obj.org?.name]
             }
         }

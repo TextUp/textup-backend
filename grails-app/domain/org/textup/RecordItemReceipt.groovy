@@ -56,10 +56,10 @@ class RecordItemReceipt implements WithId, Saveable<RecordItemReceipt> {
     // ----------
 
     void setContactNumber(BasePhoneNumber bNum) {
-        this.contactNumberAsString = bNum?.number
+        contactNumberAsString = bNum?.number
     }
 
     PhoneNumber getContactNumber() {
-        new PhoneNumber(number: this.contactNumberAsString)
+        PhoneNumber.create(contactNumberAsString)
     }
 }

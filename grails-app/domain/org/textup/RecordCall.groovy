@@ -23,7 +23,7 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
     static Result<RecordCall> tryUpdateVoicemail(RecordCall rCall1, int duration,
         List<MediaElement> elements) {
 
-        rCall.record.updateLastRecordActivity()
+        rCall.record.updateLastActivity()
         DomainUtils.trySave(rCall.record)
             .then { MediaInfos.tryCreate(rCall.media) }
             .then { MediaInfo mInfo ->

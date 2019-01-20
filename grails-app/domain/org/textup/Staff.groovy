@@ -81,7 +81,7 @@ class Staff implements WithId, Saveable<Staff> {
 
     Set<Role> getAuthorities() { StaffRole.findAllByStaff(this).collect { it.role } }
 
-    void setUsername(String un) { username = un?.toLowerCase() }
+    void setUsername(String un) { username = StringUtils.cleanUsername(un) }
 
     void setPersonalPhoneNumber(BasePhoneNumber num) { personalPhoneAsString = num?.number }
 

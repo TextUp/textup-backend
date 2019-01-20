@@ -73,6 +73,6 @@ class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureM
     @Override
     protected boolean getShouldReschedule() {
         super.getShouldReschedule() ||
-            ["repeatIntervalInMillis", "repeatCount", "endDate"].any(this.&isDirty)
+            ["repeatIntervalInMillis", "repeatCount", "endDate"].any { String prop -> isDirty(prop) }
     }
 }

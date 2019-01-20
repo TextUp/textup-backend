@@ -88,7 +88,7 @@ class NumberService {
     Result<List<AvailablePhoneNumber>> listNewNumbers(String toMatch, Location loc = null,
     	Integer searchRadius = 200) {
     	try {
-    		String query = cleanQuery(toMatch)
+    		String query = TwilioUtils.cleanNumbersQuery(toMatch)
     		LocalReader reader = Local
     			.reader("US")
 		        .setSmsEnabled(true)
@@ -155,11 +155,6 @@ class NumberService {
     	}
     }
 
-    protected cleanQuery(String query) {
-    	// only allow these specified valid characters
-    	query?.replaceAll(/[^\[0-9a-zA-Z\]\*]/, "") ?: ""
-    }
-
     // Operations on numbers
     // ---------------------
 
@@ -209,7 +204,8 @@ class NumberService {
         p1.apiId = newNum.sid
         p1.number = new PhoneNumber(number: newNum.phoneNumber as String)
         if (oldApiId) {
-            freeExistingNumberToInternalPool(oldApiId).then({ IOCUtils.resultFactory.success(p1) })
+            freeExistingNumberToInternalPool(oldApiId)
+                .then { IOCUtils.resultFactory.success(p1) }
         }
         else { IOCUtils.resultFactory.success(p1) }
     }

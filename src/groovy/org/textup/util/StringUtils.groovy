@@ -59,15 +59,7 @@ class StringUtils {
         result.toString()
     }
 
-    static String cleanForSay(String msg) {
-        if (msg) {
-            msg.replaceAll(/(\/|\-)/, "") // remove slashes and dashes because these are pronouned
-                .replaceAll(/(\d)/, / $0 /) // surround digits with spaces
-                .replaceAll(/\s+/, " ") // replace multiple sequential spaces with just one
-                .trim() // trim any surround whitespace
-        }
-        else { "" }
-    }
+    static String cleanUsername(String un) { un?.trim()?.toLowerCase() }
 
     // Helpers
     // -------

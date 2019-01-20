@@ -46,7 +46,7 @@ class RecordItemReceiptCache {
                     }
                     DomainUtils.trySave(rpt1)
                 }
-                .logFail("updateReceipts: `${apiId}`, `$newStatus`, duration `$newDuration`")
+                .logFail("updateReceipts: `$apiId`, `$newStatus`, duration `$newDuration`")
                 .payload
                 *.toInfo()
         }

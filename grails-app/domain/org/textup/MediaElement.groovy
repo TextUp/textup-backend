@@ -58,7 +58,9 @@ class MediaElement implements ReadOnlyMediaElement, WithId, Saveable<MediaElemen
 
     List<MediaElementVersion> getAllVersions() {
         List<MediaElementVersion> allVersions = []
-        if (sendVersion) { allVersions << sendVersion }
+        if (sendVersion) {
+            allVersions << sendVersion
+        }
         alternateVersions?.each { MediaElementVersion vers1 -> allVersions << vers1 }
         allVersions
     }

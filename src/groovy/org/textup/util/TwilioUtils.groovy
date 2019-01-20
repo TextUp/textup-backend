@@ -98,11 +98,11 @@ class TwilioUtils {
     }
 
     static String say(String code, List<Object> args = []) {
-        StringUtils.cleanForSay(IOCUtils.getMessage(code, args))
+        cleanForSay(IOCUtils.getMessage(code, args))
     }
 
     static String say(BasePhoneNumber pNum) {
-        StringUtils.cleanForSay(pNum.number)
+        cleanForSay(pNum.number)
     }
 
     static List<String> formatAnnouncementsForRequest(Collection<FeaturedAnnouncement> announces) {
@@ -123,6 +123,11 @@ class TwilioUtils {
         String unsubscribe = IOCUtils.getMessage("twimlBuilder.text.announcementUnsubscribe",
             [TextTwiml.BODY_TOGGLE_SUBSCRIBE])
         "${identifier}: ${message}. ${unsubscribe}"
+    }
+
+    static STring cleanNumbersQuery(String query) {
+        // only allow these specified valid characters
+        query?.replaceAll(/[^\[0-9a-zA-Z\]\*]/, "") ?: ""
     }
 
     // Helpers
@@ -162,5 +167,15 @@ class TwilioUtils {
 
     protected static String extractMediaIdFromUrl(String url) {
         url ? url.substring(url.lastIndexOf("/") + 1) : ""
+    }
+
+    protected static String cleanForSay(String msg) {
+        if (msg) {
+            msg.replaceAll(/(\/|\-)/, "") // remove slashes and dashes because these are pronouned
+                .replaceAll(/(\d)/, / $0 /) // surround digits with spaces
+                .replaceAll(/\s+/, " ") // replace multiple sequential spaces with just one
+                .trim() // trim any surround whitespace
+        }
+        else { "" }
     }
 }

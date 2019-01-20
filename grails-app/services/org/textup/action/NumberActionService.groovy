@@ -5,8 +5,7 @@ import grails.transaction.Transactional
 
 @GrailsTypeChecked
 @Transactional
-class NumberActionService
-    implements HandlesActions<IndividualPhoneRecordWrapper, IndividualPhoneRecordWrapper> {
+class NumberActionService implements HandlesActions<IndividualPhoneRecordWrapper, IndividualPhoneRecordWrapper> {
 
     @Override
     boolean hasActions(Map body) { !!body.doNumberActions }
@@ -15,17 +14,17 @@ class NumberActionService
     Result<IndividualPhoneRecordWrapper> tryHandleActions(IndividualPhoneRecordWrapper w1, Map body) {
         ActionContainer.tryProcess(ContactNumberAction, body.doNumberActions)
             .then { List<ContactNumberAction> actions ->
-                ResultGroup<?> resGroup = new ResultGroup<>()
-                actions.each { ContactNumberAction a1 ->
-                    switch (a1) {
-                        case ContactNumberAction.MERGE:
-                            resGroup << w1.tryMergeNumber(a1.buildPhoneNumber(), a1.preference)
-                            break
-                        default: // ContactNumberAction.DELETE
-                            resGroup << w1.tryDeleteNumber(a1.buildPhoneNumber())
+                ResultGroup
+                    .collect(actions) { ContactNumberAction a1 ->
+                        switch (a1) {
+                            case ContactNumberAction.MERGE:
+                                w1.tryMergeNumber(a1.buildPhoneNumber(), a1.preference)
+                                break
+                            default: // ContactNumberAction.DELETE
+                                w1.tryDeleteNumber(a1.buildPhoneNumber())
+                        }
                     }
-                }
-                resGroup.toEmptyResult(false)
+                    .toEmptyResult(false)
             }
             .then { DomainUtils.trySave(w1) }
     }

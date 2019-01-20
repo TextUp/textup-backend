@@ -108,7 +108,6 @@ class StaffService {
         DomainUtils.trySave(s1)
     }
 
-    // TODO should be prevent against the zero admin scenario???
     protected Result<Staff> trySetStatus(Staff s1, StaffStatus newStatus) {
         // Only want to do admin check if the user is attempting to update this
         if (!newStatus) {
@@ -117,8 +116,18 @@ class StaffService {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(s1.org.id, authId) }
             .then {
-                s1.status = newStatus
-                DomainUtils.trySave(s1)
+                int numAdmins = Staffs
+                    .buildForOrgIdAndOptions(s1.org.id, null, [StaffStatus.ADMIN])
+                    .count()
+                if (numAdmins == 1 && s1.status == StaffStatus.ADMIN &&
+                    newStatus != StaffStatus.ADMIN) {
+                    IOCUtils.resultFactory.failWithCodeAndStatus(
+                        "staffService.trySetStatus.lastAdmin") // TODO
+                }
+                else {
+                    s1.status = newStatus
+                    DomainUtils.trySave(s1)
+                }
             }
     }
 

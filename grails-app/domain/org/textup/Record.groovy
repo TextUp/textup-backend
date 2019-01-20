@@ -27,7 +27,7 @@ class Record implements ReadOnlyRecord, WithId, Saveable<Record> {
     // Methods
     // ---------
 
-    void updateLastRecordActivity() {
+    void updateLastActivity() {
         lastRecordActivity = DateTimeUtils.now()
     }
 
@@ -74,7 +74,7 @@ class Record implements ReadOnlyRecord, WithId, Saveable<Record> {
     protected Result<? extends RecordItem> finishAdd(RecordItem rItem1, Author a1, MediaInfo mInfo) {
         rItem1.author = a1
         rItem.media = mInfo
-        updateLastRecordActivity()
+        updateLastActivity()
         DomainUtils.trySave(rItem1, ResultStatus.CREATED)
     }
 }

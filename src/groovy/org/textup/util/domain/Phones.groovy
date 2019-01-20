@@ -37,7 +37,7 @@ class Phones {
 
     // TODO define "active" for phone
     static Result<Phone> mustFindActiveForNumber(BasePhoneNumber bNum) {
-        Phone p1 = Phone.findByNumberAsString(bNum.number)
+        Phone p1 = Phones.buildForNumber(bNum).list()[0]
         if (p1) {
             IOCUtils.resultFactory.success(p1)
         }
@@ -45,6 +45,12 @@ class Phones {
             IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
                 ResultStatus.NOT_FOUND, [bNum])
         }
+    }
+
+    static DetachedCriteria<Phone> buildForNumber(BasePhoneNumber bNum) {
+        new DetachedCriteria(Phone)
+            .build { eq("numberAsString", bNum.number) }
+            .build(Phones.forActive())
     }
 
     static DetachedCriteria<Phone> buildForOwnerIdAndType(Long ownerId, PhoneOwnershipType type) {

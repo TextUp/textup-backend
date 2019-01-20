@@ -21,31 +21,29 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
     Result<Void> tryHandleActions(PhoneRecord pr1, Map body) {
         ActionContainer.tryProcess(ShareAction, body.doShareActions)
             .then { List<ShareAction> actions ->
-                ResultGroup<?> resGroup = new ResultGroup<>()
                 Map<SharePermission, HashSet<String>> permissionToNames = [:]
                     .withDefault { new HashSet<String>() }
-                actions.each { ShareAction a1 ->
-                    Phone p1 = a1.buildPhone()
-                    switch (a1) {
-                        case ShareAction.MERGE:
-                            SharePermission perm1 = a1.buildSharePermission()
-                            resGroup << tryStartShare(pr1, p1, a1perm1)
-                            permissionToNames[a1perm1] << p1.owner.buildName()
-                            break
-                        default: // ShareAction.STOP
-                            resGroup << stopShare(pr1, p1)
-                            permissionToNames[SharePermission.NONE] << p1.owner.buildName()
+                ResultGroup
+                    .<ShareAction, ?>collect(actions) { ShareAction a1 ->
+                        Phone p1 = a1.buildPhone()
+                        switch (a1) {
+                            case ShareAction.MERGE:
+                                permissionToNames[a1perm1] << p1.owner.buildName()
+                                tryStartShare(pr1, p1, a1.buildSharePermission())
+                                break
+                            default: // ShareAction.STOP
+                                permissionToNames[SharePermission.NONE] << p1.owner.buildName()
+                                tryStopShare(pr1, p1)
+                        }
                     }
-                }
-                resGroup.toEmptyResult(false).curry(permissionToNames)
+                    .toEmptyResult(false)
+                    .curry(permissionToNames)
             }
             .then { Map<SharePermission, HashSet<String>> permissionToNames ->
                 AuthUtils.tryGetAuthUser().curry(permissionToNames)
             }
             .then { Map<SharePermission, HashSet<String>> permissionToNames, Staff s1 ->
                 tryRecordSharingChanges(pr1.record, s1.toAuthor(), permissionToNames)
-                    .logFail("handleActions: record sharing changes")
-                    .toEmptyResult(false)
             }
     }
 
@@ -56,15 +54,11 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
         SharePermission permission) {
 
         Phones.canShare(source.phone.owner, shareWith.owner)
-            .then { stopShare(source, shareWith) } // prevent duplicate sharing relationships
-            .then {
-                PhoneRecord pr1 = new PhoneRecord(shareSource: source, phone: shareWith,
-                    permission: permission, record: source.record)
-                DomainUtils.trySave(pr1)
-            }
+            .then { tryStopShare(source, shareWith) } // prevent duplicate sharing relationships
+            .then { PhoneRecord.tryCreate(permission, source, shareWith) }
     }
 
-    protected Result<Void> stopShare(PhoneRecord source, Phone shareWith) {
+    protected Result<Void> tryStopShare(PhoneRecord source, Phone shareWith) {
         List<PhoneRecord> prList = PhoneRecords
             .forActiveWithPhoneIds([shareWith.id])
             .build(PhoneRecords.forShareSourceIds([source.id]))
@@ -73,19 +67,26 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
         DomainUtils.trySaveAll(prList)
     }
 
-    protected ResultGroup<RecordNote> tryRecordSharingChanges(Record rec1, Author author,
+    protected Result<Void> tryRecordSharingChanges(Record rec1, Author author,
         Map<SharePermission, HashSet<String>> permissionToNames) {
 
-        ResultGroup<RecordNote> resGroup = new ResultGroup()
-        permissionToNames.each { SharePermission perm1, HashSet<String> names ->
-            RecordNote rNote1 = new RecordNote(record: rec1,
-                isReadOnly: true,
-                noteContents: perm1.buildSummary(names),
-                author: author)
-            resGroup << DomainUtils.trySave(rNote1)
-        }
-        // push new system notes to the app
-        socketService.sendItems(resGroup.payload)
-        resGroup
+        ResultGroup
+            .collect(permissionToNames) { SharePermission perm1, HashSet<String> names ->
+                TempRecordItem.tryCreate(perm1.buildSummary(names), null, null)
+                    .then { TempRecordItem temp1 -> RecordNote.tryCreate(rec1, temp1) }
+                    .then { RecordNote rNote1 ->
+                        rNote1.with {
+                            author = author
+                            isReadOnly = true
+                        }
+                        DomainUtils.trySave(rNote1)
+                    }
+            }
+            .logFail("tryRecordSharingChanges")
+            .toResult(false)
+            .then { List<RecordNote> rNotes ->
+                socketService.sendItems(rNotes)
+                IOCUtils.resultFactory.success()
+            }
     }
 }

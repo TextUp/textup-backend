@@ -26,24 +26,13 @@ class Organization implements WithId, Saveable<Organization> {
     }
     static constraints = {
     	name blank:false, validator:{ String val, Organization obj ->
-            // TODO move to Organizations
     		//must have unique (name, location) combination
-            Closure<Boolean> hasNameAndLocation = {
-                List<Organization> orgs = Organization.createCriteria().list {
-                    eq("name", val)
-                    location {
-                        eq("lat", obj.location?.lat)
-                        eq("lon", obj.location?.lon)
-                    }
-                }
-                // if there are organizations found, then check to see if these organizations
-                // are DIFFERENT than the one we are trying to save. If there are organizations
-                // that have the same name and location that aren't this same organization
-                // then we have a duplicate
-                !orgs.isEmpty() && orgs.any { Organization org -> org.id != obj.id }
-            }
-    		if (val && obj.location && Utils.<Boolean>doWithoutFlush(hasNameAndLocation)) {
-                ["duplicate", obj.location?.address]
+    		if (val && obj.location && Utils.<Boolean>doWithoutFlush {
+                    Organizations.buildForNameAndLatLng(val, obj.location.lat, obj.location.lng)
+                        .build(CriteriaUtils.forNotId(obj.id))
+                        .count() > 0
+                }) {
+                ["duplicate", obj.location.address]
             }
     	}
         status blank: false, nullable: false

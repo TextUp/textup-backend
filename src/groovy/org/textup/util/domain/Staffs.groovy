@@ -35,6 +35,17 @@ class Staffs {
         }
     }
 
+    static Result<Staff> mustFindForUsername(Staff un) {
+        Staff s1 = Staff.findByUsername(StringUtils.cleanUsername(un))
+        if (s1) {
+            IOCUtils.resultFactory.success(s1)
+        }
+        else {
+            return resultFactory.failWithCodeAndStatus("passwordResetService.start.staffNotFound", // TODO
+                ResultStatus.NOT_FOUND, [un])
+        }
+    }
+
     static DetachedCriteria<Staff> buildForIdsAndStatuses(Collection<Long> ids,
         Collection<StaffStatus> statuses) {
 

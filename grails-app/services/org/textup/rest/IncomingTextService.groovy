@@ -33,8 +33,8 @@ class IncomingTextService {
             }
     }
 
-    protected Result<Tuple<List<RecordText>, List<Contact>>> buildTexts(Phone p1,
-        IncomingSession is1, String apiId, String message, Integer numSegments) {
+    protected Result<List<RecordText>> buildTexts(Phone p1, IncomingSession is1, String apiId,
+        String message, Integer numSegments) {
 
         PhoneRecordUtils.tryMarkUnread(p1, is1.number)
             .then { List<IndividualPhoneRecordWrapper> wrappers ->

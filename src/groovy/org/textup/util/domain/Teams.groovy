@@ -35,6 +35,15 @@ class Teams {
             .build(forActive())
     }
 
+    static DetachedCriteria<Team> buildActiveForOrgIdAndName(Long orgId, String name) {
+        new DetachedCriteria(Team)
+            .build {
+                eq("org.id", orgId)
+                eq("name", name)
+            }
+            .build(forActive())
+    }
+
     // simulated INTERSECT, see http://www.mysqltutorial.org/mysql-intersect/
     static boolean hasTeamsInCommon(Long staffId1, Long staffId2) {
         new DetachedCriteria(Team)

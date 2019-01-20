@@ -23,22 +23,25 @@ class IncomingMediaService {
         DomainUtils.tryValidateAll(incomingMediaList)
             .then {
                 Collection<UploadItem> toUpload = []
-                ResultGroup<MediaElement> resGroup = new ResultGroup<>()
-                incomingMediaList.each { IsIncomingMedia im1 ->
-                    processElement(im1)
-                        .logFail("process: mediaId: ${im1.mediaId}")
-                        .then { Tuple<List<UploadItem>, MediaElement> processed ->
-                            Tuple.split(processed) { List<UploadItem> uItems, MediaElement el1 ->
-                                toUpload.addAll(uItems)
-                                resGroup << DomainUtils.trySave(el1)
+                ResultGroup
+                    .collect(incomingMediaList) { IsIncomingMedia im1 ->
+                        processElement(im1)
+                            .logFail("process: mediaId: ${im1.mediaId}")
+                            .then { Tuple<List<UploadItem>, MediaElement> processed ->
+                                Tuple.split(processed) { List<UploadItem> uItems, MediaElement el1 ->
+                                    toUpload.addAll(uItems)
+                                    DomainUtils.trySave(el1)
+                                }
                             }
-                        }
-                }
-                finishProcessingUploads(incomingMediaList, toUpload)
-                    .logFail("process: finish processing elements")
-                resGroup
+                    }
                     .logFail("process: saving elements")
                     .toResult(true)
+                    .curry(toUpload)
+            }
+            .then { Collection<UploadItem> toUpload, List<MediaElement> els ->
+                finishProcessingUploads(incomingMediaList, toUpload)
+                    .logFail("process: finish processing elements")
+                IOCUtils.resultFactory.success(els)
             }
     }
 
@@ -75,7 +78,8 @@ class IncomingMediaService {
     protected Result<Void> finishProcessingUploads(Collection<? extends IsIncomingMedia> incomingMediaList,
         Collection<UploadItem> itemsToUpload) {
         // step 1: upload our processed copies
-        storageService.uploadAsync(itemsToUpload).toEmptyResult(false)
+        storageService.uploadAsync(itemsToUpload)
+            .toEmptyResult(false)
             .then {
                 // step 2: delete media only if no upload errors after a delay
                 ResultGroup<Boolean> resGroup = new ResultGroup<>()

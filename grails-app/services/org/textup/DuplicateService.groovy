@@ -12,7 +12,7 @@ class DuplicateService {
 
     Result<List<MergeGroup>> findAllDuplicates(Long phoneId) {
         IndividualPhoneRecords.tryFindEveryIdByNumbers(phoneId)
-            .then { Map<String, HashSet<Long>> numToIds -
+            .then { Map<String, HashSet<Long>> numToIds ->
                 DuplicateUtils.tryBuildMergeGroups(numToIds).toResult(false)
             }
     }
@@ -24,7 +24,7 @@ class DuplicateService {
                 ResultStatus.UNPROCESSABLE_ENTITY)
     	}
         IndividualPhoneRecords.tryFindEveryIdByNumbers(null, iprIds)
-            .then { Map<String, HashSet<Long>> numToIds -
+            .then { Map<String, HashSet<Long>> numToIds ->
                 DuplicateUtils.tryBuildMergeGroups(numToIds).toResult(false)
             }
     }

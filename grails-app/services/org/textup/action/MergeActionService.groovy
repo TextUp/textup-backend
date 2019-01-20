@@ -24,19 +24,23 @@ class MergeActionService implements HandlesActions<Long, Void> {
                 ActionContainer.tryProcess(MergeIndividualAction, body.doMergeActions).curry(ipr1)
             }
             .then { IndividualPhoneRecord ipr1, List<MergeIndividualAction> actions ->
-                ResultGroup<Contact> resGroup = new ResultGroup<>()
-                actions.each { MergeIndividualAction a1 ->
-                    Collection<IndividualPhoneRecord> toBeMerged = IndividualPhoneRecords
-                        .findEveryByIdsAndPhoneId(a1.toBeMergedIds, ipr1.phone.id)
-                    switch (a1) {
-                        case MergeIndividualAction.DEFAULT:
-                            resGroup << tryMerge(ipr1, toBeMerged)
-                            break
-                        default: // MergeIndividualAction.RECONCILE
-                            resGroup << tryMerge(ipr1, toBeMerged, a1.buildName(), a1.buildNote())
+                ResultGroup
+                    .collect(actions) { MergeIndividualAction a1 ->
+                        Collection<IndividualPhoneRecord> toBeMerged = IndividualPhoneRecords
+                            .findEveryByIdsAndPhoneId(a1.toBeMergedIds, ipr1.phone.id)
+                        switch (a1) {
+                            case MergeIndividualAction.DEFAULT:
+                                tryMerge(ipr1, toBeMerged)
+                                break
+                            default: // MergeIndividualAction.RECONCILE
+                                tryMerge(ipr1, toBeMerged).then { IndividualPhoneRecord ipr1 ->
+                                    ipr1.name = a1.buildName()
+                                    ipr1.note = a1.buildNote()
+                                    DomainUtils.trySave(ipr1)
+                                }
+                        }
                     }
-                }
-                resGroup.toEmptyResult(false)
+                    .toEmptyResult(false)
             }
     }
 
@@ -57,25 +61,15 @@ class MergeActionService implements HandlesActions<Long, Void> {
     protected Result<IndividualPhoneRecord> tryMerge(IndividualPhoneRecord ipr1,
         Collection<IndividualPhoneRecord> toBeMerged) {
 
-        mergeFields(ipr1, toBeMerged)
-            .then { mergeNumbers(ipr1, toBeMerged) }
-            .then { mergeGroups(ipr1, toBeMerged) }
-            .then { mergeSharing(ipr1, toBeMerged) }
-            .then { mergeRecords(ipr1, toBeMerged) }
+        tryMergeFields(ipr1, toBeMerged)
+            .then { tryMergeNumbers(ipr1, toBeMerged) }
+            .then { tryMergeGroups(ipr1, toBeMerged) }
+            .then { tryMergeSharing(ipr1, toBeMerged) }
+            .then { tryMergeRecords(ipr1, toBeMerged) }
             .then { DomainUtils.trySave(ipr1) }
     }
 
-    protected Result<IndividualPhoneRecord> tryMerge(IndividualPhoneRecord ipr1,
-        Collection<IndividualPhoneRecord> toBeMerged, String newName, String newNote) {
-
-        tryMerge(ipr1, toBeMerged).then { IndividualPhoneRecord ipr1 ->
-            ipr1.name = newName
-            ipr1.note = newNote
-            DomainUtils.trySave(ipr1)
-        }
-    }
-
-    protected Result<Void> mergeFields(IndividualPhoneRecord ipr1,
+    protected Result<Void> tryMergeFields(IndividualPhoneRecord ipr1,
         Collection<IndividualPhoneRecord> toBeMerged) {
 
         ipr1.status = PhoneRecordStatus
@@ -84,17 +78,17 @@ class MergeActionService implements HandlesActions<Long, Void> {
         DomainUtils.trySaveAll(CollectionUtils.mergeUnique([ipr1], toBeMerged))
     }
 
-    protected Result<Void> mergeNumbers(IndividualPhoneRecord ipr1,
+    protected Result<Void> tryMergeNumbers(IndividualPhoneRecord ipr1,
         Collection<IndividualPhoneRecord> toBeMerged) {
 
-        ResultGroup<ContactNumber> resGroup = new ResultGroup<>()
-        CollectionUtils
-            .mergeUnique(*toBeMerged*.numbers)
-            .each { ContactNumber cNum -> resGroup << ipr1.mergeNumber(cNum, cNum.preference) }
-        resGroup.toEmptyResult(false)
+        ResultGroup
+            .collect(CollectionUtils.mergeUnique(*toBeMerged*.numbers)) { ContactNumber cNum ->
+                ipr1.mergeNumber(cNum, cNum.preference)
+            }
+            .toEmptyResult(false)
     }
 
-    protected Result<Void> mergeGroups(IndividualPhoneRecord ipr1,
+    protected Result<Void> tryMergeGroups(IndividualPhoneRecord ipr1,
         Collection<IndividualPhoneRecord> toBeMerged) {
 
         try {
@@ -109,7 +103,7 @@ class MergeActionService implements HandlesActions<Long, Void> {
         }
     }
 
-    protected Result<Void> mergeSharing(IndividualPhoneRecord ipr1,
+    protected Result<Void> tryMergeSharing(IndividualPhoneRecord ipr1,
         Collection<IndividualPhoneRecord> toBeMerged) {
 
         try {
@@ -119,11 +113,11 @@ class MergeActionService implements HandlesActions<Long, Void> {
             IOCUtils.resultFactory.success()
         }
         catch (Throwable e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "mergeSharing", true)
+            IOCUtils.resultFactory.failWithThrowable(e, "tryMergeSharing", true)
         }
     }
 
-    protected Result<Void> mergeRecords(IndividualPhoneRecord ipr1,
+    protected Result<Void> tryMergeRecords(IndividualPhoneRecord ipr1,
         Collection<IndividualPhoneRecord> toBeMerged) {
 
         try {
@@ -136,7 +130,7 @@ class MergeActionService implements HandlesActions<Long, Void> {
             IOCUtils.resultFactory.success()
         }
         catch (Throwable e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "mergeRecords", true)
+            IOCUtils.resultFactory.failWithThrowable(e, "tryMergeRecords", true)
         }
     }
 }

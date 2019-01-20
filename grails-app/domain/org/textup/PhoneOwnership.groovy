@@ -10,7 +10,7 @@ import org.textup.util.*
 @EqualsAndHashCode
 class PhoneOwnership implements WithId, Saveable<PhoneOwnership> {
 
-    boolean allowSharingWithOtherTeams = false // TODO
+    boolean allowSharingWithOtherTeams = false // TODO add to marshaller
     Long ownerId
     Phone phone
     PhoneOwnershipType type

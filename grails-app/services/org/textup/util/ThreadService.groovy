@@ -10,15 +10,16 @@ import javax.annotation.PreDestroy
 @Transactional
 class ThreadService {
 
-    private ScheduledThreadPoolExecutor _pool
-    private final int MIN_POOL_SIZE = 10
-    private final int POOL_DELTA = 10
-    private final int QUEUE_THRESHOLD = 10
-    private final int MAX_POOL_SIZE = 250
+    private static final int MIN_POOL_SIZE = 10
+    private static final int POOL_DELTA = 10
+    private static final int QUEUE_THRESHOLD = 10
+    private static final int MAX_POOL_SIZE = 250
 
-    @PostConstruct
+    private ScheduledThreadPoolExecutor _pool
+
     // sometimes hot reloading will call the destroy hook so we need to make sure the initialization
     // is also in a similar annotation driven lifecycle hook
+    @PostConstruct
     protected void startPool() {
         // when core number of threads = max number of threads, effective same as Executors.newFixedThreadPool
         _pool = new ScheduledThreadPoolExecutor(MIN_POOL_SIZE, new ThreadPoolExecutor.AbortPolicy())
@@ -27,8 +28,8 @@ class ThreadService {
         _pool.allowCoreThreadTimeOut(true)
     }
 
-    @PreDestroy
     // See https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ExecutorService.html
+    @PreDestroy
     protected void cleanUp() {
         log.warn("Shutting down ThreadService")
         _pool.shutdown(); // Disable new tasks from being submitted
@@ -71,15 +72,16 @@ class ThreadService {
         int actualPoolSize = _pool.poolSize,
             corePoolSize = _pool.corePoolSize,
             queueSize = _pool.queue.size()
+
         Integer newPoolSize
         if (queueSize > QUEUE_THRESHOLD && corePoolSize + POOL_DELTA <= MAX_POOL_SIZE) {
             newPoolSize = corePoolSize + POOL_DELTA
         }
         else if (queueSize == 0 && actualPoolSize + (POOL_DELTA * 2) < corePoolSize &&
             actualPoolSize + POOL_DELTA >= MIN_POOL_SIZE) {
-
             newPoolSize = actualPoolSize + POOL_DELTA
         }
+
         if (newPoolSize) {
             _pool.corePoolSize = newPoolSize
         }
@@ -88,6 +90,7 @@ class ThreadService {
     protected <T> Callable<T> wrapAsCallable(Closure<T> action) {
         [call: addSessionAndTransaction(action)] as Callable<T>
     }
+
     protected <T> Closure<T> addSessionAndTransaction(Closure<T> action) {
         return { ->
             try {
@@ -98,7 +101,7 @@ class ThreadService {
                     }
                 }
             } catch(Throwable e) {
-                log.error("ThreadService.addSessionAndTransaction: uncaught exception: ${e.message}")
+                log.error("addSessionAndTransaction: uncaught exception: ${e.message}")
                 e.printStackTrace()
             }
         }

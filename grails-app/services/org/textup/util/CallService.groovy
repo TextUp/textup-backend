@@ -21,41 +21,46 @@ class CallService {
     Result<TempRecordReceipt> start(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
         Map afterPickup, String customAccountId) {
 
-        if (toNums) {
-            List<String> toPhoneNums = toNums.collect { BasePhoneNumber n1 -> n1.e164PhoneNumber }
-            String afterPickupJson = DataFormatUtils.toJsonString(afterPickup)
-            int numRemaining = toNums.size()
-            for (int i = numRemaining; i > 0; i--) {
-                BasePhoneNumber toNum = toNums[numRemaining - i]
-                // subtract one because we don't want to include the number we are trying in this
-                // iteration in the list of numbers remaining
-                List<String> remaining = CollectionUtils.takeRight(toPhoneNums, i - 1)
-                // For the first number in the list that succeeds, we append the remaining numbers
-                // to try as callback parameter so that the PublicRecordController can retry with
-                // the remaining numbers until none are left.
-                String callback = buildCallbackUrl(remaining, afterPickupJson)
-                Result<TempRecordReceipt> res =
-                    doCall(fromNum, toNum, afterPickup, callback, customAccountId)
-                // We start with the first number **that doesn't IMMEDIATELY fail**. If no numbers
-                // remaining to try, we have to return
-                if (!remaining || res.success) {
-                    return res
-                }
-            }
+        ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
+        int numRemaining = toNums?.size()
+        List<String> toPhoneNums = toNums.collect { BasePhoneNumber n1 -> n1.e164PhoneNumber }
+        String afterPickupJson = DataFormatUtils.toJsonString(afterPickup)
+        // We start with the first number **that doesn't IMMEDIATELY fail**
+        for (int i = numRemaining; i > 0 && !resGroup.anySuccesses; --i) {
+            BasePhoneNumber toNum = toNums[numRemaining - i]
+            // subtract one because we don't want to include the number we are trying in this
+            // iteration in the list of numbers remaining
+            List<String> remaining = CollectionUtils.takeRight(toPhoneNums, i - 1)
+            // For the first number in the list that succeeds, we append the remaining numbers
+            // to try as callback parameter so that the PublicRecordController can retry with
+            // the remaining numbers until none are left.
+            String callback = buildCallbackUrl(remaining, afterPickupJson)
+            resGroup << doCall(fromNum, toNum, afterPickup, callback, customAccountId)
         }
-        IOCUtils.resultFactory.failWithCodeAndStatus("callService.start.missingInfoOrAllFailed",
-            ResultStatus.UNPROCESSABLE_ENTITY)
+
+        if (resGroup.anySuccesses) {
+            IOCUtils.resultFactory.success(resGroup.payload[0])
+        }
+        else {
+            if (resGroup.isEmpty) {
+                IOCUtils.resultFactory.failWithCodeAndStatus(
+                    "callService.start.missingInfoOrAllFailed", ResultStatus.UNPROCESSABLE_ENTITY)
+            }
+            else { IOCUtils.resultFactory.failWithGroup(resGroup) }
+        }
     }
 
     Result<TempRecordReceipt> retry(BasePhoneNumber fromNum, List<? extends BasePhoneNumber> toNums,
         String apiId, Map afterPickup, String customAccountId) {
 
-        start(fromNum, toNums, afterPickup, customAccountId).then { TempRecordReceipt r1 ->
-            RecordItems.findEveryForApiId(apiId)?.each { RecordItem item1 ->
-                item1.addReceipt(r1)
-                item1.save()
-            }
-            IOCUtils.resultFactory.success(r1)
+        start(fromNum, toNums, afterPickup, customAccountId).then { TempRecordReceipt rpt1 ->
+            ResultGroup
+                .collect(RecordItems.findEveryForApiId(apiId)) { RecordItem item1 ->
+                    item1.addReceipt(rpt1)
+                    DomainUtils.trySave(item1)
+                }
+                .toEmptyResult(false)
+                .then { IOCUtils.resultFactory.success(rpt1) }
         }
     }
 
@@ -69,7 +74,9 @@ class CallService {
                 .update()
             IOCUtils.resultFactory.success()
         }
-        catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
+        catch (Throwable e) {
+            IOCUtils.resultFactory.failWithThrowable(e, "interrupt")
+        }
     }
 
     // Helpers

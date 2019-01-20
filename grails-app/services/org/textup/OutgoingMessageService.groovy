@@ -89,20 +89,20 @@ class OutgoingMessageService {
                     temp1.media, callToken)
             }
             .then { List<TempRecordReceipt> tempReceipts ->
-                ResultGroup<?> resGroup = new ResultGroup<>()
-                records.each { Record rec1 ->
-                    Collection<RecordItem> rItems = recIdToItems[rec1.id]
-                    if (rItems) {
-                        rItems.each { RecordItem rItem1 -> rItem1.addAllReceipts(tempReceipts) }
-                        resGroup << DomainUtils.trySaveAll(rItems)
+                ResultGroup
+                    .collect(records) { Record rec1 ->
+                        Collection<RecordItem> rItems = recIdToItems[rec1.id]
+                        if (rItems) {
+                            rItems.each { RecordItem rItem1 -> rItem1.addAllReceipts(tempReceipts) }
+                            DomainUtils.trySaveAll(rItems)
+                        }
+                        else {
+                            IOCUtils.resultFactory.failWithCodeAndStatus(
+                                "outgoingMessageService.tryStoreReceipts.notFound",
+                                ResultStatus.NOT_FOUND, [rec1.id, tempReceipts*.apiId])
+                        }
                     }
-                    else {
-                        resGroup << IOCUtils.resultFactory.failWithCodeAndStatus(
-                            "outgoingMessageService.tryStoreReceipts.notFound",
-                            ResultStatus.NOT_FOUND, [rec1.id, tempReceipts*.apiId])
-                    }
-                }
-                resGroup.toEmptyResult(true)
+                    .toEmptyResult(true)
             }
     }
 }

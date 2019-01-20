@@ -113,7 +113,7 @@ class CallbackStatusService {
             Integer oldDuration = infos[0]?.numBillable
             if (CallbackUtils.shouldUpdateStatus(oldStatus, newStatus) ||
                 CallbackUtils.shouldUpdateDuration(oldDuration, newDuration)) {
-                receipts = receiptCache.updateReceipts(apiId, infos*.id, newStatus, newDuration)
+                infos = receiptCache.updateReceipts(apiId, infos*.id, newStatus, newDuration)
             }
         }
         IOCUtils.resultFactory.success(infos)

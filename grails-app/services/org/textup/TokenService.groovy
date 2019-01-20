@@ -38,7 +38,7 @@ class TokenService {
 
     Result<Closure> buildDirectMessageCall(String token) {
         Tokens.mustFindActiveForType(TokenType.CALL_DIRECT_MESSAGE, token)
-            .then { Token tok1 -> incrementTimesAccessed(tok1) }
+            .then { Token tok1 -> tryIncrementTimesAccessed(tok1) }
             .then { Token tok1 ->
                 TypeMap data = tok1.data
                 List<URL> recordings = []
@@ -69,7 +69,7 @@ class TokenService {
 
     Result<Staff> findPasswordResetStaff(String token) {
     	Tokens.mustFindActiveForType(TokenType.PASSWORD_RESET, token)
-            .then { Token tok -> incrementTimesAccessed(tok) }
+            .then { Token tok -> tryIncrementTimesAccessed(tok) }
             .then { Token tok1 -> Staffs.mustFindForId(tok1.data.long(TokenType.PARAM_PR_ID)) }
     }
 
@@ -98,7 +98,7 @@ class TokenService {
 
     Result<Tuple<Long, Notification>> tryFindPreviewInfo(String token) {
         Tokens.mustFindActiveForType(TokenType.NOTIFY_STAFF, token)
-            .then { Token tok1 -> incrementTimesAccessed(tok1) }
+            .then { Token tok1 -> tryIncrementTimesAccessed(tok1) }
             .then { Token tok1 ->
                 TypeMap data = tok1.data
                 Notification.Dehydrated
@@ -117,7 +117,7 @@ class TokenService {
     // Helpers
     // -------
 
-    protected Result<Token> incrementTimesAccessed(Token tok1) {
+    protected Result<Token> tryIncrementTimesAccessed(Token tok1) {
         tok1.timesAccessed++
         DomainUtils.trySave(tok1)
     }

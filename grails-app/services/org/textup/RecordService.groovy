@@ -14,10 +14,11 @@ import org.textup.validator.action.*
 @Transactional
 class RecordService {
 
-    AuthService authService
+    LocationService locationService
     MediaService mediaService
     OutgoingMessageService outgoingMessageService
 
+    @RollbackOnResultFailure
     Result<List<? extends RecordItem>> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
         Future<?> future
         Phones.mustFindActiveForOwner(ownerId, type)
@@ -52,9 +53,7 @@ class RecordService {
     Result<RecordNote> update(Long noteId, TypeMap body) {
         Future<?> future
         RecordNotes.mustFindModifiableForId(noteId)
-            .then { RecordNote rNote1 ->
-                AuthUtils.tryGetAuthUser().curry(rNote1)
-            }
+            .then { RecordNote rNote1 -> AuthUtils.tryGetAuthUser().curry(rNote1) }
             .then { RecordNote rNote1, Staff authUser ->
                 trySetNoteFields(rNote1, body, authUser.toAuthor())
             }
@@ -102,7 +101,7 @@ class RecordService {
                 outgoingMessageService.tryStart(r1, temp1, authUser.toAuthor(), future)
             }
             .then { Tuple<List<? extends RecordItem>, Future<?>> processed ->
-                IOCUtils.resultFactory.success(processed.first)
+                IOCUtils.resultFactory.success(processed.first, ResultStatus.CREATED)
             }
     }
 
@@ -119,21 +118,18 @@ class RecordService {
     }
 
     protected Result<List<RecordText>> createNote(Phone p1, TypeMap body, MediaInfo mInfo = null) {
-
         Recipients.tryCreate(p1, body.typedList(Long, "ids[]"), body.phoneNumberList("numbers[]"), 1)
             .then { Recipients r1 -> r1.tryGetOne() }
             .then { PhoneRecordWrapper w1 ->
                 Locsation loc1 = locationService.create(body.typeMapNoNull("location")).payload
                 TempRecordItem.tryCreate(body.string("contents"), mInfo, loc1).curry(w1)
             }
-            .then { PhoneRecordWrapper w1, TempRecordItem temp1 ->
-                AuthUtils.tryGetAuthUser().curry(w1, temp1)
+            .then { PhoneRecordWrapper w1, TempRecordItem temp1 -> w1.tryGetRecord().curry(temp1) }
+            .then { TempRecordItem temp1, Record rec1 -> RecordNote.tryCreate(rec1, temp1) }
+            .then { RecordNote rNote1 -> AuthUtils.tryGetAuthUser().curry(rNote1) }
+            .then { RecordNote rNote1, Staff authUser ->
+                trySetNoteFields(rNote1, body, authUser.toAuthor())
             }
-            .then { PhoneRecordWrapper w1, TempRecordItem temp1, Staff authUser ->
-                Author author1 = authUser.toAuthor()
-                RecordNote.tryCreate(w1, temp1).curry(author1)
-            }
-            .then { RecordNote rNote1, Author author1 -> trySetNoteFields(rNote1, body, author1) }
             .then { RecordNote rNote1 -> DomainUtils.trySave(rNote1) }
             .then { RecordCall rNote1 ->
                 IOCUtils.resultFactory.success([rNote1], ResultStatus.CREATED)

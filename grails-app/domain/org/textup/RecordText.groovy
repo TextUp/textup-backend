@@ -4,13 +4,13 @@ import groovy.transform.EqualsAndHashCode
 import grails.compiler.GrailsTypeChecked
 
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
+@EqualsAndHashCode(callSuper = true)
 class RecordText extends RecordItem implements ReadOnlyRecordText {
 
 	String contents
 
     static mapping = {
-        contents type:"text"
+        contents type: "text"
     }
     static constraints = {
     	contents blank: true, nullable: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
