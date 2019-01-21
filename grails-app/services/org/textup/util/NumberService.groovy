@@ -48,7 +48,7 @@ class NumberService {
         tokenService.findVerifyNumber(token)
             .then { PhoneNumber storedNum ->
                 storedNum == toVerify ?
-                    IOCUtils.resultFactory.success() :
+                    Result.void() :
                     IOCUtils.resultFactory.failWithCodeAndStatus(
                         "tokenService.verifyNumber.numbersNoMatch", // TODO
                         ResultStatus.NOT_FOUND)

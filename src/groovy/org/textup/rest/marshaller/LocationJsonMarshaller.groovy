@@ -14,7 +14,7 @@ class LocationJsonMarshaller extends JsonNamedMarshaller {
             id = loc.id
             address = loc.address
             lat = loc.lat
-            lon = loc.lon
+            lng = loc.lng
         }
         json
     }

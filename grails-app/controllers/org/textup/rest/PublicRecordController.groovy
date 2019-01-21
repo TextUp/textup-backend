@@ -29,6 +29,6 @@ class PublicRecordController extends BaseController {
                 }
                 else { callbackService.process(data) }
             }
-            .anyEnd { Result<?> res -> respondWithResult(Closure, res) }
+            .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 }

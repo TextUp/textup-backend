@@ -22,8 +22,8 @@ class LocationService {
                 if (body.lng != null) lng = body.double("lng")
             }
             DomainUtils.trySave(loc1)
-                .then { IOCUtils.resultFactory.success() }
+                .then { Result.void() }
         }
-        else { IOCUtils.resultFactory.success() }
+        else { Result.void() }
     }
 }

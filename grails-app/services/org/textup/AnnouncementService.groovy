@@ -10,13 +10,13 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class AnnouncementService {
+class AnnouncementService implements ManagesDomain.Creater<FeaturedAnnouncement>, ManagesDomain.Updater<FeaturedAnnouncement> {
 
     OutgoingAnnouncementService outgoingAnnouncementService
 
     @RollbackOnResultFailure
-	Result<FeaturedAnnouncement> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
-        Phones.mustFindActiveForOwner(ownerId, type, false)
+	Result<FeaturedAnnouncement> create(Long pId, TypeMap body) {
+        Phones.mustFindActiveForId(pId)
             .then { Phone p1 ->
                 FeaturedAnnouncement.tryCreate(p1, body.dateTime("expiresAt"), body.string("message"))
             }

@@ -43,7 +43,7 @@ class DomainUtils {
         if (resGroup.anyFailures) {
             IOCUtils.resultFactory.failWithGroup(resGroup)
         }
-        else { IOCUtils.resultFactory.success() }
+        else { Result.void() }
     }
 
     // TODO null handling, return error if null is passed in
@@ -63,6 +63,6 @@ class DomainUtils {
         if (resGroup.anyFailures) {
             IOCUtils.resultFactory.failWithGroup(resGroup)
         }
-        else { IOCUtils.resultFactory.success() }
+        else { Result.void() }
     }
 }

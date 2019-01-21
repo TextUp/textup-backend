@@ -1,12 +1,7 @@
 class UrlMappings {
 
-    // [NOTE]: any mapping updates here need to be reflected in the `resolveClassToResourceName`
-    // method in BaseController to ensure working url link rendering in the API output
-
 	static mappings = {
-        "/$controller/$action?/$id?(.$format)?"{
-            constraints { }
-        }
+        "/$controller/$action?/$id?(.$format)?"{ constraints { } }
 
         //login endpoint is `/login` (provided by Spring Security REST)
         "/"(controller: "super")
@@ -26,6 +21,7 @@ class UrlMappings {
             // Restricted utilities
             // --------------------
 
+            "/duplicates"(resources: "duplicate")
             "/numbers"(resources: "number")
             "/sockets"(resources: "socket")
             "/validate"(resources: "validate")

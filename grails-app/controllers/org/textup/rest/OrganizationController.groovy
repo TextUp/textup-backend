@@ -19,23 +19,24 @@ class OrganizationController extends BaseController {
     @Secured(Roles.PUBLIC)
     @Override
     void index() {
-        String search = params.string("search")
-        respondWithCriteria(CLASS, Organizations.buildForOptions(search), params)
+        respondWithCriteria(Organizations.buildForOptions(params.string("search")),
+            params,
+            null,
+            MarshallerUtils.KEY_ORGANIZATION)
     }
 
     @Transactional(readOnly=true)
     @Secured(Roles.PUBLIC)
     @Override
     void show() {
-        respondWithResult(CLASS, Organizations.mustFindForId(params.long("id")))
+        Long id = params.long("id")
+        doShow({ Result.void() }, { IndividualPhoneRecordsWrappers.mustFindForId(id) })
     }
 
     @Override
     void update() {
-        Long orgId = params.long("id")
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body -> Organizations.isAllowed(orgId).curry(body) }
-            .then { TypeMap body -> organizationService.update(orgId, body) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doUpdate(MarshallerUtils.KEY_ORGANIZATION, request, organizationService) { TypeMap body ->
+            Organizations.isAllowed(params.long("id"))
+        }
     }
 }

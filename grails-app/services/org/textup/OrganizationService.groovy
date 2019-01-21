@@ -8,7 +8,7 @@ import org.textup.util.domain.*
 
 @GrailsTypeChecked
 @Transactional
-class OrganizationService {
+class OrganizationService implements ManagesDomain.Updater<Organization> {
 
     LocationService locationService
 

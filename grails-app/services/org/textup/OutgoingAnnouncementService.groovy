@@ -69,7 +69,7 @@ class OutgoingAnnouncementService {
             .then { tryStoreForRecords(type, fa1.phone, author, msg, sess, rpts) }
             .then { List<IndividualPhoneRecord> iprList ->
                 socketService.sendIndividualWrappers(iprList)
-                IOCUtils.resultFactory.success()
+                Result.void()
             }
     }
 

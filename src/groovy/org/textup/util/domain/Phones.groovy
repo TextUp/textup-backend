@@ -104,7 +104,7 @@ class Phones {
             }
         }
         canShare ?
-            IOCUtils.resultFactory.success() :
+            Result.void() :
             IOCUtils.resultFactory.failWithCodeAndStatus("phone.share.cannotShare",
                 ResultStatus.FORBIDDEN, [target.buildName()])
     }

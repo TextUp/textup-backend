@@ -24,10 +24,10 @@ class NumberController extends BaseController {
                 numberService.listNewNumbers(params.string("search"), authUser.org.location)
                     .curry(iNums)
             }
-            .ifFail { Result<?> failRes -> respondWithResult(null, failRes) }
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Collection<AvailablePhoneNumber> iNums, Collection<AvailablePhoneNumber> lNums ->
-                Collection<AvailablePhoneNumber> availableNums = iNums + lNums
-                respondWithMany(AvailablePhoneNumber, { availableNums.size() }, { availableNums })
+                Collection<AvailablePhoneNumber> allNums = iNums + lNums
+                respondWithMany({ allNums.size() }, { allNums }, params, MarshallerUtils.KEY_NUMBER)
             }
     }
 
@@ -37,13 +37,13 @@ class NumberController extends BaseController {
     void show() {
         PhoneNumber.tryCreate(params.string("id"))
             .then { PhoneNumber pNum -> numberService.validateNumber(pNum) }
-            .anyEnd { Result<?> res -> respondWithResult(AvailablePhoneNumber, res) }
+            .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
     // requesting and checking phone number validation tokens
     @Override
     void save() {
-        tryGetJsonPayload(null, request)
+        RequestUtils.tryGetJsonBody(request)
             .then { TypeMap body -> PhoneNumber.tryCreate(body.string("phoneNumber")).curry(body) }
             .then { TypeMap body, PhoneNumber pNum ->
                 String token = body.string("token")
@@ -51,6 +51,6 @@ class NumberController extends BaseController {
                     numberService.finishVerifyOwnership(token, pNum) :
                     numberService.startVerifyOwnership(pNum)
             }
-            .anyEnd { Result<?> res -> respondWithResult(null, res) }
+            .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 }

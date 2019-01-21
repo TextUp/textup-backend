@@ -86,7 +86,7 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
             .toResult(false)
             .then { List<RecordNote> rNotes ->
                 socketService.sendItems(rNotes)
-                IOCUtils.resultFactory.success()
+                Result.void()
             }
     }
 }

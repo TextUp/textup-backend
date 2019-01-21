@@ -72,7 +72,7 @@ class CallService {
                 .setUrl(IOCUtils.getWebhookLink(afterPickup))
                 .setStatusCallback(IOCUtils.getHandleLink(CallbackUtils.STATUS))
                 .update()
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         catch (Throwable e) {
             IOCUtils.resultFactory.failWithThrowable(e, "interrupt")

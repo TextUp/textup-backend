@@ -53,7 +53,7 @@ class IndividualPhoneRecords {
     }
 
     static Result<Map<PhoneNumber, HashSet<Long>>> tryFindEveryIdByNumbers(Long phoneId = null,
-        Collection<Long> contactIds = null) {
+        Collection<Long> iprIds = null) {
 
         Map<PhoneNumber, HashSet<Long>> numToIds = [:].withDefault { new HashSet<Long>() }
         IndividualPhoneRecord.createCriteria()
@@ -68,7 +68,7 @@ class IndividualPhoneRecords {
                     property("id")
                     numbers { property("number") }
                 }
-                CriteriaUtils.inList(delegate, "id", contactIds, true)
+                CriteriaUtils.inList(delegate, "id", iprIds, true)
                 if (phoneId) {
                     eq("phone.id", phoneId)
                 }

@@ -8,11 +8,11 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class SessionService {
+class SessionService implements ManagesDomain.Creater<IncomingSession>, ManagesDomain.Updater<IncomingSession> {
 
 	@RollbackOnResultFailure
-	Result<IncomingSession> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
-		Phones.mustFindActiveForOwner(ownerId, type, false)
+	Result<IncomingSession> create(Long pId, TypeMap body) {
+		Phones.mustFindActiveForId(pId)
 			.then { Phone p1 -> PhoneNumber.tryCreate(body.string("number")).curry(p1) }
 			.then { Phone p1, PhoneNumber pNum ->
 				IncomingSessions.mustFindForPhoneAndNumber(p1, pNum, true)

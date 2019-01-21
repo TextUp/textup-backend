@@ -13,7 +13,7 @@ class RequestUtils {
     static Result<Void> trySetOnRequest(String key, Object obj) {
         try {
             WebUtils.retrieveGrailsWebRequest().currentRequest.setAttribute(key, obj)
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         catch (IllegalStateException e) {
             IOCUtils.resultFactory.failWithThrowable(e, "trySetOnRequest")

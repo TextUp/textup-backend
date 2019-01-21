@@ -110,7 +110,7 @@ class MergeActionService implements HandlesActions<Long, Void> {
             new DetachedCriteria(PhoneRecords)
                 .build(PhoneRecords.forShareSourceIds(toBeMerged*.id))
                 .updateAll(record: ipr1.record, shareSource: ipr1)
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         catch (Throwable e) {
             IOCUtils.resultFactory.failWithThrowable(e, "tryMergeSharing", true)
@@ -127,7 +127,7 @@ class MergeActionService implements HandlesActions<Long, Void> {
             FutureMessage
                 .buildForRecordIds(toMergeRecords*.record*.id)
                 .updateAll(record: ipr1.record)
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         catch (Throwable e) {
             IOCUtils.resultFactory.failWithThrowable(e, "tryMergeRecords", true)

@@ -9,7 +9,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class StaffService {
+class StaffService implements ManagesDomain.Updater<Staff> {
 
     MailService mailService
     OrganizationService organizationService
@@ -17,7 +17,8 @@ class StaffService {
 
     // [NOTE] `create` can be called by anybody
     @RollbackOnResultFailure
-    Result<Staff> create(TypeMap body, String timezone) {
+    Result<Staff> create(TypeMap body) {
+        String timezone = body.string("timezone")
         organizationService.tryFindOrCreate(body.typeMapNoNull("org"))
             .then { Organization org1 -> Roles.tryGetUserRole().curry(org1) }
             .then { Organization org1, Role r1 ->
@@ -34,7 +35,8 @@ class StaffService {
     }
 
     @RollbackOnResultFailure
-    Result<Staff> update(Long staffId, TypeMap body, String timezone) {
+    Result<Staff> update(Long staffId, TypeMap body) {
+        String timezone = body.string("timezone")
         Staffs.mustFindForId(staffId)
             .then { Staff s1 -> trySetFields(s1, body, timezone) }
             .then { Staff s1 -> trySetLockCode(s1, body.string("lockCode")) }
@@ -49,7 +51,7 @@ class StaffService {
     // -------
 
     protected Result<Staff> finishCreate(Staff s1, TypeMap body) {
-        Result<?> res = IOCUtils.resultFactory.success()
+        Result<?> res = Result.void()
         if (s1.org.status == OrgStatus.PENDING) {
             res = mailService.notifyAboutPendingOrg(s1.org)
         }
@@ -72,7 +74,7 @@ class StaffService {
     }
 
     protected Result<Staff> finishUpdate(Staff s1, TypeMap body) {
-        Result<?> res = IOCUtils.resultFactory.success()
+        Result<?> res = Result.void()
         // email notifications if changing away from pending
         StaffStatus oldStatus = s1.getPersistentValue("status") as StaffStatus
         if (oldStatus.isPending() && !s1.status.isPending()) {
@@ -135,7 +137,7 @@ class StaffService {
     protected Result<?> tryUpdatePhone(Staff s1, TypeMap phoneInfo, String timezone) {
         // Only want to do admin check if the user is attempting to update this
         if (!phoneInfo) {
-            return IOCUtils.resultFactory.success()
+            return Result.void()
         }
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(s1.org.id, authId) }

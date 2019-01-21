@@ -10,20 +10,8 @@ import org.textup.validator.*
 @Transactional
 class DuplicateService {
 
-    Result<List<MergeGroup>> findAllDuplicates(Long phoneId) {
-        IndividualPhoneRecords.tryFindEveryIdByNumbers(phoneId)
-            .then { Map<String, HashSet<Long>> numToIds ->
-                DuplicateUtils.tryBuildMergeGroups(numToIds).toResult(false)
-            }
-    }
-
-    Result<List<MergeGroup>> findDuplicates(Collection<Long> iprIds) {
-    	if (!iprIds) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus(
-                "duplicateService.findDuplicates.missingContactIds",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-    	}
-        IndividualPhoneRecords.tryFindEveryIdByNumbers(null, iprIds)
+    Result<List<MergeGroup>> findDuplicates(Long phoneId, Collection<Long> iprIds = null) {
+        IndividualPhoneRecords.tryFindEveryIdByNumbers(phoneId, iprIds)
             .then { Map<String, HashSet<Long>> numToIds ->
                 DuplicateUtils.tryBuildMergeGroups(numToIds).toResult(false)
             }

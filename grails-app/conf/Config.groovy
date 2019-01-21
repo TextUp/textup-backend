@@ -306,34 +306,26 @@ textup {
         }
     }
     rest {
-        // TODO remove??
-        defaultLabel = "default" //default is to link to relationships
-
-
         marshallers {
-            fallback                = [singular: "result", plural: "results"]
-            announcement            = [singular: "announcement", plural: "announcements"]
-            availableNumber         = [singular: "number", plural: "numbers"]
-            contact                 = [singular: "contact", plural: "contacts"]
-            futureMessage           = [singular: "future-message", plural: "future-messages"]
-            location                = [singular: "location", plural: "locations"]
-            mediaElement            = [singular: "mediaElement", plural:  "mediaElements"]
-            mediaInfo               = [singular: "medium", plural:  "media"]
-            mergeGroup              = [singular: "contact", plural:  "contacts"]
-            notification            = [singular: "notification", plural: "notifications"]
-            notificationStatus      = [singular: "notification-status", plural: "notification-statuses"]
-            organization            = [singular: "organization", plural: "organizations"]
-            phone                   = [singular: "phone", plural: "phones"]
-            record                  = [singular: "record", plural: "records"]
-            recordItemRequest       = [singular: "record-request", plural: "record-requests"]
-            recordItemReceiptInfo   = [singular: "receipt-info", plural: "receipt-info"]
-            revision                = [singular: "revision", plural: "revisions"]
-            schedule                = [singular: "schedule", plural: "schedules"]
-            session                 = [singular: "session", plural: "sessions"]
-            staff                   = [singular: "staff", plural: "staff"]
-            staffPolicyAvailability = [singular: "availability", plural: "availabilities"]
-            tag                     = [singular: "tag", plural: "tags"]
-            team                    = [singular: "team", plural: "teams"]
+            announcement      = [singular: "announcement", plural: "announcements"]
+            availableNumber   = [singular: "number", plural: "numbers"]
+            contact           = [singular: "contact", plural: "contacts"]
+            futureMessage     = [singular: "future-message", plural: "future-messages"]
+            location          = [singular: "location", plural: "locations"]
+            mediaElement      = [singular: "mediaElement", plural:  "mediaElements"]
+            mediaInfo         = [singular: "medium", plural:  "media"]
+            mergeGroup        = [singular: "merge", plural: "merges"]
+            notification      = [singular: "notification", plural: "notifications"]
+            organization      = [singular: "organization", plural: "organizations"]
+            phone             = [singular: "phone", plural: "phones"]
+            recordItem        = [singular: "record", plural: "records"]
+            recordItemRequest = [singular: "record-request", plural: "record-requests"]
+            revision          = [singular: "revision", plural: "revisions"]
+            schedule          = [singular: "schedule", plural: "schedules"]
+            session           = [singular: "session", plural: "sessions"]
+            staff             = [singular: "staff", plural: "staff"]
+            tag               = [singular: "tag", plural: "tags"]
+            team              = [singular: "team", plural: "teams"]
         }
     }
 }

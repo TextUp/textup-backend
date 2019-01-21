@@ -16,6 +16,9 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class BaseController {
 
+    private static final String ACTION_GET_LIST = "index"
+    private static final String ACTION_GET_SINGLE = "show"
+
     void index() { notAllowed() }
 
     void show() { notAllowed() }
@@ -41,15 +44,18 @@ class BaseController {
     }
 
     protected void respondWithMany(Closure<Integer> count, Closure<? extends Collection<?>> list,
-        TypeMap data = [:], String customMarshallerKey = null) {
+        Map params = [:], String customMarshallerKey = null) {
         // step 1: build info
         Integer total = count.call()
-        Map<String, Integer> pg1 = ControllerUtils.buildPagination(data, total)
-        Map<String, ?> lInfo = [resource: controllerName, action: "index", absolute: false]
+        Map<String, Integer> pg1 = ControllerUtils.buildPagination(params, total)
+        Map<String, ?> lInfo = [resource: controllerName, action: ACTION_GET_LIST, absolute: false]
         Map<String, String> links = ControllerUtils.buildLinks(lInfo, pg1.offset, pg1.max, pg1.total)
         Collection<T> found = list.call(pg1)
         // step 2: build response
-        Map<String, ?> responseData = [links: links, meta: pg1]
+        Map<String, ?> responseData = [
+            (MarshallerUtils.PARAM_LINKS): links,
+            (MarshallerUtils.PARAM_META): pg1
+        ]
         render(status: ResultStatus.OK.apiStatus)
         withJsonFormat {
             if (found) {
@@ -62,15 +68,13 @@ class BaseController {
         }
     }
 
-    // TODO
-    protected void doShow(Long id, Closure<Result<?>> checkAllowed, Closure<Result<?> doFind) {
-        checkAllowed(id)
-            .then { doFind(id) }
+    protected void doShow(Closure<Result<?>> checkAllowed, Closure<Result<?> doFind) {
+        checkAllowed()
+            .then { doFind() }
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
-    // TODO
-    protected void doSave(String key, HttpServletRequest req, ManagesDomain.Create service,
+    protected void doSave(String key, HttpServletRequest req, ManagesDomain.Creater service,
         Closure<Result<Long>> checkAllowed) {
 
         RequestUtils.tryGetJsonBody(req, key)
@@ -79,8 +83,7 @@ class BaseController {
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
-    // TODO
-    protected void doUpdate(String key, HttpServletRequest req, ManagesDomain.Update service,
+    protected void doUpdate(String key, HttpServletRequest req, ManagesDomain.Updater service,
         Closure<Result<Long>> checkAllowed) {
 
         RequestUtils.tryGetJsonBody(req, key)
@@ -89,8 +92,7 @@ class BaseController {
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
-    // TODO
-    protected void doDelete(ManagesDomain.Delete service, Closure<Result<Long>> checkAllowed) {
+    protected void doDelete(ManagesDomain.Deleter service, Closure<Result<Long>> checkAllowed) {
         checkAllowed()
             .then { Long id -> service.delete(id) }
             .anyEnd { Result<?> res -> respondWithResult(res) }
@@ -113,8 +115,8 @@ class BaseController {
                     Object idObj = DomainUtils.tryGetId(res.payload)
                     if (idObj) {
                         String locationLink = IOCUtils.linkGenerator.link(resource: controllerName,
-                            absolute:true,
-                            action:"show",
+                            absolute: true,
+                            action: ACTION_GET_SINGLE,
                             id: DomainUtils.getId(res.payload))
                         response.addHeader(HttpHeaders.LOCATION, locationLink)
                     }

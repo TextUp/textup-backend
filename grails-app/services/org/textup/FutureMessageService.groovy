@@ -10,14 +10,14 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class FutureMessageService {
+class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, ManagesDomain.Updater<FutureMessage>, ManagesDomain.Deleter {
 
     FutureMessageJobService futureMessageJobService
     MediaService mediaService
     SocketService socketService
 
     @RollbackOnResultFailure
-    Result<FutureMessage> create(Long prId, TypeMap body, String timezone = null) {
+    Result<FutureMessage> create(Long prId, TypeMap body) {
         Future<?> future
         PhoneRecordWrappers.mustFindForId(prId)
             .then { PhoneRecordWrapper w1 -> w1.tryGetRecord() }
@@ -28,7 +28,7 @@ class FutureMessageService {
                     SimpleFutureMessage.tryCreate(rec1, body.string("message"), mInfo)
                 }
             }
-            .then { FutureMessage fMsg -> trySetFields(fMsg, body, timezone) }
+            .then { FutureMessage fMsg -> trySetFields(fMsg, body, body.string("timezone")) }
             .then { FutureMessage fMsg -> trySchedule(fMsg) }
             .then { FutureMessage fMsg -> DomainUtils.trySave(fMsg, ResultStatus.CREATED) }
             .ifFail { Result<?> failRes ->
@@ -38,14 +38,14 @@ class FutureMessageService {
     }
 
     @RollbackOnResultFailure
-    Result<FutureMessage> update(Long fId, TypeMap body, String timezone = null) {
+    Result<FutureMessage> update(Long fId, TypeMap body) {
         Future<?> future
         FutureMessages.mustFindForId(fId)
             // process media first to add in media info object BEFORE validation
             .then { FutureMessage fMsg -> mediaService.tryCreateOrUpdate(fMsg, body).curry(fMsg) }
             .then { FutureMessage fMsg, Future<?> fut1 ->
                 future = fut1
-                trySetFields(fMsg, body, timezone)
+                trySetFields(fMsg, body, body.string("timezone"))
             }
             .then { FutureMessage fMsg -> trySchedule(fMsg) }
             .then { FutureMessage fMsg -> DomainUtils.trySave(fMsg) }

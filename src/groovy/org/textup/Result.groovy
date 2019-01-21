@@ -21,17 +21,17 @@ class Result<T> {
     private final List<Object> failureArgs = []
     private hasErrorBeenHandled = false // ensure only one failure handler is called in the chain
 
-    // Static methods
-    // --------------
-
     static <V> Result<V> createSuccess(V payload, ResultStatus status = ResultStatus.OK) {
         Result<V> res = new Result<>()
         res.setSuccess(payload, status)
     }
+
     static <V> Result<V> createError(List<String> messages, ResultStatus status) {
         Result<V> res = new Result<>()
         res.setError(messages, status)
     }
+
+    static Result<Void> void() { Result.<Void>createSuccess(null, ResultStatus.NO_CONTENT) }
 
     // Methods
     // -------

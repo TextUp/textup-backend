@@ -18,59 +18,39 @@ class TagController extends BaseController {
     @Transactional(readOnly=true)
     @Override
     void index() {
-        ControllerUtils.tryGetPhoneOwner(body.long("teamId"))
-            .then { Tuple<Long, PhoneOwnershipType> processed ->
-                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
-                    phoneCache.mustFindPhoneIdForOwner(ownerId, type)
-                }
-            }
-            .then { Long pId ->
-                respondWithCriteria(CLASS,
-                    GroupPhoneRecords.buildForPhoneIdAndOptions(pId),
+        ControllerUtils.tryGetPhoneId(body.long("teamId"))
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .thenEnd { Long pId ->
+                respondWithCriteria(GroupPhoneRecords.buildForPhoneIdAndOptions(pId),
                     params,
-                    false,
-                    GroupPhoneRecords.forSort())
+                    GroupPhoneRecords.forSort(),
+                    MarshallerUtils.KEY_TAG)
             }
-            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
     }
 
     @Transactional(readOnly=true)
     @Override
     void show() {
-        Long gprId = params.long("id")
-        PhoneRecords.isAllowed(gprId)
-            .then { GroupPhoneRecords.mustFindForId(gprId) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        Long id = params.long("id")
+        doShow({ PhoneRecords.isAllowed(id) }, { GroupPhoneRecords.mustFindForId(id) })
     }
 
     @Override
     void save() {
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body ->
-                ControllerUtils.tryGetPhoneOwner(body.long("teamId")).curry(body)
-            }
-            .then { TypeMap body, Tuple<Long, PhoneOwnershipType> processed ->
-                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
-                    tagService.create(ownerId, type, body)
-                }
-            }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doSave(MarshallerUtils.KEY_TAG, request, tagService) { TypeMap body ->
+            ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        }
     }
 
     @Override
     void update() {
-        Long gprId = params.long("id")
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body -> PhoneRecords.isAllowed(gprId).curry(body) }
-            .then { TypeMap body -> tagService.update(gprId, body) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doUpdate(MarshallerUtils.KEY_TAG, request, tagService) { TypeMap body ->
+            PhoneRecords.isAllowed(params.long("id"))
+        }
     }
 
     @Override
     void delete() {
-        Long gprId = params.long("id")
-        PhoneRecords.isAllowed(gprId)
-            .then { tagService.delete(gprId) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doDelete(tagService) { PhoneRecords.isAllowed(params.long("id")) }
     }
 }

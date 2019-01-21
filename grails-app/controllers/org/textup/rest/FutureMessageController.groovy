@@ -15,66 +15,46 @@ import org.textup.util.*
 @Secured(Roles.USER_ROLES)
 class FutureMessageController extends BaseController {
 
-    static final Class CLASS = FutureMessage
-	static String namespace = "v1"
-
 	FutureMessageService futureMessageService
-
-    @Override
-    protected String getNamespaceAsString() { namespace }
 
 	@Transactional(readOnly=true)
     @Override
     void index() {
         Long prId = params.long("contactId") ?: params.long("tagId")
         PhoneRecords.isAllowed(prId)
-            .then {
-                respondWithCriteria(CLASS,
-                    FutureMessages.buildForPhoneRecordIds([prId]),
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .thenEnd {
+                respondWithCriteria(FutureMessages.buildForPhoneRecordIds([prId]),
                     params,
-                    false)
+                    null,
+                    MarshallerUtils.KEY_FUTURE_MESSAGE)
             }
-            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
     }
 
     @Transactional(readOnly=true)
     @Override
     void show() {
-        Long gprId = params.long("id")
-        FutureMessages.isAllowed(gprId)
-            .then { FutureMessages.mustFindForId(gprId) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        Long id = params.long("id")
+        doShow({ FutureMessages.isAllowed(id) }, { FutureMessages.mustFindForId(id) })
     }
 
     @Override
     void save() {
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body ->
-                Long prId = params.long("contactId") ?: params.long("tagId")
-                PhoneRecords.isAllowed(prId).curry(body)
-            }
-            .then { TypeMap body, Long prId ->
-                futureMessageService.create(prId, body, params.string("timezone"))
-            }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doSave(MarshallerUtils.KEY_FUTURE_MESSAGE, request, futureMessageService) { TypeMap body ->
+            Long prId = params.long("contactId") ?: params.long("tagId")
+            PhoneRecords.isAllowed(prId)
+        }
     }
 
     @Override
     void update() {
-        Long fId = params.long("id")
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body -> FutureMessages.isAllowed(fId).curry(body) }
-            .then { TypeMap body ->
-                futureMessageService.update(fId, body, params.string("timezone"))
-            }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doUpdate(MarshallerUtils.KEY_FUTURE_MESSAGE, request, futureMessageService) { TypeMap body ->
+            FutureMessages.isAllowed(params.long("id"))
+        }
     }
 
     @Override
     void delete() {
-        Long fId = params.long("id")
-        FutureMessages.isAllowed(fId)
-            .then { futureMessageService.delete(fId) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doDelete(futureMessageService) { PhoneRecords.isAllowed(params.long("id")) }
     }
 }

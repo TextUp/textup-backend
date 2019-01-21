@@ -22,7 +22,7 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
     void render(T object, RenderContext context) {
         context.setContentType(GrailsWebUtil.getContentType(MimeType.JSON.name, GrailsWebUtil.DEFAULT_ENCODING))
 
-        String view = context.arguments?.view ?: "default"
+        String view = context.arguments?.view ?: MarshallerUtils.MARSHALLER_DEFAULT
         ApiJson converter = useJsonWithDetail(view, object)
         Writer out = context.writer
         JSONWriter writer = new JSONWriter(out)
@@ -31,15 +31,15 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
         writer.key(getLabel())
         converter.renderPartial(writer)
 
-        if (context.arguments?.meta) {
-            writer.key("meta")
-            converter = context.arguments.meta as ApiJson
+        if (context.arguments?.getAt(MarshallerUtils.PARAM_META)) {
+            writer.key(MarshallerUtils.PARAM_META)
+            converter = context.arguments.getAt(MarshallerUtils.PARAM_META) as ApiJson
             converter.renderPartial(writer)
         }
 
-        if (context.arguments?.links) {
-            writer.key("links")
-            converter = context.arguments.links as ApiJson
+        if (context.arguments?.getAt(MarshallerUtils.PARAM_LINKS)) {
+            writer.key(MarshallerUtils.PARAM_LINKS)
+            converter = context.arguments.getAt(MarshallerUtils.PARAM_LINKS) as ApiJson
             converter.renderPartial(writer)
         }
 
@@ -47,7 +47,7 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
             //can be either a collection or single object
             context.arguments.include.each { String key, toBeRendered ->
                 writer.key(key)
-                converter = useJsonWithDetail("default", toBeRendered)
+                converter = useJsonWithDetail(MarshallerUtils.MARSHALLER_DEFAULT, toBeRendered)
                 converter.renderPartial(writer)
             }
         }
@@ -65,15 +65,15 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
             }
         }
         catch (ConverterException e1) {
-            log.error "ApiJsonRenderer: while rendering '$object', converter with view '$view' not found: ${e1.message}"
+            log.error "useJsonWithDetail: while rendering `$object`, converter with view `$view` not found: ${e1.message}"
             e1.printStackTrace()
             try {
-                JSON.use("default") {
+                JSON.use(MarshallerUtils.MARSHALLER_DEFAULT) {
                     converter = object as ApiJson
                 }
             }
             catch (ConverterException e2) {
-                log.error "ApiJsonRenderer: 'default' converter also not found: ${e2.message}"
+                log.error "useJsonWithDetail: `default` converter also not found: ${e2.message}"
                 e2.printStackTrace()
                 converter = object as JSON
             }
@@ -82,8 +82,14 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
     }
 
     String getLabel() {
-        if (label) { label }
-        else if (this instanceof ContainerRenderer) { "results" }
-        else { "result" }
+        if (label) {
+            label
+        }
+        else if (this instanceof ContainerRenderer) {
+            MarshallerUtils.FALLBACK_PLURAL
+        }
+        else {
+            MarshallerUtils.FALLBACK_SINGULAR
+        }
     }
 }

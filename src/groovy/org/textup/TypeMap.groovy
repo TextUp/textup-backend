@@ -14,8 +14,12 @@ class TypeMap extends TypeConvertingMap {
         super(map)
     }
 
+    static TypeMap create(Map map) {
+        new TypeMap(map)
+    }
+
     static Result<TypeMap> tryCreate(Map map) {
-        IOCUtils.resultFactory.success(new TypeMap(map), ResultStatus.CREATED)
+        IOCUtils.resultFactory.success(TypeMap.create(map), ResultStatus.CREATED)
     }
 
     // Methods

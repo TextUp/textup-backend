@@ -11,7 +11,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class ContactService {
+class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapper>, ManagesDomain.Updater<IndividualPhoneRecordWrapper>, ManagesDomain.Deleter {
 
     MergeActionService mergeActionService
     NotificationActionService notificationActionService
@@ -19,8 +19,8 @@ class ContactService {
     ShareActionService shareActionService
 
     @RollbackOnResultFailure
-	Result<IndividualPhoneRecordWrapper> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
-        Phones.mustFindActiveForOwner(ownerId, type, false)
+	Result<IndividualPhoneRecordWrapper> create(Long pId, TypeMap body) {
+        Phones.mustFindActiveForId(pId)
             .then { Phone p1 -> IndividualPhoneRecordWrappers.tryCreate(p1) }
             .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }
@@ -51,7 +51,7 @@ class ContactService {
         IndividualPhoneRecordWrappers.mustFindForId(iprId)
             .then { IndividualPhoneRecordWrapper w1 -> w1.tryDelete() }
             .then { DomainUtils.trySave(w1) }
-            .then { IOCUtils.resultFactory.success() }
+            .then { Result.void() }
     }
 
     // Helpers

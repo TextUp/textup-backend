@@ -24,27 +24,21 @@ class RecordController extends BaseController {
     @Transactional(readOnly=true)
     @Override
     void index() {
-        TypeMap data = TypeMap.create(params)
-        ControllerUtils.tryGetPhoneOwner(data.long("teamId"))
-            .then { Tuple<Long, PhoneOwnershipType> processed ->
-                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
-                    phoneCache.mustFindPhoneIdForOwner(ownerId, type)
-                }
-            }
-            .then { Long pId -> RecordUtils.buildRecordItemRequest(pId, data) }
-            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
+        ControllerUtils.tryGetPhoneId(params.long("teamId"))
+            .then { Long pId -> RecordUtils.buildRecordItemRequest(pId, params) }
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { RecordItemRequest iReq ->
-                if (data.format == ControllerUtils.FORMAT_PDF) {
-                    RequestUtils.trySetOnRequest(RequestUtils.PAGINATION_OPTIONS, data)
-                    RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, data.string("timezone"))
+                if (params.format == ControllerUtils.FORMAT_PDF) {
+                    RequestUtils.trySetOnRequest(RequestUtils.PAGINATION_OPTIONS, params)
+                    RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
                     String ts = DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(DateTime.now())
                     respondWithPdf("textup-export-${ts}.pdf", pdfService.buildRecordItems(iReq))
                 }
                 else {
-                    respondWithCriteria(RecordItem,
-                        iReq.getCriteria(),
-                        data,
-                        RecordItems.forSort(true))
+                    respondWithCriteria(iReq.getCriteria(),
+                        params,
+                        RecordItems.forSort(true),
+                        MarshallerUtils.KEY_RECORD_ITEM)
                 }
             }
     }
@@ -53,41 +47,27 @@ class RecordController extends BaseController {
     @Override
     void show() {
         Long id = params.long("id")
-        RecordItems.isAllowed(id)
-            .then { RecordItems.mustFindForId(id) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doShow({ RecordItems.isAllowed(id) }, { RecordItems.mustFindForId(id) })
     }
 
     @OptimisticLockingRetry
     @Override
     void save() {
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body ->
-                ControllerUtils.tryGetPhoneOwner(body.long("teamId")).curry(body)
-            }
-            .then { TypeMap body, Tuple<Long, PhoneOwnershipType> processed ->
-                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
-                    recordService.create(ownerId, type, body)
-                }
-            }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doSave(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) { TypeMap body ->
+            ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        }
     }
 
     @Override
     void update() {
-        Long id = params.long("id")
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap data -> RecordItems.isAllowed(id).curry(data) }
-            .then { TypeMap data -> recordService.update(id, data) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doUpdate(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) { TypeMap body ->
+            RecordItems.isAllowed(params.long("id"))
+        }
     }
 
     @Override
     void delete() {
-        Long id = params.long("id")
-        RecordItems.isAllowed(id)
-            .then { recordService.delete(id) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doDelete(recordService) { RecordItems.isAllowed(params.long("id")) }
     }
 
     // Helpers

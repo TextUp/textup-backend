@@ -63,7 +63,7 @@ class VoicemailCallbackService {
                     callService.interrupt(callId, afterPickup, p1.customAccountId)
                         .logFail("finishProcessingVoicemailGreeting interrupt $callId")
                 }
-                IOCUtils.resultFactory.success()
+                Result.void()
             }
     }
 }

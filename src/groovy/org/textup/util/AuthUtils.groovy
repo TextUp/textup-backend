@@ -25,7 +25,7 @@ class AuthUtils {
     }
 
     static Result<Void> isAllowed(boolean outcome) {
-        outcome ? IOCUtils.resultFactory.success() : notAllowed()
+        outcome ? Result.void() : notAllowed()
     }
 
     // see: http://blog.cwill-dev.com/2011/05/11/grails-springsecurityservice-authenticate-via-code-manually/

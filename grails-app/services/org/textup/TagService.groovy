@@ -10,14 +10,14 @@ import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
-class TagService {
+class TagService implements ManagesDomain.Creater<GroupPhoneRecord>, ManagesDomain.Updater<GroupPhoneRecord>, ManagesDomain.Deleter {
 
     NotificationActionService notificationActionService
     TagActionService tagActionService
 
     @RollbackOnResultFailure
-    Result<GroupPhoneRecord> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
-        Phones.mustFindActiveForOwner(ownerId, type, false)
+    Result<GroupPhoneRecord> create(Long pId, TypeMap body) {
+        Phones.mustFindActiveForId(pId)
             .then { Phone p1 -> GroupPhoneRecord.tryCreate(p1, body.string("name")) }
             .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tryNotifications(gpr1, body) }
@@ -41,7 +41,7 @@ class TagService {
                 gpr1.tryCancelFutureMessages()
             }
             .then { DomainUtils.trySave(gpr1) }
-            .then { IOCUtils.resultFactory.success() }
+            .then { Result.void() }
     }
 
     // Helpers

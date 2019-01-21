@@ -107,7 +107,7 @@ class IncomingTextService {
                 // to push record items to the frontend. However, for incoming texts
                 // no status callback happens so we need to push the item here
                 socketService.sendItems(rItems)
-                IOCUtils.resultFactory.success()
+                Result.void()
             }
     }
 }

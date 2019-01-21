@@ -17,19 +17,15 @@ class SessionController extends BaseController {
     @Transactional(readOnly=true)
     @Override
     void index() {
-        ControllerUtils.tryGetPhoneOwner(body.long("teamId"))
-            .then { Tuple<Long, PhoneOwnershipType> processed ->
-                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
-                    phoneCache.mustFindPhoneIdForOwner(ownerId, type)
-                }
-            }
-            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
-            .then { Long pId ->
-                Boolean subToCall = params.bool("subscribedToCall"),
-                    subToText = params.bool("subscribedToText")
-                respondWithCriteria(IncomingSession,
-                    IncomingSessions.buildForPhoneIdWithOptions(pId, subToCall, subToText)
-                    params)
+        ControllerUtils.tryGetPhoneId(body.long("teamId"))
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .thenEnd { Long pId ->
+                Boolean call = params.bool("subscribedToCall"),
+                    text = params.bool("subscribedToText")
+                respondWithCriteria(IncomingSessions.buildForPhoneIdWithOptions(pId, call, text),
+                    params,
+                    null,
+                    MarshallerUtils.KEY_SESSION)
             }
     }
 
@@ -37,31 +33,20 @@ class SessionController extends BaseController {
     @Override
     void show() {
         Long id = params.long("id")
-        IncomingSessions.isAllowed(id)
-            .then { IncomingSessions.mustFindForId(id) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doShow({ IncomingSessions.isAllowed(id) }, { IncomingSessions.mustFindForId(id) })
     }
 
     @Override
     void save() {
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body ->
-                ControllerUtils.tryGetPhoneOwner(body.long("teamId")).curry(body)
-            }
-            .then { TypeMap body, Tuple<Long, PhoneOwnershipType> processed ->
-                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
-                    sessionService.create(ownerId, type, body)
-                }
-            }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doSave(MarshallerUtils.KEY_SESSION, request, sessionService) { TypeMap body ->
+            ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        }
     }
 
     @Override
     void update() {
-        Long id = params.long("id")
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body -> IncomingSessions.isAllowed(id).curry(body) }
-            .then { TypeMap body -> sessionService.update(id, body) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doUpdate(MarshallerUtils.KEY_SESSION, request, sessionService) { TypeMap body ->
+            IncomingSessions.isAllowed(params.long("id"))
+        }
     }
 }

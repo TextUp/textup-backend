@@ -13,21 +13,18 @@ class ControllerUtils {
     private static final int MAX_PAGINATION_MAX = 5000
 
     static Result<Long> tryGetPhoneId(Long teamId = null) {
-
+        PhoneCache phoneCache = IOCUtils.getBean(PhoneCache)
+        if (teamId) {
+            Teams.isAllowed(teamId).then { Long tId ->
+                phoneCache.mustFindPhoneIdForOwner(tId, PhoneOwnershipType.GROUP)
+            }
+        }
+        else {
+            AuthService.tryGetAuthId().then { Long authId ->
+                phoneCache.mustFindPhoneIdForOwner(authId, PhoneOwnershipType.INDIVIDUAL)
+            }
+        }
     }
-
-    // TODO
-    // static Result<Tuple<Long, PhoneOwnershipType>> tryGetPhoneOwner(Long teamId = null) {
-    //     if (teamId) {
-    //         Teams.isAllowed(body.long("teamId"))
-    //             .then { Long tId -> IOCUtils.resultFactory.success(tId, PhoneOwnershipType.GROUP) }
-    //     }
-    //     else {
-    //         AuthService.tryGetAuthId().then { Long authId ->
-    //             IOCUtils.resultFactory.success(authId, PhoneOwnershipType.INDIVIDUAL)
-    //         }
-    //     }
-    // }
 
     static Map<String, ?> buildErrors(Result<?> failRes) {
         [
@@ -36,8 +33,9 @@ class ControllerUtils {
         ]
     }
 
-    static Map<String, Integer> buildPagination(TypeMap data, Integer optTotal = null) {
-        if (data) {
+    static Map<String, Integer> buildPagination(Map params, Integer optTotal = null) {
+        if (params) {
+            TypeMap data = TypeMap.create(params)
             Integer offset = data.int("offset", 0),
                 max = Math.min(data.int("max", DEFAULT_PAGINATION_MAX), MAX_PAGINATION_MAX)
             [

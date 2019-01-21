@@ -13,6 +13,6 @@ class NotifyController extends BaseController {
 
     @Override
     void show() {
-        respondWithResult(Notification, notificationService.redeem(params.string("id")))
+        respondWithResult(notificationService.redeem(params.string("id")))
     }
 }

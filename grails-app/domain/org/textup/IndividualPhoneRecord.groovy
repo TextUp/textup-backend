@@ -62,7 +62,7 @@ class IndividualPhoneRecord extends PhoneRecord {
         if (cNum) {
             removeFromNumbers(cNum)
             cNum.delete()
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         else {
             IOCUtils.resultFactory.failWithCodeAndStatus("contact.numberNotFound",

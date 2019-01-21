@@ -10,14 +10,14 @@ import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
-class TeamService {
+class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<Team>, ManagesDomain.Deleter {
 
     LocationService locationService
     PhoneService phoneService
     TeamActionService teamActionService
 
     @RollbackOnResultFailure
-    Result<Team> create(long orgId, TypeMap body, String timezone) {
+    Result<Team> create(long orgId, TypeMap body) {
         Organizations.mustFindForId(orgId)
             .then { Organization org1 ->
                 locationService.create(body.typeMapNoNull("location")).curry(org1)
@@ -27,19 +27,26 @@ class TeamService {
             }
             .then { Team t1 -> trySetFields(t1, body) }
             .then { Team t1 -> teamActionService.tryHandleActions(t1, body) }
-            .then { Team t1 -> tryUpdatePhone(t1, body.typeMapNoNull("phone"), timezone).curry(t1) }
+            .then { Team t1 ->
+                String timezone = body.string("timezone")
+                tryUpdatePhone(t1, body.typeMapNoNull("phone"), timezone).curry(t1)
+            }
             .then { Team t1 -> IOCUtils.resultFactory.success(t1, ResultStatus.CREATED) }
     }
 
     @RollbackOnResultFailure
-    Result<Team> update(Long tId, TypeMap body, String timezone) {
+    Result<Team> update(Long tId, TypeMap body) {
+        String timezone = body.string("timezone")
         Teams.mustFindForId(tId)
             .then { Team t1 -> trySetFields(t1, body) }
             .then { Team t1  ->
                 locationService.tryUpdate(t1.location, body.typeMapNoNull("location")).curry(t1)
             }
             .then { Team t1 -> teamActionService.tryHandleActions(t1, body) }
-            .then { Team t1 -> tryUpdatePhone(t1, body.typeMapNoNull("phone"), timezone).curry(t1) }
+            .then { Team t1 ->
+                String timezone = body.string("timezone")
+                tryUpdatePhone(t1, body.typeMapNoNull("phone"), timezone).curry(t1)
+            }
             .then { Team t1 -> IOCUtils.resultFactory.success(t1) }
     }
 
@@ -66,7 +73,7 @@ class TeamService {
     protected Result<?> tryUpdatePhone(Team t1, TypeMap phoneInfo, String timezone) {
         // Only want to do admin check if the user is attempting to update this
         if (!phoneInfo) {
-            return IOCUtils.resultFactory.success()
+            return Result.void()
         }
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(t1.org.id, authId) }

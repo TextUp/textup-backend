@@ -53,7 +53,7 @@ class TwilioUtils {
         RequestValidator validator = new RequestValidator(authToken)
 
         validator.validate(url, twilioParams, authHeader) ?
-            IOCUtils.resultFactory.success() :
+            Result.void() :
             IOCUtils.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
     }
 

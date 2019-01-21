@@ -21,7 +21,7 @@ class FutureMessageJobService {
     Result<Void> trySchedule(FutureMessage fMsg) {
         // TODO check to see if calling save before messes up the isNew check
         if (!DomainUtils.isNew(fMsg) && !fMsg.shouldReschedule) {
-            return IOCUtils.resultFactory.success()
+            return Result.void()
         }
         try {
             QuartzUtils.tryBuildTrigger(fMsg)
@@ -32,7 +32,7 @@ class FutureMessageJobService {
                             IOCUtils.quartzScheduler.scheduleJob(newTrigger)
                         // rescheduleJob can return null if unsuccessful
                         if (nextFire) {
-                            IOCUtils.resultFactory.success()
+                            Result.void()
                         }
                         else {
                             IOCUtils.resultFactory.failWithCodeAndStatus(
@@ -50,7 +50,7 @@ class FutureMessageJobService {
             if (!IOCUtils.quartzScheduler.unscheduleJob(fMsg.triggerKey)) {
                 log.debug("tryUnschedule: missing trigger key ${fMsg.triggerKey} for id ${fMsg.id}")
             }
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
     }

@@ -41,13 +41,6 @@ class IndividualPhoneRecordWrappers {
         buildBase(query, statuses).build { eq("shareSource.phone.id", phoneId) } // inner join
     }
 
-    static DetachedCriteria<PhoneRecord> buildForIds(Collection<Long> ids) {
-        new DetachedCriteria(PhoneRecord)
-            .build { ne("class", GroupPhoneRecord) }
-            .build(PhoneRecords.forIds(ids))
-            .build(PhoneRecords.forActive())
-    }
-
     static Closure<List<IndividualPhoneRecordWrapper>> doList(DetachedCriteria<PhoneRecord> query) {
         return { Map opts -> query.build(forSort()).list(opts)*.toWrapper() }
     }
@@ -101,7 +94,7 @@ class IndividualPhoneRecordWrappers {
     //         }
     //     }
     //     c1.save() ?
-    //         IOCUtils.resultFactory.success() :
+    //         Result.void() :
     //         IOCUtils.resultFactory.failWithValidationErrors(c1.errors)
     // }
 
@@ -112,6 +105,7 @@ class IndividualPhoneRecordWrappers {
         Collection<PhoneRecordStatus> statuses) {
 
         new DetachedCriteria(PhoneRecord)
+            .build { ne("class", GroupPhoneRecord) } // ensure only owned or shared individuals
             .build(forStatuses(phoneId, statuses))
             .build(forQuery(query))
             .build(PhoneRecords.forActive())

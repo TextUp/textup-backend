@@ -33,7 +33,7 @@ class IndividualPhoneRecordWrapper extends PhoneRecordWrapper {
     Result<Void> tryDelete() {
         if (permissions.isOwner()) {
             individualWrapper.isDeleted = true
-            individualWrapper.tryCancelFutureMessages().then { IOCUtils.resultFactory.success() }
+            individualWrapper.tryCancelFutureMessages().then { Result.void() }
         }
         else { insufficientPermission() }
     }
@@ -93,22 +93,22 @@ class IndividualPhoneRecordWrapper extends PhoneRecordWrapper {
 
     Result<Void> trySetNameIfPresent(String name) {
         if (!name) {
-            return IOCUtils.resultFactory.success()
+            return Result.void()
         }
         if (permissions.canModify()) {
             individualWrapper.name = name
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         else { insufficientPermission() }
     }
 
     Result<Void> trySetNoteIfPresent(String note) {
         if (!note) {
-            return IOCUtils.resultFactory.success()
+            return Result.void()
         }
         if (permissions.canModify()) {
             individualWrapper.note = note
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         else { insufficientPermission() }
     }

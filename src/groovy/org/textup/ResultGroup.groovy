@@ -66,7 +66,7 @@ class ResultGroup<T> {
 	}
 
 	Result<Void> toEmptyResult(boolean allowSomeFailures) {
-		ResultUtils.convertGroupToResult(this, IOCUtils.resultFactory.success(), allowSomeFailures)
+		ResultUtils.convertGroupToResult(this, Result.void(), allowSomeFailures)
 	}
 
 	Result<List<T>> toResult(boolean allowSomeFailures) {

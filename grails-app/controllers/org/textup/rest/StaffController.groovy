@@ -21,9 +21,9 @@ class StaffController extends BaseController {
     @Override
     void index() {
         TypeMap data = TypeMap.create(params)
+        Collection<StaffStatus> statuses = data
+            .enumList(StaffStatus, "status[]", StaffStatus.ACTIVE_STATUSES)
         RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, data.string("timezone"))
-        Collection<StaffStatus> statuses = data.enumList(StaffStatus, "status[]",
-            StaffStatus.ACTIVE_STATUSES)
         if (data.organizationId) {
             listForOrg(statuses, data)
         }
@@ -38,33 +38,24 @@ class StaffController extends BaseController {
     void show() {
         RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
         Long id = params.long("id")
-        Staffs.isAllowed(id)
-            .then { Staffs.mustFindForId(id) }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        doShow({ Staffs.isAllowed(id) }, { Staffs.mustFindForId(id) })
     }
 
     @Secured(Roles.PUBLIC)
     @Override
     void save() {
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body,
-                String tz = params.string("timezone")
-                RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, tz)
-                respondWithResult(Staff, staffService.create(body, tz))
-            }
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
+        RequestUtils.tryGetJsonBody(req, MarshallerUtils.KEY_STAFF)
+            .then { TypeMap body -> staffService.create(body) }
+            .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
     @Override
     void update() {
-        Long id = params.long("id")
-        tryGetJsonPayload(CLASS, request)
-            .then { TypeMap body -> Staffs.isAllowed(id).curry(body) }
-            .then { TypeMap body ->
-                String tz = params.string("timezone")
-                RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, tz)
-                staffService.update(id, body, tz)
-            }
-            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
+        doUpdate(MarshallerUtils.KEY_STAFF, request, staffService) { TypeMap body ->
+            Staffs.isAllowed(params.long("id"))
+        }
     }
 
     // Helpers
@@ -72,33 +63,32 @@ class StaffController extends BaseController {
 
     protected void listForOrg(Collection<StaffStatus> statuses, TypeMap data) {
         Organizations.isAllowed(data.long("organizationId"))
-            .then { Long orgId ->
-                respondWithCriteria(CLASS,
-                    Staffs.buildForOrgIdAndOptions(orgId, data.string("search"), statuses),
-                    params)
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .thenEnd { Long orgId ->
+                String search = data.string("search")
+                respondWithCriteria(Staffs.buildForOrgIdAndOptions(orgId, search, statuses),
+                    params,
+                    null,
+                    MarshallerUtils.KEY_STAFF)
             }
     }
 
     protected void listForTeam(Collection<StaffStatus> statuses, TypeMap data) {
         Teams.isAllowed(data.long("teamId"))
             .then { Long tId -> Teams.mustFindForId(tId) }
-            .then { Team t1 ->
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .thenEnd { Team t1 ->
                 Collection<Staff> staffs = t1.getMembersByStatus(statuses)
-                respondWithMany(Staff,
-                    { staffs.size() },
-                    { staffs },
-                    data)
+                respondWithMany({ staffs.size() }, { staffs }, data, MarshallerUtils.KEY_STAFF)
             }
     }
 
     protected void listForShareStaff(TypeMap data) {
         Staffs.isAllowed(data.long("shareStaffId"))
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .then { Long sId ->
                 HashSet<Staff> staffs = Staffs.findEveryForSharingId(sId)
-                respondWithMany(Staff,
-                    { staffs.size() },
-                    { staffs },
-                    data)
+                respondWithMany({ staffs.size() }, { staffs }, data, MarshallerUtils.KEY_STAFF)
             }
     }
 }

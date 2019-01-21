@@ -98,7 +98,7 @@ class SocketService {
             }
 
             if (pRes.status == PusherResult.Status.SUCCESS) {
-                IOCUtils.resultFactory.success()
+                Result.void()
             }
             else {
                 log.error("trySendToDataToStaff: ${pRes.properties}")

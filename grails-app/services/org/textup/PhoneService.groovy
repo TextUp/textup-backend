@@ -78,7 +78,7 @@ class PhoneService {
                         p1.customAccountId)
                 }
         }
-        else { IOCUtils.resultFactory.success() }
+        else { Result.void() }
     }
 
     protected Result<PhoneNumber> tryGetGreetingCallNum(String possibleNum, PhoneNumber authNum) {

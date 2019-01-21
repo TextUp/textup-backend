@@ -89,7 +89,7 @@ class MailUtils {
                     SendGrid sg = new SendGrid(getApiKey())
                     SendGridResponse resp1 = sg.api(req1)
                     if (ResultStatus.convert(resp1.statusCode).isSuccess) {
-                        IOCUtils.resultFactory.success()
+                        Result.void()
                     }
                     else { IOCUtils.resultFactory.failForSendGrid(resp1) }
                 }

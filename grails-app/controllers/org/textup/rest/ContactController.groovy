@@ -15,33 +15,24 @@ import org.textup.validator.*
 class ContactController extends BaseController {
 
     ContactService contactService
-    DuplicateService duplicateService
 
     @Transactional(readOnly=true)
     @Override
     void index() {
         TypeMap body = TypeMap.create(params)
-        if (body.list("ids[]")) {
-            listForIds(body)
+        Collection<PhoneRecordStatus> statuses = body
+            .toEnumList(PhoneRecordStatus, "status[]", PhoneRecordStatus.VISIBLE_STATUSES)
+        if (body.tagId) {
+            listForTag(statuses, body)
         }
-        else if (body.tagId) {
-            listForTag(body)
-        }
-        else { listForPhone(body) }
+        else { listForIds(statuses, body) }
     }
 
     @Transactional(readOnly=true)
     @Override
     void show() {
-        doShow(params.long("id"),
-            { Long id -> PhoneRecords.isAllowed(id) },
-            { Long id -> IndividualPhoneRecordsWrappers.mustFindForId(id) })
-
-        // // TODO
-        // Long prId = params.long("id")
-        // PhoneRecords.isAllowed(prId)
-        //     .then { IndividualPhoneRecordsWrappers.mustFindForId(prId) }
-        //     .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+        Long id = params.long("id")
+        doShow({ PhoneRecords.isAllowed(id) }, { IndividualPhoneRecordsWrappers.mustFindForId(id) })
     }
 
     @Override
@@ -49,98 +40,68 @@ class ContactController extends BaseController {
         doSave(MarshallerUtils.KEY_CONTACT, request, contactService) { TypeMap body ->
             ControllerUtils.tryGetPhoneId(body.long("teamId"))
         }
-
-        // tryGetJsonPayload(CLASS, request)
-        //     .then { TypeMap body ->
-        //         ControllerUtils.tryGetPhoneOwner(body.long("teamId")).curry(body)
-        //     }
-        //     .then { TypeMap body, Tuple<Long, PhoneOwnershipType> processed ->
-        //         Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
-        //             contactService.create(ownerId, type, body)
-        //         }
-        //     }
-        //     .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
     }
 
     @OptimisticLockingRetry
     @Override
     void update() {
-        doUpdate(MarshallerUtils.KEY_ANNOUNCEMENT, request, announcementService) { TypeMap body ->
-            FeaturedAnnouncements.isAllowed(params.long("id"))
+        doUpdate(MarshallerUtils.KEY_CONTACT, request, contactService) { TypeMap body ->
+            PhoneRecords.isAllowed(params.long("id"))
         }
-        // // TODO
-        // Long prId = params.long("id")
-        // tryGetJsonPayload(CLASS, request)
-        //     .then { TypeMap body -> PhoneRecords.isAllowed(prId).curry(body) }
-        //     .then { TypeMap body -> contactService.update(prId, body) }
-        //     .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
     }
 
     @Override
     void delete() {
         doDelete(contactService) { PhoneRecords.isAllowed(params.long("id")) }
-
-        // TODO
-        // Long prId = params.long("id")
-        // PhoneRecords.isAllowed(prId)
-        //     .then { contactService.delete(prId) }
-        //     .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
     }
 
     // Helpers
     // -------
 
-    protected void listForIds(TypeMap body) {
-        DetachedCriteria<PhoneRecord> query = IndividualPhoneRecordsWrappers
-            .buildForIds(body.typedList(Long, "ids[]"))
-        respondWithMany(IndividualPhoneRecordWrapper,
-            CriteriaUtils.countAction(query),
-            IndividualPhoneRecordsWrappers.listAction(query),
-            body)
-    }
-
-    protected void listForTag(TypeMap body) {
-        Long gprId = body.long("tagId")
+    protected void listForTag(Collection<PhoneRecordStatus> statuses, TypeMap data) {
+        Long gprId = data.long("tagId")
         PhoneRecords.isAllowed(gprId)
             .then { GroupPhoneRecords.mustFindForId(gprId) }
-            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { GroupPhoneRecord gpr1 ->
-                Collection<PhoneRecord> prs = ct1.getMembersByStatus(body.list("status[]"))
-                respondWithMany(IndividualPhoneRecordsWrappers,
-                    { prs.size() },
-                    { prs*.toWrapper() })
+                Collection<PhoneRecord> prs = ct1.getMembersByStatus(statuses)
+                respondWithMany({ prs.size() },
+                    { prs*.toWrapper() },
+                    data,
+                    MarshallerUtils.KEY_CONTACT)
             }
     }
 
-    protected void listForPhone(TypeMap body) {
-        ControllerUtils.tryGetPhoneOwner(body.long("teamId"))
-            .then { Tuple<Long, PhoneOwnershipType> processed ->
-                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
-                    phoneCache.mustFindPhoneIdForOwner(ownerId, type)
-                }
-            }
-            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
+    protected void listForIds(Collection<PhoneRecordStatus> statuses, TypeMap data) {
+        ControllerUtils.tryGetPhoneId(data.long("teamId"))
+            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
-                List<PhoneRecordStatus> statuses = body.toEnumList(PhoneRecordStatus, "status[]",
-                    PhoneRecordStatus.VISIBLE_STATUSES)
-                String searchVal = body.string("search")
-                DetachedCriteria<PhoneRecord> query
-                if (body.shareStatus == "sharedByMe") {
-                    query = IndividualPhoneRecordsWrappers
-                        .forSharedByIdWithOptions(pId, searchVal, statuses)
-                }
-                else if (body.shareStatus == "sharedWithMe") {
-                    query = IndividualPhoneRecordsWrappers
-                        .forPhoneIdWithOptions(pId, searchVal, statuses, true)
-                }
-                else {
-                    query = IndividualPhoneRecordsWrappers
-                        .forPhoneIdWithOptions(pId, searchVal, statuses)
-                }
-                respondWithMany(IndividualPhoneRecordWrapper,
-                    CriteriaUtils.countAction(query),
-                    IndividualPhoneRecordsWrappers.listAction(query),
-                    body)
+                DetachedCriteria<PhoneRecord> criteria = buildCriteria(statuses, data)
+                respondWithMany(CriteriaUtils.countAction(criteria),
+                    IndividualPhoneRecordsWrappers.listAction(criteria),
+                    data,
+                    MarshallerUtils.KEY_CONTACT)
             }
+    }
+
+    protected DetachedCriteria<PhoneRecord> buildCriteria(Collection<PhoneRecordStatus> statuses,
+        TypeMap data) {
+
+        DetachedCriteria<PhoneRecord> criteria
+        String searchVal = data.string("search")
+        if (data.shareStatus == "sharedByMe") {
+            criteria = IndividualPhoneRecordsWrappers
+                .forSharedByIdWithOptions(pId, searchVal, statuses)
+        }
+        else {
+            boolean onlyShared = (data.shareStatus == "sharedWithMe")
+            criteria = IndividualPhoneRecordsWrappers
+                .forPhoneIdWithOptions(pId, searchVal, statuses, onlyShared)
+        }
+        // further restrict by ids if provided
+        if (body.list("ids[]")) {
+            criteria = criteria.build(PhoneRecords.forIds(data.typedList(Long, "ids[]")))
+        }
+        criteria
     }
 }

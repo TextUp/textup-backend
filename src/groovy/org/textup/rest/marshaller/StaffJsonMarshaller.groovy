@@ -10,6 +10,7 @@ import org.textup.validator.LocalInterval
 
 @GrailsTypeChecked
 class StaffJsonMarshaller extends JsonNamedMarshaller {
+
     static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         LinkGenerator linkGenerator, Staff s1 ->
 

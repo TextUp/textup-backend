@@ -99,12 +99,12 @@ class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
 
     Result<Void> trySetStatusIfPresent(PhoneRecordStatus status) {
         if (!status) {
-            return IOCUtils.resultFactory.success()
+            return Result.void()
         }
         if (permissions.canView()) { // all sharing relationships have their own status
             phoneRecord.status = status
             phoneRecord.lastTouched = DateTime.now()
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         else { insufficientPermission() }
     }
@@ -114,18 +114,18 @@ class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
             if (phoneRecord.status != PhoneRecordStatus.BLOCKED) {
                 phoneRecord.status = status // do not update lastTouched timestamp
             }
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         else { insufficientPermission() }
     }
 
     Result<Void> trySetLanguageIfPresent(VoiceLanguage lang) {
         if (!lang) {
-            return IOCUtils.resultFactory.success()
+            return Result.void()
         }
         if (permissions.canModify()) {
             phoneRecord.record.language = lang
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         else { insufficientPermission() }
     }
