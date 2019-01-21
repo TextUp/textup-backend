@@ -17,8 +17,8 @@ class TeamService {
     TeamActionService teamActionService
 
     @RollbackOnResultFailure
-    Result<Team> create(TypeMap body, String timezone) {
-        Organizations.mustFindForId(body.long("org"))
+    Result<Team> create(long orgId, TypeMap body, String timezone) {
+        Organizations.mustFindForId(orgId)
             .then { Organization org1 ->
                 locationService.create(body.typeMapNoNull("location")).curry(org1)
             }

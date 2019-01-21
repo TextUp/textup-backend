@@ -109,7 +109,7 @@ class NumberService {
                 // to improve relevance of results
                 if (loc) {
                     reader
-                        .setNearLatLong("${loc.lat},${loc.lon}".toString())
+                        .setNearLatLong("${loc.lat},${loc.lng}".toString())
                         .setDistance(searchRadius)
                 }
 		   	}

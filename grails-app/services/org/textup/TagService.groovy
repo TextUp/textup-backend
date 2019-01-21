@@ -17,7 +17,7 @@ class TagService {
 
     @RollbackOnResultFailure
     Result<GroupPhoneRecord> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
-        Phones.mustFindActiveForOwner(ownerId, type)
+        Phones.mustFindActiveForOwner(ownerId, type, false)
             .then { Phone p1 -> GroupPhoneRecord.tryCreate(p1, body.string("name")) }
             .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tryNotifications(gpr1, body) }

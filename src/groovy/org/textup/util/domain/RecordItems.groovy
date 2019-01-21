@@ -6,9 +6,21 @@ import grails.compiler.GrailsTypeChecked
 class RecordItems {
 
     // TODO hasPermissionsForItem
-    static Result<Void> isAllowed(Long thisId) {
-        AuthUtils.tryGetAuthId().then { Long authId ->
-            AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0)
+    static Result<Long> isAllowed(Long thisId) {
+        AuthUtils.tryGetAuthId()
+            .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
+            .then { IOCUtils.resultFactory.success(thisId) }
+    }
+
+    static Result<? extends RecordItem> mustFindForId(Long thisId) {
+        RecordItem rItem1 = RecordItem.get(thisId)
+        if (rItem1) {
+            IOCUtils.resultFactory.success(rItem1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus(
+                "", // TODO
+                ResultStatus.NOT_FOUND, [thisId])
         }
     }
 
@@ -27,7 +39,7 @@ class RecordItems {
 
     static DetachedCriteria<RecordItem> buildIncomingMessagesAfter(DateTime afterTime) {
         new DetachedCriteria(RecordItem)
-            .build { ne("class", RecordNote.class) }
+            .build { ne("class", RecordNote) }
             .build(forDates(afterTime, null))
             .build(Recorditems.forIncoming())
     }

@@ -12,7 +12,7 @@ class SessionService {
 
 	@RollbackOnResultFailure
 	Result<IncomingSession> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
-		Phones.mustFindActiveForOwner(ownerId, type)
+		Phones.mustFindActiveForOwner(ownerId, type, false)
 			.then { Phone p1 -> PhoneNumber.tryCreate(body.string("number")).curry(p1) }
 			.then { Phone p1, PhoneNumber pNum ->
 				IncomingSessions.mustFindForPhoneAndNumber(p1, pNum, true)

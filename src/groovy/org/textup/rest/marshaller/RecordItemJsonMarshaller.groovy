@@ -50,7 +50,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             }
         }
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
-            .end { String tz = null ->
+            .thenEnd { String tz = null ->
                 json.whenCreated = DateTimeUtils.toDateTimeWithZone(json.whenCreated, tz)
                 json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
             }

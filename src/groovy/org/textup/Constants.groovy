@@ -39,14 +39,4 @@ class Constants {
 
 	static final String JOB_DATA_FUTURE_MESSAGE_KEY = "futureMessageKey"
 	static final String JOB_DATA_STAFF_ID = "futureMessageStaffId"
-
-	// REST
-	// ----
-
-	static final int DEFAULT_PAGINATION_MAX = 10
-	static final int MAX_PAGINATION_MAX = 5000
-
-	static final String FALLBACK_SINGULAR = "result"
-	static final String FALLBACK_PLURAL = "results"
-	static final String FALLBACK_RESOURCE_NAME = "resource"
 }

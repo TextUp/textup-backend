@@ -67,7 +67,7 @@ class OutgoingMessageService {
                 // a call. See `outgoingMediaService.trySend` to see how this is handled
                 tokenService.tryBuildAndPersistCallToken(type, r1, temp1).curry(r1, temp1)
             }
-            .end { Recipients r1, TempRecordItem temp1, Token callToken ->
+            .thenEnd { Recipients r1, TempRecordItem temp1, Token callToken ->
                 Collection<RecordItem> rItems = AsyncUtils.getAllIds(RecordItem, itemIds)
                 Map<Long, Collection<RecordItem>> recIdToItems = MapUtils
                     .buildManyObjectsMap(rItems) { RecordItem rItem1 -> rItem.record.id }

@@ -109,7 +109,7 @@ class FutureMessageJobService {
     protected void startNotifySelf(Collection<RecordItem> rItems, Future<?> future) {
         NotificationUtils.tryBuildNotificationGroup(rItems)
             .logFail("startNotifySelf: building")
-            .end { NotificationGroup notifGroup ->
+            .thenEnd { NotificationGroup notifGroup ->
                 if (notifGroup.canNotifyAny(NotificationFrequency.IMMEDIATELY)) {
                     // wait for the future to finish ASYNCHRONOUSLY to avoid blocking this method
                     // to allow the record items to save. Otherwise, when the future resolves, the ids

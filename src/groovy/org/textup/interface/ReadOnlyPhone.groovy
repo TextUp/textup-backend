@@ -7,11 +7,12 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 interface ReadOnlyPhone {
 
-    BasePhoneNumber getNumber()
     boolean getUseVoicemailRecordingIfPresent()
     Long getId()
+    PhoneNumber getNumber()
     ReadOnlyMediaInfo getMedia()
     String getAwayMessage()
+    String getName()
     VoiceLanguage getLanguage()
     VoiceType getVoice()
 }

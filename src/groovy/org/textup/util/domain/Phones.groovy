@@ -8,18 +8,14 @@ class Phones {
     static Result<Phone> mustFindActiveForOwner(Long ownerId, PhoneOwnershipType type,
         boolean createIfAbsent) {
 
-        Phone p1 = Holders.applicationContext.getBean(PhoneCache).findPhone(ownerId, type)
-        if (p1) {
-            IOCUtils.resultFactory.success(p1)
-        }
-        else {
-            if (createIfAbsent) {
-                Phone.tryCreate(ownerId, type)
+        IOCUtils.getBean(PhoneCache).mustFindPhoneIdForOwner(ownerId, type)
+            .then { Long pId -> Phones.mustFindActiveForId(pId) }
+            .ifFail { Result<?> failRes ->
+                if (createIfAbsent) {
+                    Phone.tryCreate(ownerId, type)
+                }
+                else { failRes }
             }
-            else { // TODO add message
-                IOCUtils.resultFactory.failWithCodeAndStatus("phone.notFound", ResultStatus.NOT_FOUND)
-            }
-        }
     }
 
     // TODO define "active" for phone

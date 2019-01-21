@@ -119,7 +119,6 @@ class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
         else { insufficientPermission() }
     }
 
-    // TODO
     Result<Void> trySetLanguageIfPresent(VoiceLanguage lang) {
         if (!lang) {
             return IOCUtils.resultFactory.success()

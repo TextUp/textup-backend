@@ -41,13 +41,15 @@ class IndividualPhoneRecordWrappers {
         buildBase(query, statuses).build { eq("shareSource.phone.id", phoneId) } // inner join
     }
 
-    // For why sorting is separate, see `RecordItems.forSort`
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static Closure forSort() {
-        return {
-            order("status", "desc") // unread first then active
-            order("record.lastRecordActivity", "desc") // more recent first
-        }
+    static DetachedCriteria<PhoneRecord> buildForIds(Collection<Long> ids) {
+        new DetachedCriteria(PhoneRecord)
+            .build { ne("class", GroupPhoneRecord) }
+            .build(PhoneRecords.forIds(ids))
+            .build(PhoneRecords.forActive())
+    }
+
+    static Closure<List<IndividualPhoneRecordWrapper>> doList(DetachedCriteria<PhoneRecord> query) {
+        return { Map opts -> query.build(forSort()).list(opts)*.toWrapper() }
     }
 
     // TODO returns both contacts and shared contacts
@@ -146,6 +148,15 @@ class IndividualPhoneRecordWrappers {
                     }
                 }
             }
+        }
+    }
+
+    // For why sorting is separate, see `RecordItems.forSort`
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    protected static Closure forSort() {
+        return {
+            order("status", "desc") // unread first then active
+            order("record.lastRecordActivity", "desc") // more recent first
         }
     }
 }

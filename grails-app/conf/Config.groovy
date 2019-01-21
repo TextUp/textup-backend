@@ -228,10 +228,6 @@ cors.headers = ["Access-Control-Allow-Headers": "Content-Type, Authorization"]
 // see: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Access-Control-Expose-Headers
 cors.expose.headers = "Content-Disposition"
 
-//REST API documentation
-grails.plugins.restapidoc.customClassName="org.textup.rest.CustomResponseDoc"
-grails.plugins.restapidoc.outputFileGeneration="web-app/restapidoc.json"
-grails.plugins.restapidoc.outputFileReading="restapidoc.json"
 //General developer documentation
 grails.doc.title    = "TextUp"
 grails.doc.subtitle = "A getting started guide to the backend and frontend codebases that make up the TextUp application"
@@ -310,8 +306,12 @@ textup {
         }
     }
     rest {
+        // TODO remove??
         defaultLabel = "default" //default is to link to relationships
-        v1 {
+
+
+        marshallers {
+            fallback                = [singular: "result", plural: "results"]
             announcement            = [singular: "announcement", plural: "announcements"]
             availableNumber         = [singular: "number", plural: "numbers"]
             contact                 = [singular: "contact", plural: "contacts"]
@@ -327,7 +327,6 @@ textup {
             record                  = [singular: "record", plural: "records"]
             recordItemRequest       = [singular: "record-request", plural: "record-requests"]
             recordItemReceiptInfo   = [singular: "receipt-info", plural: "receipt-info"]
-            result                  = [singular: "result", plural: "results"]
             revision                = [singular: "revision", plural: "revisions"]
             schedule                = [singular: "schedule", plural: "schedules"]
             session                 = [singular: "session", plural: "sessions"]

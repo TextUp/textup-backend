@@ -10,7 +10,7 @@ import org.textup.type.*
 import org.textup.util.*
 
 @GrailsTypeChecked
-@Secured("ROLE_ADMIN")
+@Secured(Roles.SUPER_ROLES)
 class UsageController {
 
     final String SESSION_MONTH_KEY = "monthString"

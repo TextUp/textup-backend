@@ -118,9 +118,6 @@ grails.project.dependency.resolution = {
         compile ":rest-client-builder:2.0.4-SNAPSHOT"
         compile ":remote-control:2.0"
 
-        //for api documentation generation
-        compile ":rest-api-doc:0.6.1"
-
         // for performance monitoring
         // JavaMelody causes problems with tomcat7 from starting from v1.55.0
         // https://github.com/javamelody/grails-melody-plugin/issues/23
@@ -130,6 +127,5 @@ grails.project.dependency.resolution = {
         runtime ":hibernate4:4.3.6.1" // or ":hibernate:3.6.10.18"
         runtime ":database-migration:1.4.0"
         runtime ":console:1.5.4"
-        runtime ":twitter-bootstrap:3.3.2.1"
     }
 }

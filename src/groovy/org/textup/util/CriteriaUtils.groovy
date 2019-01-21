@@ -40,4 +40,8 @@ class CriteriaUtils {
             ne("id", thisId)
         }
     }
+
+    static Closure<Integer> countAction(DetachedCriteria<?> criteria) {
+        { criteria ? criteria.count() : 0 }
+    }
 }

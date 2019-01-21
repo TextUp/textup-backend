@@ -10,7 +10,6 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTimeZoneAsString
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.quartz.*
-import org.restapidoc.annotation.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*

@@ -8,7 +8,7 @@ class Staffs {
     // TODO hasPermissionsForStaff
     // [NOTE] have to make two calls because can't figure out how to return an association
     // property projection. Seems to work for Criteria but not DetachedCriteria
-    static Result<Void> isAllowed(Long thisId) {
+    static Result<Long> isAllowed(Long thisId) {
         AuthUtils.isAllowed(thisId != null)
             .then { AuthUtils.tryGetAuthId() }
             .then { Long authId ->
@@ -22,6 +22,7 @@ class Staffs {
                     buildForAdminAtSameOrg(thisId, authId).count() > 0
                 )
             }
+            .then { IOCUtils.resultFactory.success(thisId) }
     }
 
     static Result<Staff> mustFindForId(Long staffId) {

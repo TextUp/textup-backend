@@ -14,6 +14,13 @@ class TypeMap extends TypeConvertingMap {
         super(map)
     }
 
+    static Result<TypeMap> tryCreate(Map map) {
+        IOCUtils.resultFactory.success(new TypeMap(map), ResultStatus.CREATED)
+    }
+
+    // Methods
+    // -------
+
     String "string"(String propName, String fallbackVal = null) {
         TypeConvertingUtils.to(String, get(propName), fallbackVal)
     }
@@ -43,5 +50,9 @@ class TypeMap extends TypeConvertingMap {
             resGroup.payload
         }
         else { fallbackVal }
+    }
+
+    public <T> List<T> toEnumList(Class<T> enumClass, String propName, List<T> fallbackVal = null) {
+        TypeConversionUtils.toEnumList(enumClass, list(propName), fallbackVal)
     }
 }

@@ -22,7 +22,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             status = s1.status.toString()
             phone = s1.phone
             hasInactivePhone = s1.hasInactivePhone
-            channelName = s1.channelName
+            channelName = SocketUtils.channelName(s1)
         }
         // TODO
         AuthService authService = grailsApplication.mainContext.getBean(AuthService)

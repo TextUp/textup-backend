@@ -235,13 +235,13 @@ beans = {
 	}
 
 	announcementRenderer(ApiJsonRenderer, FeaturedAnnouncement) {
-		label = tRestConfig.v1.announcement.singular
+		label = MarshallerUtils.resolveCodeToSingular(MarshallerUtils.KEY_ANNOUNCEMENT)
 	}
 	announcementCollectionRenderer(ApiJsonCollectionRenderer, FeaturedAnnouncement) {
-		label = tRestConfig.v1.announcement.plural
+		label = MarshallerUtils.resolveCodeToPlural(MarshallerUtils.KEY_ANNOUNCEMENT)
 	}
 	announcementJsonMarshaller(AnnouncementJsonMarshaller) {
-		name = tRestConfig.defaultLabel
+		name = MarshallerUtils.MARSHALLER_DEFAULT
 		namespace = v1Namespace
 	}
 

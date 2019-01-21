@@ -43,14 +43,14 @@ class Recipients implements Validateable, Dehydratable<Recipients.Dehydrated> {
         }
     }
 
-    static Result<Recipients> tryCreate(Phone p1, Collection<Long> ids,
+    static Result<Recipients> tryCreate(Phone p1, Collection<Long> prIds,
         Collection<PhoneNumber> pNums, int maxNum) {
 
         IndividualPhoneRecords.tryFindEveryByNumbers(p1, pNums, true)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> ipRecs ->
                 Collection<? extends PhoneRecord> pRecs = CollectionUtils.mergeUnique(*ipRecs.values())
                 pRecs += PhoneRecords.buildActiveForPhoneIds([p1.id])
-                    .build(PhoneRecords.forIds(ids))
+                    .build(PhoneRecords.forIds(prIds))
                     .list()
                 Recipients r1 = new Recipients(phone: p1,
                     all: pRecs,

@@ -3,77 +3,54 @@ package org.textup.rest
 import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
-import org.restapidoc.annotation.*
-import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.validator.PhoneNumber
 import org.textup.validator.AvailablePhoneNumber
 
 @GrailsTypeChecked
-@Secured(["ROLE_ADMIN", "ROLE_USER"])
+@Secured(Roles.USER_ROLES)
 class NumberController extends BaseController {
 
-    static String namespace = "v1"
-
-    @Override
-    protected String getNamespaceAsString() { namespace }
-
-    //grailsApplication from superclass
-    AuthService authService
     NumberService numberService
-    ResultFactory resultFactory
 
     // requesting list of available twilio numbers
     @Transactional(readOnly=true)
-    def index() {
-        Staff s1 = authService.loggedInAndActive
-        if (!s1) {
-            return forbidden()
-        }
-        Result<Collection<AvailablePhoneNumber>> res = numberService
-            .listExistingNumbers()
-            .then({ Collection<AvailablePhoneNumber> iNums ->
-                numberService
-                    .listNewNumbers(params.search as String, s1.org.location)
-                    .then { Collection<AvailablePhoneNumber> lNums ->
-                        resultFactory.success(iNums + lNums)
-                    }
-            })
-        if (res.success) {
-            Collection<AvailablePhoneNumber> availableNums = res.payload
-            respondWithMany(AvailablePhoneNumber, { availableNums.size() }, { availableNums })
-        }
-        else { respondWithResult(Object, res) }
+    @Override
+    void index() {
+        AuthUtils.tryGetAuthUser()
+            .then { Staff authUser -> numberService.listExistingNumbers().curry(authUser) }
+            .then { Staff authUser, Collection<AvailablePhoneNumber> iNums ->
+                numberService.listNewNumbers(params.string("search"), authUser.org.location)
+                    .curry(iNums)
+            }
+            .ifFail { Result<?> failRes -> respondWithResult(null, failRes) }
+            .thenEnd { Collection<AvailablePhoneNumber> iNums, Collection<AvailablePhoneNumber> lNums ->
+                Collection<AvailablePhoneNumber> availableNums = iNums + lNums
+                respondWithMany(AvailablePhoneNumber, { availableNums.size() }, { availableNums })
+            }
     }
 
     // validating phone number against the twilio phone number validator
     @Transactional(readOnly=true)
-    def show() {
-        PhoneNumber pNum = new PhoneNumber(number:params.id as String)
-        if (!pNum.validate()) {
-            return respondWithResult(PhoneNumber, resultFactory.failWithValidationErrors(pNum.errors))
-        }
-        respondWithResult(AvailablePhoneNumber, numberService.validateNumber(pNum))
+    @Override
+    void show() {
+        PhoneNumber.tryCreate(params.string("id"))
+            .then { PhoneNumber pNum -> numberService.validateNumber(pNum) }
+            .anyEnd { Result<?> res -> respondWithResult(AvailablePhoneNumber, res) }
     }
 
     // requesting and checking phone number validation tokens
-    def save() {
-        Map vInfo = getJsonPayload(request)
-        if (vInfo == null) { return }
-        PhoneNumber pNum = new PhoneNumber(number:vInfo.phoneNumber as String)
-        String token = vInfo.token
-        if (pNum.validate()) {
-            Result<Void> res = token ?
-                numberService.finishVerifyOwnership(token, pNum) :
-                numberService.startVerifyOwnership(pNum)
-            respondWithResult(Void, res)
-        }
-        else {
-            respondWithResult(PhoneNumber, resultFactory.failWithValidationErrors(pNum.errors))
-        }
+    @Override
+    void save() {
+        tryGetJsonPayload(null, request)
+            .then { TypeMap body -> PhoneNumber.tryCreate(body.string("phoneNumber")).curry(body) }
+            .then { TypeMap body, PhoneNumber pNum ->
+                String token = body.string("token")
+                token ?
+                    numberService.finishVerifyOwnership(token, pNum) :
+                    numberService.startVerifyOwnership(pNum)
+            }
+            .anyEnd { Result<?> res -> respondWithResult(null, res) }
     }
-
-    def update() { notAllowed() }
-    def delete() { notAllowed() }
 }

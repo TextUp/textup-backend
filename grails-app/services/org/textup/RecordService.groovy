@@ -21,7 +21,7 @@ class RecordService {
     @RollbackOnResultFailure
     Result<List<? extends RecordItem>> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
         Future<?> future
-        Phones.mustFindActiveForOwner(ownerId, type)
+        Phones.mustFindActiveForOwner(ownerId, type, false)
             .then { Phone p1 -> RecordUtils.tryDetermineClass(body).curry(p1) }
             .then { Phone p1, Class<? extends RecordItem> clazz ->
                 mediaService.tryCreate(body).curry(p1, clazz)

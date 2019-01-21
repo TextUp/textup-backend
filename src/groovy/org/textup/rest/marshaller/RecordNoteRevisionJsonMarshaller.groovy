@@ -23,7 +23,7 @@ class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
             if (rev.authorType) authorType = rev.authorType.toString()
         }
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
-            .end { String tz = null ->
+            .thenEnd { String tz = null ->
                 json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
             }
         json

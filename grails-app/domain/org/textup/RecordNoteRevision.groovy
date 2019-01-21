@@ -5,7 +5,6 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
 import org.textup.type.AuthorType
 import org.textup.validator.Author
 

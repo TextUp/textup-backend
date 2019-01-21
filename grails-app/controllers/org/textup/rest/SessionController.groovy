@@ -4,166 +4,64 @@ import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
-import org.restapidoc.annotation.*
-import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.type.*
 
 @GrailsTypeChecked
-@RestApi(name="Session", description="Operations on sessions, after logging in.")
-@Secured(["ROLE_ADMIN", "ROLE_USER"])
+@Secured(Roles.USER_ROLES)
 class SessionController extends BaseController {
 
-	static namespace = "v1"
-
-    AuthService authService
     SessionService sessionService
 
+    @Transactional(readOnly=true)
     @Override
-    protected String getNamespaceAsString() { namespace }
-
-    // List
-    // ----
-
-    @RestApiMethod(description="List sessions for a specific staff or team", listing=true)
-    @RestApiParams(params=[
-        @RestApiParam(name="max", type="Number", required=false,
-            paramType=RestApiParamType.QUERY, description="Max number of results"),
-        @RestApiParam(name="offset", type="Number", required=false,
-            paramType=RestApiParamType.QUERY, description="Offset of results"),
-        @RestApiParam(name="subscribed", type="String", required=true,
-            paramType=RestApiParamType.QUERY, description='''One of call or text.
-            Show only those who are subscribed to this medium.'''),
-        @RestApiParam(name="teamId", type="Number", required=true,
-            paramType=RestApiParamType.QUERY, description="Id of the team member"),
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="404",description='''The staff or team was not found. Or, the
-            staff or team specified is not allowed to have sessions.'''),
-        @RestApiError(code="403", description="You do not have permission to do this.")
-    ])
-    @Transactional(readOnly=true)
-    def index() {
-    	Phone p1
-        if (params.teamId) {
-            Team t1 = Team.get(params.long("teamId"))
-            if (!t1 || !t1.phone) {
-                return notFound()
-            }
-            else if (!authService.hasPermissionsForTeam(t1.id)) {
-                return forbidden()
-            }
-            p1 = t1.phone
-        }
-        else {
-            Staff s1 = authService.loggedInAndActive
-            if (!s1 || !s1.phone) {
-                return forbidden()
-            }
-            p1 = s1.phone
-        }
-        DetachedCriteria<IncomingSession> query
-        if (params.subscribed == "call") {
-            query = IncomingSession.forPhoneIdWithOptions(p1.id, true)
-        }
-        else if (params.subscribed == "text") {
-            query = IncomingSession.forPhoneIdWithOptions(p1.id, null, true)
-        }
-        else { query = IncomingSession.forPhoneIdWithOptions(p1.id) }
-        respondWithMany(IncomingSession, { query.count() }, { Map p -> query.list(p) }, params)
-    }
-
-    // Show
-    // ----
-
-    @RestApiMethod(description="Show specifics about a session")
-    @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number",
-            paramType=RestApiParamType.PATH, description="Id of the session")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="403", description="You do not have permissions to view this session."),
-        @RestApiError(code="404",  description="The requested session was not found.")
-    ])
-    @Transactional(readOnly=true)
-    def show() {
-        IncomingSession is1 = IncomingSession.get(params.long("id"))
-        if (is1) {
-            if (authService.hasPermissionsForSession(is1.id)) {
-                respond(is1, [status:ResultStatus.OK.apiStatus])
-            }
-            else { forbidden() }
-        }
-        else { notFound() }
-    }
-
-    // Save
-    // ----
-
-    @RestApiMethod(description="Create a new session for staff member or team")
-    @RestApiParams(params=[
-        @RestApiParam(name="teamId", type="Number",
-            paramType=RestApiParamType.QUERY, description="Id of the team member")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request."),
-        @RestApiError(code="422", description="The updated fields created an invalid session."),
-        @RestApiError(code="403", description="You do not permissions to create \
-            a new session for this team."),
-        @RestApiError(code="404",  description="The team member to \
-            add this session to was not found.")
-    ])
-    def save() {
-        Map sessInfo = getJsonPayload(IncomingSession, request)
-        if (sessInfo == null) { return }
-        if (params.long("teamId")) {
-            Long tId = params.long("teamId")
-            if (authService.exists(Team, tId)) {
-                if (authService.hasPermissionsForTeam(tId)) {
-                    respondWithResult(IncomingSession, sessionService.createForTeam(tId, sessInfo))
+    void index() {
+        ControllerUtils.tryGetPhoneOwner(body.long("teamId"))
+            .then { Tuple<Long, PhoneOwnershipType> processed ->
+                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
+                    phoneCache.mustFindPhoneIdForOwner(ownerId, type)
                 }
-                else { forbidden() }
             }
-            else { notFound() }
-        }
-        else {
-            if (authService.isActive) {
-                respondWithResult(IncomingSession, sessionService.createForStaff(sessInfo))
+            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
+            .then { Long pId ->
+                Boolean subToCall = params.bool("subscribedToCall"),
+                    subToText = params.bool("subscribedToText")
+                respondWithCriteria(IncomingSession,
+                    IncomingSessions.buildForPhoneIdWithOptions(pId, subToCall, subToText)
+                    params)
             }
-            else { forbidden() }
-        }
     }
 
-    // Update
-    // ------
-
-    @RestApiMethod(description="Update an existing session")
-    @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number",
-            paramType=RestApiParamType.PATH, description="Id of the session")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request."),
-        @RestApiError(code="404", description="The requested session was not found."),
-        @RestApiError(code="403", description="You do not have permission to modify this session."),
-        @RestApiError(code="422", description="The updated fields created an invalid session.")
-    ])
-    def update() {
-        Map sessInfo = getJsonPayload(IncomingSession, request)
-        if (sessInfo == null) { return }
-    	Long id = params.long("id")
-    	if (authService.exists(IncomingSession, id)) {
-    		if (authService.hasPermissionsForSession(id)) {
-    			respondWithResult(IncomingSession, sessionService.update(id, sessInfo))
-			}
-			else { forbidden() }
-    	}
-    	else { notFound() }
+    @Transactional(readOnly=true)
+    @Override
+    void show() {
+        Long id = params.long("id")
+        IncomingSessions.isAllowed(id)
+            .then { IncomingSessions.mustFindForId(id) }
+            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
     }
 
-    // Delete
-    // ------
+    @Override
+    void save() {
+        tryGetJsonPayload(CLASS, request)
+            .then { TypeMap body ->
+                ControllerUtils.tryGetPhoneOwner(body.long("teamId")).curry(body)
+            }
+            .then { TypeMap body, Tuple<Long, PhoneOwnershipType> processed ->
+                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
+                    sessionService.create(ownerId, type, body)
+                }
+            }
+            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+    }
 
-    def delete() { notAllowed() }
+    @Override
+    void update() {
+        Long id = params.long("id")
+        tryGetJsonPayload(CLASS, request)
+            .then { TypeMap body -> IncomingSessions.isAllowed(id).curry(body) }
+            .then { TypeMap body -> sessionService.update(id, body) }
+            .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+    }
 }

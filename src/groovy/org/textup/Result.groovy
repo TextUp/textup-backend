@@ -36,16 +36,20 @@ class Result<T> {
     // Methods
     // -------
 
-    public void end(Closure<?> successAction, Closure<?> failAction = null) {
-        getSuccess() ? tryExecuteSuccess(successAction) : tryExecuteFailure(failAction)
+    public void thenEnd(Closure<?> successAction) {
+        getSuccess() ? tryExecuteSuccess(successAction) : null
+    }
+
+    public void anyEnd(Closure<?> action) {
+        action?.call(this)
     }
 
     public <V> Result<V> then(Closure<Result<V>> successAction) {
-        getSuccess() ? tryExecuteSuccess(successAction) : tryExecuteFailure(null)
+        getSuccess() ? tryExecuteSuccess(successAction) : this
     }
 
     public <V> Result<V> ifFail(Closure<Result<V>> failAction) {
-        getSuccess() ? tryExecuteSuccess(null) : tryExecuteFailure(failAction)
+        getSuccess() ? this : tryExecuteFailure(failAction)
     }
 
     public <V> Result<V> ifFail(String prefix, Closure<Result<V>> failAction) {

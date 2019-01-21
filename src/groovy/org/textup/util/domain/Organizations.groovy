@@ -5,6 +5,12 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class Organizations {
 
+    static Result<Long> isAllowed(Long thisId) {
+        AuthUtils.tryGetAuthId()
+            .then { Long authId -> Organizations.tryIfAdmin(thisId, authId) }
+            .then { IOCUtils.resultFactory.success(thisId) }
+    }
+
     static Result<Void> tryIfAdmin(Long org1, Long staffId) {
         AuthUtils.tryGetAuthUser()
             .then { Staff s1 ->

@@ -10,6 +10,7 @@ import org.textup.util.*
 @GrailsTypeChecked
 class PhoneCache {
 
+    // TODO remove?
     // TODO propagate? -- need to decide once we redefine when a phone is active or not
     boolean hasInactivePhone(Long ownerId, PhoneOwnershipType type) {
         Phone p1 = findPhone(ownerId, type, true)
@@ -18,9 +19,19 @@ class PhoneCache {
 
     // use Holders.applicationContext.getBean(class) so that internal calls heed AOP advice
     Phone findPhone(Long ownerId, PhoneOwnershipType type, boolean includeInactive = false) {
-        Long pId = Holders.applicationContext.getBean(class).findPhoneIdForOwner(ownerId, type)
+        Long pId = IOCUtils.getBean(this).findPhoneIdForOwner(ownerId, type)
         Phone p1 = Phone.get(pId) // Phone uses second level cache
         p1?.isActive || includeInactive ? p1 : null
+    }
+
+    Result<Long> mustFindPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
+        Long pId = IOCUtils.getBean(this).findPhoneIdForOwner(ownerId, type)
+        if (pId) {
+            IOCUtils.resultFactory.success(pId)
+        }
+        else { // TODO msg
+            IOCUtils.resultFactory.failWithCodeAndStatus("phone.notFound", ResultStatus.NOT_FOUND)
+        }
     }
 
     // Must be a non-static public method for Spring AOP advice to apply

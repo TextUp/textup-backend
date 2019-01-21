@@ -21,6 +21,25 @@ class SocketService {
 
     Pusher pusherService
 
+    Result<Object> authenticate(String channelName, String socketId) {
+        AuthUtils.tryGetAuthUser()
+            .then { Staff authUser ->
+                if (socketId && authUser.username == SocketUtils.channelToUserName(channelName)) {
+                    try {
+                        String outcome = pusherService.authenticate(socketId, channelName)
+                        IOCUtils.resultFactory.success(DataFormatUtils.jsonToObject(outcome))
+                    }
+                    catch (Throwable e) {
+                        IOCUtils.resultFactory.failWithThrowable(e, "authenticate", true)
+                    }
+                }
+                else {
+                    IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+                        ResultStatus.FORBIDDEN)
+                }
+            }
+    }
+
     void sendItems(Collection<? extends RecordItem> items) {
         trySend(EVENT_RECORDS_ITEMS, Staffs.findEveryForRecordIds(items*.record*.id), items)
             .logFail("sendItems: `${items*.id}`")
@@ -69,7 +88,7 @@ class SocketService {
 
     protected Result<Void> trySendToDataToStaff(String event, Staff s1, Object data) {
         try {
-            String channelName = s1.channelName
+            String channelName = SocketUtils.channelName(s1)
             PusherResult pRes = pusherService.get("/channels/$channelName")
             if (pRes.status == PusherResult.Status.SUCCESS) {
                 Map channelInfo = DataFormatUtils.jsonToObject(pRes.message) as Map

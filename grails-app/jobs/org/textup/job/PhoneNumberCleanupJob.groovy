@@ -22,9 +22,9 @@ class PhoneNumberCleanupJob implements Job {
     void execute(JobExecutionContext context = null) {
         numberService.cleanupInternalNumberPool()
             .logFail("PhoneNumberCleanupJob")
-            .end({ Tuple<Collection<String>, Collection<String>> outcome ->
+            .thenEnd { Tuple<Collection<String>, Collection<String>> outcome ->
                 log.info("PhoneNumberCleanupJob: deleted numbers with ids: `${outcome.first}`, \
                     could not delete numbers with ids: `${outcome.second}`")
-            })
+            }
     }
 }

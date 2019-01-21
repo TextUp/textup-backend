@@ -4,9 +4,6 @@ import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
-import org.restapidoc.annotation.*
-import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.type.*
@@ -14,287 +11,136 @@ import org.textup.util.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
-@RestApi(name="Contact", description="Operations on contacts, after logging in.")
-@Secured(["ROLE_ADMIN", "ROLE_USER"])
+@Secured(Roles.USER_ROLES)
 class ContactController extends BaseController {
 
-    static String namespace = "v1"
-
-    AuthService authService
     ContactService contactService
     DuplicateService duplicateService
 
+    @Transactional(readOnly=true)
     @Override
-    protected String getNamespaceAsString() { namespace }
+    void index() {
+        TypeMap body = TypeMap.create(params)
+        if (body.list("ids[]")) {
+            listForIds(body)
+        }
+        else if (body.tagId) {
+            listForTag(body)
+        }
+        else { listForPhone(body) }
+    }
 
-    // List
-    // ----
-
-    @RestApiMethod(description="List contacts for a specific staff or team", listing=true)
-    @RestApiParams(params=[
-        @RestApiParam(name="max", type="Number", required=false,
-        	paramType=RestApiParamType.QUERY, description="Max number of results"),
-        @RestApiParam(name="offset", type="Number", required=false,
-            paramType=RestApiParamType.QUERY, description="Offset of results"),
-        @RestApiParam(name="id[]", type="List", required=false,
-            paramType=RestApiParamType.QUERY,
-            description="Show only the contacts that match the list of ids"),
-        @RestApiParam(name="status[]", type="List", paramType=RestApiParamType.QUERY,
-            allowedvalues=["unread", "active", "archived", "blocked"],
-            required=false, description='''List of staff statuses to restrict to.
-            Default showing unread and active. The two shared stauses are only valid when
-            specifying a staffId and will result in a 400 error otherwise.'''),
-        @RestApiParam(name="shareStatus", type="String", required=true,
-            paramType=RestApiParamType.QUERY, description='''One of sharedByMe or sharedWithMe.
-            This takes precedence over the status[] parameter. Only used with a staffId.'''),
-        @RestApiParam(name="teamId", type="Number", required=true,
-        	paramType=RestApiParamType.QUERY, description="Id of the team member"),
-        @RestApiParam(name="tagId", type="Number", required=true,
-            paramType=RestApiParamType.QUERY, description="Id of the tag"),
-        @RestApiParam(name="search", type="String", required=false,
-            paramType=RestApiParamType.QUERY, description='''String to search for in contact name,
-            limited to active and unread contacts'''),
-        @RestApiParam(name="duplicates", type="Boolean", required=false,
-            paramType=RestApiParamType.QUERY, description='''When true, will disregard all other
-            query parameters except for the team or tag id parameters and will look through all
-            contacts to try to find possible duplicates for contacts (not shared contacts)''')
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="404",description='''The staff or team was not found. Or, the
-            staff or team specified is not allowed to have contacts.'''),
-        @RestApiError(code="403", description="You do not have permission to do this.")
-    ])
     @Transactional(readOnly=true)
-    def index() {
-        if (params.list("ids[]")) {
-            listForIds(params)
-        }
-        else if (MapUtils.countKeys(["teamId", "tagId"], params) == 2) {
-            badRequest()
-        }
-        else if (params.teamId) {
-            listForTeam(params)
-        }
-        else if (params.tagId) {
-            listForTag(params)
-        }
-        else { listForStaff(params) }
-    }
-    protected def listForTeam(TypeConvertingMap params) {
-        Team t1 = Team.get(params.long("teamId"))
-        if (!t1 || !t1.phone) {
-            return notFound()
-        }
-        else if (!authService.hasPermissionsForTeam(t1.id)) {
-            return forbidden()
-        }
-        listForPhone(t1.phone, params)
-    }
-    protected def listForStaff(TypeConvertingMap params) {
-        Staff s1 = authService.loggedInAndActive
-        if (!s1) {
-            return forbidden()
-        }
-        else if (!s1.phone) {
-            return notFound()
-        }
-        listForPhone(s1.phone, params)
+    @Override
+    void show() {
+        doShow(params.long("id"),
+            { Long id -> PhoneRecords.isAllowed(id) },
+            { Long id -> IndividualPhoneRecordsWrappers.mustFindForId(id) })
+
+        // // TODO
+        // Long prId = params.long("id")
+        // PhoneRecords.isAllowed(prId)
+        //     .then { IndividualPhoneRecordsWrappers.mustFindForId(prId) }
+        //     .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
     }
 
-    protected def listForIds(TypeConvertingMap params) {
-        Collection<Long> ids = TypeConversionUtils.allTo(Long, TypeConversionUtils.to(Collection, params.list("ids[]"))),
-            cIds = [],
-            scIds = []
-        ids.each { Long id ->
-            if (!Contact.exists(id)) { return }
-            if (authService.hasPermissionsForContact(id)) {
-                cIds << id
-            }
-            else {
-                Long scId = authService.getSharedContactIdForContact(id)
-                if (scId) {
-                    scIds << scId
-                }
-            }
-        }
-        List<? extends Contactable> results = []
-        results.addAll(Contact.getAll(cIds as Iterable))
-        results.addAll(SharedContact.getAll(scIds as Iterable))
-        respondWithMany(Contactable, { results.size() }, { results })
-    }
-    protected def listForTag(TypeConvertingMap params) {
-        ContactTag ct1 = ContactTag.get(params.long("tagId"))
-        if (!ct1) {
-            return notFound()
-        }
-        else if (!authService.hasPermissionsForTag(ct1.id)) {
-            return forbidden()
-        }
-        Collection<Contact> contacts = ct1.getMembersByStatus(params.list("status[]"))
-        if (params.boolean("duplicates")) {
-            listForDuplicates(duplicateService.findDuplicates(contacts*.id), params)
-        }
-        else { respondWithMany(Contactable, { contacts.size() }, { contacts }) }
-    }
-    protected def listForPhone(Long phoneId, TypeConvertingMap params) {
-        if (params.boolean("duplicates")) {
-            return listForDuplicates(duplicateService.findAllDuplicates(p1.id), params)
+    @Override
+    void save() {
+        doSave(MarshallerUtils.KEY_CONTACT, request, contactService) { TypeMap body ->
+            ControllerUtils.tryGetPhoneId(body.long("teamId"))
         }
 
-        DetachedCriteria<IndividualPhoneRecord> query
-        String searchVal = params.search
-        List<PhoneRecordStatus> statuses = TypeConversionUtils.toEnumList(PhoneRecordStatus,
-            params.list("status[]"), PhoneRecordStatus.VISIBLE_STATUSES)
-        if (params.shareStatus == "sharedByMe") {
-            query = IndividualPhoneRecords.forSharedByIdWithOptions(p1.id, searchVal, statuses)
-        }
-        else if (params.shareStatus == "sharedWithMe") {
-            query = IndividualPhoneRecords.forPhoneIdWithOptions(p1.id, searchVal, statuses, true)
-        }
-        else { query = IndividualPhoneRecords.forPhoneIdWithOptions(p1.id, searchVal, statuses) }
-
-        Closure<List<IndividualPhoneRecordWrapper>> list = { Map opts ->
-            query.build(IndividualPhoneRecords.buildForSort()).list(opts)*.toWrapper()
-        }
-        respondWithMany(IndividualPhoneRecordWrapper, { query.count() }, list, params)
-    }
-    protected def listForDuplicates(Result<List<MergeGroup>> res, TypeConvertingMap params) {
-        if (!res.success) {
-            return respondWithResult(Object, res)
-        }
-        List<MergeGroup> merges = res.payload
-        Closure<Integer> count = { merges.size() }
-        Closure<List<MergeGroup>> list = { merges }
-        respondWithMany(MergeGroup, count, list, params)
+        // tryGetJsonPayload(CLASS, request)
+        //     .then { TypeMap body ->
+        //         ControllerUtils.tryGetPhoneOwner(body.long("teamId")).curry(body)
+        //     }
+        //     .then { TypeMap body, Tuple<Long, PhoneOwnershipType> processed ->
+        //         Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
+        //             contactService.create(ownerId, type, body)
+        //         }
+        //     }
+        //     .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
     }
 
-    // Show
-    // ----
-
-    @RestApiMethod(description="Show specifics about a contact")
-    @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number",
-        	paramType=RestApiParamType.PATH, description="Id of the contact")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="403", description="You do not have permissions to view this contact."),
-        @RestApiError(code="404",  description="The requested contact was not found.")
-    ])
-    @Transactional(readOnly=true)
-    def show() {
-        // id will always be for the contact to avoid collisions, but we might
-        // need to find the corresponding shared contact if the contact does
-        // not belong to the staff's personal TextUp phone
-        Long id = params.long("id")
-        Contact c1 = Contact.get(id)
-        if (c1) {
-            if (authService.hasPermissionsForContact(id)) {
-                respond(c1, [status:ResultStatus.OK.apiStatus])
-            }
-            else { showForSharedContact(id) }
-        }
-        else { notFound() }
-    }
-    protected def showForSharedContact(Long id) {
-        Long scId = authService.getSharedContactIdForContact(id)
-        if (scId) {
-            SharedContact sc1 = SharedContact.get(scId)
-            if (sc1) {
-                respond(sc1, [status:ResultStatus.OK.apiStatus])
-            }
-            else { notFound() }
-        }
-        else { forbidden() }
-    }
-
-    // Save
-    // ----
-
-    @RestApiMethod(description="Create a new contact for staff member or team")
-    @RestApiParams(params=[
-        @RestApiParam(name="teamId", type="Number",
-        	paramType=RestApiParamType.QUERY, description="Id of the team member")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request."),
-        @RestApiError(code="422", description="The updated fields created an invalid contact."),
-        @RestApiError(code="403", description="You do not permissions to create \
-            a new contact for this team."),
-        @RestApiError(code="404",  description="The team member to \
-            add this contact to was not found.")
-    ])
-    def save() {
-        Map contactInfo = getJsonPayload(Contactable, request)
-        if (contactInfo == null) { return }
-        if (params.teamId) {
-            Long tId = params.long("teamId")
-            if (authService.exists(Team, tId)) {
-                if (authService.hasPermissionsForTeam(tId)) {
-                    respondWithResult(Contactable,
-                        contactService.create(tId, PhoneOwnershipType.GROUP, contactInfo))
-                }
-                else { forbidden() }
-            }
-            else { notFound() }
-        }
-        else {
-            Long loggedInId = authService.loggedInAndActive?.id
-            respondWithResult(Contactable,
-                contactService.create(loggedInId, PhoneOwnershipType.INDIVIDUAL, contactInfo))
-        }
-    }
-
-    // Update
-    // ------
-
-    @RestApiMethod(description="Update an existing contact")
-    @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number",
-        	paramType=RestApiParamType.PATH, description="Id of the contact")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request."),
-        @RestApiError(code="404", description="The requested contact was not found."),
-        @RestApiError(code="403", description="You do not have permission to modify this contact."),
-        @RestApiError(code="422", description="The updated fields created an invalid contact.")
-    ])
     @OptimisticLockingRetry
-    def update() {
-        Map contactInfo = getJsonPayload(Contactable, request)
-        if (contactInfo == null) { return }
-        Long id = params.long("id")
-        if (authService.exists(Contact, id)) {
-            Long scId = authService.getSharedContactIdForContact(id)
-            if (scId || authService.hasPermissionsForContact(id)) {
-                respondWithResult(Contactable, contactService.update(id, contactInfo, scId))
-            }
-            else { forbidden() }
+    @Override
+    void update() {
+        doUpdate(MarshallerUtils.KEY_ANNOUNCEMENT, request, announcementService) { TypeMap body ->
+            FeaturedAnnouncements.isAllowed(params.long("id"))
         }
-        else { notFound() }
+        // // TODO
+        // Long prId = params.long("id")
+        // tryGetJsonPayload(CLASS, request)
+        //     .then { TypeMap body -> PhoneRecords.isAllowed(prId).curry(body) }
+        //     .then { TypeMap body -> contactService.update(prId, body) }
+        //     .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
     }
 
-    // Delete
-    // ------
+    @Override
+    void delete() {
+        doDelete(contactService) { PhoneRecords.isAllowed(params.long("id")) }
 
-    @RestApiMethod(description="Delete an existing contact")
-    @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
-            description="Id of the contact")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="404", description="The requested contact was not found."),
-        @RestApiError(code="403", description="You do not have permission to delete this contact.")
-    ])
-    def delete() {
-        Long id = params.long("id")
-        if (authService.exists(Contact, id)) {
-            // only the only of the contact can delete it. Collaborators via sharing
-            // are not permitted to delete contacts that have been shared with them
-            if (authService.hasPermissionsForContact(id)) {
-                respondWithResult(Void, contactService.delete(id))
+        // TODO
+        // Long prId = params.long("id")
+        // PhoneRecords.isAllowed(prId)
+        //     .then { contactService.delete(prId) }
+        //     .anyEnd { Result<?> res -> respondWithResult(CLASS, res) }
+    }
+
+    // Helpers
+    // -------
+
+    protected void listForIds(TypeMap body) {
+        DetachedCriteria<PhoneRecord> query = IndividualPhoneRecordsWrappers
+            .buildForIds(body.typedList(Long, "ids[]"))
+        respondWithMany(IndividualPhoneRecordWrapper,
+            CriteriaUtils.countAction(query),
+            IndividualPhoneRecordsWrappers.listAction(query),
+            body)
+    }
+
+    protected void listForTag(TypeMap body) {
+        Long gprId = body.long("tagId")
+        PhoneRecords.isAllowed(gprId)
+            .then { GroupPhoneRecords.mustFindForId(gprId) }
+            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
+            .thenEnd { GroupPhoneRecord gpr1 ->
+                Collection<PhoneRecord> prs = ct1.getMembersByStatus(body.list("status[]"))
+                respondWithMany(IndividualPhoneRecordsWrappers,
+                    { prs.size() },
+                    { prs*.toWrapper() })
             }
-            else { forbidden() }
-        }
-        else { notFound() }
+    }
+
+    protected void listForPhone(TypeMap body) {
+        ControllerUtils.tryGetPhoneOwner(body.long("teamId"))
+            .then { Tuple<Long, PhoneOwnershipType> processed ->
+                Tuple.split(processed) { Long ownerId, PhoneOwnershipType type ->
+                    phoneCache.mustFindPhoneIdForOwner(ownerId, type)
+                }
+            }
+            .ifFail { Result<?> failRes -> respondWithResult(CLASS, failRes) }
+            .thenEnd { Long pId ->
+                List<PhoneRecordStatus> statuses = body.toEnumList(PhoneRecordStatus, "status[]",
+                    PhoneRecordStatus.VISIBLE_STATUSES)
+                String searchVal = body.string("search")
+                DetachedCriteria<PhoneRecord> query
+                if (body.shareStatus == "sharedByMe") {
+                    query = IndividualPhoneRecordsWrappers
+                        .forSharedByIdWithOptions(pId, searchVal, statuses)
+                }
+                else if (body.shareStatus == "sharedWithMe") {
+                    query = IndividualPhoneRecordsWrappers
+                        .forPhoneIdWithOptions(pId, searchVal, statuses, true)
+                }
+                else {
+                    query = IndividualPhoneRecordsWrappers
+                        .forPhoneIdWithOptions(pId, searchVal, statuses)
+                }
+                respondWithMany(IndividualPhoneRecordWrapper,
+                    CriteriaUtils.countAction(query),
+                    IndividualPhoneRecordsWrappers.listAction(query),
+                    body)
+            }
     }
 }

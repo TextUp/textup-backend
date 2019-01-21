@@ -9,37 +9,26 @@ import org.textup.type.*
 import org.textup.util.*
 
 @GrailsTypeChecked
-@Secured("permitAll")
+@Secured(Roles.PUBLIC)
 class PublicRecordController extends BaseController {
 
-    static String namespace = "v1"
-
-    //grailsApplication from superclass
     CallbackService callbackService
     CallbackStatusService callbackStatusService
     ThreadService threadService
 
     @Override
-    protected String getNamespaceAsString() { namespace }
-
-    def index() { notAllowed() }
-    def show() { notAllowed() }
-    def update() { notAllowed() }
-    def delete() { notAllowed() }
-
     def save() {
-        TypeConvertingMap paramsMap = TypeConversionUtils.extractParams(params)
-        Result<Void> res = TwilioUtils.validate(request, paramsMap)
-        if (!res.success) {
-            respondWithResult(Void, res)
-        }
-        else if (paramsMap.handle == CallbackUtils.STATUS) {
-            // Moved creation of new thread to PublicRecordController to avoid self-calls.
-            // Aspect advice is not applied on self-calls because this bypasses the proxies Spring AOP
-            // relies on. See https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/aop.html#aop-understanding-aop-proxies
-            threadService.delay(5, TimeUnit.SECONDS) { callbackStatusService.process(paramsMap) }
-            respondWithResult(Closure, TwilioUtils.noResponseTwiml())
-        }
-        else { respondWithResult(Closure, callbackService.process(paramsMap)) }
+        TypeMap data = TypeMap.create(params)
+        TwilioUtils.validate(request, data)
+            .then {
+                if (data[CallbackUtils.PARAM_HANDLE] == CallbackUtils.STATUS) {
+                    threadService.delay(5, TimeUnit.SECONDS) {
+                        callbackStatusService.process(data)
+                    }
+                    TwilioUtils.noResponseTwiml()
+                }
+                else { callbackService.process(data) }
+            }
+            .anyEnd { Result<?> res -> respondWithResult(Closure, res) }
     }
 }

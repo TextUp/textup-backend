@@ -14,7 +14,7 @@ class ScheduleJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { Schedule sched1 ->
         Map json = [:]
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
-            .then { String tz ->
+            .then { String tz = null ->
                 json.with {
                     timezone = tz
                     nextAvailable = sched1.nextAvailable(tz)

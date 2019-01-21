@@ -87,7 +87,6 @@ class Staff implements WithId, Saveable<Staff> {
 
     PhoneNumber getPersonalPhoneNumber() { PhoneNumber.create(personalPhoneAsString) }
 
-    String getChannelName() { username ? "private-${username}" : "" }
 
     // Helpers
     // -------

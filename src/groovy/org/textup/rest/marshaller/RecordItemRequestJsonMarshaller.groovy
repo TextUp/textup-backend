@@ -15,23 +15,22 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
 	static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
         RecordItemRequest itemRequest ->
 
-        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
-
 		Map json = [:]
         json.with {
             totalNumItems = itemRequest.countRecordItems()
             maxAllowedNumItems = Constants.MAX_PAGINATION_MAX
-            exportedBy = authService.loggedInAndActive?.name
-            phoneName = itemRequest.phone?.name
+            phoneName = itemRequest.phone?.owner?.buildName()
             phoneNumber = itemRequest.phone?.number?.prettyPhoneNumber
         }
+        AuthUtils.tryGetAuthUser()
+            .then { String authUser -> json.exportedBy = authUser.name }
         // fetching sections with appropriate pagination options
     	RequestUtils.tryGetFromRequest(RequestUtils.PAGINATION_OPTIONS)
-            .end({ Map options = null -> json.sections = itemRequest.getSections(options)},
-                { json.sections = itemRequest.getSections() })
+            .ifFail { json.sections = itemRequest.getSections() }
+            .thenEnd { TypeMap opts = null -> json.sections = itemRequest.getSections(opts) }
         // setting timestamps with appropriate
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
-            .end { String tz = null ->
+            .thenEnd { String tz = null ->
                 json.with {
                     startDate = itemRequest.start
                         ? DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(

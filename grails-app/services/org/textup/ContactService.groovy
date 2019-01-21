@@ -20,7 +20,7 @@ class ContactService {
 
     @RollbackOnResultFailure
 	Result<IndividualPhoneRecordWrapper> create(Long ownerId, PhoneOwnershipType type, TypeMap body) {
-        Phones.mustFindActiveForOwner(ownerId, type)
+        Phones.mustFindActiveForOwner(ownerId, type, false)
             .then { Phone p1 -> IndividualPhoneRecordWrappers.tryCreate(p1) }
             .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }

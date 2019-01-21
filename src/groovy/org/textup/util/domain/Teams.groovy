@@ -6,10 +6,10 @@ import grails.compiler.GrailsTypeChecked
 class Teams {
 
     // TODO hasPermissionsForTeam
-    static Result<Void> isAllowed(Long thisId) {
-        AuthUtils.tryGetAuthId().then { Long authId ->
-            AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0)
-        }
+    static Result<Long> isAllowed(Long thisId) {
+        AuthUtils.tryGetAuthId()
+            .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
+            .then { IOCUtils.resultFactory.success(thisId) }
     }
 
     static Result<Team> mustFindForId(Long teamId) {

@@ -18,127 +18,67 @@ class RecordItemRequest implements Validateable {
     DateTime start
     DateTime end
     boolean groupByEntity = false
+    Collection<PhoneRecordWrapper> wrappers
 
-    Recipients<Long, Contact> contacts
-    Recipients<Long, SharedContact> sharedContacts
-    Recipients<Long, ContactTag> tags
-
-    static constraints = { // default nullable: false
+    static constraints = {
         types nullable: true
         start nullable: true
         end nullable: true
-        contacts cascadeValidation: true
-        sharedContacts cascadeValidation: true
-        tags cascadeValidation: true
+        wrappers validator: { Collection<PhoneRecordWrapper> val, RecordItemRequest obj ->
+            if (val) {
+                if (val.any { !it?.permission?.canView() }) {
+                    return ["someNoPermissions"]
+                }
+                Collection<Long> phoneIds = ResultGroup
+                    .collect(val) { PhoneRecordWrapper w1 -> w1.tryGetReadOnlyPhone() }
+                    .payload*.id
+                if (phoneIds.any { Long id -> id != obj.phone?.id }) {
+                    return ["foreign"]
+                }
+            }
+        }
+    }
+
+    static Result<RecordItemRequest> tryCreate(Phone p1, Collection<PhoneRecordWrapper> wrappers,
+        boolean isGrouped) {
+
+        RecordItemRequest iReq1 = new RecordItemRequest(phone: p1,
+            wrappers: wrappers,
+            groupByEntity: isGrouped)
+        DomainUtils.tryValidate(iReq1, ResultStatus.CREATED)
     }
 
     // Methods
     // -------
 
-    boolean hasAnyRecipients() {
-        if (hasErrors()) {
-            return false
-        }
-        [contacts, sharedContacts, tags].any { Recipients r1 -> r1.recipients.isEmpty() == false }
+    DetachedCriteria<RecordItem> getCriteria() {
+        wrappers.isEmpty()
+            ? RecordItems.buildForPhoneIdWithOptions(phone?.id, start, end, types)
+            : RecordItems.buildForRecordIdsWithOptions(getRecordIds(), start, end, types)
     }
 
-    int countRecordItems() {
-        if (hasErrors()) {
-            return 0
-        }
-        getCriteria().count() as Integer
-    }
-
-    List<RecordItem> getRecordItems(Map params = null, boolean recentFirst = true) {
-        if (hasErrors()) {
-            return []
-        }
-        List<Integer> normalized = Utils.normalizePagination(params?.offset, params?.max)
-        params?.offset = normalized[0]
-        params?.max = normalized[1]
-        getCriteria()
-            .build(RecordItem.buildForSort(recentFirst))
-            .list(params)
-    }
-
-    List<RecordItemRequestSection> getSections(Map params = [:]) {
-        if (hasErrors()) {
-            return []
-        }
-        String phoneName = phone?.owner?.buildName()
-        String phoneNumber = phone?.number?.prettyPhoneNumber
+    List<RecordItemRequestSection> getSections(TypeMap params = null) {
         // when exporting, we want the oldest records first instead of most recent first
-        List<RecordItem> rItems = getRecordItems(params, false)
+        DetachedCriteria<RecordItem> criteria = getCriteria()
+        List<RecordItem> rItems = criteria.build(RecordItems.forSort(false))
+            .list(ControllerUtils.buildPagination(params, criteria.call()))
         // group by entity only makes sense if we have entities and haven't fallen back
         // to getting record items for the phone overall
-        if (hasAnyRecipients() && groupByEntity) {
-            Map<Long, Collection<RecordItem>> recordIdToItems = MapUtils
-                .<Long, RecordItem>buildManyObjectsMap(rItems) { RecordItem i1 -> i1.record.id }
-            buildSectionsByEntity(phoneName, phoneNumber, recordIdToItems)
+        if (!wrappers.isEmpty() && groupByEntity) {
+            RecordUtils.buildSectionsByEntity(wrappers, rItems)
         }
         else {
-            [
-                new RecordItemRequestSection(phoneName: phoneName,
-                    phoneNumber: phoneNumber,
-                    contactNames: contacts?.recipients?.collect { it.nameOrNumber },
-                    sharedContactNames: sharedContacts?.recipients?.collect { it.name },
-                    tagNames: tags?.recipients?.collect { it.name },
-                    recordItems: rItems)
-            ]
+            RecordItemRequestSection section1 = RecordUtils.buildSingleSection(p1, wrappers, rItems)
+            section1 ? [section1] : []
         }
     }
 
     // Helpers
     // -------
 
-    protected DetachedCriteria<RecordItem> getCriteria() {
-        !hasAnyRecipients()
-            ? RecordItem.forPhoneIdWithOptions(phone?.id, start, end, types)
-            : RecordItem.forRecordIdsWithOptions(getRecordIds(), start, end, types)
-    }
-
     protected Collection<Long> getRecordIds() {
-        ResultGroup<ReadOnlyRecord> resGroup = new ResultGroup<>()
-        resGroup << contacts?.recipients?.collect { it.tryGetReadOnlyRecord() }
-        resGroup << sharedContacts?.recipients?.collect { it.tryGetReadOnlyRecord() }
-        resGroup << tags?.recipients?.collect { it.tryGetReadOnlyRecord() }
-
-        resGroup.logFail("RecordItemRequest.getRecordIds")
-        resGroup.payload*.id
-    }
-
-    protected List<RecordItemRequestSection> buildSectionsByEntity(String pName, String pNum,
-        Map<Long, Collection<RecordItem>> rIdToItems) {
-
-        ResultGroup<RecordItemRequestSection> resGroup = new ResultGroup<>()
-        resGroup << contacts?.recipients?.collect { addSectionForEntity(it, pName, pNum, rIdToItems) }
-        resGroup << sharedContacts?.recipients?.collect { addSectionForEntity(it, pName, pNum, rIdToItems) }
-        resGroup << tags?.recipients?.collect { addSectionForEntity(it, pName, pNum, rIdToItems) }
-
-        resGroup.logFail("RecordItemRequest.buildSectionsByEntity")
-        resGroup.payload
-    }
-
-    protected Result<RecordItemRequestSection> addSectionForEntity(WithRecord recordOwner,
-        String phoneName, String phoneNumber, Map<Long, Collection<RecordItem>> recordIdToItems) {
-
-        recordOwner.tryGetReadOnlyRecord()
-            .then { ReadOnlyRecord rec1 ->
-                RecordItemRequestSection rSec = new RecordItemRequestSection(phoneName: phoneName,
-                    phoneNumber: phoneNumber,
-                    recordItems: recordIdToItems[rec1.id])
-                if (recordOwner instanceof Contact) {
-                    rSec.contactNames << recordOwner.nameOrNumber
-                }
-                else if (recordOwner instanceof SharedContact) {
-                    rSec.phoneName = recordOwner.sharedBy?.owner?.buildName()
-                    rSec.phoneNumber = recordOwner.sharedBy?.number?.prettyPhoneNumber
-                    rSec.sharedContactNames << recordOwner.name
-                }
-                else if (recordOwner instanceof ContactTag) {
-                    rSec.tagNames << recordOwner.name
-                }
-                IOCUtils.resultFactory.success(rSec)
-            }
+        ResultGroup.collect(wrappers) { PhoneRecordWrapper w1 -> w1.tryGetReadOnlyRecord() }
+            .logFail("getRecordIds")
+            .payload*.id
     }
 }

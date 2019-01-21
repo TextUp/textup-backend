@@ -9,7 +9,7 @@ class DomainUtils {
 
     // TODO test
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static Object getId(Object obj) {
+    static Object tryGetId(Object obj) {
         obj?.metaClass?.hasProperty(obj, "id") ? obj.id : null
     }
 

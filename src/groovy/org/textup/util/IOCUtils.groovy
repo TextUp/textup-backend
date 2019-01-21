@@ -30,6 +30,10 @@ class IOCUtils {
         IOCUtils.getBean(Scheduler)
     }
 
+    static LinkGenerator getLinkGenerator() {
+        IOCUtils.getBean(LinkGenerator)
+    }
+
     static String getWebhookLink(Map linkParams = [:]) {
         IOCUtils.linkGenerator.link(namespace: "v1",
             resource: "publicRecord",
@@ -69,10 +73,6 @@ class IOCUtils {
 
     // Helpers
     // -------
-
-    protected static LinkGenerator getLinkGenerator() {
-        IOCUtils.getBean(LinkGenerator)
-    }
 
     protected static MessageSource getMessageSource() {
         IOCUtils.getBean(MessageSource)

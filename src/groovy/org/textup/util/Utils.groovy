@@ -59,18 +59,4 @@ class Utils {
         }
         result
     }
-
-    // Pagination
-    // ----------
-
-    static List<Integer> normalizePagination(Object rawOffset, Object rawMax) {
-        Integer offset = TypeConversionUtils.to(Integer, rawOffset),
-            max = TypeConversionUtils.to(Integer, rawMax),
-            defaultMax = Constants.DEFAULT_PAGINATION_MAX,
-            largestMax = Constants.MAX_PAGINATION_MAX
-        [
-            (offset > 0) ? offset : 0,
-            Math.min((max > 0) ? max : defaultMax, largestMax)
-        ]
-    }
 }

@@ -9,34 +9,32 @@ import org.springframework.security.authentication.encoding.PasswordEncoder
 import org.textup.type.OrgStatus
 
 @GrailsTypeChecked
-@Secured("ROLE_ADMIN")
+@Secured(Roles.SUPER_ROLES)
 @Transactional
 class SuperController {
 
     MailService mailService
-    PasswordEncoder passwordEncoder
-    SpringSecurityService springSecurityService
 
     // Page handlers
     // -------------
 
     def index() {
         flash.previousPage = "index"
-        [unverifiedOrgs:Organization.findAllByStatus(OrgStatus.PENDING)]
+        [unverifiedOrgs: Organization.findAllByStatus(OrgStatus.PENDING)]
     }
 
     def approved() {
         flash.previousPage = "approved"
-        [orgs:Organization.findAllByStatus(OrgStatus.APPROVED)]
+        [orgs: Organization.findAllByStatus(OrgStatus.APPROVED)]
     }
 
     def rejected() {
         flash.previousPage = "rejected"
-        [orgs:Organization.findAllByStatus(OrgStatus.REJECTED)]
+        [orgs: Organization.findAllByStatus(OrgStatus.REJECTED)]
     }
 
     def settings() {
-        [staff:springSecurityService.currentUser]
+        [staff: IOCUtils.security.currentUser]
     }
 
     def updateSettings() {
@@ -46,14 +44,13 @@ class SuperController {
             return redirect(action: "settings")
         }
 
-        Staff s1 = springSecurityService.currentUser as Staff
+        Staff s1 = IOCUtils.security.currentUser as Staff
         String oldUsername = s1.username
 
         // if wanting to change password, need to validate current password first
         if (newPassword) {
             if (params.currentPassword &&
-                passwordEncoder.isPasswordValid(s1.password, params.currentPassword as String, null)) {
-
+                AuthUtils.isSecureStringValid(s1.password, params.string("currentPassword"))) {
                 s1.password = newPassword
             }
             else {
@@ -70,7 +67,7 @@ class SuperController {
         }
         // save new settings
         if (s1.save()) {
-            springSecurityService.reauthenticate(oldUsername)
+            IOCUtils.security.reauthenticate(oldUsername)
             flash.messages = ["Successfully updated settings."]
         }
         else {

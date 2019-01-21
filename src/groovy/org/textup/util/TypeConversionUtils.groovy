@@ -75,6 +75,7 @@ class TypeConversionUtils {
         CollectionUtils.ensureNoNull(results)
     }
 
+    // TODO remove because replaced by TypeMap
     static TypeConvertingMap extractParams(GrailsParameterMap params) {
         new TypeConvertingMap(params)
     }
