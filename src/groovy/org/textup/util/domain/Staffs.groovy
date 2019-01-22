@@ -5,7 +5,6 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class Staffs {
 
-    // TODO hasPermissionsForStaff
     // [NOTE] have to make two calls because can't figure out how to return an association
     // property projection. Seems to work for Criteria but not DetachedCriteria
     static Result<Long> isAllowed(Long thisId) {
@@ -122,7 +121,6 @@ class Staffs {
         }
     }
 
-    // TODO move to `Organizations`?
     protected static DetachedCriteria<Staff> buildForAdminAtSameOrg(Long thisId, Long authId) {
         new DetachedCriteria(Staff).build {
             idEq(thisId)

@@ -25,10 +25,10 @@ class NotificationService {
                     NotificationInfo notifInfo = NotificationInfo.create(op1, notif1)
                     if (op1.method == NotificationMethod.TEXT) {
                         textService
-                            .send(notif1.phone.number,
+                            .send(notif1.mutablePhone.number,
                                 [op1.staff.personalPhoneNumber],
                                 notifInfo.buildTextMessage(tok1),
-                                notif1.phone.customAccountId)
+                                notif1.mutablePhone.customAccountId)
                             .logFail("send: text to staff `${s1.id}`")
                     }
                     else { mailService.notifyMessages(freq1, op1.staff, notifInfo, tok1) }

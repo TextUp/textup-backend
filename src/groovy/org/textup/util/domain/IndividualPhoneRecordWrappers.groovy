@@ -45,58 +45,19 @@ class IndividualPhoneRecordWrappers {
         return { Map opts -> query.build(forSort()).list(opts)*.toWrapper() }
     }
 
-    // TODO returns both contacts and shared contacts
     static Result<List<IndividualPhoneRecordWrapper>> tryFindEveryByNumbers(Phone p1,
         List<? extends BasePhoneNumber> bNums, boolean createIfAbsent)
 
+        IndividualPhoneRecords.tryFindEveryByNumbers(p1, bNums, createIfAbsent
+            .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPRecs ->
+                List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(*numToPRecs.values())
+                List<PhoneRecord> sharedRecs = new DetachedCriteria(PhoneRecord)
+                    .build(PhoneRecords.forActive())
+                    .build(PhoneRecords.forShareSourceIds(iprs*.id))
+                    .list()
+                CollectionUtils.mergeUnique(sharedRecs*.toWrapper(), iprs*.toWrapper())
+            }
     }
-
-    // TODO
-    // IndividualPhoneRecords.tryFindEveryByNumbers(p1, [pNum], true)
-    //     .then { Map<PhoneNumber, List<Contact>> numberToContacts ->
-    //         Result.<Contact>createSuccess(CollectionUtils.mergeUnique(*numberToContacts.values()))
-    //     }
-    //     .then { Collection<Contact> contacts ->
-    //         ResultGroup<Void> resGroup = new ResultGroup<>()
-    //         contacts.each { c1 ->
-    //             resGroup << storeAndUpdateStatusForContact(storeContact, c1)
-    //         }
-    //         if (resGroup.anyFailures) {
-    //             IOCUtils.resultFactory.failWithGroup(resGroup)
-    //         }
-    //         else {
-    //             socketService.sendIndividualWrappers(contacts)
-    //             IOCUtils.resultFactory.success(contacts)
-    //         }
-    //     }
-
-    // TODO
-    // protected Result<Void> storeAndUpdateStatusForContact(Closure<Void> storeContact, Contact c1) {
-    //     storeContact.call(c1)
-    //     // only change status to unread
-    //     // dont' have to worry about blocked contacts since we already filtered those out
-    //     c1.status = PhoneRecordStatus.UNREAD
-    //     // NOTE: because we've already screened out all contacts that have been blocked
-    //     // by the owner of the contact, this effectively means that blocking also effectively
-    //     // stops all sharing relationships because we do not even attempt to deliver
-    //     // message to shared contacts that have had their original contact blocked by
-    //     // the original owner
-    //     List<SharedContact> sharedContacts = c1.sharedContacts
-    //     for (SharedContact sc1 in sharedContacts) {
-    //         // only marked the shared contact's status as unread IF the shared contact's
-    //         // status is NOT blocked. If the collaborator has blocked this contact then
-    //         // we want to respect that decision.
-    //         if (sc1.status != PhoneRecordStatus.BLOCKED) {
-    //             sc1.status = PhoneRecordStatus.UNREAD
-    //             if (!sc1.save()) {
-    //                 return IOCUtils.resultFactory.failWithValidationErrors(sc1.errors)
-    //             }
-    //         }
-    //     }
-    //     c1.save() ?
-    //         Result.void() :
-    //         IOCUtils.resultFactory.failWithValidationErrors(c1.errors)
-    // }
 
     // Helpers
     // -------

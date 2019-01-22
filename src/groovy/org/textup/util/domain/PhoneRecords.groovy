@@ -5,13 +5,21 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class PhoneRecords {
 
-    // TODO hasPermissionsForTag
-    // TODO getSharedContactIdForContact
-    // TODO hasPermissionsForContact
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
             .then { IOCUtils.resultFactory.success(thisId) }
+    }
+
+    static Result<? extends PhoneRecord> mustFindForId(Long thisId) {
+        PhoneRecord pr1 = PhoneRecord.get(thisId)
+        if (pr1) {
+            IOCUtils.resultFactory.success(pr1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+                ResultStatus.NOT_FOUND, [thisId])
+        }
     }
 
     static DetachedCriteria<PhoneRecord> buildActiveForStaffId(Long staffId) {

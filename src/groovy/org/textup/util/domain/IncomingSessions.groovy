@@ -5,7 +5,6 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class IncomingSessions {
 
-    // TODO hasPermissionsForSession
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }

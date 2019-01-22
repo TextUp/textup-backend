@@ -22,9 +22,11 @@ class FutureMessageController extends BaseController {
     void index() {
         Long prId = params.long("contactId") ?: params.long("tagId")
         PhoneRecords.isAllowed(prId)
+            .then { Long prId -> PhoneRecords.mustFindForId(prId) }
+            .then { PhoneRecord pr1 -> pr1.toWrapper().tryGetReadOnlyRecord() }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
-            .thenEnd {
-                respondWithCriteria(FutureMessages.buildForPhoneRecordIds([prId]),
+            .thenEnd { ReadOnlyRecord rec1 ->
+                respondWithCriteria(FutureMessages.buildForRecordIds([rec1.id]),
                     params,
                     null,
                     MarshallerUtils.KEY_FUTURE_MESSAGE)

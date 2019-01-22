@@ -26,8 +26,8 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
             .then { String authUser -> json.exportedBy = authUser.name }
         // fetching sections with appropriate pagination options
     	RequestUtils.tryGetFromRequest(RequestUtils.PAGINATION_OPTIONS)
-            .ifFail { json.sections = itemRequest.getSections() }
-            .thenEnd { TypeMap opts = null -> json.sections = itemRequest.getSections(opts) }
+            .ifFail { json.sections = itemRequest.buildSections() }
+            .thenEnd { TypeMap opts = null -> json.sections = itemRequest.buildSections(opts) }
         // setting timestamps with appropriate
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
             .thenEnd { String tz = null ->

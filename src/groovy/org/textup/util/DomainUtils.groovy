@@ -1,24 +1,23 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 
 @GrailsTypeChecked
 @Log4j
 class DomainUtils {
 
-    // TODO test
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static Object tryGetId(Object obj) {
         obj?.metaClass?.hasProperty(obj, "id") ? obj.id : null
     }
 
-    // TODO test
     static boolean isNew(Object obj) {
         getId(obj) == null
     }
 
-    // TODO skip type checking
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static boolean hasDirtyNonObjectFields(Object obj, Collection<String> propsToIgnore) {
         if (obj.metaClass.hasProperty("dirtyPropertyNames")) {
             List<String> dirtyProps = obj.dirtyPropertyNames
@@ -28,41 +27,57 @@ class DomainUtils {
         else { false }
     }
 
-    // TODO null handling, return error if null is passed in
-    static <T extends Saveable> Result<T> trySave(T obj, ResultStatus status = ResultStatus.OK) {
-        if (obj.save()) {
-            IOCUtils.resultFactory.success(obj, status)
+     static <T extends Saveable> Result<T> trySave(T obj, ResultStatus status = ResultStatus.OK) {
+        if (obj) {
+            if (obj.save()) {
+                IOCUtils.resultFactory.success(obj, status)
+            }
+            else { IOCUtils.resultFactory.failWithValidationErrors(obj.errors) }
         }
-        else { IOCUtils.resultFactory.failWithValidationErrors(obj.errors) }
+        else { invalidInput() }
     }
 
-    // TODO null handling, return error if null is passed in
     static <T extends Saveable> Result<Void> trySaveAll(Collection<T> objList) {
-        ResultGroup<T> resGroup = new ResultGroup<>()
-        objList?.each { T obj -> resGroup << DomainUtils.trySave(obj) }
-        if (resGroup.anyFailures) {
-            IOCUtils.resultFactory.failWithGroup(resGroup)
+        if (objList == null) {
+            ResultGroup<T> resGroup = new ResultGroup<>()
+            objList.each { T obj -> resGroup << DomainUtils.trySave(obj) }
+            if (resGroup.anyFailures) {
+                IOCUtils.resultFactory.failWithGroup(resGroup)
+            }
+            else { Result.void() }
         }
-        else { Result.void() }
+        else { invalidInput() }
     }
 
-    // TODO null handling, return error if null is passed in
     static <T extends Validateable> Result<T> tryValidate(T obj,
         ResultStatus status = ResultStatus.OK) {
 
-        if (obj.validate()) {
-            IOCUtils.resultFactory.success(obj, status)
+        if (obj) {
+            if (obj.validate()) {
+                IOCUtils.resultFactory.success(obj, status)
+            }
+            else { IOCUtils.resultFactory.failWithValidationErrors(obj.errors) }
         }
-        else { IOCUtils.resultFactory.failWithValidationErrors(obj.errors) }
+        else { invalidInput() }
     }
 
-    // TODO null handling, return error if null is passed in
     static <T extends Validateable> Result<Void> tryValidateAll(Collection<T> objList) {
-        ResultGroup<T> resGroup = new ResultGroup<>()
-        objList?.each { T obj -> resGroup << DomainUtils.tryValidate(obj) }
-        if (resGroup.anyFailures) {
-            IOCUtils.resultFactory.failWithGroup(resGroup)
+        if (objList == null) {
+            ResultGroup<T> resGroup = new ResultGroup<>()
+            objList.each { T obj -> resGroup << DomainUtils.tryValidate(obj) }
+            if (resGroup.anyFailures) {
+                IOCUtils.resultFactory.failWithGroup(resGroup)
+            }
+            else { Result.void() }
         }
-        else { Result.void() }
+        else { invalidInput() }
+    }
+
+    // Helpers
+    // -------
+
+    protected static Result<?> invalidInput() {
+        IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+            ResultStatus.INTERNAL_SERVER_ERROR)
     }
 }

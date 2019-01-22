@@ -11,18 +11,16 @@ import org.textup.type.*
 @Validateable
 class Notification implements Validateable, Dehydratable<Notification.Dehydrated> {
 
-	final Phone phone
+	final Phone mutablePhone
 	private final Map<PhoneRecordWrapper, NotificationDetail> wrapperToDetails = [:]
 
 	static constraints = {
 		details cascadeValidation: true
 		wrapperToDetails validation: { Map<PhoneRecordWrapper, NotificationDetail> val, Notification obj ->
-			if (val && obj.phone) {
-				List<Phone> wrappedPhones = RecordGroup
-					.collect(val.keySet()) { PhoneRecordWrapper w1 -> w1.tryGetPhone() }
-					.payload
-				if (wrappedPhones.any { Phone p1 -> p1.id != obj.phone.id }) {
-					["mismatched", obj.phone.id]
+			if (val && obj.mutablePhone) {
+				Collection<Long> pIds = WrapperUtils.mutablePhoneIdsIgnoreFails(val.keySet())
+				if (pIds.any { Long pId -> pId != obj.mutablePhone.id }) {
+					["mismatched", obj.mutablePhone.id]
 				}
 			}
 		}
@@ -47,8 +45,8 @@ class Notification implements Validateable, Dehydratable<Notification.Dehydrated
         }
     }
 
-	static Result<Notification> tryCreate(Phone p1) {
-		DomainUtils.tryValidate(new Notification(phone: p1), ResultStatus.CREATED)
+	static Result<Notification> tryCreate(Phone mutPhone1) {
+		DomainUtils.tryValidate(new Notification(mutablePhone: mutPhone1), ResultStatus.CREATED)
 	}
 
 	// Methods
@@ -57,7 +55,7 @@ class Notification implements Validateable, Dehydratable<Notification.Dehydrated
     @Override
     Notification.Dehydrated dehydrate() {
         Collection<Long> itemIds = CollectionUtils.mergeUnique(*getDetails()*.items*.id)
-        Notification.Dehydrated.create(phone.id, itemIds)
+        Notification.Dehydrated.create(mutablePhone.id, itemIds)
     }
 
 	void addDetail(NotificationDetail nd1) {
@@ -74,7 +72,7 @@ class Notification implements Validateable, Dehydratable<Notification.Dehydrated
 
 	Collection<OwnerPolicy> buildCanNotifyPolicies(NotificationFrequency freq1) {
 		Collection<Long> itemIds = CollectionUtils.mergeUnique(*getDetails()*.items*.id)
-		phone?.owner
+		mutablePhone?.owner
 			?.buildActivePoliciesForFrequency(freq1)
 			?.findAll { OwnerPolicy op1 -> op1.canNotifyForAny(itemIds) }
 			?: new ArrayList<OwnerPolicy>()

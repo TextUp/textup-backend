@@ -5,7 +5,6 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class OwnerPolicies {
 
-    // TODO consider sharing availability???
     // Policies might not all correspond to staff members that are owners on this phone
     // because we also include staff members that can access one of this phone's contacts
     // through a sharing arrangement. Also, if we transfer phones, then the new owners will not

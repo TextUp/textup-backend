@@ -46,15 +46,9 @@ class SocketService {
     }
 
     void sendIndividualWrappers(Collection<? extends IndividualPhoneRecordWrapper> wraps) {
-        ResultGroup
-            .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
-                w1.tryGetReadOnlyRecord()
-            }
-            .toResult(true)
-            .then { List<ReadOnlyRecord> rRecs ->
-                trySend(EVENT_CONTACTS, Staffs.findEveryForRecordIds(rRecs*.id), wraps)
-                    .logFail("sendIndividualWrappers: phone records `${wraps*.id}`")
-            }
+        Collection<Long> recIds = WrapperUtils.recordIdsIgnoreFails(wraps)
+        trySend(EVENT_CONTACTS, Staffs.findEveryForRecordIds(recIds), wraps)
+            .logFail("sendIndividualWrappers: phone records `${wraps*.id}`")
     }
 
     void sendFutureMessages(Collection<FutureMessage> fMsgs) {

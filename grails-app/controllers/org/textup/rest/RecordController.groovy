@@ -5,7 +5,6 @@ import grails.converters.JSON
 import grails.transaction.Transactional
 import groovy.transform.TypeCheckingMode
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.joda.time.format.*
 import org.springframework.security.access.annotation.Secured
@@ -35,7 +34,7 @@ class RecordController extends BaseController {
                     respondWithPdf("textup-export-${ts}.pdf", pdfService.buildRecordItems(iReq))
                 }
                 else {
-                    respondWithCriteria(iReq.getCriteria(),
+                    respondWithCriteria(iReq.criteria,
                         params,
                         RecordItems.forSort(true),
                         MarshallerUtils.KEY_RECORD_ITEM)

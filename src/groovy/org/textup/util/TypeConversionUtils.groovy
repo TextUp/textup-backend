@@ -5,7 +5,6 @@ import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import org.apache.commons.lang3.ClassUtils
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.textup.*
 
 @GrailsTypeChecked
@@ -73,10 +72,5 @@ class TypeConversionUtils {
             results << to(clazz, obj, replaceFailWith)
         }
         CollectionUtils.ensureNoNull(results)
-    }
-
-    // TODO remove because replaced by TypeMap
-    static TypeConvertingMap extractParams(GrailsParameterMap params) {
-        new TypeConvertingMap(params)
     }
 }

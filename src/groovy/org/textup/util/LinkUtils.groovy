@@ -5,7 +5,6 @@ import com.amazonaws.services.cloudfront.CloudFrontUrlSigner.Protocol
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import groovy.util.logging.Log4j
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.validator.*

@@ -32,8 +32,12 @@ class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
             insufficientPermission()
     }
 
+    boolean isOverridden() { false }
+
     // Getters
     // -------
+
+    Class getWrappedClass() { phoneRecord.class }
 
     Long getId() { phoneRecord.id }
 
@@ -49,21 +53,30 @@ class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
             insufficientPermission()
     }
 
-    Result<Phone> tryGetPhone() {
+    Result<Phone> tryGetMutablePhone() {
         permissions.canModify() ?
             IOCUtils.resultFactory.success(phoneRecord.phone) :
             insufficientPermission()
     }
 
-    // TODO do we need this?
-    // create ReadOnlyPhone interface
-    Result<ReadOnlyPhone> tryGetReadOnlyPhone() {
+    Result<ReadOnlyPhone> tryGetReadOnlyMutablePhone() {
         permissions.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.phone) :
             insufficientPermission()
     }
 
-    // TODO ContactStatus --> PhoneRecordStatus
+    Result<Phone> tryGetOriginalPhone() {
+        permissions.canModify() ?
+            IOCUtils.resultFactory.success(phoneRecord.phone) :
+            insufficientPermission()
+    }
+
+    Result<ReadOnlyPhone> tryGetReadOnlyOriginalPhone() {
+        permissions.canView() ?
+            IOCUtils.resultFactory.success(phoneRecord.phone) :
+            insufficientPermission()
+    }
+
     Result<PhoneRecordStatus> tryGetStatus() {
         permissions.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.status) :

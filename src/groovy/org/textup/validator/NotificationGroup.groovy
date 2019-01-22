@@ -28,10 +28,10 @@ class NotificationGroup implements Validateable, Dehydratable<NotificationGroup.
 
     static Result<NotificationGroup> tryCreate(Collection<Notification> many1) {
         Map<Phone, Collection<Notification>> phoneToNotifs = MapUtils
-            .buildManyObjectsMap(many1) { Notification notif1 -> notif1.phone }
+            .buildManyObjectsMap(many1) { Notification notif1 -> notif1.mutablePhone }
         ResultGroup
-            .collect(phoneToNotifs) { Phone p1, Collection<Notification> many2 ->
-                Notification.tryCreate(p1)
+            .collect(phoneToNotifs) { Phone mutPhone1, Collection<Notification> many2 ->
+                Notification.tryCreate(mutPhone1)
                     .then { Notification notif1 ->
                         CollectionUtils.mergeUnique(many2*.details)
                             .each { NotificationDetail nd1 -> notif1.addDetail(nd1) }

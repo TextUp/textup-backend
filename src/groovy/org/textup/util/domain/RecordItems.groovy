@@ -5,7 +5,6 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class RecordItems {
 
-    // TODO hasPermissionsForItem
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }

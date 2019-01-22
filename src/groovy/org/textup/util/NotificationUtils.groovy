@@ -24,7 +24,10 @@ class NotificationUtils {
             .collect(prs) { PhoneRecord pr1 ->
                 PhoneRecordWrapper w1 = pr1.toWrapper()
                 w1.tryGetRecord()
-                    .then { Record rec1 -> w1.tryGetPhone().curry(rec1) }
+                    .then { Record rec1 ->
+                        // NOT original phone so that we notify shared staff too
+                        w1.tryGetMutablePhone().curry(rec1)
+                    }
                     .then { Record rec1, Phone p1 ->
                         ResultGroup
                             .collect(recIdToItems[rec1.id]) { Collection<RecordItem> rItems2 ->
@@ -49,11 +52,8 @@ class NotificationUtils {
     }
 
     static String buildPublicNames(Notification notif1, boolean isOut) {
-        Collection<String> initials = ResultGroup
-            .collect(notif1.getWrappersForOutgoing(isOut)) { PhoneWrapper w1 ->
-                w1.tryGetPublicName()
-            }
-            .payload
+        Collection<String> initials = WrapperUtils
+            .publicNamesIgnoreFails(notif1.getWrappersForOutgoing(isOut))
         CollectionUtils.joinWithDifferentLast(initials, ", ", " and ")
     }
 
@@ -81,7 +81,6 @@ class NotificationUtils {
     static String buildIncomingMessage(NotificationInfo n1) {
         List<String> parts = [],
             countParts = []
-        // incoming messages
         if (n1.numIncomingText) {
             countParts << StringUtils.withUnits(n1.numIncomingText,
                 IOCUtils.getMessage("notificationInfo.text"))

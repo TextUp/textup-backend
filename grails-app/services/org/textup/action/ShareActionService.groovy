@@ -59,8 +59,7 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
     }
 
     protected Result<Void> tryStopShare(PhoneRecord source, Phone shareWith) {
-        List<PhoneRecord> prList = PhoneRecords
-            .forActiveWithPhoneIds([shareWith.id])
+        List<PhoneRecord> prList = PhoneRecords.forActiveWithPhoneIds([shareWith.id])
             .build(PhoneRecords.forShareSourceIds([source.id]))
             .list()
         prList.each { PhoneRecord pr1 -> pr1.dateExpired = DateTime.now() }

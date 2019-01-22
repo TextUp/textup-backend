@@ -39,13 +39,14 @@ class RecordUtils {
 
     static Result<RecordItemRequest> buildRecordItemRequest(Long pId, TypeMap body) {
         Phones.mustFindActiveForId(pId)
-            .then { Phone p1 ->
-                Collection<PhoneRecordWrapper> wrappers = PhoneRecords.buildActiveForPhoneIds([pId])
+            .then { Phone mutPhone1 ->
+                Collection<? extends PhoneRecordWrapper> wrappers = PhoneRecords
+                    .buildActiveForPhoneIds([pId])
                     .build(PhoneRecords.forIds(body.typedList(Long, "owners[]")))
                     .list()
                     *.toWrapper()
                 boolean isGrouped = (body.string("exportFormatType") == EXPORT_TYPE_GROUPED)
-                RecordItemRequest.tryCreate(p1, wrappers, isGrouped)
+                RecordItemRequest.tryCreate(mutPhone1, wrappers, isGrouped)
             }
             .then { RecordItemRequest iReq1 ->
                 iReq1.with {
@@ -57,23 +58,17 @@ class RecordUtils {
             }
     }
 
-    static RecordItemRequestSection buildSingleSection(Phone p1,
-        Collection<PhoneRecordWrapper> wrappers,  List<RecordItem> rItems) {
+    static RecordItemRequestSection buildSingleSection(Phone mutPhone1, List<RecordItem> rItems
+        Collection<? extends PhoneRecordWrapper> wrappers) {
 
-        ResultGroup
-            .collect(wrappers) { PhoneRecordWrapper w1 -> w1.tryGetSecureName() }
-            .toResult(true)
-            .then { List<String> names ->
-                String phoneName = p1.owner.buildName()
-                BasePhoneNumber phoneNumber = p1.number
-                RecordItemRequestSection.tryCreate(phoneName, phoneNumber, rItems, names)
-            }
+        RecordItemRequestSection
+            .tryCreate(mutPhone1.owner.buildName(), mutPhone1.number, rItems, wrappers)
             .logFail("buildSingleSection")
             .payload
     }
 
-    static List<RecordItemRequestSection> buildSectionsByEntity(Collection<PhoneRecordWrapper> wrappers,
-        List<RecordItem> rItems) {
+    static List<RecordItemRequestSection> buildSectionsByEntity(List<RecordItem> rItems.
+        Collection<? extends PhoneRecordWrapper> wrappers) {
 
         Map<Long, Collection<RecordItem>> recordIdToItems = MapUtils
                 .<Long, RecordItem>buildManyObjectsMap(rItems) { RecordItem i1 -> i1.record.id }
@@ -84,11 +79,8 @@ class RecordUtils {
                         w1.tryGetReadOnlyPhone().curry(rec1) // will show sharedWith phone
                     }
                     .then { ReadOnlyRecord rec1, ReadOnlyPhone p1 ->
-                        w1.tryGetSecureName().curry(rec1, p1)
-                    }
-                    .then { ReadOnlyRecord rec1, ReadOnlyPhone p1, String name ->
                         RecordItemRequestSection.tryCreate(p1.name, p1.number,
-                            recordIdToItems[rec1.id], [name])
+                            recordIdToItems[rec1.id], [w1])
                     }
             }
             .logFail("buildSectionsByEntity")

@@ -5,7 +5,6 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class FutureMessages {
 
-    // TODO hasPermissionsForFutureMessage
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
@@ -38,11 +37,6 @@ class FutureMessages {
     static DetachedCriteria<FutureMessage> buildForRecordIds(Collection<Long> recordIds) {
         new DetachedCriteria(FutureMessage)
             .build { CriteriaUtils.inList(delegate, "record.id", recordIds) }
-    }
-
-    // TODO
-    static DetachedCriteria<FutureMessage> buildForPhoneRecordIds(Collection<Long> prIds) {
-
     }
 
     // Helpers

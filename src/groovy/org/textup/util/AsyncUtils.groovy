@@ -12,13 +12,6 @@ class AsyncUtils {
 
     static final int UPLOAD_BATCH_SIZE = 8
 
-    // TODO still need this?
-    static <I extends WithId> Map<Long, I> idMap(Collection<I> withIdObjects) {
-        MapUtils.<Long, I>buildObjectMap(withIdObjects) { I obj -> obj.id }
-    }
-
-    // TODO skip type checking?
-    // TODO this needs to return domain objects in the SAME order as the passed-in ids
     static <T extends Saveable> Collection<T> getAllIds(Clazz<T> clazz, Collection<Long> ids) {
         Collection<T> found = clazz.getAll(ids?.unique() as Iterable<Serializable>)
         if (found.size() != ids.size()) {

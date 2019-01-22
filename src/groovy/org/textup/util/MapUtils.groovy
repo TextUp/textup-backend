@@ -20,12 +20,6 @@ class MapUtils {
         idToManyObjects
     }
 
-    static int countKeys(List<String> keysToLookFor, Map params) {
-        int numFound = 0
-        keysToLookFor.each { if (params.containsKey(it)) { numFound++ } }
-        numFound
-    }
-
     static <K> Map.Entry<K,? extends Comparable> findHighestValue(Map<K,? extends Comparable> map) {
         Map.Entry<K,? extends Comparable> highestEntry
         map?.entrySet().each { Map.Entry<K,? extends Comparable> entry ->

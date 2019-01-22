@@ -82,7 +82,7 @@ class OutgoingMessageService {
     protected Result<Void> sendAndStore(IndividualPhoneRecordWrapper w1, Collection<Record> records,
         TempRecordItem temp1, Map<Long, Collection<RecordItem>> recIdToItems, Token callToken) {
 
-        w1.tryGetPhone()
+        w1.tryGetOriginalPhone() // original phone so that sharing preserve client point of contact
             .then { Phone p1 -> w1.tryGetSortedNumbers().curry(p1) }
             .then { Phone p1, List<ReadOnlyContactNumber> toNums ->
                 outgoingMediaService.trySend(p1.number, toNums, p1.customAccountId, temp1.text,

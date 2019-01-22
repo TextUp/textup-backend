@@ -70,7 +70,7 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
     protected Result<IndividualPhoneRecordWrapper> tryNotifications(IndividualPhoneRecordWrapper w1,
         TypeMap body) {
 
-        w1.tryGetPhone()
+        w1.tryGetMutablePhone() // NOT original phone, notification settings on shared phones too
             .then { Phone p1 -> w1.tryGetRecord().curry(p1) }
             .then { Phone p1, Record rec1 ->
                 notificationActionService.tryHandleActions(Tuple.create(p1, rec1.id), body)

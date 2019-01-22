@@ -2,7 +2,6 @@ package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
 import java.util.concurrent.TimeUnit
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.type.*

@@ -17,12 +17,16 @@ class OutgoingCallService {
                 "outgoingMessageService.startBridgeCall.noPersonalNumber", // TODO
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
-        w1.tryGetPhone()
-            .then { Phone p1 ->
-                callService.start(p1.number,
+        w1.tryGetMutablePhone()
+            .then { Phone mutPhone1 ->
+                // for sharing, the outgoing calls will be bridged through the mutable phone
+                // but will have a callerId of the original phone to preserve a single point of
+                // contact for the client. See `CallTwiml.finishBridge` to see how the
+                // original phone's number is added as the caller id after pickup
+                callService.start(mutPhone1.number,
                     [personalNum],
                     CallTwiml.infoForFinishBridge(w1.id),
-                    p1.customAccountId)
+                    mutPhone1.customAccountId)
             }
             .then { TempRecordReceipt rpt -> afterBridgeCall(w1, author1, rpt) }
     }

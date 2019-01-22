@@ -13,12 +13,12 @@ import org.textup.util.*
 @Validateable
 class RecordItemRequest implements Validateable {
 
-    Phone phone
+    Phone mutablePhone // when shared, this is the mutable, not original, phone
     Collection<Class<? extends RecordItem>> types
     DateTime start
     DateTime end
     boolean groupByEntity = false
-    Collection<PhoneRecordWrapper> wrappers
+    Collection<? extends PhoneRecordWrapper> wrappers
 
     static constraints = {
         types nullable: true
@@ -29,10 +29,8 @@ class RecordItemRequest implements Validateable {
                 if (val.any { !it?.permission?.canView() }) {
                     return ["someNoPermissions"]
                 }
-                Collection<Long> phoneIds = ResultGroup
-                    .collect(val) { PhoneRecordWrapper w1 -> w1.tryGetReadOnlyPhone() }
-                    .payload*.id
-                if (phoneIds.any { Long id -> id != obj.phone?.id }) {
+                Collection<Long> pIds = WrapperUtils.mutablePhoneIdsIgnoreFails(val)
+                if (pIds.any { Long id -> id != obj.mutablePhone?.id }) {
                     return ["foreign"]
                 }
             }
@@ -42,7 +40,7 @@ class RecordItemRequest implements Validateable {
     static Result<RecordItemRequest> tryCreate(Phone p1, Collection<PhoneRecordWrapper> wrappers,
         boolean isGrouped) {
 
-        RecordItemRequest iReq1 = new RecordItemRequest(phone: p1,
+        RecordItemRequest iReq1 = new RecordItemRequest(mutablePhone: p1,
             wrappers: wrappers,
             groupByEntity: isGrouped)
         DomainUtils.tryValidate(iReq1, ResultStatus.CREATED)
@@ -51,13 +49,7 @@ class RecordItemRequest implements Validateable {
     // Methods
     // -------
 
-    DetachedCriteria<RecordItem> getCriteria() {
-        wrappers.isEmpty()
-            ? RecordItems.buildForPhoneIdWithOptions(phone?.id, start, end, types)
-            : RecordItems.buildForRecordIdsWithOptions(getRecordIds(), start, end, types)
-    }
-
-    List<RecordItemRequestSection> getSections(TypeMap params = null) {
+    List<RecordItemRequestSection> buildSections(TypeMap params = null) {
         // when exporting, we want the oldest records first instead of most recent first
         DetachedCriteria<RecordItem> criteria = getCriteria()
         List<RecordItem> rItems = criteria.build(RecordItems.forSort(false))
@@ -65,20 +57,22 @@ class RecordItemRequest implements Validateable {
         // group by entity only makes sense if we have entities and haven't fallen back
         // to getting record items for the phone overall
         if (!wrappers.isEmpty() && groupByEntity) {
-            RecordUtils.buildSectionsByEntity(wrappers, rItems)
+            RecordUtils.buildSectionsByEntity(rItems, wrappers)
         }
         else {
-            RecordItemRequestSection section1 = RecordUtils.buildSingleSection(p1, wrappers, rItems)
+            RecordItemRequestSection section1 = RecordUtils
+                .buildSingleSection(mutablePhone, rItems, wrappers)
             section1 ? [section1] : []
         }
     }
 
-    // Helpers
-    // -------
+    // Properties
+    // ----------
 
-    protected Collection<Long> getRecordIds() {
-        ResultGroup.collect(wrappers) { PhoneRecordWrapper w1 -> w1.tryGetReadOnlyRecord() }
-            .logFail("getRecordIds")
-            .payload*.id
+    DetachedCriteria<RecordItem> getCriteria() {
+        wrappers.isEmpty()
+            ? RecordItems.buildForPhoneIdWithOptions(mutablePhone?.id, start, end, types)
+            : RecordItems.buildForRecordIdsWithOptions(WrapperUtils.recordIdsIgnoreFails(wrappers),
+                start, end, types)
     }
 }

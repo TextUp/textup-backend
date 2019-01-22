@@ -18,7 +18,7 @@ class CallTwiml {
     private static final String ANNOUNCEMENT_AND_DIGITS_IDENT = "identifier"
     private static final String ANNOUNCEMENT_AND_DIGITS_MSG = "message"
     private static final String DIRECT_MESSAGE_TOKEN = "token"
-    private static final String FINISH_BRIDGE_CONTACT_ID = "contactId"
+    private static final String FINISH_BRIDGE_WRAPPER_ID = "contactId"
     private static final String HOLD_MUSIC_URL = "http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3"
     private static final String SCREEN_INCOMING_FROM = "originalFrom"
 
@@ -222,27 +222,27 @@ class CallTwiml {
     // Outgoing call
     // -------------
 
-    static Map<String, String> infoForFinishBridge(Long prId) {
+    static Map<String, String> infoForFinishBridge(Long wrapperId) {
         [
             (CallbackUtils.PARAM_HANDLE): CallResponse.FINISH_BRIDGE,
-            (FINISH_BRIDGE_CONTACT_ID): prId
+            (FINISH_BRIDGE_WRAPPER_ID): wrapperId
         ]
     }
 
     static Result<Closure> finishBridge(TypeMap params) {
-        IndividualPhoneRecords.mustFindActiveForId(params.long(FINISH_BRIDGE_CONTACT_ID))
+        IndividualPhoneRecordWrappers.mustFindActiveForId(params.long(FINISH_BRIDGE_WRAPPER_ID))
             .ifFail { TwilioUtils.invalidTwimlInputs(CallResponse.FINISH_BRIDGE.toString()) }
-            .then { IndividualPhoneRecord ipr1 ->
-                IndividualPhoneRecordWrapper w1 = ipr1.toWrapper()
-                w1.tryGetSortedNumbers().curry(w1)
-            }
+            .then { IndividualPhoneRecordWrapper w1 -> w1.tryGetSortedNumbers().curry(w1) }
             .then { IndividualPhoneRecordWrapper w1, List<ContactNumber> nums ->
-                w1.tryGetSecureName().curry(nums)
+                w1.tryGetSecureName().curry(w1, nums)
             }
-            .then { List<ContactNumber> nums, String nameOrNum ->
+            .then { IndividualPhoneRecordWrapper w1, List<ContactNumber> nums, String name ->
+                w1.tryGetOriginalPhone().curry(nums, name)
+            }
+            .then { List<ContactNumber> nums, String name, Phone origPhone1 ->
                 int lastIndex = nums.size() - 1
                 TwilioUtils.wrapTwiml {
-                    Pause(length: 1)
+                    Pause(length: 3)
                     if (nums) {
                         nums.eachWithIndex { ContactNumber num, int index ->
                             String numForSay = TwilioUtils.say(num)
@@ -251,19 +251,25 @@ class CallTwiml {
                             if (index != lastIndex) {
                                 Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberSkip"))
                             }
-                            // increase the timeout a bit to allow a longer window
-                            // for the called party's voicemail to answer
-                            Dial(timeout: 60, hangupOnStar: true) {
+                            // (1) increase the timeout a bit to allow a longer window for the
+                            // called party's voicemail to answer.
+                            // (2) specify the callerId because, if shared, the bridge call is
+                            // routed through the mutable phone and we want to present the
+                            // original phone's number as the callerId to preserve a single
+                            // point of contact for clients
+                            Dial(timeout: 60,
+                                hangupOnStar: true,
+                                callerId: origPhone1.number.e164PhoneNumber) {
                                 Number(statusCallback: childCallStatus(num.e164PhoneNumber),
                                     num.e164PhoneNumber)
                             }
                             Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberFinish", [numForSay]))
                         }
                         Pause(length: 5)
-                        Say(TwilioUtils.say("twimlBuilder.call.bridgeDone", [nameOrNum]))
+                        Say(TwilioUtils.say("twimlBuilder.call.bridgeDone", [name]))
                     }
                     else {
-                        Say(TwilioUtils.say("twimlBuilder.call.bridgeNoNumbers", [nameOrNum]))
+                        Say(TwilioUtils.say("twimlBuilder.call.bridgeNoNumbers", [name]))
                     }
                     Hangup()
                 }
