@@ -61,26 +61,18 @@ class NumberService {
     // [UNTESTED] due to mocking constraints
     Result<List<AvailablePhoneNumber>> listExistingNumbers() {
     	try {
-    		String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
-    		List<AvailablePhoneNumber> aNums = []
     		ResourceSet<IncomingPhoneNumber> iNums = IncomingPhoneNumber
 	            .reader()
-	            .setFriendlyName(available)
+	            .setFriendlyName(grailsApplication.flatConfig["textup.apiKeys.twilio.available"])
 	            .read()
-	        for (iNum in iNums) {
-	        	AvailablePhoneNumber aNum = new AvailablePhoneNumber()
-	        	aNum.phoneNumber = iNum.phoneNumber.endpoint
-	        	aNum.sid = iNum.sid
-	        	if (aNum.validate()) { aNums << aNum }
-	        	else {
-	        		return IOCUtils.resultFactory.failWithValidationErrors(aNum.errors)
-	        	}
-	        }
-	        IOCUtils.resultFactory.success(aNums)
+            ResultGroup
+                .collect(iNums) { IncomingPhoneNumber iNum ->
+                    AvailablePhoneNumber.tryCreateNew(iNum.phoneNumber.endpoint, iNum.sid)
+                }
+                .toResult(false)
     	}
     	catch (TwilioException e) {
-            log.error("NumberService.listExistingNumbers: ${e.message}")
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "listExistingNumbers")
         }
     }
 
@@ -113,18 +105,12 @@ class NumberService {
                         .setDistance(searchRadius)
                 }
 		   	}
-		   	ResourceSet<Local> lNums = reader.read()
-		   	List<AvailablePhoneNumber> aNums = []
-		    for (lNum in lNums) {
-		    	AvailablePhoneNumber aNum = new AvailablePhoneNumber()
-		    	aNum.phoneNumber = lNum.phoneNumber.endpoint
-		    	aNum.region = "${lNum.region}, ${lNum.isoCountry}"
-		    	if (aNum.validate()) { aNums << aNum }
-		    	else {
-		    		return IOCUtils.resultFactory.failWithValidationErrors(aNum.errors)
-		    	}
-		    }
-		    IOCUtils.resultFactory.success(aNums)
+            ResultGroup
+                .collect(reader.read()) { Local lNum ->
+                    AvailablePhoneNumber
+                        .tryCreateExisting(lNum.phoneNumber.endpoint, lNum.isoCountry, lNum.region)
+                }
+                .toResult(false)
     	}
     	catch (TwilioException e) {
             // we accept freeform input so we should expect TwilioException errors
@@ -137,16 +123,10 @@ class NumberService {
     // [UNTESTED] due to mocking constraints
     Result<AvailablePhoneNumber> validateNumber(BasePhoneNumber pNum) {
     	try {
-    		LookupPhoneNumber returnedNum = LookupPhoneNumber
+    		LookupPhoneNumber lNum = LookupPhoneNumber
     			.fetcher(pNum.toApiPhoneNumber())
     			.fetch()
-    		AvailablePhoneNumber aNum = new AvailablePhoneNumber()
-    		aNum.phoneNumber = returnedNum.phoneNumber.endpoint
-    		aNum.region = returnedNum.countryCode
-    		if (aNum.validate()) {
-    			IOCUtils.resultFactory.success(aNum)
-    		}
-    		else { IOCUtils.resultFactory.failWithValidationErrors(aNum.errors) }
+            AvailablePhoneNumber.tryCreateExisting(lNum.phoneNumber.endpoint, lNum.countryCode, null)
     	}
     	catch (TwilioException e) {
     		// don't log because we are validating numbers here and expect some to
@@ -202,7 +182,7 @@ class NumberService {
     Result<Phone> updatePhoneWithNewNumber(IncomingPhoneNumber newNum, Phone p1) {
         String oldApiId = p1.apiId
         p1.apiId = newNum.sid
-        p1.number = new PhoneNumber(number: newNum.phoneNumber as String)
+        p1.number = PhoneNumber.create(newNum.phoneNumber)
         if (oldApiId) {
             freeExistingNumberToInternalPool(oldApiId)
                 .then { IOCUtils.resultFactory.success(p1) }

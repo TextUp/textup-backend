@@ -23,6 +23,13 @@ class IndividualPhoneRecord extends PhoneRecord {
         note blank: true, nullable: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
     }
 
+    static class Info {
+        final Long id
+        final String name
+        final String note
+        final Collection<BasePhoneNumber> numbers
+    }
+
     static Result<IndividualPhoneRecord> tryCreate(Phone p1) {
         Record.tryCreate()
             .then { Record rec1 ->
@@ -68,6 +75,13 @@ class IndividualPhoneRecord extends PhoneRecord {
             IOCUtils.resultFactory.failWithCodeAndStatus("contact.numberNotFound",
                 ResultStatus.NOT_FOUND, [bNum?.prettyPhoneNumber])
         }
+    }
+
+    IndividualPhoneRecord.Info toInfo() {
+        new IndividualPhoneRecord.Info(id: id,
+            name: name,
+            note: note,
+            numbers: Collections.unmodifiableCollection(getSortedNumbers())
     }
 
     // Properties

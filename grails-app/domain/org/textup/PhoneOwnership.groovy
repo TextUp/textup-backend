@@ -32,7 +32,7 @@ class PhoneOwnership implements WithId, Saveable<PhoneOwnership> {
     // Methods
     // -------
 
-    List<Staff> buildAllStaff() {
+    Collection<Staff> buildAllStaff() {
         if (type == PhoneOwnershipType.INDIVIDUAL) {
             Staff s1 = Staff.get(ownerId)
             s1 ? [s1] : []

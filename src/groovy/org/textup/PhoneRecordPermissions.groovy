@@ -7,27 +7,27 @@ import org.joda.time.DateTime
 class PhoneRecordPermissions {
 
     private final DateTime _dateExpired
-    private final SharePermission _permission
+    final SharePermission level
 
     PhoneRecordPermissions(DateTime dateExpired, SharePermission permission) {
         _dateExpired = dateExpired
-        _permission = permission
+        level = permission
     }
 
     // Methods
     // -------
 
-    boolean isOwner() { _permission == null }
+    boolean isOwner() { level == null }
 
     boolean isNotExpired() {
         _dateExpired == null || _dateExpired?.isAfterNow()
     }
 
     boolean canModify() {
-        isOwner() || (isNotExpired() && _permission == SharePermission.DELEGATE)
+        isOwner() || (isNotExpired() && level == SharePermission.DELEGATE)
     }
 
     boolean canView() {
-        canModify() || (isNotExpired() && _permission == SharePermission.VIEW)
+        canModify() || (isNotExpired() && level == SharePermission.VIEW)
     }
 }

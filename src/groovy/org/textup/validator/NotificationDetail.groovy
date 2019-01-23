@@ -10,13 +10,13 @@ import groovy.transform.EqualsAndHashCode
 class NotificationDetail implements Validateable {
 
     final PhoneRecordWrapper wrapper
-    final HashSet<RecordItem> items = new HashSet<>()
+    final HashSet<? extends RecordItem> items = new HashSet<>()
 
     static constraints = {
         wrapper validator: { PhoneRecordWrapper val,
             if (!val.permissions.canModify()) { ["insufficientPermission"] }
         }
-        items validator: { HashSet<RecordItem> val, NotificationDetail obj ->
+        items validator: { HashSet<? extends RecordItem> val, NotificationDetail obj ->
             Record rec1 = obj.wrapper?.tryGetRecord()?.payload
             if (rec1 && val?.any { RecordItem rItem1 -> rItem1.record.id != rec1.id }) {
                 ["mismatched", rec1.id]
@@ -30,6 +30,10 @@ class NotificationDetail implements Validateable {
 
     // Methods
     // -------
+
+    Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(OwnerPolicy op1) {
+        items.findAll { RecordItem rItem1 -> op1.isAllowed(rItem.id) }
+    }
 
     int countItemsForOutgoingAndOptions(boolean isOut, OwnerPolicy op1 = null,
         Clazz<T extends RecordItem> clazz = null) {

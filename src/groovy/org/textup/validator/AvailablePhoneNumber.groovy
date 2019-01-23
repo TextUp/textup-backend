@@ -9,8 +9,11 @@ import groovy.transform.EqualsAndHashCode
 @Validateable
 class AvailablePhoneNumber extends BasePhoneNumber {
 
-	String info
-	String infoType
+    private static final String TYPE_EXISTING = "sid"
+    private static final String TYPE_NEW = "region"
+
+	final String info
+	final String infoType
 
 	static constraints = {
 		info nullable:false
@@ -20,22 +23,17 @@ class AvailablePhoneNumber extends BasePhoneNumber {
 	    }
     }
 
-    // Property access
-    // ---------------
-
-    void setPhoneNumber(String pNum) {
-    	super.setNumber(pNum)
-    }
-    String getPhoneNumber() {
-    	this.number
+    static Result<AvailablePhoneNumber> tryCreateExisting(String num, String sid) {
+        AvailablePhoneNumber aNum = new AvailablePhoneNumber(number: num,
+            info: sid,
+            infoType: TYPE_EXISTING)
+        DomainUtils.tryValidate(aNum, ResultStatus.CREATED)
     }
 
-    void setSid(String sid) {
-    	this.info = sid
-    	this.infoType = "sid"
-    }
-    void setRegion(String region) {
-    	this.info = region
-    	this.infoType = "region"
+    static Result<AvailablePhoneNumber> tryCreateNew(String num, String country, String region) {
+        AvailablePhoneNumber aNum = new AvailablePhoneNumber(number: num,
+            info: region ? "${region}, ${country}" : country,
+            infoType: TYPE_NEW)
+        DomainUtils.tryValidate(aNum, ResultStatus.CREATED)
     }
 }

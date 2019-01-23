@@ -16,12 +16,16 @@ class MarshallerUtils {
     static final String KEY_FUTURE_MESSAGE = "futureMessage"
     static final String KEY_LOCATION = "location"
     static final String KEY_MEDIA_ELEMENT = "mediaElement"
+    static final String KEY_MEDIA_ELEMENT_VERSION = "mediaElementVersion"
     static final String KEY_MEDIA_INFO = "mediaInfo"
     static final String KEY_MERGE_GROUP = "mergeGroup"
+    static final String KEY_MERGE_GROUP_ITEM = "mergeGroupItem"
     static final String KEY_NOTIFICATION = "notification"
-    static final String KEY_NUMBER = "availableNumber"
+    static final String KEY_NOTIFICATION_DETAIL = "notificationDetail"
     static final String KEY_ORGANIZATION = "organization"
+    static final String KEY_OWNER_POLICY = "ownerPolicy"
     static final String KEY_PHONE = "phone"
+    static final String KEY_PHONE_NUMBER = "phoneNumber"
     static final String KEY_RECORD_ITEM = "recordItem"
     static final String KEY_RECORD_ITEM_REQUEST = "recordItemRequest"
     static final String KEY_REVISION = "revision"
@@ -53,5 +57,14 @@ class MarshallerUtils {
             }
             "${key}JsonMarshaller"(marshallerClazz)
         }
+    }
+
+    static Map<String, String> buildLinks(String resourceKey, Long id) {
+        [
+            self: IOCUtils.linkGenerator.link(id: id,
+                resource: resourceKey,
+                action: RestUtils.ACTION_GET_SINGLE,
+                absolute: false)
+        ]
     }
 }

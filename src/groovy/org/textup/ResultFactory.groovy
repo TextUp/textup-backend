@@ -24,7 +24,6 @@ class ResultFactory {
 	public <T> Result<T> success(T payload, ResultStatus status = ResultStatus.OK) {
 		Result.createSuccess(payload, status)
 	}
-	Result<Void> success() { Result.void() }
 
 	// Failure
 	// -------

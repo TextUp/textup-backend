@@ -46,8 +46,11 @@ class PhoneService {
             if (body.awayMessage) awayMessage = body.awayMessage
             if (body.voice) voice = body.enum(VoiceType, "voice")
             if (body.language) language = body.enum(VoiceLanguage, "language")
-            if (body.useVoicemailRecordingIfPresent != null) {
+            if (body.bool("useVoicemailRecordingIfPresent") != null) {
                 p1.useVoicemailRecordingIfPresent = body.bool("useVoicemailRecordingIfPresent")
+            }
+            if (body.bool("allowSharingWithOtherTeams") != null) {
+                p1.owner.allowSharingWithOtherTeams = body.bool("allowSharingWithOtherTeams")
             }
         }
         DomainUtils.trySave(p1)

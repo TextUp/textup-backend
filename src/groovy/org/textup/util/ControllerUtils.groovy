@@ -8,9 +8,9 @@ class ControllerUtils {
     static final String CONTENT_TYPE_PDF = "application/pdf"
     static final String CONTENT_TYPE_XML = "text/xml"
     static final String FORMAT_PDF = "pdf"
+    static final int MAX_PAGINATION_MAX = 5000
 
     private static final int DEFAULT_PAGINATION_MAX = 10
-    private static final int MAX_PAGINATION_MAX = 5000
 
     static Result<Long> tryGetPhoneId(Long teamId = null) {
         PhoneCache phoneCache = IOCUtils.getBean(PhoneCache)

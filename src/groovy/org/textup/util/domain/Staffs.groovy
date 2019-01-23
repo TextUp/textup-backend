@@ -5,8 +5,6 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class Staffs {
 
-    // [NOTE] have to make two calls because can't figure out how to return an association
-    // property projection. Seems to work for Criteria but not DetachedCriteria
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.isAllowed(thisId != null)
             .then { AuthUtils.tryGetAuthId() }
@@ -15,9 +13,7 @@ class Staffs {
                 AuthUtils.isAllowed(
                     // (1) You are this staff member
                     thisId == authId ||
-                    // (2) You are on a same team as this staff member
-                    Teams.hasTeamsInCommon(thisId, authId) ||
-                    // (3) You are an admin at this staff member's organization
+                    // (2) You are an admin at this staff member's organization
                     buildForAdminAtSameOrg(thisId, authId).count() > 0
                 )
             }

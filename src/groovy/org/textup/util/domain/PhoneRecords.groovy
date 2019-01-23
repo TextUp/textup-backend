@@ -40,9 +40,15 @@ class PhoneRecords {
             .build(PhoneRecords.forActive())
     }
 
-    static Closure forShareSourceIds(Collection<Long> shareSourceIds) {
+    static DetachedCriteria<PhoneRecords> buildActiveForShareSourceIds(Collection<Long> sourceIds) {
+        new DetachedCriteria(PhoneRecord)
+            .build(PhoneRecords.forShareSourceIds(sourceIds))
+            .build(PhoneRecords.forActive())
+    }
+
+    static Closure forShareSourceIds(Collection<Long> sourceIds) {
         return {
-            CriteriaUtils.inList(delegate, "shareSource.id", shareSourceIds)
+            CriteriaUtils.inList(delegate, "shareSource.id", sourceIds)
         }
     }
 

@@ -1,37 +1,31 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
-import org.textup.type.PhoneOwnershipType
+import org.textup.type.*
 
 @GrailsTypeChecked
 class AnnouncementJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        LinkGenerator linkGenerator, FeaturedAnnouncement announce ->
 
+    static final Closure marshalClosure = { FeaturedAnnouncement fa1 ->
         Map json = [:]
         json.with {
-            id = announce.id
-            isExpired = announce.isExpired
-            expiresAt = announce.expiresAt
-            message = announce.message
-            whenCreated = announce.whenCreated
-            numReceipts = announce.numReceipts
-            numCallReceipts = announce.numCallReceipts
-            numTextReceipts = announce.numTextReceipts
-        }
-        if (announce.owner.owner.type == PhoneOwnershipType.INDIVIDUAL) {
-            json.staff = announce.owner.owner.ownerId
-        }
-        else {
-            json.team = announce.owner.owner.ownerId
-        }
+            expiresAt   = fa1.expiresAt
+            id          = fa1.id
+            isExpired   = fa1.isExpired
+            links       = MarshallerUtils.buildLinks(RestUtils.RESOURCE_ANNOUNCEMENT, fa1.id)
+            message     = fa1.message
+            receipts    = AnnouncementInfo.create(fa1)
+            whenCreated = fa1.whenCreated
 
-        json.links = [:] << [self:linkGenerator.link(namespace:namespace,
-            resource:"announcement", action:"show", id:announce.id, absolute:false)]
+            if (fa1.phone.owner.type == PhoneOwnershipType.INDIVIDUAL) {
+                staff = fa1.phone.owner.ownerId
+            }
+            else {
+                team = fa1.phone.owner.ownerId
+            }
+        }
         json
     }
 

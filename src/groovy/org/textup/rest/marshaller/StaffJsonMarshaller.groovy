@@ -1,44 +1,35 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
-import org.textup.validator.LocalInterval
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class StaffJsonMarshaller extends JsonNamedMarshaller {
 
-    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        LinkGenerator linkGenerator, Staff s1 ->
-
+    static final Closure marshalClosure = { Staff s1 ->
         Map json = [:]
         json.with {
-            id = s1.id
+            id       = s1.id
+            links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_STAFF, s1.id)
+            name     = s1.name
+            phone    = s1.phone
+            status   = s1.status.toString()
             username = s1.username
-            name = s1.name
-            email = s1.email
-            status = s1.status.toString()
-            phone = s1.phone
-            hasInactivePhone = s1.hasInactivePhone
-            channelName = SocketUtils.channelName(s1)
-        }
-        // TODO
-        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
-        if (authService.isLoggedIn(s1.id) || authService.isAdminAtSameOrgAs(s1.id)) {
-            json.with {
-                org = s1.org
-                if (s1.personalPhoneNumber) {
-                    personalPhoneNumber = s1.personalPhoneNumber.e164PhoneNumber
-                }
-                teams = s1.getTeams()
-            }
         }
 
-        json.links = [:] << [self:linkGenerator.link(namespace:namespace,
-            resource:"staff", action:"show", id:s1.id, absolute:false)]
+        Staffs.isAllowed(s1.id)
+            .then {
+                json.with {
+                    channelName         = SocketUtils.channelName(s1)
+                    email               = s1.email
+                    org                 = s1.org
+                    personalPhoneNumber = s1.personalPhoneNumber
+                    teams               = Teams.buildForStaffIds([s1.id])
+                }
+            }
+
         json
     }
 

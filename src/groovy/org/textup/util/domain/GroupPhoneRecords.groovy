@@ -27,12 +27,17 @@ class GroupPhoneRecords {
             .build(PhoneRecords.forActive())
     }
 
-    static DetachedCriteria<GroupPhoneRecord> buildForMemberIds(Collection<Long> memberIds) {
+    static DetachedCriteria<GroupPhoneRecord> buildForMemberIdsAndOptions(Collection<Long> memberIds,
+        Long phoneId = null) {
+
         new DetachedCriteria(GroupPhoneRecord)
             .build {
                 members {
                     CriteriaUtils.inList(delegate, "id", memberIds)
                     CriteriaUtils.compose(delegate, PhoneRecords.forActive())
+                }
+                if (phoneId) {
+                    eq("phone.id", phoneId)
                 }
             }
             .build(PhoneRecords.forActive())

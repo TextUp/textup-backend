@@ -27,8 +27,8 @@ class UsageUtils {
     // Building data
     // -------------
 
-    static <T extends UsageService.HasActivity> List<T> associateActivity(List<T> activityOwners,
-        List<UsageService.ActivityRecord> activityList) {
+    static <T extends ActivityEntity.HasActivity> List<T> associateActivity(List<T> activityOwners,
+        List<ActivityRecord> activityList) {
 
         if (!activityOwners || !activityList) {
             return activityOwners
@@ -36,26 +36,26 @@ class UsageUtils {
         List<T> clonedOwners = []
         activityOwners.each { T ha1 -> clonedOwners << ha1.clone() }
         Map<BigInteger, T> ownerMap = MapUtils.buildObjectMap(clonedOwners) { T ha1 -> ha1.id }
-        activityList.each { UsageService.ActivityRecord a1 ->
+        activityList.each { ActivityRecord a1 ->
             ownerMap.get(a1.ownerId)?.setActivity(a1)
         }
         clonedOwners
     }
 
-    static List<UsageService.ActivityRecord> ensureMonths(List<UsageService.ActivityRecord> aList) {
+    static List<ActivityRecord> ensureMonths(List<ActivityRecord> aList) {
         // do not short circuit if aList is an empty or null because we still want to ensure
         // the proper number of months even if all months are empty
-        Map<String, UsageService.ActivityRecord> monthStringToActivity = MapUtils
-            .buildObjectMap(aList) { UsageService.ActivityRecord a1 -> a1.monthString }
+        Map<String, ActivityRecord> monthStringToActivity = MapUtils
+            .buildObjectMap(aList) { ActivityRecord a1 -> a1.monthString }
         getAvailableMonthStrings().each { String monthString ->
             if (!monthStringToActivity.containsKey(monthString)) {
-                UsageService.ActivityRecord a1 = new UsageService.ActivityRecord()
+                ActivityRecord a1 = new ActivityRecord()
                 a1.setMonthStringDirectly(monthString)
                 a1.monthObj = UsageUtils.monthStringToDateTime(monthString)
                 monthStringToActivity[monthString] = a1
             }
         }
-        new ArrayList<UsageService.ActivityRecord>(monthStringToActivity.values()).sort()
+        new ArrayList<ActivityRecord>(monthStringToActivity.values()).sort()
     }
 
     // Display helpers

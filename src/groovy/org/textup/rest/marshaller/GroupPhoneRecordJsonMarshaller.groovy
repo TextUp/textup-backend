@@ -9,25 +9,21 @@ import org.textup.type.PhoneRecordStatus
 
 @GrailsTypeChecked
 class GroupPhoneRecordJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        LinkGenerator linkGenerator, GroupPhoneRecord ct ->
 
-        // TODO rewrite
-        // Map json = [:]
-        // json.with {
-        //     id = ct.id
-        //     name = ct.name
-        //     hexColor = ct.hexColor
-        //     lastRecordActivity = ct.record.lastRecordActivity
-        //     numMembers = ct.getMembersByStatus([PhoneRecordStatus.ACTIVE, PhoneRecordStatus.UNREAD]).size()
-        //     futureMessages = ct.record.getFutureMessages()
-        //     notificationStatuses = ct.getNotificationStatuses()
-        //     language = ct.language?.toString()
-        //     phone = ct.phone.id
-        // }
-        // json.links = [:] << [self:linkGenerator.link(namespace:namespace,
-        //     resource:"tag", action:"show", id:ct.id, absolute:false)]
-        // json
+    static final Closure marshalClosure = { GroupPhoneRecord gpr1 ->
+        Map json = [:]
+        json.with {
+            futureMessages     = FutureMessages.buildForRecordIds([gpr1.record.id]).list()
+            hexColor           = gpr1.hexColor
+            id                 = gpr1.id
+            language           = gpr1.record.language.toString()
+            lastRecordActivity = gpr1.record.lastRecordActivity
+            links              = MarshallerUtils.buildLinks(RestUtils.RESOURCE_TAG, gpr1.id)
+            name               = gpr1.name
+            numMembers         = gpr1.getMembersByStatus(PhoneRecordStatus.ACTIVE_STATUSES).size()
+            phone              = gpr1.phone.id
+        }
+        json
     }
 
     GroupPhoneRecordJsonMarshaller() {

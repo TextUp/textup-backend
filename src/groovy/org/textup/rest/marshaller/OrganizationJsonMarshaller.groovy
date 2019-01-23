@@ -10,35 +10,33 @@ import org.textup.type.StaffStatus
 
 @GrailsTypeChecked
 class OrganizationJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        LinkGenerator linkGenerator, Organization org ->
+
+    static final Closure marshalClosure = { Organization org1 ->
+        Map<String, ConstrainedProperty> constraints = Organization.constraints as Map
 
         Map json = [:]
         json.with {
-            id = org.id
-            name = org.name
-            location = org.location
+            id       = org1.id
+            links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_ORGANIZATION, org1.id)
+            location = org1.location
+            name     = org1.name
         }
-        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
-        Staff s1 = authService.getLoggedInAndActive()
-        // only show this private information if the logged-in user is (1) active and
-        // (2) a member of this organization
-        if (s1?.org && s1.org.id == org.id) {
-            json.with {
-                status = org.status.toString()
-                teams = org.getTeams()
-                numAdmins = org.countPeople(statuses:[StaffStatus.ADMIN])
-                timeout = org.timeout
-                awayMessageSuffix = org.awayMessageSuffix
-
-                Map<String, ConstrainedProperty> constraints = Organization.constraints as Map
-                timeoutMin = constraints.timeout.min
-                timeoutMax = constraints.timeout.max
-                awayMessageSuffixMaxLength = constraints.awayMessageSuffix.size.to
+        AuthUtils.tryGetAuthUser().then { Staff authUser ->
+            // only show this private information if the logged-in user is
+            // (1) active and (2) a member of this organization
+            if (authUser.org.id == org1.id) {
+                json.with {
+                    awayMessageSuffix          = org1.awayMessageSuffix
+                    awayMessageSuffixMaxLength = constraints.awayMessageSuffix.size.to
+                    numAdmins                  = Staffs.buildForOrgIdAndOptions([org.id], null, [StaffStatus.ADMIN]).count()
+                    status                     = org1.status.toString()
+                    teams                      = Teams.buildForOrgIds([org.id]).list()
+                    timeout                    = org1.timeout
+                    timeoutMax                 = constraints.timeout.max
+                    timeoutMin                 = constraints.timeout.min
+                }
             }
         }
-        json.links = [:] << [self:linkGenerator.link(namespace:namespace,
-            resource:"organization", action:"show", id:org.id, absolute:false)]
         json
     }
 

@@ -12,36 +12,28 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
 
-	static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        RecordItemRequest itemRequest ->
-
+	static final Closure marshalClosure = { RecordItemRequest iReq1 ->
 		Map json = [:]
         json.with {
-            totalNumItems = itemRequest.countRecordItems()
-            maxAllowedNumItems = Constants.MAX_PAGINATION_MAX
-            phoneName = itemRequest.phone?.owner?.buildName()
-            phoneNumber = itemRequest.phone?.number?.prettyPhoneNumber
+            maxAllowedNumItems = ControllerUtils.MAX_PAGINATION_MAX
+            phoneName          = iReq1.mutablePhone.buildName()
+            phoneNumber        = iReq1.mutablePhone.number
+            totalNumItems      = iReq1.criteria.count()
         }
         AuthUtils.tryGetAuthUser()
             .then { String authUser -> json.exportedBy = authUser.name }
         // fetching sections with appropriate pagination options
     	RequestUtils.tryGetFromRequest(RequestUtils.PAGINATION_OPTIONS)
-            .ifFail { json.sections = itemRequest.buildSections() }
-            .thenEnd { TypeMap opts = null -> json.sections = itemRequest.buildSections(opts) }
+            .ifFail { json.sections = iReq1.buildSections() }
+            .thenEnd { Map opts -> json.sections = iReq1.buildSections(opts) }
         // setting timestamps with appropriate
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
-            .thenEnd { String tz = null ->
+            .thenEnd { String tz ->
                 json.with {
-                    startDate = itemRequest.start
-                        ? DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(
-                            DateTimeUtils.toDateTimeWithZone(itemRequest.start, tz))
-                        : "beginning"
-                    endDate = itemRequest.end
-                        ? DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(
-                            DateTimeUtils.toDateTimeWithZone(itemRequest.end, tz))
-                        : "end"
-                    exportedOnDate = DateTimeUtils.CURRENT_TIME_FORMAT.print(
-                        DateTimeUtils.toDateTimeWithZone(DateTime.now(), tz))
+                    startDate      = iReq1.formattedStart
+                    endDate        = iReq1.formattedEnd
+                    exportedOnDate = DateTimeUtils.CURRENT_TIME_FORMAT
+                        .print(DateTimeUtils.toDateTimeWithZone(DateTime.now(), tz))
                 }
             }
 		json

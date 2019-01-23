@@ -88,7 +88,7 @@ class Phones {
             targetType = target.type
         Boolean canShare
         if (ownerType == PhoneOwnershipType.INDIVIDUAL) {
-            if (targetType == PhoneOwnershipType.INDIVIDUAL) {
+            if (targetType == PhoneOwnershipType.INDIVIDUAL) { // individual --> individual
                 canShare = Teams.hasTeamsInCommon(owner.ownerId, target.ownerId)
             }
             else { // individual --> group
@@ -96,7 +96,7 @@ class Phones {
             }
         }
         else {
-            if (targetType == PhoneOwnershipType.INDIVIDUAL) {
+            if (targetType == PhoneOwnershipType.INDIVIDUAL) { // group --> individual
                 canShare = Teams.teamContainsMember(owner.ownerId, target.ownerId)
             }
             else { // group --> group

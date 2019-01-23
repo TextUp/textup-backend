@@ -9,14 +9,14 @@ import org.joda.time.DateTime
 class IndividualPhoneRecordWrapper extends PhoneRecordWrapper {
 
     private final IndividualPhoneRecord individualPhoneRecord
-    private final boolean isOverriden
+    private final boolean isOverridden
 
     IndividualPhoneRecordWrapper(IndividualPhoneRecord ipr1, PhoneRecordPermissions permissions,
         PhoneRecord overrides = null) {
 
         super(overrides ?: ipr1, permissions)
         individualPhoneRecord = ipr1
-        isOverriden = !!overrides
+        isOverridden = !!overrides
     }
 
     // Methods
@@ -41,7 +41,7 @@ class IndividualPhoneRecordWrapper extends PhoneRecordWrapper {
     }
 
     @Override
-    boolean isOverridden() { isOverriden }
+    boolean isOverridden() { isOverridden }
 
     // Getters
     // -------

@@ -43,6 +43,12 @@ class PhoneRecord implements WithId, Saveable<PhoneRecord> {
         }
     }
 
+    static class ShareInfo {
+        final DateTime whenCreated
+        final Long phoneId
+        final String permission
+    }
+
     static Result<PhoneRecord> tryCreate(SharePermission perm, PhoneRecord toShare, Phone sWith) {
         PhoneRecord pr1 = new PhoneRecord(shareSource: toShare,
             record: toShare.record,
@@ -53,6 +59,10 @@ class PhoneRecord implements WithId, Saveable<PhoneRecord> {
 
     // Methods
     // -------
+
+    PhoneRecord.ShareInfo toShareInfo() {
+        new PhoneRecord.ShareInfo(whenCreated: whenCreated, phoneId: phone.id, permission: permission)
+    }
 
     boolean isActive() { toPermissions().isNotExpired() }
 

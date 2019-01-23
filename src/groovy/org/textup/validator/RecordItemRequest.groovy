@@ -13,6 +13,9 @@ import org.textup.util.*
 @Validateable
 class RecordItemRequest implements Validateable {
 
+    private static final String DEFAULT_START = "beginning"
+    private static final String DEFAULT_END = "end"
+
     Phone mutablePhone // when shared, this is the mutable, not original, phone
     Collection<Class<? extends RecordItem>> types
     DateTime start
@@ -49,7 +52,7 @@ class RecordItemRequest implements Validateable {
     // Methods
     // -------
 
-    List<RecordItemRequestSection> buildSections(TypeMap params = null) {
+    List<RecordItemRequestSection> buildSections(Map params = null) {
         // when exporting, we want the oldest records first instead of most recent first
         DetachedCriteria<RecordItem> criteria = getCriteria()
         List<RecordItem> rItems = criteria.build(RecordItems.forSort(false))
@@ -74,5 +77,17 @@ class RecordItemRequest implements Validateable {
             ? RecordItems.buildForPhoneIdWithOptions(mutablePhone?.id, start, end, types)
             : RecordItems.buildForRecordIdsWithOptions(WrapperUtils.recordIdsIgnoreFails(wrappers),
                 start, end, types)
+    }
+
+    String getFormattedStart(String tz) {
+        start ?
+            DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(DateTimeUtils.toDateTimeWithZone(start, tz)) :
+            DEFAULT_START
+    }
+
+    String getFormattedEnd() {
+        end ?
+            DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(DateTimeUtils.toDateTimeWithZone(end, tz)) :
+            DEFAULT_END
     }
 }

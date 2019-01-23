@@ -24,7 +24,10 @@ class RecordController extends BaseController {
     @Override
     void index() {
         ControllerUtils.tryGetPhoneId(params.long("teamId"))
-            .then { Long pId -> RecordUtils.buildRecordItemRequest(pId, params) }
+            .then { Long pId ->
+                RequestUtils.trySetOnRequest(RequestUtils.PHONE_ID, pId)
+                RecordUtils.buildRecordItemRequest(pId, params)
+            }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { RecordItemRequest iReq ->
                 if (params.format == ControllerUtils.FORMAT_PDF) {
@@ -54,6 +57,10 @@ class RecordController extends BaseController {
     void save() {
         doSave(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) { TypeMap body ->
             ControllerUtils.tryGetPhoneId(body.long("teamId"))
+                .then { Long pId ->
+                    RequestUtils.trySetOnRequest(RequestUtils.PHONE_ID, pId)
+                    IOCUtils.resultFactory.success(pId)
+                }
         }
     }
 

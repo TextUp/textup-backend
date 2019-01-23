@@ -20,7 +20,12 @@ class OwnerPolicyService {
 
     protected Result<OwnerPolicy> trySetFields(OwnerPolicy op1, TypeMap body) {
         op1.with {
+            if (body.frequency) frequency = body.enum(NotificationFrequency, "frequency")
             if (body.level) level = body.enum(NotificationLevel, "level")
+            if (body.method) method = body.enum(NotificationMethod, "method")
+            if (body.bool("shouldSendPreviewLink") != null) {
+                shouldSendPreviewLink = body.bool("shouldSendPreviewLink")
+            }
         }
         DomainUtils.trySave(op1)
     }

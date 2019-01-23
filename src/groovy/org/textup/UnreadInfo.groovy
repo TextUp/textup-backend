@@ -9,14 +9,14 @@ class UnreadInfo {
     final int numCalls
     final int numVoicemails
 
-    UnreadInfo(Long recId, DateTime lastTouched) {
+    static UnreadInfo create(Long recId, DateTime lastTouched) {
         Collection<RecordItem> rItems = tRecordItems
             .forRecordIdsWithOptions([recId], lastTouched, null, [RecordText, RecordCall])
             .build(RecordItems.forIncoming())
             .list()
-        numTexts = forClass(rItems, RecordText).size()
-        numCalls = notVoicemail(forClass(rItems, RecordCall)).size()
-        numVoicemails = isVoicemail(forClass(rItems, RecordCall)).size()
+        new UnreadInfo(numText: forClass(rItems, RecordText).size(),
+            numCalls: notVoicemail(forClass(rItems, RecordCall)).size(),
+            numVoicemails: isVoicemail(forClass(rItems, RecordCall)).size())
     }
 
     // Helpers

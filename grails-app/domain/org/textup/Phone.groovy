@@ -13,7 +13,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes = "owner")
-class Phone implements WithMedia, WithId, Saveable<Phone> {
+class Phone implements ReadOnlyPhone, WithMedia, WithId, Saveable<Phone> {
 
     boolean useVoicemailRecordingIfPresent = false
     CustomAccountDetails customAccount
@@ -76,6 +76,8 @@ class Phone implements WithMedia, WithId, Saveable<Phone> {
     String buildAwayMessage() {
         awayMessage + " " + owner?.buildOrganization()?.awayMessageSuffix
     }
+
+    String buildName() { owner.buildName() }
 
     // Properties
     // ----------

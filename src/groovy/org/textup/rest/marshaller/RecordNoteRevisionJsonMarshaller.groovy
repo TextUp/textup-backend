@@ -8,24 +8,23 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { ReadOnlyRecordNoteRevision rev ->
 
+    static final Closure marshalClosure = { ReadOnlyRecordNoteRevision rev1 ->
         Map json = [:]
         json.with {
-            id = rev.id
-            whenChanged = rev.whenChanged
-            noteContents = rev.noteContents
-            location = rev.readOnlyLocation
-            media = rev.readOnlyMedia
+            id           = rev1.id
+            location     = rev1.readOnlyLocation
+            media        = rev1.readOnlyMedia
+            noteContents = rev1.noteContents
+            whenChanged  = rev1.whenChanged
 
-            if (rev.authorName) authorName = rev.authorName
-            if (rev.authorId) authorId = rev.authorId
-            if (rev.authorType) authorType = rev.authorType.toString()
+            if (rev1.authorName) authorName = rev1.authorName
+            if (rev1.authorId) authorId     = rev1.authorId
+            if (rev1.authorType) authorType = rev1.authorType.toString()
         }
-        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
-            .thenEnd { String tz = null ->
-                json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
-            }
+        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE).thenEnd { String tz ->
+            json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
+        }
         json
     }
 

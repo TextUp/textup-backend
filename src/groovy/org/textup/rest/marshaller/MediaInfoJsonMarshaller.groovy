@@ -10,15 +10,14 @@ import org.textup.util.*
 class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
 
     static final Closure marshalClosure = { ReadOnlyMediaInfo mInfo ->
-
         Map json = [
+            audio  : mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES),
             id     : mInfo.id,
-            images : mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES),
-            audio  : mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES)
+            images : mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES)
         ]
         // Display upload error from uploading the initial versions
-        Result<?> res = RequestUtils.tryGetFromRequest(RequestUtils.UPLOAD_ERRORS)
-        if (res.success) { json.uploadErrors = res.payload }
+        RequestUtils.tryGetFromRequest(RequestUtils.UPLOAD_ERRORS)
+            .thenEnd { json.uploadErrors = it }
 
         json
     }

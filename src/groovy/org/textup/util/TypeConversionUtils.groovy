@@ -39,6 +39,7 @@ class TypeConversionUtils {
     static <T> T to(Class<T> clazz, Object val) {
         TypeConversionUtils.to(clazz, val, null)
     }
+    // TODO test if this works for object types like `Collection`
     static <T> T to(Class<T> clazz, Object val, T fallbackVal) {
         if (val == null) {
             return fallbackVal

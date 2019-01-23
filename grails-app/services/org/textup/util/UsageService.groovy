@@ -25,7 +25,7 @@ import org.textup.validator.*
 @Transactional
 class UsageService {
 
-    final String ACTIVITY_QUERY = """
+    private static final String ACTIVITY_QUERY = """
         SUM(CASE WHEN i.num_notified IS NOT NULL THEN i.num_notified ELSE 0 END) AS numNotificationTexts,
 
         SUM(CASE WHEN i.class = 'org.textup.RecordText' AND i.outgoing = TRUE THEN 1 ELSE 0 END) AS numOutgoingTexts,
@@ -43,114 +43,29 @@ class UsageService {
         SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = FALSE THEN rir.num_minutes ELSE 0 END) AS numIncomingMinutes,
         SUM(CASE WHEN i.class = 'org.textup.RecordCall' AND i.outgoing = FALSE THEN rir.ceil_num_minutes ELSE 0 END) AS numIncomingBillableMinutes
     """
-    final String ACTIVE_PHONES_QUERY = "COUNT(DISTINCT(p.id)) AS numActivePhones"
-    final String ACTIVITY_QUERY_SOURCE = """
+    private static final String ACTIVE_PHONES_QUERY = "COUNT(DISTINCT(p.id)) AS numActivePhones"
+    private static final String ACTIVITY_QUERY_SOURCE = """
         FROM record_item AS i
         JOIN (SELECT item_id,
                 (CASE WHEN num_billable IS NOT NULL THEN num_billable ELSE 1 END) AS num_segments,
                 (CASE WHEN num_billable IS NOT NULL THEN num_billable / 60.0 ELSE 1 END) AS num_minutes,
                 (CASE WHEN num_billable IS NOT NULL THEN CEIL(num_billable / 60.0) ELSE 1 END) AS ceil_num_minutes
             FROM record_item_receipt) AS rir ON rir.item_id = i.id
-        JOIN contact AS c ON c.record_id = i.record_id
-        JOIN phone AS p ON c.phone_id = p.id
+        JOIN phone_record AS pr ON pr.record_id = i.record_id
+        JOIN phone AS p ON pr.phone_id = p.id
     """
+    private static final String ACTIVITY_QUERY_CONDITION = "AND pr.class = 'org.textup.IndividualPhoneRecord'"
 
     SessionFactory sessionFactory
 
-    @Sortable(includes = ["monthObj"])
-    public static class ActivityRecord {
-        Number ownerId
-        String monthString
-        DateTime monthObj
-        Number numActivePhones = new Integer(0)
-
-        Number numNotificationTexts = new Integer(0)
-
-        Number numOutgoingTexts = new Integer(0)
-        Number numOutgoingSegments = new Integer(0)
-        Number numIncomingTexts = new Integer(0)
-        Number numIncomingSegments = new Integer(0)
-
-        Number numVoicemailMinutes = new Integer(0)
-        Number numBillableVoicemailMinutes = new Integer(0)
-
-        Number numOutgoingCalls = new Integer(0)
-        Number numOutgoingMinutes = new Integer(0)
-        Number numOutgoingBillableMinutes = new Integer(0)
-        Number numIncomingCalls = new Integer(0)
-        Number numIncomingMinutes = new Integer(0)
-        Number numIncomingBillableMinutes = new Integer(0)
-
-        void setMonthString(String queryMonth) {
-            this.monthString = UsageUtils.queryMonthToMonthString(queryMonth)
-            this.monthObj = UsageUtils.monthStringToDateTime(this.monthString)
-        }
-        void setMonthStringDirectly(String monthString) {
-            this.monthString = monthString
-        }
-
-        BigDecimal getCost() {
-            textCost + callCost
-        }
-
-        BigDecimal getNumTexts() { numOutgoingTexts + numIncomingTexts }
-        BigDecimal getNumSegments() { numOutgoingSegments + numIncomingSegments }
-        BigDecimal getTextCost() {
-            (numSegments + numNotificationTexts) * UsageUtils.UNIT_COST_TEXT
-        }
-
-        BigDecimal getNumCalls() { numOutgoingCalls + numIncomingCalls }
-        BigDecimal getNumMinutes() { numOutgoingMinutes + numIncomingMinutes }
-        BigDecimal getNumBillableMinutes() { numOutgoingBillableMinutes + numIncomingBillableMinutes }
-
-        BigDecimal getCallCost() {
-            (numBillableMinutes + numBillableVoicemailMinutes) * UsageUtils.UNIT_COST_CALL
-        }
-    }
-
-    @AutoClone
-    public static class HasActivity {
-        Number id
-        UsageService.ActivityRecord activity = new ActivityRecord()
-
-        BigDecimal getTotalCost() {
-            activity.textCost + activity.callCost + UsageUtils.UNIT_COST_NUMBER
-        }
-    }
-
-    public static class Organization extends HasActivity {
-        String name
-        Number totalNumPhones = new Integer(0)
-
-        @Override
-        BigDecimal getTotalCost() {
-            activity.textCost + activity.callCost + (totalNumPhones * UsageUtils.UNIT_COST_NUMBER)
-        }
-    }
-
-    public static class Staff extends HasActivity {
-        String name
-        String username
-        String email
-        String number
-        PhoneNumber getPhoneNumber() { new PhoneNumber(number: number) }
-    }
-
-    public static class Team extends HasActivity {
-        String name
-        Number numStaff = new Integer(0)
-        String number
-        PhoneNumber getPhoneNumber() { new PhoneNumber(number: number) }
-    }
-
-    List<UsageService.Organization> getOverallPhoneActivity(DateTime dt, PhoneOwnershipType type) {
+    List<ActivityEntity.Organization> getOverallPhoneActivity(DateTime dt, PhoneOwnershipType type) {
         if (!dt || !type) {
             return []
         }
         UsageUtils.associateActivity(getAllOrgs(dt, type), getAllActivity(dt, type))
     }
 
-    List<UsageService.Staff> getStaffPhoneActivity(DateTime dt, Long orgId) {
+    List<ActivityEntity.Staff> getStaffPhoneActivity(DateTime dt, Long orgId) {
         if (!dt || !orgId) {
             return []
         }
@@ -158,7 +73,7 @@ class UsageService {
             getActivityForOrg(dt, orgId, PhoneOwnershipType.INDIVIDUAL))
     }
 
-    List<UsageService.Team> getTeamPhoneActivity(DateTime dt, Long orgId) {
+    List<ActivityEntity.Team> getTeamPhoneActivity(DateTime dt, Long orgId) {
         if (!dt || !orgId) {
             return []
         }
@@ -166,22 +81,22 @@ class UsageService {
             getActivityForOrg(dt, orgId, PhoneOwnershipType.GROUP))
     }
 
-    List<UsageService.ActivityRecord> getActivity(PhoneOwnershipType type) {
+    List<ActivityRecord> getActivity(PhoneOwnershipType type) {
         UsageUtils.ensureMonths(getActivityOverTime(type))
     }
 
-    List<UsageService.ActivityRecord> getActivityForOrg(PhoneOwnershipType type, Long orgId) {
+    List<ActivityRecord> getActivityForOrg(PhoneOwnershipType type, Long orgId) {
         UsageUtils.ensureMonths(getActivityOverTimeForOrg(type, orgId))
     }
 
-    List<UsageService.ActivityRecord> getActivityForNumber(String number) {
+    List<ActivityRecord> getActivityForNumber(String number) {
         UsageUtils.ensureMonths(getActivityOverTimeForNumber(number))
     }
 
     // Details
     // -------
 
-    protected List<UsageService.Organization> getAllOrgs(DateTime dt, PhoneOwnershipType type) {
+    protected List<ActivityEntity.Organization> getAllOrgs(DateTime dt, PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT org.id AS id,
@@ -198,7 +113,7 @@ class UsageService {
                 GROUP BY org.id
                 ORDER BY count(*) DESC;
             """.toString()).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.Organization.class))
+                setResultTransformer(Transformers.aliasToBean(ActivityEntity.Organization.class))
                 setString("type", type.toString())
                 setInteger("year", dt.year)
                 setInteger("month", dt.monthOfYear)
@@ -206,7 +121,7 @@ class UsageService {
             }
     }
 
-    protected List<UsageService.Staff> getStaffForOrg(DateTime dt, Long orgId) {
+    protected List<ActivityEntity.Staff> getStaffForOrg(DateTime dt, Long orgId) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT m.id AS id,
@@ -225,7 +140,7 @@ class UsageService {
                 GROUP BY p.number_as_string
                 ORDER BY m.name ASC;
             """).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.Staff.class))
+                setResultTransformer(Transformers.aliasToBean(ActivityEntity.Staff.class))
                 setInteger("year", dt.year)
                 setInteger("month", dt.monthOfYear)
                 setLong("orgId", orgId)
@@ -233,7 +148,7 @@ class UsageService {
             }
     }
 
-    protected List<UsageService.Team> getTeamsForOrg(DateTime dt, Long orgId) {
+    protected List<ActivityEntity.Team> getTeamsForOrg(DateTime dt, Long orgId) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT m.id AS id,
@@ -252,7 +167,7 @@ class UsageService {
                 GROUP BY p.number_as_string
                 ORDER BY m.name ASC;
             """).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.Team.class))
+                setResultTransformer(Transformers.aliasToBean(ActivityEntity.Team.class))
                 setInteger("year", dt.year)
                 setInteger("month", dt.monthOfYear)
                 setLong("orgId", orgId)
@@ -263,7 +178,7 @@ class UsageService {
     // Point-in-time activity
     // ----------------------
 
-    protected List<UsageService.ActivityRecord> getAllActivity(DateTime dt, PhoneOwnershipType type) {
+    protected List<ActivityRecord> getAllActivity(DateTime dt, PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT org.id AS ownerId,
@@ -276,10 +191,11 @@ class UsageService {
                 WHERE EXTRACT(YEAR FROM i.when_created) = :year
                     AND EXTRACT(MONTH FROM i.when_created) = :month
                     AND o.type = :type
+                    ${ACTIVITY_QUERY_CONDITION}
                 GROUP BY org.id
                 ORDER BY COUNT(DISTINCT(p.id)) DESC;
             """.toString()).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setResultTransformer(Transformers.aliasToBean(ActivityRecord.class))
                 setString("type", type.toString())
                 setInteger("year", dt.year)
                 setInteger("month", dt.monthOfYear)
@@ -287,7 +203,7 @@ class UsageService {
             }
     }
 
-    protected List<UsageService.ActivityRecord> getActivityForOrg(DateTime dt, Long orgId, PhoneOwnershipType type) {
+    protected List<ActivityRecord> getActivityForOrg(DateTime dt, Long orgId, PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT m.id AS ownerId,
@@ -301,10 +217,11 @@ class UsageService {
                     AND o.type = :type
                     AND m.org_id = :orgId
                     AND p.number_as_string IS NOT NULL
+                    ${ACTIVITY_QUERY_CONDITION}
                 GROUP BY p.number_as_string
                 ORDER BY m.name ASC;
             """.toString()).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setResultTransformer(Transformers.aliasToBean(ActivityRecord.class))
                 setString("type", type.toString())
                 setInteger("year", dt.year)
                 setInteger("month", dt.monthOfYear)
@@ -316,7 +233,7 @@ class UsageService {
     // Activity over time
     // ------------------
 
-    protected List<UsageService.ActivityRecord> getActivityOverTime(PhoneOwnershipType type) {
+    protected List<ActivityRecord> getActivityOverTime(PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT LEFT(i.when_created, 7) AS monthString,
@@ -327,16 +244,17 @@ class UsageService {
                 JOIN ${UsageUtils.getTableName(type)} AS m ON m.id = o.owner_id
                 JOIN organization AS org ON m.org_id = org.id
                 WHERE o.type = :type
+                    ${ACTIVITY_QUERY_CONDITION}
                 GROUP BY LEFT(i.when_created, 7)
                 ORDER BY LEFT(i.when_created, 7) ASC;
             """.toString()).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setResultTransformer(Transformers.aliasToBean(ActivityRecord.class))
                 setString("type", type.toString())
                 list()
             }
     }
 
-    protected List<UsageService.ActivityRecord> getActivityOverTimeForOrg(PhoneOwnershipType type,
+    protected List<ActivityRecord> getActivityOverTimeForOrg(PhoneOwnershipType type,
         Long orgId) {
 
         sessionFactory.currentSession
@@ -349,17 +267,18 @@ class UsageService {
                 JOIN ${UsageUtils.getTableName(type)} AS m ON m.id = o.owner_id
                 WHERE o.type = :type
                     AND m.org_id = :orgId
+                    ${ACTIVITY_QUERY_CONDITION}
                 GROUP BY LEFT(i.when_created, 7)
                 ORDER BY LEFT(i.when_created, 7) ASC;
             """.toString()).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setResultTransformer(Transformers.aliasToBean(ActivityRecord.class))
                 setString("type", type.toString())
                 setLong("orgId", orgId)
                 list()
             }
     }
 
-    protected List<UsageService.ActivityRecord> getActivityOverTimeForNumber(String number) {
+    protected List<ActivityRecord> getActivityOverTimeForNumber(String number) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT LEFT(i.when_created, 7) AS monthString,
@@ -367,10 +286,11 @@ class UsageService {
                     ${ACTIVITY_QUERY}
                 ${ACTIVITY_QUERY_SOURCE}
                 WHERE p.number_as_string = :number
+                    ${ACTIVITY_QUERY_CONDITION}
                 GROUP BY LEFT(i.when_created, 7)
                 ORDER BY LEFT(i.when_created, 7) ASC;
             """.toString()).with {
-                setResultTransformer(Transformers.aliasToBean(UsageService.ActivityRecord.class))
+                setResultTransformer(Transformers.aliasToBean(ActivityRecord.class))
                 setString("number", number)
                 list()
             }

@@ -11,11 +11,11 @@ class AnnouncementInfo {
     final Collection<PhoneNumber> callReceipients
     final Collection<PhoneNumber> textRecipients
 
-    AnnouncementInfo(FeaturedAnnouncement fa1) {
+    static AnnouncementInfo create(FeaturedAnnouncement fa1) {
         Collection<AnnouncementReceipt> rpts = AnnouncementReceipt.findAllByAnnouncement(fa1).unique()
-        recipients = Collections.unmodifiableCollection(nums(rpts))
-        callRecipients = Collections.unmodifiableCollection(nums(byType(rpts, RecordItemType.CALL)))
-        callRecipients = Collections.unmodifiableCollection(nums(byType(rpts, RecordItemType.TEXT)))
+        new AnnouncementInfo(recipients: Collections.unmodifiableCollection(nums(rpts)),
+            callRecipients: Collections.unmodifiableCollection(nums(byType(rpts, RecordItemType.CALL))),
+            textRecipients: Collections.unmodifiableCollection(nums(byType(rpts, RecordItemType.TEXT))))
     }
 
     // Helpers

@@ -11,29 +11,32 @@ import org.textup.validator.LocalInterval
 
 @GrailsTypeChecked
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
+
     static final Closure marshalClosure = { Schedule sched1 ->
         Map json = [:]
+        json.with {
+            id                = sched1.id
+            isAvailableNow    = sched1.isAvailableNow()
+            manual            = sched1.manual
+            manualIsAvailable = sched1.manualIsAvailable
+        }
+
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
-            .then { String tz = null ->
+            .then { String tz ->
                 json.with {
-                    timezone = tz
-                    nextAvailable = sched1.nextAvailable(tz)
+                    nextAvailable   = sched1.nextAvailable(tz)
                     nextUnavailable = sched1.nextUnavailable(tz)
+                    timezone        = tz
                 }
+                json.putAll(sched1.getAllAsLocalIntervals(tz))
             }
-            .ifFail("request", LogLevel.DEBUG) {
+            .ifFail {
                 json.with {
-                    nextAvailable = sched1.nextAvailable()
+                    nextAvailable   = sched1.nextAvailable()
                     nextUnavailable = sched1.nextUnavailable()
                 }
             }
-        json.with {
-            id = sched1.id
-            isAvailableNow = sched1.isAvailableNow()
-            manual = sched1.manual
-            manualIsAvailable = sched1.manualIsAvailable
-        }
-        json.putAll(sched1.getAllAsLocalIntervals(tz))
+
         json
     }
 

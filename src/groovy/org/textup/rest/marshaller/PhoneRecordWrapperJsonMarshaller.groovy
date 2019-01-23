@@ -8,71 +8,65 @@ import org.textup.*
 import org.textup.rest.*
 import org.textup.type.PhoneRecordStatus
 
-// TODO need to change to PhoneRecordWrapper marshaller??
-// Can we make this IndividualPhoneRecordWrapper
-// or maybe it's safer just to make it PhoneRecordWrapper then do a type check
-
 @GrailsTypeChecked
 @Log4j
 class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        LinkGenerator linkGenerator, PhoneRecordWrapper w1 ->
 
+    static final Closure marshalClosure = { PhoneRecordWrapper w1 ->
+        Map json = [:]
 
-        // TODO rewrite
-        // Map json = [:]
+        if (!PhoneRecordWrapper instanceof IndividualPhoneRecordWrapper) {
+            log.error("`${w1.id}` is not an IndividualPhoneRecordWrapper")
+            return json
+        }
+        if (!w1.permissions.canView()) {
+            log.error("`${w1.id}` cannot be viewed")
+            return json
+        }
 
-        // Result<ReadOnlyRecord> res = c1.tryGetReadOnlyRecord().logFail("ContactableJsonMarshaller")
-        // if (!res.success) { return json }
-        // ReadOnlyRecord rec1 = res.payload
-        // // add general Contactable fields
-        // json.id = c1.contactId
-        // json.lastRecordActivity = rec1.lastRecordActivity
-        // if (c1.name) {
-        //     json.name = c1.name
-        // }
-        // if (c1.note) {
-        //     json.note = c1.note
-        // }
-        // json.numbers = c1.sortedNumbers.collect { ContactNumber num -> [number:num.prettyPhoneNumber] }
-        // json.futureMessages = rec1.getFutureMessages()
-        // json.notificationStatuses = c1.getNotificationStatuses()
-        // json.language = rec1.getLanguage()?.toString()
-        // json.status = c1.status?.toString()
-        // if (c1.status == PhoneRecordStatus.UNREAD) {
-        //     json.unreadInfo = new UnreadInfo(rec1.id, c1.lastTouched)
-        // }
-        // // add fields specific to Contacts or SharedContacts
-        // if (c1.instanceOf(Contact)) {
-        //     Contact contact = c1 as Contact
-        //     json.tags = contact.getTags()
-        //     json.sessions = contact.getSessions()
-        //     json.sharedWith = contact.sharedContacts.collect { SharedContact sc ->
-        //         [
-        //             id:sc.id,
-        //             whenCreated:sc.whenCreated,
-        //             permission:sc.permission.toString(),
-        //             sharedWith:sc.sharedWith.id // use the PHONE's id
-        //         ]
-        //     }
-        //     json.phone = contact.phone.id
-        // }
-        // else if (c1.instanceOf(SharedContact)) {
-        //     SharedContact sc = c1 as SharedContact
-        //     json.permission = sc.permission.toString()
-        //     json.startedSharing = sc.whenCreated
-        //     json.sharedBy = sc.sharedBy.name
-        //     json.sharedById = sc.sharedBy.id
-        //     json.phone = sc.sharedWith.id
-        // }
-        // else {
-        //     log.error("ContactableJsonMarshaller: passed in Contactable $c1 is \
-        //         not an instance of either Contact or SharedContact")
-        // }
-        // // add links
-        // json.links = [:] << [self:linkGenerator.link(namespace:namespace,
-        //     resource:"contact", action:"show", id:c1.contactId, absolute:false)]
-        // json
+        DateTime lastTouched = w1.tryGetLastTouched().payload
+        Phone mutPhone1 = w1.tryGetReadOnlyMutablePhone().payload
+        Phone origPhone1 = w1.tryGetReadOnlyOriginalPhone().payload
+        PhoneRecordStatus stat1 = w1.tryGetStatus().payload
+        ReadOnlyRecord rec1 = w1.tryGetReadOnlyRecord().payload
+
+        json.with {
+            futureMessages     = FutureMessages.buildForRecordIds([rec1.id]).list()
+            id                 = w1.id
+            language           = rec1.language.toString()
+            lastRecordActivity = rec1.lastRecordActivity
+            links              = MarshallerUtils.buildLinks(RestUtils.RESOURCE_CONTACT, w1.id)
+            name               = w1.tryGetSecureName().payload
+            phone              = mutPhone1.id
+            status             = stat1.toString()
+            tags               = GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone.id)
+            whenCreated        = w1.tryGetWhenCreated().payload
+
+            if (stat1 == PhoneRecordStatus.UNREAD) {
+                unreadInfo = UnreadInfo.create(rec1.id, lastTouched)
+            }
+        }
+
+        if (PhoneRecordWrapper instanceof IndividualPhoneRecordWrapper) {
+            json.with {
+                note    = w1.tryGetNote().payload
+                numbers = w1.tryGetSortedNumbers().payload
+            }
+        }
+
+        if (WrapperUtils.isSharedContact(w1)) {
+            json.with {
+                permission    = w1.permissions.level.toString()
+                sharedByName  = origPhone1.buildName()
+                sharedByPhone = origPhone1.id
+            }
+        }
+
+        if (WrapperUtils.isContact(w1)) {
+            json.sharedWith = PhoneRecords.buildActiveForShareSourceIds([w1.id]).list()*.toShareInfo()
+        }
+
+        json
     }
 
     PhoneRecordWrapperJsonMarshaller() {

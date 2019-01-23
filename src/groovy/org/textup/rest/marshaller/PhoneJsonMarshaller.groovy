@@ -1,52 +1,47 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
-import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.validation.ConstrainedProperty
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
 import org.textup.type.*
 
+// TODO redefine phoen activity
+// hasInactivePhone = s1.hasInactivePhone
+
 @GrailsTypeChecked
 class PhoneJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        Phone p1 ->
+
+    static final Closure marshalClosure = { Phone p1 ->
+        Map<String, ConstrainedProperty> constraints = Phone.constraints as Map
 
         Map json = [:]
         json.with {
-            id = p1.id
-            number = p1.number.e164PhoneNumber
-            tags = p1.getTags() ?: []
-            language = p1.language.toString()
-
-            awayMessage = p1.awayMessage
+            awayMessage                    = p1.awayMessage
+            awayMessageMaxLength           = constraints.awayMessage.size.to
+            id                             = p1.id
+            language                       = p1.language.toString()
+            media                          = p1.media
+            number                         = p1.number
             useVoicemailRecordingIfPresent = p1.useVoicemailRecordingIfPresent
-            voice = p1.voice.toString()
-            media = p1.media
-
-            Map<String, ConstrainedProperty> constraints = Phone.constraints as Map
-            awayMessageMaxLength = constraints.awayMessage.size.to
+            voice                          = p1.voice.toString()
         }
 
-        // // TODO move all owner-related info to PhoneOwnership json marshaller
-        // // schedule  = s1.schedule
-        // AuthService authService = grailsApplication.mainContext.getBean(AuthService)
-        // Staff loggedIn = authService.getLoggedInAndActive()
-        // // for rare cases during testing when phone is no longer attached,
-        // // re-fetch the phone. Using `.attach()` may throw a DuplicateKeyException
-        // // so we just re-fetch to avoid this
-        // if (!p1.isAttached()) {
-        //     p1 = Phone.get(p1.id)
-        // }
-        // // if the logged-in user is an owner of this phone, show integrated availability information
-        // List<Staff> allStaff = p1.owner.buildAllStaff()
-        // if (allStaff.contains(loggedIn)) {
-        //     json.availability = new StaffPolicyAvailability(p1, loggedIn, false)
-        //     json.others = allStaff
-        //         .findAll { Staff s1 -> s1 != loggedIn }
-        //         .collect { Staff s1 -> new StaffPolicyAvailability(p1, s1, true) }
-        // }
+        AuthUtils.tryGetAuthId().then { Long authId ->
+            Collection<Long> allStaffIds = p1.owner.buildAllStaff()*.id
+            // only show owner policy info if the logged-in user is actually an owner
+            if (allStaffIds.contains(authId)) {
+                json.with {
+                    allowSharingWithOtherTeams = p1.owner.allowSharingWithOtherTeams
+                    owner                      = OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, authId).payload
+                    tags                       = GroupPhoneRecords.buildForPhoneIdAndOptions([p1.id]).list()
+                    (allStaffIds - authId).each { Long sId ->
+                        others = OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, sId).payload
+                    }
+                }
+            }
+        }
 
         json
     }

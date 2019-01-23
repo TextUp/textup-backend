@@ -22,7 +22,7 @@ class ResultGroup<T> {
 		}
 	}
 
-	static <I, O> ResultGroup<O> collect(List<I> objs, Closure<Result<O>> action) {
+	static <I, O> ResultGroup<O> collect(Iterable<I> objs, Closure<Result<O>> action) {
 		ResultGroup<O> resGroup = new ResultGroup<>()
 		objs?.each { I obj -> resGroup << action(obj) }
 		resGroup

@@ -29,15 +29,15 @@ class UrlMappings {
             // Restricted
             // ----------
 
-            "/announcements"(resources: "announcement")
-            "/contacts"(resources: "contact")
-            "/future-messages"(resources: "futureMessage")
-            "/organizations"(resources: "organization")
-            "/records"(resources: "record")
-            "/sessions"(resources: "session")
-            "/staff"(resources: "staff")
-            "/tags"(resources: "tag")
-            "/teams"(resources: "team")
+            "/announcements"(resources: RestUtils.RESOURCE_ANNOUNCEMENT)
+            "/contacts"(resources: RestUtils.RESOURCE_CONTACT)
+            "/future-messages"(resources: RestUtils.RESOURCE_FUTURE_MESSAGE)
+            "/organizations"(resources: RestUtils.RESOURCE_ORGANIZATION)
+            "/records"(resources: RestUtils.RESOURCE_RECORD_ITEM)
+            "/sessions"(resources: RestUtils.RESOURCE_SESSION)
+            "/staff"(resources: RestUtils.RESOURCE_STAFF)
+            "/tags"(resources: RestUtils.RESOURCE_TAG)
+            "/teams"(resources: RestUtils.RESOURCE_TEAM)
         }
 	}
 }

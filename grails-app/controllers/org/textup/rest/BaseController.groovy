@@ -16,9 +16,6 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class BaseController {
 
-    private static final String ACTION_GET_LIST = "index"
-    private static final String ACTION_GET_SINGLE = "show"
-
     void index() { notAllowed() }
 
     void show() { notAllowed() }
@@ -48,7 +45,7 @@ class BaseController {
         // step 1: build info
         Integer total = count.call()
         Map<String, Integer> pg1 = ControllerUtils.buildPagination(params, total)
-        Map<String, ?> lInfo = [resource: controllerName, action: ACTION_GET_LIST, absolute: false]
+        Map<String, ?> lInfo = [resource: controllerName, action: RestUtils.ACTION_GET_LIST, absolute: false]
         Map<String, String> links = ControllerUtils.buildLinks(lInfo, pg1.offset, pg1.max, pg1.total)
         Collection<T> found = list.call(pg1)
         // step 2: build response
@@ -116,7 +113,7 @@ class BaseController {
                     if (idObj) {
                         String locationLink = IOCUtils.linkGenerator.link(resource: controllerName,
                             absolute: true,
-                            action: ACTION_GET_SINGLE,
+                            action: RestUtils.ACTION_GET_SINGLE,
                             id: DomainUtils.getId(res.payload))
                         response.addHeader(HttpHeaders.LOCATION, locationLink)
                     }

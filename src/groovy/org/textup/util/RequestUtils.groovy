@@ -5,10 +5,12 @@ import grails.compiler.GrailsTypeChecked
 @GrailsTypeChecked
 class RequestUtils {
 
+    static final String OWNER_POLICY_ID = "ownerPolicyId"
+    static final String PAGINATION_OPTIONS = "paginationOptions"
+    static final String PHONE_ID = "phoneId"
+    static final String PHONE_RECORD_ID = "phoneRecordId"
     static final String TIMEZONE = "timezone"
     static final String UPLOAD_ERRORS = "uploadErrors"
-    static final String PAGINATION_OPTIONS = "paginationOptions"
-    static final String OWNER_POLICY_ID = "ownerPolicyId"
 
     static Result<Void> trySetOnRequest(String key, Object obj) {
         try {
@@ -24,7 +26,14 @@ class RequestUtils {
         try {
             HttpServletRequest req = WebUtils.retrieveGrailsWebRequest().currentRequest
             Object obj = req.getAttribute(key) ?: req.getParameter(key)
-            IOCUtils.resultFactory.success(TypeConversionUtils.to(T, obj))
+            // only return a successful result if something is actually found
+            if (obj != null) {
+                IOCUtils.resultFactory.success(TypeConversionUtils.to(T, obj))
+            }
+            else {
+                IOCUtils.resultFactory.failWithCodeAndStatus("" // TODO
+                    ResultStatus.NOT_FOUND, [key])
+            }
         }
         catch (IllegalStateException e) {
             IOCUtils.resultFactory.failWithThrowable(e, "tryGetFromRequest")

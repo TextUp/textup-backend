@@ -51,9 +51,8 @@ class IndividualPhoneRecordWrappers {
         IndividualPhoneRecords.tryFindEveryByNumbers(p1, bNums, createIfAbsent
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPRecs ->
                 List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(*numToPRecs.values())
-                List<PhoneRecord> sharedRecs = new DetachedCriteria(PhoneRecord)
-                    .build(PhoneRecords.forActive())
-                    .build(PhoneRecords.forShareSourceIds(iprs*.id))
+                List<PhoneRecord> sharedRecs = PhoneRecords
+                    .buildActiveForShareSourceIds(iprs*.id)
                     .list()
                 CollectionUtils.mergeUnique(sharedRecs*.toWrapper(), iprs*.toWrapper())
             }
@@ -66,7 +65,7 @@ class IndividualPhoneRecordWrappers {
         Collection<PhoneRecordStatus> statuses) {
 
         new DetachedCriteria(PhoneRecord)
-            .build { ne("class", GroupPhoneRecord) } // ensure only owned or shared individuals
+            .build { ne("class", GroupPhoneRecord) } // only owned or shared individuals
             .build(forStatuses(phoneId, statuses))
             .build(forQuery(query))
             .build(PhoneRecords.forActive())
