@@ -1,9 +1,11 @@
 package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
+import grails.transaction.Transactional
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class DuplicateController extends BaseController {
 
     DuplicateService duplicateService

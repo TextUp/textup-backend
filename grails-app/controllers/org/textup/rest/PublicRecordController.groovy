@@ -1,6 +1,7 @@
 package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
+import grails.transaction.Transactional
 import java.util.concurrent.TimeUnit
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
@@ -9,6 +10,7 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @Secured(Roles.PUBLIC)
+@Transactional
 class PublicRecordController extends BaseController {
 
     CallbackService callbackService

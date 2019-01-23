@@ -10,11 +10,11 @@ import org.textup.type.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class AnnouncementController extends BaseController {
 
     AnnouncementService announcementService
 
-    @Transactional(readOnly=true)
     @Override
     void index() {
         ControllerUtils.tryGetPhoneId(params.long("teamId"))
@@ -27,7 +27,6 @@ class AnnouncementController extends BaseController {
             }
     }
 
-    @Transactional(readOnly=true)
     @Override
     void show() {
         Long id = params.long("id")

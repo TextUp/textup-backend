@@ -29,16 +29,20 @@ class ActivityEntity {
         String name
         String username
         String email
-        String number
+        Number phoneId
 
-        PhoneNumber getPhoneNumber() { PhoneNumber.create(number) }
+        String getNumbers() {
+            UsageUtils.buildNumbersStringForMonth(phoneId, activity?.monthObj)
+        }
     }
 
     static class Team extends ActivityEntity.HasActivity {
         String name
         Number numStaff = new Integer(0)
-        String number
+        Number phoneId
 
-        PhoneNumber getPhoneNumber() { PhoneNumber.create(number) }
+        String getNumbers() {
+            UsageUtils.buildNumbersStringForMonth(phoneId, activity?.monthObj)
+        }
     }
 }

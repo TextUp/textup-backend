@@ -13,11 +13,11 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class FutureMessageController extends BaseController {
 
 	FutureMessageService futureMessageService
 
-	@Transactional(readOnly=true)
     @Override
     void index() {
         Long prId = params.long("contactId") ?: params.long("tagId")
@@ -34,7 +34,6 @@ class FutureMessageController extends BaseController {
             }
     }
 
-    @Transactional(readOnly=true)
     @Override
     void show() {
         Long id = params.long("id")

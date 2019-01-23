@@ -16,11 +16,8 @@ class AvailablePhoneNumber extends BasePhoneNumber {
 	final String infoType
 
 	static constraints = {
-		info nullable:false
-		infoType nullable:false, inList:["sid", "region"]
-        number nullable:false, validator:{ String val ->
-	        if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
-	    }
+		infoType inList: [TYPE_EXISTING, TYPE_NEW]
+        number phoneNumber: true
     }
 
     static Result<AvailablePhoneNumber> tryCreateExisting(String num, String sid) {

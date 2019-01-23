@@ -14,9 +14,7 @@ import org.textup.util.IOCUtils
 class PhoneNumber extends BasePhoneNumber {
 
     static constraints = {
-        number nullable:false, validator:{ String val ->
-	        if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
-	    }
+        number phoneNumber: true
     }
 
     // Static creators

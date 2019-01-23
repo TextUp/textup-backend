@@ -7,9 +7,6 @@ import org.textup.*
 import org.textup.rest.*
 import org.textup.type.*
 
-// TODO redefine phoen activity
-// hasInactivePhone = s1.hasInactivePhone
-
 @GrailsTypeChecked
 class PhoneJsonMarshaller extends JsonNamedMarshaller {
 
@@ -21,6 +18,7 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             awayMessage                    = p1.awayMessage
             awayMessageMaxLength           = constraints.awayMessage.size.to
             id                             = p1.id
+            isActive                       = p1.isActive()
             language                       = p1.language.toString()
             media                          = p1.media
             number                         = p1.number

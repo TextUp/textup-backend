@@ -28,15 +28,10 @@ class ValidationUtils {
     static final Pattern ABBREVIATED_HEX_PATTERN = Pattern.compile(/^#(\d|\w){3}/)
     static final Pattern FULL_HEX_PATTERN = Pattern.compile(/^#(\d|\w){6}/)
     static final Pattern LOCK_CODE_PATTERN = Pattern.compile(/\d{${LOCK_CODE_LENGTH}}/)
-    static final Pattern PHONE_NUMBER_PATTERN = Pattern.compile(/^(\d){10}$/)
     static final Pattern PUSHER_VALID_CHARS_PATTERN = Pattern.compile(/^[-_=@.,;A-Za-z0-9]+$/)
 
     static boolean isValidLockCode(String lockCode) {
         LOCK_CODE_PATTERN.matcher(ensureString(lockCode)).matches()
-    }
-
-    static boolean isValidPhoneNumber(String num) {
-        PHONE_NUMBER_PATTERN.matcher(ensureString(num)).matches()
     }
 
     static boolean isValidForPusher(String val) {

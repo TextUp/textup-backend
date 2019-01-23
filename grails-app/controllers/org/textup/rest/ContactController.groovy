@@ -12,11 +12,11 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class ContactController extends BaseController {
 
     ContactService contactService
 
-    @Transactional(readOnly=true)
     @Override
     void index() {
         TypeMap body = TypeMap.create(params)
@@ -28,7 +28,6 @@ class ContactController extends BaseController {
         else { listForIds(statuses, body) }
     }
 
-    @Transactional(readOnly=true)
     @Override
     void show() {
         Long id = params.long("id")

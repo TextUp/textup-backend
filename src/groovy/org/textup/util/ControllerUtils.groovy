@@ -16,12 +16,12 @@ class ControllerUtils {
         PhoneCache phoneCache = IOCUtils.getBean(PhoneCache)
         if (teamId) {
             Teams.isAllowed(teamId).then { Long tId ->
-                phoneCache.mustFindPhoneIdForOwner(tId, PhoneOwnershipType.GROUP)
+                phoneCache.mustFindAnyPhoneIdForOwner(tId, PhoneOwnershipType.GROUP)
             }
         }
         else {
             AuthService.tryGetAuthId().then { Long authId ->
-                phoneCache.mustFindPhoneIdForOwner(authId, PhoneOwnershipType.INDIVIDUAL)
+                phoneCache.mustFindAnyPhoneIdForOwner(authId, PhoneOwnershipType.INDIVIDUAL)
             }
         }
     }

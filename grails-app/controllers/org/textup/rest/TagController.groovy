@@ -10,12 +10,11 @@ import org.textup.type.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class TagController extends BaseController {
 
-    PhoneCache phoneCache
     TagService tagService
 
-    @Transactional(readOnly=true)
     @Override
     void index() {
         ControllerUtils.tryGetPhoneId(body.long("teamId"))
@@ -28,7 +27,6 @@ class TagController extends BaseController {
             }
     }
 
-    @Transactional(readOnly=true)
     @Override
     void show() {
         Long id = params.long("id")

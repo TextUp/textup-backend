@@ -24,9 +24,7 @@ class RecordItemReceipt implements WithId, Saveable<RecordItemReceipt> {
         apiId index: "ix_record_item_receipt_api_id"
     }
     static constraints = {
-        contactNumberAsString validator:{ String val, RecordItemReceipt obj ->
-            if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
-        }
+        contactNumberAsString phoneNumber: true
         numBillable nullable: true, min: 0
     }
 

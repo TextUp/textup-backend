@@ -8,7 +8,7 @@ class Phones {
     static Result<Phone> mustFindActiveForOwner(Long ownerId, PhoneOwnershipType type,
         boolean createIfAbsent) {
 
-        IOCUtils.getBean(PhoneCache).mustFindPhoneIdForOwner(ownerId, type)
+        IOCUtils.getBean(PhoneCache).mustFindAnyPhoneIdForOwner(ownerId, type)
             .then { Long pId -> Phones.mustFindActiveForId(pId) }
             .ifFail { Result<?> failRes ->
                 if (createIfAbsent) {
@@ -18,10 +18,9 @@ class Phones {
             }
     }
 
-    // TODO define "active" for phone
     static Result<Phone> mustFindActiveForId(Long pId) {
         Phone p1 = Phone.get(pId)
-        if (p1) {
+        if (p1?.isActive()) {
             IOCUtils.resultFactory.success(p1)
         }
         else {
@@ -31,9 +30,8 @@ class Phones {
         }
     }
 
-    // TODO define "active" for phone
     static Result<Phone> mustFindActiveForNumber(BasePhoneNumber bNum) {
-        Phone p1 = Phones.buildForNumber(bNum).list()[0]
+        Phone p1 = Phones.buildActiveForNumber(bNum).list()[0]
         if (p1) {
             IOCUtils.resultFactory.success(p1)
         }
@@ -43,22 +41,22 @@ class Phones {
         }
     }
 
-    static DetachedCriteria<Phone> buildForNumber(BasePhoneNumber bNum) {
+    static DetachedCriteria<Phone> buildActiveForNumber(BasePhoneNumber bNum) {
         new DetachedCriteria(Phone)
             .build { eq("numberAsString", bNum.number) }
             .build(Phones.forActive())
     }
 
-    static DetachedCriteria<Phone> buildForOwnerIdAndType(Long ownerId, PhoneOwnershipType type) {
+    // do not add in `forActive` to return both active AND inactive phones
+    static DetachedCriteria<Phone> buildAnyForOwnerIdAndType(Long ownerId, PhoneOwnershipType type) {
         new DetachedCriteria(Phone)
             .build {
                 eq("owner.ownerId", ownerId)
                 eq("owner.type", type)
             }
-            .build(Phones.forActive())
     }
 
-    static DetachedCriteria<Phone> buildAllPhonesForStaffId(Long staffId) {
+    static DetachedCriteria<Phone> buildAllActivePhonesForStaffId(Long staffId) {
         new DetachedCriteria(Phone)
             .build {
                 or {
@@ -78,7 +76,7 @@ class Phones {
     }
 
     static Closure forActive() {
-        return { // TODO update as we change the definition of what it means for a phone to be active
+        return {
             isNotNull("numberAsString")
         }
     }

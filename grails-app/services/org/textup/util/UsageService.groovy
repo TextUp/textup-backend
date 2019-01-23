@@ -3,7 +3,6 @@ package org.textup.util
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import groovy.transform.AutoClone
-import groovy.transform.Sortable
 import org.hibernate.*
 import org.hibernate.transform.Transformers
 import org.joda.time.*
@@ -128,7 +127,7 @@ class UsageService {
                     m.name AS name,
                     m.username AS username,
                     m.email AS email,
-                    p.number_as_string AS number
+                    p.id AS phoneId
                 FROM phone AS p
                 JOIN phone_ownership AS o ON p.owner_id = o.id
                 JOIN staff AS m ON m.id = o.owner_id
@@ -154,7 +153,7 @@ class UsageService {
                 SELECT m.id AS id,
                     m.name AS name,
                     COUNT(DISTINCT(ts.staff_id)) AS numStaff,
-                    p.number_as_string AS number
+                    p.id AS phoneId
                 FROM phone AS p
                 JOIN phone_ownership AS o ON p.owner_id = o.id
                 JOIN team AS m ON m.id = o.owner_id

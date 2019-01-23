@@ -59,7 +59,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             .then { Long pId ->
                 PhoneRecord pr1 = PhoneRecords.buildActiveForRecordIds([rItem1.id])
                     .build(PhoneRecords.forPhoneIds([pId]))
-                    .list()[0]
+                    .list(max: 1)[0]
                 if (pr1) {
                     if (pr1 instanceof GroupPhoneRecord) {
                         json.tag = pr1.id

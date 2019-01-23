@@ -10,12 +10,12 @@ import org.textup.validator.AvailablePhoneNumber
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class NumberController extends BaseController {
 
     NumberService numberService
 
     // requesting list of available twilio numbers
-    @Transactional(readOnly=true)
     @Override
     void index() {
         AuthUtils.tryGetAuthUser()
@@ -32,7 +32,6 @@ class NumberController extends BaseController {
     }
 
     // validating phone number against the twilio phone number validator
-    @Transactional(readOnly=true)
     @Override
     void show() {
         PhoneNumber.tryCreate(params.string("id"))

@@ -4,6 +4,7 @@ import grails.converters.JSON
 import org.codehaus.groovy.grails.web.json.JSONWriter
 
 class ApiJson extends JSON {
+
     ApiJson() { super() }
 
     ApiJson(Object target) { super(target) }

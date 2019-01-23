@@ -60,7 +60,7 @@ class IncomingSessions {
     protected static DetachedCriteria<IncomingSession> buildForAuth(Long thisId, Long authId) {
         new DetachedCriteria(IncomingSession).build {
             idEq(thisId)
-            "in"("phone", Phones.buildAllPhonesForStaffId(authId))
+            "in"("phone", Phones.buildAllActivePhonesForStaffId(authId))
         }
     }
 }

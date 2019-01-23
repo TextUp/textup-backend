@@ -30,7 +30,7 @@ class PhoneActionService implements HandlesActions<Phone, Phone> {
                                 tryDeactivatePhone(p1)
                                 break
                             case PhoneAction.TRANSFER:
-                                tryExchangePhone(p1, a1.id, a1.buildPhoneOwnershipType())
+                                tryExchangeOwners(p1, a1.id, a1.buildPhoneOwnershipType())
                                 break
                             case PhoneAction.NEW_NUM_BY_NUM:
                                 tryUpdatePhoneForNumber(p1, a1.buildPhoneNumber())
@@ -47,22 +47,12 @@ class PhoneActionService implements HandlesActions<Phone, Phone> {
     // Helpers
     // -------
 
-    // TODO re-defined deactivate after usage is rewritten
     protected Result<Phone> tryDeactivatePhone(Phone p1) {
-        String oldApiId = p1.apiId
-        p1.deactivate()
-        if (!p1.validate()) {
-            return IOCUtils.resultFactory.failWithValidationErrors(p1.errors)
-        }
-        if (oldApiId) {
-            numberService
-                .freeExistingNumberToInternalPool(oldApiId)
-                .then { IOCUtils.resultFactory.success(p1) }
-        }
-        else { IOCUtils.resultFactory.success(p1) }
+        p1.tryDeactivate()
+            .then { String oldApiId -> tryCleanExistingNumber(p1, oldApiId) }
     }
 
-    protected Result<Phone> tryExchangePhone(Phone p1, Long ownerId, PhoneOwnershipType type) {
+    protected Result<Phone> tryExchangeOwners(Phone p1, Long ownerId, PhoneOwnershipType type) {
         Phone otherPhone = phoneCache.findPhone(ownerId, type, true)
         if (otherPhone) {
             phoneCache.tryUpdateOwner(otherPhone, p1.owner.ownerId, p1.owner.type)
@@ -73,24 +63,39 @@ class PhoneActionService implements HandlesActions<Phone, Phone> {
 
     protected Result<Phone> tryUpdatePhoneForNumber(Phone p1, PhoneNumber pNum) {
         if (pNum.number == p1.numberAsString) {
-            return IOCUtils.resultFactory.success(p1)
+            IOCUtils.resultFactory.success(p1)
         }
-        DomainUtils.tryValidate(pNum)
-            .then {
-                p1.number = pNum
-                DomainUtils.trySave(p1) // uniqueness check for phone number
-            }
-            .then { numberService.changeForNumber(pNum) }
-            .then { IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) }
+        else {
+            DomainUtils.tryValidate(pNum)
+                .then {
+                    p1.number = pNum
+                    DomainUtils.trySave(p1) // uniqueness check for phone number
+                }
+                .then { numberService.changeForNumber(pNum) }
+                .then { String apiId -> p1.tryActivate(pNum, apiId) }
+                .then { String oldApiId -> tryCleanExistingNumber(p1, oldApiId) }
+        }
     }
 
     protected Result<Phone> tryUpdatePhoneForApiId(Phone p1, String apiId) {
         if (apiId == p1.apiId) {
-            return IOCUtils.resultFactory.success(p1)
+            IOCUtils.resultFactory.success(p1)
         }
-        p1.apiId = apiId
-        DomainUtils.trySave(p1) // uniqueness check for apiId
-            .then { numberService.changeForApiId(apiId) }
-            .then { IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) }
+        else {
+            p1.apiId = apiId
+            DomainUtils.trySave(p1) // uniqueness check for apiId
+                .then { numberService.changeForApiId(apiId) }
+                .then { PhoneNumber pNum -> p1.tryActivate(pNum, apiId) }
+                .then { String oldApiId -> tryCleanExistingNumber(p1, oldApiId) }
+        }
+    }
+
+    protected Result<Phone> tryCleanExistingNumber(Phone p1, String oldApiId) {
+        if (oldApiId) {
+            numberService
+                .freeExistingNumberToInternalPool(oldApiId)
+                .then { IOCUtils.resultFactory.success(p1) }
+        }
+        else { IOCUtils.resultFactory.success(p1) }
     }
 }

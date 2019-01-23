@@ -1,5 +1,6 @@
 import org.codehaus.groovy.grails.validation.ConstrainedProperty
 import org.textup.*
+import org.textup.infrastructure.*
 import org.textup.util.*
 
 // locations to search for config files that get merged into the main config;
@@ -238,6 +239,10 @@ grails.doc.license  = "Apache 2.0"
 ConstrainedProperty.registerNewConstraint(
     CascadeValidationConstraint.NAME,
     CascadeValidationConstraint.class
+)
+ConstrainedProperty.registerNewConstraint(
+    PhoneNumberConstraint.NAME,
+    PhoneNumberConstraint.class
 )
 
 textup {

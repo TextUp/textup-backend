@@ -10,11 +10,11 @@ import org.textup.type.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class TeamController extends BaseController {
 
     TeamService teamService
 
-    @Transactional(readOnly=true)
     @Override
     void index() {
         RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
@@ -30,7 +30,6 @@ class TeamController extends BaseController {
             }
     }
 
-    @Transactional(readOnly=true)
     @Override
     void show() {
         RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))

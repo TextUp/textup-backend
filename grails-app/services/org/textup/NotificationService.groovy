@@ -26,7 +26,7 @@ class NotificationService {
                     if (op1.method == NotificationMethod.TEXT) {
                         textService
                             .send(notif1.mutablePhone.number,
-                                [op1.staff.personalPhoneNumber],
+                                [op1.staff.personalNumber],
                                 notifInfo.buildTextMessage(tok1),
                                 notif1.mutablePhone.customAccountId)
                             .logFail("send: text to staff `${s1.id}`")

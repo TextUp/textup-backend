@@ -26,11 +26,7 @@ class TempRecordReceipt implements Validateable {
     Integer numSegments
 
 	static constraints = {
-        apiId blank:false, nullable:false
-        status blank:false, nullable:false
-		contactNumberAsString nullable:false, validator:{ String val, TempRecordReceipt obj ->
-            if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
-        }
+		contactNumberAsString phoneNumber: true
         numSegments nullable: true, min: 0
 	}
 

@@ -43,7 +43,7 @@ class FeaturedAnnouncements {
     protected static DetachedCriteria<FeaturedAnnouncement> buildForAuth(Long thisId, Long authId) {
         new DetachedCriteria(FeaturedAnnouncement).build {
             idEq(thisId)
-            "in"("phone", Phones.buildAllPhonesForStaffId(authId))
+            "in"("phone", Phones.buildAllActivePhonesForStaffId(authId))
         }
     }
 }

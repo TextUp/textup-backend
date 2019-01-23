@@ -57,4 +57,24 @@ class DateTimeUtils {
     static DateTime toZoneDateTimeTodayThenUTC(LocalTime lt, DateTimeZone zone = DateTimeZone.UTC) {
         lt.toDateTimeToday(zone).withZone(DateTimeZone.UTC)
     }
+
+    // TODO test
+    static DateTime atStartOfMonth(DateTime dt) {
+        if (dt) {
+            dt
+                .dayOfMonth().withMinimumValue()
+                .millisOfDay().withMinimumValue()
+        }
+        else { dt }
+    }
+
+    // TODO test
+    static DateTime atEndOfMonth(DateTime dt) {
+        if (dt) {
+            dt
+                .dayOfMonth().withMaximumValue()
+                .millisOfDay().withMaximumValue()
+        }
+        else { dt }
+    }
 }

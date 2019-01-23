@@ -2,6 +2,7 @@ package org.textup
 
 import grails.converters.JSON
 import grails.compiler.GrailsTypeChecked
+import grails.transaction.Transactional
 import javax.servlet.http.HttpSession
 import org.joda.time.*
 import org.joda.time.format.DateTimeFormat
@@ -11,6 +12,7 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @Secured(Roles.SUPER_ROLES)
+@Transactional
 class UsageController {
 
     static final String SESSION_MONTH_KEY = "monthString"

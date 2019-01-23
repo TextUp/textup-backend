@@ -24,7 +24,7 @@ class PhoneRecords {
 
     static DetachedCriteria<PhoneRecord> buildActiveForStaffId(Long staffId) {
         new DetachedCriteria(PhoneRecord)
-            .build { "in"("phone", Phones.buildAllPhonesForStaffId(staffId)) }
+            .build { "in"("phone", Phones.buildAllActivePhonesForStaffId(staffId)) }
             .build(PhoneRecords.forActive())
     }
 
@@ -100,7 +100,7 @@ class PhoneRecords {
         new DetachedCriteria(PhoneRecord)
             .build {
                 idEq(thisId)
-                "in"("phone", Phones.buildAllPhonesForStaffId(authId))
+                "in"("phone", Phones.buildAllActivePhonesForStaffId(authId))
             }
             .build(PhoneRecords.forActive())
     }

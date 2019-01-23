@@ -14,6 +14,7 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class SocketController extends BaseController {
 
     SocketService socketService

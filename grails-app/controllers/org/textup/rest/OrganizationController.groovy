@@ -11,11 +11,11 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class OrganizationController extends BaseController {
 
     OrganizationService organizationService
 
-    @Transactional(readOnly=true)
     @Secured(Roles.PUBLIC)
     @Override
     void index() {
@@ -25,7 +25,6 @@ class OrganizationController extends BaseController {
             MarshallerUtils.KEY_ORGANIZATION)
     }
 
-    @Transactional(readOnly=true)
     @Secured(Roles.PUBLIC)
     @Override
     void show() {

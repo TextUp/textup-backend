@@ -91,8 +91,8 @@ class StaffService implements ManagesDomain.Updater<Staff> {
             if (body.username) username = body.username
             if (body.password) password = body.password
             if (body.email) email = body.email
-            if (body.personalPhoneNumber != null) {
-                personalPhoneNumber = PhoneNumber.create(body.string("personalPhoneNumber"))
+            if (body.personalNumber != null) {
+                personalNumber = PhoneNumber.create(body.string("personalNumber"))
             }
         }
         DomainUtils.trySave(s1)

@@ -13,11 +13,11 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class StaffController extends BaseController {
 
     StaffService staffService
 
-    @Transactional(readOnly=true)
     @Override
     void index() {
         TypeMap data = TypeMap.create(params)
@@ -33,7 +33,6 @@ class StaffController extends BaseController {
         else { listForShareStaff(data) }
     }
 
-    @Transactional(readOnly=true)
     @Override
     void show() {
         RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))

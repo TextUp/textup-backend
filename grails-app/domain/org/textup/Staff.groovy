@@ -26,10 +26,10 @@ class Staff implements WithId, Saveable<Staff> {
     String lockCode = Constants.DEFAULT_LOCK_CODE
     String name
     String password
-    String personalPhoneAsString
+    String personalNumberAsString
     String username
 
-    static transients = ["personalPhoneNumber"]
+    static transients = ["personalNumber"]
     static mapping = {
         cache usage: "read-write", include: "non-lazy"
         whenCreated type: PersistentDateTime
@@ -42,9 +42,7 @@ class Staff implements WithId, Saveable<Staff> {
 		password blank:false
         lockCode blank:false
 		email email:true
-        personalPhoneAsString blank:true, nullable:true, validator:{ String val, Staff obj ->
-            if (val && !ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
-        }
+        personalNumberAsString blank:true, nullable:true, phoneNumber: true
 	}
 
     static Result<Staff> tryCreate(Role r1, Organization org1, String name, String un,
@@ -83,9 +81,9 @@ class Staff implements WithId, Saveable<Staff> {
 
     void setUsername(String un) { username = StringUtils.cleanUsername(un) }
 
-    void setPersonalPhoneNumber(BasePhoneNumber num) { personalPhoneAsString = num?.number }
+    void setPersonalNumber(BasePhoneNumber num) { personalNumberAsString = num?.number }
 
-    PhoneNumber getPersonalPhoneNumber() { PhoneNumber.create(personalPhoneAsString) }
+    PhoneNumber getPersonalNumber() { PhoneNumber.create(personalNumberAsString) }
 
 
     // Helpers

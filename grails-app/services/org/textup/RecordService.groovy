@@ -110,7 +110,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
             .then { Recipients r1 -> r1.tryGetOneIndividual() }
             .then { IndividualPhoneRecordWrapper w1 -> AuthUtils.tryGetAuthUser().curry(w1) }
             .then { IndividualPhoneRecordWrapper w1, Staff authUser ->
-                outgoingCallService.tryStart(authUser.personalPhoneNumber, w1, authUser.toAuthor())
+                outgoingCallService.tryStart(authUser.personalNumber, w1, authUser.toAuthor())
             }
             .then { RecordCall rCall1 ->
                 IOCUtils.resultFactory.success([rCall1], ResultStatus.CREATED)

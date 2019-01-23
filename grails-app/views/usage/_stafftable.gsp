@@ -74,7 +74,7 @@
                         </td>
                         <td>${staff.username}</td>
                         <td>${staff.email}</td>
-                        <td>${staff.phoneNumber}</td>
+                        <td>${staff.numbers}</td>
 
                         <td>
                             $<g:formatNumber number="${staff.activity?.textCost}"

@@ -30,10 +30,9 @@ class Location implements ReadOnlyLocation, WithId, Saveable<Location> {
     // -------
 
     Location tryDuplicatePersistentState() {
-        Closure doGet = { String propName -> getPersistentValue(propName) }
-        Location dup = new Location(address: doGet("address"),
-            lat: doGet("lat"),
-            lng: doGet("lng"))
+        Location dup = new Location(address: getPersistentValue("address"),
+            lat: getPersistentValue("lat"),
+            lng: getPersistentValue("lng"))
         if (dup.validate()) {
             dup
         }

@@ -139,7 +139,7 @@ class NumberService {
     // ---------------------
 
     // [UNTESTED] due to mocking constraints
-    Result<IncomingPhoneNumber> changeForNumber(PhoneNumber pNum) {
+    Result<String> changeForNumber(PhoneNumber pNum) {
         try {
             String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
                 appId = grailsApplication.flatConfig["textup.apiKeys.twilio.appId"]
@@ -151,7 +151,7 @@ class NumberService {
                 .setVoiceApplicationSid(appId)
                 .setVoiceMethod(HttpMethod.POST)
                 .create()
-            IOCUtils.resultFactory.success(iNum)
+            IOCUtils.resultFactory.success(iNum.sid)
         }
         catch (TwilioException e) {
             IOCUtils.resultFactory.failWithThrowable(e)
@@ -159,11 +159,11 @@ class NumberService {
     }
 
     // [UNTESTED] due to mocking constraints
-    Result<IncomingPhoneNumber> changeForApiId(String newApiId) {
+    Result<PhoneNumber> changeForApiId(String newApiId) {
         try {
             String unavailable = grailsApplication.flatConfig["textup.apiKeys.twilio.unavailable"],
                 appId = grailsApplication.flatConfig["textup.apiKeys.twilio.appId"]
-            IncomingPhoneNumber uNum = IncomingPhoneNumber
+            IncomingPhoneNumber iNum = IncomingPhoneNumber
                 .updater(newApiId)
                 .setFriendlyName(unavailable)
                 .setSmsApplicationSid(appId)
@@ -171,7 +171,7 @@ class NumberService {
                 .setVoiceApplicationSid(appId)
                 .setVoiceMethod(HttpMethod.POST)
                 .update()
-            IOCUtils.resultFactory.success(uNum)
+            IOCUtils.resultFactory.success(PhoneNumber.create(iNum.phoneNumber.endpoint))
         }
         catch (TwilioException e) {
             IOCUtils.resultFactory.failWithThrowable(e)
@@ -179,26 +179,14 @@ class NumberService {
     }
 
     // [UNTESTED] due to mocking constraints
-    Result<Phone> updatePhoneWithNewNumber(IncomingPhoneNumber newNum, Phone p1) {
-        String oldApiId = p1.apiId
-        p1.apiId = newNum.sid
-        p1.number = PhoneNumber.create(newNum.phoneNumber)
-        if (oldApiId) {
-            freeExistingNumberToInternalPool(oldApiId)
-                .then { IOCUtils.resultFactory.success(p1) }
-        }
-        else { IOCUtils.resultFactory.success(p1) }
-    }
-
-    // [UNTESTED] due to mocking constraints
     Result<IncomingPhoneNumber> freeExistingNumberToInternalPool(String oldApiId) {
         try {
             String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
-            IncomingPhoneNumber uNum = IncomingPhoneNumber
+            IncomingPhoneNumber iNum = IncomingPhoneNumber
                 .updater(oldApiId)
                 .setFriendlyName(available)
                 .update()
-            IOCUtils.resultFactory.success(uNum)
+            IOCUtils.resultFactory.success(iNum)
         }
         catch (TwilioException e) {
             IOCUtils.resultFactory.failWithThrowable(e)

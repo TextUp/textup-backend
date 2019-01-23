@@ -21,13 +21,8 @@ class ContactNumberAction extends BaseAction {
 	String number
 
 	static constraints =  {
-		preference min:0
-		number validator:{ String val, ContactNumberAction obj  ->
-	        if (!obj.matches(DELETE) &&
-	        	!ValidationUtils.isValidPhoneNumber(val)) {
-	        	["format"]
-	        }
-	    }
+		preference min: 0
+		number phoneNumber: true
 	}
 
 	// Methods

@@ -10,11 +10,11 @@ import org.textup.type.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class SessionController extends BaseController {
 
     SessionService sessionService
 
-    @Transactional(readOnly=true)
     @Override
     void index() {
         ControllerUtils.tryGetPhoneId(body.long("teamId"))
@@ -29,7 +29,6 @@ class SessionController extends BaseController {
             }
     }
 
-    @Transactional(readOnly=true)
     @Override
     void show() {
         Long id = params.long("id")

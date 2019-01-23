@@ -22,11 +22,11 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
         Staffs.isAllowed(s1.id)
             .then {
                 json.with {
-                    channelName         = SocketUtils.channelName(s1)
-                    email               = s1.email
-                    org                 = s1.org
-                    personalPhoneNumber = s1.personalPhoneNumber
-                    teams               = Teams.buildForStaffIds([s1.id])
+                    channelName    = SocketUtils.channelName(s1)
+                    email          = s1.email
+                    org            = s1.org
+                    personalNumber = s1.personalNumber
+                    teams          = Teams.buildForStaffIds([s1.id])
                 }
             }
 

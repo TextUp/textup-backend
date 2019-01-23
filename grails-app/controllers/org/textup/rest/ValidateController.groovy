@@ -1,11 +1,13 @@
 package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
+import grails.transaction.Transactional
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class ValidateController extends BaseController {
 
     @Override

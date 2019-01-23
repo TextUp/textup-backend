@@ -10,22 +10,15 @@ import org.textup.util.*
 @GrailsTypeChecked
 class PhoneCache {
 
-    // TODO remove?
-    // TODO propagate? -- need to decide once we redefine when a phone is active or not
-    boolean hasInactivePhone(Long ownerId, PhoneOwnershipType type) {
-        Phone p1 = findPhone(ownerId, type, true)
-        p1?.isActive == false
-    }
-
     // use Holders.applicationContext.getBean(class) so that internal calls heed AOP advice
     Phone findPhone(Long ownerId, PhoneOwnershipType type, boolean includeInactive = false) {
-        Long pId = IOCUtils.getBean(this).findPhoneIdForOwner(ownerId, type)
+        Long pId = IOCUtils.getBean(this).findAnyPhoneIdForOwner(ownerId, type)
         Phone p1 = Phone.get(pId) // Phone uses second level cache
-        p1?.isActive || includeInactive ? p1 : null
+        p1?.isActive() || includeInactive ? p1 : null
     }
 
-    Result<Long> mustFindPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
-        Long pId = IOCUtils.getBean(this).findPhoneIdForOwner(ownerId, type)
+    Result<Long> mustFindAnyPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
+        Long pId = IOCUtils.getBean(this).findAnyPhoneIdForOwner(ownerId, type)
         if (pId) {
             IOCUtils.resultFactory.success(pId)
         }
@@ -45,8 +38,8 @@ class PhoneCache {
 
     // Must be a non-static public method for Spring AOP advice to apply
     @Cacheable(values = "phonesCache", key = "{ #p0, #p1 }")
-    Long findPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
-        Phones.buildForOwnerIdAndType(ownerId, type)
+    Long findAnyPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
+        Phones.buildAnyForOwnerIdAndType(ownerId, type)
             .build(CriteriaUtils.returnsId())
             .list(max: 1)[0]
     }

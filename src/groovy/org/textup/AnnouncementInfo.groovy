@@ -2,8 +2,6 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 
-// TODO integrate -- see RecordItemReceiptInfo
-
 @GrailsTypeChecked
 class AnnouncementInfo {
 

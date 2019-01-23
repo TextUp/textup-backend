@@ -8,11 +8,11 @@ class ApiJsonCollectionRenderer extends ApiJsonRenderer implements ContainerRend
 
     public ApiJsonCollectionRenderer(Class componentType) {
         super(Collection)
-        this.componentType = componentType
+        componentType = componentType
     }
 
     public ApiJsonCollectionRenderer(Class componentType, MimeType... mimeTypes) {
         super(Collection, mimeTypes)
-        this.componentType = componentType
+        componentType = componentType
     }
 }

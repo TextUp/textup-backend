@@ -13,6 +13,8 @@ class UsageUtils {
     static final double UNIT_COST_TEXT = 0.01
     static final double UNIT_COST_CALL = 0.015
 
+    private static final String NO_NUMBERS = "deactivated"
+
     // Query helpers
     // -------------
 
@@ -56,6 +58,16 @@ class UsageUtils {
             }
         }
         new ArrayList<ActivityRecord>(monthStringToActivity.values()).sort()
+    }
+
+    static String buildNumbersStringForMonth(Number phoneId, DateTime monthObj) {
+        Phone p1 = Phones.mustFindActiveForId(phoneId)
+            .logFail("buildNumbersStringForMonth")
+            .payload
+        Collection<String> nums = p1
+            ?.buildNumbersForMonth(monthObj?.monthOfYear()?.get(), monthObj?.year()?.get())
+            *.prettyPhoneNumber
+        nums ? CollectionUtils.joinWithDifferentLast(nums, ", ", " and ") : NO_NUMBERS
     }
 
     // Display helpers

@@ -2,15 +2,14 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import org.textup.rest.NotificationStatus
-import org.textup.type.PhoneOwnershipType
+import org.textup.type.*
 import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
 class PhoneOwnership implements WithId, Saveable<PhoneOwnership> {
 
-    boolean allowSharingWithOtherTeams = false // TODO add to marshaller
+    boolean allowSharingWithOtherTeams = false
     Long ownerId
     Phone phone
     PhoneOwnershipType type
@@ -21,10 +20,13 @@ class PhoneOwnership implements WithId, Saveable<PhoneOwnership> {
     }
     static constraints = {
     	ownerId validator: { Long val, PhoneOwnership obj ->
-            if (obj.type && val && Utils.<Boolean>doWithoutFlush {
-                Phones.buildForOwnerIdAndType(val, obj.type).count() <= 0
-            }) {
-                ["invalidId"]
+            if (val) {
+                if (obj.type == PhoneOwnershipType.INDIVIDUAL && !Staff.exists(val)) {
+                    ["nonexistentStaff"]
+                }
+                else if (obj.type == PhoneOwnershipType.GROUP && !Team.exists(val)) {
+                    ["nonexistentTeam"]
+                }
             }
     	}
     }

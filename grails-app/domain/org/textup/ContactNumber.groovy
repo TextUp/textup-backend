@@ -1,10 +1,11 @@
 package org.textup
 
-import groovy.transform.EqualsAndHashCode
-import org.textup.validator.BasePhoneNumber
 import grails.compiler.GrailsTypeChecked
-import org.hibernate.Session
+import groovy.transform.EqualsAndHashCode
+import groovy.transform.Sortable
 import groovy.transform.TypeCheckingMode
+import org.hibernate.Session
+import org.textup.validator.BasePhoneNumber
 
 @Sortable(includes = ["preference"])
 @GrailsTypeChecked
@@ -15,9 +16,7 @@ class ContactNumber extends BasePhoneNumber implements WithId, Saveable<ContactN
 
     static belongsTo = [owner: IndividualPhoneRecord]
     static constraints = {
-        number validator:{ String val ->
-            if (!ValidationUtils.isValidPhoneNumber(val)) { ["format"] }
-        }
+        number phoneNumber: true
     }
 
     static Result<ContactNumber> tryCreate(IndividualPhoneRecord owner, BasePhoneNumber bNum,

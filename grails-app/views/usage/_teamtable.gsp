@@ -71,7 +71,7 @@
                                 maxFractionDigits="2" />
                         </td>
                         <td>${team.numStaff}</td>
-                        <td>${team.phoneNumber}</td>
+                        <td>${team.numbers}</td>
 
                         <td>
                             $<g:formatNumber number="${team.activity?.textCost}"

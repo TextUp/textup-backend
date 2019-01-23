@@ -15,12 +15,12 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
+@Transactional
 class RecordController extends BaseController {
 
     PdfService pdfService
     RecordService recordService
 
-    @Transactional(readOnly=true)
     @Override
     void index() {
         ControllerUtils.tryGetPhoneId(params.long("teamId"))
@@ -45,7 +45,6 @@ class RecordController extends BaseController {
             }
     }
 
-    @Transactional(readOnly=true)
     @Override
     void show() {
         Long id = params.long("id")
