@@ -1,6 +1,12 @@
 package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
+import org.joda.time.DateTime
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class MediaInfos {
@@ -12,7 +18,7 @@ class MediaInfos {
         }
         else {
             IOCUtils.resultFactory.failWithCodeAndStatus("tryFinishProcessing.mediaInfoNotFound", // TODO
-                ResultStatus.NOT_FOUND, [mediaId])
+                ResultStatus.NOT_FOUND, [mId])
         }
     }
 }

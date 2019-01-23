@@ -3,9 +3,12 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.*
+import org.textup.annotation.*
 import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -19,7 +22,6 @@ class OutgoingMessageService {
     Result<Tuple<List<? extends RecordItem>, Future<?>>> tryStart(RecordItemType type, Recipients r1,
         TempRecordItem temp1, Author author1, Future<Result<?>> mediaFuture = null) {
         // step 1: create initial domain classes
-        Future<?> future = AsyncUtils.noOpFuture()
         ResultGroup<? extends RecordItem> resGroup = new ResultGroup<>()
         r1.eachRecord { Record rec1 ->
             resGroup << rec1.storeOutgoing(type, author1, temp1.text, temp1.media)
@@ -31,7 +33,7 @@ class OutgoingMessageService {
                 // end of the test. This means that test data in the db is not accessible from another
                 // thread. This seeems to be a limitation of the integration testing environment only.
                 Future<?> future = threadService.delay(10, TimeUnit.SECONDS) {
-                    waitForMedia(resGroup.payload.*id, r1.dehydrate(), temp1.dehydrate(), mediaFuture)
+                    waitForMedia(resGroup.payload*.id, r1.dehydrate(), temp1.dehydrate(), mediaFuture)
                 }
                 IOCUtils.resultFactory.success(rItems, future)
             }
@@ -84,7 +86,7 @@ class OutgoingMessageService {
 
         w1.tryGetOriginalPhone() // original phone so that sharing preserve client point of contact
             .then { Phone p1 -> w1.tryGetSortedNumbers().curry(p1) }
-            .then { Phone p1, List<ReadOnlyContactNumber> toNums ->
+            .then { Phone p1, List<ContactNumber> toNums ->
                 outgoingMediaService.trySend(p1.number, toNums, p1.customAccountId, temp1.text,
                     temp1.media, callToken)
             }

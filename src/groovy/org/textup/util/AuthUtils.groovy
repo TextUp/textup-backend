@@ -6,6 +6,11 @@ import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.userdetails.UserDetails
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class AuthUtils {

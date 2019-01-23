@@ -9,8 +9,11 @@ import org.joda.time.DateTime
 import org.joda.time.format.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.annotation.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

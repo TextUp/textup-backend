@@ -1,16 +1,22 @@
 package org.textup.validator
 
+import com.sendgrid.Email
+import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
-import grails.compiler.GrailsTypeChecked
-import com.sendgrid.Email
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
 @ToString
 @Validateable
-class EmailEntity implements Validateable {
+class EmailEntity implements CanValidate {
 
     String name
     String email

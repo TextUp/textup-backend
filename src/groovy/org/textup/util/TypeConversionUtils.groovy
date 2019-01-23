@@ -6,6 +6,10 @@ import groovy.util.logging.Log4j
 import org.apache.commons.lang3.ClassUtils
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j

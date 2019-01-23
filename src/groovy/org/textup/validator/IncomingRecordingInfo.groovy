@@ -7,7 +7,11 @@ import grails.validation.Validateable
 import groovy.util.logging.Log4j
 import org.springframework.validation.Errors
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Validateable

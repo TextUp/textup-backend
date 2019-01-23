@@ -3,6 +3,14 @@ package org.textup.action
 import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.*
+import org.textup.cache.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional

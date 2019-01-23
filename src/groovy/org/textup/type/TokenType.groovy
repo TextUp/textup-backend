@@ -1,25 +1,26 @@
 package org.textup.type
 
 import grails.compiler.GrailsTypeChecked
-import org.textup.Constants
+import org.textup.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 enum TokenType {
-
-	static final String PARAM_CDM_MESSAGE = "message"
-	static final String PARAM_CDM_MEDIA = "mediaId"
-	static final String PARAM_CDM_IDENT = "identifier"
-	static final String PARAM_CDM_LANG = "language"
-	static final String PARAM_PR_ID = "toBeResetId"
-	static final String PARAM_VN_NUM = "toVerifyNumber"
-	static final String PARAM_NS_OWNER_POLICY = "ownerPolicyId"
-	static final String PARAM_NS_ITEMS = "itemIds"
-	static final String PARAM_NS_PHONE = "phoneId"
-
 	CALL_DIRECT_MESSAGE([PARAM_CDM_IDENT, PARAM_CDM_LANG, PARAM_CDM_MEDIA, PARAM_CDM_MESSAGE]),
 	PASSWORD_RESET([PARAM_PR_ID]),
 	VERIFY_NUMBER([PARAM_VN_NUM], 5),
 	NOTIFY_STAFF([PARAM_NS_OWNER_POLICY, PARAM_NS_ITEMS, PARAM_NS_PHONE]),
+
+    static final String PARAM_CDM_MESSAGE = "message"
+    static final String PARAM_CDM_MEDIA = "mediaId"
+    static final String PARAM_CDM_IDENT = "identifier"
+    static final String PARAM_CDM_LANG = "language"
+    static final String PARAM_PR_ID = "toBeResetId"
+    static final String PARAM_VN_NUM = "toVerifyNumber"
+    static final String PARAM_NS_OWNER_POLICY = "ownerPolicyId"
+    static final String PARAM_NS_ITEMS = "itemIds"
+    static final String PARAM_NS_PHONE = "phoneId"
 
 	final Collection<String> requiredKeys
 	final int tokenSize
@@ -31,7 +32,7 @@ enum TokenType {
 
 	static Map callDirectMessageData(String ident, VoiceLanguage lang, String msg, Long mId = null) {
 		[
-            (PARAM_CDM_IDENT): lang
+            (PARAM_CDM_IDENT): lang,
             // cannot have language be of type VoiceLanguage because this hook is called
             // after the the TextUp user picks up the call and we must serialize the
             // parameters that are then passed back to TextUp by Twilio after pickup

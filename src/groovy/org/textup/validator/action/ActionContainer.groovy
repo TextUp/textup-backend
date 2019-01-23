@@ -4,12 +4,13 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
+import org.textup.structure.*
 import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
-class ActionContainer<T extends BaseAction> implements Validateable {
+class ActionContainer<T extends BaseAction> implements CanValidate {
 
 	Object data
 	Class<T> clazz

@@ -3,12 +3,13 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.Future
+import org.textup.action.*
+import org.textup.annotation.*
 import org.textup.rest.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
-import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
@@ -17,14 +18,14 @@ class PhoneService {
     CallService callService
     MediaService mediaService
     OwnerPolicyService ownerPolicyService
-    PhoneActionsService phoneActionsService
+    PhoneActionService phoneActionService
 
     Result<Phone> update(Phone p1, TypeMap body, String timezone) {
         Future<?> future
         mediaService.tryCreateOrUpdate(p1, body, true)
             .then { Future<?> fut1 ->
                 future = fut1
-                phoneActionsService.tryHandleActions(p1, body)
+                phoneActionService.tryHandleActions(p1, body)
             }
             .then { tryUpdateOwnerPolicy(p1, body.typeMapNoNull("owner"), timezone) }
             .then { trySetFields(p1, body) }

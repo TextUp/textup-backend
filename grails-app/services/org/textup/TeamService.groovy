@@ -2,11 +2,14 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.action.*
+import org.textup.annotation.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
-import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
@@ -36,7 +39,6 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
 
     @RollbackOnResultFailure
     Result<Team> update(Long tId, TypeMap body) {
-        String timezone = body.string("timezone")
         Teams.mustFindForId(tId)
             .then { Team t1 -> trySetFields(t1, body) }
             .then { Team t1  ->

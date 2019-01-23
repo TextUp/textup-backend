@@ -2,12 +2,16 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.joda.time.DateTime
+import org.textup.util.*
+import org.textup.validator.*
+import org.textup.type.*
 
 @GrailsTypeChecked
 class TypeMap extends TypeConvertingMap {
 
     TypeMap(Object obj) {
-        super(TypeConvertingUtils.to(Map, obj))
+        super(TypeConversionUtils.to(Map, obj))
     }
 
     TypeMap(Map map = null) { // superclass constructor handles nulls
@@ -26,10 +30,10 @@ class TypeMap extends TypeConvertingMap {
     // -------
 
     String "string"(String propName, String fallbackVal = null) {
-        TypeConvertingUtils.to(String, get(propName), fallbackVal)
+        TypeConversionUtils.to(String, get(propName), fallbackVal)
     }
 
-    public <T> T "enum"(Class<T> enumClass, String propName, T fallbackVal = null) {
+    public <T extends Enum<T>> T enumVal(Class<T> enumClass, String propName, T fallbackVal = null) {
         TypeConversionUtils.convertEnum(enumClass, get(propName)) ?: fallbackVal
     }
 

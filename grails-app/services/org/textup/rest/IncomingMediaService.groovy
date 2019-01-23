@@ -7,9 +7,11 @@ import org.apache.commons.io.IOUtils
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.HttpResponse
 import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.textup.media.*
+import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -67,7 +69,7 @@ class IncomingMediaService {
                     sendVersion.isPublic = im1.isPublic
                     altVersions.each { UploadItem uItem -> uItem.isPublic = im1.isPublic }
                     MediaElement.tryCreate(sendVersion, altVersions)
-                        .curry(CollectionUtils.mergeUnique(altVersions, [sendVersion])
+                        .curry(CollectionUtils.mergeUnique(altVersions, [sendVersion]))
                 }
             }
             .then { List<UploadItem> uItems, MediaElement el1 ->

@@ -3,6 +3,11 @@ package org.textup.util
 import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import java.util.regex.Pattern
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 // [NOTE] if changing constants here, need to consider if a db migration is needed
 

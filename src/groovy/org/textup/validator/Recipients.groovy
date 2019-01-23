@@ -3,10 +3,15 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Validateable
-class Recipients implements Validateable, Dehydratable<Recipients.Dehydrated> {
+class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
 
     final Integer maxNum // non private for access in validator
     private final Collection<? extends PhoneRecord> all
@@ -78,7 +83,7 @@ class Recipients implements Validateable, Dehydratable<Recipients.Dehydrated> {
         new Recipients.Dehydrated(phoneIds: phone.id, allIds: all*.id, maxNum: maxNum)
     }
 
-    Result<PhoneWrapper> tryGetOne() {
+    Result<PhoneRecordWrapper> tryGetOne() {
         PhoneRecord pr1 = all?.getAt(0)
         pr1 ?
             IOCUtils.resultFactory.success(pr1.toWrapper()) :

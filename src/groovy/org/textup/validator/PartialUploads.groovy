@@ -1,9 +1,15 @@
 package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
-class PartialUploads implements Validateable, Dehydratable<PartialUploads.Dehydrated> {
+class PartialUploads implements CanValidate, Dehydratable<PartialUploads.Dehydrated> {
 
     final List<UploadItem> uploads = [] // not private for validation + bulk uploading
     private final List<MediaElement> elements = []

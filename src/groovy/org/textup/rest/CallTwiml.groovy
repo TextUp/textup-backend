@@ -5,6 +5,7 @@ import org.textup.*
 import org.textup.type.*
 import org.textup.validator.*
 import org.textup.util.*
+import org.textup.util.domain.*
 
 // Not type checked because of our use of Closures as a DSL for building Twiml.
 

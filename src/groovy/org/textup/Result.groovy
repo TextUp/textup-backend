@@ -31,7 +31,7 @@ class Result<T> {
         res.setError(messages, status)
     }
 
-    static Result<Void> void() { Result.<Void>createSuccess(null, ResultStatus.NO_CONTENT) }
+    static Result<Void> "void"() { Result.<Void>createSuccess(null, ResultStatus.NO_CONTENT) }
 
     // Methods
     // -------

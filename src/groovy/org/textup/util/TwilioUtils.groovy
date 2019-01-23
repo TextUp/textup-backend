@@ -10,7 +10,10 @@ import org.joda.time.DateTime
 import org.ocpsoft.prettytime.PrettyTime
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.textup.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -45,7 +48,7 @@ class TwilioUtils {
             return IOCUtils.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
         }
         // step 2: build browser url and extract Twilio params
-        String url = RequestUtilst.getBrowserURL(request)
+        String url = RequestUtils.getBrowserURL(request)
         Map<String, String> twilioParams = extractTwilioParams(request, params)
         // step 3: build and run request validator. Note that this is the only place
         // where we require the sub-account authToken
@@ -125,7 +128,7 @@ class TwilioUtils {
         "${identifier}: ${message}. ${unsubscribe}"
     }
 
-    static STring cleanNumbersQuery(String query) {
+    static String cleanNumbersQuery(String query) {
         // only allow these specified valid characters
         query?.replaceAll(/[^\[0-9a-zA-Z\]\*]/, "") ?: ""
     }

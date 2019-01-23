@@ -1,6 +1,12 @@
-import org.textup.util
+package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
+import org.textup.*
+import org.textup.cache.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class ControllerUtils {
@@ -20,7 +26,7 @@ class ControllerUtils {
             }
         }
         else {
-            AuthService.tryGetAuthId().then { Long authId ->
+            AuthUtils.tryGetAuthId().then { Long authId ->
                 phoneCache.mustFindAnyPhoneIdForOwner(authId, PhoneOwnershipType.INDIVIDUAL)
             }
         }

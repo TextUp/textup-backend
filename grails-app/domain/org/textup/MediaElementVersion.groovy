@@ -2,12 +2,15 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class MediaElementVersion implements ReadOnlyMediaElementVersion, WithId, Saveable<MediaElementVersion> {
+class MediaElementVersion implements ReadOnlyMediaElementVersion, WithId, CanSave<MediaElementVersion> {
 
     String versionId
     Long sizeInBytes

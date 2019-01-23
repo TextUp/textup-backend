@@ -5,10 +5,13 @@ import grails.transaction.Transactional
 import java.util.concurrent.Future
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.annotation.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
@@ -121,7 +124,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
         Recipients.tryCreate(p1, body.typedList(Long, "ids[]"), body.phoneNumberList("numbers[]"), 1)
             .then { Recipients r1 -> r1.tryGetOne() }
             .then { PhoneRecordWrapper w1 ->
-                Locsation loc1 = locationService.create(body.typeMapNoNull("location")).payload
+                Location loc1 = locationService.create(body.typeMapNoNull("location")).payload
                 TempRecordItem.tryCreate(body.string("contents"), mInfo, loc1).curry(w1)
             }
             .then { PhoneRecordWrapper w1, TempRecordItem temp1 -> w1.tryGetRecord().curry(temp1) }

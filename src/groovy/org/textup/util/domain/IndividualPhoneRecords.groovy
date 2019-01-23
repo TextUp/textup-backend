@@ -1,6 +1,12 @@
 package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
+import org.joda.time.DateTime
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class IndividualPhoneRecords {
@@ -89,7 +95,7 @@ class IndividualPhoneRecords {
     }
 
     static DetachedCriteria<IndividualPhoneRecord> buildForIds(Collection<Long> ids) {
-        new DetachedCriteria<IndividualPhoneRecord>
+        new DetachedCriteria(IndividualPhoneRecord)
             .build { CriteriaUtils.inList(delegate, "id", ids) }
     }
 

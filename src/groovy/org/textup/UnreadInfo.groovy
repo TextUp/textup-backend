@@ -1,6 +1,8 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import org.joda.time.DateTime
+import org.textup.util.domain.*
 
 @GrailsTypeChecked
 class UnreadInfo {
@@ -10,7 +12,7 @@ class UnreadInfo {
     final int numVoicemails
 
     static UnreadInfo create(Long recId, DateTime lastTouched) {
-        Collection<RecordItem> rItems = tRecordItems
+        Collection<RecordItem> rItems = RecordItems
             .forRecordIdsWithOptions([recId], lastTouched, null, [RecordText, RecordCall])
             .build(RecordItems.forIncoming())
             .list()
@@ -23,9 +25,9 @@ class UnreadInfo {
     // -------
 
     protected <T extends RecordItem> Collection<T> forClass(Collection<? extends RecordItem> rItems,
-        Clazz<T> clazz) {
+        Class<T> clazz) {
 
-        rItems.collect { RecordItem rItem1 -> rItem1 instanceof clazz }
+        rItems.collect { RecordItem rItem1 -> clazz.isAssignableFrom(rItem1.class) }
     }
 
     protected Collection<RecordCall> notVoicemail(Collection<? extends RecordItem> rItems) {

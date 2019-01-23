@@ -5,9 +5,11 @@ import javax.servlet.http.HttpServletRequest
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
-import org.textup.type.LogLevel
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.LocalInterval
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {

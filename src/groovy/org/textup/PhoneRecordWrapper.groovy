@@ -3,11 +3,13 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
-import org.textup.interface.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.springframework.validation.Errors
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
+class PhoneRecordWrapper implements CanSave<PhoneRecordWrapper> {
 
     private final PhoneRecord phoneRecord
     final PhoneRecordPermissions permissions
@@ -20,7 +22,7 @@ class PhoneRecordWrapper implements Saveable<PhoneRecordWrapper> {
     // Methods
     // -------
 
-    PhoneWrapper save() { phoneRecord.save() ? this : null }
+    PhoneRecordWrapper save() { phoneRecord.save() ? this : null }
 
     Errors getErrors() { phoneRecord.errors }
 

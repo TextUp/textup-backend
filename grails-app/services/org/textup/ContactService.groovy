@@ -4,9 +4,13 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.hibernate.Session
 import org.joda.time.DateTime
+import org.textup.action.*
+import org.textup.annotation.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.action.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -15,7 +19,7 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
 
     MergeActionService mergeActionService
     NotificationActionService notificationActionService
-    NumberActionsService numberActionsService
+    NumberActionService numberActionService
     ShareActionService shareActionService
 
     @RollbackOnResultFailure
@@ -25,7 +29,7 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
             .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 ->
-                numberActionsService.tryHandleActions(w1, body)
+                numberActionService.tryHandleActions(w1, body)
             }
             .then { IndividualPhoneRecordWrapper w1 -> trySharing(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryMerge(w1, body) }
@@ -40,7 +44,7 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
             .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 ->
-                numberActionsService.tryHandleActions(w1, body)
+                numberActionService.tryHandleActions(w1, body)
             }
             .then { IndividualPhoneRecordWrapper w1 -> trySharing(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryMerge(w1, body) }

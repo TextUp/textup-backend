@@ -4,12 +4,12 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.TypeCheckingMode
 import org.textup.*
-import org.textup.interface.*
+import org.textup.structure.*
 import org.textup.util.*
 
 @GrailsTypeChecked
 @Validateable
-abstract class BaseAction implements Validateable {
+abstract class BaseAction implements CanValidate {
 
 	String action
 

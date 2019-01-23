@@ -15,8 +15,9 @@ import javax.xml.transform.TransformerFactory
 import org.apache.fop.apps.*
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.springframework.core.io.Resource
+import org.textup.*
 import org.textup.type.*
-import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

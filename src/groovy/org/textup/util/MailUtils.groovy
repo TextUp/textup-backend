@@ -1,4 +1,4 @@
-import org.textup.util
+package org.textup.util
 
 import com.sendgrid.ASM
 import com.sendgrid.Mail
@@ -9,6 +9,11 @@ import com.sendgrid.Response as SendGridResponse
 import com.sendgrid.SendGrid
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class MailUtils {

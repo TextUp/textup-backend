@@ -7,8 +7,9 @@ import com.twilio.rest.api.v2010.account.CallUpdater
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.*
 import org.textup.type.*
-import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

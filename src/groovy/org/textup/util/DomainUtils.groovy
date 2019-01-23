@@ -3,6 +3,11 @@ package org.textup.util
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
@@ -27,7 +32,7 @@ class DomainUtils {
         else { false }
     }
 
-     static <T extends Saveable> Result<T> trySave(T obj, ResultStatus status = ResultStatus.OK) {
+     static <T extends CanSave> Result<T> trySave(T obj, ResultStatus status = ResultStatus.OK) {
         if (obj) {
             if (obj.save()) {
                 IOCUtils.resultFactory.success(obj, status)
@@ -37,7 +42,7 @@ class DomainUtils {
         else { invalidInput() }
     }
 
-    static <T extends Saveable> Result<Void> trySaveAll(Collection<T> objList) {
+    static <T extends CanSave> Result<Void> trySaveAll(Collection<T> objList) {
         if (objList == null) {
             ResultGroup<T> resGroup = new ResultGroup<>()
             objList.each { T obj -> resGroup << DomainUtils.trySave(obj) }
@@ -49,7 +54,7 @@ class DomainUtils {
         else { invalidInput() }
     }
 
-    static <T extends Validateable> Result<T> tryValidate(T obj,
+    static <T extends CanValidate> Result<T> tryValidate(T obj,
         ResultStatus status = ResultStatus.OK) {
 
         if (obj) {
@@ -61,7 +66,7 @@ class DomainUtils {
         else { invalidInput() }
     }
 
-    static <T extends Validateable> Result<Void> tryValidateAll(Collection<T> objList) {
+    static <T extends CanValidate> Result<Void> tryValidateAll(Collection<T> objList) {
         if (objList == null) {
             ResultGroup<T> resGroup = new ResultGroup<>()
             objList.each { T obj -> resGroup << DomainUtils.tryValidate(obj) }

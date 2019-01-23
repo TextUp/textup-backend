@@ -1,12 +1,17 @@
-import org.textup.util
+package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class WrapperUtils {
 
     static boolean isContact(PhoneRecordWrapper w1) {
-        w1 && w1.wrappedClass instanceof IndividualPhoneRecord && w1.isOverridden() = false
+        w1 && w1.wrappedClass instanceof IndividualPhoneRecord && w1.isOverridden() == false
     }
 
     static boolean isSharedContact(PhoneRecordWrapper w1) {
@@ -31,7 +36,7 @@ class WrapperUtils {
         Closure<Boolean> filterAction) {
 
         ResultGroup<String> resGroup = new ResultGroup<>()
-        wrappers.each { PhoneRecordWrapper w1 ->
+        wraps.each { PhoneRecordWrapper w1 ->
             if (w1 && filterAction.call(w1)) {
                 resGroup << w1.tryGetSecureName()
             }

@@ -4,12 +4,16 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
 @Validateable
-class Notification implements Validateable, Dehydratable<Notification.Dehydrated> {
+class Notification implements CanValidate, Dehydratable<Notification.Dehydrated> {
 
 	final Phone mutablePhone
 	private final Map<PhoneRecordWrapper, NotificationDetail> wrapperToDetails = [:]
@@ -27,7 +31,7 @@ class Notification implements Validateable, Dehydratable<Notification.Dehydrated
 	}
 
     @Validateable
-    static class Dehydrated implements Validateable, Rehydratable<Notification> {
+    static class Dehydrated implements CanValidate, Rehydratable<Notification> {
 
         final Long phoneId
         final Collection<Long> itemIds
@@ -78,7 +82,7 @@ class Notification implements Validateable, Dehydratable<Notification.Dehydrated
 			?: new ArrayList<OwnerPolicy>()
 	}
 
-	int countItems(boolean isOut, OwnerPolicy op1, Clazz<T extends RecordItem> clazz) {
+	int countItems(boolean isOut, OwnerPolicy op1, Class<? extends RecordItem> clazz) {
 		getDetails().inject(0) { int sum, NotificationDetail nd1 ->
     		sum + nd1.countItemsForOutgoingAndOptions(isOut, op1, clazz)
     	}

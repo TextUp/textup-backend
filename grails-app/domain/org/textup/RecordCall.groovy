@@ -4,8 +4,11 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
-import org.textup.type.ReceiptStatus
-import org.textup.validator.TempRecordReceipt
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
@@ -23,9 +26,9 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
     static Result<RecordCall> tryUpdateVoicemail(RecordCall rCall1, int duration,
         List<MediaElement> elements) {
 
-        rCall.record.updateLastActivity()
-        DomainUtils.trySave(rCall.record)
-            .then { MediaInfos.tryCreate(rCall.media) }
+        rCall1.record.updateLastActivity()
+        DomainUtils.trySave(rCall1.record)
+            .then { MediaInfos.tryCreate(rCall1.media) }
             .then { MediaInfo mInfo ->
                 elements.each { MediaElement el1 -> mInfo.addToMediaElements(el1) }
                 rCall1.with {

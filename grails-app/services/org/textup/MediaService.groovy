@@ -3,11 +3,15 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.*
+import org.textup.action.*
+import org.textup.annotation.*
 import org.textup.media.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
@@ -90,7 +94,7 @@ class MediaService {
     protected Result<List<UploadItem>> completeUpload(UploadItem initialUpload, MediaElement el1) {
         MediaPostProcessor.process(initialUpload.type, initialUpload.data)
             .then { Tuple<UploadItem, List<UploadItem>> processed ->
-                Tuple.split(processed) { UploadItem sendItem, List<UploadItem>> altItems ->
+                Tuple.split(processed) { UploadItem sendItem, List<UploadItem> altItems ->
                     sendItem.isPublic = initialUpload.isPublic
                     el1.sendVersion = sendItem.toMediaElementVersion()
                     altItems.each { UploadItem uItem ->

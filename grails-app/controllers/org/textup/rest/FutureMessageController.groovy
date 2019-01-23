@@ -8,8 +8,11 @@ import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.joda.time.DateTime
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
@@ -23,7 +26,7 @@ class FutureMessageController extends BaseController {
         Long prId = params.long("contactId") ?: params.long("tagId")
         RequestUtils.trySetOnRequest(RequestUtils.PHONE_RECORD_ID, prId)
         PhoneRecords.isAllowed(prId)
-            .then { Long prId -> PhoneRecords.mustFindForId(prId) }
+            .then { PhoneRecords.mustFindForId(prId) }
             .then { PhoneRecord pr1 -> pr1.toWrapper().tryGetReadOnlyRecord() }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { ReadOnlyRecord rec1 ->

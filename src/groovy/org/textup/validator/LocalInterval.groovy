@@ -6,11 +6,17 @@ import groovy.transform.EqualsAndHashCode
 import org.joda.time.Interval
 import org.joda.time.LocalTime
 import org.joda.time.Minutes
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
 @Validateable
-class LocalInterval implements Comparable<LocalInterval>, Validateable {
+class LocalInterval implements Comparable<LocalInterval>, CanValidate {
 
     LocalTime start
     LocalTime end

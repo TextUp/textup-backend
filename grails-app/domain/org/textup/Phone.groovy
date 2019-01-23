@@ -7,13 +7,15 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(excludes = "owner")
-class Phone implements ReadOnlyPhone, WithMedia, WithId, Saveable<Phone> {
+class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
     CustomAccountDetails customAccount
     DateTime whenCreated = DateTimeUtils.now()

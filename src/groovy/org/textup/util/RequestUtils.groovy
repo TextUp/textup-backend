@@ -1,6 +1,13 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.TypeCheckingMode
+import javax.servlet.http.HttpServletRequest
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class RequestUtils {
@@ -31,7 +38,7 @@ class RequestUtils {
                 IOCUtils.resultFactory.success(TypeConversionUtils.to(T, obj))
             }
             else {
-                IOCUtils.resultFactory.failWithCodeAndStatus("" // TODO
+                IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
                     ResultStatus.NOT_FOUND, [key])
             }
         }

@@ -7,12 +7,15 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class RecordItem implements ReadOnlyRecordItem, WithId, Saveable<RecordItem> {
+class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem> {
 
     AuthorType authorType
     boolean hasAwayMessage = false

@@ -2,12 +2,12 @@ package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import groovy.transform.AutoClone
 import org.hibernate.*
 import org.hibernate.transform.Transformers
 import org.joda.time.*
+import org.textup.*
 import org.textup.type.*
-import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 // NOTE: for speed, we wrote the queries in raw SQL. For compatibility between MySQL (prod)

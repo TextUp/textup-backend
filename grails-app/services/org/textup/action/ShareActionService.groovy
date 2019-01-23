@@ -2,6 +2,8 @@ package org.textup.action
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
@@ -50,7 +52,7 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
     // Helpers
     // -------
 
-    protected Result<SharedContact> tryStartShare(PhoneRecord source, Phone shareWith,
+    protected Result<PhoneRecord> tryStartShare(PhoneRecord source, Phone shareWith,
         SharePermission permission) {
 
         Phones.canShare(source.phone.owner, shareWith.owner)

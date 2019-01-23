@@ -5,6 +5,9 @@ import groovy.util.logging.Log4j
 import org.joda.time.*
 import org.joda.time.format.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

@@ -6,7 +6,9 @@ import grails.plugin.springsecurity.SpringSecurityUtils
 import grails.transaction.Transactional
 import org.springframework.security.access.annotation.Secured
 import org.springframework.security.authentication.encoding.PasswordEncoder
-import org.textup.type.OrgStatus
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
 
 @GrailsTypeChecked
 @Secured(Roles.SUPER_ROLES)

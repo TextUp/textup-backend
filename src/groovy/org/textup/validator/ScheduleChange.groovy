@@ -6,13 +6,18 @@ import groovy.transform.ToString
 import groovy.util.logging.Log4j
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.type.ScheduleStatus
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @ToString
 @Validateable
 @Log4j
-class ScheduleChange implements Validateable {
+class ScheduleChange implements CanValidate {
 
     ScheduleStatus type
     DateTime when //assume UTC timezone

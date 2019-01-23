@@ -5,12 +5,16 @@ import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import java.awt.image.BufferedImage
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
 @Validateable
-class UploadItem implements Validateable {
+class UploadItem implements CanValidate {
 
     String key = UUID.randomUUID().toString()
     MediaType type

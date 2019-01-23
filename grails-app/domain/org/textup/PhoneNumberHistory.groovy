@@ -3,6 +3,13 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.Sortable
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
+import org.joda.time.DateTime
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
@@ -13,6 +20,10 @@ class PhoneNumberHistory {
     final DateTime whenCreated
     final String numberAsString
 
+    static mapping = {
+        endTime type: PersistentDateTime
+        whenCreated type: PersistentDateTime
+    }
     static constraints = {
         endTime nullable: true, validator: { DateTime val, PhoneNumberHistory obj ->
             if (val?.isBefore(obj.whenCreated) || val?.isEqual(obj.whenCreated)) {

@@ -1,16 +1,21 @@
 package org.textup
 
+import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.type.ScheduleStatus
+import org.joda.time.format.DateTimeFormatter
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.ScheduleChange
-import grails.compiler.GrailsTypeChecked
+import org.textup.util.domain.*
+import org.textup.validator.*
+import org.joda.time.Interval
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Schedule implements WithId, Saveable<Schedule> {
+class Schedule implements WithId, CanSave<Schedule> {
 
     boolean manual = true
     boolean manualIsAvailable = true
@@ -86,7 +91,7 @@ class Schedule implements WithId, Saveable<Schedule> {
     }
 
     // parse interval strings into a list of UTC intervals where sunday corresponds to today, etc
-    Result<Schedule> updateWithIntervalStrings(TypedMap body,
+    Result<Schedule> updateWithIntervalStrings(TypeMap body,
         String timezone = ScheduleUtils.DEFAULT_TIMEZONE) {
 
         DateTimeZone zone = DateTimeUtils.getZoneFromId(timezone)

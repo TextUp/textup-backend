@@ -9,6 +9,7 @@ import org.joda.time.format.DateTimeFormat
 import org.springframework.security.access.annotation.Secured
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 
 @GrailsTypeChecked
 @Secured(Roles.SUPER_ROLES)

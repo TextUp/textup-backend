@@ -1,6 +1,13 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
+import grails.util.Holders
+import org.textup.*
+import org.textup.rest.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class MarshallerUtils {

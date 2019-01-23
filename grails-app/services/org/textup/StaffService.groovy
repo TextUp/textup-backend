@@ -2,6 +2,9 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.annotation.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
@@ -98,7 +101,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
         DomainUtils.trySave(s1)
     }
 
-    protected Result<Status> trySetLockCode(Staff s1, String lockCode) {
+    protected Result<Staff> trySetLockCode(Staff s1, String lockCode) {
         if (lockCode) {
             // Need to validate here because, once saved, the lock code is obfuscated
             if (!ValidationUtils.isValidLockCode(lockCode)) {

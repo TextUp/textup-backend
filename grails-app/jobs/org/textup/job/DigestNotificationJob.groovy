@@ -1,11 +1,15 @@
 package org.textup.job
 
 import grails.compiler.GrailsTypeChecked
-import org.quartz.Job
+import org.quartz.*
 import org.quartz.JobExecutionContext
 import org.quartz.utils.Key
 import org.springframework.beans.factory.annotation.Autowired
 import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 class DigestNotificationJob implements Job {
 
@@ -15,13 +19,13 @@ class DigestNotificationJob implements Job {
     // see: https://github.com/grails-plugins/grails-quartz/blob/1.x/src/groovy/grails/plugins/quartz/config/TriggersConfigBuilder.groovy
     static triggers = {
         cron cronExpression: "0 0/15 * * * ?", // in UTC time, run every hour on each 15 min increment
-            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING.
+            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
             jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.QUARTER_HOUR)
         cron cronExpression: "0 30 * * * ?", // in UTC time, run every hour on the half hour
-            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING.
+            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
             jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.HALF_HOUR)
         cron cronExpression: "0 0 * * * ?", // in UTC time, run every hour on the hour
-            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING.
+            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
             jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.HOUR)
     }
 

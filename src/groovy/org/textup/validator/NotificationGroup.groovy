@@ -3,11 +3,15 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Validateable
-class NotificationGroup implements Validateable, Dehydratable<NotificationGroup.Dehydrated> {
+class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.Dehydrated> {
 
     private final Collection<Notification> notifications
 
@@ -50,7 +54,7 @@ class NotificationGroup implements Validateable, Dehydratable<NotificationGroup.
 
     @Override
     NotificationGroup.Dehydrated dehydrate() {
-        Collection<Long> itemIds = CollectionUtils.mergeUnique(*notifications.*details*.items*.id)
+        Collection<Long> itemIds = CollectionUtils.mergeUnique(*notifications*.details*.items*.id)
         new NotificationGroup.Dehydrated(itemIds: itemIds)
     }
 
@@ -71,7 +75,7 @@ class NotificationGroup implements Validateable, Dehydratable<NotificationGroup.
     }
 
     void eachItem(Closure<?> action) {
-        CollectionUtils.mergeUnique(*notifications.*details*.items)
+        CollectionUtils.mergeUnique(*notifications*.details*.items)
             .each { RecordItem rItem1 -> action.call(rItem1) }
     }
 

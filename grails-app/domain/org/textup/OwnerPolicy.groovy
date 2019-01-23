@@ -3,11 +3,15 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.textup.type.NotificationLevel
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class OwnerPolicy implements WithId, Saveable<OwnerPolicy> {
+class OwnerPolicy implements WithId, CanSave<OwnerPolicy> {
 
     boolean shouldSendPreviewLink = true
     NotificationFrequency frequency = NotificationFrequency.IMMEDIATELY

@@ -6,12 +6,16 @@ import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
 @Validateable
-class RecordItemRequest implements Validateable {
+class RecordItemRequest implements CanValidate {
 
     private static final String DEFAULT_START = "beginning"
     private static final String DEFAULT_END = "end"

@@ -1,6 +1,7 @@
 package org.textup.type
 
 import grails.compiler.GrailsTypeChecked
+import org.textup.*
 
 @GrailsTypeChecked
 enum RecordItemType {

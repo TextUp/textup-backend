@@ -2,6 +2,13 @@ package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.springframework.security.access.annotation.Secured
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)
@@ -12,7 +19,7 @@ class DuplicateController extends BaseController {
 
     @Override
     void index() {
-        TypedMap data = TypedMap.create(params)
+        TypeMap data = TypeMap.create(params)
         ControllerUtils.tryGetPhoneId(data.long("teamId"))
             .then { Long pId ->
                 Long iprIds = data.typedList(Long, "ids[]")

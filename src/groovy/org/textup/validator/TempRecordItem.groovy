@@ -3,11 +3,15 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Validateable
-class TempRecordItem implements Validateable, Dehydratable<TempRecordItem.Dehydrated> {
+class TempRecordItem implements CanValidate, Dehydratable<TempRecordItem.Dehydrated> {
 
 	String text
 	MediaInfo media

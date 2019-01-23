@@ -5,12 +5,16 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.Sortable
 import groovy.transform.TypeCheckingMode
 import org.hibernate.Session
-import org.textup.validator.BasePhoneNumber
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @Sortable(includes = ["preference"])
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true, includes = ["number", "preference"])
-class ContactNumber extends BasePhoneNumber implements WithId, Saveable<ContactNumber> {
+class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNumber> {
 
 	Integer preference
 

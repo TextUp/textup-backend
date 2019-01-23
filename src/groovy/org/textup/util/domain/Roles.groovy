@@ -1,6 +1,12 @@
 package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
+import org.joda.time.DateTime
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class Roles {

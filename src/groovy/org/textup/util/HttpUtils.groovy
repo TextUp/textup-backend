@@ -9,6 +9,10 @@ import org.apache.http.client.methods.HttpUriRequest
 import org.apache.http.HttpResponse
 import org.apache.http.impl.client.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j

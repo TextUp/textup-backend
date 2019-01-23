@@ -5,12 +5,15 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.type.RecordItemType
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class FeaturedAnnouncement implements WithId, Saveable<FeaturedAnnouncement> {
+class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
 
     DateTime expiresAt
     DateTime whenCreated = DateTimeUtils.now()

@@ -5,12 +5,15 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Team implements WithId, Saveable<Team> {
+class Team implements WithId, CanSave<Team> {
 
     boolean isDeleted = false
     DateTime whenCreated = DateTimeUtils.now()
@@ -44,7 +47,7 @@ class Team implements WithId, Saveable<Team> {
     }
 
     static Result<Team> tryCreate(Organization org1, String name, Location loc1) {
-        DomainUtils.trySave(new Team(org: org1, name: name, location: loc1, ResultStatus.CREATED)
+        DomainUtils.trySave(new Team(org: org1, name: name, location: loc1), ResultStatus.CREATED)
     }
 
     // Properties

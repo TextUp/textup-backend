@@ -264,37 +264,24 @@ class TestUtils {
     }
 
     static RecordItemReceipt buildReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
-        RecordItemReceipt rpt = new RecordItemReceipt(status: status,
+        RecordItemReceipt rpt1 = new RecordItemReceipt(status: status,
             contactNumberAsString: TestUtils.randPhoneNumberString(),
             apiId: UUID.randomUUID().toString())
-        rpt
+        rpt1
     }
 
     static TempRecordReceipt buildTempReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
-        TempRecordReceipt rpt = new TempRecordReceipt(status: status,
-            contactNumberAsString: TestUtils.randPhoneNumberString(),
-            apiId: UUID.randomUUID().toString(),
-            numSegments: TestUtils.randIntegerUpTo(10))
-        assert rpt.validate()
-        rpt
-    }
-
-    static OutgoingMessage buildOutgoingMessage(Phone p1, String message = "hi") {
-        OutgoingMessage text = new OutgoingMessage(message: message,
-            contacts: new ContactRecipients(phone: p1),
-            sharedContacts: new SharedContactRecipients(phone: p1),
-            tags: new ContactTagRecipients(phone: p1))
-        assert text.validate()
-        text
+        TempRecordReceipt rpt1 = TempRecordReceipt
+            .tryCreate(TestUtils.randString(), TestUtils.randPhoneNumber())
+            .payload
+        rpt1.status = status
+        rpt1.numSegments = TestUtils.randIntegerUpTo(10)
+        assert rpt1.validate()
+        rpt1
     }
 
     static RecordItemRequest buildRecordItemRequest(Phone p1) {
-        RecordItemRequest iReq = new RecordItemRequest(phone: p1,
-            contacts: new ContactRecipients(phone: p1),
-            sharedContacts: new SharedContactRecipients(phone: p1),
-            tags: new ContactTagRecipients(phone: p1))
-        assert iReq.validate()
-        iReq
+        RecordItemRequest.tryCreate(p1, [], false).payload
     }
 
     static CustomAccountDetails buildCustomAccountDetails() {

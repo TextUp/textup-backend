@@ -4,6 +4,7 @@ import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.test.*
 import org.textup.type.*

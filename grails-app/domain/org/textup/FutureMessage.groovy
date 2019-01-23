@@ -10,13 +10,15 @@ import org.jadira.usertype.dateandtime.joda.PersistentDateTimeZoneAsString
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.quartz.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, Saveable<FutureMessage> {
+class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, CanSave<FutureMessage> {
 
     Trigger trigger
 
@@ -139,5 +141,5 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, Saveabl
     // no repeat
     protected ScheduleBuilder getScheduleBuilder() { SimpleScheduleBuilder.simpleSchedule() }
 
-    protected boolean getShouldReschedule() { ["startDate"].any(&isDirty) }
+    protected boolean getShouldReschedule() { isDirty("startDate") }
 }

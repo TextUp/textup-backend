@@ -2,13 +2,13 @@ package org.textup.job
 
 import grails.compiler.GrailsTypeChecked
 import java.util.concurrent.*
-import org.quartz.Job
-import org.quartz.JobDataMap
-import org.quartz.JobExecutionContext
+import org.quartz.*
 import org.quartz.utils.Key
 import org.springframework.beans.factory.annotation.Autowired
 import org.textup.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 
 @GrailsTypeChecked
 class FutureMessageJob implements Job {

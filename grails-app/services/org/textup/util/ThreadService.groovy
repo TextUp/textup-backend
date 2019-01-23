@@ -5,6 +5,10 @@ import grails.transaction.Transactional
 import java.util.concurrent.*
 import javax.annotation.PostConstruct
 import javax.annotation.PreDestroy
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional

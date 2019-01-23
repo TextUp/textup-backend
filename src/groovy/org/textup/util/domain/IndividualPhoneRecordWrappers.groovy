@@ -1,8 +1,15 @@
 package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
-import org.hibernate.criterion.CriteriaSpecification
+import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
+import org.hibernate.criterion.CriteriaSpecification
+import org.joda.time.DateTime
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
@@ -15,14 +22,14 @@ class IndividualPhoneRecordWrappers {
     }
 
     static Result<IndividualPhoneRecordWrapper> mustFindForId(Long iprId) {
-        PhoneRecord pr1 = PhoneRecord.get(prId)
+        PhoneRecord pr1 = PhoneRecord.get(iprId)
         PhoneRecordWrapper w1 = pr1?.toWrapper()
         if (w1 instanceof IndividualPhoneRecordWrapper) {
             IOCUtils.resultFactory.success(w1)
         }
         else {
             IOCUtils.resultFactory.failWithCodeAndStatus("contactService.update.notFound", //TODO
-                ResultStatus.NOT_FOUND, [prId])
+                ResultStatus.NOT_FOUND, [iprId])
         }
     }
 
@@ -30,15 +37,15 @@ class IndividualPhoneRecordWrappers {
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES,
         boolean onlyShared = false) {
 
-        DetachedCriteria<PhoneRecord> query = buildBase(query, statuses)
+        DetachedCriteria<PhoneRecord> criteria = buildBase(query, statuses)
             .build { eq("phone.id", phoneId) }
-        onlyShared ? query.build { isNotNull("shareSource") } : query // inner join
+        onlyShared ? criteria.build { isNotNull("shareSource") } : criteria // inner join
     }
 
     static DetachedCriteria<PhoneRecord> buildForSharedByIdWithOptions(Long sharedById,
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES) {
 
-        buildBase(query, statuses).build { eq("shareSource.phone.id", phoneId) } // inner join
+        buildBase(query, statuses).build { eq("shareSource.phone.id", sharedById) } // inner join
     }
 
     static Closure<List<IndividualPhoneRecordWrapper>> doList(DetachedCriteria<PhoneRecord> query) {
@@ -46,9 +53,9 @@ class IndividualPhoneRecordWrappers {
     }
 
     static Result<List<IndividualPhoneRecordWrapper>> tryFindEveryByNumbers(Phone p1,
-        List<? extends BasePhoneNumber> bNums, boolean createIfAbsent)
+        List<? extends BasePhoneNumber> bNums, boolean createIfAbsent) {
 
-        IndividualPhoneRecords.tryFindEveryByNumbers(p1, bNums, createIfAbsent
+        IndividualPhoneRecords.tryFindEveryByNumbers(p1, bNums, createIfAbsent)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPRecs ->
                 List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(*numToPRecs.values())
                 List<PhoneRecord> sharedRecs = PhoneRecords
@@ -66,15 +73,13 @@ class IndividualPhoneRecordWrappers {
 
         new DetachedCriteria(PhoneRecord)
             .build { ne("class", GroupPhoneRecord) } // only owned or shared individuals
-            .build(forStatuses(phoneId, statuses))
+            .build(forStatuses(statuses))
             .build(forQuery(query))
             .build(PhoneRecords.forActive())
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Closure forStatuses(Long phoneId,
-        Collection<PhoneRecordStatus> statuses) {
-
+    protected static Closure forStatuses(Collection<PhoneRecordStatus> statuses) {
         return { CriteriaUtils.inList(delegate, "status", statuses) }
     }
 

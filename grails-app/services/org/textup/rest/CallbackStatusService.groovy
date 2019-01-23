@@ -3,9 +3,12 @@ package org.textup.rest
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.TimeUnit
+import org.textup.*
+import org.textup.annotation.*
 import org.textup.cache.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

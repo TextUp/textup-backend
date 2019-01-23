@@ -5,7 +5,11 @@ import org.codehaus.groovy.grails.validation.ConstrainedProperty
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class PhoneJsonMarshaller extends JsonNamedMarshaller {

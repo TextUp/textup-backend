@@ -2,6 +2,11 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
@@ -51,7 +56,7 @@ class IndividualPhoneRecord extends PhoneRecord {
     @Override
     IndividualPhoneRecordWrapper toWrapper(PhoneRecord sharingOverride = null) {
         sharingOverride ?
-            new IndividualPhoneRecordWrapper(this, sharingOverride.toPermissions(), sharingOverride)
+            new IndividualPhoneRecordWrapper(this, sharingOverride.toPermissions(), sharingOverride) :
             new IndividualPhoneRecordWrapper(this, toPermissions())
     }
 
@@ -81,7 +86,7 @@ class IndividualPhoneRecord extends PhoneRecord {
         new IndividualPhoneRecord.Info(id: id,
             name: name,
             note: note,
-            numbers: Collections.unmodifiableCollection(getSortedNumbers())
+            numbers: Collections.unmodifiableCollection(getSortedNumbers()))
     }
 
     // Properties

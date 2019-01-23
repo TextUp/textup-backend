@@ -7,12 +7,15 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.type.TokenType
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Token implements WithId, Saveable<Token> {
+class Token implements WithId, CanSave<Token> {
 
     DateTime expires = DateTimeUtils.now().plusHours(1)
     String token

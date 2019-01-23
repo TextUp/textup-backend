@@ -2,6 +2,12 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class MailData {
@@ -36,7 +42,7 @@ class MailData {
     static class PendingStaff {
         final String staff
         final String org
-        final String link = link: LinkUtils.adminDashboard()
+        final String link = LinkUtils.adminDashboard()
 
         static constraints = {
             link url: true

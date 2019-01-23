@@ -3,9 +3,10 @@ package org.textup.util
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.textup.*
 import org.textup.type.*
-import org.textup.util.*
-import org.textup.validator.EmailEntity
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional

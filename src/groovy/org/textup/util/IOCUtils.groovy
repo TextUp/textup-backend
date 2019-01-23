@@ -9,13 +9,17 @@ import org.quartz.Scheduler
 import org.springframework.context.*
 import org.springframework.context.i18n.LocaleContextHolder as LCH
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
 class IOCUtils {
 
     static <T> T getBean(Class<T> clazz) {
-        Holders.applicationContext.getBean(clazz)>.asType(clazz)
+        Holders.applicationContext.getBean(clazz)?.asType(clazz)
     }
 
     static SpringSecurityService getSecurity() {

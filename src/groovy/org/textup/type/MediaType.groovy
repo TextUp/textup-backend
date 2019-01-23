@@ -1,7 +1,9 @@
 package org.textup.type
 
 import grails.compiler.GrailsTypeChecked
-import org.textup.Constants
+import org.textup.*
+import org.textup.util.*
+import org.textup.validator.*
 
 // If changing the audio mime types here, make sure to also check AudioUtils to see if building
 // options from the MediaType should be updated too

@@ -5,6 +5,10 @@ import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import java.util.concurrent.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
@@ -12,7 +16,7 @@ class AsyncUtils {
 
     static final int UPLOAD_BATCH_SIZE = 8
 
-    static <T extends Saveable> Collection<T> getAllIds(Clazz<T> clazz, Collection<Long> ids) {
+    static <T extends CanSave> Collection<T> getAllIds(Class<T> clazz, Collection<Long> ids) {
         Collection<T> found = clazz.getAll(ids?.unique() as Iterable<Serializable>)
         if (found.size() != ids.size()) {
             log.error("getAllIds: did not find all for `$clazz` and `$ids`")

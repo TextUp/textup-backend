@@ -1,6 +1,8 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import org.textup.validator.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 class NotificationInfo {

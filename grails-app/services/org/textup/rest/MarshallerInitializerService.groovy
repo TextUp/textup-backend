@@ -1,10 +1,15 @@
 package org.textup.rest
 
-import grails.converters.JSON 
+import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.converters.configuration.*
-import org.springframework.context.ApplicationContext 
-import org.springframework.context.ApplicationContextAware 
+import org.springframework.context.ApplicationContext
+import org.springframework.context.ApplicationContextAware
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @Transactional
 class MarshallerInitializerService implements ApplicationContextAware {
@@ -22,7 +27,7 @@ class MarshallerInitializerService implements ApplicationContextAware {
             String name = namedMarshaller.name
 
             if (!configs[name]) {
-                ConverterConfiguration config = ConvertersConfigurationHolder.getConverterConfiguration(JSON.class) 
+                ConverterConfiguration config = ConvertersConfigurationHolder.getConverterConfiguration(JSON.class)
                 configs[name] = new DefaultConverterConfiguration<JSON>(config)
             }
 

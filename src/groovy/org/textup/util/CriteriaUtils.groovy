@@ -1,6 +1,12 @@
 package org.textup.util
 
+import grails.gorm.DetachedCriteria
 import groovy.util.logging.Log4j
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 // [NOTE] Several parts of the Grails Criteria DSL do not have custom type checking available
 
@@ -42,6 +48,6 @@ class CriteriaUtils {
     }
 
     static Closure<Integer> countAction(DetachedCriteria<?> criteria) {
-        { criteria ? criteria.count() : 0 }
+        return { criteria ? criteria.count() : 0 }
     }
 }

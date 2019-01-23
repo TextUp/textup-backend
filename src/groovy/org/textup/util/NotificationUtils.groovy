@@ -1,6 +1,12 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.TypeCheckingMode
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class NotificationUtils {
@@ -20,7 +26,7 @@ class NotificationUtils {
             .buildActiveForRecordIds(recIdToItems.keySet())
             .build(PhoneRecords.forPhoneIds(phoneIds, true)) // optional
             .list()
-        RecordGroup
+        ResultGroup
             .collect(prs) { PhoneRecord pr1 ->
                 PhoneRecordWrapper w1 = pr1.toWrapper()
                 w1.tryGetRecord()

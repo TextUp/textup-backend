@@ -1,6 +1,8 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import org.textup.type.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class AnnouncementInfo {

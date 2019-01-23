@@ -5,12 +5,15 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class IncomingSession implements WithId, Saveable<IncomingSession> {
+class IncomingSession implements WithId, CanSave<IncomingSession> {
 
     Boolean isSubscribedToCall = false
     Boolean isSubscribedToText = false
@@ -26,7 +29,7 @@ class IncomingSession implements WithId, Saveable<IncomingSession> {
     }
 
     static Result<IncomingSession> tryCreate(Phone p1, BasePhoneNumber bNum) {
-        IncomingSession = is1 = new IncomingSession(phone: p1, number: bNum)
+        IncomingSession is1 = new IncomingSession(phone: p1, number: bNum)
         DomainUtils.trySave(is1, ResultStatus.CREATED)
     }
 

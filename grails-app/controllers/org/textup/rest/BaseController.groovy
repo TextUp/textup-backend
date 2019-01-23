@@ -2,6 +2,7 @@ package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
+import grails.gorm.DetachedCriteria
 import groovy.transform.TypeCheckingMode
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.orm.hibernate.cfg.NamedCriteriaProxy
@@ -9,8 +10,10 @@ import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -47,7 +50,7 @@ class BaseController {
         Map<String, Integer> pg1 = ControllerUtils.buildPagination(params, total)
         Map<String, ?> lInfo = [resource: controllerName, action: RestUtils.ACTION_GET_LIST, absolute: false]
         Map<String, String> links = ControllerUtils.buildLinks(lInfo, pg1.offset, pg1.max, pg1.total)
-        Collection<T> found = list.call(pg1)
+        Collection<?> found = list.call(pg1)
         // step 2: build response
         Map<String, ?> responseData = [
             (MarshallerUtils.PARAM_LINKS): links,
@@ -65,7 +68,7 @@ class BaseController {
         }
     }
 
-    protected void doShow(Closure<Result<?>> checkAllowed, Closure<Result<?> doFind) {
+    protected void doShow(Closure<Result<?>> checkAllowed, Closure<Result<?>> doFind) {
         checkAllowed()
             .then { doFind() }
             .anyEnd { Result<?> res -> respondWithResult(res) }

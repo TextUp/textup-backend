@@ -5,13 +5,15 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class Record implements ReadOnlyRecord, WithId, Saveable<Record> {
+class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
 
     DateTime lastRecordActivity = DateTimeUtils.now()
     VoiceLanguage language = VoiceLanguage.ENGLISH

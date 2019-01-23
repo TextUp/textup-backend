@@ -2,6 +2,12 @@ package org.textup
 
 import grails.transaction.Transactional
 import grails.compiler.GrailsTypeChecked
+import org.textup.annotation.*
+import org.textup.rest.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional

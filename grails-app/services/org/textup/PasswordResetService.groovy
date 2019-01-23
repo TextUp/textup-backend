@@ -2,15 +2,18 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.textup.annotation.*
+import org.textup.rest.*
 import org.textup.type.*
-import org.textup.util.RollbackOnResultFailure
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
 class PasswordResetService {
 
     MailService mailService
-    ResultFactory resultFactory
     TokenService tokenService
 
     @RollbackOnResultFailure

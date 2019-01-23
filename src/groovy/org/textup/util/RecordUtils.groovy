@@ -1,10 +1,12 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
-import org.joda.time.DateTime
+import org.joda.time.*
 import org.textup.*
-import org.textup.validator.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class RecordUtils {
@@ -58,7 +60,7 @@ class RecordUtils {
             }
     }
 
-    static RecordItemRequestSection buildSingleSection(Phone mutPhone1, List<RecordItem> rItems
+    static RecordItemRequestSection buildSingleSection(Phone mutPhone1, List<RecordItem> rItems,
         Collection<? extends PhoneRecordWrapper> wrappers) {
 
         RecordItemRequestSection
@@ -67,7 +69,7 @@ class RecordUtils {
             .payload
     }
 
-    static List<RecordItemRequestSection> buildSectionsByEntity(List<RecordItem> rItems.
+    static List<RecordItemRequestSection> buildSectionsByEntity(List<RecordItem> rItems,
         Collection<? extends PhoneRecordWrapper> wrappers) {
 
         Map<Long, Collection<RecordItem>> recordIdToItems = MapUtils

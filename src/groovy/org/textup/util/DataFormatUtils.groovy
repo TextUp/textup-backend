@@ -7,6 +7,10 @@ import groovy.json.*
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j

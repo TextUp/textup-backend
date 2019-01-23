@@ -5,11 +5,13 @@ import grails.converters.JSON
 import grails.transaction.Transactional
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
-import org.codehaus.groovy.grails.web.servlet.mvc.TypeMap
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Secured(Roles.USER_ROLES)

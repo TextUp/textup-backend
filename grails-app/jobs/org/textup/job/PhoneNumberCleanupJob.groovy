@@ -6,6 +6,9 @@ import org.quartz.JobExecutionContext
 import org.quartz.utils.Key
 import org.springframework.beans.factory.annotation.Autowired
 import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
 
 class PhoneNumberCleanupJob implements Job {
     static triggers = {

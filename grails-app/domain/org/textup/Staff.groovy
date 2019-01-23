@@ -6,13 +6,15 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Staff implements WithId, Saveable<Staff> {
+class Staff implements WithId, CanSave<Staff> {
 
     boolean enabled = true
     boolean accountExpired

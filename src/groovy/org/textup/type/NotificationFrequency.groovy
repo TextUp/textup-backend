@@ -7,7 +7,7 @@ import org.joda.time.DateTime
 @GrailsTypeChecked
 enum NotificationFrequency {
     IMMEDIATELY(0, "few moments"),
-    QUARTER_HOUR(15, "fifteen minutes")
+    QUARTER_HOUR(15, "fifteen minutes"),
     HALF_HOUR(30, "half hour"),
     HOUR(60, "hour")
 

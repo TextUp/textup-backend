@@ -1,7 +1,6 @@
 package org.textup.type
 
 import grails.compiler.GrailsTypeChecked
-import org.textup.type.RecordItemType
 
 @GrailsTypeChecked
 enum FutureMessageType {

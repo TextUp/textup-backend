@@ -4,13 +4,15 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.UploadItem
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class MediaElement implements ReadOnlyMediaElement, WithId, Saveable<MediaElement> {
+class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement> {
 
     DateTime whenCreated = DateTimeUtils.now()
     MediaElementVersion sendVersion

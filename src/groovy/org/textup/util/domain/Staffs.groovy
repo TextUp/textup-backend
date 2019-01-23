@@ -1,6 +1,12 @@
 package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
+import org.joda.time.DateTime
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class Staffs {
@@ -37,7 +43,7 @@ class Staffs {
             IOCUtils.resultFactory.success(s1)
         }
         else {
-            return resultFactory.failWithCodeAndStatus("passwordResetService.start.staffNotFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("passwordResetService.start.staffNotFound", // TODO
                 ResultStatus.NOT_FOUND, [un])
         }
     }

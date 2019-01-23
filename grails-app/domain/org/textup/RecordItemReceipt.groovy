@@ -2,13 +2,15 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import org.textup.type.ReceiptStatus
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
-class RecordItemReceipt implements WithId, Saveable<RecordItemReceipt> {
+class RecordItemReceipt implements WithId, CanSave<RecordItemReceipt> {
 
     String apiId
     String contactNumberAsString

@@ -3,10 +3,15 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Validateable
-class MergeGroupItem implements Validateable {
+class MergeGroupItem implements CanValidate {
 
 	PhoneNumber number
 	Collection<Long> mergeIds = [] // initialize to empty collection to set off minSize constraint

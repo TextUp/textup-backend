@@ -1,6 +1,12 @@
 package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
+import org.joda.time.DateTime
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class IncomingSessions {
@@ -17,7 +23,7 @@ class IncomingSessions {
             IOCUtils.resultFactory.success(is1)
         }
         else {
-            resultFactory.failWithCodeAndStatus("sessionService.update.notFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("sessionService.update.notFound", // TODO
                 ResultStatus.NOT_FOUND, [isId])
         }
     }

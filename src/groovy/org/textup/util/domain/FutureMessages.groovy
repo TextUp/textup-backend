@@ -1,6 +1,13 @@
 package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
+import org.joda.time.DateTime
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class FutureMessages {
@@ -45,8 +52,9 @@ class FutureMessages {
     protected static DetachedCriteria<FutureMessage> buildForAuth(Long thisId, Long authId) {
         new DetachedCriteria(FutureMessage).build {
             idEq(thisId)
-            "in"("record", PhoneRecords.buildActiveForStaffId(authId)
-                .build(PhoneRecords.returnsRecord())
+            "in"("record", PhoneRecords
+                .buildActiveForStaffId(authId)
+                .build(PhoneRecords.returnsRecord()))
         }
     }
 }

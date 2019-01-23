@@ -2,12 +2,16 @@ package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
+import grails.gorm.DetachedCriteria
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.annotation.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

@@ -5,8 +5,11 @@ import grails.transaction.Transactional
 import java.util.concurrent.TimeUnit
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Secured(Roles.PUBLIC)

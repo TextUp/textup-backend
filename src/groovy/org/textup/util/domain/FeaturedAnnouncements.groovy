@@ -1,6 +1,12 @@
 package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
+import grails.gorm.DetachedCriteria
+import org.joda.time.DateTime
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class FeaturedAnnouncements {
@@ -23,7 +29,7 @@ class FeaturedAnnouncements {
     }
 
     static boolean anyForPhoneId(Long phoneId) {
-        FeaturedAnnouncements.buildActiveForPhoneId(p1.id).count() > 0
+        FeaturedAnnouncements.buildActiveForPhoneId(phoneId).count() > 0
     }
 
     static DetachedCriteria<FeaturedAnnouncement> buildActiveForPhoneId(Long phoneId) {

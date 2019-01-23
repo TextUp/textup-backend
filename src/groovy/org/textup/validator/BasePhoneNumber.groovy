@@ -2,10 +2,15 @@ package org.textup.validator
 
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
 import grails.compiler.GrailsTypeChecked
-import org.textup.util.StringUtils
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
-abstract class BasePhoneNumber implements Validateable {
+abstract class BasePhoneNumber implements CanValidate {
 
     String number
 

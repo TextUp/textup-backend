@@ -8,7 +8,9 @@ import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.hibernate.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked

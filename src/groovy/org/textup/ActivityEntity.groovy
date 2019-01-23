@@ -1,6 +1,8 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.AutoClone
+import org.textup.util.*
 
 @GrailsTypeChecked
 class ActivityEntity {

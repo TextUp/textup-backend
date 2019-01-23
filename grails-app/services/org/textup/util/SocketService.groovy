@@ -7,7 +7,10 @@ import grails.converters.JSON
 import grails.transaction.Transactional
 import groovy.json.JsonSlurper
 import groovy.transform.TypeCheckingMode
-import org.textup.util.*
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional(readOnly = true)
