@@ -9,11 +9,11 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
+@GrailsTypeChecked // TODO
 class MailData {
 
     @Validateable
-    static class InvitedStaff {
+    static class InvitedStaff implements CanValidate {
         final String inviter
         final String invitee
         final String username
@@ -27,7 +27,7 @@ class MailData {
     }
 
     @Validateable
-    static class ApprovedStaff {
+    static class ApprovedStaff implements CanValidate {
         final String name
         final String username
         final String org
@@ -39,7 +39,7 @@ class MailData {
     }
 
     @Validateable
-    static class PendingStaff {
+    static class PendingStaff implements CanValidate {
         final String staff
         final String org
         final String link = LinkUtils.adminDashboard()
@@ -50,13 +50,13 @@ class MailData {
     }
 
     @Validateable
-    static class RejectedStaff {
+    static class RejectedStaff implements CanValidate {
         final String name
         final String username
     }
 
     @Validateable
-    static class PendingOrg {
+    static class PendingOrg implements CanValidate {
         final String org
         final String link = LinkUtils.superDashboard()
 
@@ -66,7 +66,7 @@ class MailData {
     }
 
     @Validateable
-    static class PasswordReset {
+    static class PasswordReset implements CanValidate {
         final String name
         final String username
         final String link
@@ -77,7 +77,7 @@ class MailData {
     }
 
     @Validateable
-    static class Notification {
+    static class Notification implements CanValidate {
         final String staffName
         final String phoneName
         final String phoneNumber

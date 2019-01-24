@@ -1,6 +1,7 @@
 package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
+import grails.validation.Validateable
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -8,22 +9,23 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
+@GrailsTypeChecked // TODO
+@Validateable
 class PartialUploads implements CanValidate, Dehydratable<PartialUploads.Dehydrated> {
 
-    final List<UploadItem> uploads = [] // not private for validation + bulk uploading
-    private final List<MediaElement> elements = []
+    final Collection<UploadItem> uploads = [] // not private for validation + bulk uploading
+    private final Collection<MediaElement> elements = []
 
     static constraints = {
-        mediaElement cascadeValidation: true, validator: { List<MediaElement> val, PartialUploads obj ->
+        mediaElement cascadeValidation: true, validator: { Collection<MediaElement> val, PartialUploads obj ->
             if (val?.size() != obj.uploads?.size()) { ["missingInfo"] }
         }
         uploadItem cascadeValidation: true
     }
 
     static class Dehydrated implements Rehydratable<PartialUploads> {
-        private final List<Long> elementIds
-        private final List<UploadItem> uploads
+        private final Collection<Long> elementIds
+        private final Collection<UploadItem> uploads
 
         @Override
         Result<PartialUploads> tryRehydrate() {
@@ -42,7 +44,7 @@ class PartialUploads implements CanValidate, Dehydratable<PartialUploads.Dehydra
     }
 
     Result<MediaElement> createAndAdd(UploadItem uItem) {
-        MediaElement.tryCreate(null, [initialUpload.toMediaElementVersion()])
+        MediaElement.tryCreate(null, [uItem])
             .then { MediaElement el1 ->
                 elements << el1
                 uploads << uItem

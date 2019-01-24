@@ -2,6 +2,7 @@ package org.textup.action
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.joda.time.DateTime
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -28,13 +29,15 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
                 ResultGroup
                     .<ShareAction, ?>collect(actions) { ShareAction a1 ->
                         Phone p1 = a1.buildPhone()
+                        String pName = p1.owner.buildName()
                         switch (a1) {
                             case ShareAction.MERGE:
-                                permissionToNames[a1perm1] << p1.owner.buildName()
-                                tryStartShare(pr1, p1, a1.buildSharePermission())
+                                SharePermission perm1 = a1.buildSharePermission()
+                                permissionToNames[perm1] << pName
+                                tryStartShare(pr1, p1, perm1)
                                 break
                             default: // ShareAction.STOP
-                                permissionToNames[SharePermission.NONE] << p1.owner.buildName()
+                                permissionToNames[SharePermission.NONE] << pName
                                 tryStopShare(pr1, p1)
                         }
                     }
@@ -61,7 +64,7 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
     }
 
     protected Result<Void> tryStopShare(PhoneRecord source, Phone shareWith) {
-        List<PhoneRecord> prList = PhoneRecords.forActiveWithPhoneIds([shareWith.id])
+        List<PhoneRecord> prList = PhoneRecords.buildActiveForPhoneIds([shareWith.id])
             .build(PhoneRecords.forShareSourceIds([source.id]))
             .list()
         prList.each { PhoneRecord pr1 -> pr1.dateExpired = DateTime.now() }

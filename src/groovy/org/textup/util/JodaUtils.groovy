@@ -12,21 +12,21 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
-class DateTimeUtils {
+class JodaUtils {
 
     static final DateTimeFormatter CURRENT_TIME_FORMAT = DateTimeFormat.forPattern("MMM dd, y h:mm a")
     static final DateTimeFormatter DISPLAYED_MONTH_FORMAT = DateTimeFormat.forPattern("MMM yyyy")
     static final DateTimeFormatter FILE_TIMESTAMP_FORMAT = DateTimeFormat.forPattern("MMM-dd-yyyy")
     static final DateTimeFormatter QUERY_MONTH_FORMAT = DateTimeFormat.forPattern("yyyy-MM")
 
-    static DateTime now() { DateTimeUtils.now() }
+    static DateTime now() { JodaUtils.now() }
 
     static DateTimeZone getZoneFromId(String id) {
         try {
             id ? DateTimeZone.forID(id) : DateTimeZone.UTC
         }
         catch (e) {
-            log.debug("DateTimeUtils.getZoneFromId: ${e.message}")
+            log.debug("JodaUtils.getZoneFromId: ${e.message}")
             return DateTimeZone.UTC
         }
     }
@@ -36,7 +36,7 @@ class DateTimeUtils {
             if (!val) {
                 return null
             }
-            String stringVal = TypeConversionUtils.to(String, val),
+            String stringVal = TypeUtils.to(String, val),
                 stringZone = zone as String
             DateTimeZone tz = getZoneFromId(stringZone)
             // must NOT use withZoneRetainFields because doing so results in this scenario:
@@ -48,7 +48,7 @@ class DateTimeUtils {
             new DateTime(stringVal).withZone(tz)
         }
         catch (e) {
-            log.debug("DateTimeUtils.toDateTimeWithZone: $e")
+            log.debug("JodaUtils.toDateTimeWithZone: $e")
             null
         }
     }

@@ -24,8 +24,8 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, CanSave
 
     boolean notifySelf = false
     DateTime endDate
-    DateTime startDate = DateTimeUtils.now().plusDays(1)
-    DateTime whenCreated = DateTimeUtils.now()
+    DateTime startDate = JodaUtils.now().plusDays(1)
+    DateTime whenCreated = JodaUtils.now()
     FutureMessageType type
     MediaInfo media
     Record record

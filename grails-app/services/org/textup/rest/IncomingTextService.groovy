@@ -2,6 +2,7 @@ package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import java.util.concurrent.TimeUnit
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -47,15 +48,10 @@ class IncomingTextService {
                 socketService.sendIndividualWrappers(wrappers)
                 ResultGroup
                     .collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
-                        w1.tryGetRecord()
-                            .then { Record rec1 ->
-                                rec1.storeIncoming(RecordItemType.TEXT, is1.toAuthor(), is1.number,
-                                    apiId, message, numSegments)
-                            }
-                            .then { RecordText rText1 ->
-                                rText1.addReceipt(rpt)
-                                DomainUtils.trySave(rText1)
-                            }
+                        w1.tryGetRecord().then { Record rec1 ->
+                            rec1.storeIncoming(RecordItemType.TEXT, is1.toAuthor(), is1.number,
+                                apiId, message, numSegments)
+                        }
                     }
                     .logFail("buildTexts")
                     .toResult(true)
@@ -101,7 +97,8 @@ class IncomingTextService {
         ResultGroup<RecordItem> resGroup = new ResultGroup<>()
         notifGroup.eachItem { RecordItem rItem1 ->
             rItem1.media = mInfo
-            rItem1.numNotified = notifGroup.getNumNotifiedForItemId(rItem1.id)
+            rItem1.numNotified = notifGroup
+                .getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem1)
             resGroup << DomainUtils.trySave(rItem1)
         }
         resGroup.toResult(false)

@@ -42,9 +42,9 @@ class OrganizationService implements ManagesDomain.Updater<Organization> {
 
     protected Result<Organization> trySetFields(Organization org1, TypeMap body) {
         org1.with {
-            if (body.name) org.name = body.name
-            if (body.int("timeout") != null) org.timeout = body.int("timeout")
-            if (body.awayMessageSuffix != null) org.awayMessageSuffix = body.awayMessageSuffix
+            if (body.name) name = body.name
+            if (body.int("timeout") != null) timeout = body.int("timeout")
+            if (body.awayMessageSuffix != null) awayMessageSuffix = body.awayMessageSuffix
         }
         DomainUtils.trySave(org1)
     }

@@ -8,8 +8,8 @@ import org.textup.util.*
 
 class TextTwiml {
 
-    static final String TEXT_SEE_ANNOUNCEMENTS = "0"
-    static final String TEXT_TOGGLE_SUBSCRIBE = "1"
+    static final String BODY_SEE_ANNOUNCEMENTS = "0"
+    static final String BODY_TOGGLE_SUBSCRIBE = "1"
 
     static Result<Closure> build(Collection<String> responses) {
         TwilioUtils.wrapTwiml { responses.each { Message(it) } }

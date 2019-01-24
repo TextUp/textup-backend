@@ -5,11 +5,11 @@ import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
-import org.textup.type.PhoneOwnershipType
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.PhoneNumber
-
-// documented as [phoneAction] in CustomApiDocs.groovy
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
@@ -69,7 +69,7 @@ class PhoneAction extends BaseAction {
 	// -------
 
 	PhoneOwnershipType buildPhoneOwnershipType() {
-		TypeConversionUtils.convertEnum(PhoneOwnershipType, type)
+		TypeUtils.convertEnum(PhoneOwnershipType, type)
 	}
 
 	PhoneNumber buildPhoneNumber() { PhoneNumber.create(number) }

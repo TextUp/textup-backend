@@ -21,7 +21,7 @@ class Staff implements WithId, CanSave<Staff> {
     boolean accountLocked
     boolean passwordExpired
 
-    DateTime whenCreated = DateTimeUtils.now()
+    DateTime whenCreated = JodaUtils.now()
     Organization org
     StaffStatus status
     String email
@@ -79,7 +79,10 @@ class Staff implements WithId, CanSave<Staff> {
     // Properties
     // ----------
 
-    Set<Role> getAuthorities() { StaffRole.findAllByStaff(this).collect { it.role } }
+    Set<Role> getAuthorities() {
+        Collection<StaffRole> srs = StaffRole.findAllByStaff(this)
+        srs.collect { StaffRole sr1 -> sr1.role }.toSet()
+    }
 
     void setUsername(String un) { username = StringUtils.cleanUsername(un) }
 

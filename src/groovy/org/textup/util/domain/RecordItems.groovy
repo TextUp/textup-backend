@@ -9,15 +9,16 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class RecordItems {
 
+    @GrailsTypeChecked
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
+    @GrailsTypeChecked
     static Result<? extends RecordItem> mustFindForId(Long thisId) {
         RecordItem rItem1 = RecordItem.get(thisId)
         if (rItem1) {
@@ -30,6 +31,7 @@ class RecordItems {
         }
     }
 
+    @GrailsTypeChecked
     static List<RecordItem> findEveryForApiId(String apiId) {
         List<RecordItem> results = []
         HashSet<Long> itemIds = new HashSet<>()
@@ -50,7 +52,6 @@ class RecordItems {
             .build(RecordItems.forIncoming())
     }
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static DetachedCriteria<RecordItem> buildForPhoneIdWithOptions(Long phoneId,
         DateTime start = null, DateTime end = null,
         Collection<Class<? extends RecordItem>> types = null) {
@@ -65,7 +66,6 @@ class RecordItems {
             .build(forTypes(types))
     }
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static DetachedCriteria<RecordItem> buildForRecordIdsWithOptions(Collection<Long> recordIds,
         DateTime start = null, DateTime end = null,
         Collection<Class<? extends RecordItem>> types = null) {
@@ -85,7 +85,6 @@ class RecordItems {
     // if we also have an ORDER BY clause. Therefore, to avoid GROUP BY errors when calling `count()`
     // we don't include the sort order by default and we have to separately add it in
     // before calling `list()`. See https://stackoverflow.com/a/19602031
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static Closure forSort(boolean recentFirst = true) {
         return { // from newer (larger # millis) to older (smaller $ millis)
             if (recentFirst) {
@@ -98,7 +97,6 @@ class RecordItems {
     // Helpers
     // -------
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static Closure forDates(DateTime start, DateTime end) {
         return {
             if (start && end) {
@@ -110,7 +108,6 @@ class RecordItems {
         }
     }
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static Closure forTypes(Collection<Class<? extends RecordItem>> types) {
         return { CriteriaUtils.inList(delegate, "class", types*.canonicalName) }
     }

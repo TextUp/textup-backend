@@ -15,7 +15,7 @@ class DuplicateService {
 
     Result<List<MergeGroup>> findDuplicates(Long phoneId, Collection<Long> iprIds = null) {
         IndividualPhoneRecords.tryFindEveryIdByNumbers(phoneId, iprIds)
-            .then { Map<String, HashSet<Long>> numToIds ->
+            .then { Map<PhoneNumber, HashSet<Long>> numToIds ->
                 DuplicateUtils.tryBuildMergeGroups(numToIds).toResult(false)
             }
     }

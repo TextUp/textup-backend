@@ -14,7 +14,7 @@ import org.textup.validator.*
 @EqualsAndHashCode
 class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement> {
 
-    DateTime whenCreated = DateTimeUtils.now()
+    DateTime whenCreated = JodaUtils.now()
     MediaElementVersion sendVersion
     String uid = UUID.randomUUID().toString()
 

@@ -14,7 +14,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 @EqualsAndHashCode
 @Sortable(includes = ["whenCreated"])
-class PhoneNumberHistory {
+class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId {
 
     DateTime endTime
     final DateTime whenCreated
@@ -35,7 +35,7 @@ class PhoneNumberHistory {
 
     static Result<PhoneNumberHistory> tryCreate(DateTime created, BasePhoneNumber bNum) {
         PhoneNumberHistory nh1 = new PhoneNumberHistory(numberAsString: bNum?.number,
-            whenCreated: DateTimeUtils.atStartOfMonth(created))
+            whenCreated: JodaUtils.atStartOfMonth(created))
         DomainUtils.trySave(nh1, ResultStatus.CREATED)
     }
 
@@ -63,5 +63,5 @@ class PhoneNumberHistory {
 
     PhoneNumber getNumberIfPresent() { PhoneNumber.tryCreate(numberAsString).payload }
 
-    void setEndTime(DateTime dt) { endTime = DateTimeUtils.atEndOfMonth(dt) }
+    void setEndTime(DateTime dt) { endTime = JodaUtils.atEndOfMonth(dt) }
 }

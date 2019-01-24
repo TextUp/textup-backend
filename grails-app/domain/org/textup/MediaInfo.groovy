@@ -23,7 +23,7 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
         mediaElements cascadeValidation: true
     }
 
-    static Result<MediaInfo> tryCreate(MediaInfo mInfo) {
+    static Result<MediaInfo> tryCreate(MediaInfo mInfo = null) {
         mInfo ?
             DomainUtils.trySave(mInfo) :
             DomainUtils.trySave(new MediaInfo(), ResultStatus.CREATED)

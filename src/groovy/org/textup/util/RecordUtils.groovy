@@ -16,14 +16,14 @@ class RecordUtils {
     static Result<Class<RecordItem>> tryDetermineClass(TypeMap body) {
         RecordItemType type = body.enum(RecordItemType, "type")
         type ?
-            type.toClass() :
+            IOCUtils.resultFactory.success(type.toClass()) :
             IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.determineClass.unknownType",
                 ResultStatus.UNPROCESSABLE_ENTITY)
     }
 
     static DateTime adjustPosition(Long recordId, DateTime afterTime) {
         RecordItem beforeItem = afterTime ?
-            RecordItem.buildForRecordIdsWithOptions([recordId], afterTime).list(max:1)[0] :
+            RecordItems.buildForRecordIdsWithOptions([recordId], afterTime).list(max:1)[0] :
             null
         if (beforeItem) {
             Long val  = new Duration(afterTime, beforeItem.whenCreated).millis / 2 as Long,
@@ -66,7 +66,7 @@ class RecordUtils {
         RecordItemRequestSection
             .tryCreate(mutPhone1.owner.buildName(), mutPhone1.number, rItems, wrappers)
             .logFail("buildSingleSection")
-            .payload
+            .payload as RecordItemRequestSection
     }
 
     static List<RecordItemRequestSection> buildSectionsByEntity(List<RecordItem> rItems,
@@ -78,10 +78,10 @@ class RecordUtils {
             .collect(wrappers) { PhoneRecordWrapper w1 ->
                 w1.tryGetReadOnlyRecord()
                     .then { ReadOnlyRecord rec1 ->
-                        w1.tryGetReadOnlyPhone().curry(rec1) // will show sharedWith phone
+                        w1.tryGetReadOnlyMutablePhone().curry(rec1) // will show sharedWith phone
                     }
                     .then { ReadOnlyRecord rec1, ReadOnlyPhone p1 ->
-                        RecordItemRequestSection.tryCreate(p1.name, p1.number,
+                        RecordItemRequestSection.tryCreate(p1.buildName(), p1.number,
                             recordIdToItems[rec1.id], [w1])
                     }
             }

@@ -92,7 +92,7 @@ class TokenService {
             Token.tryCreate(TokenType.NOTIFY_STAFF, data)
                 .then { Token tok1 ->
                     tok1.maxNumAccess = ValidationUtils.MAX_NUM_ACCESS_NOTIFICATION_TOKEN
-                    tok1.expires = DateTimeUtils.now().plusDays(1)
+                    tok1.expires = JodaUtils.now().plusDays(1)
                     IOCUtils.resultFactory.success(tok1)
                 }
         }

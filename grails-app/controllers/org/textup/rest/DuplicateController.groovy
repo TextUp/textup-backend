@@ -19,15 +19,15 @@ class DuplicateController extends BaseController {
 
     @Override
     void index() {
-        TypeMap data = TypeMap.create(params)
-        ControllerUtils.tryGetPhoneId(data.long("teamId"))
+        TypeMap qParams = TypeMap.create(params)
+        ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
             .then { Long pId ->
-                Long iprIds = data.typedList(Long, "ids[]")
+                List<Long> iprIds = qParams.typedList(Long, "ids[]")
                 duplicateService.findDuplicates(pId, iprIds)
             }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { List<MergeGroup> mgs ->
-                respondWithMany({ mgs.size() }, { mgs }, data, MarshallerUtils.KEY_MERGE_GROUP)
+                respondWithMany({ mgs.size() }, { mgs }, qParams, MarshallerUtils.KEY_MERGE_GROUP)
             }
     }
 }

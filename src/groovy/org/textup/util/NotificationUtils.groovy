@@ -12,16 +12,19 @@ import org.textup.validator.*
 class NotificationUtils {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static Result<NotificationGroup> tryBuildNotificationGroup(Collection<RecordItem> rItems1) {
+    static Result<NotificationGroup> tryBuildNotificationGroup(Collection<? extends RecordItem> rItems1) {
         NotificationUtils.tryBuildNotificationsForItems(rItems1)
             .then { List<Notification> notifs -> NotificationGroup.tryCreate(notifs) }
     }
 
-    static Result<List<Notification>> tryBuildNotificationsForItems(Collection<RecordItem> rItems1,
+    static Result<List<Notification>> tryBuildNotificationsForItems(Collection<? extends RecordItem> rItems1,
         Collection<Long> phoneIds = null) {
 
-        Map<Long, Collection<RecordItem>> recIdToItems = MapUtils
-            .buildManyObjectsMap(rItems1) { RecordItem rItem1 -> rItem1.record.id }
+        // Seems to not compile if we use MapUtils.buildManyObjectsMap
+        Map<Long, Collection<? extends RecordItem>> recIdToItems = [:]
+            .withDefault { [] as Collection<? extends RecordItem> }
+        rItems1.each { RecordItem rItem1 -> recIdToItems[rItem1.record.id] << rItem1 }
+
         List<PhoneRecord> prs = PhoneRecords
             .buildActiveForRecordIds(recIdToItems.keySet())
             .build(PhoneRecords.forPhoneIds(phoneIds, true)) // optional
@@ -36,10 +39,10 @@ class NotificationUtils {
                     }
                     .then { Record rec1, Phone p1 ->
                         ResultGroup
-                            .collect(recIdToItems[rec1.id]) { Collection<RecordItem> rItems2 ->
+                            .collect(recIdToItems[rec1.id]) { Collection<? extends RecordItem> rItems2 ->
                                 NotificationDetail.tryCreate(w1)
                                     .then { NotificationDetail nd1 ->
-                                        nd1.addAll(rItems2)
+                                        nd1.items.addAll(rItems2)
                                         DomainUtils.tryValidate(nd1)
                                     }
                             }
@@ -58,8 +61,9 @@ class NotificationUtils {
     }
 
     static String buildPublicNames(Notification notif1, boolean isOut) {
-        Collection<String> initials = WrapperUtils
+        List<String> initials = WrapperUtils
             .publicNamesIgnoreFails(notif1.getWrappersForOutgoing(isOut))
+            .toList()
         CollectionUtils.joinWithDifferentLast(initials, ", ", " and ")
     }
 

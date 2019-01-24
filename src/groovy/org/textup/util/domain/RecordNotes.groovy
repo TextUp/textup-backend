@@ -2,6 +2,7 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*

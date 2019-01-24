@@ -67,9 +67,9 @@ class MailUtils {
                 // step 1: build the email, docs are incomplete so see source
                 // source: https://github.com/sendgrid/sendgrid-java/blob/v4.3.0/src/main/java/com/sendgrid/helpers/mail/objects/Personalization.java
                 Personalization pers1 = new Personalization()
-                pers1.with {
-                    addTo(toEntity.toSendGridEmail())
-                    data.each { Object key, Object val -> addDynamicTemplateData(key, val) }
+                pers1.addTo(toEntity.toSendGridEmail())
+                data.each { Object key, Object val ->
+                    pers1.addDynamicTemplateData(key?.toString(), val)
                 }
                 ASM asm1 = new ASM()
                 asm1.with {
@@ -108,8 +108,8 @@ class MailUtils {
     // -------
 
     protected static Integer getGroupId() {
-        TypeConversionUtils.to(Integer, Holders.flatConfig("textup.apiKeys.sendGrid.groupIds.account"))
+        TypeUtils.to(Integer, Holders.flatConfig["textup.apiKeys.sendGrid.groupIds.account"])
     }
 
-    protected static String getApiKey() { Holders.flatConfig("textup.apiKeys.sendGrid.apiKey") }
+    protected static String getApiKey() { Holders.flatConfig["textup.apiKeys.sendGrid.apiKey"] }
 }

@@ -8,7 +8,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
+@GrailsTypeChecked // TODO
 @EqualsAndHashCode
 class RecordItemReceipt implements WithId, CanSave<RecordItemReceipt> {
 

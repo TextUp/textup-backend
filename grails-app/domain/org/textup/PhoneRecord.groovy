@@ -11,14 +11,14 @@ import org.textup.validator.*
 
 // [NOTE] all properties in this parent class are DUPLICATED across sharing relationships
 
-@GrailsTypeChecked
+@GrailsTypeChecked // TODO
 @EqualsAndHashCode
 class PhoneRecord implements WithId, CanSave<PhoneRecord> {
 
     FutureMessageJobService futureMessageJobService
 
-    DateTime lastTouched = DateTimeUtils.now()
-    DateTime whenCreated = DateTimeUtils.now()
+    DateTime lastTouched = JodaUtils.now()
+    DateTime whenCreated = JodaUtils.now()
     Phone phone
     PhoneRecordStatus status = PhoneRecordStatus.ACTIVE
     Record record
@@ -66,7 +66,9 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
     // -------
 
     PhoneRecord.ShareInfo toShareInfo() {
-        new PhoneRecord.ShareInfo(whenCreated: whenCreated, phoneId: phone.id, permission: permission)
+        new PhoneRecord.ShareInfo(whenCreated: whenCreated,
+            phoneId: phone.id,
+            permission: permission.toString())
     }
 
     boolean isActive() { toPermissions().isNotExpired() }

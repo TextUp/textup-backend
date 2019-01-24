@@ -19,15 +19,15 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class BaseController {
 
-    void index() { notAllowed() }
+    void index() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
-    void show() { notAllowed() }
+    void show() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
-    void save() { notAllowed() }
+    void save() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
-    void update() { notAllowed() }
+    void update() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
-    void delete() { notAllowed() }
+    void delete() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
     // Helpers
     // -------
@@ -69,8 +69,8 @@ class BaseController {
     }
 
     protected void doShow(Closure<Result<?>> checkAllowed, Closure<Result<?>> doFind) {
-        checkAllowed()
-            .then { doFind() }
+        ClosureUtils.execute(checkAllowed, [])
+            .then { ClosureUtils.execute(doFind, []) }
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
@@ -78,7 +78,7 @@ class BaseController {
         Closure<Result<Long>> checkAllowed) {
 
         RequestUtils.tryGetJsonBody(req, key)
-            .then { TypeMap body -> checkAllowed(body).curry(body) }
+            .then { TypeMap body -> ClosureUtils.execute(checkAllowed, [body]).curry(body) }
             .then { TypeMap body, Long id -> service.create(id, body) }
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }
@@ -87,20 +87,20 @@ class BaseController {
         Closure<Result<Long>> checkAllowed) {
 
         RequestUtils.tryGetJsonBody(req, key)
-            .then { TypeMap body -> checkAllowed(body).curry(body) }
+            .then { TypeMap body -> ClosureUtils.execute(checkAllowed, [body]).curry(body) }
             .then { TypeMap body, Long id -> service.update(id, body) }
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
     protected void doDelete(ManagesDomain.Deleter service, Closure<Result<Long>> checkAllowed) {
-        checkAllowed()
+        ClosureUtils.execute(checkAllowed, [])
             .then { Long id -> service.delete(id) }
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
     protected void respondWithResult(Result<?> res) {
         // step 1: status
-        render(status: res.status.apiStatus)
+        renderStatus(res.status)
         // step 2: payload, if any
         if (res.success) {
             if (res.payload instanceof Closure) {
@@ -108,7 +108,7 @@ class BaseController {
                     contentType: ControllerUtils.CONTENT_TYPE_XML,
                     encoding: Constants.DEFAULT_CHAR_ENCODING
                 ]
-                render(info, res.payload)
+                render(info, res.payload as Closure)
             }
             else if (res.payload && res.status != ResultStatus.NO_CONTENT) {
                 withJsonFormat {
@@ -117,14 +117,18 @@ class BaseController {
                         String locationLink = IOCUtils.linkGenerator.link(resource: controllerName,
                             absolute: true,
                             action: RestUtils.ACTION_GET_SINGLE,
-                            id: DomainUtils.getId(res.payload))
+                            id: idObj)
                         response.addHeader(HttpHeaders.LOCATION, locationLink)
                     }
                     respond(res.payload)
                 }
             }
         }
-        else { respond(CollectionUtils.buildErrors(res)) }
+        else { respond(ControllerUtils.buildErrors(res)) }
+    }
+
+    protected void renderStatus(ResultStatus stat1) {
+        render(status: stat1.apiStatus)
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)

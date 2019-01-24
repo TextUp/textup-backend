@@ -19,7 +19,7 @@ class DomainUtils {
     }
 
     static boolean isNew(Object obj) {
-        getId(obj) == null
+        obj ? (tryGetId(obj) == null) : false
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)

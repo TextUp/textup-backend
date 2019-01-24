@@ -16,7 +16,7 @@ import org.textup.validator.*
 @EqualsAndHashCode(includes = ["session"])
 class AnnouncementReceipt implements WithId, CanSave<AnnouncementReceipt> {
 
-	DateTime whenCreated = DateTimeUtils.now()
+	DateTime whenCreated = JodaUtils.now()
 	FeaturedAnnouncement announcement
 	IncomingSession session
 	RecordItemType type

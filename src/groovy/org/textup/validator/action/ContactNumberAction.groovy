@@ -4,10 +4,11 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-
-// documented as [numberAction] in CustomApiDocs.groovy
 
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)

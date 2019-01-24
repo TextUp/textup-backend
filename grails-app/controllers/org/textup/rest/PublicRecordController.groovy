@@ -22,16 +22,16 @@ class PublicRecordController extends BaseController {
 
     @Override
     def save() {
-        TypeMap data = TypeMap.create(params)
-        TwilioUtils.validate(request, data)
+        TypeMap qParams = TypeMap.create(params)
+        TwilioUtils.validate(request, qParams)
             .then {
-                if (data[CallbackUtils.PARAM_HANDLE] == CallbackUtils.STATUS) {
+                if (qParams[CallbackUtils.PARAM_HANDLE] == CallbackUtils.STATUS) {
                     threadService.delay(5, TimeUnit.SECONDS) {
-                        callbackStatusService.process(data)
+                        callbackStatusService.process(qParams)
                     }
                     TwilioUtils.noResponseTwiml()
                 }
-                else { callbackService.process(data) }
+                else { callbackService.process(qParams) }
             }
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }

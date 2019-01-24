@@ -95,7 +95,7 @@ class AnnouncementCallbackService {
                 AnnouncementReceipt.tryCreate(fa1, is1, RecordItemType.CALL)
             }
             .logFail("callHearAnnouncements")
-        CallTwiml.hearAnnouncements(announces, is1.isSubscribedToCall)
+        CallTwiml.hearAnnouncements(fas, is1.isSubscribedToCall)
     }
 
     protected Result<Closure> callToggleSubscribe(IncomingSession is1) {

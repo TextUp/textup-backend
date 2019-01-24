@@ -2,6 +2,7 @@ package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
+import groovy.transform.TypeCheckingMode
 import org.textup.*
 import org.textup.rest.*
 import org.textup.structure.*
@@ -52,6 +53,7 @@ class MarshallerUtils {
         Holders.flatConfig[code] ?: MarshallerUtils.FALLBACK_PLURAL
     }
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static void setupJsonMarshaller(Object delegate, String key, Class clazz,
         Class<? extends JsonNamedMarshaller> marshallerClazz) {
 

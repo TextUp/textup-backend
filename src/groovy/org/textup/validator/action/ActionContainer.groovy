@@ -5,7 +5,10 @@ import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
@@ -24,7 +27,7 @@ class ActionContainer<T extends BaseAction> implements CanValidate {
 	static constraints = {
 		data validator: { Object data ->
 			if (data instanceof Collection) {
-				Collection dataCollection = TypeConversionUtils.to(Collection, data)
+				Collection dataCollection = TypeUtils.to(Collection, data)
 				for (Object dataObj in dataCollection) {
 					if (!(dataObj instanceof Map)) {
 						return ["emptyOrNotAMap"]
@@ -60,9 +63,9 @@ class ActionContainer<T extends BaseAction> implements CanValidate {
 	protected List<T> tryBuildActions() {
 		List<T> actions = []
 		if (validate(["data"])) {
-			TypeConversionUtils.to(Collection, data)?.each { Object obj ->
+			TypeUtils.to(Collection, data)?.each { Object obj ->
 				T action = (clazz.newInstance() as T)
-				action.update(TypeConversionUtils.to(Map, obj))
+				action.update(TypeUtils.to(Map, obj))
 				actions << action
 			}
 		}

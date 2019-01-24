@@ -74,7 +74,7 @@ class MailService {
 
         MailData.Notification md1 = new MailData.Notification(staffName: s1.name,
             phoneName: notifInfo.phoneName,
-            phoneNumber: notifInfo.phoneNumber,
+            phoneNumber: notifInfo.phoneNumber.prettyPhoneNumber,
             timePeriodDescription: freq1.readableDescription,
             incomingDescription: NotificationUtils.buildIncomingMessage(notifInfo),
             outgoingDescription: NotificationUtils.buildOutgoingMessage(notifInfo),

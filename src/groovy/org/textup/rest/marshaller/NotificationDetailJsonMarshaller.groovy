@@ -19,9 +19,9 @@ class NotificationDetailJsonMarshaller extends JsonNamedMarshaller {
             name  = nd1.wrapper.tryGetSecureName().payload
 
             if (WrapperUtils.isTag(nd1.wrapper)) {
-                tag = nd1.id
+                tag = nd1.wrapper.id
             }
-            else { contact = nd1.id }
+            else { contact = nd1.wrapper.id }
         }
         json
 	}

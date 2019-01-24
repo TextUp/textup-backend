@@ -4,10 +4,11 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
-import org.textup.type.SharePermission
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
-
-// documented as [shareAction] in CustomApiDocs.groovy
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper=true)
@@ -40,7 +41,7 @@ class ShareAction extends BaseAction {
 	// -------
 
 	SharePermission buildSharePermission() {
-		TypeConversionUtils.convertEnum(SharePermission, permission)
+		TypeUtils.convertEnum(SharePermission, permission)
 	}
 
 	Phone buildPhone() { id ? Phone.get(id) : null }

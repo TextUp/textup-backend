@@ -9,5 +9,5 @@ interface ReadOnlyLocation {
     Long getId()
     String getAddress()
     BigDecimal getLat()
-    BigDecimal getLon()
+    BigDecimal getLng()
 }

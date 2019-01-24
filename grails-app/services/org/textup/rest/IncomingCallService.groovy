@@ -20,7 +20,7 @@ class IncomingCallService {
     Result<Closure> process(Phone p1, IncomingSession is1, String apiId, String digits) {
         //if staff member is calling from personal phone to TextUp phone
         Staff s1 = p1.owner.buildAllStaff()
-            .find { Staff staff -> staff.personalPhoneAsString == is1.numberAsString }
+            .find { Staff staff -> staff.personalNumberAsString == is1.numberAsString }
         if (s1) {
             handleSelfCall(p1, apiId, digits, s1)
         }
@@ -46,10 +46,10 @@ class IncomingCallService {
             .then { PhoneNumber pNum, TempRecordReceipt rpt ->
                 PhoneRecordUtils.tryMarkUnread(p1, pNum).curry(pNum, rpt)
             }
-            .then { TempRecordReceipt rpt, List<IndividualPhoneRecordWrapper> wrappers ->
-                socketService.sendIndividualWrappers(wrappers)
+            .then { PhoneNumber pNum, TempRecordReceipt rpt, List<IndividualPhoneRecordWrapper> wraps ->
+                socketService.sendIndividualWrappers(wraps)
                 ResultGroup
-                    .collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
+                    .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
                         w1.tryGetRecord()
                             .then { Record rec1 ->
                                 rec1.storeOutgoing(RecordItemType.CALL, s1.toAuthor())
@@ -66,18 +66,13 @@ class IncomingCallService {
 
     protected Result<Closure> relayCall(Phone p1, IncomingSession is1, String apiId) {
         PhoneRecordUtils.tryMarkUnread(p1, is1.number)
-            .then { List<IndividualPhoneRecordWrapper> wrappers ->
-                socketService.sendIndividualWrappers(wrappers)
+            .then { List<IndividualPhoneRecordWrapper> wraps ->
+                socketService.sendIndividualWrappers(wraps)
                 ResultGroup
-                    .collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
-                        w1.tryGetRecord()
-                            .then { Record rec1 ->
-                                rec1.storeIncoming(RecordItemType.CALL, is1.toAuthor(), is1.number, apiId)
-                            }
-                            .then { RecordCall rCall1 ->
-                                rCall1.addReceipt(rpt)
-                                DomainUtils.trySave(rCall1)
-                            }
+                    .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
+                        w1.tryGetRecord().then { Record rec1 ->
+                            rec1.storeIncoming(RecordItemType.CALL, is1.toAuthor(), is1.number, apiId)
+                        }
                     }
                     .logFail("relayCall")
                     .toResult(true)
@@ -89,7 +84,7 @@ class IncomingCallService {
         List<RecordCall> rCalls) {
 
         if (rCalls) {
-            notificationService.build(rCalls)
+            NotificationUtils.tryBuildNotificationGroup(rCalls)
                 .then { NotificationGroup notifGroup ->
                     buildCallResponse(p1, is1, rCalls, notifGroup)
                 }
@@ -102,7 +97,7 @@ class IncomingCallService {
 
         Collection<OwnerPolicy> policies = notifGroup
             .buildCanNotifyPolicies(NotificationFrequency.IMMEDIATELY)
-        Collection<PhoneNumber> pNums = CollectionUtils.ensureNoNull(policies*.staff*.personalPhone)
+        Collection<PhoneNumber> pNums = CollectionUtils.ensureNoNull(policies*.staff*.personalNumber)
         if (pNums) {
             CallTwiml.connectIncoming(p1.number, is1.number, pNums)
         }

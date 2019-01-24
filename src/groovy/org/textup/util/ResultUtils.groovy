@@ -12,31 +12,6 @@ import org.textup.validator.*
 @Log4j
 class ResultUtils {
 
-    static List<Object> buildArgs(int maxNumArgs, List<Object> args) {
-        int numArgs = args.size()
-        if (maxNumArgs == 0) {
-            []
-        }
-        else if (numArgs == maxNumArgs) {
-            args
-        }
-        else if (numArgs > maxNumArgs) {
-            args[0..(maxNumArgs - 1)]
-        }
-        else { // numArgs < maxNumArgs
-            args.addAll(Collections.nCopies(maxNumArgs - numArgs, null))
-            args
-        }
-    }
-
-    static <T> T callClosure(Closure<T> action, Object[] args) {
-        switch (args.length) {
-            case 0: return action.call()
-            case 1: return action.call(args[0])
-            default: return action.call(args)
-        }
-    }
-
     static <T> Result<T> convertGroupToResult(ResultGroup<?> resGroup, Result<T> successRes,
         boolean allowSomeFailures) {
 
@@ -49,14 +24,14 @@ class ResultUtils {
             successRes
         }
         else if (!someSuccess && someFailure) {
-            IOCUtils.resultFactory.failWithGroup(this)
+            IOCUtils.resultFactory.failWithGroup(resGroup)
         }
         else { // someSuccess && someFailure
             if (allowSomeFailures) {
                 successRes
             }
             else {
-                IOCUtils.resultFactory.failWithGroup(this)
+                IOCUtils.resultFactory.failWithGroup(resGroup)
             }
         }
     }

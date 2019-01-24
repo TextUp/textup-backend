@@ -2,15 +2,16 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class Staffs {
 
+    @GrailsTypeChecked
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.isAllowed(thisId != null)
             .then { AuthUtils.tryGetAuthId() }
@@ -26,6 +27,7 @@ class Staffs {
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
+    @GrailsTypeChecked
     static Result<Staff> mustFindForId(Long staffId) {
         Staff s1 = staffId ? Staff.get(staffId) : null
         if (s1) {
@@ -37,7 +39,8 @@ class Staffs {
         }
     }
 
-    static Result<Staff> mustFindForUsername(Staff un) {
+    @GrailsTypeChecked
+    static Result<Staff> mustFindForUsername(String un) {
         Staff s1 = Staff.findByUsername(StringUtils.cleanUsername(un))
         if (s1) {
             IOCUtils.resultFactory.success(s1)
@@ -66,23 +69,28 @@ class Staffs {
     }
 
     // Grails-managed join tables cannot be directly queried
-    static HashSet<Staff> findEveryForSharingId(Long shareWithStaffId) {
+    @GrailsTypeChecked
+    static Collection<Staff> findEveryForSharingId(Long shareWithStaffId) {
         HashSet<Staff> shareCandidates = new HashSet<>()
-        List<Teams> teams = Teams.buildForStaffIds([shareWithStaffId]).list()
+        List<Team> teams = Teams.buildForStaffIds([shareWithStaffId]).list()
         teams.each { Team t1 ->
             // add only staff members that have a phone!
-            shareCandidates.addAll(t1.activeMembers.findAll { Staff s1 -> s1.phone })
+            Collection<Staff> staffWitPhones = t1.activeMembers.findAll { Staff s1 ->
+                !!Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, false).payload
+            }
+            shareCandidates.addAll(staffWitPhones)
         }
         // exclude the staff members we are finding share candidates for
         shareCandidates.findAll { Staff s1 -> s1.id != shareWithStaffId }
     }
 
+    @GrailsTypeChecked
     static Collection<Staff> findEveryForRecordIds(Collection<Long> recIds) {
         if (recIds) {
             List<Phone> phones = PhoneRecords.buildActiveForRecordIds(recIds)
                 .build(PhoneRecords.returnsPhone())
                 .list() as List<Phone>
-            CollectionUtils.mergeUnique(*phones*.owner*.buildAllStaff())
+            CollectionUtils.mergeUnique(phones*.owner*.buildAllStaff())
         }
         else { [] }
     }
@@ -98,7 +106,7 @@ class Staffs {
     // Helpers
     // -------
 
-    protected static forQuery(String query) {
+    protected static Closure forQuery(String query) {
         if (!query) {
             return { }
         }
@@ -117,7 +125,7 @@ class Staffs {
         }
     }
 
-    protected static forStatuses(Collection<StaffStatus> statuses) {
+    protected static Closure forStatuses(Collection<StaffStatus> statuses) {
         return {
             CriteriaUtils.inList(delegate, "status", statuses)
         }

@@ -2,6 +2,7 @@ package org.textup.util
 
 import grails.async.*
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import java.util.concurrent.*
 import org.textup.*
@@ -16,6 +17,7 @@ class AsyncUtils {
 
     static final int UPLOAD_BATCH_SIZE = 8
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static <T extends CanSave> Collection<T> getAllIds(Class<T> clazz, Collection<Long> ids) {
         Collection<T> found = clazz.getAll(ids?.unique() as Iterable<Serializable>)
         if (found.size() != ids.size()) {

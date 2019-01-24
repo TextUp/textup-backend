@@ -64,12 +64,12 @@ class UsageUtils {
     }
 
     static String buildNumbersStringForMonth(Number phoneId, DateTime monthObj) {
-        Phone p1 = Phones.mustFindActiveForId(phoneId)
+        Phone p1 = Phones.mustFindActiveForId(phoneId as Long)
             .logFail("buildNumbersStringForMonth")
-            .payload
-        Collection<String> nums = p1
-            ?.buildNumbersForMonth(monthObj?.monthOfYear()?.get(), monthObj?.year()?.get())
-            *.prettyPhoneNumber
+            .payload as Phone
+        List<String> nums = []
+        p1.buildNumbersForMonth(monthObj?.monthOfYear()?.get(), monthObj?.year()?.get())
+            .each { PhoneNumber pNum -> nums << pNum.prettyPhoneNumber }
         nums ? CollectionUtils.joinWithDifferentLast(nums, ", ", " and ") : NO_NUMBERS
     }
 
@@ -107,7 +107,7 @@ class UsageUtils {
             return ""
         }
         try {
-            DateTime dt = DateTimeUtils.QUERY_MONTH_FORMAT.parseDateTime(queryMonth)
+            DateTime dt = JodaUtils.QUERY_MONTH_FORMAT.parseDateTime(queryMonth)
             dateTimeToMonthString(dt)
         }
         catch (IllegalArgumentException e) {
@@ -119,14 +119,14 @@ class UsageUtils {
         if (!dt) {
             return ""
         }
-        DateTimeUtils.CURRENT_TIME_FORMAT.print(dt)
+        JodaUtils.CURRENT_TIME_FORMAT.print(dt)
     }
 
     static String dateTimeToMonthString(DateTime dt) {
         if (!dt) {
             return ""
         }
-        DateTimeUtils.DISPLAYED_MONTH_FORMAT.print(dt)
+        JodaUtils.DISPLAYED_MONTH_FORMAT.print(dt)
     }
 
     static DateTime monthStringToDateTime(String monthString) {
@@ -134,7 +134,7 @@ class UsageUtils {
             return null
         }
         try {
-            DateTimeUtils.DISPLAYED_MONTH_FORMAT.parseDateTime(monthString)
+            JodaUtils.DISPLAYED_MONTH_FORMAT.parseDateTime(monthString)
         }
         catch (IllegalArgumentException e) {
             return null

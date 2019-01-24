@@ -22,51 +22,54 @@ class StaffController extends BaseController {
 
     @Override
     void index() {
-        TypeMap data = TypeMap.create(params)
-        Collection<StaffStatus> statuses = data
-            .enumList(StaffStatus, "status[]", StaffStatus.ACTIVE_STATUSES)
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, data.string("timezone"))
-        if (data.organizationId) {
-            listForOrg(statuses, data)
+        TypeMap qParams = TypeMap.create(params)
+        Collection<StaffStatus> statuses = qParams
+            .enumList(StaffStatus, "status[]") ?: StaffStatus.ACTIVE_STATUSES
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        if (qParams.organizationId) {
+            listForOrg(statuses, qParams)
         }
-        else if (data.teamId) {
-            listForTeam(statuses, data)
+        else if (qParams.teamId) {
+            listForTeam(statuses, qParams)
         }
-        else { listForShareStaff(data) }
+        else { listForShareStaff(qParams) }
     }
 
     @Override
     void show() {
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
-        Long id = params.long("id")
+        TypeMap qParams = TypeMap.create(params)
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        Long id = qParams.long("id")
         doShow({ Staffs.isAllowed(id) }, { Staffs.mustFindForId(id) })
     }
 
     @Secured(Roles.PUBLIC)
     @Override
     void save() {
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
-        RequestUtils.tryGetJsonBody(req, MarshallerUtils.KEY_STAFF)
+        TypeMap qParams = TypeMap.create(params)
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        RequestUtils.tryGetJsonBody(request, MarshallerUtils.KEY_STAFF)
             .then { TypeMap body -> staffService.create(body) }
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }
 
     @Override
     void update() {
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
-        doUpdate(MarshallerUtils.KEY_STAFF, request, staffService) { TypeMap body ->
-            Staffs.isAllowed(params.long("id"))
+        TypeMap qParams = TypeMap.create(params)
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        doUpdate(MarshallerUtils.KEY_STAFF, request, staffService) {
+            Staffs.isAllowed(qParams.long("id"))
         }
     }
 
     // Helpers
     // -------
 
-    protected void listForOrg(Collection<StaffStatus> statuses, TypeMap data) {
-        Organizations.isAllowed(data.long("organizationId"))
+    protected void listForOrg(Collection<StaffStatus> statuses, TypeMap qParams) {
+        Organizations.isAllowed(qParams.long("organizationId"))
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long orgId ->
-                String search = data.string("search")
+                String search = qParams.string("search")
                 respondWithCriteria(Staffs.buildForOrgIdAndOptions(orgId, search, statuses),
                     params,
                     null,
@@ -74,22 +77,22 @@ class StaffController extends BaseController {
             }
     }
 
-    protected void listForTeam(Collection<StaffStatus> statuses, TypeMap data) {
-        Teams.isAllowed(data.long("teamId"))
+    protected void listForTeam(Collection<StaffStatus> statuses, TypeMap qParams) {
+        Teams.isAllowed(qParams.long("teamId"))
             .then { Long tId -> Teams.mustFindForId(tId) }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Team t1 ->
                 Collection<Staff> staffs = t1.getMembersByStatus(statuses)
-                respondWithMany({ staffs.size() }, { staffs }, data, MarshallerUtils.KEY_STAFF)
+                respondWithMany({ staffs.size() }, { staffs }, qParams, MarshallerUtils.KEY_STAFF)
             }
     }
 
-    protected void listForShareStaff(TypeMap data) {
-        Staffs.isAllowed(data.long("shareStaffId"))
+    protected void listForShareStaff(TypeMap qParams) {
+        Staffs.isAllowed(qParams.long("shareStaffId"))
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .then { Long sId ->
-                HashSet<Staff> staffs = Staffs.findEveryForSharingId(sId)
-                respondWithMany({ staffs.size() }, { staffs }, data, MarshallerUtils.KEY_STAFF)
+                Collection<Staff> staffs = Staffs.findEveryForSharingId(sId)
+                respondWithMany({ staffs.size() }, { staffs }, qParams, MarshallerUtils.KEY_STAFF)
             }
     }
 }

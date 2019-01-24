@@ -22,7 +22,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem> {
     boolean isAnnouncement = false
     boolean outgoing = true // true is CM->client, false is CM<-client
     boolean wasScheduled = false
-    DateTime whenCreated = DateTimeUtils.now()
+    DateTime whenCreated = JodaUtils.now()
     Integer numNotified = 0 // texts = # staff notified, future messages = # "notify-me"
     Long authorId
     MediaInfo media

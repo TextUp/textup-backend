@@ -110,8 +110,8 @@ class TwilioUtils {
 
     static List<String> formatAnnouncementsForRequest(Collection<FeaturedAnnouncement> announces) {
         if (announces) {
-            announces.collect { FeaturedAnnouncement a1 ->
-                TwilioUtils.formatAnnouncementForRequest(a1.whenCreated, a1.owner.name, a1.message)
+            announces.collect { FeaturedAnnouncement fa1 ->
+                TwilioUtils.formatAnnouncementForRequest(fa1.whenCreated, fa1.phone.buildName(), fa1.message)
             }
         }
         else { [IOCUtils.getMessage("twimlBuilder.noAnnouncements")] }

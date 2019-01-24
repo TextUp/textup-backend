@@ -76,7 +76,7 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
         String timezone = null) {
 
         fMsg.with {
-            if (body.notifySelf != null) notifySelf = body.bool("notifySelf")
+            if (body.notifySelf != null) notifySelf = body.boolean("notifySelf")
             if (body.type) type = body.enum(FutureMessageType, "type")
             if (body.message) message = body.string("message")
             if (body.startDate) startDate = body.dateTime("startDate", timezone)
@@ -84,7 +84,7 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
             // endDate by omitting it from the passed-in body
             endDate = body.dateTime("endDate", timezone)
         }
-        if (body.language) fMsg.record.language = body.enum(VoiceLanguage, body.language)
+        if (body.language) fMsg.record.language = body.enum(VoiceLanguage, "language")
 
         if (fMsg.instanceOf(SimpleFutureMessage)) {
             SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage
@@ -96,13 +96,13 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
         // if timezone is provided, determine if we need to schedule a date to adjust to
         // account for daylight savings time
         if (timezone) {
-            fMsg.checkScheduleDaylightSavingsAdjustment(DateTimeUtils.getZoneFromId(timezone))
+            fMsg.checkScheduleDaylightSavingsAdjustment(JodaUtils.getZoneFromId(timezone))
         }
         DomainUtils.trySave(fMsg)
     }
 
     protected Result<FutureMessage> trySchedule(FutureMessage fMsg) {
-        futureMessageJobService.schedule(fMsg)
+        futureMessageJobService.trySchedule(fMsg)
             .then { socketService.sendFutureMessages([fMsg]) } // will refresh trigger
             .then { DomainUtils.trySave(fMsg) }
     }

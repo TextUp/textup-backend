@@ -12,10 +12,10 @@ class ManagesDomain {
     }
 
     interface Updater {
-        Result<T> create(Long id, TypeMap body)
+        Result<T> update(Long id, TypeMap body)
     }
 
     interface Deleter {
-        Result<Void> create(Long id)
+        Result<Void> delete(Long id)
     }
 }

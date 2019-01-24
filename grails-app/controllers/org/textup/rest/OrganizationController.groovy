@@ -22,8 +22,9 @@ class OrganizationController extends BaseController {
     @Secured(Roles.PUBLIC)
     @Override
     void index() {
-        respondWithCriteria(Organizations.buildForOptions(params.string("search")),
-            params,
+        TypeMap qParams = TypeMap.create(params)
+        respondWithCriteria(Organizations.buildForOptions(qParams.string("search")),
+            qParams,
             null,
             MarshallerUtils.KEY_ORGANIZATION)
     }
@@ -32,12 +33,12 @@ class OrganizationController extends BaseController {
     @Override
     void show() {
         Long id = params.long("id")
-        doShow({ Result.void() }, { IndividualPhoneRecordsWrappers.mustFindForId(id) })
+        doShow({ Result.void() }, { IndividualPhoneRecordWrappers.mustFindForId(id) })
     }
 
     @Override
     void update() {
-        doUpdate(MarshallerUtils.KEY_ORGANIZATION, request, organizationService) { TypeMap body ->
+        doUpdate(MarshallerUtils.KEY_ORGANIZATION, request, organizationService) {
             Organizations.isAllowed(params.long("id"))
         }
     }

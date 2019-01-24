@@ -5,6 +5,7 @@ import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.validator.*
 
 @EqualsAndHashCode

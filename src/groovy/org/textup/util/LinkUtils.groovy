@@ -18,18 +18,20 @@ class LinkUtils {
 
     private static final String LINK_CONFIG_ROOT = "textup.links"
 
-    static String adminDashboard() { Holders.flatConfig("${LINK_CONFIG_ROOT}.adminDashboard") }
+    static String adminDashboard() { Holders.flatConfig["${LINK_CONFIG_ROOT}.adminDashboard"] }
 
-    static String setupAccount() { Holders.flatConfig("${LINK_CONFIG_ROOT}.setupAccount") }
+    static String setupAccount() { Holders.flatConfig["${LINK_CONFIG_ROOT}.setupAccount"] }
 
-    static String superDashboard() { Holders.flatConfig("${LINK_CONFIG_ROOT}.superDashboard") }
+    static String superDashboard() { Holders.flatConfig["${LINK_CONFIG_ROOT}.superDashboard"] }
 
     static String passwordReset(String tokenVal) {
-        Holders.flatConfig("${LINK_CONFIG_ROOT}.passwordReset") + "/" + tokenVal
+        String root = Holders.flatConfig["${LINK_CONFIG_ROOT}.passwordReset"]
+        root + "/" + tokenVal
     }
 
     static String notification(String tokenVal) {
-        Holders.flatConfig("${LINK_CONFIG_ROOT}.notification") + "/" + tokenVal
+        String root = Holders.flatConfig["${LINK_CONFIG_ROOT}.notification"]
+        root + "/" + tokenVal
     }
 
     // for voicemail greetings to enable caching

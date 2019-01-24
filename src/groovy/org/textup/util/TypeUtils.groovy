@@ -13,7 +13,7 @@ import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
-class TypeConversionUtils {
+class TypeUtils {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static <T extends Enum<T>> T convertEnum(Class<T> enumClass, def string) {
@@ -24,6 +24,7 @@ class TypeConversionUtils {
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static <T extends Enum<T>> List<T> toEnumList(Class<T> enumClass, def enumsOrStrings,
         List<T> fallbackVal = []) {
+
         if (enumsOrStrings instanceof Collection) {
             enumsOrStrings
                 ?.collect { enumOrString ->
@@ -41,7 +42,7 @@ class TypeConversionUtils {
     // the Object val to the generic type T, instead complaining that the return value is of
     // type T and does not match te declared type
     static <T> T to(Class<T> clazz, Object val) {
-        TypeConversionUtils.to(clazz, val, null)
+        TypeUtils.to(clazz, val, null)
     }
     // TODO test if this works for object types like `Collection`
     static <T> T to(Class<T> clazz, Object val, T fallbackVal) {
@@ -60,7 +61,7 @@ class TypeConversionUtils {
             }
         }
         catch (ClassCastException e) {
-            log.debug("TypeConversionUtils.to: wrappedClazz: $wrappedClazz, val: $val: ${e.message}")
+            log.debug("TypeUtils.to: wrappedClazz: $wrappedClazz, val: $val: ${e.message}")
             fallbackVal
         }
     }

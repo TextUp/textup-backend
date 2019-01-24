@@ -59,7 +59,7 @@ class ControllerUtils {
         Map<String, String> links = [:]
         // if there is an offset, then we need to include previous link
         if (offset > 0) {
-            int prevOffset = (offset - max >= 0) ?: 0
+            int prevOffset = (offset - max >= 0) ? offset - max : 0
             links.prev = IOCUtils.linkGenerator
                 .link(linkParams + [params: [max: max, offset: prevOffset]])
         }

@@ -50,7 +50,7 @@ class GroupPhoneRecord extends PhoneRecord {
 
     @Override
     Collection<Record> buildRecords() {
-        CollectionUtils.mergeUnique([record], getActiveMembers()*.record)
+        CollectionUtils.mergeUnique([[record], getActiveMembers()*.record])
     }
 
     // Properties

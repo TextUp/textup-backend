@@ -36,11 +36,11 @@ class Result<T> {
     // Methods
     // -------
 
-    public void thenEnd(Closure<?> successAction) {
+    void thenEnd(Closure<?> successAction) {
         getSuccess() ? tryExecuteSuccess(successAction) : null
     }
 
-    public void anyEnd(Closure<?> action) {
+    void anyEnd(Closure<?> action) {
         action?.call(this)
     }
 
@@ -60,6 +60,20 @@ class Result<T> {
     public <V> Result<V> ifFail(String prefix, LogLevel level, Closure<Result<V>> failAction) {
         logFail(prefix, level)
         ifFail(failAction)
+    }
+
+    void ifFailEnd(Closure<?> failAction) {
+        getSuccess() ? this : tryExecuteFailure(failAction)
+    }
+
+    void ifFailEnd(String prefix, Closure<?> failAction) {
+        logFail(prefix)
+        ifFailEnd(failAction)
+    }
+
+    void ifFailEnd(String prefix, LogLevel level, Closure<?> failAction) {
+        logFail(prefix, level)
+        ifFailEnd(failAction)
     }
 
     Result<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {
@@ -140,22 +154,18 @@ class Result<T> {
             List<Object> args = new ArrayList<Object>(successArgs)
             args << payload
             args << status
-            execute(action, args)
+            ClosureUtils.execute(action, args)
         }
         else { this }
     }
+
     protected <W> W tryExecuteFailure(Closure<W> action) {
         if (action && !hasErrorBeenHandled) {
             hasErrorBeenHandled = true
             List<Object> args = new ArrayList<Object>(failureArgs)
             args << this
-            execute(action, args)
+            ClosureUtils.execute(action, args)
         }
         else { this }
-    }
-    protected <W> W execute(Closure<W> action, List<Object> args) {
-        int maxNumArgs = action.maximumNumberOfParameters
-        List<Object> validArgs = ResultUtils.buildArgs(maxNumArgs, args)
-        ResultUtils.callClosure(action, validArgs.toArray())
     }
 }

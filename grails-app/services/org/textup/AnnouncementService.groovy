@@ -31,7 +31,7 @@ class AnnouncementService implements ManagesDomain.Creater<FeaturedAnnouncement>
 	}
 
     @RollbackOnResultFailure
-    Result<FeaturedAnnouncement> update(Long aId, Map body) {
+    Result<FeaturedAnnouncement> update(Long aId, TypeMap body) {
         FeaturedAnnouncements.mustFindForId(aId)
             .then { FeaturedAnnouncement fa1 ->
                 fa1.expiresAt = body.dateTime("expiresAt")

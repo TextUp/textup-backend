@@ -10,7 +10,7 @@ import org.textup.validator.*
 
 @EqualsAndHashCode(includes = ["id"])
 @GrailsTypeChecked
-class StaffRole implements Serializable {
+class StaffRole implements Serializable, CanSave<StaffRole> {
 
 	private static final long serialVersionUID = 1
 
@@ -23,7 +23,7 @@ class StaffRole implements Serializable {
 	}
 	static constraints = {
 		role validator: { Role val, StaffRole obj ->
-			if (obj.staff && Helpers.<Boolean>doWithoutFlush {
+			if (obj.staff && Utils.<Boolean>doWithoutFlush {
 					StaffRole.countByStaffAndRole(obj.staff, val) > 0
 				}) {
 				return "userRole.exists"

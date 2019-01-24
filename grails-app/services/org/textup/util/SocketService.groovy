@@ -69,12 +69,13 @@ class SocketService {
     // Helpers
     // -------
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected Result<Void> trySend(String event, Collection<Staff> staffs, Collection<?> toSend) {
         ResultGroup<?> resGroup = new ResultGroup<>()
         if (staffs && toSend) {
             toSend.collate(PAYLOAD_BATCH_SIZE) // prevent exceeding payload max size
                 .each { Collection<?> batch ->
-                    Collection serialized = DataFormatUtils.jsonToObject(batch)
+                    Object serialized = DataFormatUtils.jsonToObject(batch)
                     staffs.each { Staff s1 ->
                         resGroup << trySendToDataToStaff(event, s1, serialized)
                     }

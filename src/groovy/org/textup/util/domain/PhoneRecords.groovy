@@ -2,21 +2,23 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class PhoneRecords {
 
+    @GrailsTypeChecked
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
+    @GrailsTypeChecked
     static Result<? extends PhoneRecord> mustFindForId(Long thisId) {
         PhoneRecord pr1 = PhoneRecord.get(thisId)
         if (pr1) {
@@ -46,7 +48,7 @@ class PhoneRecords {
             .build(PhoneRecords.forActive())
     }
 
-    static DetachedCriteria<PhoneRecords> buildActiveForShareSourceIds(Collection<Long> sourceIds) {
+    static DetachedCriteria<PhoneRecord> buildActiveForShareSourceIds(Collection<Long> sourceIds) {
         new DetachedCriteria(PhoneRecord)
             .build(PhoneRecords.forShareSourceIds(sourceIds))
             .build(PhoneRecords.forActive())
@@ -58,7 +60,7 @@ class PhoneRecords {
         }
     }
 
-    static Closure forPhoneIds(Collection<Long> phoneIds, boolean optional) {
+    static Closure forPhoneIds(Collection<Long> phoneIds, boolean optional = false) {
         return {
             CriteriaUtils.inList(delegate, "phone.id", phoneIds, optional)
         }
@@ -91,7 +93,7 @@ class PhoneRecords {
             eq("isDeleted", false) // TODO does this work?
             or {
                 isNull("dateExpired") // not expired if null
-                gt("dateExpired", DateTimeUtils.now())
+                gt("dateExpired", JodaUtils.now())
             }
             phone {
                 CriteriaUtils.compose(delegate, Phones.forActive())

@@ -35,12 +35,12 @@ class OwnerPolicy implements WithId, CanSave<OwnerPolicy> {
         }
     }
 
-    static Result<OwnerPolicy> tryCreate(PhoneOwnership owner, Long staffId) {
+    static Result<OwnerPolicy> tryCreate(PhoneOwnership own1, Long staffId) {
         Staffs.mustFindForId(staffId)
             .then { Staff s1 -> Schedule.tryCreate().curry(s1) }
             .then { Staff s1, Schedule sched1 ->
                 OwnerPolicy np1 = new OwnerPolicy(staff: s1, schedule: sched1)
-                owner.addToPolicies(np1)
+                own1.addToPolicies(np1)
                 DomainUtils.trySave(np1, ResultStatus.CREATED)
             }
 

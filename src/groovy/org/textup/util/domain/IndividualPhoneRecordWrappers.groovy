@@ -11,16 +11,17 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @Log4j
 class IndividualPhoneRecordWrappers {
 
+    @GrailsTypeChecked
     static Result<IndividualPhoneRecordWrapper> tryCreate(Phone p1) {
         IndividualPhoneRecord.tryCreate(p1).then { IndividualPhoneRecord ipr1 ->
             IOCUtils.resultFactory.success(ipr1.toWrapper())
         }
     }
 
+    @GrailsTypeChecked
     static Result<IndividualPhoneRecordWrapper> mustFindForId(Long iprId) {
         PhoneRecord pr1 = PhoneRecord.get(iprId)
         PhoneRecordWrapper w1 = pr1?.toWrapper()
@@ -48,20 +49,21 @@ class IndividualPhoneRecordWrappers {
         buildBase(query, statuses).build { eq("shareSource.phone.id", sharedById) } // inner join
     }
 
-    static Closure<List<IndividualPhoneRecordWrapper>> doList(DetachedCriteria<PhoneRecord> query) {
+    static Closure<List<IndividualPhoneRecordWrapper>> listAction(DetachedCriteria<PhoneRecord> query) {
         return { Map opts -> query.build(forSort()).list(opts)*.toWrapper() }
     }
 
+    @GrailsTypeChecked
     static Result<List<IndividualPhoneRecordWrapper>> tryFindEveryByNumbers(Phone p1,
         List<? extends BasePhoneNumber> bNums, boolean createIfAbsent) {
 
         IndividualPhoneRecords.tryFindEveryByNumbers(p1, bNums, createIfAbsent)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPRecs ->
-                List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(*numToPRecs.values())
+                List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(numToPRecs.values())
                 List<PhoneRecord> sharedRecs = PhoneRecords
                     .buildActiveForShareSourceIds(iprs*.id)
                     .list()
-                CollectionUtils.mergeUnique(sharedRecs*.toWrapper(), iprs*.toWrapper())
+                CollectionUtils.mergeUnique([sharedRecs*.toWrapper(), iprs*.toWrapper()])
             }
     }
 
@@ -78,13 +80,11 @@ class IndividualPhoneRecordWrappers {
             .build(PhoneRecords.forActive())
     }
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static Closure forStatuses(Collection<PhoneRecordStatus> statuses) {
         return { CriteriaUtils.inList(delegate, "status", statuses) }
     }
 
     // For hasMany left join, see: https://stackoverflow.com/a/45193881
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static Closure forQuery(String query) {
         if (!query) {
             return { }
@@ -111,7 +111,6 @@ class IndividualPhoneRecordWrappers {
     }
 
     // For why sorting is separate, see `RecordItems.forSort`
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static Closure forSort() {
         return {
             order("status", "desc") // unread first then active

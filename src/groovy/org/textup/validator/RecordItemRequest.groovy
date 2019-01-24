@@ -33,7 +33,7 @@ class RecordItemRequest implements CanValidate {
         end nullable: true
         wrappers validator: { Collection<PhoneRecordWrapper> val, RecordItemRequest obj ->
             if (val) {
-                if (val.any { !it?.permission?.canView() }) {
+                if (val.any { !it?.permissions?.canView() }) {
                     return ["someNoPermissions"]
                 }
                 Collection<Long> pIds = WrapperUtils.mutablePhoneIdsIgnoreFails(val)
@@ -59,8 +59,9 @@ class RecordItemRequest implements CanValidate {
     List<RecordItemRequestSection> buildSections(Map params = null) {
         // when exporting, we want the oldest records first instead of most recent first
         DetachedCriteria<RecordItem> criteria = getCriteria()
+        Integer total = criteria.count() as Integer
         List<RecordItem> rItems = criteria.build(RecordItems.forSort(false))
-            .list(ControllerUtils.buildPagination(params, criteria.call()))
+            .list(ControllerUtils.buildPagination(params, total))
         // group by entity only makes sense if we have entities and haven't fallen back
         // to getting record items for the phone overall
         if (!wrappers.isEmpty() && groupByEntity) {
@@ -73,6 +74,18 @@ class RecordItemRequest implements CanValidate {
         }
     }
 
+    String buildFormattedStart(String tz) {
+        start ?
+            JodaUtils.FILE_TIMESTAMP_FORMAT.print(JodaUtils.toDateTimeWithZone(start, tz)) :
+            DEFAULT_START
+    }
+
+    String buildFormattedEnd(String tz) {
+        end ?
+            JodaUtils.FILE_TIMESTAMP_FORMAT.print(JodaUtils.toDateTimeWithZone(end, tz)) :
+            DEFAULT_END
+    }
+
     // Properties
     // ----------
 
@@ -81,17 +94,5 @@ class RecordItemRequest implements CanValidate {
             ? RecordItems.buildForPhoneIdWithOptions(mutablePhone?.id, start, end, types)
             : RecordItems.buildForRecordIdsWithOptions(WrapperUtils.recordIdsIgnoreFails(wrappers),
                 start, end, types)
-    }
-
-    String getFormattedStart(String tz) {
-        start ?
-            DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(DateTimeUtils.toDateTimeWithZone(start, tz)) :
-            DEFAULT_START
-    }
-
-    String getFormattedEnd() {
-        end ?
-            DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(DateTimeUtils.toDateTimeWithZone(end, tz)) :
-            DEFAULT_END
     }
 }

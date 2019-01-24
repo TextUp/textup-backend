@@ -53,8 +53,8 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
     @RollbackOnResultFailure
     Result<Void> delete(Long iprId) {
         IndividualPhoneRecordWrappers.mustFindForId(iprId)
-            .then { IndividualPhoneRecordWrapper w1 -> w1.tryDelete() }
-            .then { DomainUtils.trySave(w1) }
+            .then { IndividualPhoneRecordWrapper w1 -> w1.tryDelete().curry(w1) }
+            .then { IndividualPhoneRecordWrapper w1 -> DomainUtils.trySave(w1) }
             .then { Result.void() }
     }
 

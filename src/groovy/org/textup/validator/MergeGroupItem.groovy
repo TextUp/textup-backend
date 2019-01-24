@@ -23,10 +23,11 @@ class MergeGroupItem implements CanValidate {
 				IndividualPhoneRecords
 					.buildForIds(mergeIds)
 					.build(CriteriaUtils.returnsId())
-					.list()
+					.list() as Collection<Long>
 			}
-			if (allToBeMerged.size() != foundIds.size()) {
-				return ["someDoNotExist", allToBeMerged - foundIds]
+			if (val.size() != foundIds.size()) {
+				HashSet<Long> existingIds = new HashSet<>(val)
+				return ["someDoNotExist", existingIds.removeAll(foundIds)]
 			}
 	    }
 	}
@@ -39,6 +40,6 @@ class MergeGroupItem implements CanValidate {
 	// -------
 
 	Collection<IndividualPhoneRecord> buildMergeWith() {
-		CollectionUtils.ensureNoNull(IndividualPhoneRecord.getAll(mergeIds))
+		CollectionUtils.ensureNoNull(AsyncUtils.getAllIds(IndividualPhoneRecord, mergeIds))
 	}
 }

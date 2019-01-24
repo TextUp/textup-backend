@@ -63,13 +63,14 @@ class NumberService {
     // [UNTESTED] due to mocking constraints
     Result<List<AvailablePhoneNumber>> listExistingNumbers() {
     	try {
+            String name = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
     		ResourceSet<IncomingPhoneNumber> iNums = IncomingPhoneNumber
 	            .reader()
-	            .setFriendlyName(grailsApplication.flatConfig["textup.apiKeys.twilio.available"])
+	            .setFriendlyName(name)
 	            .read()
             ResultGroup
                 .collect(iNums) { IncomingPhoneNumber iNum ->
-                    AvailablePhoneNumber.tryCreateNew(iNum.phoneNumber.endpoint, iNum.sid)
+                    AvailablePhoneNumber.tryCreateExisting(iNum.phoneNumber.endpoint, iNum.sid)
                 }
                 .toResult(false)
     	}
@@ -110,7 +111,7 @@ class NumberService {
             ResultGroup
                 .collect(reader.read()) { Local lNum ->
                     AvailablePhoneNumber
-                        .tryCreateExisting(lNum.phoneNumber.endpoint, lNum.isoCountry, lNum.region)
+                        .tryCreateNew(lNum.phoneNumber.endpoint, lNum.isoCountry, lNum.region)
                 }
                 .toResult(false)
     	}
@@ -128,7 +129,7 @@ class NumberService {
     		LookupPhoneNumber lNum = LookupPhoneNumber
     			.fetcher(pNum.toApiPhoneNumber())
     			.fetch()
-            AvailablePhoneNumber.tryCreateExisting(lNum.phoneNumber.endpoint, lNum.countryCode, null)
+            AvailablePhoneNumber.tryCreateNew(lNum.phoneNumber.endpoint, lNum.countryCode, null)
     	}
     	catch (TwilioException e) {
     		// don't log because we are validating numbers here and expect some to

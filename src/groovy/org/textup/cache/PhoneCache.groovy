@@ -6,19 +6,22 @@ import grails.transaction.Transactional
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 
 @GrailsTypeChecked
 class PhoneCache {
 
-    // use Holders.applicationContext.getBean(class) so that internal calls heed AOP advice
+    // need to get wired `PhoneCache` bean so that internal calls heed AOP advice
     Phone findPhone(Long ownerId, PhoneOwnershipType type, boolean includeInactive = false) {
-        Long pId = IOCUtils.getBean(this).findAnyPhoneIdForOwner(ownerId, type)
+        PhoneCache phoneCache = IOCUtils.getBean(PhoneCache)
+        Long pId = phoneCache.findAnyPhoneIdForOwner(ownerId, type)
         Phone p1 = Phone.get(pId) // Phone uses second level cache
         p1?.isActive() || includeInactive ? p1 : null
     }
 
     Result<Long> mustFindAnyPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
-        Long pId = IOCUtils.getBean(this).findAnyPhoneIdForOwner(ownerId, type)
+        PhoneCache phoneCache = IOCUtils.getBean(PhoneCache)
+        Long pId = phoneCache.findAnyPhoneIdForOwner(ownerId, type)
         if (pId) {
             IOCUtils.resultFactory.success(pId)
         }
@@ -41,6 +44,6 @@ class PhoneCache {
     Long findAnyPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
         Phones.buildAnyForOwnerIdAndType(ownerId, type)
             .build(CriteriaUtils.returnsId())
-            .list(max: 1)[0]
+            .list(max: 1)[0] as Long
     }
 }

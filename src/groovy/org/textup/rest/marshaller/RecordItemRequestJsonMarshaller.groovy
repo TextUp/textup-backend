@@ -23,7 +23,7 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
             totalNumItems      = iReq1.criteria.count()
         }
         AuthUtils.tryGetAuthUser()
-            .then { String authUser -> json.exportedBy = authUser.name }
+            .thenEnd { Staff authUser -> json.exportedBy = authUser.name }
         // fetching sections with appropriate pagination options
     	RequestUtils.tryGetFromRequest(RequestUtils.PAGINATION_OPTIONS)
             .ifFail { json.sections = iReq1.buildSections() }
@@ -32,10 +32,10 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
             .thenEnd { String tz ->
                 json.with {
-                    startDate      = iReq1.formattedStart
-                    endDate        = iReq1.formattedEnd
-                    exportedOnDate = DateTimeUtils.CURRENT_TIME_FORMAT
-                        .print(DateTimeUtils.toDateTimeWithZone(DateTime.now(), tz))
+                    startDate      = iReq1.buildFormattedStart(tz)
+                    endDate        = iReq1.buildFormattedEnd(tz)
+                    exportedOnDate = JodaUtils.CURRENT_TIME_FORMAT
+                        .print(JodaUtils.toDateTimeWithZone(DateTime.now(), tz))
                 }
             }
 		json

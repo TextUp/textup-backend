@@ -2,13 +2,15 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import org.textup.type.*
+import org.textup.util.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode
 class Tuple<X, Y> {
 
-    private final X first
-    private final Y second
+    final X first
+    final Y second
 
     Tuple(X arg1, Y arg2) {
         first = arg1
@@ -20,7 +22,13 @@ class Tuple<X, Y> {
     }
 
     static <T, X, Y> T split(Collection<Tuple<X, Y>> tuples, Closure<T> action) {
-        action(tuples*.first, tuples*.second)
+        List<X> firstArgs = []
+        List<Y> secondArgs = []
+        tuples.each { Tuple<X, Y> tup1 ->
+            firstArgs << tup1.first
+            secondArgs << tup1.second
+        }
+        action(firstArgs, secondArgs)
     }
 
     static <T, X, Y> T split(Tuple<X, Y> tuple, Closure<T> action) {
@@ -35,10 +43,4 @@ class Tuple<X, Y> {
             IOCUtils.resultFactory.success(this) : // TODO
             IOCUtils.resultFactory.failWithCodeAndStatus("tuple.missingData", ResultStatus.BAD_REQUEST)
     }
-
-    // Properties
-    // ----------
-
-    X getFirst() { first }
-    Y getSecond() { second }
 }

@@ -46,13 +46,13 @@ class BootStrap {
             s2.status = StaffStatus.ADMIN
             Staff s2 = Staff.tryCreate(userRole, org2, "Eric Bai", "demo-eric", "password", "eric@textup.org").payload
             s3.status = StaffStatus.ADMIN
-            s3.personalPhoneAsString = TestUtils.randPhoneNumberString()
+            s3.personalNumberAsString = TestUtils.randPhoneNumberString()
             Staff s3 = Staff.tryCreate(userRole, org2, "Michelle Petersen", "demo-michelle", "password", "michelle@textup.org").payload
             s4.status = StaffStatus.ADMIN
-            s4.personalPhoneAsString = TestUtils.randPhoneNumberString()
+            s4.personalNumberAsString = TestUtils.randPhoneNumberString()
             Staff s4 = Staff.tryCreate(userRole, org2, "Johnny Staff3", "demo-johnny", "password", "connect@textup.org").payload
             s5.status = StaffStatus.PENDING
-            s5.personalPhoneAsString = TestUtils.randPhoneNumberString()
+            s5.personalNumberAsString = TestUtils.randPhoneNumberString()
 
             Staff.withSession { it.flush() }
 

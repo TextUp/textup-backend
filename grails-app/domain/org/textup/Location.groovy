@@ -26,7 +26,7 @@ class Location implements ReadOnlyLocation, WithId, CanSave<Location> {
         }
     }
 
-    static Result<Location> tryCreate(String address, Number lat, Number lng) {
+    static Result<Location> tryCreate(String address, Double lat, Double lng) {
         Location loc1 = new Location(address: address, lat: lat, lng: lng)
         DomainUtils.trySave(loc1, ResultStatus.CREATED)
     }

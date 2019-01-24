@@ -9,15 +9,16 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class FutureMessages {
 
+    @GrailsTypeChecked
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
+    @GrailsTypeChecked
     static Result<FutureMessage> mustFindForId(Long fId) {
         FutureMessage fMsg = FutureMessage.get(fId)
         if (fMsg) {
@@ -29,6 +30,7 @@ class FutureMessages {
         }
     }
 
+    @GrailsTypeChecked
     static Result<FutureMessage> mustFindForKey(String futureKey) {
         FutureMessage fMsg = FutureMessage.findByKeyName(futureKey)
         if (fMsg) {
@@ -40,7 +42,6 @@ class FutureMessages {
         }
     }
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static DetachedCriteria<FutureMessage> buildForRecordIds(Collection<Long> recordIds) {
         new DetachedCriteria(FutureMessage)
             .build { CriteriaUtils.inList(delegate, "record.id", recordIds) }

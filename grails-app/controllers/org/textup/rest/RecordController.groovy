@@ -26,22 +26,23 @@ class RecordController extends BaseController {
 
     @Override
     void index() {
-        ControllerUtils.tryGetPhoneId(params.long("teamId"))
+        TypeMap qParams = TypeMap.create(params)
+        ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
             .then { Long pId ->
                 RequestUtils.trySetOnRequest(RequestUtils.PHONE_ID, pId)
-                RecordUtils.buildRecordItemRequest(pId, params)
+                RecordUtils.buildRecordItemRequest(pId, qParams)
             }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { RecordItemRequest iReq ->
-                if (params.format == ControllerUtils.FORMAT_PDF) {
-                    RequestUtils.trySetOnRequest(RequestUtils.PAGINATION_OPTIONS, params)
-                    RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
-                    String ts = DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(DateTime.now())
+                if (qParams.format == ControllerUtils.FORMAT_PDF) {
+                    RequestUtils.trySetOnRequest(RequestUtils.PAGINATION_OPTIONS, qParams)
+                    RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+                    String ts = JodaUtils.FILE_TIMESTAMP_FORMAT.print(DateTime.now())
                     respondWithPdf("textup-export-${ts}.pdf", pdfService.buildRecordItems(iReq))
                 }
                 else {
                     respondWithCriteria(iReq.criteria,
-                        params,
+                        qParams,
                         RecordItems.forSort(true),
                         MarshallerUtils.KEY_RECORD_ITEM)
                 }
@@ -57,8 +58,8 @@ class RecordController extends BaseController {
     @OptimisticLockingRetry
     @Override
     void save() {
-        doSave(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) { TypeMap body ->
-            ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        doSave(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) {
+            ControllerUtils.tryGetPhoneId(params.long("teamId"))
                 .then { Long pId ->
                     RequestUtils.trySetOnRequest(RequestUtils.PHONE_ID, pId)
                     IOCUtils.resultFactory.success(pId)
@@ -68,7 +69,7 @@ class RecordController extends BaseController {
 
     @Override
     void update() {
-        doUpdate(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) { TypeMap body ->
+        doUpdate(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) {
             RecordItems.isAllowed(params.long("id"))
         }
     }
@@ -83,7 +84,7 @@ class RecordController extends BaseController {
 
     protected void respondWithPdf(String fileName, Result<byte[]> pdfRes) {
         // step 1: status
-        render(status: pdfRes.status.apiStatus)
+        renderStatus(pdfRes.status)
         // step 2: payload
         if (pdfRes.success) {
             withPDFFormat {
@@ -95,7 +96,7 @@ class RecordController extends BaseController {
                 }
             }
         }
-        else { respond(CollectionUtils.buildErrors(pdfRes)) }
+        else { respond(ControllerUtils.buildErrors(pdfRes)) }
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)

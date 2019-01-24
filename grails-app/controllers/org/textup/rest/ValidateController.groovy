@@ -21,10 +21,12 @@ class ValidateController extends BaseController {
             .then { TypeMap body -> AuthUtils.tryGetAuthUser().curry(body) }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { TypeMap body, Staff authUser ->
-                boolean isValid = data.password ?
-                    AuthUtils.isValidCredentials(authUser.username, data.string("password")) :
-                    AuthUtils.isSecureStringValid(authUser.lockCode, data.string("lockCode"))
-                isValid ? noContent() : forbidden()
+                boolean isValid = body.password ?
+                    AuthUtils.isValidCredentials(authUser.username, body.string("password")) :
+                    AuthUtils.isSecureStringValid(authUser.lockCode, body.string("lockCode"))
+                isValid ?
+                    renderStatus(ResultStatus.NO_CONTENT) :
+                    renderStatus(ResultStatus.FORBIDDEN)
             }
 	}
 }

@@ -135,14 +135,14 @@ class FutureMessageJobService {
             .then { NotificationGroup notifGroup ->
                 ResultGroup<RecordItem> resGroup = new ResultGroup<>()
                 notifGroup.eachItem { RecordItem rItem1 ->
-                    rItem1.numNotified = notifGroup.getNumNotifiedForItemId(rItem1.id)
+                    rItem1.numNotified = notifGroup
+                        .getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem1)
                     resGroup << DomainUtils.trySave(rItem1)
                 }
                 resGroup.toEmptyResult(false).curry(notifGroup)
             }
             .then { NotificationGroup notifGroup ->
                 notificationService.send(NotificationFrequency.IMMEDIATELY, notifGroup)
-                    .toEmptyResult(false)
             }
     }
 }

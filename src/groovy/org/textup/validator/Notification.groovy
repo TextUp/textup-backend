@@ -11,7 +11,7 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 
 @EqualsAndHashCode
-@GrailsTypeChecked
+@GrailsTypeChecked // TODO
 @Validateable
 class Notification implements CanValidate, Dehydratable<Notification.Dehydrated> {
 
@@ -44,7 +44,8 @@ class Notification implements CanValidate, Dehydratable<Notification.Dehydrated>
 
         @Override
         Result<Notification> tryRehydrate() {
-            NotificationUtils.tryBuildNotificationsForItems(itemIds, [phoneId])
+            Collection<? extends RecordItem> rItems = AsyncUtils.getAllIds(RecordItem, itemIds)
+            NotificationUtils.tryBuildNotificationsForItems(rItems, [phoneId])
                 .then { List<Notification> notifs -> DomainUtils.tryValidate(notifs[0]) }
         }
     }
@@ -58,8 +59,9 @@ class Notification implements CanValidate, Dehydratable<Notification.Dehydrated>
 
     @Override
     Notification.Dehydrated dehydrate() {
-        Collection<Long> itemIds = CollectionUtils.mergeUnique(*getDetails()*.items*.id)
-        Notification.Dehydrated.create(mutablePhone.id, itemIds)
+        Notification.Dehydrated.tryCreate(mutablePhone.id, getItemIds())
+            .logFail("dehydrate")
+            .payload as Notification.Dehydrated
     }
 
 	void addDetail(NotificationDetail nd1) {
@@ -75,7 +77,7 @@ class Notification implements CanValidate, Dehydratable<Notification.Dehydrated>
 	}
 
 	Collection<OwnerPolicy> buildCanNotifyPolicies(NotificationFrequency freq1) {
-		Collection<Long> itemIds = CollectionUtils.mergeUnique(*getDetails()*.items*.id)
+		Collection<Long> itemIds = getItemIds()
 		mutablePhone?.owner
 			?.buildActivePoliciesForFrequency(freq1)
 			?.findAll { OwnerPolicy op1 -> op1.canNotifyForAny(itemIds) }
@@ -85,19 +87,35 @@ class Notification implements CanValidate, Dehydratable<Notification.Dehydrated>
 	int countItems(boolean isOut, OwnerPolicy op1, Class<? extends RecordItem> clazz) {
 		getDetails().inject(0) { int sum, NotificationDetail nd1 ->
     		sum + nd1.countItemsForOutgoingAndOptions(isOut, op1, clazz)
-    	}
+    	} as Integer
     }
 
     int countVoicemails(OwnerPolicy op1) {
         getDetails().inject(0) { int sum, NotificationDetail nd1 ->
         	sum + nd1.countVoicemails(op1)
+        } as Integer
+    }
+
+    Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(OwnerPolicy op1) {
+        Collection<? extends RecordItem> allowedItems = []
+        getDetails().each { NotificationDetail nd1 ->
+            allowedItems.addAll(nd1.buildAllowedItemsForOwnerPolicy(op1))
         }
+        allowedItems
     }
 
 	// Properties
 	// ----------
 
 	Collection<NotificationDetail> getDetails() { wrapperToDetails.values() }
+
+    Collection<? extends RecordItem> getItems() {
+        CollectionUtils.mergeUnique(getDetails()*.items)
+    }
+
+    Collection<Long> getItemIds() {
+        getItems()*.id
+    }
 
 	int getNumNotifiedForItem(NotificationFrequency freq1, RecordItem item) {
         getDetails().any { NotificationDetail nd1 -> nd1.items.contains(item) } ?

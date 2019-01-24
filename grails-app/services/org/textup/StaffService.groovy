@@ -21,31 +21,29 @@ class StaffService implements ManagesDomain.Updater<Staff> {
     // [NOTE] `create` can be called by anybody
     @RollbackOnResultFailure
     Result<Staff> create(TypeMap body) {
-        String timezone = body.string("timezone")
         organizationService.tryFindOrCreate(body.typeMapNoNull("org"))
             .then { Organization org1 -> Roles.tryGetUserRole().curry(org1) }
             .then { Organization org1, Role r1 ->
                 Staff.tryCreate(r1, org1, body.string("name"), body.string("username"),
                     body.string("password"), body.string("email"))
             }
-            .then { Staff s1 -> trySetFields(s1, body, timezone) }
+            .then { Staff s1 -> trySetFields(s1, body) }
             .then { Staff s1 -> trySetLockCode(s1, body.string("lockCode")) }
             .then { Staff s1 -> trySetStatus(s1, body.enum(StaffStatus, "status")) }
             .then { Staff s1 ->
-                tryUpdatePhone(s1, body.typeMapNoNull("phone"), timezone).curry(s1)
+                tryUpdatePhone(s1, body.typeMapNoNull("phone"), body.string("timezone")).curry(s1)
             }
             .then { Staff s1 -> finishCreate(s1, body) }
     }
 
     @RollbackOnResultFailure
     Result<Staff> update(Long staffId, TypeMap body) {
-        String timezone = body.string("timezone")
         Staffs.mustFindForId(staffId)
-            .then { Staff s1 -> trySetFields(s1, body, timezone) }
+            .then { Staff s1 -> trySetFields(s1, body) }
             .then { Staff s1 -> trySetLockCode(s1, body.string("lockCode")) }
             .then { Staff s1 -> trySetStatus(s1, body.enum(StaffStatus, "status")) }
             .then { Staff s1 ->
-                tryUpdatePhone(s1, body.typeMapNoNull("phone"), timezone).curry(s1)
+                tryUpdatePhone(s1, body.typeMapNoNull("phone"), body.string("timezone")).curry(s1)
             }
             .then { Staff s1 -> finishUpdate(s1, body) }
     }
@@ -121,13 +119,14 @@ class StaffService implements ManagesDomain.Updater<Staff> {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(s1.org.id, authId) }
             .then {
-                int numAdmins = Staffs
+                Integer numAdmins = Staffs
                     .buildForOrgIdAndOptions(s1.org.id, null, [StaffStatus.ADMIN])
-                    .count()
+                    .count() as Integer
                 if (numAdmins == 1 && s1.status == StaffStatus.ADMIN &&
                     newStatus != StaffStatus.ADMIN) {
                     IOCUtils.resultFactory.failWithCodeAndStatus(
-                        "staffService.trySetStatus.lastAdmin") // TODO
+                        "staffService.trySetStatus.lastAdmin", // TODO
+                        ResultStatus.FORBIDDEN)
                 }
                 else {
                     s1.status = newStatus

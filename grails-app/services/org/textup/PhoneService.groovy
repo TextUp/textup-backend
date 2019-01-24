@@ -47,11 +47,11 @@ class PhoneService {
             if (body.awayMessage) awayMessage = body.awayMessage
             if (body.voice) voice = body.enum(VoiceType, "voice")
             if (body.language) language = body.enum(VoiceLanguage, "language")
-            if (body.bool("useVoicemailRecordingIfPresent") != null) {
-                p1.useVoicemailRecordingIfPresent = body.bool("useVoicemailRecordingIfPresent")
+            if (body.boolean("useVoicemailRecordingIfPresent") != null) {
+                p1.useVoicemailRecordingIfPresent = body.boolean("useVoicemailRecordingIfPresent")
             }
-            if (body.bool("allowSharingWithOtherTeams") != null) {
-                p1.owner.allowSharingWithOtherTeams = body.bool("allowSharingWithOtherTeams")
+            if (body.boolean("allowSharingWithOtherTeams") != null) {
+                p1.owner.allowSharingWithOtherTeams = body.boolean("allowSharingWithOtherTeams")
             }
         }
         DomainUtils.trySave(p1)
@@ -73,7 +73,7 @@ class PhoneService {
         if (numToCall) {
             AuthUtils.tryGetAuthUser()
                 .then { Staff authUser ->
-                    tryGetGreetingCallNum(numToCall, authUser.personalPhone)
+                    tryGetGreetingCallNum(numToCall, authUser.personalNumber)
                 }
                 .then { PhoneNumber toNum ->
                     callService.start(p1.number,
@@ -86,6 +86,8 @@ class PhoneService {
     }
 
     protected Result<PhoneNumber> tryGetGreetingCallNum(String possibleNum, PhoneNumber authNum) {
-        possibleNum == "true" ? authNum : PhoneNumber.tryCreate(possibleNum)
+        possibleNum == "true" ?
+            IOCUtils.resultFactory.success(authNum) :
+            PhoneNumber.tryCreate(possibleNum)
     }
 }

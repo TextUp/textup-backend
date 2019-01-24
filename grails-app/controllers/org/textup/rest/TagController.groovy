@@ -21,7 +21,7 @@ class TagController extends BaseController {
 
     @Override
     void index() {
-        ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        ControllerUtils.tryGetPhoneId(params.long("teamId"))
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
                 respondWithCriteria(GroupPhoneRecords.buildForPhoneIdAndOptions(pId),
@@ -39,14 +39,14 @@ class TagController extends BaseController {
 
     @Override
     void save() {
-        doSave(MarshallerUtils.KEY_TAG, request, tagService) { TypeMap body ->
-            ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        doSave(MarshallerUtils.KEY_TAG, request, tagService) {
+            ControllerUtils.tryGetPhoneId(params.long("teamId"))
         }
     }
 
     @Override
     void update() {
-        doUpdate(MarshallerUtils.KEY_TAG, request, tagService) { TypeMap body ->
+        doUpdate(MarshallerUtils.KEY_TAG, request, tagService) {
             PhoneRecords.isAllowed(params.long("id"))
         }
     }

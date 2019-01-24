@@ -32,10 +32,10 @@ class ScheduleUtils {
     static Interval buildIntervalFromStrings(DateTimeFormatter dtf, DateTimeZone zone, List<String> times,
         int addDays) {
 
-        DateTime start = DateTimeUtils
+        DateTime start = JodaUtils
             .toUTCDateTimeTodayThenZone(dtf.parseLocalTime(times[0]), zone)
             .plusDays(addDays)
-        DateTime end = DateTimeUtils
+        DateTime end = JodaUtils
             .toUTCDateTimeTodayThenZone(dtf.parseLocalTime(times[1]), zone)
             .plusDays(addDays)
         new Interval(start, end)
@@ -70,7 +70,7 @@ class ScheduleUtils {
 
         List<Interval> result = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(TIME_FORMAT).withZoneUTC()
-        DateTime today = DateTimeUtils.now(),
+        DateTime today = JodaUtils.now(),
             zoneToday = DateTime.now(zone)
         // order of the arguments in this call is very important
         // we put the zone first so that the result number is the modifier that we
@@ -81,8 +81,8 @@ class ScheduleUtils {
             try {
                 List<String> times = str.tokenize(REST_DELIMITER)
                 if (times.size() == 2) {
-                    DateTime start = DateTimeUtils.toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[0]), zone),
-                        end = DateTimeUtils.toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[1]), zone)
+                    DateTime start = JodaUtils.toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[0]), zone),
+                        end = JodaUtils.toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[1]), zone)
                     //add days until we've reached the desired offset from today
                     //we use the start date as reference and increment the end date
                     //accordingly to preserve the range

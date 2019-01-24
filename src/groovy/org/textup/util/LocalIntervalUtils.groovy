@@ -59,12 +59,13 @@ class LocalIntervalUtils {
         intStrings.join(ScheduleUtils.RANGE_DELIMITER)
     }
 
-    static List<Interval> rehydrateAsIntervals(String intervalsString, DateTime dt,
+    static List<Interval> rehydrateAsIntervals(DateTime dt, Closure<String> getValueForDayOfWeek,
         boolean stitchEndOfDay = true) {
 
         DateTimeFormatter dtf = DateTimeFormat.forPattern(ScheduleUtils.TIME_FORMAT).withZoneUTC()
         Interval endOfDayInterval = null //stitch intervals that cross between days
         List<Interval> intervals = []
+        String intervalsString = getValueForDayOfWeek(dt)
         intervalsString.tokenize(ScheduleUtils.RANGE_DELIMITER).each { String rangeString ->
             List<String> times = rangeString.tokenize(ScheduleUtils.TIME_DELIMITER)
             if (times.size() == 2) {
@@ -89,7 +90,7 @@ class LocalIntervalUtils {
             }
         }
         if (stitchEndOfDay && endOfDayInterval) {
-            List<Interval> tomorrowIntervals = rehydrateAsIntervals(dt.plusDays(1), false)
+            List<Interval> tomorrowIntervals = rehydrateAsIntervals(dt.plusDays(1), getValueForDayOfWeek, false)
             Interval startOfDayInterval = tomorrowIntervals.find { isStartOfDay(it.start) }
             if (startOfDayInterval) {
                 endOfDayInterval = new Interval(endOfDayInterval.start, startOfDayInterval.end)
@@ -107,7 +108,7 @@ class LocalIntervalUtils {
     static Map<String, List<LocalInterval>> fromIntervalsToLocalIntervalsMap(List<Interval> intervals) {
         List<String> daysOfWeek = ScheduleUtils.DAYS_OF_WEEK
         Map<String,List<LocalInterval>> localIntervals = daysOfWeek.collectEntries { [(it):[]] }
-        DateTime today = DateTimeUtils.now()
+        DateTime today = JodaUtils.now()
         intervals.each { Interval interval ->
             int startDayOfWeek = getDayOfWeekIndex(ScheduleUtils.getDaysBetween(today, interval.start)),
                 endDayOfWeek = getDayOfWeekIndex(ScheduleUtils.getDaysBetween(today, interval.end))

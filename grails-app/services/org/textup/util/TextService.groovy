@@ -11,7 +11,7 @@ import org.textup.type.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
+@GrailsTypeChecked // TODO
 @Transactional
 class TextService {
 
@@ -62,7 +62,7 @@ class TextService {
                 .setMediaUrl(new ArrayList<URI>(mediaUrls))
                 .create()
             TextService.Outcome msgRes = new TextService.Outcome(sid: msg1.sid,
-                numSegments: TypeConversionUtils.to(Integer, msg1.numSegments))
+                numSegments: TypeUtils.to(Integer, msg1.numSegments))
             IOCUtils.resultFactory.success(msgRes)
         }
         catch (Throwable e) {

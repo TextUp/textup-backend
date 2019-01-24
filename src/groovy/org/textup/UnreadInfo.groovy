@@ -13,10 +13,10 @@ class UnreadInfo {
 
     static UnreadInfo create(Long recId, DateTime lastTouched) {
         Collection<RecordItem> rItems = RecordItems
-            .forRecordIdsWithOptions([recId], lastTouched, null, [RecordText, RecordCall])
+            .buildForRecordIdsWithOptions([recId], lastTouched, null, [RecordText, RecordCall])
             .build(RecordItems.forIncoming())
             .list()
-        new UnreadInfo(numText: forClass(rItems, RecordText).size(),
+        new UnreadInfo(numTexts: forClass(rItems, RecordText).size(),
             numCalls: notVoicemail(forClass(rItems, RecordCall)).size(),
             numVoicemails: isVoicemail(forClass(rItems, RecordCall)).size())
     }
@@ -24,24 +24,30 @@ class UnreadInfo {
     // Helpers
     // -------
 
-    protected <T extends RecordItem> Collection<T> forClass(Collection<? extends RecordItem> rItems,
+    protected static <T extends RecordItem> Collection<T> forClass(Collection<? extends RecordItem> rItems,
         Class<T> clazz) {
 
         rItems.collect { RecordItem rItem1 -> clazz.isAssignableFrom(rItem1.class) }
     }
 
-    protected Collection<RecordCall> notVoicemail(Collection<? extends RecordItem> rItems) {
+    protected static Collection<RecordCall> notVoicemail(Collection<? extends RecordItem> rItems) {
         Collection<RecordCall> rCalls = []
         rItems.each { RecordItem rItem1 ->
-            if (rItem1 instanceof RecordCall && !rItem1.isVoicemail) { rCalls << rItem1 }
+            if (rItem1 instanceof RecordCall) {
+                RecordCall rCall1 = rItem1 as RecordCall
+                if (!rCall1.isVoicemail) { rCalls << rCall1 }
+            }
         }
         rCalls
     }
 
-    protected Collection<RecordCall> isVoicemail(Collection<? extends RecordItem> rItems) {
+    protected static Collection<RecordCall> isVoicemail(Collection<? extends RecordItem> rItems) {
         Collection<RecordCall> rCalls = []
         rItems.each { RecordItem rItem1 ->
-            if (rItem1 instanceof RecordCall && rItem1.isVoicemail) { rCalls << rItem1 }
+            if (rItem1 instanceof RecordCall) {
+                RecordCall rCall1 = rItem1 as RecordCall
+                if (rCall1.isVoicemail) { rCalls << rCall1 }
+            }
         }
         rCalls
     }

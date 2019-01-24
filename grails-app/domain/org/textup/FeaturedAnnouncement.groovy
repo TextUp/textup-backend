@@ -16,7 +16,7 @@ import org.textup.validator.*
 class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
 
     DateTime expiresAt
-    DateTime whenCreated = DateTimeUtils.now()
+    DateTime whenCreated = JodaUtils.now()
     Phone phone
     String message
 
@@ -39,7 +39,7 @@ class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
     // -------
 
     void expireNow() {
-    	expiresAt = DateTimeUtils.now()
+    	expiresAt = JodaUtils.now()
     }
 
     // Properties
@@ -50,6 +50,6 @@ class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
     }
 
     boolean getIsExpired() {
-        expiresAt?.isBefore(DateTimeUtils.now())
+        expiresAt?.isBefore(JodaUtils.now())
     }
 }

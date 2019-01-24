@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
@@ -21,15 +22,17 @@ class PhoneRecordUtils {
 
     static Result<List<IndividualPhoneRecordWrapper>> tryMarkUnread(Phone p1, PhoneNumber pNum) {
         IndividualPhoneRecordWrappers.tryFindEveryByNumbers(p1, [pNum], true)
-            .then { List<IndividualPhoneRecordWrapper> wrappers ->
+            .then { List<IndividualPhoneRecordWrapper> wraps ->
                 ResultGroup
-                    .collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
+                    .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
                         w1.trySetStatusIfNotBlocked(PhoneRecordStatus.UNREAD)
                     }
                     .toEmptyResult(true)
-                    .curry(wrappers)
+                    .curry(wraps)
             }
             .logFail("tryMarkUnread")
-            .then { IOCUtils.resultFactory.success(wrappers) }
+            .then { List<IndividualPhoneRecordWrapper> wraps ->
+                IOCUtils.resultFactory.success(wraps)
+            }
     }
 }

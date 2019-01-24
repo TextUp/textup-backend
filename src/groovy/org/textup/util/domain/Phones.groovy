@@ -2,6 +2,7 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.cache.*
@@ -9,9 +10,9 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class Phones {
 
+    @GrailsTypeChecked
     static Result<Phone> mustFindActiveForOwner(Long ownerId, PhoneOwnershipType type,
         boolean createIfAbsent) {
 
@@ -25,6 +26,7 @@ class Phones {
             }
     }
 
+    @GrailsTypeChecked
     static Result<Phone> mustFindActiveForId(Long pId) {
         Phone p1 = Phone.get(pId)
         if (p1?.isActive()) {
@@ -37,6 +39,7 @@ class Phones {
         }
     }
 
+    @GrailsTypeChecked
     static Result<Phone> mustFindActiveForNumber(BasePhoneNumber bNum) {
         Phone p1 = Phones.buildActiveForNumber(bNum).list()[0]
         if (p1) {
@@ -88,6 +91,7 @@ class Phones {
         }
     }
 
+    @GrailsTypeChecked
     static Result<Void> canShare(PhoneOwnership owner, PhoneOwnership target) {
         PhoneOwnershipType ownerType = owner.type,
             targetType = target.type

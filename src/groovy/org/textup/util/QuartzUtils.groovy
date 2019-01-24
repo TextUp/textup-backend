@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
 import org.quartz.*
 import org.textup.*
+import org.textup.job.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.domain.*

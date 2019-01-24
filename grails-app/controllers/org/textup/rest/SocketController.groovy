@@ -24,8 +24,9 @@ class SocketController extends BaseController {
 
     @Override
     void save() {
-        String channelName = params.string("channel_name"),
-            socketId = params.string("socket_id")
+        TypeMap qParams = TypeMap.create(params)
+        String channelName = qParams.string("channel_name"),
+            socketId = qParams.string("socket_id")
         respondWithResult(socketService.authenticate(channelName, socketId))
     }
 }

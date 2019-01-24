@@ -2,6 +2,7 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
@@ -12,11 +13,8 @@ import org.textup.validator.*
 class IndividualPhoneRecords {
 
     static Result<IndividualPhoneRecord> mustFindActiveForId(Long iprId) {
-        IndividualPhoneRecord ipr1 = new DetachedCriteria(IndividualPhoneRecord)
-            .build { idEq(iprId) }
-            .build(PhoneRecords.forActive())
-            .get()
-        if (ipr1) {
+        IndividualPhoneRecord ipr1 = IndividualPhoneRecord.get(iprId)
+        if (ipr1?.isActive()) {
             IOCUtils.resultFactory.success(ipr1)
         }
         else {
@@ -25,17 +23,8 @@ class IndividualPhoneRecords {
         }
     }
 
-    static List<IndividualPhoneRecord> findEveryByIdsAndPhoneId(Collection<Long> ids, Long pId) {
-        new DetachedCriteria(PhoneRecord)
-            .build {
-                CriteriaUtils.inList(delegate, "id", ids)
-                eq("phone.id", pId)
-            }
-            .list()
-    }
-
     static Result<Map<PhoneNumber, List<IndividualPhoneRecord>>> tryFindEveryByNumbers(Phone p1,
-        List<? extends BasePhoneNumber> bNums, boolean createIfAbsent) {
+        Collection<? extends BasePhoneNumber> bNums, boolean createIfAbsent) {
 
         if (!bNums) {
             return IOCUtils.resultFactory.success([:])
@@ -48,9 +37,11 @@ class IndividualPhoneRecords {
             CriteriaUtils.inList(delegate, "number", bNums)
         } as List<ContactNumber>
         // step 2: group contacts by the passed-in phone numbers
-        Map<PhoneNumber, List<IndividualPhoneRecord>> numberToPhoneRecords = [:]
+        Map<? extends PhoneNumber, List<IndividualPhoneRecord>> numberToPhoneRecords = [:]
             .withDefault { [] as List<IndividualPhoneRecord> }
-        cNums.each { ContactNumber cNum -> numberToPhoneRecords[cNum] << cNum.owner }
+        cNums.each { ContactNumber cNum ->
+            numberToPhoneRecords.get(cNum).add(cNum.owner)
+        }
         // step 3: if allowed, create new contacts for any phone numbers without any contacts
         if (createIfAbsent) {
             tryCreateIfNone(p1, numberToPhoneRecords)
@@ -58,6 +49,7 @@ class IndividualPhoneRecords {
         else { IOCUtils.resultFactory.success(numberToPhoneRecords) }
     }
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static Result<Map<PhoneNumber, HashSet<Long>>> tryFindEveryIdByNumbers(Long phoneId = null,
         Collection<Long> iprIds = null) {
 
@@ -84,7 +76,7 @@ class IndividualPhoneRecords {
                 // each item is a 1-item array, inner is a 2-item array
                 Object[] items = itemWrapper[0] as Object[]
                 // inner array has contact id as first element
-                Long id = TypeConversionUtils.to(Long, items[0])
+                Long id = TypeUtils.to(Long, items[0])
                 // inner array has phone number as second element
                 String num = items[1] as String
 
@@ -94,6 +86,17 @@ class IndividualPhoneRecords {
         numToIds
     }
 
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static List<IndividualPhoneRecord> findEveryByIdsAndPhoneId(Collection<Long> ids, Long pId) {
+        new DetachedCriteria(PhoneRecord)
+            .build {
+                CriteriaUtils.inList(delegate, "id", ids)
+                eq("phone.id", pId)
+            }
+            .list()
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static DetachedCriteria<IndividualPhoneRecord> buildForIds(Collection<Long> ids) {
         new DetachedCriteria(IndividualPhoneRecord)
             .build { CriteriaUtils.inList(delegate, "id", ids) }
@@ -108,7 +111,7 @@ class IndividualPhoneRecords {
         ResultGroup<IndividualPhoneRecord> resGroup = new ResultGroup<>()
         numberToPhoneRecords.each { PhoneNumber pNum, List<IndividualPhoneRecord> iprList ->
             if (iprList.isEmpty()) {
-                resGroup << IndividualPhoneRecord.tryCreate(p1, [pNum])
+                resGroup << IndividualPhoneRecord.tryCreate(p1)
                     .then { IndividualPhoneRecord ipr1 -> ipr1.mergeNumber(pNum, 0).curry(ipr1) }
                     .then { IndividualPhoneRecord ipr1 ->
                         iprList << ipr1

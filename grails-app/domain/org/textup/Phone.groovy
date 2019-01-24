@@ -18,7 +18,7 @@ import org.textup.validator.*
 class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
     CustomAccountDetails customAccount
-    DateTime whenCreated = DateTimeUtils.now()
+    DateTime whenCreated = JodaUtils.now()
     PhoneOwnership owner
 
     String apiId
@@ -83,14 +83,14 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
     Result<String> tryActivate(BasePhoneNumber bNum, String newApiId) {
         apiId = newApiId
         number = bNum
-        tryAddHistoryEntry(oldNumber)
+        tryAddHistoryEntry()
             .then { IOCUtils.resultFactory.success(getPersistentValue("apiId") as String) }
     }
 
     Result<String> tryDeactivate() {
         apiId = null
         numberAsString = null
-        tryAddHistoryEntry(oldNumber)
+        tryAddHistoryEntry()
             .then { IOCUtils.resultFactory.success(getPersistentValue("apiId") as String) }
     }
 
@@ -106,6 +106,7 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
     void setNumber(BasePhoneNumber bNum) { numberAsString = bNum?.number }
 
+    @Override
     PhoneNumber getNumber() { PhoneNumber.create(numberAsString) }
 
     String getCustomAccountId() { customAccount?.accountId }
@@ -121,7 +122,7 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
     // -------
 
     protected Result<Phone> tryAddHistoryEntry() {
-        DateTime dt = DateTimeUtils.now()
+        DateTime dt = JodaUtils.now()
         PhoneNumber pNum = PhoneNumber
             .tryCreate(getPersistentValue("numberAsString") as String)
             .payload

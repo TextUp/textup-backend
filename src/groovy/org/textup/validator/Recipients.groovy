@@ -9,7 +9,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
+@GrailsTypeChecked // TODO
 @Validateable
 class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
 
@@ -50,13 +50,15 @@ class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
 
     static Result<Recipients> tryCreate(Phone p1, Collection<Long> prIds,
         Collection<PhoneNumber> pNums, int maxNum) {
-
+        // create new contacts as needed
         IndividualPhoneRecords.tryFindEveryByNumbers(p1, pNums, true)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> ipRecs ->
-                Collection<? extends PhoneRecord> pRecs = CollectionUtils.mergeUnique(*ipRecs.values())
-                pRecs += PhoneRecords.buildActiveForPhoneIds([p1.id])
+                // then fetch the shared contacts + tags
+                Collection<? extends PhoneRecord> pRecs = PhoneRecords
+                    .buildActiveForPhoneIds([p1.id])
                     .build(PhoneRecords.forIds(prIds))
                     .list()
+                pRecs.addAll(CollectionUtils.mergeUnique(ipRecs.values()))
                 Recipients r1 = new Recipients(phone: p1,
                     all: pRecs,
                     maxNum: maxNum,
@@ -80,7 +82,7 @@ class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
 
     @Override
     Recipients.Dehydrated dehydrate() {
-        new Recipients.Dehydrated(phoneIds: phone.id, allIds: all*.id, maxNum: maxNum)
+        new Recipients.Dehydrated(phoneId: phone.id, allIds: all*.id, maxNum: maxNum)
     }
 
     Result<PhoneRecordWrapper> tryGetOne() {
@@ -93,7 +95,8 @@ class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
     Result<IndividualPhoneRecordWrapper> tryGetOneIndividual() {
         IndividualPhoneRecordWrapper w1
         if (all) {
-            w1 = allIds*.toWrapper().find { it instanceof IndividualPhoneRecordWrapper }
+            w1 = all*.toWrapper()
+                .find { it instanceof IndividualPhoneRecordWrapper } as IndividualPhoneRecordWrapper
         }
         w1 ?
             IOCUtils.resultFactory.success(w1) :
@@ -104,18 +107,24 @@ class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
 
     // loops through unique records for individuals, groups, and group members
     void eachRecord(Closure action) {
-        CollectionUtils.mergeUnique(*all*.buildRecords()).each(action)
+        CollectionUtils.mergeUnique(all*.buildRecords()).each(action)
     }
 
     // loops through owned and shared individuals, calling each passing the
     // `IndividualPhoneRecordWrapper` and all relevant individual and group records
     void eachIndividualWithRecords(Closure action) {
-        Collection<GroupPhoneRecord> groups = all.findAll { it instanceof GroupPhoneRecord }
+        Collection<GroupPhoneRecord> groups = []
+        all.each { PhoneRecord pr1 ->
+            if (pr1 instanceof GroupPhoneRecord) {
+                GroupPhoneRecord gpr1 = pr1 as GroupPhoneRecord
+                groups << gpr1
+            }
+        }
         Map<Long, Collection<GroupPhoneRecord>> idToGroups = PhoneRecordUtils.buildMemberIdToGroups(groups)
         all?.each { PhoneRecord pr1 ->
             PhoneRecordWrapper w1 = pr1.toWrapper()
             if (w1 instanceof IndividualPhoneRecordWrapper) {
-                action.call(w1, CollectionUtils.mergeUnique(pr1.record, idToGroups[pr1.id]*.record))
+                action.call(w1, CollectionUtils.mergeUnique([[pr1.record], idToGroups[pr1.id]*.record]))
             }
         }
     }

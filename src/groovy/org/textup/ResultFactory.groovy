@@ -43,13 +43,13 @@ class ResultFactory {
     }
 
 	public <T> Result<T> failWithThrowable(Throwable t, String logPrefix = null,
-        boolean printStacktrace = false ) {
+        boolean printStackTrace = false ) {
 
         if (logPrefix) {
             log.error("${logPrefix}: ${t.message}")
         }
-        if (printStacktrace) {
-            t.printStacktrace()
+        if (printStackTrace) {
+            t.printStackTrace()
         }
         Result.<T>createError([t.message], ResultStatus.INTERNAL_SERVER_ERROR)
 	}

@@ -23,8 +23,9 @@ class RecordItemReceiptCache {
     // (2) For SpEL, use the parameter index instead of the parameter name, which may be unreliably
     // available. see: https://stackoverflow.com/a/14197738
     @Cacheable(value = "receiptsCache", key = "#p0")
-    List<RecordItemReceipt.Info> findEveryReceiptInfoByApiId(String apiId) {
-        RecordItemReceipt.findAllByApiId(apiId)*.toInfo()
+    Collection<RecordItemReceipt.Info> findEveryReceiptInfoByApiId(String apiId) {
+        Collection<RecordItemReceipt> rpts = RecordItemReceipt.findAllByApiId(apiId)
+        rpts*.toInfo()
     }
 
     // (1) Use CachePut instead of CacheEvict because we want to avoid excessive db calls with
@@ -34,11 +35,11 @@ class RecordItemReceiptCache {
     // (2) For SpEL, use the parameter index instead of the parameter name, which may be unreliably
     // available. see: https://stackoverflow.com/a/14197738
     @CachePut(value = "receiptsCache", key = "#p0")
-    List<RecordItemReceipt.Info> updateReceipts(String apiId, List<Long> rptIds,
+    Collection<RecordItemReceipt.Info> updateReceipts(String apiId, List<Long> rptIds,
         ReceiptStatus newStatus, Integer newDuration = null) {
 
         if (rptIds) {
-            RecordGroup
+            Collection<RecordItemReceipt> rpts = ResultGroup
                 .collect(AsyncUtils.getAllIds(RecordItemReceipt, rptIds)) { RecordItemReceipt rpt1 ->
                     rpt1.status = newStatus
                     if (newDuration != null) {
@@ -48,7 +49,7 @@ class RecordItemReceiptCache {
                 }
                 .logFail("updateReceipts: `$apiId`, `$newStatus`, duration `$newDuration`")
                 .payload
-                *.toInfo()
+            rpts*.toInfo()
         }
         else { [] }
     }

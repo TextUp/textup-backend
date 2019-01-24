@@ -27,8 +27,12 @@ class ScheduleService {
 
     protected Result<Schedule> trySetFields(Schedule sched1, TypeMap body) {
         sched1.with {
-            if (body.manualSchedule != null) manualSchedule = body.manualSchedule
-            if (body.isAvailable != null) isAvailable = body.isAvailable
+            if (body.boolean("manual") != null) {
+                manual = body.boolean("manual")
+            }
+            if (body.boolean("manualIsAvailable") != null) {
+                manualIsAvailable = body.boolean("manualIsAvailable")
+            }
         }
         DomainUtils.trySave(sched1)
     }

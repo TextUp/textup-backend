@@ -29,7 +29,7 @@ class MediaService {
                 tryStartProcessing(mInfo, body, isPublic)
             }
         }
-        else { IOCUtils.resultFactory.success(null, AsyncUtils.noOpFuture(mInfo)) }
+        else { IOCUtils.resultFactory.success(null, AsyncUtils.noOpFuture()) }
     }
 
     Result<Tuple<MediaInfo, Future<Result<?>>>> tryCreate(Map body, boolean isPublic = false) {
@@ -40,7 +40,7 @@ class MediaService {
                     IOCUtils.resultFactory.success(mInfo, fut1)
                 }
         }
-        else { IOCUtils.resultFactory.success(null, AsyncUtils.noOpFuture(mInfo)) }
+        else { IOCUtils.resultFactory.success(null, AsyncUtils.noOpFuture()) }
     }
 
     // Helpers
@@ -53,18 +53,17 @@ class MediaService {
                 PartialUploads pu1 = new PartialUploads()
                 uItems.each { UploadItem initialUpload ->
                     initialUpload.isPublic = isPublic
-                    pu1.createAndAdd(initialUpload).then { MediaElement el1 ->
+                    pu1.createAndAdd(initialUpload).thenEnd { MediaElement el1 ->
                         mInfo.addToMediaElements(el1)
                     }
                 }
                 DomainUtils.tryValidate(pu1)
             }
             .then { PartialUploads pu1 ->
-                storageService.uploadAsync(pu1.uploads)
+                Collection<String> errors = storageService.uploadAsync(pu1.uploads)
                     .logFail("tryStartProcessing: uploading initial media")
-                    .ifFail { Result<?> failRes ->
-                        RequestUtils.trySetOnRequest(RequestUtils.UPLOAD_ERRORS, failRes.errorMessages)
-                    }
+                    .errorMessages
+                RequestUtils.trySetOnRequest(RequestUtils.UPLOAD_ERRORS, errors)
                 IOCUtils.resultFactory.success(threadService.delay(5, TimeUnit.SECONDS) {
                     tryFinishProcessing(mInfo.id, pu1.dehydrate())
                         .logFail("trying to finish processing for MediaInfo `${mInfo.id}`")
@@ -85,7 +84,7 @@ class MediaService {
                 resGroup.toResult(true).curry(mInfo)
             }
             .then { MediaInfo mInfo, List<List<UploadItem>> uItems ->
-                storageService.uploadAsync(CollectionUtils.mergeUnique(*uItems))
+                storageService.uploadAsync(CollectionUtils.mergeUnique(uItems))
                     .logFail("tryFinishProcessing: uploading")
                 DomainUtils.trySave(mInfo)
             }
@@ -102,7 +101,7 @@ class MediaService {
                         el1.addToAlternateVersions(uItem.toMediaElementVersion())
                     }
                     DomainUtils.trySave(el1).then {
-                        IOCUtils.resultFactory.success(CollectionUtils.mergeUnique([sendItem], altItems))
+                        IOCUtils.resultFactory.success(CollectionUtils.mergeUnique([[sendItem], altItems]))
                     }
                 }
             }

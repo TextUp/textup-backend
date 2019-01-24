@@ -28,8 +28,8 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
         }
 
         DateTime lastTouched = w1.tryGetLastTouched().payload
-        Phone mutPhone1 = w1.tryGetReadOnlyMutablePhone().payload
-        Phone origPhone1 = w1.tryGetReadOnlyOriginalPhone().payload
+        ReadOnlyPhone mutPhone1 = w1.tryGetReadOnlyMutablePhone().payload
+        ReadOnlyPhone origPhone1 = w1.tryGetReadOnlyOriginalPhone().payload
         PhoneRecordStatus stat1 = w1.tryGetStatus().payload
         ReadOnlyRecord rec1 = w1.tryGetReadOnlyRecord().payload
 
@@ -42,7 +42,7 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
             name               = w1.tryGetSecureName().payload
             phone              = mutPhone1.id
             status             = stat1.toString()
-            tags               = GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone.id)
+            tags               = GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone1.id)
             whenCreated        = w1.tryGetWhenCreated().payload
 
             if (stat1 == PhoneRecordStatus.UNREAD) {
@@ -51,9 +51,10 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
         }
 
         if (PhoneRecordWrapper instanceof IndividualPhoneRecordWrapper) {
+            IndividualPhoneRecordWrapper iw1 = w1 as IndividualPhoneRecordWrapper
             json.with {
-                note    = w1.tryGetNote().payload
-                numbers = w1.tryGetSortedNumbers().payload
+                note    = iw1.tryGetNote().payload
+                numbers = iw1.tryGetSortedNumbers().payload
             }
         }
 

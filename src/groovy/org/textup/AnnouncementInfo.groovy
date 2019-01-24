@@ -8,7 +8,7 @@ import org.textup.validator.*
 class AnnouncementInfo {
 
     final Collection<PhoneNumber> recipients
-    final Collection<PhoneNumber> callReceipients
+    final Collection<PhoneNumber> callRecipients
     final Collection<PhoneNumber> textRecipients
 
     static AnnouncementInfo create(FeaturedAnnouncement fa1) {
@@ -21,13 +21,13 @@ class AnnouncementInfo {
     // Helpers
     // -------
 
-    protected Collection<AnnouncementReceipt> byType(Collection<AnnouncementReceipt> rpts,
+    protected static Collection<AnnouncementReceipt> byType(Collection<AnnouncementReceipt> rpts,
         RecordItemType type) {
 
         rpts.findAll { AnnouncementReceipt rpt -> rpt.type == type }
 
     }
-    protected Collection<PhoneNumber> nums(Collection<AnnouncementReceipt> rpts) {
+    protected static Collection<PhoneNumber> nums(Collection<AnnouncementReceipt> rpts) {
         rpts.collect { AnnouncementReceipt rpt -> rpt.session.number }
     }
 }

@@ -31,7 +31,7 @@ class NotificationService {
                                 [op1.staff.personalNumber],
                                 notifInfo.buildTextMessage(tok1),
                                 notif1.mutablePhone.customAccountId)
-                            .logFail("send: text to staff `${s1.id}`")
+                            .logFail("send: owner policy `${op1.id}`")
                     }
                     else { mailService.notifyMessages(freq1, op1.staff, notifInfo, tok1) }
                 }

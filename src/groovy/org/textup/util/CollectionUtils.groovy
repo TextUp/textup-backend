@@ -35,19 +35,24 @@ class CollectionUtils {
         (list.size() > 2) ? (list[0..-2].join(delim) + lastDelim + list[-1]) : list.join(lastDelim)
     }
 
+    static <T> Collection<T> ensureNoNull(Collection<T> collection) {
+        collection?.removeAll { it == null }
+        collection
+    }
+
     static <T> List<T> ensureNoNull(List<T> list) {
         list?.removeAll { it == null }
         list
     }
 
     // TODO test
-    static <T> List<T> mergeUnique(Collection<T>... toBeMerged) {
+    static <T> List<T> mergeUnique(Collection<? extends Collection<T>> toBeMerged) {
         List<T> allItems = []
         toBeMerged?.each { Collection<T> items ->
             if (items) {
                 allItems.addAll(items)
             }
         }
-        CollectionUtils.ensureNoNull(allItems.unique())
+        CollectionUtils.ensureNoNull(allItems.unique()).toList()
     }
 }

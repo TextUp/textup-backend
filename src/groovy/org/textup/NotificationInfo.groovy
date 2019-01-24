@@ -20,8 +20,8 @@ class NotificationInfo {
     final String outgoingNames
 
     static NotificationInfo create(OwnerPolicy op1, Notification notif1) {
-        new NotificationInfo(phoneName: notif1.phone.owner.buildName(),
-            phoneNumber: notif1.phone.number,
+        new NotificationInfo(phoneName: notif1.mutablePhone.owner.buildName(),
+            phoneNumber: notif1.mutablePhone.number,
             numVoicemail: notif1.countVoicemails(op1),
             numIncomingText: notif1.countItems(false, op1, RecordText),
             numIncomingCall: notif1.countItems(false, op1, RecordCall),

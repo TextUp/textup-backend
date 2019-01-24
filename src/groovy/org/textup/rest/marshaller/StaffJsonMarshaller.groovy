@@ -18,13 +18,13 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             id       = s1.id
             links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_STAFF, s1.id)
             name     = s1.name
-            phone    = s1.phone
+            phone    = Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, false)
             status   = s1.status.toString()
             username = s1.username
         }
 
         Staffs.isAllowed(s1.id)
-            .then {
+            .thenEnd {
                 json.with {
                     channelName    = SocketUtils.channelName(s1)
                     email          = s1.email

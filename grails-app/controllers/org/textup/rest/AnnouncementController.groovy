@@ -39,14 +39,14 @@ class AnnouncementController extends BaseController {
 
     @Override
     void save() {
-        doSave(MarshallerUtils.KEY_ANNOUNCEMENT, request, announcementService) { TypeMap body ->
-            ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        doSave(MarshallerUtils.KEY_ANNOUNCEMENT, request, announcementService) {
+            ControllerUtils.tryGetPhoneId(params.long("teamId"))
         }
     }
 
     @Override
     void update() {
-        doUpdate(MarshallerUtils.KEY_ANNOUNCEMENT, request, announcementService) { TypeMap body ->
+        doUpdate(MarshallerUtils.KEY_ANNOUNCEMENT, request, announcementService) {
             FeaturedAnnouncements.isAllowed(params.long("id"))
         }
     }

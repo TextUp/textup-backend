@@ -21,11 +21,11 @@ class SessionController extends BaseController {
 
     @Override
     void index() {
-        ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        ControllerUtils.tryGetPhoneId(params.long("teamId"))
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
-                Boolean call = params.bool("subscribedToCall"),
-                    text = params.bool("subscribedToText")
+                Boolean call = params.boolean("subscribedToCall"),
+                    text = params.boolean("subscribedToText")
                 respondWithCriteria(IncomingSessions.buildForPhoneIdWithOptions(pId, call, text),
                     params,
                     null,
@@ -41,14 +41,14 @@ class SessionController extends BaseController {
 
     @Override
     void save() {
-        doSave(MarshallerUtils.KEY_SESSION, request, sessionService) { TypeMap body ->
-            ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        doSave(MarshallerUtils.KEY_SESSION, request, sessionService) {
+            ControllerUtils.tryGetPhoneId(params.long("teamId"))
         }
     }
 
     @Override
     void update() {
-        doUpdate(MarshallerUtils.KEY_SESSION, request, sessionService) { TypeMap body ->
+        doUpdate(MarshallerUtils.KEY_SESSION, request, sessionService) {
             IncomingSessions.isAllowed(params.long("id"))
         }
     }

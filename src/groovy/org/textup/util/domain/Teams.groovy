@@ -2,21 +2,23 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class Teams {
 
+    @GrailsTypeChecked
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
+    @GrailsTypeChecked
     static Result<Team> mustFindForId(Long teamId) {
         Team t1 = teamId ? Team.get(teamId) : null
         if (t1) {
@@ -36,7 +38,7 @@ class Teams {
 
     static DetachedCriteria<Team> buildForStaffIds(Collection<Long> staffIds) {
         new DetachedCriteria(Team)
-            .build { members { CriteriaUtils.inList(delegate, "id", staffIds) } }
+            .build(forStaffIds(staffIds))
             .build(forActive())
     }
 
@@ -56,14 +58,14 @@ class Teams {
                 "in"("id", Teams.buildForStaffIds([staffId1])
                     .build(CriteriaUtils.returnsId()))
             }
-            .build(Teams.buildForStaffIds([staffId2]))
+            .build(forStaffIds([staffId2]))
             .count() > 0
     }
 
     static boolean teamContainsMember(Long teamId, Long staffId) {
         new DetachedCriteria(Team)
             .build { idEq(teamId) }
-            .build(Teams.buildForStaffIds([staffId]))
+            .build(forStaffIds([staffId]))
             .count() > 0
     }
 
@@ -73,6 +75,12 @@ class Teams {
     protected static Closure forActive() {
         return {
             eq("isDeleted", false)
+        }
+    }
+
+    protected static Closure forStaffIds(Collection<Long> staffIds) {
+        return {
+            members { CriteriaUtils.inList(delegate, "id", staffIds) }
         }
     }
 

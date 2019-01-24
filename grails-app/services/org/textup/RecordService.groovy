@@ -19,6 +19,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
 
     LocationService locationService
     MediaService mediaService
+    OutgoingCallService outgoingCallService
     OutgoingMessageService outgoingMessageService
 
     @RollbackOnResultFailure
@@ -101,7 +102,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
                 AuthUtils.tryGetAuthUser().curry(r1, temp1)
             }
             .then { Recipients r1, TempRecordItem temp1, Staff authUser ->
-                outgoingMessageService.tryStart(r1, temp1, authUser.toAuthor(), future)
+                outgoingMessageService.tryStart(RecordItemType.TEXT, r1, temp1, authUser.toAuthor(), future)
             }
             .then { Tuple<List<? extends RecordItem>, Future<?>> processed ->
                 IOCUtils.resultFactory.success(processed.first, ResultStatus.CREATED)
@@ -143,9 +144,9 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
         rNote1.with {
             author = author
             if (body.contents != null) noteContents = body.string("contents")
-            if (body.bool("isDeleted") != null) isDeleted = body.bool("isDeleted")
+            if (body.boolean("isDeleted") != null) isDeleted = body.boolean("isDeleted")
             if (body.after) {
-                whenCreated = RecordUtils.adjustPosition(rNote.record.id, body.dateTime("after"))
+                whenCreated = RecordUtils.adjustPosition(rNote1.record.id, body.dateTime("after"))
             }
         }
         DomainUtils.trySave(rNote1)

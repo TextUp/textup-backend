@@ -14,7 +14,7 @@ import org.textup.validator.*
 class LocationService {
 
     Result<Location> create(TypeMap body) {
-        Location.tryCreate(body.long("address"), body.double("lat"), body.double("lng"))
+        Location.tryCreate(body.string("address"), body.double("lat"), body.double("lng"))
     }
 
     Result<Void> tryUpdate(Location loc1, TypeMap body) {

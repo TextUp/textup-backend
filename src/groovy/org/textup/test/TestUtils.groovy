@@ -21,6 +21,7 @@ import org.textup.media.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
+import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Log4j
@@ -137,7 +138,7 @@ class TestUtils {
         byte[] data = TestUtils.getSampleDataForMimeType(type)
         String encodedData = TestUtils.encodeBase64String(data)
         [
-            action: Constants.MEDIA_ACTION_ADD,
+            action: MediaAction.ADD,
             mimeType: type.mimeType,
             data: encodedData,
             checksum: TestUtils.getChecksum(encodedData)

@@ -28,9 +28,15 @@ class RecordItemRequestSection extends CanValidate {
     static Result<RecordItemRequestSection> tryCreate(String pName, BasePhoneNumber pNum,
         Collection<? extends ReadOnlyRecordItem> rItems, Collection<? extends PhoneRecordWrapper> wraps) {
 
-        Collection<String> cNames = WrapperUtils.secureNamesIgnoreFails(wraps) { WrapperUtils.isContact(it) },
-            sNames = WrapperUtils.secureNamesIgnoreFails(wraps) { WrapperUtils.isSharedContact(it) },
-            tNames = WrapperUtils.secureNamesIgnoreFails(wraps) { WrapperUtils.isTag(it) }
+        Collection<String> cNames = WrapperUtils.secureNamesIgnoreFails(wraps) { PhoneRecordWrapper w1 ->
+            WrapperUtils.isContact(w1)
+        }
+        Collection<String> sNames = WrapperUtils.secureNamesIgnoreFails(wraps) { PhoneRecordWrapper w1 ->
+            WrapperUtils.isSharedContact(w1)
+        }
+        Collection<String> tNames = WrapperUtils.secureNamesIgnoreFails(wraps) { PhoneRecordWrapper w1 ->
+            WrapperUtils.isTag(w1)
+        }
         RecordItemRequestSection section1 = new RecordItemRequestSection(phoneName: pName,
             phoneNumber: pNum.prettyPhoneNumber,
             recordItems: Collections.unmodifiableCollection(rItems),

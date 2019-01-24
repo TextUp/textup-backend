@@ -3,6 +3,7 @@ package org.textup.util
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.TypeCheckingMode
 import javax.servlet.http.HttpServletRequest
+import org.codehaus.groovy.grails.web.util.WebUtils
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -35,7 +36,7 @@ class RequestUtils {
             Object obj = req.getAttribute(key) ?: req.getParameter(key)
             // only return a successful result if something is actually found
             if (obj != null) {
-                IOCUtils.resultFactory.success(TypeConversionUtils.to(T, obj))
+                IOCUtils.resultFactory.success(TypeUtils.to(T, obj))
             }
             else {
                 IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
@@ -62,9 +63,7 @@ class RequestUtils {
             }
             else { TypeMap.tryCreate(json) }
         }
-        catch (e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "tryGetJsonPayload", LogLevel.DEBUG)
-        }
+        catch (e) { IOCUtils.resultFactory.failWithThrowable(e) }
     }
 
     // Helpers
@@ -84,7 +83,7 @@ class RequestUtils {
     // additional properties to `HttpServletRequest` and, because these properties are dynamic,
     // they are not added to the interface and the compiler fails
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected Map getRequestJson(HttpServletRequest req) {
+    protected static Map getRequestJson(HttpServletRequest req) {
         req.JSON
     }
 }

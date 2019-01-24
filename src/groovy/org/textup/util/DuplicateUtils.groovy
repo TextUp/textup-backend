@@ -12,14 +12,14 @@ class DuplicateUtils {
 
     static ResultGroup<MergeGroup> tryBuildMergeGroups(Map<PhoneNumber, HashSet<Long>> numToIds) {
         // step 1: determine which ids are ambiguous
-        HashSet<Long> ambiguousIds = DuplicateUtils.findAmbiguousIds(numToIds)
+        HashSet<Long> ambiguousIds = findAmbiguousIds(numToIds)
         // step 2: determine target ids to build merge group items
         Map<Long, List<MergeGroupItem>> targetIdToMerges = [:]
             .withDefault { [] as List<MergeGroupItem> }
-        numToIds.each { PhoneNumber possibleNum, List<Long> possibleIds ->
-            Long mergeTargetId = DuplicateUtils.findMergeTargetId(possibleIds, ambiguousIds)
+        numToIds.each { PhoneNumber possibleNum, HashSet<Long> possibleIds ->
+            Long mergeTargetId = findMergeTargetId(possibleIds, ambiguousIds)
             if (mergeTargetId) {
-                targetIdToNumsToMerge[mergeTargetId] <<
+                targetIdToMerges[mergeTargetId] <<
                     MergeGroupItem.create(possibleNum, possibleIds)
             }
         }
@@ -47,10 +47,14 @@ class DuplicateUtils {
         // Ambiguous contacts are those that could be part of more than one merge group. Each merge
         // group can have at most one ambiguous contact because having multiple ambiguous contacts
         // makes it unclear which one should be the target for the merge
-        new HashSet<Long>(idToNums.collect { it.value.size() > 1 })
+        HashSet<Long> ambiguousIds = new HashSet<>()
+        idToNums.each { Long id, HashSet<PhoneNumber> pNums ->
+            if (pNums.size() > 1) { ambiguousIds << id }
+        }
+        ambiguousIds
     }
 
-    protected static Long findMergeTargetId(List<Long> possibleIds, HashSet<Long> ambiguousIds) {
+    protected static Long findMergeTargetId(Collection<Long> possibleIds, HashSet<Long> ambiguousIds) {
         // nothing to merge
         if (possibleIds.size() <= 1) {
             return null

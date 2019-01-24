@@ -36,11 +36,11 @@ class SessionService implements ManagesDomain.Creater<IncomingSession>, ManagesD
 
 	protected Result<IncomingSession> trySetFields(IncomingSession is1, TypeMap body) {
 		is1.with {
-			if (body.bool("isSubscribedToText") != null) {
-				isSubscribedToText = body.bool("isSubscribedToText")
+			if (body.boolean("isSubscribedToText") != null) {
+				isSubscribedToText = body.boolean("isSubscribedToText")
 			}
-			if (body.bool("isSubscribedToCall") != null) {
-				isSubscribedToCall = body.bool("isSubscribedToCall")
+			if (body.boolean("isSubscribedToCall") != null) {
+				isSubscribedToCall = body.boolean("isSubscribedToCall")
 			}
 		}
 		DomainUtils.trySave(is1)

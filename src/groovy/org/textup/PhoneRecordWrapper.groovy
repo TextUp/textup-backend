@@ -3,9 +3,10 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
+import org.springframework.validation.Errors
 import org.textup.structure.*
 import org.textup.type.*
-import org.springframework.validation.Errors
+import org.textup.util.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked

@@ -20,28 +20,29 @@ class SuperController {
     // Page handlers
     // -------------
 
-    def index() {
+    void index() {
         flash.previousPage = "index"
         [unverifiedOrgs: Organization.findAllByStatus(OrgStatus.PENDING)]
     }
 
-    def approved() {
+    void approved() {
         flash.previousPage = "approved"
         [orgs: Organization.findAllByStatus(OrgStatus.APPROVED)]
     }
 
-    def rejected() {
+    void rejected() {
         flash.previousPage = "rejected"
         [orgs: Organization.findAllByStatus(OrgStatus.REJECTED)]
     }
 
-    def settings() {
+    void settings() {
         [staff: IOCUtils.security.currentUser]
     }
 
-    def updateSettings() {
-        String newPassword = params.newPassword
-        if (newPassword && newPassword != params.confirmNewPassword) {
+    void updateSettings() {
+        TypeMap qParams = TypeMap.create(params)
+        String newPassword = qParams.newPassword
+        if (newPassword && newPassword != qParams.confirmNewPassword) {
             flash.messages = ["New passwords must match."]
             return redirect(action: "settings")
         }
@@ -51,8 +52,8 @@ class SuperController {
 
         // if wanting to change password, need to validate current password first
         if (newPassword) {
-            if (params.currentPassword &&
-                AuthUtils.isSecureStringValid(s1.password, params.string("currentPassword"))) {
+            if (qParams.currentPassword &&
+                AuthUtils.isSecureStringValid(s1.password, qParams.string("currentPassword"))) {
                 s1.password = newPassword
             }
             else {
@@ -82,56 +83,59 @@ class SuperController {
     // Actions
     // -------
 
-    def logout() {
-        // '/j_spring_security_logout'
+    void logout() { // '/j_spring_security_logout'
         redirect uri: (SpringSecurityUtils.securityConfig.logout as Map).filterProcessesUrl
     }
 
-    def rejectOrg() {
-        Organization org = Organization.get(params.long("id"))
-        if (org && org.getAdmins()[0]) {
-            org.status = OrgStatus.REJECTED
-            if (org.save()) {
-                flash.messages = ["Successfully rejected ${org.name}"]
-                Result res = mailService.notifyRejection(org.getAdmins()[0])
-                if (!res.success) {
-                    log.error("SuperController.rejectOrg: could not notify \
-                        $org of rejection: ${res.payload}")
-                    flash.messages = res.errorMessages
+    void rejectOrg() {
+        Organizations.mustFindForId(params.long("id"))
+            .ifFail { Result<?> failRes -> flash.messages = failRes.errorMessages }
+            .thenEnd { Organization org1 ->
+                Staff admin = Staffs.buildForOrgIdAndOptions(org1.id, null, [StaffStatus.ADMIN])
+                    .list(max: 1)[0]
+                if (admin) {
+                    org1.status = OrgStatus.REJECTED
+                    DomainUtils.trySave(org1)
+                        .ifFail {
+                            flash.errorObj = org1
+                            org1.discard()
+                        }
+                        .then {
+                            flash.messages = ["Successfully rejected ${org1.name}"]
+                            mailService.notifyRejection(admin)
+                        }
+                        .ifFailEnd("rejectOrg") { Result<?> failRes ->
+                            flash.messages = failRes.errorMessages
+                        }
                 }
+                else { flash.messages = ["Could not find admins for ${org1.name}."] }
             }
-            else {
-                flash.errorObj = org
-                org.discard()
-            }
-        }
-        else {
-            flash.messages = ["Could not find organization or admin."]
-        }
-        flash.previousPage ? redirect(action:flash.previousPage) : redirect(action:"index")
+        flash.previousPage ? redirect(action: flash.previousPage) : redirect(action: "index")
     }
 
-    def approveOrg() {
-        Organization org = Organization.get(params.long("id"))
-        if (org && org.getAdmins()[0]) {
-            org.status = OrgStatus.APPROVED
-            if (org.save()) {
-                flash.messages = ["Successfully approved ${org.name}"]
-                Result res = mailService.notifyApproval(org.getAdmins()[0])
-                if (!res.success) {
-                    log.error("SuperController.approveOrg: could not notify \
-                        $org of approval: ${res.payload}")
-                    flash.messages = res.errorMessages
+    void approveOrg() {
+        Organizations.mustFindForId(params.long("id"))
+            .ifFail { Result<?> failRes -> flash.messages = failRes.errorMessages }
+            .thenEnd { Organization org1 ->
+                Staff admin = Staffs.buildForOrgIdAndOptions(org1.id, null, [StaffStatus.ADMIN])
+                    .list(max: 1)[0]
+                if (admin) {
+                    org1.status = OrgStatus.APPROVED
+                    DomainUtils.trySave(org1)
+                        .ifFail {
+                            flash.errorObj = org1
+                            org1.discard()
+                        }
+                        .then {
+                            flash.messages = ["Successfully approved ${org1.name}"]
+                            mailService.notifyApproval(admin)
+                        }
+                        .ifFailEnd("approveOrg") { Result<?> failRes ->
+                            flash.messages = failRes.errorMessages
+                        }
                 }
+                else { flash.messages = ["Could not find admins for ${org1.name}."] }
             }
-            else {
-                flash.errorObj = org
-                org.discard()
-            }
-        }
-        else {
-            flash.messages = ["Could not find organization or admin."]
-        }
-        flash.previousPage ? redirect(action:flash.previousPage) : redirect(action:"index")
+        flash.previousPage ? redirect(action: flash.previousPage) : redirect(action: "index")
     }
 }

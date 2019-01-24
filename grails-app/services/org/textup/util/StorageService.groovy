@@ -18,7 +18,7 @@ class StorageService {
     GrailsApplication grailsApplication
 
     ResultGroup<?> uploadAsync(Collection<UploadItem> uItems) {
-        ResultGroup<PutObjectResult> resGroup = new ResultGroup<>()
+        ResultGroup<?> resGroup = new ResultGroup<>()
         if (uItems) {
             resGroup << AsyncUtils.<UploadItem>doAsyncInBatches(uItems,
                 AsyncUtils.UPLOAD_BATCH_SIZE) { UploadItem uItem -> upload(uItem) }

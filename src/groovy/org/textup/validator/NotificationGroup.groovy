@@ -9,7 +9,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
+@GrailsTypeChecked // TODO
 @Validateable
 class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.Dehydrated> {
 
@@ -37,8 +37,8 @@ class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.D
             .collect(phoneToNotifs) { Phone mutPhone1, Collection<Notification> many2 ->
                 Notification.tryCreate(mutPhone1)
                     .then { Notification notif1 ->
-                        CollectionUtils.mergeUnique(many2*.details)
-                            .each { NotificationDetail nd1 -> notif1.addDetail(nd1) }
+                        Collection<NotificationDetail> nds = CollectionUtils.mergeUnique(many2*.details)
+                        nds.each { NotificationDetail nd1 -> notif1.addDetail(nd1) }
                         DomainUtils.tryValidate(notif1)
                     }
             }
@@ -54,7 +54,7 @@ class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.D
 
     @Override
     NotificationGroup.Dehydrated dehydrate() {
-        Collection<Long> itemIds = CollectionUtils.mergeUnique(*notifications*.details*.items*.id)
+        Collection<Long> itemIds = CollectionUtils.mergeUnique(notifications*.itemIds)
         new NotificationGroup.Dehydrated(itemIds: itemIds)
     }
 
@@ -63,7 +63,7 @@ class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.D
     }
 
     Collection<OwnerPolicy> buildCanNotifyPolicies(NotificationFrequency freq1) {
-        CollectionUtils.mergeUnique(*notifications*.buildCanNotifyPolicies(freq1))
+        CollectionUtils.mergeUnique(notifications*.buildCanNotifyPolicies(freq1))
     }
 
     void eachNotification(NotificationFrequency freq1, Closure<?> action) {
@@ -75,8 +75,9 @@ class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.D
     }
 
     void eachItem(Closure<?> action) {
-        CollectionUtils.mergeUnique(*notifications*.details*.items)
-            .each { RecordItem rItem1 -> action.call(rItem1) }
+        Collection<? extends RecordItem> rItems = CollectionUtils
+            .mergeUnique(notifications*.items)
+        rItems.each { RecordItem rItem1 -> action.call(rItem1) }
     }
 
     // Properties
@@ -84,7 +85,7 @@ class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.D
 
     int getNumNotifiedForItem(NotificationFrequency freq1, RecordItem item) {
         notifications.inject(0) { int sum, Notification notif1 ->
-            sum + notif1.getNumNotifiedForItem(item)
-        }
+            sum + notif1.getNumNotifiedForItem(freq1, item)
+        } as Integer
     }
 }

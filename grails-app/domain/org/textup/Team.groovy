@@ -16,7 +16,7 @@ import org.textup.validator.*
 class Team implements WithId, CanSave<Team> {
 
     boolean isDeleted = false
-    DateTime whenCreated = DateTimeUtils.now()
+    DateTime whenCreated = JodaUtils.now()
     Location location
     Organization org
     String hexColor = Constants.DEFAULT_BRAND_COLOR

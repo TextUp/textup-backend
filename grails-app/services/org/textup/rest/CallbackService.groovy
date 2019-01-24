@@ -25,38 +25,7 @@ class CallbackService {
     @OptimisticLockingRetry
     @RollbackOnResultFailure
     Result<Closure> process(TypeMap params) {
-        processAnonymousCall(params) {
-            String callId = params.string(TwilioUtils.ID_CALL),
-                textId = params.string(TwilioUtils.ID_TEXT)
-            PhoneNumber.tryUrlDecode(params.string(TwilioUtils.FROM))
-                .then { PhoneNumber pNum ->
-                    PhoneNumber.tryUrlDecode(params.string(TwilioUtils.TO)).curry(pNum)
-                }
-                .ifFail { callId ? CallTwiml.invalid() : TextTwiml.invalid() }
-                .then { PhoneNumber fromNum, PhoneNumber toNum ->
-                    BasePhoneNumber phoneNum = CallbackUtils.numberForPhone(fromNum, toNum, params)
-                    Phones.mustFindActiveForNumber(phoneNum).curry(fromNum, toNum)
-                }
-                .ifFail { callId ? CallTwiml.notFound() : TextTwiml.notFound() }
-                .then { PhoneNumber fromNum, PhoneNumber toNum, Phone p1 ->
-                    CallbackUtils.tryGetNumberForSession(fromNum, toNum, params).curry(p1)
-                }
-                .then { Phone p1, BasePhoneNumber sessNum ->
-                    IncomingSessions.mustFindForPhoneAndNumber(p1, sessNum, true).curry(p1)
-                }
-                .then { Phone p1, IncomingSession is1 ->
-                    if (callId) {
-                        processCall(p1, is1, callId, params)
-                    }
-                    else if (textId) {
-                        processText(p1, is1, textId, params)
-                    }
-                    else {
-                        resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
-                            ResultStatus.BAD_REQUEST)
-                    }
-                }
-        }
+        processAnonymousCall(params) { processIdentifiedCall(params) }
     }
 
     // Helpers
@@ -81,6 +50,39 @@ class CallbackService {
             default:
                 continueProcessing()
         }
+    }
+
+    protected Result<Closure> processIdentifiedCall(TypeMap params) {
+        String callId = params.string(TwilioUtils.ID_CALL),
+            textId = params.string(TwilioUtils.ID_TEXT)
+        PhoneNumber.tryUrlDecode(params.string(TwilioUtils.FROM))
+            .then { PhoneNumber pNum ->
+                PhoneNumber.tryUrlDecode(params.string(TwilioUtils.TO)).curry(pNum)
+            }
+            .ifFail { callId ? CallTwiml.invalid() : TextTwiml.invalid() }
+            .then { PhoneNumber fromNum, PhoneNumber toNum ->
+                BasePhoneNumber phoneNum = CallbackUtils.numberForPhone(fromNum, toNum, params)
+                Phones.mustFindActiveForNumber(phoneNum).curry(fromNum, toNum)
+            }
+            .ifFail { callId ? CallTwiml.notFound() : TextTwiml.notFound() }
+            .then { PhoneNumber fromNum, PhoneNumber toNum, Phone p1 ->
+                CallbackUtils.tryGetNumberForSession(fromNum, toNum, params).curry(p1)
+            }
+            .then { Phone p1, BasePhoneNumber sessNum ->
+                IncomingSessions.mustFindForPhoneAndNumber(p1, sessNum, true).curry(p1)
+            }
+            .then { Phone p1, IncomingSession is1 ->
+                if (callId) {
+                    processCall(p1, is1, callId, params)
+                }
+                else if (textId) {
+                    processText(p1, is1, textId, params)
+                }
+                else {
+                    IOCUtils.resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
+                        ResultStatus.BAD_REQUEST)
+                }
+            }
     }
 
     protected Result<Closure> processCall(Phone p1, IncomingSession is1, String apiId,

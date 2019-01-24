@@ -19,6 +19,7 @@ class NotifyController extends BaseController {
 
     @Override
     void show() {
-        respondWithResult(notificationService.redeem(params.string("id")))
+        TypeMap qParams = TypeMap.create(params)
+        respondWithResult(notificationService.redeem(qParams.string("id")))
     }
 }

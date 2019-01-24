@@ -31,7 +31,7 @@ class CallCallbackService {
         IndividualPhoneRecords.tryFindEveryByNumbers(p1, [is1.number], false)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numberToPhoneRecords ->
                 Collection<String> names = CollectionUtils
-                    .mergeUnique(*numberToPhoneRecords.values())*.secureName
+                    .mergeUnique(numberToPhoneRecords.values())*.secureName
                 CallTwiml.screenIncoming(names)
             }
     }

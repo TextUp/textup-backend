@@ -38,7 +38,7 @@ class NotificationDetail implements CanValidate {
     // -------
 
     Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(OwnerPolicy op1) {
-        items.findAll { RecordItem rItem1 -> op1.isAllowed(rItem.id) }
+        items.findAll { RecordItem rItem1 -> op1.isAllowed(rItem1.id) }
     }
 
     int countItemsForOutgoingAndOptions(boolean isOut, OwnerPolicy op1 = null,
@@ -47,13 +47,17 @@ class NotificationDetail implements CanValidate {
         items.count { RecordItem rItem1 ->
             rItem1.outgoing == isOut &&
                 (!op1 || op1.isAllowed(rItem1.id)) && // owner policy is optional
-                (!clazz || clazz.isAssignableFrom(rItem.class)) // class is optional
-        }
+                (!clazz || clazz.isAssignableFrom(rItem1.class)) // class is optional
+        } as Integer
     }
 
     int countVoicemails(OwnerPolicy op1) {
         items.count { RecordItem rItem1 ->
-            op1.isAllowed(rItem1.id) && rItem1.isVoicemail && rItem1 instanceof RecordCall
-        }
+            if (rItem1 instanceof RecordCall) {
+                RecordCall rCall1 = rItem1 as RecordCall
+                op1.isAllowed(rCall1.id) && rCall1.isVoicemail
+            }
+            else { false }
+        } as Integer
     }
 }

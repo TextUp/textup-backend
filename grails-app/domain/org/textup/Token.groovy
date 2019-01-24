@@ -17,7 +17,7 @@ import org.textup.validator.*
 @EqualsAndHashCode
 class Token implements WithId, CanSave<Token> {
 
-    DateTime expires = DateTimeUtils.now().plusHours(1)
+    DateTime expires = JodaUtils.now().plusHours(1)
     String token
     Integer maxNumAccess
     int timesAccessed = 0

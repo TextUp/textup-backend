@@ -5,7 +5,10 @@ import grails.validation.Validateable
 import groovy.transform.TypeCheckingMode
 import org.textup.*
 import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Validateable
@@ -38,7 +41,7 @@ abstract class BaseAction implements CanValidate {
 			String kStr = k?.toString()
 			MetaProperty propertyInfo = hasProperty(kStr)
 			if (propertyInfo) {
-				this[kStr] = TypeConversionUtils.to(propertyInfo.type, v)
+				this[kStr] = TypeUtils.to(propertyInfo.type, v)
 			}
 		}
 		this

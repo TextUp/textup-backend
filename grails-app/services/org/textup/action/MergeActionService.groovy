@@ -35,7 +35,7 @@ class MergeActionService implements HandlesActions<Long, Void> {
     @RollbackOnResultFailure
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     Result<Void> tryHandleActions(Long iprId, Map body) {
-        IndividualPhoneRecord.mustFindActiveForId(iprId)
+        IndividualPhoneRecords.mustFindActiveForId(iprId)
             .then { IndividualPhoneRecord ipr1 ->
                 ActionContainer.tryProcess(MergeIndividualAction, body.doMergeActions).curry(ipr1)
             }
@@ -85,9 +85,9 @@ class MergeActionService implements HandlesActions<Long, Void> {
     //     Collection<IndividualPhoneRecord> toBeMerged) {
 
     //     ipr1.status = PhoneRecordStatus
-    //         .reconcile(CollectionUtils.mergeUnique([ipr1.status], toBeMerged*.status))
+    //         .reconcile(CollectionUtils.mergeUnique([[ipr1.status], toBeMerged*.status]))
     //     toBeMerged.each { it.isDeleted = true }
-    //     DomainUtils.trySaveAll(CollectionUtils.mergeUnique([ipr1], toBeMerged))
+    //     DomainUtils.trySaveAll(CollectionUtils.mergeUnique([[ipr1], toBeMerged]))
     // }
 
     // protected Result<Void> tryMergeNumbers(IndividualPhoneRecord ipr1,

@@ -23,32 +23,32 @@ class ContactController extends BaseController {
 
     @Override
     void index() {
-        TypeMap body = TypeMap.create(params)
-        Collection<PhoneRecordStatus> statuses = body
-            .toEnumList(PhoneRecordStatus, "status[]", PhoneRecordStatus.VISIBLE_STATUSES)
-        if (body.tagId) {
-            listForTag(statuses, body)
+        TypeMap qParams = TypeMap.create(params)
+        Collection<PhoneRecordStatus> statuses = qParams
+            .enumList(PhoneRecordStatus, "status[]") ?: PhoneRecordStatus.VISIBLE_STATUSES
+        if (qParams.tagId) {
+            listForTag(statuses, qParams)
         }
-        else { listForIds(statuses, body) }
+        else { listForIds(statuses, qParams) }
     }
 
     @Override
     void show() {
         Long id = params.long("id")
-        doShow({ PhoneRecords.isAllowed(id) }, { IndividualPhoneRecordsWrappers.mustFindForId(id) })
+        doShow({ PhoneRecords.isAllowed(id) }, { IndividualPhoneRecordWrappers.mustFindForId(id) })
     }
 
     @Override
     void save() {
-        doSave(MarshallerUtils.KEY_CONTACT, request, contactService) { TypeMap body ->
-            ControllerUtils.tryGetPhoneId(body.long("teamId"))
+        doSave(MarshallerUtils.KEY_CONTACT, request, contactService) {
+            ControllerUtils.tryGetPhoneId(params.long("teamId"))
         }
     }
 
     @OptimisticLockingRetry
     @Override
     void update() {
-        doUpdate(MarshallerUtils.KEY_CONTACT, request, contactService) { TypeMap body ->
+        doUpdate(MarshallerUtils.KEY_CONTACT, request, contactService) {
             PhoneRecords.isAllowed(params.long("id"))
         }
     }
@@ -61,49 +61,49 @@ class ContactController extends BaseController {
     // Helpers
     // -------
 
-    protected void listForTag(Collection<PhoneRecordStatus> statuses, TypeMap data) {
-        Long gprId = data.long("tagId")
+    protected void listForTag(Collection<PhoneRecordStatus> statuses, TypeMap qParams) {
+        Long gprId = qParams.long("tagId")
         PhoneRecords.isAllowed(gprId)
             .then { GroupPhoneRecords.mustFindForId(gprId) }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { GroupPhoneRecord gpr1 ->
-                Collection<PhoneRecord> prs = ct1.getMembersByStatus(statuses)
+                Collection<PhoneRecord> prs = gpr1.getMembersByStatus(statuses)
                 respondWithMany({ prs.size() },
                     { prs*.toWrapper() },
-                    data,
+                    qParams,
                     MarshallerUtils.KEY_CONTACT)
             }
     }
 
-    protected void listForIds(Collection<PhoneRecordStatus> statuses, TypeMap data) {
-        ControllerUtils.tryGetPhoneId(data.long("teamId"))
+    protected void listForIds(Collection<PhoneRecordStatus> statuses, TypeMap qParams) {
+        ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
-                DetachedCriteria<PhoneRecord> criteria = buildCriteria(statuses, data)
+                DetachedCriteria<PhoneRecord> criteria = buildCriteria(pId, statuses, qParams)
                 respondWithMany(CriteriaUtils.countAction(criteria),
-                    IndividualPhoneRecordsWrappers.listAction(criteria),
-                    data,
+                    IndividualPhoneRecordWrappers.listAction(criteria),
+                    qParams,
                     MarshallerUtils.KEY_CONTACT)
             }
     }
 
-    protected DetachedCriteria<PhoneRecord> buildCriteria(Collection<PhoneRecordStatus> statuses,
-        TypeMap data) {
+    protected DetachedCriteria<PhoneRecord> buildCriteria(Long pId,
+        Collection<PhoneRecordStatus> statuses, TypeMap qParams) {
 
         DetachedCriteria<PhoneRecord> criteria
-        String searchVal = data.string("search")
-        if (data.shareStatus == "sharedByMe") {
-            criteria = IndividualPhoneRecordsWrappers
-                .forSharedByIdWithOptions(pId, searchVal, statuses)
+        String searchVal = qParams.string("search")
+        if (qParams.shareStatus == "sharedByMe") {
+            criteria = IndividualPhoneRecordWrappers
+                .buildForSharedByIdWithOptions(pId, searchVal, statuses)
         }
         else {
-            boolean onlyShared = (data.shareStatus == "sharedWithMe")
-            criteria = IndividualPhoneRecordsWrappers
-                .forPhoneIdWithOptions(pId, searchVal, statuses, onlyShared)
+            boolean onlyShared = (qParams.shareStatus == "sharedWithMe")
+            criteria = IndividualPhoneRecordWrappers
+                .buildForPhoneIdWithOptions(pId, searchVal, statuses, onlyShared)
         }
         // further restrict by ids if provided
-        if (body.list("ids[]")) {
-            criteria = criteria.build(PhoneRecords.forIds(data.typedList(Long, "ids[]")))
+        if (qParams.list("ids[]")) {
+            criteria = criteria.build(PhoneRecords.forIds(qParams.typedList(Long, "ids[]")))
         }
         criteria
     }

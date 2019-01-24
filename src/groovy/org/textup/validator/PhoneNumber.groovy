@@ -37,8 +37,6 @@ class PhoneNumber extends BasePhoneNumber {
             String decodedNum = URLDecoder.decode(num, Constants.DEFAULT_CHAR_ENCODING)
             PhoneNumber.tryCreate(decodedNum)
         }
-        catch (Throwable e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "tryUrlDecode", LogLevel.DEBUG)
-        }
+        catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
     }
 }

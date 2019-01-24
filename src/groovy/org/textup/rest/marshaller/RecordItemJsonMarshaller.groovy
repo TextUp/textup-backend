@@ -33,16 +33,16 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             if (rItem1.authorType) authorType     = rItem1.authorType.toString()
             if (rItem1.noteContents) noteContents = rItem1.noteContents
 
-            if (item instanceof ReadOnlyRecordCall) {
+            if (rItem1 instanceof ReadOnlyRecordCall) {
                 durationInSeconds  = rItem1.durationInSeconds
                 type               = RecordItemType.CALL.toString()
                 voicemailInSeconds = rItem1.voicemailInSeconds
             }
-            else if (item instanceof ReadOnlyRecordText) {
+            else if (rItem1 instanceof ReadOnlyRecordText) {
                 contents = rItem1.contents
                 type     = RecordItemType.TEXT.toString()
             }
-            else if (item instanceof ReadOnlyRecordNote) {
+            else if (rItem1 instanceof ReadOnlyRecordNote) {
                 isDeleted   = rItem1.isDeleted
                 isReadOnly  = rItem1.isReadOnly
                 location    = rItem1.readOnlyLocation
@@ -54,12 +54,12 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
 
         RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
             .thenEnd { String tz ->
-                json.whenCreated = DateTimeUtils.toDateTimeWithZone(json.whenCreated, tz)
-                json.whenChanged = DateTimeUtils.toDateTimeWithZone(json.whenChanged, tz)
+                json.whenCreated = JodaUtils.toDateTimeWithZone(json.whenCreated, tz)
+                json.whenChanged = JodaUtils.toDateTimeWithZone(json.whenChanged, tz)
             }
 
         RequestUtils.tryGetFromRequest(RequestUtils.PHONE_ID)
-            .then { Long pId ->
+            .thenEnd { Long pId ->
                 PhoneRecord pr1 = PhoneRecords.buildActiveForRecordIds([rItem1.id])
                     .build(PhoneRecords.forPhoneIds([pId]))
                     .list(max: 1)[0]

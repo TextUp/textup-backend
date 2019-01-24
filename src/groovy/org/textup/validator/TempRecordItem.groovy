@@ -9,7 +9,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
+// @GrailsTypeChecked // TODO
 @Validateable
 class TempRecordItem implements CanValidate, Dehydratable<TempRecordItem.Dehydrated> {
 
@@ -35,7 +35,7 @@ class TempRecordItem implements CanValidate, Dehydratable<TempRecordItem.Dehydra
         @Override
         Result<TempRecordItem> tryRehydrate() {
         	TempRecordItem temp1 = new TempRecordItem(text: text,
-        		media: mediaId ? Media.get(mediaId) : null,
+        		media: mediaId ? MediaInfo.get(mediaId) : null,
         		location: locationId ? Location.get(locationId) : null)
         	DomainUtils.tryValidate(temp1)
         }
@@ -56,6 +56,6 @@ class TempRecordItem implements CanValidate, Dehydratable<TempRecordItem.Dehydra
 
 	@Override
 	TempRecordItem.Dehydrated dehydrate() {
-		new TempRecordItem.Dehydrated(text: text, mediaId: media?.id, location: location?.id)
+		new TempRecordItem.Dehydrated(text: text, mediaId: media?.id, locationId: location?.id)
 	}
 }

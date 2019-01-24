@@ -13,7 +13,7 @@ import org.textup.validator.*
 class MergeGroupJsonMarshaller extends JsonNamedMarshaller {
 
 	static final Closure marshalClosure = { MergeGroup mGroup ->
-        mGroup.buildTarget()*.toInfo().properties + [merges: mGroup.possibleMerges]
+        mGroup.buildTarget().toInfo().properties + [merges: mGroup.possibleMerges]
 	}
 
 	MergeGroupJsonMarshaller() {

@@ -2,26 +2,40 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class Organizations {
 
+    @GrailsTypeChecked
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(thisId, authId) }
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
+    @GrailsTypeChecked
     static Result<Void> tryIfAdmin(Long org1, Long staffId) {
         AuthUtils.tryGetAuthUser()
             .then { Staff s1 ->
                 AuthUtils.isAllowed(s1.status == StaffStatus.ADMIN && s1.org.id == org1)
             }
+    }
+
+    @GrailsTypeChecked
+    static Result<Organization> mustFindForId(Long orgId) {
+        Organization org1 = orgId ? Organization.get(orgId) : null
+        if (org1) {
+            IOCUtils.resultFactory.success(org1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("staffService.create.orgNotFound", // TODO
+                ResultStatus.NOT_FOUND, [orgId])
+        }
     }
 
     static DetachedCriteria<Organization> buildActiveForAdminIds(Collection<Long> adminIds) {
@@ -35,6 +49,7 @@ class Organizations {
 
     static DetachedCriteria<Organization> buildForOptions(String query = null,
         Collection<OrgStatus> orgStatuses = OrgStatus.ACTIVE_STATUSES) {
+
         new DetachedCriteria(Organization)
             .build(forQuery())
             .build(forStatuses())
@@ -50,18 +65,6 @@ class Organizations {
                 eq("location.lng", lng)
             }
     }
-
-    static Result<Organization> mustFindForId(Long orgId) {
-        Organization org1 = orgId ? Organization.get(orgId) : null
-        if (org1) {
-            IOCUtils.resultFactory.success(org1)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("staffService.create.orgNotFound", // TODO
-                ResultStatus.NOT_FOUND, [orgId])
-        }
-    }
-
 
     // Helpers
     // -------

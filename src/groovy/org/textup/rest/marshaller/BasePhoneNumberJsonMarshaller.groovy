@@ -15,13 +15,13 @@ class BasePhoneNumberJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { BasePhoneNumber bNum ->
         Map json = [:]
         json.with {
-            e164Number     = bNum.e164Number
+            e164Number     = bNum.e164PhoneNumber
             noFormatNumber = bNum.number
             number         = bNum.prettyPhoneNumber
         }
 
         if (bNum instanceof AvailablePhoneNumber) {
-            json[bNum.infoType] = aNum.info
+            json[bNum.infoType] = bNum.info
         }
 
         json

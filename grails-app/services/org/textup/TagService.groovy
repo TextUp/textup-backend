@@ -25,25 +25,25 @@ class TagService implements ManagesDomain.Creater<GroupPhoneRecord>, ManagesDoma
             .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tryNotifications(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tagActionService.tryHandleActions(gpr1, body) }
-            .then { Phone p1 -> DomainUtils.trySave(gpr1, ResultStatus.CREATED) }
+            .then { GroupPhoneRecord gpr1 -> DomainUtils.trySave(gpr1, ResultStatus.CREATED) }
     }
 
     @RollbackOnResultFailure
     Result<GroupPhoneRecord> update(Long grpId, TypeMap body) {
-        GroupPhoneRecords.mustFindForId(gprId)
+        GroupPhoneRecords.mustFindForId(grpId)
             .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tryNotifications(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tagActionService.tryHandleActions(gpr1, body) }
     }
 
     @RollbackOnResultFailure
-    Result<Void> delete(Long tId) {
+    Result<Void> delete(Long gprId) {
         GroupPhoneRecords.mustFindForId(gprId)
             .then { GroupPhoneRecord gpr1 ->
                 gpr1.isDeleted = true
-                gpr1.tryCancelFutureMessages()
+                gpr1.tryCancelFutureMessages().curry(gpr1)
             }
-            .then { DomainUtils.trySave(gpr1) }
+            .then { GroupPhoneRecord gpr1 -> DomainUtils.trySave(gpr1) }
             .then { Result.void() }
     }
 
@@ -54,7 +54,9 @@ class TagService implements ManagesDomain.Creater<GroupPhoneRecord>, ManagesDoma
         gpr1.with {
             if (body.name) name = body.name
             if (body.hexColor) hexColor = body.hexColor
-            if (body.language) language = body.enum(VoiceLanguage, "language")
+        }
+        if (body.enum(VoiceLanguage, "language")) {
+            gpr1.record.language = body.enum(VoiceLanguage, "language")
         }
         DomainUtils.trySave(gpr1)
     }

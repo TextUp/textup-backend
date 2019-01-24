@@ -22,12 +22,13 @@ class TeamController extends BaseController {
 
     @Override
     void index() {
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
+        TypeMap qParams = TypeMap.create(params)
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
         AuthUtils.tryGetAuthId()
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long authId ->
-                Long orgId = params.long("organizationId")
-                Long staffId = params.long("staffId", authId)
+                Long orgId = qParams.long("organizationId")
+                Long staffId = qParams.long("staffId", authId)
                 DetachedCriteria<Team> criteria = orgId ?
                     Teams.buildForOrgIds([orgId]) :
                     Teams.buildForStaffIds([staffId])
@@ -37,14 +38,16 @@ class TeamController extends BaseController {
 
     @Override
     void show() {
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
-        Long id = params.long("id")
+        TypeMap qParams = TypeMap.create(params)
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        Long id = qParams.long("id")
         doShow({ Teams.isAllowed(id) }, { Teams.mustFindForId(id) })
     }
 
     @Override
     void save() {
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
+        TypeMap qParams = TypeMap.create(params)
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
         doSave(MarshallerUtils.KEY_TEAM, request, teamService) { TypeMap body ->
             Organizations.isAllowed(body.long("org"))
         }
@@ -52,9 +55,10 @@ class TeamController extends BaseController {
 
     @Override
     void update() {
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, params.string("timezone"))
+        TypeMap qParams = TypeMap.create(params)
+        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
         doUpdate(MarshallerUtils.KEY_TEAM, request, teamService) { TypeMap body ->
-            Teams.isAllowed(params.long("id"))
+            Teams.isAllowed(qParams.long("id"))
         }
     }
 

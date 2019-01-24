@@ -21,23 +21,28 @@ class NumberController extends BaseController {
     // requesting list of available twilio numbers
     @Override
     void index() {
+        TypeMap qParams = TypeMap.create(params)
         AuthUtils.tryGetAuthUser()
             .then { Staff authUser -> numberService.listExistingNumbers().curry(authUser) }
             .then { Staff authUser, Collection<AvailablePhoneNumber> iNums ->
-                numberService.listNewNumbers(params.string("search"), authUser.org.location)
+                numberService.listNewNumbers(qParams.string("search"), authUser.org.location)
                     .curry(iNums)
             }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Collection<AvailablePhoneNumber> iNums, Collection<AvailablePhoneNumber> lNums ->
                 Collection<AvailablePhoneNumber> allNums = iNums + lNums
-                respondWithMany({ allNums.size() }, { allNums }, params, MarshallerUtils.KEY_NUMBER)
+                respondWithMany({ allNums.size() },
+                    { allNums },
+                    qParams,
+                    MarshallerUtils.KEY_PHONE_NUMBER)
             }
     }
 
     // validating phone number against the twilio phone number validator
     @Override
     void show() {
-        PhoneNumber.tryCreate(params.string("id"))
+        TypeMap qParams = TypeMap.create(params)
+        PhoneNumber.tryCreate(qParams.string("id"))
             .then { PhoneNumber pNum -> numberService.validateNumber(pNum) }
             .anyEnd { Result<?> res -> respondWithResult(res) }
     }

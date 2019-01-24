@@ -68,15 +68,15 @@ class OutgoingAnnouncementService {
         String msg, Collection<IncomingSession> sess, Collection<TempRecordReceipt> rpts) {
 
         tryStoreForAnnouncement(type, fa1, sess)
-            .then { tryStoreForRecords(type, fa1.phone, author, msg, sess, rpts) }
+            .then { tryStoreForRecords(type, fa1.phone, author1, msg, sess, rpts) }
             .then { List<IndividualPhoneRecord> iprList ->
-                socketService.sendIndividualWrappers(iprList)
+                socketService.sendIndividualWrappers(iprList*.toWrapper())
                 Result.void()
             }
     }
 
     protected Result<List<AnnouncementReceipt>> tryStoreForAnnouncement(RecordItemType type,
-        FeaturedAnnouncement fa1, List<IncomingSession> sess) {
+        FeaturedAnnouncement fa1, Collection<IncomingSession> sess) {
 
         ResultGroup
             .collect(sess) { IncomingSession is1 ->
@@ -100,7 +100,7 @@ class OutgoingAnnouncementService {
                     }
                     .logFail("tryStoreForRecords")
                     .toResult(true)
-                    .curry(CollectionUtils.mergeUnique(*numToPhoneRecs.values()))
+                    .curry(CollectionUtils.mergeUnique(numToPhoneRecs.values()))
             }
     }
 
@@ -112,7 +112,7 @@ class OutgoingAnnouncementService {
             .logFail("tryCreateItems: $type")
             .toResult(true)
             .then { List<? extends RecordItem> rItems ->
-                rItems.each {
+                rItems.each { RecordItem rItem1 ->
                     if (rpt1) {
                         rItem1.addReceipt(rpt1)
                     }

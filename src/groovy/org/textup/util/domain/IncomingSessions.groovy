@@ -2,21 +2,23 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class IncomingSessions {
 
+    @GrailsTypeChecked
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
+    @GrailsTypeChecked
     static Result<IncomingSession> mustFindForId(Long isId) {
         IncomingSession is1 = IncomingSession.get(isId)
         if (is1) {
@@ -28,6 +30,7 @@ class IncomingSessions {
         }
     }
 
+    @GrailsTypeChecked
     static Result<IncomingSession> mustFindForPhoneAndNumber(Phone p1, BasePhoneNumber bNum,
         boolean createIfAbsent) {
 

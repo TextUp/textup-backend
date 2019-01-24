@@ -5,6 +5,7 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.joda.time.DateTimeConstants
 import org.joda.time.format.DateTimeFormatter
 import org.textup.structure.*
 import org.textup.type.*
@@ -60,7 +61,7 @@ class Schedule implements WithId, CanSave<Schedule> {
     // -------
 
     boolean isAvailableNow() {
-        isAvailableAt(DateTimeUtils.now())
+        isAvailableAt(JodaUtils.now())
     }
 
     boolean isAvailableAt(DateTime dt) {
@@ -69,7 +70,10 @@ class Schedule implements WithId, CanSave<Schedule> {
         }
         else {
             if (dt) {
-                LocalIntervalUtils.rehydrateAsIntervals(getValueForDayOfWeek(dt), dt)
+                LocalIntervalUtils
+                    .rehydrateAsIntervals(dt) { DateTime dt1 ->
+                        getValueForDayOfWeek(dt1)
+                    }
                     .any { Interval interval -> interval.contains(dt) }
             }
             else { false }
@@ -94,17 +98,17 @@ class Schedule implements WithId, CanSave<Schedule> {
     Result<Schedule> updateWithIntervalStrings(TypeMap body,
         String timezone = ScheduleUtils.DEFAULT_TIMEZONE) {
 
-        DateTimeZone zone = DateTimeUtils.getZoneFromId(timezone)
+        DateTimeZone zone = JodaUtils.getZoneFromId(timezone)
         int numDaysPerWeek = ScheduleUtils.DAYS_OF_WEEK.size()
         ResultGroup<List<Interval>> resGroup = new ResultGroup<>()
         for(int addDays = 0; addDays < numDaysPerWeek; ++addDays) {
             String dayOfWeek = ScheduleUtils.DAYS_OF_WEEK[addDays]
-            List<String> intStrings = body.typedList(String, dayOfWeek, [])
+            List<String> intStrings = body.typedList(String, dayOfWeek)
             resGroup << ScheduleUtils.parseIntervalStringsToUTCIntervals(intStrings, addDays, zone)
         }
         resGroup.toResult(false).then { List<List<Interval>> intervals ->
             Map<String, List<LocalInterval>> dayToIntervals = LocalIntervalUtils
-                .fromIntervalsToLocalIntervalsMap(CollectionUtils.mergeUnique(*intervals))
+                .fromIntervalsToLocalIntervalsMap(CollectionUtils.mergeUnique(intervals))
             updateLocalIntervals(dayToIntervals)
         }
     }
@@ -114,7 +118,7 @@ class Schedule implements WithId, CanSave<Schedule> {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     Map<String,List<LocalInterval>> getAllAsLocalIntervals(String timezone = ScheduleUtils.DEFAULT_TIMEZONE) {
-        DateTimeZone zone = DateTimeUtils.getZoneFromId(timezone)
+        DateTimeZone zone = JodaUtils.getZoneFromId(timezone)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(ScheduleUtils.TIME_FORMAT).withZoneUTC()
         //rehydrate the strings as INTERVALS where sunday corresponds to TODAY, monday corresponds
         //to tomorrow, and tuesday corresponds to the day after tomorrow, etc.
@@ -182,7 +186,7 @@ class Schedule implements WithId, CanSave<Schedule> {
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected Result<Schedule> updateLocalIntervals(Map<String, List<LocalInterval>> dayToIntervals) {
         try {
-            DomainUtils.tryValidateAll(CollectionUtils.mergeUnique(*dayToIntervals?.values()))
+            DomainUtils.tryValidateAll(CollectionUtils.mergeUnique(dayToIntervals?.values()))
                 .then {
                     dayToIntervals.each { String key, List<LocalInterval> intervals ->
                         if (intervals.isEmpty()) {
@@ -235,7 +239,7 @@ class Schedule implements WithId, CanSave<Schedule> {
         [hasWraparound, firstDayWrappedEnd]
     }
 
-    protected ScheduleChange nextChangeForType(ScheduleStatus type, String timezone) {
+    protected Result<ScheduleChange> nextChangeForType(ScheduleStatus type, String timezone) {
         DateTime now = DateTime.now()
 
         nextChangeForDateTime(now, now, timezone)
@@ -251,7 +255,7 @@ class Schedule implements WithId, CanSave<Schedule> {
         DateTime initialDt, String timezone) {
 
         List<Interval> intervals = LocalIntervalUtils
-            .rehydrateAsIntervals(getValueForDayOfWeek(dt), dt)
+            .rehydrateAsIntervals(dt) { DateTime dt1 -> getValueForDayOfWeek(dt1) }
         ScheduleChange sChange1
         //set the closest upcoming to be impossibly far into the future as an initial value
         DateTime closestUpcoming = dt.plusWeeks(1)

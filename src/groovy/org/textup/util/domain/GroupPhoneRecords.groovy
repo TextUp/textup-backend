@@ -2,15 +2,16 @@ package org.textup.util.domain
 
 import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
+import groovy.transform.TypeCheckingMode
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 class GroupPhoneRecords {
 
+    @GrailsTypeChecked
     static Result<GroupPhoneRecord> mustFindForId(Long gprId) {
         GroupPhoneRecord gpr1 = GroupPhoneRecord.get(gprId)
         if (gpr1) {

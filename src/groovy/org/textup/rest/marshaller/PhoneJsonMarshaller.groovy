@@ -30,18 +30,20 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             voice                          = p1.voice.toString()
         }
 
-        AuthUtils.tryGetAuthId().then { Long authId ->
+        AuthUtils.tryGetAuthId().thenEnd { Long authId ->
             Collection<Long> allStaffIds = p1.owner.buildAllStaff()*.id
             // only show owner policy info if the logged-in user is actually an owner
             if (allStaffIds.contains(authId)) {
                 json.with {
                     allowSharingWithOtherTeams = p1.owner.allowSharingWithOtherTeams
-                    owner                      = OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, authId).payload
-                    tags                       = GroupPhoneRecords.buildForPhoneIdAndOptions([p1.id]).list()
+                    tags                       = GroupPhoneRecords.buildForPhoneIdAndOptions(p1.id).list()
                     (allStaffIds - authId).each { Long sId ->
                         others = OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, sId).payload
                     }
                 }
+
+                // TODO many owner is a property global property:
+                json.owner = OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, authId).payload
             }
         }
 

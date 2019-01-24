@@ -25,15 +25,15 @@ class MergeGroup implements CanValidate {
 		possibleMerges cascadeValidation: true, minSize: 1,
 			validator: { Collection<MergeGroupItem> val, MergeGroup obj ->
 				if (val) {
-					Collection<Long> allIds = CollectionUtils.mergeUnique(*val*.mergeids)
+					Collection<Long> allIds = CollectionUtils.mergeUnique(val*.mergeIds)
 					// check for no self merge
 					if (allIds.contains(obj.targetId)) {
 						return ["cannotMergeWithSelf", obj.targetId]
 					}
 					// check for no overlapping ids in suggested merges
 					Map<Long, Collection<Long>> invalidIds = MapUtils
-						.<Long, Long>buildManyObjectsMap(allIds, { it })
-						.findAll { it.value.size() > 1 }
+						.<Long, Long>buildManyObjectsMap(allIds, { Long id -> id })
+						.findAll { Long k, Collection<Long> v -> v.size() > 1 }
 					if (invalidIds) {
 						return ["overlappingIds", invalidIds.keySet()]
 					}

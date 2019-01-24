@@ -29,8 +29,8 @@ class OwnerPolicyService {
             if (body.frequency) frequency = body.enum(NotificationFrequency, "frequency")
             if (body.level) level = body.enum(NotificationLevel, "level")
             if (body.method) method = body.enum(NotificationMethod, "method")
-            if (body.bool("shouldSendPreviewLink") != null) {
-                shouldSendPreviewLink = body.bool("shouldSendPreviewLink")
+            if (body.boolean("shouldSendPreviewLink") != null) {
+                shouldSendPreviewLink = body.boolean("shouldSendPreviewLink")
             }
         }
         DomainUtils.trySave(op1)

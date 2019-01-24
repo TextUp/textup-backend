@@ -35,7 +35,7 @@ class AvailablePhoneNumber extends BasePhoneNumber {
 
     static Result<AvailablePhoneNumber> tryCreateNew(String num, String country, String region) {
         AvailablePhoneNumber aNum = new AvailablePhoneNumber(number: num,
-            info: region ? "${region}, ${country}" : country,
+            info: region ? "${region}, ${country}".toString() : country,
             infoType: TYPE_NEW)
         DomainUtils.tryValidate(aNum, ResultStatus.CREATED)
     }

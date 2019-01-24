@@ -6,10 +6,11 @@ import groovy.transform.EqualsAndHashCode
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.textup.*
-import org.textup.type.MediaType
-import org.textup.validator.UploadItem
-
-// documented as [mediaAction] in CustomApiDocs.groovy
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 // [IMPORTANT] On classes with the Validateable annotation, public getters with no properties and
 // no defined field are treated like fields during validation. Making these getters protected

@@ -15,7 +15,7 @@ import org.textup.validator.*
 @EqualsAndHashCode
 class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
 
-    DateTime lastRecordActivity = DateTimeUtils.now()
+    DateTime lastRecordActivity = JodaUtils.now()
     VoiceLanguage language = VoiceLanguage.ENGLISH
 
     static mapping = {
@@ -30,7 +30,7 @@ class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
     // ---------
 
     void updateLastActivity() {
-        lastRecordActivity = DateTimeUtils.now()
+        lastRecordActivity = JodaUtils.now()
     }
 
     Result<? extends RecordItem> storeOutgoing(RecordItemType type, Author a1,
@@ -74,8 +74,10 @@ class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
 
     // don't handle note here because adding note should not update record timestamp
     protected Result<? extends RecordItem> finishAdd(RecordItem rItem1, Author a1, MediaInfo mInfo) {
-        rItem1.author = a1
-        rItem.media = mInfo
+        rItem1.with {
+            author = a1
+            media = mInfo
+        }
         updateLastActivity()
         DomainUtils.trySave(rItem1, ResultStatus.CREATED)
     }

@@ -4,9 +4,11 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
-
-// documented as [mergeAction] in CustomApiDocs.groovy
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
@@ -20,6 +22,8 @@ class MergeIndividualAction extends BaseAction {
 	Long nameId
 	Long noteId
 
+	final Collection<Long> toBeMergedIds
+
 	static constraints = {
 		toBeMergedIds validator: { Collection<Long> val ->
 			if (!val) {
@@ -31,7 +35,7 @@ class MergeIndividualAction extends BaseAction {
 				if (!id) {
 					return ["requiredForReconciliation"]
 				}
-				if (!obj.ids.contains(id)) {
+				if (!obj.toBeMergedIds?.contains(id)) {
 					return ["notInIdsList"]
 				}
 			}
@@ -41,7 +45,7 @@ class MergeIndividualAction extends BaseAction {
 				if (!id) {
 					return ["requiredForReconciliation"]
 				}
-				if (!obj.ids.contains(id)) {
+				if (!obj.toBeMergedIds?.contains(id)) {
 					return ["notInIdsList"]
 				}
 			}
@@ -51,13 +55,9 @@ class MergeIndividualAction extends BaseAction {
 	// Methods
 	// -------
 
-	String buildName() {
-		nameId ? toBeMerged.find { IndividualPhoneRecord ipr1 -> ipr1.id == nameId }?.name : null
-	}
+	String buildName() { IndividualPhoneRecords.mustFindActiveForId(nameId).payload?.name }
 
-	String buildNote() {
-		noteId ? toBeMerged.find { IndividualPhoneRecord ipr1 -> ipr1.id == noteId }?.note : null
-	}
+	String buildNote() { IndividualPhoneRecords.mustFindActiveForId(noteId).payload?.note }
 
 	// Properties
 	// ----------
@@ -66,7 +66,7 @@ class MergeIndividualAction extends BaseAction {
 	Collection<String> getAllowedActions() { [DEFAULT, RECONCILE] }
 
 	Collection<Long> getToBeMergedIds() {
-		Collection<?> possibleIds = TypeConversionUtils.to(Collection, mergeIds, [])
-		TypeConversionUtils.allTo(Long, possibleIds)
+		Collection<?> possibleIds = TypeUtils.to(Collection, mergeIds, [])
+		TypeUtils.allTo(Long, possibleIds)
 	}
 }
