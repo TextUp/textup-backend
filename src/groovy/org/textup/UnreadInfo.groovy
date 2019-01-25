@@ -1,9 +1,11 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import org.joda.time.DateTime
 import org.textup.util.domain.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 class UnreadInfo {
 

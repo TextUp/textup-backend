@@ -9,11 +9,8 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
-// Receipt validator object for outgoing receipts
-// Received by is the client number that is the recipient of the outgoing message
-
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 @Validateable
 class TempRecordReceipt implements CanValidate {
 

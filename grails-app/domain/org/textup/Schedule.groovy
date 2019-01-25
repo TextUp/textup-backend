@@ -14,8 +14,8 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 import org.joda.time.Interval
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class Schedule implements WithId, CanSave<Schedule> {
 
     boolean manual = true
@@ -30,25 +30,25 @@ class Schedule implements WithId, CanSave<Schedule> {
     String saturday = ""
 
     static constraints = {
-        sunday validator:{ String val ->
+        sunday validator: { String val ->
             if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
-        monday validator:{ String val ->
+        monday validator: { String val ->
             if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
-        tuesday validator:{ String val ->
+        tuesday validator: { String val ->
             if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
-        wednesday validator:{ String val ->
+        wednesday validator: { String val ->
             if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
-        thursday validator:{ String val ->
+        thursday validator: { String val ->
             if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
-        friday validator:{ String val ->
+        friday validator: { String val ->
             if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
-        saturday validator:{ String val ->
+        saturday validator: { String val ->
             if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
     }
@@ -164,8 +164,7 @@ class Schedule implements WithId, CanSave<Schedule> {
                     }
                 }
                 else {
-                    log.error("WeeklySchedule.getAsLocalIntervals: \
-                        for $dayOfWeek, invalid range: $rangeString")
+                    log.error("getAsLocalIntervals: for $dayOfWeek, invalid range: $rangeString")
                 }
             }
             intervals += intervalsForDay
@@ -286,8 +285,8 @@ class Schedule implements WithId, CanSave<Schedule> {
                 nextChangeForDateTime(dt.plusDays(1), initialDt, timezone)
             }
             else {
-                IOCUtils.resultFactory.failWithCodeAndStatus("weeklySchedule.nextChangeNotFound",
-                    ResultStatus.NOT_FOUND)
+                IOCUtils.resultFactory.failWithCodeAndStatus("schedule.nextChangeNotFound",
+                    ResultStatus.NOT_FOUND, [id])
             }
         }
     }

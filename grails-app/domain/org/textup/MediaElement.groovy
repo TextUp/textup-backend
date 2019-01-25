@@ -10,8 +10,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement> {
 
     DateTime whenCreated = JodaUtils.now()

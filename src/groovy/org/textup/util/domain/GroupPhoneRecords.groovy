@@ -18,7 +18,7 @@ class GroupPhoneRecords {
             IOCUtils.resultFactory.success(gpr1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("tagService.update.notFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("groupPhoneRecords.notFound",
                 ResultStatus.NOT_FOUND, [gprId])
         }
     }

@@ -36,14 +36,12 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             if (allStaffIds.contains(authId)) {
                 json.with {
                     allowSharingWithOtherTeams = p1.owner.allowSharingWithOtherTeams
+                    self                       = OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, authId).payload
                     tags                       = GroupPhoneRecords.buildForPhoneIdAndOptions(p1.id).list()
                     (allStaffIds - authId).each { Long sId ->
                         others = OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, sId).payload
                     }
                 }
-
-                // TODO many owner is a property global property:
-                json.owner = OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, authId).payload
             }
         }
 

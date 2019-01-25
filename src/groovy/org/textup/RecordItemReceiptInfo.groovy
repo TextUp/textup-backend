@@ -1,8 +1,10 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import org.textup.type.ReceiptStatus
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 class RecordItemReceiptInfo {
     private final List<RecordItemReceipt> success = []

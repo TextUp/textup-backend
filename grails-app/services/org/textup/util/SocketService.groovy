@@ -37,7 +37,7 @@ class SocketService {
                     }
                 }
                 else {
-                    IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+                    IOCUtils.resultFactory.failWithCodeAndStatus("socketService.forbidden",
                         ResultStatus.FORBIDDEN)
                 }
             }

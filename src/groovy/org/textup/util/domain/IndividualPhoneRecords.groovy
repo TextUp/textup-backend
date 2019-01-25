@@ -18,7 +18,7 @@ class IndividualPhoneRecords {
             IOCUtils.resultFactory.success(ipr1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("individualPhoneRecords.notFound",
                 ResultStatus.NOT_FOUND, [iprId])
         }
     }

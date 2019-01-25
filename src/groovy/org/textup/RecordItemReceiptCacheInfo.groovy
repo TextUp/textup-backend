@@ -8,8 +8,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class RecordItemReceiptCacheInfo {
     final long id
     final long itemId

@@ -33,8 +33,7 @@ class Phones {
             IOCUtils.resultFactory.success(p1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus(
-                "voicemailService.finishedProcessingVoicemailGreeting.phoneNotFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("phones.notFoundForId",
                 ResultStatus.NOT_FOUND, [pId])
         }
     }
@@ -46,7 +45,7 @@ class Phones {
             IOCUtils.resultFactory.success(p1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("phones.notFoundForNumber",
                 ResultStatus.NOT_FOUND, [bNum])
         }
     }
@@ -114,7 +113,7 @@ class Phones {
         }
         canShare ?
             Result.void() :
-            IOCUtils.resultFactory.failWithCodeAndStatus("phone.share.cannotShare",
-                ResultStatus.FORBIDDEN, [target.buildName()])
+            IOCUtils.resultFactory.failWithCodeAndStatus("phones.shareForbidden",
+                ResultStatus.FORBIDDEN, [owner.buildName(), target.buildName()])
     }
 }

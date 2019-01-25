@@ -11,8 +11,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
+@GrailsTypeChecked
 class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 
 	// whenCreated is used for making notes show up in the correct

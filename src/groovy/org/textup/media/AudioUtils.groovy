@@ -35,7 +35,7 @@ class AudioUtils {
             data ? Files.write(tempFile, data) : tempFile
         }
         catch (Throwable e) {
-            log.error("AudioUtils.createTempFile: ${e}, ${e.message}")
+            log.error("createTempFile: ${e}, ${e.message}")
             null
         }
     }
@@ -45,7 +45,7 @@ class AudioUtils {
             if (path) { Files.delete(path) }
         }
         catch (Throwable e) {
-            log.error("AudioUtils.delete: ${path}, ${e}, ${e.message}")
+            log.error("delete: ${path}, ${e}, ${e.message}")
         }
     }
 
@@ -55,15 +55,15 @@ class AudioUtils {
     // or else using the Play verb won’t work.
     Result<byte[]> convert(long timeout, MediaType inputType, Path inputPath, MediaType outputType) {
         if (timeout < 0) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.convert.timeoutIsNegative",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.timeoutIsNegative",
                 ResultStatus.BAD_REQUEST)
         }
         if (!MediaType.AUDIO_TYPES.contains(inputType) || !MediaType.AUDIO_TYPES.contains(outputType)) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.convert.typesMustBeAudio",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.typesMustBeAudio",
                 ResultStatus.BAD_REQUEST)
         }
         if (!Files.isReadable(inputPath)) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.convert.inputPathInvalid",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.inputPathInvalid",
                 ResultStatus.BAD_REQUEST)
         }
         Path outputPath = createTempFile()
@@ -80,8 +80,8 @@ class AudioUtils {
         }
         else {
             delete(outputPath)
-            log.error("AudioUtils.convert: ${process.exitValue()} \nout> $sOut \nerr> $sErr ")
-            IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.convert.failed",
+            log.error("convert: ${process.exitValue()} \nout> $sOut \nerr> $sErr ")
+            IOCUtils.resultFactory.failWithCodeAndStatus("audioUtils.conversionFailed",
                 ResultStatus.INTERNAL_SERVER_ERROR, [inputType, outputType])
         }
     }
@@ -94,7 +94,7 @@ class AudioUtils {
             IOCUtils.resultFactory.success(Files.readAllBytes(path))
         }
         catch(Throwable e) {
-            log.error("AudioUtils.readAllBytes: ${path}, ${e}, ${e.message}")
+            log.error("readAllBytes: ${path}, ${e}, ${e.message}")
             IOCUtils.resultFactory.failWithThrowable(e)
         }
     }

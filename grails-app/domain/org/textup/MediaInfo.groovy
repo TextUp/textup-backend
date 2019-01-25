@@ -8,8 +8,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
 
     private Set<MediaElement> _originalMediaElements = Collections.emptySet()

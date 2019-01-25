@@ -149,8 +149,8 @@ class PhoneRecordWrapper implements CanSave<PhoneRecordWrapper> {
     // Helpers
     // -------
 
-    protected Result<?> insufficientPermission() { // TODO msg
-        IOCUtils.resultFactory.failWithCodeAndStatus("sharedContact.insufficientPermission",
-                ResultStatus.FORBIDDEN)
+    protected Result<?> insufficientPermission() {
+        IOCUtils.resultFactory.failWithCodeAndStatus("phoneRecordWrapper.insufficientPermission",
+                ResultStatus.FORBIDDEN, [phoneRecord?.id])
     }
 }

@@ -12,8 +12,8 @@ import org.textup.validator.*
 
 // [NOTE] all properties in this parent class are DUPLICATED across sharing relationships
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class PhoneRecord implements WithId, CanSave<PhoneRecord> {
 
     FutureMessageJobService futureMessageJobService
@@ -42,9 +42,15 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
         permission nullable: true
         shareSource nullable: true, cascadeValidation: true, validator: { PhoneRecord val, PhoneRecord obj ->
             if (val) {
-                if (val.phone?.id == obj.phone?.id) { ["shareWithMyself"] }
-                if (val.record?.id != obj.record?.id) { ["mismatchedRecord"] }
-                if (!obj.permission) { ["mustSpecifySharingPermission"] }
+                if (val.phone?.id == obj.phone?.id) {
+                    return ["shareWithMyself"]
+                }
+                if (val.record?.id != obj.record?.id) {
+                    return ["mismatchedRecord", obj.record?.id]
+                }
+                if (!obj.permission) {
+                    return ["mustSpecifySharingPermission"]
+                }
             }
         }
     }

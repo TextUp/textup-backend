@@ -25,8 +25,9 @@ class PhoneCache {
         if (pId) {
             IOCUtils.resultFactory.success(pId)
         }
-        else { // TODO msg
-            IOCUtils.resultFactory.failWithCodeAndStatus("phone.notFound", ResultStatus.NOT_FOUND)
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("phoneCache.notFound",
+                ResultStatus.NOT_FOUND, [ownerId, type])
         }
     }
 

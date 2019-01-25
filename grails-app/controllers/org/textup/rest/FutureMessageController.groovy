@@ -26,8 +26,8 @@ class FutureMessageController extends BaseController {
         Long prId = params.long("contactId") ?: params.long("tagId")
         RequestUtils.trySetOnRequest(RequestUtils.PHONE_RECORD_ID, prId)
         PhoneRecords.isAllowed(prId)
-            .then { PhoneRecords.mustFindForId(prId) }
-            .then { PhoneRecord pr1 -> pr1.toWrapper().tryGetReadOnlyRecord() }
+            .then { PhoneRecordsWrappers.mustFindForId(prId) }
+            .then { PhoneRecordWrapper w1 -> w1.tryGetReadOnlyRecord() }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { ReadOnlyRecord rec1 ->
                 respondWithCriteria(FutureMessages.buildForRecordIds([rec1.id]),

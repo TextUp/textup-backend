@@ -25,8 +25,7 @@ class RecordItems {
             IOCUtils.resultFactory.success(rItem1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus(
-                "", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordItems.notFound",
                 ResultStatus.NOT_FOUND, [thisId])
         }
     }

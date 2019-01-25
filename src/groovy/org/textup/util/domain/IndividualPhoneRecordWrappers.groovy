@@ -29,7 +29,7 @@ class IndividualPhoneRecordWrappers {
             IOCUtils.resultFactory.success(w1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("contactService.update.notFound", //TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("individualPhoneRecordWrappers.notFound",
                 ResultStatus.NOT_FOUND, [iprId])
         }
     }

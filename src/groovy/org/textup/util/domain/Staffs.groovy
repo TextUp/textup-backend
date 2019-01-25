@@ -34,7 +34,7 @@ class Staffs {
             IOCUtils.resultFactory.success(s1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("staffService.update.notFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("staffs.notFoundForId",
                 ResultStatus.NOT_FOUND, [staffId])
         }
     }
@@ -46,7 +46,7 @@ class Staffs {
             IOCUtils.resultFactory.success(s1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("passwordResetService.start.staffNotFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("staffs.notFoundForUsername",
                 ResultStatus.NOT_FOUND, [un])
         }
     }

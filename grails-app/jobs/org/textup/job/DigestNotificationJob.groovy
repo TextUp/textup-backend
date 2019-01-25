@@ -57,6 +57,6 @@ class DigestNotificationJob implements Job {
                 }
                 .logFail("sending digest notifications for frequency $freq1")
         }
-        else { log.error("Could not find stored frequency") }
+        else { log.error("could not find stored frequency to start job") }
     }
 }

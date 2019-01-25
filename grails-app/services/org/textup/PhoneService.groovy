@@ -27,7 +27,7 @@ class PhoneService {
                 future = fut1
                 phoneActionService.tryHandleActions(p1, body)
             }
-            .then { tryUpdateOwnerPolicy(p1, body.typeMapNoNull("owner"), timezone) }
+            .then { tryUpdateOwnerPolicy(p1, body.typeMapNoNull("self"), timezone) }
             .then { trySetFields(p1, body) }
             .then {
                 tryRequestVoicemailGreetingCall(p1, body.string("requestVoicemailGreetingCall"))

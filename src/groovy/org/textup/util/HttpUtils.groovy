@@ -43,17 +43,14 @@ class HttpUtils {
                         onSuccess(resp)
                     }
                     else {
-                        IOCUtils.resultFactory.failWithCodeAndStatus(
-                            "incomingMediaService.processElement.couldNotRetrieveMedia", // TODO
+                        IOCUtils.resultFactory.failWithCodeAndStatus("httpUtils.requestFail",
                             status, [resp.statusLine.reasonPhrase])
                     }
                 }
             }
         }
         catch (Throwable e) {
-            log.error("HttpUtils.executeBasicAuthRequest: ${e.message}")
-            e.printStackTrace()
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "executeBasicAuthRequest", true)
         }
     }
 }

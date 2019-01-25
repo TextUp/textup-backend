@@ -12,13 +12,13 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class PhoneRecordWrappers {
 
-    static Result<PhoneRecordWrapper> mustFindForId(Long prId) {
+    static Result<? extends PhoneRecordWrapper> mustFindForId(Long prId) {
         PhoneRecord pr1 = PhoneRecord.get(prId)
         if (pr1) {
-            IOCUtils.resultFactory.success(pr1)
+            IOCUtils.resultFactory.success(pr1.toWrapper())
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("phoneRecordWrappers.notFound",
                 ResultStatus.NOT_FOUND, [prId])
         }
     }

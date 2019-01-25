@@ -9,8 +9,8 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
 @Validateable
 class AvailablePhoneNumber extends BasePhoneNumber {
 

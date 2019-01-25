@@ -20,7 +20,7 @@ class OutgoingCallService {
 
         if (!personalNum) {
             return IOCUtils.resultFactory.failWithCodeAndStatus(
-                "outgoingMessageService.startBridgeCall.noPersonalNumber", // TODO
+                "outgoingCallService.noPersonalNumber",
                 ResultStatus.UNPROCESSABLE_ENTITY)
         }
         w1.tryGetMutablePhone()

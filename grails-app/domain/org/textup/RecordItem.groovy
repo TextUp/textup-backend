@@ -13,8 +13,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem> {
 
     AuthorType authorType

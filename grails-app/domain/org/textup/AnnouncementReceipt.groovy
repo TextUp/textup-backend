@@ -12,8 +12,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode(includes = ["session"])
+@GrailsTypeChecked
 class AnnouncementReceipt implements WithId, CanSave<AnnouncementReceipt> {
 
 	DateTime whenCreated = JodaUtils.now()

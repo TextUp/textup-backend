@@ -5,9 +5,9 @@ import org.textup.util.*
 
 @GrailsTypeChecked
 enum SharePermission {
-	DELEGATE("note.sharing.delegate"),
-	VIEW("note.sharing.view"),
-    NONE("note.sharing.stop")
+	DELEGATE("sharePermission.delegate"),
+	VIEW("sharePermission.view"),
+    NONE("sharePermission.stop")
 
     private final String messageCode
 

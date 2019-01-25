@@ -11,8 +11,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
 
     DateTime expiresAt

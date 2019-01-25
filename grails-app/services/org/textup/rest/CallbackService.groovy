@@ -79,7 +79,7 @@ class CallbackService {
                     processText(p1, is1, textId, params)
                 }
                 else {
-                    IOCUtils.resultFactory.failWithCodeAndStatus("callbackService.process.invalid",
+                    IOCUtils.resultFactory.failWithCodeAndStatus("callbackService.neitherCallNorText",
                         ResultStatus.BAD_REQUEST)
                 }
             }

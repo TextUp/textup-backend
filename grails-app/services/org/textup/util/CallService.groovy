@@ -45,7 +45,7 @@ class CallService {
         else {
             if (resGroup.isEmpty) {
                 IOCUtils.resultFactory.failWithCodeAndStatus(
-                    "callService.start.missingInfoOrAllFailed", ResultStatus.UNPROCESSABLE_ENTITY)
+                    "callService.missingInfoOrAllFailed", ResultStatus.UNPROCESSABLE_ENTITY)
             }
             else { IOCUtils.resultFactory.failWithGroup(resGroup) }
         }
@@ -103,8 +103,8 @@ class CallService {
         Map afterPickup, String callback, String customAccountId) {
 
         if (!fromNum || !toNum) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("callService.doCall.missingInfo",
-                ResultStatus.UNPROCESSABLE_ENTITY, null)
+            return IOCUtils.resultFactory.failWithCodeAndStatus("callService.missingFromOrTo",
+                ResultStatus.UNPROCESSABLE_ENTITY)
         }
         try {
             CallCreator creator = callCreator(fromNum, toNum, afterPickup, customAccountId)

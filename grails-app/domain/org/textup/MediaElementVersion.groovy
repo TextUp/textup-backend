@@ -8,8 +8,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class MediaElementVersion implements ReadOnlyMediaElementVersion, WithId, CanSave<MediaElementVersion> {
 
     String versionId

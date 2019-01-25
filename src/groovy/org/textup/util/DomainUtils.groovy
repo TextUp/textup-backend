@@ -82,7 +82,7 @@ class DomainUtils {
     // -------
 
     protected static Result<?> invalidInput() {
-        IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+        IOCUtils.resultFactory.failWithCodeAndStatus("domainUtils.invalidInput",
             ResultStatus.INTERNAL_SERVER_ERROR)
     }
 }

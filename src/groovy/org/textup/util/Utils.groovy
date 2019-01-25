@@ -21,8 +21,7 @@ class Utils {
     static Result<PhoneNumber> tryGetNotificationNumber() {
         String noticeNum = Holders.flatConfig["textup.apiKeys.twilio.notificationNumber"]
         if (!noticeNum) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus(
-                "utils.getNotificationNumber.missing",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("utils.missingNotificationNumber",
                 ResultStatus.INTERNAL_SERVER_ERROR)
         }
         PhoneNumber fromNum = new PhoneNumber(number: noticeNum)

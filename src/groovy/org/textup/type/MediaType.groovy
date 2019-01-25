@@ -43,8 +43,7 @@ enum MediaType {
         MediaType type = MediaType.convertMimeType(inputType)
         type ?
             IOCUtils.resultFactory.success(type) :
-            IOCUtils.resultFactory.failWithCodeAndStatus(
-                "incomingMediaService.processElement.invalidMimeType", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("mediaType.invalidMimeType",
                 ResultStatus.UNPROCESSABLE_ENTITY, [inputType])
     }
 

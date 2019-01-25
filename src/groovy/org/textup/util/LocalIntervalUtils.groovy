@@ -85,8 +85,7 @@ class LocalIntervalUtils {
                 else { intervals << interval }
             }
             else {
-                log.error("WeeklySchedule.rehydrateAsIntervals: \
-                    for intervals $intervalsString, invalid range: $rangeString")
+                log.error("rehydrateAsIntervals: for intervals $intervalsString, invalid range: $rangeString")
             }
         }
         if (stitchEndOfDay && endOfDayInterval) {

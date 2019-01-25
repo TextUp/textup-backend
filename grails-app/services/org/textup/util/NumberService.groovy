@@ -38,7 +38,7 @@ class NumberService {
             .then { Utils.tryGetNotificationNumber() }
             .then { PhoneNumber fromNum -> tokenService.generateVerifyNumber(toNum).curry(fromNum) }
             .then { PhoneNumber fromNum, Token tok1 ->
-                String msg = IOCUtils.getMessage("numberService.startVerifyOwnership.message", [tok1.token])
+                String msg = IOCUtils.getMessage("numberService.startVerifyOwnership", [tok1.token])
                 textService
                     .send(fromNum, [toNum], msg, customAccountId)
                     .logFail("NumberService.startVerifyOwnership from $fromNum to $toNum")
@@ -51,8 +51,7 @@ class NumberService {
             .then { PhoneNumber storedNum ->
                 storedNum == toVerify ?
                     Result.void() :
-                    IOCUtils.resultFactory.failWithCodeAndStatus(
-                        "tokenService.verifyNumber.numbersNoMatch", // TODO
+                    IOCUtils.resultFactory.failWithCodeAndStatus("numberService.verifyFail",
                         ResultStatus.NOT_FOUND)
             }
     }

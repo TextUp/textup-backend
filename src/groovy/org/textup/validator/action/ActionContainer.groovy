@@ -10,8 +10,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 @Validateable
 class ActionContainer<T extends BaseAction> implements CanValidate {
 

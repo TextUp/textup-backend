@@ -20,8 +20,8 @@ import org.textup.validator.*
 // all right with the getter being called but we want to apply custom constraints on it, then we
 // need to declare it as a static final field to make the constraints pass type checking.
 
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
 @Validateable
 class MediaAction extends BaseAction {
 

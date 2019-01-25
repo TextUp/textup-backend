@@ -10,8 +10,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
 @Validateable
 class NotificationAction extends BaseAction {
 

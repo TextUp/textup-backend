@@ -25,7 +25,7 @@ class FutureMessages {
             IOCUtils.resultFactory.success(fMsg)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("futureMessageService.update.notFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("futureMessages.notFoundForId",
                 ResultStatus.NOT_FOUND, [fId])
         }
     }
@@ -37,7 +37,7 @@ class FutureMessages {
             IOCUtils.resultFactory.success(fMsg)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("futureMessageService.execute.messageNotFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("futureMessages.notFoundForKey",
                 ResultStatus.NOT_FOUND, [futureKey])
         }
     }

@@ -39,7 +39,7 @@ class RequestUtils {
                 IOCUtils.resultFactory.success(TypeUtils.to(T, obj))
             }
             else {
-                IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
+                IOCUtils.resultFactory.failWithCodeAndStatus("requestUtils.notFound",
                     ResultStatus.NOT_FOUND, [key])
             }
         }
@@ -63,7 +63,9 @@ class RequestUtils {
             }
             else { TypeMap.tryCreate(json) }
         }
-        catch (e) { IOCUtils.resultFactory.failWithThrowable(e) }
+        catch (e) {
+            IOCUtils.resultFactory.failWithThrowable(e)
+        }
     }
 
     // Helpers

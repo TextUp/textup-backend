@@ -13,8 +13,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 
 @GrailsTypeChecked
-@Validateable
 @Log4j
+@Validateable
 class IncomingMediaInfo implements IsIncomingMedia  {
     String accountId
     String mimeType
@@ -33,9 +33,7 @@ class IncomingMediaInfo implements IsIncomingMedia  {
             IOCUtils.resultFactory.success(Media.deleter(accountId, messageId, mediaId).delete())
         }
         catch (Throwable e) {
-            log.error("SmsMediaDeleter.delete: ${e.message}")
-            e.printStackTrace()
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "delete", true)
         }
     }
 }

@@ -2,6 +2,7 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,6 +12,7 @@ import org.textup.util.domain.*
 @GrailsTypeChecked
 class MailData {
 
+    @EqualsAndHashCode
     @Validateable
     static class InvitedStaff implements CanValidate {
         final String inviter
@@ -25,6 +27,7 @@ class MailData {
         }
     }
 
+    @EqualsAndHashCode
     @Validateable
     static class ApprovedStaff implements CanValidate {
         final String name
@@ -37,6 +40,7 @@ class MailData {
         }
     }
 
+    @EqualsAndHashCode
     @Validateable
     static class PendingStaff implements CanValidate {
         final String staff
@@ -48,12 +52,14 @@ class MailData {
         }
     }
 
+    @EqualsAndHashCode
     @Validateable
     static class RejectedStaff implements CanValidate {
         final String name
         final String username
     }
 
+    @EqualsAndHashCode
     @Validateable
     static class PendingOrg implements CanValidate {
         final String org
@@ -64,6 +70,7 @@ class MailData {
         }
     }
 
+    @EqualsAndHashCode
     @Validateable
     static class PasswordReset implements CanValidate {
         final String name
@@ -75,6 +82,7 @@ class MailData {
         }
     }
 
+    @EqualsAndHashCode
     @Validateable
     static class Notification implements CanValidate {
         final String staffName

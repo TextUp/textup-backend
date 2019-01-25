@@ -13,8 +13,8 @@ import org.textup.validator.*
 
 // Grails Domain classes cannot apply the `@Sortable` without a compilation error
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Comparable<PhoneNumberHistory> {
 
     DateTime endTime

@@ -52,7 +52,7 @@ class PdfService {
 
     Result<byte[]> buildRecordItems(RecordItemRequest itemRequest) {
         if (!itemRequest) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("pdfService.buildRecordItems.noInput",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("pdfService.noInputData",
                 ResultStatus.INTERNAL_SERVER_ERROR)
         }
         OutputStream out
@@ -67,8 +67,7 @@ class PdfService {
             IOCUtils.resultFactory.success(out.toByteArray())
         }
         catch (Throwable e) {
-            log.error("PdfService.buildRecordItems: ${e.class}: ${e.message}")
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "buildRecordItems")
         }
         finally {
             out?.close()

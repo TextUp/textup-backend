@@ -40,7 +40,7 @@ class FutureMessageJobService {
                         }
                         else {
                             IOCUtils.resultFactory.failWithCodeAndStatus(
-                                "futureMessageService.schedule.unspecifiedError",
+                                "futureMessageJobService.unspecifiedError",
                                 ResultStatus.INTERNAL_SERVER_ERROR)
                         }
                     }

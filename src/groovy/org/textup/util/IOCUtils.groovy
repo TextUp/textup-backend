@@ -60,7 +60,7 @@ class IOCUtils {
             IOCUtils.messageSource.getMessage(code, params as Object[], LCH.getLocale())
         }
         catch (NoSuchMessageException e) {
-            log.error("IOCUtils.getMessage for code $code with error ${e.message}")
+            log.error("getMessage: for code $code with error ${e.message}")
             ""
         }
     }
@@ -70,7 +70,7 @@ class IOCUtils {
             IOCUtils.messageSource.getMessage(resolvable, LCH.getLocale())
         }
         catch (NoSuchMessageException e) {
-            log.error("ResultFactory.getMessage for resolvable $resolvable with error ${e.message}")
+            log.error("getMessage: for resolvable $resolvable with error ${e.message}")
             ""
         }
     }

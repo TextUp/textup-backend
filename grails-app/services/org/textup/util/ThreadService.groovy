@@ -35,7 +35,7 @@ class ThreadService {
     // See https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ExecutorService.html
     @PreDestroy
     protected void cleanUp() {
-        log.warn("Shutting down ThreadService")
+        log.warn("shutting down ThreadService")
         _pool.shutdown(); // Disable new tasks from being submitted
         try {
             // Wait a while for existing tasks to terminate
@@ -43,10 +43,11 @@ class ThreadService {
                 _pool.shutdownNow(); // Cancel currently executing tasks
                 // Wait a while for tasks to respond to being cancelled
                 if (!_pool.awaitTermination(60, TimeUnit.SECONDS)) {
-                    log.error("ThreadService.cleanUp: pool did not terminate")
+                    log.error("cleanUp: pool did not terminate")
                 }
             }
-        } catch (InterruptedException ie) {
+        }
+        catch (InterruptedException ie) {
             // (Re-)Cancel if current thread also interrupted
             _pool.shutdownNow();
             // Preserve interrupt status

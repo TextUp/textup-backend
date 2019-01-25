@@ -9,8 +9,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class PhoneRecordShareInfo {
     final DateTime whenCreated
     final Long phoneId

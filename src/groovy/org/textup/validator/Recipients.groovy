@@ -24,10 +24,10 @@ class Recipients implements CanValidate {
         all minSize: 1, validator: { Collection<? extends PhoneRecord> val, Recipients obj ->
             if (val) {
                 if (val.findAll { !it.toPermissions().canModify() }) {
-                    return ["someNoPermissions"]
+                    return ["someNoPermissions", all*.id]
                 }
                 if (val.size() > obj.maxNum) {
-                    return ["tooManyRecipients", obj.maxNum, val.size()]
+                    return ["tooManyRecipients", val.size(), obj.maxNum]
                 }
             }
         }
@@ -69,7 +69,8 @@ class Recipients implements CanValidate {
         PhoneRecord pr1 = all?.getAt(0)
         pr1 ?
             IOCUtils.resultFactory.success(pr1.toWrapper()) :
-            IOCUtils.resultFactory.failWithCodeAndStatus("", ResultStatus.UNPROCESSABLE_ENTITY) // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("recipients.hasNone",
+                ResultStatus.UNPROCESSABLE_ENTITY)
     }
 
     Result<IndividualPhoneRecordWrapper> tryGetOneIndividual() {
@@ -80,7 +81,8 @@ class Recipients implements CanValidate {
         }
         w1 ?
             IOCUtils.resultFactory.success(w1) :
-            IOCUtils.resultFactory.failWithCodeAndStatus("", ResultStatus.UNPROCESSABLE_ENTITY) // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("recipients.hasNoIndividuals",
+                ResultStatus.UNPROCESSABLE_ENTITY)
     }
 
     String buildFromName() { phone?.owner?.buildName() }

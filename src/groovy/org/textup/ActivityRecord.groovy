@@ -1,10 +1,12 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import groovy.transform.Sortable
 import org.joda.time.DateTime
 import org.textup.util.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 @Sortable(includes = ["monthObj"])
 class ActivityRecord {

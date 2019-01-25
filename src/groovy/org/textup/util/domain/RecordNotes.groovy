@@ -16,13 +16,13 @@ class RecordNotes {
         RecordNote note1 = RecordNote.get(noteId)
         if (note1) {
             if (note1.isReadOnly) {
-                IOCUtils.resultFactory.failWithCodeAndStatus("recordService.update.readOnly", // TODO
+                IOCUtils.resultFactory.failWithCodeAndStatus("recordNotes.cannotModify",
                     ResultStatus.FORBIDDEN, [noteId])
             }
             else { IOCUtils.resultFactory.success(note1) }
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("recordService.update.notFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordNotes.notFound",
                 ResultStatus.NOT_FOUND, [noteId])
         }
     }

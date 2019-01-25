@@ -2,6 +2,7 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
 import groovy.util.logging.Log4j
 import org.joda.time.DateTime
@@ -12,10 +13,11 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
+@Log4j
 @ToString
 @Validateable
-@Log4j
 class ScheduleChange implements CanValidate {
 
     ScheduleStatus type

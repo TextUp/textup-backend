@@ -45,11 +45,13 @@ class AnnouncementCallbackService {
         if (FeaturedAnnouncements.anyForPhoneId(p1.id) && is1.shouldSendInstructions) {
             is1.updateLastSentInstructions()
             if (is1.isSubscribedToText) {
-                textInstructions << IOCUtils.getMessage("twimlBuilder.text.instructionsSubscribed",
+                textInstructions << IOCUtils.getMessage(
+                    "announcementCallbackService.instructionsSubscribed",
                     [TextTwiml.BODY_SEE_ANNOUNCEMENTS, TextTwiml.BODY_TOGGLE_SUBSCRIBE])
             }
             else {
-                textInstructions << IOCUtils.getMessage("twimlBuilder.text.instructionsUnsubscribed",
+                textInstructions << IOCUtils.getMessage(
+                    "announcementCallbackService.instructionsUnsubscribed",
                     [TextTwiml.BODY_SEE_ANNOUNCEMENTS, TextTwiml.BODY_TOGGLE_SUBSCRIBE])
             }
         }

@@ -42,10 +42,10 @@ class TwilioUtils {
 
     static Result<Void> validate(HttpServletRequest request, TypeMap params) {
         // step 1: try to extract auth header
-        String errCode = "twilioUtils.validate.invalid",
-            authHeader = request.getHeader("x-twilio-signature")
+        String authHeader = request.getHeader("x-twilio-signature")
         if (!authHeader) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
+            return IOCUtils.resultFactory.failWithCodeAndStatus("twilioUtils.invalidRequest",
+                ResultStatus.BAD_REQUEST)
         }
         // step 2: build browser url and extract Twilio params
         String url = RequestUtils.getBrowserURL(request)
@@ -57,7 +57,8 @@ class TwilioUtils {
 
         validator.validate(url, twilioParams, authHeader) ?
             Result.void() :
-            IOCUtils.resultFactory.failWithCodeAndStatus(errCode, ResultStatus.BAD_REQUEST)
+            IOCUtils.resultFactory.failWithCodeAndStatus("twilioUtils.invalidRequest",
+                ResultStatus.BAD_REQUEST)
     }
 
     static List<IncomingMediaInfo> buildIncomingMedia(String messageId, TypeMap params) {
@@ -83,8 +84,8 @@ class TwilioUtils {
     }
 
     static Result<Closure> invalidTwimlInputs(String code) {
-        log.error("TwilioUtils.invalidTwimlInputs: invalid inputs in callback for $code")
-        IOCUtils.resultFactory.failWithCodeAndStatus("twimlBuilder.invalidCode",
+        log.error("invalidTwimlInputs: invalid inputs in callback for $code")
+        IOCUtils.resultFactory.failWithCodeAndStatus("twilioUtils.invalidCode",
             ResultStatus.BAD_REQUEST, [code])
     }
 
@@ -114,16 +115,16 @@ class TwilioUtils {
                 TwilioUtils.formatAnnouncementForRequest(fa1.whenCreated, fa1.phone.buildName(), fa1.message)
             }
         }
-        else { [IOCUtils.getMessage("twimlBuilder.noAnnouncements")] }
+        else { [IOCUtils.getMessage("twilioUtils.noAnnouncements")] }
     }
 
     static String formatAnnouncementForRequest(DateTime dt, String identifier, String msg) {
         String timeAgo = new PrettyTime(LCH.getLocale()).format(dt.toDate())
-        IOCUtils.getMessage("twimlBuilder.announcement", [timeAgo, identifier, msg])
+        IOCUtils.getMessage("twilioUtils.announcement", [timeAgo, identifier, msg])
     }
 
     static String formatAnnouncementForSend(String identifier, String message) {
-        String unsubscribe = IOCUtils.getMessage("twimlBuilder.text.announcementUnsubscribe",
+        String unsubscribe = IOCUtils.getMessage("twilioUtils.announcementUnsubscribe",
             [TextTwiml.BODY_TOGGLE_SUBSCRIBE])
         "${identifier}: ${message}. ${unsubscribe}"
     }

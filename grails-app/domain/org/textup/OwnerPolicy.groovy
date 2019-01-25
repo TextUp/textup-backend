@@ -9,8 +9,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class OwnerPolicy implements WithId, CanSave<OwnerPolicy> {
 
     boolean shouldSendPreviewLink = true

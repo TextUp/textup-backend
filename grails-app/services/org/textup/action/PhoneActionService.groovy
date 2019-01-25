@@ -26,7 +26,7 @@ class PhoneActionService implements HandlesActions<Phone, Phone> {
     Result<Phone> tryHandleActions(Phone p1, Map body) {
         if (p1.customAccountId) {
             return IOCUtils.resultFactory.failWithCodeAndStatus(
-                "phoneService.handlePhoneActions.disabledWhenDebugging",
+                "phoneActionService.disabledWhenDebugging",
                 ResultStatus.FORBIDDEN, [p1.number.prettyPhoneNumber])
         }
         ActionContainer.tryProcess(PhoneAction, body.doPhoneActions)

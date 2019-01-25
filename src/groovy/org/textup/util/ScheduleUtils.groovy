@@ -98,13 +98,13 @@ class ScheduleUtils {
                     result << new Interval(start, end)
                 }
                 else {
-                    return IOCUtils.resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
+                    return IOCUtils.resultFactory.failWithCodeAndStatus("scheduleUtils.invalidRestTimeFormat",
                         ResultStatus.UNPROCESSABLE_ENTITY, [str])
                 }
             }
             catch (e) {
                 log.debug("WeeklyScheduleSpec.parseIntervalStrings: ${e.message}")
-                return IOCUtils.resultFactory.failWithCodeAndStatus("weeklySchedule.invalidRestTimeFormat",
+                return IOCUtils.resultFactory.failWithCodeAndStatus("scheduleUtils.invalidRestTimeFormat",
                     ResultStatus.UNPROCESSABLE_ENTITY, [str])
             }
         }

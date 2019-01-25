@@ -8,8 +8,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
+@GrailsTypeChecked
 class RecordText extends RecordItem implements ReadOnlyRecordText {
 
 	String contents

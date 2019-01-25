@@ -11,8 +11,8 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 @ToString
 @Validateable
 class EmailEntity implements CanValidate {

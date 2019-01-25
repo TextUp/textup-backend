@@ -25,7 +25,7 @@ class IncomingSessions {
             IOCUtils.resultFactory.success(is1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("sessionService.update.notFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("incomingSessions.notFoundForId",
                 ResultStatus.NOT_FOUND, [isId])
         }
     }
@@ -43,8 +43,9 @@ class IncomingSessions {
                 IncomingSession.tryCreate(p1, bNum)
             }
             else {
-                IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
-                    ResultStatus.NOT_FOUND)
+                IOCUtils.resultFactory.failWithCodeAndStatus(
+                    "incomingSessions.notFoundForPhoneAndNumber",
+                    ResultStatus.NOT_FOUND, [p1?.id, bNum])
             }
         }
     }

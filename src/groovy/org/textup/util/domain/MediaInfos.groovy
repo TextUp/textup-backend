@@ -18,7 +18,7 @@ class MediaInfos {
             IOCUtils.resultFactory.success(mInfo)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("tryFinishProcessing.mediaInfoNotFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("mediaInfos.notFound",
                 ResultStatus.NOT_FOUND, [mId])
         }
     }

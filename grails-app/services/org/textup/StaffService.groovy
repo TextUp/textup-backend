@@ -104,7 +104,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
             // Need to validate here because, once saved, the lock code is obfuscated
             if (!ValidationUtils.isValidLockCode(lockCode)) {
                 return IOCUtils.resultFactory.failWithCodeAndStatus("staffService.lockCodeFormat",
-                    ResultStatus.UNPROCESSABLE_ENTITY)
+                    ResultStatus.UNPROCESSABLE_ENTITY, [ValidationUtils.LOCK_CODE_LENGTH])
             }
             s1.lockCode = lockCode
         }
@@ -124,8 +124,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
                     .count() as Integer
                 if (numAdmins == 1 && s1.status == StaffStatus.ADMIN &&
                     newStatus != StaffStatus.ADMIN) {
-                    IOCUtils.resultFactory.failWithCodeAndStatus(
-                        "staffService.trySetStatus.lastAdmin", // TODO
+                    IOCUtils.resultFactory.failWithCodeAndStatus("staffService.lastAdmin",
                         ResultStatus.FORBIDDEN)
                 }
                 else {

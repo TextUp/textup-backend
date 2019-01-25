@@ -10,10 +10,10 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
-@Validateable
+@GrailsTypeChecked
 @Log4j
+@Validateable
 class PhoneNumber extends BasePhoneNumber {
 
     static constraints = {

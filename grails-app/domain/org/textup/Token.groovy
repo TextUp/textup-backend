@@ -13,8 +13,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class Token implements WithId, CanSave<Token> {
 
     DateTime expires = JodaUtils.now().plusHours(1)

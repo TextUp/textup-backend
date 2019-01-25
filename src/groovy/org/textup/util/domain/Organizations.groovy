@@ -33,7 +33,7 @@ class Organizations {
             IOCUtils.resultFactory.success(org1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("staffService.create.orgNotFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("organizations.notFound",
                 ResultStatus.NOT_FOUND, [orgId])
         }
     }

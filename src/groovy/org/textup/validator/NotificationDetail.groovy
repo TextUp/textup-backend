@@ -19,7 +19,7 @@ class NotificationDetail implements CanValidate {
 
     static constraints = {
         wrapper validator: { PhoneRecordWrapper val ->
-            if (!val.permissions.canModify()) { ["insufficientPermission"] }
+            if (!val.permissions.canModify()) { ["insufficientPermission", val.id] }
         }
         items validator: { HashSet<? extends RecordItem> val, NotificationDetail obj ->
             Record rec1 = obj.wrapper?.tryGetRecord()?.payload

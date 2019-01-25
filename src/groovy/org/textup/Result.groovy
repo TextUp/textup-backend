@@ -7,10 +7,10 @@ import groovy.util.logging.Log4j
 import org.textup.type.*
 import org.textup.util.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 @Log4j
 @ToString
-@EqualsAndHashCode
 class Result<T> {
 
     T payload

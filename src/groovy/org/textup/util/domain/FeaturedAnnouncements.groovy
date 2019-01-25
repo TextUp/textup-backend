@@ -19,14 +19,14 @@ class FeaturedAnnouncements {
     }
 
     @GrailsTypeChecked
-    static Result<FeaturedAnnouncement> mustFindForId(Long aId) {
-        FeaturedAnnouncement fa1 = aId ? FeaturedAnnouncement.get(aId) : null
+    static Result<FeaturedAnnouncement> mustFindForId(Long faId) {
+        FeaturedAnnouncement fa1 = faId ? FeaturedAnnouncement.get(faId) : null
         if (fa1) {
             IOCUtils.resultFactory.success(fa1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("announcementService.update.notFound", // TODO
-                ResultStatus.NOT_FOUND, [aId])
+            IOCUtils.resultFactory.failWithCodeAndStatus("featuredAnnouncements.notFound",
+                ResultStatus.NOT_FOUND, [faId])
         }
     }
 

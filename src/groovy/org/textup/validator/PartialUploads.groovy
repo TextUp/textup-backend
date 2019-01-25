@@ -21,7 +21,9 @@ class PartialUploads implements CanValidate {
 
     static constraints = {
         elements cascadeValidation: true, validator: { Collection<MediaElement> val, PartialUploads obj ->
-            if (val?.size() != obj.uploads?.size()) { ["missingInfo"] }
+            if (val?.size() != obj.uploads?.size()) {
+                ["missingInfo", val*id]
+            }
         }
         uploads cascadeValidation: true
     }

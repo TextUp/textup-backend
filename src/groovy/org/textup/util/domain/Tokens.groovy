@@ -16,13 +16,13 @@ class Tokens {
         Token tok1 = Token.findByTypeAndToken(type, token)
         if (tok1) {
             if (tok1.isExpired) {
-                IOCUtils.resultFactory.failWithCodeAndStatus("tokenService.tokenExpired", // TODO
-                    ResultStatus.BAD_REQUEST)
+                IOCUtils.resultFactory.failWithCodeAndStatus("tokens.expired",
+                    ResultStatus.BAD_REQUEST, [tok1.id])
             }
             else { IOCUtils.resultFactory.success(tok1) }
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("tokenService.tokenNotFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("tokens.notFound",
                 ResultStatus.NOT_FOUND, [token])
         }
     }

@@ -17,7 +17,7 @@ class RecordUtils {
         RecordItemType type = body.enum(RecordItemType, "type")
         type ?
             IOCUtils.resultFactory.success(type.toClass()) :
-            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.determineClass.unknownType",
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.noClassForUnknownType",
                 ResultStatus.UNPROCESSABLE_ENTITY)
     }
 

@@ -8,8 +8,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class IndividualPhoneRecord extends PhoneRecord {
 
     boolean isDeleted = false
@@ -67,12 +67,8 @@ class IndividualPhoneRecord extends PhoneRecord {
         if (cNum) {
             removeFromNumbers(cNum)
             cNum.delete()
-            Result.void()
         }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("contact.numberNotFound",
-                ResultStatus.NOT_FOUND, [bNum?.prettyPhoneNumber])
-        }
+        DomainUtils.trySave(this).then { Result.void() }
     }
 
     IndividualPhoneRecordInfo toInfo() {

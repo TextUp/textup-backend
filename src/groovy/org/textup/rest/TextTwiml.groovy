@@ -16,23 +16,23 @@ class TextTwiml {
     }
 
     static Result<Closure> blocked() {
-        message("twimlBuilder.text.blocked")
+        message("textTwiml.blocked")
     }
 
     static Result<Closure> invalid() {
-        message("twimlBuilder.invalidNumber")
+        message("twiml.invalidNumber")
     }
 
     static Result<Closure> notFound() {
-        message("twimlBuilder.notFound")
+        message("twiml.notFound")
     }
 
     static Result<Closure> subscribed() {
-        message("twimlBuilder.text.subscribed", [TextTwiml.BODY_TOGGLE_SUBSCRIBE])
+        message("textTwiml.subscribed", [TextTwiml.BODY_TOGGLE_SUBSCRIBE])
     }
 
     static Result<Closure> unsubscribed() {
-        message("twimlBuilder.text.unsubscribed", [TextTwiml.BODY_TOGGLE_SUBSCRIBE])
+        message("textTwiml.unsubscribed", [TextTwiml.BODY_TOGGLE_SUBSCRIBE])
     }
 
     // Helpers

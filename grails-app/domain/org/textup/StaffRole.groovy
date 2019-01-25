@@ -26,7 +26,7 @@ class StaffRole implements Serializable, CanSave<StaffRole> {
 			if (obj.staff && Utils.<Boolean>doWithoutFlush {
 					StaffRole.countByStaffAndRole(obj.staff, val) > 0
 				}) {
-				return "userRole.exists"
+				return ["exists", obj.staff.id, val?.authority]
 			}
 		}
 	}

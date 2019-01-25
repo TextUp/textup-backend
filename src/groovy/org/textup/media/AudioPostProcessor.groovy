@@ -50,7 +50,7 @@ class AudioPostProcessor implements CanProcessMedia {
 
     protected Result<UploadItem> convertData(MediaType outputType) {
         if (!_temp) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("audioPostProcessor.convertData.missingTemp",
+            return IOCUtils.resultFactory.failWithCodeAndStatus("audioPostProcessor.missingTempFile",
                 ResultStatus.INTERNAL_SERVER_ERROR, [_type])
         }
         _audioUtils

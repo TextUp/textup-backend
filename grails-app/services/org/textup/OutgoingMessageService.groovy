@@ -106,7 +106,7 @@ class OutgoingMessageService {
                         }
                         else {
                             IOCUtils.resultFactory.failWithCodeAndStatus(
-                                "outgoingMessageService.tryStoreReceipts.notFound",
+                                "outgoingMessageService.itemsNotFound",
                                 ResultStatus.NOT_FOUND, [rec1.id, tempReceipts*.apiId])
                         }
                     }

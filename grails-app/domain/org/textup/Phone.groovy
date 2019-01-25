@@ -13,8 +13,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode(excludes = "owner")
+@GrailsTypeChecked
 class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
     CustomAccountDetails customAccount

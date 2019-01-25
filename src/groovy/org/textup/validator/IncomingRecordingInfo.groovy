@@ -13,8 +13,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 
 @GrailsTypeChecked
-@Validateable
 @Log4j
+@Validateable
 class IncomingRecordingInfo implements IsIncomingMedia {
     String accountId
     String mimeType
@@ -32,9 +32,7 @@ class IncomingRecordingInfo implements IsIncomingMedia {
             IOCUtils.resultFactory.success(Recording.deleter(accountId, mediaId).delete())
         }
         catch (Throwable e) {
-            log.error("CallRecordingDeleter.delete: ${e.message}")
-            e.printStackTrace()
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "delete", true)
         }
     }
 }

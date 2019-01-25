@@ -2,12 +2,14 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 @Validateable
 class MergeGroupItem implements CanValidate {

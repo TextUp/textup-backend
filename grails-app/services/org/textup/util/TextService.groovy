@@ -37,7 +37,7 @@ class TextService {
         }
         else {
             if (resGroup.isEmpty) {
-                IOCUtils.resultFactory.failWithCodeAndStatus("textService.text.noNumbers",
+                IOCUtils.resultFactory.failWithCodeAndStatus("textService.noNumbers",
                     ResultStatus.UNPROCESSABLE_ENTITY)
             }
             else { IOCUtils.resultFactory.failWithGroup(resGroup) }

@@ -8,8 +8,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
 
     boolean allowSharingWithOtherTeams = false

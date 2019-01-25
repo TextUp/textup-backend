@@ -1,12 +1,14 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.textup.util.*
 import org.textup.validator.*
 import org.textup.type.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 class TypeMap extends TypeConvertingMap {
 

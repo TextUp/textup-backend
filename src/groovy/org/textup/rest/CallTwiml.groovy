@@ -39,7 +39,7 @@ class CallTwiml {
         if (!ident || !message || !lang || recordingUrls == null) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.DIRECT_MESSAGE.toString())
         }
-        String messageIntro = IOCUtils.getMessage("twimlBuilder.call.messageIntro", [ident])
+        String messageIntro = IOCUtils.getMessage("callTwiml.messageIntro", [ident])
         TwilioUtils.wrapTwiml {
             Say(messageIntro)
             Pause(length: 1)
@@ -65,7 +65,7 @@ class CallTwiml {
     // ------
 
     static Result<Closure> invalid() {
-        String invalidNumber = IOCUtils.getMessage("twimlBuilder.invalidNumber")
+        String invalidNumber = IOCUtils.getMessage("twiml.invalidNumber")
         TwilioUtils.wrapTwiml {
             Say(invalidNumber)
             Hangup()
@@ -73,7 +73,7 @@ class CallTwiml {
     }
 
     static Result<Closure> notFound() {
-        String notFound = IOCUtils.getMessage("twimlBuilder.notFound")
+        String notFound = IOCUtils.getMessage("twiml.notFound")
         TwilioUtils.wrapTwiml {
             Say(notFound)
             Hangup()
@@ -81,7 +81,7 @@ class CallTwiml {
     }
 
     static Result<Closure> error() {
-        String error = IOCUtils.getMessage("twimlBuilder.error")
+        String error = IOCUtils.getMessage("callTwiml.error")
         TwilioUtils.wrapTwiml {
             Say(error)
             Hangup()
@@ -93,8 +93,8 @@ class CallTwiml {
 
     // CallResponse.SELF_GREETING
     static Result<Closure> selfGreeting() {
-        String directions = IOCUtils.getMessage("twimlBuilder.call.selfGreeting"),
-            goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye")
+        String directions = IOCUtils.getMessage("callTwiml.selfGreeting"),
+            goodbye = IOCUtils.getMessage("callTwiml.goodbye")
         TwilioUtils.wrapTwiml {
             Gather(numDigits:10) {
                 Say(loop: 20, directions)
@@ -109,8 +109,8 @@ class CallTwiml {
         if (!displayedNumber || !numToCall) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.SELF_CONNECTING.toString())
         }
-        String connecting = TwilioUtils.say("twimlBuilder.call.selfConnecting", [numToCall]),
-            goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye")
+        String connecting = TwilioUtils.say("callTwiml.selfConnecting", [numToCall]),
+            goodbye = IOCUtils.getMessage("callTwiml.goodbye")
         TwilioUtils.wrapTwiml {
             Say(connecting)
             Dial(callerId: displayedNumber) {
@@ -126,7 +126,7 @@ class CallTwiml {
         if (!digits) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.SELF_INVALID_DIGITS.toString())
         }
-        String error = TwilioUtils.say("twimlBuilder.call.selfInvalidDigits", [digits])
+        String error = TwilioUtils.say("callTwiml.selfInvalidDigits", [digits])
         TwilioUtils.wrapTwiml {
             Say(error)
             Redirect(IOCUtils.getWebhookLink()) // go back to selfGreeting
@@ -176,8 +176,8 @@ class CallTwiml {
         }
         Collection<String> copiedIdents = new ArrayList<String>(idents)
         String identifier = CollectionUtils.joinWithDifferentLast(copiedIdents, ", ", " or "),
-            directions = TwilioUtils.say("twimlBuilder.call.screenIncoming", [identifier]),
-            goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye"),
+            directions = TwilioUtils.say("callTwiml.screenIncoming", [identifier]),
+            goodbye = IOCUtils.getMessage("callTwiml.goodbye"),
             finishScreenWebhook = IOCUtils.getHandleLink(CallResponse.DO_NOTHING)
         TwilioUtils.wrapTwiml {
             Gather(numDigits: 1, action:finishScreenWebhook) {
@@ -194,8 +194,8 @@ class CallTwiml {
         if (!p1 || !fromNum) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.CHECK_IF_VOICEMAIL.toString())
         }
-        String directions = IOCUtils.getMessage("twimlBuilder.call.voicemailDirections"),
-            goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye"),
+        String directions = IOCUtils.getMessage("callTwiml.voicemailDirections"),
+            goodbye = IOCUtils.getMessage("callTwiml.goodbye"),
             // no-op for Record Twiml verb to call because recording might not be ready
             actionWebhook = IOCUtils.getHandleLink(CallResponse.END_CALL),
             // need to population From and To parameters to help in finding
@@ -247,10 +247,10 @@ class CallTwiml {
                     if (nums) {
                         nums.eachWithIndex { ContactNumber num, int index ->
                             String numForSay = TwilioUtils.say(num)
-                            Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberStart",
+                            Say(IOCUtils.getMessage("callTwiml.bridgeNumberStart",
                                 [numForSay, index + 1, lastIndex + 1]))
                             if (index != lastIndex) {
-                                Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberSkip"))
+                                Say(IOCUtils.getMessage("callTwiml.bridgeNumberSkip"))
                             }
                             // (1) increase the timeout a bit to allow a longer window for the
                             // called party's voicemail to answer.
@@ -264,13 +264,13 @@ class CallTwiml {
                                 Number(statusCallback: childCallStatus(num.e164PhoneNumber),
                                     num.e164PhoneNumber)
                             }
-                            Say(IOCUtils.getMessage("twimlBuilder.call.bridgeNumberFinish", [numForSay]))
+                            Say(IOCUtils.getMessage("callTwiml.bridgeNumberFinish", [numForSay]))
                         }
                         Pause(length: 5)
-                        Say(TwilioUtils.say("twimlBuilder.call.bridgeDone", [name]))
+                        Say(TwilioUtils.say("callTwiml.bridgeDone", [name]))
                     }
                     else {
-                        Say(TwilioUtils.say("twimlBuilder.call.bridgeNoNumbers", [name]))
+                        Say(TwilioUtils.say("callTwiml.bridgeNoNumbers", [name]))
                     }
                     Hangup()
                 }
@@ -289,8 +289,8 @@ class CallTwiml {
         if (!phoneNum || !sessNum) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_RECORD.toString())
         }
-        String directions = TwilioUtils.say("twimlBuilder.call.recordVoicemailGreeting", [phoneNum.number]),
-            goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye"),
+        String directions = TwilioUtils.say("callTwiml.recordVoicemailGreeting", [phoneNum.number]),
+            goodbye = IOCUtils.getMessage("callTwiml.goodbye"),
             processingLink = IOCUtils.getHandleLink(CallResponse.VOICEMAIL_GREETING_PROCESSING),
             doneLink = IOCUtils.getWebhookLink(CallTwiml
                 .infoForVoicemailGreetingFinishedProcessing(phoneNum, sessNum))
@@ -305,7 +305,7 @@ class CallTwiml {
 
     // CallResponse.VOICEMAIL_GREETING_PROCESSING
     static Result<Closure> processingVoicemailGreeting() {
-        String processingMessage = IOCUtils.getMessage("twimlBuilder.call.processingVoicemailGreeting")
+        String processingMessage = IOCUtils.getMessage("callTwiml.processingVoicemailGreeting")
         TwilioUtils.wrapTwiml {
             Say(loop: 2, processingMessage)
             Play(HOLD_MUSIC_URL)
@@ -334,8 +334,8 @@ class CallTwiml {
         if (!fromNum || !greetingLink) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.VOICEMAIL_GREETING_PLAY.toString())
         }
-        String goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye"),
-            finishedMessage = TwilioUtils.say("twimlBuilder.call.finishedVoicemailGreeting",
+        String goodbye = IOCUtils.getMessage("callTwiml.goodbye"),
+            finishedMessage = TwilioUtils.say("callTwiml.finishedVoicemailGreeting",
                     [fromNum.number]),
             recordLink = IOCUtils.getWebhookLink(CallTwiml.infoForRecordVoicemailGreeting())
         TwilioUtils.wrapTwiml {
@@ -358,12 +358,12 @@ class CallTwiml {
         if (!name || isSubscribed == null) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_GREETING.toString())
         }
-        String welcome = IOCUtils.getMessage("twimlBuilder.call.announcementGreetingWelcome",
+        String welcome = IOCUtils.getMessage("callTwiml.announcementGreetingWelcome",
                 [name, CallTwiml.DIGITS_HEAR_ANNOUNCEMENTS]),
-            connectToStaff = IOCUtils.getMessage("twimlBuilder.call.connectToStaff"),
+            connectToStaff = IOCUtils.getMessage("callTwiml.connectToStaff"),
             sAction = isSubscribed
-                ? IOCUtils.getMessage("twimlBuilder.call.announcementUnsubscribe", [CallTwiml.DIGITS_TOGGLE_SUBSCRIBE])
-                : IOCUtils.getMessage("twimlBuilder.call.announcementSubscribe", [CallTwiml.DIGITS_TOGGLE_SUBSCRIBE])
+                ? IOCUtils.getMessage("callTwiml.announcementUnsubscribe", [CallTwiml.DIGITS_TOGGLE_SUBSCRIBE])
+                : IOCUtils.getMessage("callTwiml.announcementSubscribe", [CallTwiml.DIGITS_TOGGLE_SUBSCRIBE])
         TwilioUtils.wrapTwiml {
             Gather(numDigits: 1) {
                 Say(welcome)
@@ -383,9 +383,9 @@ class CallTwiml {
         }
         String toggleVal = CallTwiml.DIGITS_TOGGLE_SUBSCRIBE,
             sAction = isSubscribed ?
-                IOCUtils.getMessage("twimlBuilder.call.announcementUnsubscribe", [toggleVal]) :
-                IOCUtils.getMessage("twimlBuilder.call.announcementSubscribe", [toggleVal]),
-            connectToStaff = IOCUtils.getMessage("twimlBuilder.call.connectToStaff")
+                IOCUtils.getMessage("callTwiml.announcementUnsubscribe", [toggleVal]) :
+                IOCUtils.getMessage("callTwiml.announcementSubscribe", [toggleVal]),
+            connectToStaff = IOCUtils.getMessage("callTwiml.connectToStaff")
         TwilioUtils.wrapTwiml {
             Gather(numDigits: 1) {
                 TwilioUtils.formatAnnouncementsForRequest(announcements).each { Say(it) }
@@ -410,9 +410,9 @@ class CallTwiml {
         if (!identifier || !message) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_AND_DIGITS.toString())
         }
-        String announcementIntro = IOCUtils.getMessage("twimlBuilder.call.announcementIntro",
+        String announcementIntro = IOCUtils.getMessage("callTwiml.announcementIntro",
                 [identifier]),
-            unsubscribe = IOCUtils.getMessage("twimlBuilder.call.announcementUnsubscribe",
+            unsubscribe = IOCUtils.getMessage("callTwiml.announcementUnsubscribe",
                 [CallTwiml.DIGITS_ANNOUNCEMENT_UNSUBSCRIBE]),
             // must have same handle or else from and to numbers are still
             // reversed and will result in a "no phone for that number" error
@@ -431,8 +431,8 @@ class CallTwiml {
 
     // CallResponse.UNSUBSCRIBED
     static Result<Closure> unsubscribed() {
-        String unsubscribed = IOCUtils.getMessage("twimlBuilder.call.unsubscribed"),
-            goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye")
+        String unsubscribed = IOCUtils.getMessage("callTwiml.unsubscribed"),
+            goodbye = IOCUtils.getMessage("callTwiml.goodbye")
         TwilioUtils.wrapTwiml {
             Say(unsubscribed)
             Say(goodbye)
@@ -442,8 +442,8 @@ class CallTwiml {
 
     // CallResponse.SUBSCRIBED
     static Result<Closure> subscribed() {
-        String subscribed = IOCUtils.getMessage("twimlBuilder.call.subscribed"),
-            goodbye = IOCUtils.getMessage("twimlBuilder.call.goodbye")
+        String subscribed = IOCUtils.getMessage("callTwiml.subscribed"),
+            goodbye = IOCUtils.getMessage("callTwiml.goodbye")
         TwilioUtils.wrapTwiml {
             Say(subscribed)
             Say(goodbye)

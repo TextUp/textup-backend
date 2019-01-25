@@ -11,8 +11,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
 
     DateTime lastRecordActivity = JodaUtils.now()

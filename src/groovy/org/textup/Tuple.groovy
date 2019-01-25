@@ -5,8 +5,8 @@ import groovy.transform.EqualsAndHashCode
 import org.textup.type.*
 import org.textup.util.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 class Tuple<X, Y> {
 
     final X first
@@ -40,7 +40,8 @@ class Tuple<X, Y> {
 
     Result<Tuple<X, Y>> checkBothPresent() {
         first != null && second != null ?
-            IOCUtils.resultFactory.success(this) : // TODO
-            IOCUtils.resultFactory.failWithCodeAndStatus("tuple.missingData", ResultStatus.BAD_REQUEST)
+            IOCUtils.resultFactory.success(this) :
+            IOCUtils.resultFactory.failWithCodeAndStatus("tuple.missingData",
+                ResultStatus.BAD_REQUEST, [X, Y])
     }
 }

@@ -69,7 +69,7 @@ class AuthUtils {
     }
 
     protected static Result<?> forbidden() {
-        IOCUtils.resultFactory.failWithCodeAndStatus("authUtils.forbidden", // TODO
+        IOCUtils.resultFactory.failWithCodeAndStatus("authUtils.forbidden",
             ResultStatus.FORBIDDEN)
     }
 }

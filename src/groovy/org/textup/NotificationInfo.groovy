@@ -1,9 +1,11 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import org.textup.validator.*
 import org.textup.util.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 class NotificationInfo {
 

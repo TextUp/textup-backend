@@ -33,11 +33,11 @@ class RecordItemRequest implements CanValidate {
         wrappers validator: { Collection<PhoneRecordWrapper> val, RecordItemRequest obj ->
             if (val) {
                 if (val.any { !it?.permissions?.canView() }) {
-                    return ["someNoPermissions"]
+                    return ["someNoPermissions", val*.id]
                 }
                 Collection<Long> pIds = WrapperUtils.mutablePhoneIdsIgnoreFails(val)
                 if (pIds.any { Long id -> id != obj.mutablePhone?.id }) {
-                    return ["foreign"]
+                    return ["foreign", obj.mutablePhone?.id, val*.id]
                 }
             }
         }

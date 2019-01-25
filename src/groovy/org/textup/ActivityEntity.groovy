@@ -1,5 +1,6 @@
 package org.textup
 
+import groovy.transform.EqualsAndHashCode
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.AutoClone
 import org.textup.util.*
@@ -8,6 +9,7 @@ import org.textup.util.*
 class ActivityEntity {
 
     @AutoClone
+    @EqualsAndHashCode
     static class HasActivity {
         Number id
         ActivityRecord activity = new ActivityRecord()
@@ -17,6 +19,7 @@ class ActivityEntity {
         }
     }
 
+    @EqualsAndHashCode
     static class Organization extends ActivityEntity.HasActivity {
         String name
         Number totalNumPhones = new Integer(0)
@@ -27,6 +30,7 @@ class ActivityEntity {
         }
     }
 
+    @EqualsAndHashCode
     static class Staff extends ActivityEntity.HasActivity {
         String name
         String username
@@ -38,6 +42,7 @@ class ActivityEntity {
         }
     }
 
+    @EqualsAndHashCode
     static class Team extends ActivityEntity.HasActivity {
         String name
         Number numStaff = new Integer(0)

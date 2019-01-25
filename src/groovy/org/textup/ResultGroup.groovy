@@ -1,10 +1,12 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
 import org.textup.type.*
 import org.textup.util.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 @ToString
 class ResultGroup<T> {

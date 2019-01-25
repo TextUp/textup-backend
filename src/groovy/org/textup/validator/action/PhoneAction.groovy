@@ -11,8 +11,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
+@GrailsTypeChecked
 @Validateable
 class PhoneAction extends BaseAction {
 
@@ -46,15 +46,10 @@ class PhoneAction extends BaseAction {
 				}
 			}
 		}
-		number nullable:true, blank:true, validator: { String val, PhoneAction obj ->
+		number nullable:true, blank:true, phoneNumber: true, validator: { String val, PhoneAction obj ->
 			if (obj.matches(NEW_NUM_BY_NUM)) {
 				if (!val) {
 					return ["requiredForChangeToNewNumber"]
-				}
-				PhoneNumber pNum = new PhoneNumber(number:val)
-				if (!pNum.validate()) {
-					Result res = IOCUtils.resultFactory.failWithValidationErrors(pNum.errors)
-					return ["invalid", res.errorMessages]
 				}
 			}
 		}

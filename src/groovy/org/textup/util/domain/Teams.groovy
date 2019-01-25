@@ -25,7 +25,7 @@ class Teams {
             IOCUtils.resultFactory.success(t1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("teamService.update.notFound", // TODO
+            IOCUtils.resultFactory.failWithCodeAndStatus("teams.notFound",
                 ResultStatus.NOT_FOUND, [teamId])
         }
     }

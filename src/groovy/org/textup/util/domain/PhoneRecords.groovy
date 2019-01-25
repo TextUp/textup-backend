@@ -18,18 +18,6 @@ class PhoneRecords {
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
-    @GrailsTypeChecked
-    static Result<? extends PhoneRecord> mustFindForId(Long thisId) {
-        PhoneRecord pr1 = PhoneRecord.get(thisId)
-        if (pr1) {
-            IOCUtils.resultFactory.success(pr1)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("", // TODO
-                ResultStatus.NOT_FOUND, [thisId])
-        }
-    }
-
     static DetachedCriteria<PhoneRecord> buildActiveForStaffId(Long staffId) {
         new DetachedCriteria(PhoneRecord)
             .build { "in"("phone", Phones.buildAllActivePhonesForStaffId(staffId)) }

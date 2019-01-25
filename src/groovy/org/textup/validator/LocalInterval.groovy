@@ -12,8 +12,8 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 @Validateable
 class LocalInterval implements Comparable<LocalInterval>, CanValidate {
 

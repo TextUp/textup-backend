@@ -10,8 +10,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)
+@GrailsTypeChecked
 class RecordCall extends RecordItem implements ReadOnlyRecordCall {
 
     int voicemailInSeconds = 0
