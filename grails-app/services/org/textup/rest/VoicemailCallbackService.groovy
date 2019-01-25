@@ -52,7 +52,10 @@ class VoicemailCallbackService {
                 MediaInfo.tryCreate(p1.media).curry(p1, elements)
             }
             .then { Phone p1, List<MediaElement> elements, MediaInfo mInfo ->
-                elements.each { MediaElement el1 -> mInfo.addToMediaElements(el1) }
+                mInfo.tryAddAllElements(elements).curry(p1)
+            }
+            .then { Phone p1, MediaInfo mInfo ->
+                p1.media = mInfo
                 DomainUtils.trySave(p1)
             }
             .then { Phone p1 ->

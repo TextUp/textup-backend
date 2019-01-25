@@ -8,7 +8,6 @@ import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
-import org.textup.validator.*
 
 // Receipt validator object for outgoing receipts
 // Received by is the client number that is the recipient of the outgoing message

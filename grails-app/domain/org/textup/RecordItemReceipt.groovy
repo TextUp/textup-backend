@@ -8,7 +8,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked // TODO
+@GrailsTypeChecked
 @EqualsAndHashCode
 class RecordItemReceipt implements WithId, CanSave<RecordItemReceipt> {
 
@@ -30,13 +30,6 @@ class RecordItemReceipt implements WithId, CanSave<RecordItemReceipt> {
         numBillable nullable: true, min: 0
     }
 
-    static class Info {
-        final long id
-        final long itemId
-        final ReceiptStatus status
-        final Integer numBillable
-    }
-
     static Result<RecordItemReceipt> tryCreate(RecordItem rItem1, String aId, ReceiptStatus stat,
         BasePhoneNumber bNum) {
 
@@ -48,8 +41,8 @@ class RecordItemReceipt implements WithId, CanSave<RecordItemReceipt> {
     // Methods
     // -------
 
-    RecordItemReceipt.Info toInfo() {
-        new RecordItemReceipt.Info(id: id, itemId: item?.id, status: status, numBillable: numBillable)
+    RecordItemReceiptCacheInfo toInfo() {
+        new RecordItemReceiptCacheInfo(id: id, itemId: item?.id, status: status, numBillable: numBillable)
     }
 
     // Properties

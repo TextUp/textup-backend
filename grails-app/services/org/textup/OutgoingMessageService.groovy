@@ -33,7 +33,13 @@ class OutgoingMessageService {
                 // end of the test. This means that test data in the db is not accessible from another
                 // thread. This seeems to be a limitation of the integration testing environment only.
                 Future<?> future = threadService.delay(10, TimeUnit.SECONDS) {
-                    waitForMedia(type, resGroup.payload*.id, r1.dehydrate(), temp1.dehydrate(), mediaFuture)
+                    DehydratedRecipients.tryCreate(r1)
+                        .then { DehydratedRecipients dr1 ->
+                            DehydratedTempRecordItem.tryCreate(temp1).curry(dr1)
+                        }
+                        .thenEnd { DehydratedRecipients dr1, DehydratedTempRecordItem dTemp1 ->
+                            waitForMedia(type, resGroup.payload*.id, dr1, dTemp1, mediaFuture)
+                        }
                 }
                 IOCUtils.resultFactory.success(rItems, future)
             }

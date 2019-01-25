@@ -20,7 +20,7 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
     TeamActionService teamActionService
 
     @RollbackOnResultFailure
-    Result<Team> create(long orgId, TypeMap body) {
+    Result<Team> create(Long orgId, TypeMap body) {
         Organizations.mustFindForId(orgId)
             .then { Organization org1 ->
                 locationService.create(body.typeMapNoNull("location")).curry(org1)

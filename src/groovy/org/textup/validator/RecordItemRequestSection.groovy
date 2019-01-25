@@ -12,7 +12,7 @@ import org.textup.util.domain.*
 @EqualsAndHashCode
 @GrailsTypeChecked
 @Validateable
-class RecordItemRequestSection extends CanValidate {
+class RecordItemRequestSection implements CanValidate {
 
     final String phoneName
     final String phoneNumber

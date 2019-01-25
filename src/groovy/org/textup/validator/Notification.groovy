@@ -8,15 +8,16 @@ import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
-import org.textup.validator.*
 
 @EqualsAndHashCode
-@GrailsTypeChecked // TODO
+@GrailsTypeChecked
 @Validateable
-class Notification implements CanValidate, Dehydratable<Notification.Dehydrated> {
+class Notification implements CanValidate {
 
 	final Phone mutablePhone
 	private final Map<PhoneRecordWrapper, NotificationDetail> wrapperToDetails = [:]
+
+    final Collection<NotificationDetail> details
 
 	static constraints = {
 		details cascadeValidation: true
@@ -30,39 +31,12 @@ class Notification implements CanValidate, Dehydratable<Notification.Dehydrated>
 		}
 	}
 
-    @Validateable
-    static class Dehydrated implements CanValidate, Rehydratable<Notification> {
-
-        final Long phoneId
-        final Collection<Long> itemIds
-
-        static Result<Notification.Dehydrated> tryCreate(Long phoneId, Collection<Long> itemIds) {
-            Notification.Dehydrated dn1 = new Notification.Dehydrated(phoneId: phoneId,
-                itemIds: Collections.unmodifiableCollection(itemIds))
-            DomainUtils.tryValidate(dn1, ResultStatus.CREATED)
-        }
-
-        @Override
-        Result<Notification> tryRehydrate() {
-            Collection<? extends RecordItem> rItems = AsyncUtils.getAllIds(RecordItem, itemIds)
-            NotificationUtils.tryBuildNotificationsForItems(rItems, [phoneId])
-                .then { List<Notification> notifs -> DomainUtils.tryValidate(notifs[0]) }
-        }
-    }
-
 	static Result<Notification> tryCreate(Phone mutPhone1) {
 		DomainUtils.tryValidate(new Notification(mutablePhone: mutPhone1), ResultStatus.CREATED)
 	}
 
 	// Methods
 	// -------
-
-    @Override
-    Notification.Dehydrated dehydrate() {
-        Notification.Dehydrated.tryCreate(mutablePhone.id, getItemIds())
-            .logFail("dehydrate")
-            .payload as Notification.Dehydrated
-    }
 
 	void addDetail(NotificationDetail nd1) {
 		NotificationDetail existing1 = wrapperToDetails[nd1.wrapper]
@@ -109,13 +83,9 @@ class Notification implements CanValidate, Dehydratable<Notification.Dehydrated>
 
 	Collection<NotificationDetail> getDetails() { wrapperToDetails.values() }
 
-    Collection<? extends RecordItem> getItems() {
-        CollectionUtils.mergeUnique(getDetails()*.items)
-    }
+    Collection<? extends RecordItem> getItems() { CollectionUtils.mergeUnique(getDetails()*.items) }
 
-    Collection<Long> getItemIds() {
-        getItems()*.id
-    }
+    Collection<Long> getItemIds() { getItems()*.id }
 
 	int getNumNotifiedForItem(NotificationFrequency freq1, RecordItem item) {
         getDetails().any { NotificationDetail nd1 -> nd1.items.contains(item) } ?

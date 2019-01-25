@@ -4,7 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.AutoClone
 import org.textup.util.*
 
-@GrailsTypeChecked // TODO
+@GrailsTypeChecked
 class ActivityEntity {
 
     @AutoClone

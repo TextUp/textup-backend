@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,7 +12,7 @@ import org.textup.validator.*
 
 // [NOTE] all properties in this parent class are DUPLICATED across sharing relationships
 
-@GrailsTypeChecked // TODO
+@GrailsTypeChecked
 @EqualsAndHashCode
 class PhoneRecord implements WithId, CanSave<PhoneRecord> {
 
@@ -48,12 +49,6 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
         }
     }
 
-    static class ShareInfo {
-        final DateTime whenCreated
-        final Long phoneId
-        final String permission
-    }
-
     static Result<PhoneRecord> tryCreate(SharePermission perm, PhoneRecord toShare, Phone sWith) {
         PhoneRecord pr1 = new PhoneRecord(shareSource: toShare,
             record: toShare.record,
@@ -65,8 +60,8 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
     // Methods
     // -------
 
-    PhoneRecord.ShareInfo toShareInfo() {
-        new PhoneRecord.ShareInfo(whenCreated: whenCreated,
+    PhoneRecordShareInfo toShareInfo() {
+        new PhoneRecordShareInfo(whenCreated: whenCreated,
             phoneId: phone.id,
             permission: permission.toString())
     }

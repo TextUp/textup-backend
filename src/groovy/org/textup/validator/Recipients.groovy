@@ -2,16 +2,17 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
-import org.textup.validator.*
 
-@GrailsTypeChecked // TODO
+@EqualsAndHashCode
+@GrailsTypeChecked
 @Validateable
-class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
+class Recipients implements CanValidate {
 
     final Integer maxNum // non private for access in validator
     private final Collection<? extends PhoneRecord> all
@@ -29,22 +30,6 @@ class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
                     return ["tooManyRecipients", obj.maxNum, val.size()]
                 }
             }
-        }
-    }
-
-    static class Dehydrated implements Rehydratable<Recipients> {
-        private final Long phoneId
-        private final Collection<Long> allIds
-        private final Integer maxNum
-        private final VoiceLanguage language
-
-        @Override
-        Result<Recipients> tryRehydrate() {
-            Recipients r1 = new Recipients(phone: Phone.get(phoneId),
-                all: AsyncUtils.getAllIds(PhoneRecord, allIds),
-                maxNum: maxNum,
-                language: language)
-            DomainUtils.tryValidate(r1)
         }
     }
 
@@ -79,11 +64,6 @@ class Recipients implements CanValidate, Dehydratable<Recipients.Dehydrated> {
 
     // Methods
     // -------
-
-    @Override
-    Recipients.Dehydrated dehydrate() {
-        new Recipients.Dehydrated(phoneId: phone.id, allIds: all*.id, maxNum: maxNum)
-    }
 
     Result<PhoneRecordWrapper> tryGetOne() {
         PhoneRecord pr1 = all?.getAt(0)

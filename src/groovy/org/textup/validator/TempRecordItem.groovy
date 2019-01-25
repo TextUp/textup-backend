@@ -2,22 +2,23 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
-import org.textup.validator.*
 
-// @GrailsTypeChecked // TODO
+@EqualsAndHashCode
+@GrailsTypeChecked
 @Validateable
-class TempRecordItem implements CanValidate, Dehydratable<TempRecordItem.Dehydrated> {
+class TempRecordItem implements CanValidate {
 
 	String text
 	MediaInfo media
 	Location location
 
-	static constraints = { // default nullable: false
+	static constraints = {
 		text nullable: true, blank: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE,
 			validator: { String val, TempRecordItem obj ->
 				if (!obj.hasMedia() && !obj.location && !val) { ["atLeastOneRequired"] }
@@ -25,21 +26,6 @@ class TempRecordItem implements CanValidate, Dehydratable<TempRecordItem.Dehydra
 		media nullable: true, cascadeValidation: true
 		location nullable: true, cascadeValidation: true
 	}
-
-	static class Dehydrated implements Rehydratable<TempRecordItem> {
-
-		String text
-		Long mediaId
-		Long locationId
-
-        @Override
-        Result<TempRecordItem> tryRehydrate() {
-        	TempRecordItem temp1 = new TempRecordItem(text: text,
-        		media: mediaId ? MediaInfo.get(mediaId) : null,
-        		location: locationId ? Location.get(locationId) : null)
-        	DomainUtils.tryValidate(temp1)
-        }
-    }
 
 	static Result<TempRecordItem> tryCreate(String text, MediaInfo mInfo, Location loc1) {
 		TempRecordItem temp1 = new TempRecordItem(text: text, media: mInfo, location: loc1)
@@ -53,9 +39,4 @@ class TempRecordItem implements CanValidate, Dehydratable<TempRecordItem.Dehydra
 
     // text can be read and audio clips can be played over calls
     boolean supportsCall() { text || media?.getMediaElementsByType(MediaType.AUDIO_TYPES) }
-
-	@Override
-	TempRecordItem.Dehydrated dehydrate() {
-		new TempRecordItem.Dehydrated(text: text, mediaId: media?.id, locationId: location?.id)
-	}
 }

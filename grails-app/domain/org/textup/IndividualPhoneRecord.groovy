@@ -8,7 +8,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@GrailsTypeChecked // TODO
+@GrailsTypeChecked
 @EqualsAndHashCode
 class IndividualPhoneRecord extends PhoneRecord {
 
@@ -26,13 +26,6 @@ class IndividualPhoneRecord extends PhoneRecord {
     static constraints = {
         name blank: true, nullable: true
         note blank: true, nullable: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
-    }
-
-    static class Info {
-        final Long id
-        final String name
-        final String note
-        final Collection<? extends BasePhoneNumber> numbers
     }
 
     static Result<IndividualPhoneRecord> tryCreate(Phone p1) {
@@ -82,8 +75,8 @@ class IndividualPhoneRecord extends PhoneRecord {
         }
     }
 
-    IndividualPhoneRecord.Info toInfo() {
-        new IndividualPhoneRecord.Info(id: id,
+    IndividualPhoneRecordInfo toInfo() {
+        new IndividualPhoneRecordInfo(id: id,
             name: name,
             note: note,
             numbers: Collections.unmodifiableCollection(getSortedNumbers()))

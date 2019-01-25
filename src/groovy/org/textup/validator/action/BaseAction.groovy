@@ -47,7 +47,6 @@ abstract class BaseAction implements CanValidate {
 		this
 	}
 
-	@Override
 	boolean matches(String toMatch) { StringUtils.equalsIgnoreCase(action, toMatch) }
 
 	// enable use of this class in switch statements
@@ -55,7 +54,6 @@ abstract class BaseAction implements CanValidate {
 	// NOTE: this method is only called when the case clause in the switch statement is
 	// of type BaseAction. When matching against something else (for example, a String), this method
 	// is NOT called!
-	@Override
 	boolean isCase(BaseAction otherAction) {
 		otherAction?.equals(this)
 	}

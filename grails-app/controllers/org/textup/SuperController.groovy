@@ -11,7 +11,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 
 @GrailsTypeChecked
-@Secured(Roles.SUPER_ROLES)
+@Secured(Roles.ADMIN)
 @Transactional
 class SuperController {
 
@@ -44,7 +44,8 @@ class SuperController {
         String newPassword = qParams.newPassword
         if (newPassword && newPassword != qParams.confirmNewPassword) {
             flash.messages = ["New passwords must match."]
-            return redirect(action: "settings")
+            redirect(action: "settings")
+            return
         }
 
         Staff s1 = IOCUtils.security.currentUser as Staff
@@ -58,7 +59,8 @@ class SuperController {
             }
             else {
                 flash.messages = ["Could not update password. Current password is either blank or incorrect."]
-                return redirect(action: "settings")
+                redirect(action: "settings")
+                return
             }
         }
         // update other properties

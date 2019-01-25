@@ -5,6 +5,6 @@ import org.textup.*
 import org.textup.type.*
 
 @GrailsTypeChecked
-interface Rehydratable<T extends Dehydratable> {
+interface Rehydratable<T> {
     Result<T> tryRehydrate()
 }

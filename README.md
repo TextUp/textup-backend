@@ -113,6 +113,8 @@ See the `script` section of `.travis.yml` for the tests. Note that the command i
 { grails test-app "unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* ;grails test-app "unit:" org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M* org.textup.N* org.textup.O* org.textup.P* org.textup.Q* ;grails test-app "unit:" org.textup.R* org.textup.S* org.textup.T* org.textup.U* org.textup.V* org.textup.W* org.textup.X* org.textup.Y* org.textup.Z* ;grails test-app "unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.type.* org.textup.util.* org.textup.util.domain.* org.textup.cache.* ;grails test-app "unit:" org.textup.media.* ;grails test-app "unit:" org.textup.rest.* org.textup.test.* ;grails test-app "integration:" org.textup.rest.marshaller.* org.textup.util.* ;grails test-app "integration:" org.textup.* ;grails test-app "functional:" }  > test-output.txt
 ```
 * If possible, don't import our own classes into config files because no type-checking happens in these config files. A "class not found error" can silently fail and cause the config file to not be read.
+* The `@Sortable` annotation on Grails domain classes seems to trigger an errors duration in the canonicalization phase of compilation when used with the `@GrailsTypeChecked` annotation. Need to manually implement the `Comparable` interface. `@Sortable` seems to be fine when applied to `@Validateable` classes
+* No static inner classes when you apply `@GrailsTypeChecked` to a validateable class or else will have canonicalization compilation errors. This includes both domain classes and classes with the `@Validateable` annotation.
 
 ## License
 

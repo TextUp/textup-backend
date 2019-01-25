@@ -42,107 +42,111 @@ class MergeActionService implements HandlesActions<Long, Void> {
             .then { IndividualPhoneRecord ipr1, List<MergeIndividualAction> actions ->
                 ResultGroup
                     .collect(actions) { MergeIndividualAction a1 ->
-
-
-
-                        // TODO figure out why is causing exception
-
-                        // Collection<IndividualPhoneRecord> toBeMerged = IndividualPhoneRecords
-                        //     .findEveryByIdsAndPhoneId(a1.toBeMergedIds, ipr1.phone.id)
-                        // switch (a1) {
-                        //     case MergeIndividualAction.DEFAULT:
-                        //         tryMergeHelper(ipr1, toBeMerged)
-                        //         break
-                        //     default: // MergeIndividualAction.RECONCILE
-                        //         tryMergeHelper(ipr1, toBeMerged).then { IndividualPhoneRecord ipr2 ->
-                        //             ipr2.name = a1.buildName()
-                        //             ipr2.note = a1.buildNote()
-                        //             DomainUtils.trySave(ipr2)
-                        //         }
-                        // }
+                        Collection<IndividualPhoneRecord> toBeMerged = IndividualPhoneRecords
+                            .findEveryByIdsAndPhoneId(a1.toBeMergedIds, ipr1.phone.id)
+                        switch (a1) {
+                            case MergeIndividualAction.DEFAULT:
+                                tryMerge(ipr1, toBeMerged)
+                                break
+                            default: // MergeIndividualAction.RECONCILE
+                                // For some reason, directly calling `.then` here to set
+                                // name and note exposes an error in Groovy's generics inference
+                                // implementation, resulting in  NPE at
+                                // org.codehaus.groovy.transform.stc.StaticTypeCheckingSupport.applyGenericsContext(StaticTypeCheckingSupport.java:1738)
+                                tryMergeWithInfo(ipr1, toBeMerged, a1)
+                        }
                     }
                     .toEmptyResult(false)
             }
     }
 
-    // // Helpers
-    // // -------
+    // Helpers
+    // -------
 
-    // // TODO figure out why this is causing Fatal error during compilation org.apache.tools.ant.BuildException: BUG! exception in phase 'instruction selection' in source unit
+    protected Result<IndividualPhoneRecord> tryMergeWithInfo(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged, MergeIndividualAction a1) {
 
-    // protected Result<IndividualPhoneRecord> tryMergeHelper(IndividualPhoneRecord ipr1,
-    //     Collection<IndividualPhoneRecord> toBeMerged) {
+        tryMerge(ipr1, toBeMerged).then { IndividualPhoneRecord ipr2 ->
+            ipr2.with {
+                name = a1.buildName()
+                note = a1.buildNote()
+            }
+            DomainUtils.trySave(ipr2)
+        }
+    }
 
-    //     tryMergeFields(ipr1, toBeMerged)
-    //         .then { tryMergeNumbers(ipr1, toBeMerged) }
-    //         .then { tryMergeGroups(ipr1, toBeMerged) }
-    //         .then { tryMergeSharing(ipr1, toBeMerged) }
-    //         .then { tryMergeRecords(ipr1, toBeMerged) }
-    //         .then { DomainUtils.trySave(ipr1) }
-    // }
+    protected Result<IndividualPhoneRecord> tryMerge(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
 
-    // protected Result<Void> tryMergeFields(IndividualPhoneRecord ipr1,
-    //     Collection<IndividualPhoneRecord> toBeMerged) {
+        tryMergeFields(ipr1, toBeMerged)
+            .then { tryMergeNumbers(ipr1, toBeMerged) }
+            .then { tryMergeGroups(ipr1, toBeMerged) }
+            .then { tryMergeSharing(ipr1, toBeMerged) }
+            .then { tryMergeRecords(ipr1, toBeMerged) }
+            .then { DomainUtils.trySave(ipr1) }
+    }
 
-    //     ipr1.status = PhoneRecordStatus
-    //         .reconcile(CollectionUtils.mergeUnique([[ipr1.status], toBeMerged*.status]))
-    //     toBeMerged.each { it.isDeleted = true }
-    //     DomainUtils.trySaveAll(CollectionUtils.mergeUnique([[ipr1], toBeMerged]))
-    // }
+    protected Result<Void> tryMergeFields(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
 
-    // protected Result<Void> tryMergeNumbers(IndividualPhoneRecord ipr1,
-    //     Collection<IndividualPhoneRecord> toBeMerged) {
+        ipr1.status = PhoneRecordStatus.reconcile([ipr1.status] + toBeMerged*.status)
+        toBeMerged.each { it.isDeleted = true }
+        DomainUtils.trySaveAll(CollectionUtils.mergeUnique([[ipr1], toBeMerged]))
+    }
 
-    //     ResultGroup
-    //         .collect(CollectionUtils.mergeUnique(toBeMerged*.numbers)) { ContactNumber cNum ->
-    //             ipr1.mergeNumber(cNum, cNum.preference)
-    //         }
-    //         .toEmptyResult(false)
-    // }
+    protected Result<Void> tryMergeNumbers(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
 
-    // protected Result<Void> tryMergeGroups(IndividualPhoneRecord ipr1,
-    //     Collection<IndividualPhoneRecord> toBeMerged) {
+        ResultGroup
+            .collect(CollectionUtils.mergeUnique(toBeMerged*.numbers)) { ContactNumber cNum ->
+                ipr1.mergeNumber(cNum, cNum.preference)
+            }
+            .toEmptyResult(false)
+    }
 
-    //     try {
-    //         List<GroupPhoneRecord> gprs = GroupPhoneRecords
-    //             .buildForMemberIdsAndOptions(toBeMerged*.id)
-    //             .list()
-    //         gprs.each { GroupPhoneRecord gpr1 -> gpr1.addToMembers(ipr1) }
-    //         DomainUtils.trySaveAll(gprs)
-    //     }
-    //     catch (Throwable e) {
-    //         IOCUtils.resultFactory.failWithThrowable(e, "mergeTags", true)
-    //     }
-    // }
+    protected Result<Void> tryMergeGroups(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
 
-    // protected Result<Void> tryMergeSharing(IndividualPhoneRecord ipr1,
-    //     Collection<IndividualPhoneRecord> toBeMerged) {
+        try {
+            List<GroupPhoneRecord> gprs = GroupPhoneRecords
+                .buildForMemberIdsAndOptions(toBeMerged*.id)
+                .list()
+            gprs.each { GroupPhoneRecord gpr1 -> gpr1.addToMembers(ipr1) }
+            DomainUtils.trySaveAll(gprs)
+        }
+        catch (Throwable e) {
+            IOCUtils.resultFactory.failWithThrowable(e, "mergeTags", true)
+        }
+    }
 
-    //     try {
-    //         new DetachedCriteria(PhoneRecords)
-    //             .build(PhoneRecords.forShareSourceIds(toBeMerged*.id))
-    //             .updateAll(record: ipr1.record, shareSource: ipr1)
-    //         Result.void()
-    //     }
-    //     catch (Throwable e) {
-    //         IOCUtils.resultFactory.failWithThrowable(e, "tryMergeSharing", true)
-    //     }
-    // }
+    protected Result<Void> tryMergeSharing(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
 
-    // protected Result<Void> tryMergeRecords(IndividualPhoneRecord ipr1,
-    //     Collection<IndividualPhoneRecord> toBeMerged) {
+        try {
+            new DetachedCriteria(PhoneRecords)
+                .build(PhoneRecords.forShareSourceIds(toBeMerged*.id))
+                .updateAll(record: ipr1.record, shareSource: ipr1)
+            Result.void()
+        }
+        catch (Throwable e) {
+            IOCUtils.resultFactory.failWithThrowable(e, "tryMergeSharing", true)
+        }
+    }
 
-    //     try {
-    //         RecordItems
-    //             .buildForRecordIdsWithOptions(toMergeRecords*.record*.id)
-    //             .updateAll(record: ipr1.record)
-    //         FutureMessage
-    //             .buildForRecordIds(toMergeRecords*.record*.id)
-    //             .updateAll(record: ipr1.record)
-    //         Result.void()
-    //     }
-    //     catch (Throwable e) {
-    //         IOCUtils.resultFactory.failWithThrowable(e, "tryMergeRecords", true)
-    //     }
-    // }
+    protected Result<Void> tryMergeRecords(IndividualPhoneRecord ipr1,
+        Collection<IndividualPhoneRecord> toBeMerged) {
+
+        try {
+            RecordItems
+                .buildForRecordIdsWithOptions(toBeMerged*.record*.id)
+                .updateAll(record: ipr1.record)
+            FutureMessages
+                .buildForRecordIds(toBeMerged*.record*.id)
+                .updateAll(record: ipr1.record)
+            Result.void()
+        }
+        catch (Throwable e) {
+            IOCUtils.resultFactory.failWithThrowable(e, "tryMergeRecords", true)
+        }
+    }
 }

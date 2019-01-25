@@ -87,9 +87,11 @@ class TokenService {
 
     Result<Token> tryGeneratePreviewInfo(OwnerPolicy op1, Notification notif1) {
         if (op1.shouldSendPreviewLink) {
-            Notification.Dehydrated dn1 = notif1.dehydrate()
-            Map data = TokenType.notifyStaffData(op1.id, dn1.itemIds, dn1.phoneId)
-            Token.tryCreate(TokenType.NOTIFY_STAFF, data)
+            DehydratedNotification.tryCreate(notif1)
+                .then { DehydratedNotification dn1 ->
+                    Map data = TokenType.notifyStaffData(op1.id, dn1.itemIds, dn1.phoneId)
+                    Token.tryCreate(TokenType.NOTIFY_STAFF, data)
+                }
                 .then { Token tok1 ->
                     tok1.maxNumAccess = ValidationUtils.MAX_NUM_ACCESS_NOTIFICATION_TOKEN
                     tok1.expires = JodaUtils.now().plusDays(1)
@@ -104,12 +106,12 @@ class TokenService {
             .then { Token tok1 -> tryIncrementTimesAccessed(tok1) }
             .then { Token tok1 ->
                 TypeMap data = tok1.data
-                Notification.Dehydrated
+                DehydratedNotification
                     .tryCreate(data.long(TokenType.PARAM_NS_PHONE),
                         data.typedList(Long, TokenType.PARAM_NS_ITEMS))
                     .curry(data.long(TokenType.PARAM_NS_OWNER_POLICY))
             }
-            .then { Long ownerPolicyId, Notification.Dehydrated dn1 ->
+            .then { Long ownerPolicyId, DehydratedNotification dn1 ->
                 dn1.tryRehydrate().curry(ownerPolicyId)
             }
             .then { Long ownerPolicyId, Notification notif1 ->

@@ -32,7 +32,8 @@ class IncomingTextService {
                 // created in this thread to save. Otherwise, when we try to get texts with the
                 // following ids, they will have be saved yet and we will get `null` in return
                 threadService.delay(5, TimeUnit.SECONDS) {
-                    processMedia(apiId, media, notifGroup.dehydrate())
+                    DehydratedNotificationGroup.tryCreate(notifGroup)
+                        .then { DehydratedNotificationGroup dng1 -> processMedia(apiId, media, dng1) }
                         .logFail("process: finishing processing")
                 }
                 // step 3: return the appropriate response while long-running tasks still processing
@@ -76,16 +77,15 @@ class IncomingTextService {
     }
 
     protected Result<Void> processMedia(String apiId, List<IncomingMediaInfo> media,
-        Rehydratable<NotificationGroup> dnGroup) {
+        Rehydratable<NotificationGroup> dng1) {
 
-        dnGroup.tryRehydrate()
+        dng1.tryRehydrate()
             .then { NotificationGroup notifGroup ->
                 if (media) {
                     incomingMediaService.process(media)
                         .then { List<MediaElement> els -> MediaInfo.tryCreate().curry(els) }
                         .then { List<MediaElement> els, MediaInfo mInfo ->
-                            els.each { MediaElement el1 -> mInfo.addToMediaElements(el1) }
-                            DomainUtils.trySave(mInfo)
+                            mInfo.tryAddAllElements(els)
                         }
                         .then { MediaInfo mInfo -> finishProcessing(notifGroup, mInfo) }
                 }

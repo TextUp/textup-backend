@@ -11,7 +11,7 @@ class ManagesDomain {
         Result<T> create(Long id, TypeMap body)
     }
 
-    interface Updater {
+    interface Updater<T> {
         Result<T> update(Long id, TypeMap body)
     }
 

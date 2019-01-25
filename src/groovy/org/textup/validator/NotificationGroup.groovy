@@ -2,32 +2,22 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
-import org.textup.validator.*
 
-@GrailsTypeChecked // TODO
+@EqualsAndHashCode
+@GrailsTypeChecked
 @Validateable
-class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.Dehydrated> {
+class NotificationGroup implements CanValidate {
 
     private final Collection<Notification> notifications
 
     static constraints = {
         notifications cascadeValidation: true
-    }
-
-    static class Dehydrated implements Rehydratable<NotificationGroup> {
-
-        private final Collection<Long> itemIds
-
-        @Override
-        Result<NotificationGroup> tryRehydrate() {
-            Collection<RecordItem> rItems = AsyncUtils.getAllIds(RecordItem, itemIds)
-            NotificationUtils.tryBuildNotificationGroup(rItems)
-        }
     }
 
     static Result<NotificationGroup> tryCreate(Collection<Notification> many1) {
@@ -51,12 +41,6 @@ class NotificationGroup implements CanValidate, Dehydratable<NotificationGroup.D
 
     // Methods
     // -------
-
-    @Override
-    NotificationGroup.Dehydrated dehydrate() {
-        Collection<Long> itemIds = CollectionUtils.mergeUnique(notifications*.itemIds)
-        new NotificationGroup.Dehydrated(itemIds: itemIds)
-    }
 
     boolean canNotifyAny(NotificationFrequency freq1) {
         notifications?.any { Notification notif1 -> notif1.canNotifyAny(freq1) }

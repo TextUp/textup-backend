@@ -11,10 +11,11 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@Sortable(includes = ["preference"])
+// Grails Domain classes cannot apply the `@Sortable` without a compilation error
+
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true, includes = ["number", "preference"])
-class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNumber> {
+class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNumber>, Comparable<ContactNumber> {
 
 	Integer preference
 
@@ -30,5 +31,13 @@ class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNu
         cNum.number = bNum.number
         owner.addToNumbers(cNum)
         DomainUtils.trySave(cNum, ResultStatus.CREATED)
+    }
+
+    // Methods
+    // -------
+
+    @Override
+    int compareTo(ContactNumber cNum) { // first sort on preference, then phone number value
+        preference <=> cNum?.preference ?: number <=> cNum?.number
     }
 }

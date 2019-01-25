@@ -49,33 +49,24 @@ class MediaService {
     protected Result<Future<?>> tryStartProcessing(MediaInfo mInfo, Map body, boolean isPublic) {
         mediaActionService.tryHandleActions(mInfo, body)
             .logFail("tryStartProcessing: building initial version")
-            .then { List<UploadItem> uItems ->
-                PartialUploads pu1 = new PartialUploads()
-                uItems.each { UploadItem initialUpload ->
-                    initialUpload.isPublic = isPublic
-                    pu1.createAndAdd(initialUpload).thenEnd { MediaElement el1 ->
-                        mInfo.addToMediaElements(el1)
-                    }
-                }
-                DomainUtils.tryValidate(pu1)
-            }
+            .then { List<UploadItem> uItems -> PartialUploads.tryCreate(uItems) }
+            .then { PartialUploads pu1 -> mInfo.tryAddAllElements(pu1.elements).curry(pu1) }
             .then { PartialUploads pu1 ->
                 Collection<String> errors = storageService.uploadAsync(pu1.uploads)
                     .logFail("tryStartProcessing: uploading initial media")
                     .errorMessages
                 RequestUtils.trySetOnRequest(RequestUtils.UPLOAD_ERRORS, errors)
                 IOCUtils.resultFactory.success(threadService.delay(5, TimeUnit.SECONDS) {
-                    tryFinishProcessing(mInfo.id, pu1.dehydrate())
+                    DehydratedPartialUploads.tryCreate(pu1)
+                        .then { DehydratedPartialUploads dpu1 -> tryFinishProcessing(mInfo.id, dpu1) }
                         .logFail("trying to finish processing for MediaInfo `${mInfo.id}`")
                 })
             }
     }
 
-    protected Result<MediaInfo> tryFinishProcessing(Long mediaId,
-        Rehydratable<PartialUploads> dPartials) {
-
+    protected Result<MediaInfo> tryFinishProcessing(Long mediaId, Rehydratable<PartialUploads> dpu1) {
         MediaInfos.mustFindForId(mediaId)
-            .then { MediaInfo mInfo -> dPartials.tryRehydrate().curry(mInfo) }
+            .then { MediaInfo mInfo -> dpu1.tryRehydrate().curry(mInfo) }
             .then { MediaInfo mInfo, PartialUploads partials ->
                 ResultGroup<List<UploadItem>> resGroup = new ResultGroup<>()
                 partials.eachUpload { UploadItem uItem1, MediaElement el1 ->

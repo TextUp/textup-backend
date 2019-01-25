@@ -29,9 +29,10 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
         rCall1.record.updateLastActivity()
         DomainUtils.trySave(rCall1.record)
             .then { MediaInfo.tryCreate(rCall1.media) }
+            .then { MediaInfo mInfo -> mInfo.tryAddAllElements(elements) }
             .then { MediaInfo mInfo ->
-                elements.each { MediaElement el1 -> mInfo.addToMediaElements(el1) }
                 rCall1.with {
+                    media = mInfo
                     hasAwayMessage = true
                     voicemailInSeconds = duration
                 }

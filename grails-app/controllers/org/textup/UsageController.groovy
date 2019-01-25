@@ -12,7 +12,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 
 @GrailsTypeChecked
-@Secured(Roles.SUPER_ROLES)
+@Secured(Roles.ADMIN)
 @Transactional
 class UsageController {
 

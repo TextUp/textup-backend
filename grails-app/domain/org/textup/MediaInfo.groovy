@@ -46,6 +46,11 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
     // Methods
     // -------
 
+    Result<MediaInfo> tryAddAllElements(Collection<MediaElement> els) { // TODO test
+        els?.each { MediaElement el1 -> addToMediaElements(el1) }
+        DomainUtils.trySave(this)
+    }
+
     // We want to refer to the persistent set of elements when creating a duplicate for the revision.
     // It is OK if two media info objects point to the same media elements so we don't have to
     // create many duplicate media element objects

@@ -56,7 +56,7 @@ class CallbackStatusService {
     protected void handleUpdateForText(String textId, ReceiptStatus status) {
         updateExistingReceipts(textId, status)
             .logFail("handleUpdateForText")
-            .thenEnd { Collection<RecordItemReceipt.Info> infos -> sendAfterDelay(infos) }
+            .thenEnd { Collection<RecordItemReceiptCacheInfo> infos -> sendAfterDelay(infos) }
     }
 
     // From statusCallback attribute on the Number verb
@@ -65,7 +65,7 @@ class CallbackStatusService {
 
         createNewReceipts(parentId, childId, childNumber, status, duration)
             .logFail("handleUpdateForChildCall")
-            .thenEnd { Collection<RecordItemReceipt.Info> infos -> sendAfterDelay(infos) }
+            .thenEnd { Collection<RecordItemReceiptCacheInfo> infos -> sendAfterDelay(infos) }
     }
 
     // From the statusCallback attribute on the original POST request to the Call resource
@@ -74,7 +74,7 @@ class CallbackStatusService {
 
         updateExistingReceipts(callId, status, duration)
             .logFail("handleUpdateForParentCall")
-            .thenEnd { Collection<RecordItemReceipt.Info> infos ->
+            .thenEnd { Collection<RecordItemReceiptCacheInfo> infos ->
                 // try to retry parent call if failed
                 if (status == ReceiptStatus.FAILED) {
                     tryRetryParentCall(callId, params)
@@ -86,10 +86,10 @@ class CallbackStatusService {
     // Shared helpers
     // --------------
 
-    protected Result<Collection<RecordItemReceipt.Info>> createNewReceipts(String parentId,
+    protected Result<Collection<RecordItemReceiptCacheInfo>> createNewReceipts(String parentId,
         String childId, PhoneNumber childNumber, ReceiptStatus status, Integer duration) {
 
-        Collection<RecordItemReceipt.Info> infos = receiptCache.findEveryReceiptInfoByApiId(parentId)
+        Collection<RecordItemReceiptCacheInfo> infos = receiptCache.findEveryReceiptInfoByApiId(parentId)
         ResultGroup
             .collect(AsyncUtils.getAllIds(RecordItem, infos*.itemId)) { RecordItem rItem1 ->
                 RecordItemReceipt.tryCreate(rItem1, childId, status, childNumber)
@@ -102,10 +102,10 @@ class CallbackStatusService {
             .then { IOCUtils.resultFactory.success(infos) }
     }
 
-    protected Result<Collection<RecordItemReceipt.Info>> updateExistingReceipts(String apiId,
+    protected Result<Collection<RecordItemReceiptCacheInfo>> updateExistingReceipts(String apiId,
         ReceiptStatus newStatus, Integer newDuration = null) {
 
-        Collection<RecordItemReceipt.Info> infos = receiptCache.findEveryReceiptInfoByApiId(apiId)
+        Collection<RecordItemReceiptCacheInfo> infos = receiptCache.findEveryReceiptInfoByApiId(apiId)
         // (1) It's okay if we don't find any receipts for a certain apiId because we aren't interested
         // in recording the status of certain messages such as notification messages we send out
         // to staff members.
@@ -122,7 +122,7 @@ class CallbackStatusService {
         IOCUtils.resultFactory.success(infos)
     }
 
-    protected void sendAfterDelay(Collection<RecordItemReceipt.Info> infos) {
+    protected void sendAfterDelay(Collection<RecordItemReceiptCacheInfo> infos) {
         // Use ids and refetch in new thread to avoid LazyInitializationExceptions
         // caused by trying to interact with detached Hibernate objects
         if (infos) {

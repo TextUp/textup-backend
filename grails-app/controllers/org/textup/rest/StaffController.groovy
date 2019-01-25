@@ -14,7 +14,7 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
-@Secured(Roles.USER_ROLES)
+@Secured([Roles.USER, Roles.ADMIN])
 @Transactional
 class StaffController extends BaseController {
 

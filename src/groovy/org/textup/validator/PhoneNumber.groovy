@@ -9,7 +9,6 @@ import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
-import org.textup.validator.*
 
 @GrailsTypeChecked
 @EqualsAndHashCode(callSuper = true)

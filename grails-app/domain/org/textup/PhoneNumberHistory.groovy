@@ -11,10 +11,11 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
+// Grails Domain classes cannot apply the `@Sortable` without a compilation error
+
 @GrailsTypeChecked
 @EqualsAndHashCode
-@Sortable(includes = ["whenCreated"])
-class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId {
+class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Comparable<PhoneNumberHistory> {
 
     DateTime endTime
     final DateTime whenCreated
@@ -56,6 +57,11 @@ class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId {
             log.debug("includes: ${e.message}")
             false
         }
+    }
+
+    @Override
+    int compareTo(PhoneNumberHistory nh1) { // first whenCreated, then endDate (nulls come first)
+        whenCreated <=> nh1?.whenCreated ?: endTime <=> nh1?.endTime
     }
 
     // Properties

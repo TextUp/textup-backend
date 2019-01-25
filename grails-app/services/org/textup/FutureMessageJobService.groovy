@@ -7,6 +7,7 @@ import org.quartz.*
 import org.textup.annotation.*
 import org.textup.job.*
 import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
@@ -118,20 +119,23 @@ class FutureMessageJobService {
                     // to allow the record items to save. Otherwise, when the future resolves, the ids
                     // will point to non-existent items because we blocked the parent method from saving here
                     threadService.submit {
-                        finishNotifySelf(notifGroup.dehydrate(), future)
+                        DehydratedNotificationGroup.tryCreate(notifGroup)
+                            .then { DehydratedNotificationGroup dng1 ->
+                                finishNotifySelf(dng1, future)
+                            }
                             .logFail("startNotifySelf: notifying in new thread")
                     }
                 }
             }
     }
 
-    protected Result<?> finishNotifySelf(NotificationGroup.Dehydrated dnGroup, Future<?> future) {
+    protected Result<?> finishNotifySelf(Rehydratable<NotificationGroup> dng1, Future<?> future) {
         // wait for processing and sending to finish. This Future SHOULD be resolve quickly
         // because media processing already took place when creating the future message
         // so in this future, we are simply sending and storing the outgoing message, including
         // the already-processed media referred to in the `media` prop of the  OutgoingMessage
         future.get()
-        dnGroup.tryRehydrate()
+        dng1.tryRehydrate()
             .then { NotificationGroup notifGroup ->
                 ResultGroup<RecordItem> resGroup = new ResultGroup<>()
                 notifGroup.eachItem { RecordItem rItem1 ->
