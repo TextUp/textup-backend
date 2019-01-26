@@ -10,11 +10,12 @@ import org.apache.http.HttpResponse
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
-import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import spock.lang.Specification
+import spock.lang.*
 
 @TestMixin(GrailsUnitTestMixin)
 class UsageUtilsSpec extends Specification {
@@ -105,16 +106,16 @@ class UsageUtilsSpec extends Specification {
 
     void "test associating activity record with activity owners + has no side effects"() {
         given:
-        List<UsageService.HasActivity> owners1 = []
-        List<UsageService.ActivityRecord> activityList = []
+        List<ActivityEntity.HasActivity> owners1 = []
+        List<ActivityRecord> activityList = []
         int numOwners = 8
         numOwners.times { BigInteger ownerId ->
-            owners1 << new UsageService.HasActivity(id: ownerId)
-            activityList << new UsageService.ActivityRecord(ownerId: ownerId)
+            owners1 << new ActivityEntity.HasActivity(id: ownerId)
+            activityList << new ActivityRecord(ownerId: ownerId)
         }
 
         when:
-        List<UsageService.HasActivity> owners2 = UsageUtils.associateActivity(owners1, activityList)
+        List<ActivityEntity.HasActivity> owners2 = UsageUtils.associateActivity(owners1, activityList)
 
         then: "returns copied owners -- no side effects"
         owners2 != owners1
@@ -131,14 +132,14 @@ class UsageUtilsSpec extends Specification {
         RecordItem mockItem = Stub() { getWhenCreated() >> now.minusMonths(2) }
         RecordItem.metaClass."static".first = { String propName -> mockItem }
 
-        UsageService.ActivityRecord actNow = new UsageService.ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now)),
-            actNowMinusOne = new UsageService.ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(1))),
-            actNowMinusTwo = new UsageService.ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(2))),
-            actNowMinusEight = new UsageService.ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(8))),
-            actNowPlusOne = new UsageService.ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.plusMonths(1)))
+        ActivityRecord actNow = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now)),
+            actNowMinusOne = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(1))),
+            actNowMinusTwo = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(2))),
+            actNowMinusEight = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(8))),
+            actNowPlusOne = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.plusMonths(1)))
 
         when:
-        List<UsageService.ActivityRecord> activities = UsageUtils.ensureMonths(null)
+        List<ActivityRecord> activities = UsageUtils.ensureMonths(null)
 
         then:
         activities.size() == 3
@@ -158,7 +159,7 @@ class UsageUtilsSpec extends Specification {
         when: "input is not sorted from oldest to newest"
         actNowMinusOne.numActivePhones = 888
         actNow.numActivePhones = 8
-        List<UsageService.ActivityRecord> outOfOrderActivities =
+        List<ActivityRecord> outOfOrderActivities =
             [actNowPlusOne, actNow, actNowMinusOne, actNowMinusEight]
         activities = UsageUtils.ensureMonths(outOfOrderActivities)
 

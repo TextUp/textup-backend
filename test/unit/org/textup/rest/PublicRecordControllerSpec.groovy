@@ -8,18 +8,21 @@ import grails.test.mixin.TestMixin
 import grails.test.runtime.*
 import java.util.concurrent.TimeUnit
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
-import static javax.servlet.http.HttpServletResponse.*
-import static org.springframework.http.HttpStatus.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(PublicRecordController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class PublicRecordControllerSpec extends CustomSpec {
 
@@ -75,7 +78,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         1 * controller.callbackStatusService.process(*_)
         0 * controller.callbackService.process(*_)
         validate.callCount == 1
-        response.status == SC_OK
+        response.status == HttpServletResponse.SC_OK
         response.text.contains("Response")
         response.xml.toString() == "" // empty response
     }
@@ -95,7 +98,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         0 * controller.threadService._
         1 * controller.callbackService.process(*_) >> new Result(payload: { Test() })
         validate.callCount == 1
-        response.status == SC_OK
+        response.status == HttpServletResponse.SC_OK
     }
 
     // Not allowed
@@ -107,7 +110,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.index()
 
         then:
-        response.status == SC_METHOD_NOT_ALLOWED
+        response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
     }
     void "test show"() {
         when:
@@ -115,7 +118,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.show()
 
         then:
-        response.status == SC_METHOD_NOT_ALLOWED
+        response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
     }
     void "test update"() {
         when:
@@ -123,7 +126,7 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.update()
 
         then:
-        response.status == SC_METHOD_NOT_ALLOWED
+        response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
     }
     void "test delete"() {
         when:
@@ -131,6 +134,6 @@ class PublicRecordControllerSpec extends CustomSpec {
         controller.delete()
 
         then:
-        response.status == SC_METHOD_NOT_ALLOWED
+        response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
     }
 }

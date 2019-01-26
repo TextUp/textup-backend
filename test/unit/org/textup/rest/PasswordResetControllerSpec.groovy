@@ -7,16 +7,21 @@ import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.textup.*
-import org.textup.util.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
-import spock.lang.Shared
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(PasswordResetController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class PasswordResetControllerSpec extends CustomSpec {
 
@@ -46,7 +51,7 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     	then:
         0 * controller.passwordResetService._
-    	response.status == SC_BAD_REQUEST
+    	response.status == HttpServletResponse.SC_BAD_REQUEST
     }
 
     void "test request request success"() {
@@ -61,7 +66,7 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     	then:
         1 * controller.passwordResetService.start(un) >> new Result(status: ResultStatus.NO_CONTENT)
-    	response.status == SC_NO_CONTENT
+    	response.status == HttpServletResponse.SC_NO_CONTENT
     }
 
     // Complete request
@@ -78,7 +83,7 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     	then:
         0 * controller.passwordResetService._
-    	response.status == SC_BAD_REQUEST
+    	response.status == HttpServletResponse.SC_BAD_REQUEST
     }
 
     void "test complete request success"() {
@@ -94,6 +99,6 @@ class PasswordResetControllerSpec extends CustomSpec {
 
     	then:
         1 * controller.passwordResetService.finish(tok, pwd) >> new Result()
-    	response.status == SC_NO_CONTENT
+    	response.status == HttpServletResponse.SC_NO_CONTENT
     }
 }

@@ -1,18 +1,25 @@
 package org.textup
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
-import com.amazonaws.services.s3.model.PutObjectResult
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import org.joda.time.DateTime
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordNote,
-	RecordNoteRevision, RecordItemReceipt, Location, MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 class RecordNoteRevisionSpec extends Specification {
 

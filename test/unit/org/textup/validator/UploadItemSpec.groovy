@@ -1,9 +1,11 @@
 package org.textup.validator
 
-import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.nio.charset.StandardCharsets
@@ -12,10 +14,13 @@ import javax.imageio.*
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.io.IOUtils
+import org.joda.time.*
 import org.springframework.validation.Errors
 import org.textup.*
-import org.textup.media.ImageUtils
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
+import org.textup.util.*
 import spock.lang.*
 
 @Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])

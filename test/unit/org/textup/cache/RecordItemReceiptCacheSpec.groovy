@@ -12,8 +12,12 @@ import org.textup.test.*
 import org.textup.type.*
 import spock.lang.*
 
-@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 class RecordItemReceiptCacheSpec extends Specification {
 

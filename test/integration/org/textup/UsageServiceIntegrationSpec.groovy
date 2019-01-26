@@ -34,9 +34,9 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         DateTime priorMonth = DateTime.now().minusMonths(8)
 
         when: "a month with activity"
-        List<UsageService.Organization> orgsForStaff = usageService
+        List<ActivityEntity.Organization> orgsForStaff = usageService
             .getOverallPhoneActivity(thisMonth, PhoneOwnershipType.INDIVIDUAL)
-        List<UsageService.Organization> orgsForTeams = usageService
+        List<ActivityEntity.Organization> orgsForTeams = usageService
             .getOverallPhoneActivity(thisMonth, PhoneOwnershipType.GROUP)
 
         then:
@@ -64,7 +64,7 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         DateTime priorMonth = DateTime.now().minusMonths(8)
 
         when: "nonexistent org"
-        List<UsageService.Staff> staffActivity = usageService.getStaffPhoneActivity(thisMonth, -88L)
+        List<ActivityEntity.Staff> staffActivity = usageService.getStaffPhoneActivity(thisMonth, -88L)
 
         then:
         staffActivity.isEmpty() == true
@@ -92,7 +92,7 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         DateTime priorMonth = DateTime.now().minusMonths(8)
 
         when: "nonexistent org"
-        List<UsageService.Staff> teamActivity = usageService.getTeamPhoneActivity(thisMonth, -88L)
+        List<ActivityEntity.Staff> teamActivity = usageService.getTeamPhoneActivity(thisMonth, -88L)
 
         then:
         teamActivity.isEmpty() == true
@@ -120,7 +120,7 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         int numMonthsInPast = 8
 
         when: "only data this month"
-        List<UsageService.ActivityRecord> aList = usageService.getActivity(PhoneOwnershipType.INDIVIDUAL)
+        List<ActivityRecord> aList = usageService.getActivity(PhoneOwnershipType.INDIVIDUAL)
 
         then:
         aList.size() == 1
@@ -144,9 +144,9 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         int numMonthsInPast = 8
 
         when: "only data this month"
-        List<UsageService.ActivityRecord> aList1 = usageService
+        List<ActivityRecord> aList1 = usageService
             .getActivityForOrg(PhoneOwnershipType.INDIVIDUAL, org.id)
-        List<UsageService.ActivityRecord> aList2 = usageService
+        List<ActivityRecord> aList2 = usageService
             .getActivityForOrg(PhoneOwnershipType.INDIVIDUAL, org2.id)
 
         then:
@@ -178,9 +178,9 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         int numMonthsInPast = 8
 
         when: "only data this month"
-        List<UsageService.ActivityRecord> aList1 = usageService
+        List<ActivityRecord> aList1 = usageService
             .getActivityForNumber(p1.numberAsString)
-        List<UsageService.ActivityRecord> aList2 = usageService
+        List<ActivityRecord> aList2 = usageService
             .getActivityForNumber(otherP1.numberAsString)
 
         then:
@@ -230,7 +230,7 @@ class UsageServiceIntegrationSpec extends CustomSpec {
         }
 
         when:
-        List<UsageService.ActivityRecord> aList = usageService
+        List<ActivityRecord> aList = usageService
             .getActivityForNumber(phone1.numberAsString)
 
         then:

@@ -1,20 +1,27 @@
 package org.textup
 
-import grails.test.mixin.TestFor
-import grails.test.runtime.DirtiesRuntime
-import org.joda.time.DateTime
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import javax.servlet.http.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Specification
+import org.textup.validator.*
+import spock.lang.*
 
 @TestFor(UsageController)
 class UsageControllerSpec extends Specification {
 
     void "test building usage and costs"() {
         given:
-        UsageService.HasActivity a1 = Mock()
-        UsageService.ActivityRecord activity1 = Mock()
+        ActivityEntity.HasActivity a1 = Mock()
+        ActivityRecord activity1 = Mock()
 
         when:
         Map info = controller.buildUsageAndCosts([a1])
@@ -43,8 +50,8 @@ class UsageControllerSpec extends Specification {
 
     void "test building phone counts"() {
         given:
-        UsageService.Organization org1 = Mock()
-        UsageService.ActivityRecord activity1 = Mock()
+        ActivityEntity.Organization org1 = Mock()
+        ActivityRecord activity1 = Mock()
 
         when:
         Map info = controller.buildPhoneCounts([org1])

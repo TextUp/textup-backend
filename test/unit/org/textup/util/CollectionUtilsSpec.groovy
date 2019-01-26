@@ -9,11 +9,12 @@ import org.apache.http.HttpResponse
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
-import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import spock.lang.Specification
+import spock.lang.*
 
 @TestMixin(GrailsUnitTestMixin)
 class CollectionUtilsSpec extends Specification {

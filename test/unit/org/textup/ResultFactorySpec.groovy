@@ -1,15 +1,17 @@
 package org.textup
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
-import org.springframework.context.NoSuchMessageException
-import org.springframework.context.support.StaticMessageSource
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.*
 
 @Domain([CustomAccountDetails, Organization, Location])

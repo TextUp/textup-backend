@@ -13,11 +13,12 @@ import org.joda.time.DateTime
 import org.quartz.Scheduler
 import org.springframework.context.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
-import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import spock.lang.Specification
+import spock.lang.*
 
 @Domain([CustomAccountDetails, Location])
 @TestMixin(HibernateTestMixin)

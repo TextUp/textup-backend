@@ -19,10 +19,10 @@ enum VoiceLanguage {
     private final Language twilioLanguage
 
     VoiceLanguage(Language lang) {
-        this.twilioLanguage = lang
+        twilioLanguage = lang
     }
 
     String toTwimlValue() {
-        this.twilioLanguage.toString()
+        twilioLanguage.toString()
     }
 }

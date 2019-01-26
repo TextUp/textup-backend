@@ -5,7 +5,6 @@ import grails.plugins.rest.client.RestResponse
 import java.util.concurrent.TimeUnit
 import java.util.UUID
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.quartz.JobDataMap
 import org.quartz.JobExecutionContext
 import org.quartz.Trigger

@@ -7,12 +7,12 @@ import grails.test.mixin.TestMixin
 import grails.test.runtime.DirtiesRuntime
 import grails.util.Holders
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
-import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 import spock.util.mop.ConfineMetaClassChanges
@@ -35,7 +35,7 @@ class TwilioUtilsSpec extends Specification {
             getQueryString: { "test3=bye&" }
         ] as HttpServletRequest
         request.metaClass.getProperties = { ["forwardURI":""] }
-        TypeConvertingMap allParams = new TypeConvertingMap([test1:"hello", test2:"bye", test3:"kiki"])
+        TypeMap allParams = TypeMap.create([test1:"hello", test2:"bye", test3:"kiki"])
         Map<String,String> params = TwilioUtils.extractTwilioParams(request, allParams)
 
         then:
@@ -105,7 +105,7 @@ class TwilioUtilsSpec extends Specification {
         MockedMethod getAuthToken = TestUtils.mock(TwilioUtils, "getAuthToken") { authToken }
         GroovyMock(RequestValidator, global: true)
 
-        TypeConvertingMap allParams = new TypeConvertingMap([:])
+        TypeMap allParams = TypeMap.create([:])
 
         when: "missing auth header"
         Result<Void> res = TwilioUtils.validate(mockRequest, allParams)
@@ -174,7 +174,7 @@ class TwilioUtilsSpec extends Specification {
         String mediaId = TestUtils.randString()
         TwilioUtils.metaClass."static".extractMediaIdFromUrl = { String url -> mediaId }
 
-        TypeConvertingMap params = new TypeConvertingMap([AccountSid: accountId])
+        TypeMap params = TypeMap.create([AccountSid: accountId])
         List<String> urls = []
         int numMedia = 2
         numMedia.times {
@@ -208,7 +208,7 @@ class TwilioUtilsSpec extends Specification {
         String accountId = TestUtils.randString()
         String url = TestUtils.randString()
         String sid = TestUtils.randString()
-        TypeConvertingMap params = new TypeConvertingMap(AccountSid: accountId,
+        TypeMap params = TypeMap.create(AccountSid: accountId,
             RecordingUrl: url,
             RecordingSid: sid)
 

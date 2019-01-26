@@ -11,8 +11,12 @@ import org.textup.type.FutureMessageType
 import org.textup.util.*
 import spock.lang.Specification
 
-@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, FutureMessage,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 class FutureMessageCleanupJobSpec extends Specification {
 

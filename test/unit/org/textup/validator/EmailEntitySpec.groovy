@@ -1,12 +1,19 @@
 package org.textup.validator
 
-import org.textup.test.*
 import com.sendgrid.Email
-import grails.test.mixin.support.GrailsUnitTestMixin
-import grails.test.mixin.TestMixin
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import spock.lang.*
 
 @TestMixin(GrailsUnitTestMixin)
 @Unroll

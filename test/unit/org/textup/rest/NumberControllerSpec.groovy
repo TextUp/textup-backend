@@ -11,19 +11,21 @@ import javax.servlet.http.HttpServletRequest
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.AvailablePhoneNumber
-import org.textup.validator.PhoneNumber
-import spock.lang.Shared
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(NumberController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class NumberControllerSpec extends CustomSpec {
 
@@ -56,7 +58,7 @@ class NumberControllerSpec extends CustomSpec {
         then:
         1 * controller.authService.loggedInAndActive
         0 * controller.numberService._
-        response.status == SC_FORBIDDEN
+        response.status == HttpServletResponse.SC_FORBIDDEN
 
         when:
         response.reset()
@@ -67,7 +69,7 @@ class NumberControllerSpec extends CustomSpec {
         1 * controller.authService.loggedInAndActive >> s1
         1 * controller.numberService.listExistingNumbers(*_) >> new Result(payload: [aNum])
         1 * controller.numberService.listNewNumbers(*_) >> new Result(payload: [aNum])
-        response.status == SC_OK
+        response.status == HttpServletResponse.SC_OK
         response.json.size() == 2
     }
 
@@ -97,7 +99,7 @@ class NumberControllerSpec extends CustomSpec {
 
         then:
         1 * controller.numberService.validateNumber(*_) >> new Result(payload: aNum)
-        response.status == SC_OK
+        response.status == HttpServletResponse.SC_OK
     }
 
     // Request verify
@@ -130,7 +132,7 @@ class NumberControllerSpec extends CustomSpec {
         then:
         1 * controller.numberService.startVerifyOwnership({ it.number == num }) >>
             new Result(status: ResultStatus.NO_CONTENT)
-        response.status == SC_NO_CONTENT
+        response.status == HttpServletResponse.SC_NO_CONTENT
         response.text == ""
     }
 
@@ -152,7 +154,7 @@ class NumberControllerSpec extends CustomSpec {
         then:
         1 * controller.numberService.finishVerifyOwnership(tok, { it.number == num }) >>
             new Result(status: ResultStatus.NO_CONTENT)
-        response.status == SC_NO_CONTENT
+        response.status == HttpServletResponse.SC_NO_CONTENT
         response.text == ""
     }
 }

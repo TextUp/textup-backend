@@ -13,15 +13,21 @@ import org.springframework.context.MessageSource
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.userdetails.UserDetails
 import org.textup.*
-import org.textup.type.OrgStatus
-import spock.lang.Shared
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(SocketController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class SocketControllerSpec extends CustomSpec {
 
@@ -51,7 +57,7 @@ class SocketControllerSpec extends CustomSpec {
     	controller.save()
 
     	then:
-    	response.status == SC_FORBIDDEN
+    	response.status == HttpServletResponse.SC_FORBIDDEN
     }
 
     void "test forbidden from accessing private channel outside your own"() {
@@ -67,7 +73,7 @@ class SocketControllerSpec extends CustomSpec {
         controller.save()
 
         then:
-        response.status == SC_FORBIDDEN
+        response.status == HttpServletResponse.SC_FORBIDDEN
     }
 
     void "test successfully authenticate private channel"() {
@@ -83,7 +89,7 @@ class SocketControllerSpec extends CustomSpec {
         controller.save()
 
         then:
-        response.status == SC_OK
+        response.status == HttpServletResponse.SC_OK
         response.json.socketId == params.socket_id
         response.json.channelName == params.channel_name
     }

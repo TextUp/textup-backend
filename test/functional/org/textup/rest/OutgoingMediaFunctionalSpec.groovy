@@ -3,7 +3,6 @@ package org.textup.rest
 import org.textup.test.*
 import grails.plugins.rest.client.RestResponse
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.*
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
