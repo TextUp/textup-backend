@@ -84,7 +84,7 @@ class FutureMessageJobService {
             }
             .then { FutureMessage fMsg, Staff s1, TempRecordItem temp1, Recipients r1 ->
                 RecordItemType rType = fMsg.type.toRecordItemType()
-                outgoingMessageService.tryStart(rType, r1, temp1, s1.toAuthor()).curry(fMsg)
+                outgoingMessageService.tryStart(rType, r1, temp1, Author.create(s1)).curry(fMsg)
             }
             .then { FutureMessage fMsg, Tuple<List<RecordItem>, Future<?>> processed ->
                 Tuple.split(processed) { List<RecordItem> rItems, Future<?> fut1 ->

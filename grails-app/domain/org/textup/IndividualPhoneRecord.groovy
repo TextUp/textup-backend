@@ -72,10 +72,7 @@ class IndividualPhoneRecord extends PhoneRecord {
     }
 
     IndividualPhoneRecordInfo toInfo() {
-        new IndividualPhoneRecordInfo(id: id,
-            name: name,
-            note: note,
-            numbers: Collections.unmodifiableCollection(getSortedNumbers()))
+        IndividualPhoneRecordInfo.create(id, name, note, getSortedNumbers())
     }
 
     // Properties

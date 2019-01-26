@@ -22,7 +22,7 @@ class FutureMessageCleanupJob implements Job {
 
     @GrailsTypeChecked
     void execute(JobExecutionContext context = null) {
-        DateTime now = JodaUtils.now()
+        DateTime now = JodaUtils.utcNow()
         // examine messages that are NOT done but have started either today or earlier
         DetachedCriteria query = FutureMessage.where {
             isDone == false && startDate <= DateTime.now()

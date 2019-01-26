@@ -86,10 +86,10 @@ class MediaService {
             .then { Tuple<UploadItem, List<UploadItem>> processed ->
                 Tuple.split(processed) { UploadItem sendItem, List<UploadItem> altItems ->
                     sendItem.isPublic = initialUpload.isPublic
-                    el1.sendVersion = sendItem.toMediaElementVersion()
+                    el1.sendVersion = MediaElementVersion.createIfPresent(sendItem)
                     altItems.each { UploadItem uItem ->
                         uItem.isPublic = initialUpload.isPublic
-                        el1.addToAlternateVersions(uItem.toMediaElementVersion())
+                        el1.addToAlternateVersions(MediaElementVersion.createIfPresent(uItem))
                     }
                     DomainUtils.trySave(el1).then {
                         IOCUtils.resultFactory.success(CollectionUtils.mergeUnique([[sendItem], altItems]))

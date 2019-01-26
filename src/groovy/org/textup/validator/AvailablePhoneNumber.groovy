@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,6 +12,7 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
+@TupleConstructor(includeSuperProperties = true, includeFields = true)
 @Validateable
 class AvailablePhoneNumber extends BasePhoneNumber {
 
@@ -26,16 +28,13 @@ class AvailablePhoneNumber extends BasePhoneNumber {
     }
 
     static Result<AvailablePhoneNumber> tryCreateExisting(String num, String sid) {
-        AvailablePhoneNumber aNum = new AvailablePhoneNumber(number: num,
-            info: sid,
-            infoType: TYPE_EXISTING)
+        AvailablePhoneNumber aNum = new AvailablePhoneNumber(num, sid, TYPE_EXISTING)
         DomainUtils.tryValidate(aNum, ResultStatus.CREATED)
     }
 
     static Result<AvailablePhoneNumber> tryCreateNew(String num, String country, String region) {
-        AvailablePhoneNumber aNum = new AvailablePhoneNumber(number: num,
-            info: region ? "${region}, ${country}".toString() : country,
-            infoType: TYPE_NEW)
+        String info = region ? "${region}, ${country}".toString() : country
+        AvailablePhoneNumber aNum = new AvailablePhoneNumber(num, info, TYPE_NEW)
         DomainUtils.tryValidate(aNum, ResultStatus.CREATED)
     }
 }

@@ -2,11 +2,13 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.joda.time.DateTime
 import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 class UnreadInfo {
 
     final int numTexts
@@ -18,9 +20,9 @@ class UnreadInfo {
             .buildForRecordIdsWithOptions([recId], lastTouched, null, [RecordText, RecordCall])
             .build(RecordItems.forIncoming())
             .list()
-        new UnreadInfo(numTexts: forClass(rItems, RecordText).size(),
-            numCalls: notVoicemail(forClass(rItems, RecordCall)).size(),
-            numVoicemails: isVoicemail(forClass(rItems, RecordCall)).size())
+        new UnreadInfo(forClass(rItems, RecordText).size(),
+            notVoicemail(forClass(rItems, RecordCall)).size(),
+            isVoicemail(forClass(rItems, RecordCall)).size())
     }
 
     // Helpers

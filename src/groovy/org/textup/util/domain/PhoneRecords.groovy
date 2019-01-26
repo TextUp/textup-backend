@@ -81,7 +81,7 @@ class PhoneRecords {
             eq("isDeleted", false) // TODO does this work?
             or {
                 isNull("dateExpired") // not expired if null
-                gt("dateExpired", JodaUtils.now())
+                gt("dateExpired", JodaUtils.utcNow())
             }
             phone {
                 CriteriaUtils.compose(delegate, Phones.forActive())

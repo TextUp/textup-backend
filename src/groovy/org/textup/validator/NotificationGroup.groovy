@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,6 +12,7 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
 class NotificationGroup implements CanValidate {
 
@@ -34,7 +36,7 @@ class NotificationGroup implements CanValidate {
             }
             .toResult(false)
             .then { List<Notification> many2 ->
-                NotificationGroup notifGroup = new NotificationGroup(notifications: many2)
+                NotificationGroup notifGroup = new NotificationGroup(many2)
                 DomainUtils.tryValidate(notifGroup, ResultStatus.CREATED)
             }
     }

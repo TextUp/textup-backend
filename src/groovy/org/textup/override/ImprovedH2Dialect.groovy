@@ -9,6 +9,7 @@ import org.hibernate.dialect.H2Dialect
  *
  */
 class ImprovedH2Dialect extends H2Dialect {
+
     @Override
     public String getDropSequenceString(String sequenceName) {
         // Adding the "if exists" clause to avoid warnings

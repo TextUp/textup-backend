@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,11 +12,12 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
 class MergeGroup implements CanValidate {
 
-	Long targetId
-	Collection<MergeGroupItem> possibleMerges = []
+	final Long targetId
+	final Collection<MergeGroupItem> possibleMerges
 
 	static constraints = {
 		targetId validator: { Long id ->
@@ -43,7 +45,7 @@ class MergeGroup implements CanValidate {
 	}
 
 	static Result<MergeGroup> tryCreate(Long tId, Collection<MergeGroupItem> possibleMerges) {
-		MergeGroup mGroup = new MergeGroup(targetId: tId, possibleMerges: possibleMerges)
+		MergeGroup mGroup = new MergeGroup(tId, Collections.unmodifiableCollection(possibleMerges))
 		DomainUtils.tryValidate(mGroup, ResultStatus.CREATED)
 	}
 
@@ -51,10 +53,4 @@ class MergeGroup implements CanValidate {
 	// -------
 
 	IndividualPhoneRecord buildTarget() { IndividualPhoneRecord.get(targetId) }
-
-	MergeGroup add(PhoneNumber pNum, Collection<Long> mergeIds) {
-		Collection<Long> itemIds = mergeIds.findAll { Long cId -> cId != targetId }
-		possibleMerges << new MergeGroupItem(number: pNum, mergeIds: itemIds)
-		this
-	}
 }

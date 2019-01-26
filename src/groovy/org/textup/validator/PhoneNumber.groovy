@@ -20,15 +20,8 @@ class PhoneNumber extends BasePhoneNumber {
         number phoneNumber: true
     }
 
-    // Static creators
-    // ---------------
-
-    static PhoneNumber create(String num) {
-        new PhoneNumber(number: num)
-    }
-
-    static Result<PhoneNumber> tryCreate(String num) {
-        DomainUtils.tryValidate(PhoneNumber.create(num), ResultStatus.CREATED)
+    static PhoneNumber create(BasePhoneNumber bNum) {
+        PhoneNumber.create(bNum?.number)
     }
 
     static Result<PhoneNumber> tryUrlDecode(String num) {
@@ -37,5 +30,13 @@ class PhoneNumber extends BasePhoneNumber {
             PhoneNumber.tryCreate(decodedNum)
         }
         catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
+    }
+
+    static Result<PhoneNumber> tryCreate(String num) {
+        DomainUtils.tryValidate(PhoneNumber.create(num), ResultStatus.CREATED)
+    }
+
+    static PhoneNumber create(String num) {
+        new PhoneNumber(number: num)
     }
 }

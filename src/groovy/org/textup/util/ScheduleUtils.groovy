@@ -70,7 +70,7 @@ class ScheduleUtils {
 
         List<Interval> result = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(TIME_FORMAT).withZoneUTC()
-        DateTime today = JodaUtils.now(),
+        DateTime today = JodaUtils.utcNow(),
             zoneToday = DateTime.now(zone)
         // order of the arguments in this call is very important
         // we put the zone first so that the result number is the modifier that we

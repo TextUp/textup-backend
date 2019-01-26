@@ -27,10 +27,10 @@ class TagActionService implements HandlesActions<GroupPhoneRecord, GroupPhoneRec
                 actions.each { GroupMemberAction a1 ->
                     switch (a1) {
                         case GroupMemberAction.ADD:
-                            gpr1.addToMembers(a1.buildPhoneRecord())
+                            gpr1.members.addToPhoneRecords(a1.buildPhoneRecord())
                             break
                         default: // GroupMemberAction.REMOVE
-                            gpr1.removeFromMembers(a1.buildPhoneRecord())
+                            gpr1.members.removeFromPhoneRecords(a1.buildPhoneRecord())
                     }
                 }
                 DomainUtils.trySave(gpr1)

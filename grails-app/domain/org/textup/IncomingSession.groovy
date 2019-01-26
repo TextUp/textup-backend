@@ -17,8 +17,8 @@ class IncomingSession implements WithId, CanSave<IncomingSession> {
 
     Boolean isSubscribedToCall = false
     Boolean isSubscribedToText = false
-    DateTime lastSentInstructions = JodaUtils.now().minusDays(2)
-    DateTime whenCreated = JodaUtils.now()
+    DateTime lastSentInstructions = JodaUtils.utcNow().minusDays(2)
+    DateTime whenCreated = JodaUtils.utcNow()
     Phone phone
     String numberAsString
 
@@ -37,11 +37,7 @@ class IncomingSession implements WithId, CanSave<IncomingSession> {
     // -------
 
     void updateLastSentInstructions() {
-        lastSentInstructions = JodaUtils.now()
-    }
-
-    Author toAuthor() {
-        new Author(id: id, type: AuthorType.SESSION, name: numberAsString)
+        lastSentInstructions = JodaUtils.utcNow()
     }
 
     // Properties

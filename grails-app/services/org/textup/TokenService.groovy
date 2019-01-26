@@ -49,7 +49,7 @@ class TokenService {
                 if (mId) {
                     MediaInfos.mustFindForId(mId)
                         .logFail("buildDirectMessageCall")
-                        .then { MediaInfo mInfo ->
+                        .thenEnd { MediaInfo mInfo ->
                             recordings = mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES)
                                 *.sendVersion
                                 *.link
@@ -94,7 +94,7 @@ class TokenService {
                 }
                 .then { Token tok1 ->
                     tok1.maxNumAccess = ValidationUtils.MAX_NUM_ACCESS_NOTIFICATION_TOKEN
-                    tok1.expires = JodaUtils.now().plusDays(1)
+                    tok1.expires = JodaUtils.utcNow().plusDays(1)
                     IOCUtils.resultFactory.success(tok1)
                 }
         }

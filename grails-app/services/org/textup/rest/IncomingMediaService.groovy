@@ -69,7 +69,7 @@ class IncomingMediaService {
                 Tuple.split(processed) { UploadItem sendVersion, List<UploadItem> altVersions ->
                     sendVersion.isPublic = im1.isPublic
                     altVersions.each { UploadItem uItem -> uItem.isPublic = im1.isPublic }
-                    MediaElement.tryCreate(sendVersion, altVersions)
+                    MediaElement.tryCreate(altVersions, sendVersion)
                         .curry(CollectionUtils.mergeUnique([altVersions, [sendVersion]]))
                 }
             }

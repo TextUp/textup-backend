@@ -18,8 +18,8 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
 
     FutureMessageJobService futureMessageJobService
 
-    DateTime lastTouched = JodaUtils.now()
-    DateTime whenCreated = JodaUtils.now()
+    DateTime lastTouched = JodaUtils.utcNow()
+    DateTime whenCreated = JodaUtils.utcNow()
     Phone phone
     PhoneRecordStatus status = PhoneRecordStatus.ACTIVE
     Record record
@@ -29,6 +29,7 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
     SharePermission permission // null implies ownership and therefore full permissions
 
     static transients = ["futureMessageJobService"]
+    static mappedBy = [shareSource: "none"] // unidirectional relationship
     static mapping = {
         dateExpired type: PersistentDateTime
         lastTouched type: PersistentDateTime
@@ -67,9 +68,7 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
     // -------
 
     PhoneRecordShareInfo toShareInfo() {
-        new PhoneRecordShareInfo(whenCreated: whenCreated,
-            phoneId: phone.id,
-            permission: permission.toString())
+        PhoneRecordShareInfo.create(whenCreated, phone, permission)
     }
 
     boolean isActive() { toPermissions().isNotExpired() }

@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,12 +12,13 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
 class TempRecordItem implements CanValidate {
 
-	String text
-	MediaInfo media
-	Location location
+	final Location location
+	final MediaInfo media
+	final String text
 
 	static constraints = {
 		text nullable: true, blank: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE,
@@ -28,7 +30,7 @@ class TempRecordItem implements CanValidate {
 	}
 
 	static Result<TempRecordItem> tryCreate(String text, MediaInfo mInfo, Location loc1) {
-		TempRecordItem temp1 = new TempRecordItem(text: text, media: mInfo, location: loc1)
+		TempRecordItem temp1 = new TempRecordItem(loc1, mInfo, text)
 		DomainUtils.tryValidate(temp1, ResultStatus.CREATED)
 	}
 

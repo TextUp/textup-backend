@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,15 +12,16 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
 class RecordItemRequestSection implements CanValidate {
 
-    final String phoneName
-    final String phoneNumber
     final Collection<? extends ReadOnlyRecordItem> recordItems
     final Collection<String> contactNames
     final Collection<String> sharedContactNames
     final Collection<String> tagNames
+    final String phoneName
+    final String phoneNumber
 
     static constraints = {
         recordItems minSize: 1
@@ -37,12 +39,13 @@ class RecordItemRequestSection implements CanValidate {
         Collection<String> tNames = WrapperUtils.secureNamesIgnoreFails(wraps) { PhoneRecordWrapper w1 ->
             WrapperUtils.isTag(w1)
         }
-        RecordItemRequestSection section1 = new RecordItemRequestSection(phoneName: pName,
-            phoneNumber: pNum.prettyPhoneNumber,
-            recordItems: Collections.unmodifiableCollection(rItems),
-            contactNames: Collections.unmodifiableCollection(cNames),
-            sharedContactNames: Collections.unmodifiableCollection(sNames),
-            tagNames: Collections.unmodifiableCollection(tNames))
+        RecordItemRequestSection section1 = new RecordItemRequestSection(
+            Collections.unmodifiableCollection(rItems),
+            Collections.unmodifiableCollection(cNames),
+            Collections.unmodifiableCollection(sNames),
+            Collections.unmodifiableCollection(tNames),
+            pName,
+            pNum.prettyPhoneNumber)
         DomainUtils.tryValidate(section1, ResultStatus.CREATED)
     }
 }

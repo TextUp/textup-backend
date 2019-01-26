@@ -14,7 +14,7 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
-@Secured([Roles.USER, Roles.ADMIN])
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 @Transactional
 class StaffController extends BaseController {
 
@@ -43,7 +43,7 @@ class StaffController extends BaseController {
         doShow({ Staffs.isAllowed(id) }, { Staffs.mustFindForId(id) })
     }
 
-    @Secured(Roles.PUBLIC)
+    @Secured("permitAll")
     @Override
     void save() {
         TypeMap qParams = TypeMap.create(params)

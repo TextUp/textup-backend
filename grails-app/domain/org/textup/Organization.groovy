@@ -15,7 +15,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Organization implements WithId, CanSave<Organization> {
 
-    DateTime whenCreated = JodaUtils.now()
+    DateTime whenCreated = JodaUtils.utcNow()
 	String name
 	Location location
     OrgStatus status = OrgStatus.PENDING

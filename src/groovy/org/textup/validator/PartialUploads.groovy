@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,18 +12,19 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true, excludes = ["elements", "uploads"])
 @Validateable
 class PartialUploads implements CanValidate {
 
     private final Collection<Tuple<UploadItem, MediaElement>> tuples
 
-    final Collection<UploadItem> uploads
     final Collection<MediaElement> elements
+    final Collection<UploadItem> uploads
 
     static constraints = {
         elements cascadeValidation: true, validator: { Collection<MediaElement> val, PartialUploads obj ->
             if (val?.size() != obj.uploads?.size()) {
-                ["missingInfo", val*id]
+                ["missingInfo", val*.id]
             }
         }
         uploads cascadeValidation: true
@@ -32,8 +34,12 @@ class PartialUploads implements CanValidate {
         ResultGroup.collect(uItems) { UploadItem uItem -> createAndAdd(uItem) }
             .toResult(false)
             .then { Collection<Tuple<UploadItem, MediaElement>> tuples ->
-                DomainUtils.tryValidate(new PartialUploads(tuples: tuples), ResultStatus.CREATED)
+                PartialUploads.tryCreateFromTuples(tuples)
             }
+    }
+
+    static Result<PartialUploads> tryCreateFromTuples(Collection<Tuple<UploadItem, MediaElement>> tuples) {
+        DomainUtils.tryValidate(new PartialUploads(tuples), ResultStatus.CREATED)
     }
 
     // Methods
@@ -60,7 +66,7 @@ class PartialUploads implements CanValidate {
     // -------
 
     protected Result<Tuple<UploadItem, MediaElement>> createAndAdd(UploadItem uItem) {
-        MediaElement.tryCreate(null, [uItem])
+        MediaElement.tryCreate([uItem])
             .then { MediaElement el1 -> IOCUtils.resultFactory.success(uItem, el1) }
     }
 }

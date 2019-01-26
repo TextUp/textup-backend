@@ -13,7 +13,4 @@ interface IsIncomingMedia extends CanValidate {
     String getMediaId()
     boolean getIsPublic()
     Result<Boolean> delete()
-
-    boolean validate()
-    Errors getErrors()
 }

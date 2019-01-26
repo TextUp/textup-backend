@@ -16,7 +16,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class AnnouncementReceipt implements WithId, CanSave<AnnouncementReceipt> {
 
-	DateTime whenCreated = JodaUtils.now()
+	DateTime whenCreated = JodaUtils.utcNow()
 	FeaturedAnnouncement announcement
 	IncomingSession session
 	RecordItemType type

@@ -12,9 +12,9 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Roles {
 
-    static final String PUBLIC = "permitAll"
-    static final String USER = "ROLE_USER"
-    static final String ADMIN = "ROLE_ADMIN"
+    // cannot use variables in Groovy annotations because of a longstanding bug
+    private static final String ADMIN = "ROLE_ADMIN"
+    private static final String USER = "ROLE_USER"
 
     static Result<Role> tryGetUserRole() {
         Role r1 = Role.findByAuthority(USER, [cache: true])

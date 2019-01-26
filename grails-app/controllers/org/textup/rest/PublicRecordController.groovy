@@ -12,7 +12,7 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
-@Secured(Roles.PUBLIC)
+@Secured("permitAll")
 @Transactional
 class PublicRecordController extends BaseController {
 

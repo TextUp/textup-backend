@@ -27,7 +27,7 @@ class TextService {
                             TempRecordReceipt.tryCreate(msgRes.sid, toNum).curry(msgRes)
                         }
                         .then { TextService.Outcome msgRes, TempRecordReceipt rpt1 ->
-                            rpt1.numSegments = msgRes.numSegments
+                            rpt1.numBillable = msgRes.numBillable
                             DomainUtils.tryValidate(rpt1)
                         }
                 }
@@ -49,7 +49,7 @@ class TextService {
 
     protected static class Outcome {
         String sid
-        Integer numSegments
+        Integer numBillable
     }
 
     protected Result<TextService.Outcome> tryText(BasePhoneNumber fromNum, BasePhoneNumber toNum,
@@ -62,7 +62,7 @@ class TextService {
                 .setMediaUrl(new ArrayList<URI>(mediaUrls))
                 .create()
             TextService.Outcome msgRes = new TextService.Outcome(sid: msg1.sid,
-                numSegments: TypeUtils.to(Integer, msg1.numSegments))
+                numBillable: TypeUtils.to(Integer, msg1.numSegments))
             IOCUtils.resultFactory.success(msgRes)
         }
         catch (Throwable e) {

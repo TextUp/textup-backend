@@ -107,7 +107,7 @@ class LocalIntervalUtils {
     static Map<String, List<LocalInterval>> fromIntervalsToLocalIntervalsMap(List<Interval> intervals) {
         List<String> daysOfWeek = ScheduleUtils.DAYS_OF_WEEK
         Map<String,List<LocalInterval>> localIntervals = daysOfWeek.collectEntries { [(it):[]] }
-        DateTime today = JodaUtils.now()
+        DateTime today = JodaUtils.utcNow()
         intervals.each { Interval interval ->
             int startDayOfWeek = getDayOfWeekIndex(ScheduleUtils.getDaysBetween(today, interval.start)),
                 endDayOfWeek = getDayOfWeekIndex(ScheduleUtils.getDaysBetween(today, interval.end))

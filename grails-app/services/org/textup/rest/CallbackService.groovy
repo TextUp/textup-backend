@@ -94,28 +94,30 @@ class CallbackService {
                 callCallbackService.checkIfVoicemail(p1, is1, params)
                 break
             case CallResponse.VOICEMAIL_DONE:
-                // in about 5% of cases, when the RecordingStatusCallback is called, the recording
-                // at the provided url still isn't ready and a request to that url returns a
-                // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
-                // is completely done being stored before attempting to fetch it.
-                threadService.delay(5, TimeUnit.SECONDS) {
-                    IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
-                    int duration = params.int(TwilioUtils.RECORDING_DURATION, 0)
-                    voicemailCallbackService.processVoicemailMessage(apiId, duration, im1)
-                        .logFail("processCall: VOICEMAIL_DONE")
+                IncomingRecordingInfo.tryCreate(params).then { IncomingRecordingInfo ir1 ->
+                    // in about 5% of cases, when the RecordingStatusCallback is called, the recording
+                    // at the provided url still isn't ready and a request to that url returns a
+                    // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
+                    // is completely done being stored before attempting to fetch it.
+                    threadService.delay(5, TimeUnit.SECONDS) {
+                        int duration = params.int(TwilioUtils.RECORDING_DURATION, 0)
+                        voicemailCallbackService.processVoicemailMessage(apiId, duration, ir1)
+                            .logFail("processCall: VOICEMAIL_DONE")
+                    }
+                    TwilioUtils.noResponseTwiml()
                 }
-                TwilioUtils.noResponseTwiml()
                 break
             case CallResponse.VOICEMAIL_GREETING_RECORD:
                 CallTwiml.recordVoicemailGreeting(p1.number, is1.number)
                 break
             case CallResponse.VOICEMAIL_GREETING_PROCESSED:
-                threadService.delay(5, TimeUnit.SECONDS) {
-                    IncomingRecordingInfo im1 = TwilioUtils.buildIncomingRecording(params)
-                    voicemailCallbackService.finishProcessingVoicemailGreeting(p1.id, apiId, im1)
-                        .logFail("processCall: VOICEMAIL_GREETING_PROCESSED")
+                IncomingRecordingInfo.tryCreate(params).then { IncomingRecordingInfo ir1 ->
+                    threadService.delay(5, TimeUnit.SECONDS) {
+                        voicemailCallbackService.finishProcessingVoicemailGreeting(p1.id, apiId, ir1)
+                            .logFail("processCall: VOICEMAIL_GREETING_PROCESSED")
+                    }
+                    TwilioUtils.noResponseTwiml()
                 }
-                TwilioUtils.noResponseTwiml()
                 break
             case CallResponse.VOICEMAIL_GREETING_PLAY:
                 CallTwiml.playVoicemailGreeting(p1.number, p1.voicemailGreetingUrl)
@@ -137,20 +139,21 @@ class CallbackService {
     protected Result<Closure> processText(Phone p1, IncomingSession is1, String apiId,
         TypeMap params) {
 
-        String message = params.string(TwilioUtils.BODY)
-        Integer numSegments = params.int(TwilioUtils.NUM_SEGMENTS)
-        List<IncomingMediaInfo> media = TwilioUtils.buildIncomingMedia(apiId, params)
-        switch (message) {
-            case TextTwiml.BODY_SEE_ANNOUNCEMENTS:
-                announcementCallbackService.textSeeAnnouncements(p1, is1) {
+        TwilioUtils.tryBuildIncomingMedia(apiId, params).then { List<IncomingMediaInfo> media ->
+            String message = params.string(TwilioUtils.BODY)
+            Integer numSegments = params.int(TwilioUtils.NUM_SEGMENTS)
+            switch (message) {
+                case TextTwiml.BODY_SEE_ANNOUNCEMENTS:
+                    announcementCallbackService.textSeeAnnouncements(p1, is1) {
+                        incomingTextService.process(p1, is1, apiId, message, numSegments, media)
+                    }
+                    break
+                case TextTwiml.BODY_TOGGLE_SUBSCRIBE:
+                    announcementCallbackService.textToggleSubscribe(is1)
+                    break
+                default:
                     incomingTextService.process(p1, is1, apiId, message, numSegments, media)
-                }
-                break
-            case TextTwiml.BODY_TOGGLE_SUBSCRIBE:
-                announcementCallbackService.textToggleSubscribe(is1)
-                break
-            default:
-                incomingTextService.process(p1, is1, apiId, message, numSegments, media)
+            }
         }
     }
 }

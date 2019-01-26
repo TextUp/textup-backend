@@ -13,13 +13,13 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
-@Secured([Roles.USER, Roles.ADMIN])
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 @Transactional
 class OrganizationController extends BaseController {
 
     OrganizationService organizationService
 
-    @Secured(Roles.PUBLIC)
+    @Secured("permitAll")
     @Override
     void index() {
         TypeMap qParams = TypeMap.create(params)
@@ -29,7 +29,7 @@ class OrganizationController extends BaseController {
             MarshallerUtils.KEY_ORGANIZATION)
     }
 
-    @Secured(Roles.PUBLIC)
+    @Secured("permitAll")
     @Override
     void show() {
         Long id = params.long("id")

@@ -19,14 +19,14 @@ class JodaUtils {
     static final DateTimeFormatter FILE_TIMESTAMP_FORMAT = DateTimeFormat.forPattern("MMM-dd-yyyy")
     static final DateTimeFormatter QUERY_MONTH_FORMAT = DateTimeFormat.forPattern("yyyy-MM")
 
-    static DateTime now() { JodaUtils.now() }
+    static DateTime utcNow() { DateTime.now(DateTimeZone.UTC) }
 
     static DateTimeZone getZoneFromId(String id) {
         try {
             id ? DateTimeZone.forID(id) : DateTimeZone.UTC
         }
         catch (e) {
-            log.debug("JodaUtils.getZoneFromId: ${e.message}")
+            log.debug("getZoneFromId: ${e.message}")
             return DateTimeZone.UTC
         }
     }
@@ -48,7 +48,7 @@ class JodaUtils {
             new DateTime(stringVal).withZone(tz)
         }
         catch (e) {
-            log.debug("JodaUtils.toDateTimeWithZone: $e")
+            log.debug("toDateTimeWithZone: $e")
             null
         }
     }

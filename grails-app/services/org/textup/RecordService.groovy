@@ -59,7 +59,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
         RecordNotes.mustFindModifiableForId(noteId)
             .then { RecordNote rNote1 -> AuthUtils.tryGetAuthUser().curry(rNote1) }
             .then { RecordNote rNote1, Staff authUser ->
-                trySetNoteFields(rNote1, body, authUser.toAuthor())
+                trySetNoteFields(rNote1, body, Author.create(authUser))
             }
             .then { RecordNote rNote1 ->
                 mediaService.tryCreateOrUpdate(rNote1, body).curry(rNote1)
@@ -102,7 +102,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
                 AuthUtils.tryGetAuthUser().curry(r1, temp1)
             }
             .then { Recipients r1, TempRecordItem temp1, Staff authUser ->
-                outgoingMessageService.tryStart(RecordItemType.TEXT, r1, temp1, authUser.toAuthor(), future)
+                outgoingMessageService.tryStart(RecordItemType.TEXT, r1, temp1, Author.create(authUser), future)
             }
             .then { Tuple<List<? extends RecordItem>, Future<?>> processed ->
                 IOCUtils.resultFactory.success(processed.first, ResultStatus.CREATED)
@@ -114,7 +114,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
             .then { Recipients r1 -> r1.tryGetOneIndividual() }
             .then { IndividualPhoneRecordWrapper w1 -> AuthUtils.tryGetAuthUser().curry(w1) }
             .then { IndividualPhoneRecordWrapper w1, Staff authUser ->
-                outgoingCallService.tryStart(authUser.personalNumber, w1, authUser.toAuthor())
+                outgoingCallService.tryStart(authUser.personalNumber, w1, Author.create(authUser))
             }
             .then { RecordCall rCall1 ->
                 IOCUtils.resultFactory.success([rCall1], ResultStatus.CREATED)
@@ -132,7 +132,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
             .then { TempRecordItem temp1, Record rec1 -> RecordNote.tryCreate(rec1, temp1) }
             .then { RecordNote rNote1 -> AuthUtils.tryGetAuthUser().curry(rNote1) }
             .then { RecordNote rNote1, Staff authUser ->
-                trySetNoteFields(rNote1, body, authUser.toAuthor())
+                trySetNoteFields(rNote1, body, Author.create(authUser))
             }
             .then { RecordNote rNote1 -> DomainUtils.trySave(rNote1) }
             .then { RecordCall rNote1 ->

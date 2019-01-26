@@ -14,7 +14,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement> {
 
-    DateTime whenCreated = JodaUtils.now()
+    DateTime whenCreated = JodaUtils.utcNow()
     MediaElementVersion sendVersion
     String uid = UUID.randomUUID().toString()
 
@@ -33,10 +33,12 @@ class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement
         alternateVersions nullable: true, cascadeValidation: true
     }
 
-    static Result<MediaElement> tryCreate(UploadItem sVersion, Collection<UploadItem> alternates) {
-        MediaElement e1 = new MediaElement(sendVersion: sVersion?.toMediaElementVersion())
+    static Result<MediaElement> tryCreate(Collection<UploadItem> alternates,
+        UploadItem sVersion = null) {
+
+        MediaElement e1 = new MediaElement(sendVersion: MediaElementVersion.createIfPresent(sVersion))
         alternates?.each { UploadItem uItem ->
-            e1.addToAlternateVersions(uItem.toMediaElementVersion())
+            e1.addToAlternateVersions(MediaElementVersion.createIfPresent(uItem))
         }
         DomainUtils.trySave(e1, ResultStatus.CREATED)
     }

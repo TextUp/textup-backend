@@ -21,7 +21,7 @@ class Staff implements WithId, CanSave<Staff> {
     boolean accountLocked
     boolean passwordExpired
 
-    DateTime whenCreated = JodaUtils.now()
+    DateTime whenCreated = JodaUtils.utcNow()
     Organization org
     StaffStatus status
     String email
@@ -70,11 +70,6 @@ class Staff implements WithId, CanSave<Staff> {
             encodeLockCode()
         }
     }
-
-    // Methods
-    // -------
-
-    Author toAuthor() { new Author(id: id, type: AuthorType.STAFF, name: name) }
 
     // Properties
     // ----------

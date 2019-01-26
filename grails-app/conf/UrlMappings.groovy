@@ -1,3 +1,11 @@
+import org.textup.*
+import org.textup.rest.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+
 class UrlMappings {
 
 	static mappings = {

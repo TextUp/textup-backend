@@ -15,12 +15,12 @@ class MailData {
     @EqualsAndHashCode
     @Validateable
     static class InvitedStaff implements CanValidate {
-        final String inviter
-        final String invitee
-        final String username
-        final String password
-        final String lockCode
-        final String link = LinkUtils.setupAccount()
+        String inviter
+        String invitee
+        String username
+        String password
+        String lockCode
+        String link = LinkUtils.setupAccount()
 
         static constraints = {
             link url: true
@@ -30,10 +30,10 @@ class MailData {
     @EqualsAndHashCode
     @Validateable
     static class ApprovedStaff implements CanValidate {
-        final String name
-        final String username
-        final String org
-        final String link = LinkUtils.setupAccount()
+        String name
+        String username
+        String org
+        String link = LinkUtils.setupAccount()
 
         static constraints = {
             link url: true
@@ -43,9 +43,9 @@ class MailData {
     @EqualsAndHashCode
     @Validateable
     static class PendingStaff implements CanValidate {
-        final String staff
-        final String org
-        final String link = LinkUtils.adminDashboard()
+        String staff
+        String org
+        String link = LinkUtils.adminDashboard()
 
         static constraints = {
             link url: true
@@ -55,15 +55,15 @@ class MailData {
     @EqualsAndHashCode
     @Validateable
     static class RejectedStaff implements CanValidate {
-        final String name
-        final String username
+        String name
+        String username
     }
 
     @EqualsAndHashCode
     @Validateable
     static class PendingOrg implements CanValidate {
-        final String org
-        final String link = LinkUtils.superDashboard()
+        String org
+        String link = LinkUtils.superDashboard()
 
         static constraints = {
             link url: true
@@ -73,9 +73,9 @@ class MailData {
     @EqualsAndHashCode
     @Validateable
     static class PasswordReset implements CanValidate {
-        final String name
-        final String username
-        final String link
+        String name
+        String username
+        String link
 
         static constraints = {
             link url: true
@@ -85,17 +85,17 @@ class MailData {
     @EqualsAndHashCode
     @Validateable
     static class Notification implements CanValidate {
-        final String staffName
-        final String phoneName
-        final String phoneNumber
-        final String timePeriodDescription
+        String staffName
+        String phoneName
+        String phoneNumber
+        String timePeriodDescription
 
-        final String incomingDescription
-        final String outgoingDescription
-        final int numIncoming
-        final int numOutgoing
+        String incomingDescription
+        String outgoingDescription
+        int numIncoming
+        int numOutgoing
 
-        final String link
+        String link
 
         static constraints = {
             link nullable: true, blank: true, url: true

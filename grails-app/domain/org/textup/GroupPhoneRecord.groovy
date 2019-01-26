@@ -13,31 +13,30 @@ import org.textup.validator.*
 class GroupPhoneRecord extends PhoneRecord {
 
     boolean isDeleted = false
-    String name
+    PhoneRecordMembers members
     String hexColor = Constants.DEFAULT_BRAND_COLOR
+    String name
 
-    static hasMany = [members: PhoneRecord]
     static mapping = {
-        members fetch: "join"
-        isDeleted column: "group_is_deleted"
-        name column: "group_name"
         hexColor column: "group_hex_color"
+        isDeleted column: "group_is_deleted"
+        members fetch: "join", cascade: "all-delete-orphan"
+        name column: "group_name"
     }
     static constraints = {
         hexColor validator: { String val ->
             if (!ValidationUtils.isValidHexCode(val)) { ["invalidHex"] }
         }
-        members validator: { Collection<PhoneRecord> val ->
-            if (val.any { PhoneRecord pr1 -> pr1.instanceOf(GroupPhoneRecord) }) {
-                ["nestingNotSupported"]
-            }
-        }
     }
 
     static Result<GroupPhoneRecord> tryCreate(Phone p1, String name) {
         Record.tryCreate()
-            .then { Record rec1 ->
-                GroupPhoneRecord gpr1 = new GroupPhoneRecord(name: name, phone: p1, record: rec1)
+            .then { Record rec1 -> PhoneRecordMembers.tryCreate().curry(rec1) }
+            .then { Record rec1, PhoneRecordMembers prMembers ->
+                GroupPhoneRecord gpr1 = new GroupPhoneRecord(name: name,
+                    phone: p1,
+                    record: rec1,
+                    members: prMembers)
                 DomainUtils.trySave(gpr1, ResultStatus.CREATED)
             }
     }
@@ -60,7 +59,7 @@ class GroupPhoneRecord extends PhoneRecord {
     String getSecureName() { name }
 
     Collection<PhoneRecord> getActiveMembers() {
-        members?.findAll { PhoneRecord pr1 -> pr1.isActive() } ?: new ArrayList<PhoneRecord>()
+        members.phoneRecords?.findAll { PhoneRecord pr1 -> pr1.isActive() } ?: new ArrayList<PhoneRecord>()
     }
 
     // Can't move to static class because Grails manages this relationship so no direct queries

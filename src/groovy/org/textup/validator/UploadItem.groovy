@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import java.awt.image.BufferedImage
 import org.textup.*
 import org.textup.structure.*
@@ -12,16 +13,17 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true, excludes = ["key", "isPublic"])
 @Validateable
 class UploadItem implements CanValidate {
 
-    String key = UUID.randomUUID().toString()
-    MediaType type
-    byte[] data
-    boolean isPublic = false
+    final String key = UUID.randomUUID().toString()
+    final MediaType type
+    final byte[] data
+    final Integer widthInPixels
+    final Integer heightInPixels
 
-    Integer widthInPixels
-    Integer heightInPixels
+    boolean isPublic = false
 
     static constraints = { // default nullable: false
         // inherent width in pixels for responsive media, currently only intended for images
@@ -30,25 +32,13 @@ class UploadItem implements CanValidate {
         heightInPixels nullable:true, min: 1
     }
 
-    // Methods
-    // -------
-
-    MediaElementVersion toMediaElementVersion() {
-        new MediaElementVersion(type: type,
-            versionId: key,
-            sizeInBytes: sizeInBytes,
-            widthInPixels: widthInPixels,
-            heightInPixels: heightInPixels,
-            isPublic: isPublic)
+    static Result<UploadItem> tryCreate(MediaType type, byte[] data, BufferedImage image = null) {
+        UploadItem uItem1 = new UploadItem(type, data, image?.width, image?.height)
+        DomainUtils.tryValidate(uItem1, ResultStatus.CREATED)
     }
 
-    // Property accesss
-    // ----------------
-
-    void setImage(BufferedImage image) {
-        widthInPixels = image?.width
-        heightInPixels = image?.height
-    }
+    // Properties
+    // ----------
 
     long getSizeInBytes() { data?.length ?: 0l } // so not null
 }

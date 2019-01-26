@@ -50,7 +50,7 @@ class IncomingTextService {
                 ResultGroup
                     .collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
                         w1.tryGetRecord().then { Record rec1 ->
-                            rec1.storeIncoming(RecordItemType.TEXT, is1.toAuthor(), is1.number,
+                            rec1.storeIncoming(RecordItemType.TEXT, Author.create(is1), is1.number,
                                 apiId, message, numSegments)
                         }
                     }

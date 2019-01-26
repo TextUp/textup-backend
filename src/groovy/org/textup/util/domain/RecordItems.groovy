@@ -99,10 +99,10 @@ class RecordItems {
     protected static Closure forDates(DateTime start, DateTime end) {
         return {
             if (start && end) {
-                between("whenCreated", s, end)
+                between("whenCreated", start, end)
             }
             else if (start) {
-                ge("whenCreated", s)
+                ge("whenCreated", start)
             }
         }
     }

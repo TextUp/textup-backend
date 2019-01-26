@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
+import groovy.transform.TupleConstructor
 import groovy.util.logging.Log4j
 import org.textup.type.*
 import org.textup.util.*
@@ -11,24 +12,23 @@ import org.textup.util.*
 @GrailsTypeChecked
 @Log4j
 @ToString
+@TupleConstructor(includeFields = true, includes = ["status", "payload", "errorMessages"])
 class Result<T> {
 
-    T payload
-    ResultStatus status = ResultStatus.OK
-    List<String> errorMessages = []
+    final ResultStatus status
+    final T payload
+    final List<String> errorMessages
 
     private final List<Object> successArgs = []
     private final List<Object> failureArgs = []
     private hasErrorBeenHandled = false // ensure only one failure handler is called in the chain
 
     static <V> Result<V> createSuccess(V payload, ResultStatus status = ResultStatus.OK) {
-        Result<V> res = new Result<>()
-        res.setSuccess(payload, status)
+        new Result<V>(status, payload, [])
     }
 
     static <V> Result<V> createError(List<String> messages, ResultStatus status) {
-        Result<V> res = new Result<>()
-        res.setError(messages, status)
+        new Result<V>(status, null, messages)
     }
 
     static Result<Void> "void"() { Result.<Void>createSuccess(null, ResultStatus.NO_CONTENT) }
@@ -96,9 +96,7 @@ class Result<T> {
         this
     }
 
-    ResultGroup<T> toGroup() {
-        (new ResultGroup<>()).add(this)
-    }
+    ResultGroup<T> toGroup() { new ResultGroup<T>([this]) }
 
     // Currying
     // --------
@@ -129,22 +127,10 @@ class Result<T> {
         this
     }
 
-    // Property Access
-    // ---------------
+    // Properties
+    // ----------
 
-    boolean getSuccess() {
-        status.isSuccess
-    }
-    Result<T> setSuccess(T success, ResultStatus status = ResultStatus.OK) {
-        status = status
-        payload = success
-        this
-    }
-    Result<T> setError(List<String> errors, ResultStatus status) {
-        status = status
-        errorMessages = errors
-        this
-    }
+    boolean getSuccess() { status.isSuccess }
 
     // Helpers
     // -------

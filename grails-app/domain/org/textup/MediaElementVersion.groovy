@@ -25,8 +25,20 @@ class MediaElementVersion implements ReadOnlyMediaElementVersion, WithId, CanSav
         heightInPixels nullable:true, min: 1 // for pre-loading images in gallery on frontend, intended for images
     }
 
-    // Property access
-    // ---------------
+    static MediaElementVersion createIfPresent(UploadItem uItem1) {
+        if (uItem1) {
+            new MediaElementVersion(type: uItem1.type,
+                versionId: uItem1.key,
+                sizeInBytes: uItem1.sizeInBytes,
+                widthInPixels: uItem1.widthInPixels,
+                heightInPixels: uItem1.heightInPixels,
+                isPublic: uItem1.isPublic)
+        }
+        else { null }
+    }
+
+    // Properties
+    // ----------
 
     URL getLink() {
         isPublic ? LinkUtils.unsignedLink(versionId) : LinkUtils.signedLink(versionId)

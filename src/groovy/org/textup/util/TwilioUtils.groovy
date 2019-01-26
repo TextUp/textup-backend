@@ -61,26 +61,13 @@ class TwilioUtils {
                 ResultStatus.BAD_REQUEST)
     }
 
-    static List<IncomingMediaInfo> buildIncomingMedia(String messageId, TypeMap params) {
-        List<IncomingMediaInfo> mediaList = []
+    static Result<List<IncomingMediaInfo>> tryBuildIncomingMedia(String messageId, TypeMap params) {
+        ResultGroup<IncomingMediaInfo> resGroup = new ResultGroup<>()
         Integer numMedia = params.int(TwilioUtils.NUM_MEDIA, 0)
         for (int i = 0; i < numMedia; ++i) {
-            String contentUrl = params.string(TwilioUtils.MEDIA_URL_PREFIX + i),
-                contentType = params.string(TwilioUtils.MEDIA_CONTENT_TYPE_PREFIX + i)
-            mediaList << new IncomingMediaInfo(url: contentUrl,
-                messageId: messageId,
-                mimeType: contentType,
-                mediaId: TwilioUtils.extractMediaIdFromUrl(contentUrl),
-                accountId: params.string(TwilioUtils.ID_ACCOUNT))
+            resGroup << IncomingMediaInfo.tryCreate(messageId, params, i)
         }
-        mediaList
-    }
-
-    static IncomingRecordingInfo buildIncomingRecording(TypeMap params) {
-        new IncomingRecordingInfo(mimeType: MediaType.AUDIO_MP3.mimeType,
-            url: params.string(RECORDING_URL),
-            mediaId: params.string(ID_RECORDING),
-            accountId: params.string(TwilioUtils.ID_ACCOUNT))
+        resGroup.toResult(false)
     }
 
     static Result<Closure> invalidTwimlInputs(String code) {

@@ -61,7 +61,7 @@ class Schedule implements WithId, CanSave<Schedule> {
     // -------
 
     boolean isAvailableNow() {
-        isAvailableAt(JodaUtils.now())
+        isAvailableAt(JodaUtils.utcNow())
     }
 
     boolean isAvailableAt(DateTime dt) {
@@ -95,7 +95,7 @@ class Schedule implements WithId, CanSave<Schedule> {
     }
 
     // parse interval strings into a list of UTC intervals where sunday corresponds to today, etc
-    Result<Schedule> updateWithIntervalStrings(TypeMap body,
+    Result<Schedule> updateWithIntervalStrings(Map body,
         String timezone = ScheduleUtils.DEFAULT_TIMEZONE) {
 
         DateTimeZone zone = JodaUtils.getZoneFromId(timezone)
@@ -103,7 +103,7 @@ class Schedule implements WithId, CanSave<Schedule> {
         ResultGroup<List<Interval>> resGroup = new ResultGroup<>()
         for(int addDays = 0; addDays < numDaysPerWeek; ++addDays) {
             String dayOfWeek = ScheduleUtils.DAYS_OF_WEEK[addDays]
-            List<String> intStrings = body.typedList(String, dayOfWeek)
+            List<String> intStrings = TypeMap.create(body).typedList(String, dayOfWeek)
             resGroup << ScheduleUtils.parseIntervalStringsToUTCIntervals(intStrings, addDays, zone)
         }
         resGroup.toResult(false).then { List<List<Interval>> intervals ->
@@ -260,8 +260,9 @@ class Schedule implements WithId, CanSave<Schedule> {
         DateTime closestUpcoming = dt.plusWeeks(1)
         for (interval in intervals) {
             if (interval.contains(initialDt)) {
-                sChange1 = new ScheduleChange(type: ScheduleStatus.UNAVAILABLE,
-                    when: interval.end, timezone: timezone)
+                sChange1 = ScheduleChange
+                    .tryCreate(ScheduleStatus.UNAVAILABLE, interval.end, timezone)
+                    .payload
                 break
             }
             else if (interval.isBefore(closestUpcoming) && interval.isAfter(initialDt)) {
@@ -274,9 +275,7 @@ class Schedule implements WithId, CanSave<Schedule> {
         }
         //Otherwise, we need to find the nearest upcoming interval
         else if (closestUpcoming && !intervals.isEmpty()) {
-            ScheduleChange sChange2 = new ScheduleChange(type: ScheduleStatus.AVAILABLE,
-                when: closestUpcoming, timezone: timezone)
-            IOCUtils.resultFactory.success(sChange2)
+            ScheduleChange.tryCreate(ScheduleStatus.AVAILABLE, closestUpcoming, timezone)
         }
         //If no upcoming intervals on this day, check the next day
         else {

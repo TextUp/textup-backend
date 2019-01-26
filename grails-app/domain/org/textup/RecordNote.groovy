@@ -18,7 +18,7 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 	// whenCreated is used for making notes show up in the correct
 	// position in the chronological record, this `whenChanged` field
 	// is when this note actually was created
-	DateTime whenChanged = JodaUtils.now()
+	DateTime whenChanged = JodaUtils.utcNow()
 
     boolean isDeleted = false
     Location location
@@ -50,7 +50,7 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
         if (DomainUtils.hasDirtyNonObjectFields(this, ["isDeleted"]) ||
             location?.isDirty() || media?.isDirty()) {
             // update whenChanged timestamp to keep it current for any revisions
-            whenChanged = JodaUtils.now()
+            whenChanged = JodaUtils.utcNow()
             // create revision of persistent values
             RecordNoteRevision.tryCreate(this)
                 .then { DomainUtils.trySave(this) }

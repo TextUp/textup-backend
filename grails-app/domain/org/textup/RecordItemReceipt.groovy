@@ -33,16 +33,23 @@ class RecordItemReceipt implements WithId, CanSave<RecordItemReceipt> {
     static Result<RecordItemReceipt> tryCreate(RecordItem rItem1, String aId, ReceiptStatus stat,
         BasePhoneNumber bNum) {
 
-        RecordItemReceipt rpt = new RecordItemReceipt(apiId: aId, status: stat, contactNumber: bNum)
-        rItem1.addToReceipts(rpt)
-        DomainUtils.trySave(rpt, ResultStatus.CREATED)
+        RecordItemReceipt rpt1 = RecordItemReceipt.create(rItem1, aId, stat, bNum)
+        DomainUtils.trySave(rpt1, ResultStatus.CREATED)
+    }
+
+    static RecordItemReceipt create(RecordItem rItem1, String aId, ReceiptStatus stat,
+        BasePhoneNumber bNum) {
+
+        RecordItemReceipt rpt1 = new RecordItemReceipt(apiId: aId, status: stat, contactNumber: bNum)
+        rItem1.addToReceipts(rpt1)
+        rpt1
     }
 
     // Methods
     // -------
 
     RecordItemReceiptCacheInfo toInfo() {
-        new RecordItemReceiptCacheInfo(id: id, itemId: item?.id, status: status, numBillable: numBillable)
+        RecordItemReceiptCacheInfo.create(id, item, status, numBillable)
     }
 
     // Properties

@@ -11,7 +11,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 
 @GrailsTypeChecked
-@Secured(Roles.ADMIN)
+@Secured("ROLE_ADMIN")
 @Transactional
 class SuperController {
 
@@ -98,16 +98,13 @@ class SuperController {
                 if (admin) {
                     org1.status = OrgStatus.REJECTED
                     DomainUtils.trySave(org1)
-                        .ifFail {
-                            flash.errorObj = org1
-                            org1.discard()
-                        }
                         .then {
                             flash.messages = ["Successfully rejected ${org1.name}"]
                             mailService.notifyRejection(admin)
                         }
                         .ifFailEnd("rejectOrg") { Result<?> failRes ->
                             flash.messages = failRes.errorMessages
+                            org1.discard()
                         }
                 }
                 else { flash.messages = ["Could not find admins for ${org1.name}."] }
@@ -124,16 +121,13 @@ class SuperController {
                 if (admin) {
                     org1.status = OrgStatus.APPROVED
                     DomainUtils.trySave(org1)
-                        .ifFail {
-                            flash.errorObj = org1
-                            org1.discard()
-                        }
                         .then {
                             flash.messages = ["Successfully approved ${org1.name}"]
                             mailService.notifyApproval(admin)
                         }
                         .ifFailEnd("approveOrg") { Result<?> failRes ->
                             flash.messages = failRes.errorMessages
+                            org1.discard()
                         }
                 }
                 else { flash.messages = ["Could not find admins for ${org1.name}."] }

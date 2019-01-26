@@ -1,7 +1,13 @@
 import org.codehaus.groovy.grails.validation.ConstrainedProperty
 import org.textup.*
-import org.textup.infrastructure.*
+import org.textup.constraint.*
+import org.textup.rest.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 // locations to search for config files that get merged into the main config;
 // config files can be ConfigSlurper scripts, Java properties files, or classes
@@ -236,14 +242,8 @@ grails.doc.authors  = "Eric Bai"
 grails.doc.license  = "Apache 2.0"
 
 // Custom constraints
-ConstrainedProperty.registerNewConstraint(
-    CascadeValidationConstraint.NAME,
-    CascadeValidationConstraint.class
-)
-ConstrainedProperty.registerNewConstraint(
-    PhoneNumberConstraint.NAME,
-    PhoneNumberConstraint.class
-)
+ConstrainedProperty.registerNewConstraint(CascadeValidationConstraint.NAME, CascadeValidationConstraint.class)
+ConstrainedProperty.registerNewConstraint(PhoneNumberConstraint.NAME, PhoneNumberConstraint.class)
 
 textup {
     tempDirectory = System.getenv("TEXTUP_BACKEND_TEMP_DIRECTORY") ?: System.getProperty("TEXTUP_BACKEND_TEMP_DIRECTORY")

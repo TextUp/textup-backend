@@ -13,7 +13,7 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
-@Secured([Roles.USER, Roles.ADMIN])
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 @Transactional
 class AnnouncementController extends BaseController {
 

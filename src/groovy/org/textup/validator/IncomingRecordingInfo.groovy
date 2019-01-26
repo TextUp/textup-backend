@@ -16,17 +16,31 @@ import org.textup.util.domain.*
 @Log4j
 @Validateable
 class IncomingRecordingInfo implements IsIncomingMedia {
-    String accountId
-    String mimeType
-    String url
-    String mediaId
+
+    final String accountId
+    final String mediaId
+    final String mimeType
+    final String url
+
     boolean isPublic = false
 
     static constraints = {
         url url: true
     }
 
+    static Result<IncomingRecordingInfo> tryCreate(TypeMap params) {
+        IncomingRecordingInfo ir1 = new IncomingRecordingInfo(params.string(TwilioUtils.ID_ACCOUNT),
+            params.string(TwilioUtils.ID_RECORDING),
+            MediaType.AUDIO_MP3.mimeType,
+            params.string(TwilioUtils.RECORDING_URL))
+        DomainUtils.tryValidate(ir1, ResultStatus.CREATED)
+    }
+
+    // Methods
+    // -------
+
     // [UNTESTED] because of limitations in mocking
+    @Override
     Result<Boolean> delete() {
         try {
             IOCUtils.resultFactory.success(Recording.deleter(accountId, mediaId).delete())

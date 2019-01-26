@@ -18,7 +18,7 @@ import org.textup.validator.*
 class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
     CustomAccountDetails customAccount
-    DateTime whenCreated = JodaUtils.now()
+    DateTime whenCreated = JodaUtils.utcNow()
     PhoneOwnership owner
 
     String apiId
@@ -30,6 +30,7 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
     VoiceLanguage language = VoiceLanguage.ENGLISH
     VoiceType voice = VoiceType.MALE
 
+    static transients = ["number"]
     static hasMany = [numberHistoryEntries: PhoneNumberHistory]
     static mapping = {
         cache usage: "read-write", include: "non-lazy"
@@ -122,7 +123,7 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
     // -------
 
     protected Result<Phone> tryAddHistoryEntry() {
-        DateTime dt = JodaUtils.now()
+        DateTime dt = JodaUtils.utcNow()
         PhoneNumber pNum = PhoneNumber
             .tryCreate(getPersistentValue("numberAsString") as String)
             .payload

@@ -19,7 +19,7 @@ import org.textup.validator.*
 class IOCUtils {
 
     static <T> T getBean(Class<T> clazz) {
-        Holders.applicationContext.getBean(clazz)?.asType(clazz)
+        Holders.applicationContext.getBean(clazz)
     }
 
     static SpringSecurityService getSecurity() {

@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,6 +12,7 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
 class DehydratedPartialUploads implements CanValidate, Rehydratable<PartialUploads> {
 
@@ -22,7 +24,7 @@ class DehydratedPartialUploads implements CanValidate, Rehydratable<PartialUploa
             pu1.eachUpload { UploadItem uItem1, MediaElement el1 ->
                 tuples << Tuple.create(uItem1, el1.id)
             }
-            DehydratedPartialUploads dpu1 = new DehydratedPartialUploads(tuples: tuples)
+            DehydratedPartialUploads dpu1 = new DehydratedPartialUploads(tuples)
             DomainUtils.tryValidate(dpu1, ResultStatus.CREATED)
         }
     }
@@ -43,6 +45,6 @@ class DehydratedPartialUploads implements CanValidate, Rehydratable<PartialUploa
                 else { log.error("tryRehydrate: media element `${elId}` was not found") }
             }
         }
-        DomainUtils.tryValidate(new PartialUploads(tuples: hydratedTuples))
+        PartialUploads.tryCreateFromTuples(hydratedTuples)
     }
 }

@@ -15,7 +15,7 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
-@Secured([Roles.USER, Roles.ADMIN])
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 @Transactional
 class FutureMessageController extends BaseController {
 
@@ -26,7 +26,7 @@ class FutureMessageController extends BaseController {
         Long prId = params.long("contactId") ?: params.long("tagId")
         RequestUtils.trySetOnRequest(RequestUtils.PHONE_RECORD_ID, prId)
         PhoneRecords.isAllowed(prId)
-            .then { PhoneRecordsWrappers.mustFindForId(prId) }
+            .then { PhoneRecordWrappers.mustFindForId(prId) }
             .then { PhoneRecordWrapper w1 -> w1.tryGetReadOnlyRecord() }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { ReadOnlyRecord rec1 ->

@@ -39,13 +39,6 @@ class DigestNotificationJob implements Job {
 
     @GrailsTypeChecked
     void execute(JobExecutionContext context) {
-
-        // TODO remove after debugging
-        println context.trigger.misfireInstruction
-        println "CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING: ${CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING}"
-        println "CronTrigger.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW : ${CronTrigger.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW }"
-
-
         NotificationFrequency freq1 = context.mergedJobDataMap.get(FREQ_KEY) as NotificationFrequency
         if (freq1) {
             Collection<RecordItem> rItems = RecordItems

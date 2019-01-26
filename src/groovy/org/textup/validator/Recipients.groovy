@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,12 +12,13 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
 class Recipients implements CanValidate {
 
-    final Integer maxNum // non private for access in validator
-    private final Collection<? extends PhoneRecord> all
-    private final Phone phone
+    final Collection<? extends PhoneRecord> all
+    final Integer maxNum
+    final Phone phone
     final VoiceLanguage language
 
     static constraints = { // all nullable: false by default
@@ -44,21 +46,23 @@ class Recipients implements CanValidate {
                     .build(PhoneRecords.forIds(prIds))
                     .list()
                 pRecs.addAll(CollectionUtils.mergeUnique(ipRecs.values()))
-                Recipients r1 = new Recipients(phone: p1,
-                    all: pRecs,
-                    maxNum: maxNum,
-                    language: p1.language)
-                DomainUtils.tryValidate(r1, ResultStatus.CREATED)
+                Recipients.tryCreate(p1, pRecs, p1.language, maxNum)
             }
     }
 
     static Result<Recipients> tryCreate(Collection<? extends PhoneRecord> pRecs,
         VoiceLanguage language, int maxNum) {
 
-        Recipients r1 = new Recipients(phone: pRecs?.getAt(0)?.phone,
-            all: pRecs,
-            maxNum: maxNum,
-            language: language)
+        Recipients.tryCreate(pRecs?.getAt(0)?.phone, pRecs, language, maxNum)
+    }
+
+    static Result<Recipients> tryCreate(Phone p1, Collection<? extends PhoneRecord> pRecs,
+        VoiceLanguage language, int maxNum) {
+
+        Recipients r1 = new Recipients(Collections.unmodifiableCollection(pRecs),
+            maxNum,
+            p1,
+            language)
         DomainUtils.tryValidate(r1, ResultStatus.CREATED)
     }
 

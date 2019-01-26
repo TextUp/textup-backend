@@ -17,7 +17,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Token implements WithId, CanSave<Token> {
 
-    DateTime expires = JodaUtils.now().plusHours(1)
+    DateTime expires = JodaUtils.utcNow().plusHours(1)
     String token
     Integer maxNumAccess
     int timesAccessed = 0

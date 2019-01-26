@@ -22,7 +22,7 @@ class RecordItemReceiptCache {
     // See: https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/cache.html
     // (2) For SpEL, use the parameter index instead of the parameter name, which may be unreliably
     // available. see: https://stackoverflow.com/a/14197738
-    @Cacheable(value = Constants.CACHE_RECEIPTS, key = "#p0")
+    @Cacheable(value = "receiptsCache", key = "#p0")
     Collection<RecordItemReceiptCacheInfo> findEveryReceiptInfoByApiId(String apiId) {
         Collection<RecordItemReceipt> rpts = RecordItemReceipt.findAllByApiId(apiId)
         rpts*.toInfo()
@@ -34,7 +34,7 @@ class RecordItemReceiptCache {
     // one fewer for calls and the same number for texts
     // (2) For SpEL, use the parameter index instead of the parameter name, which may be unreliably
     // available. see: https://stackoverflow.com/a/14197738
-    @CachePut(value = Constants.CACHE_RECEIPTS, key = "#p0")
+    @CachePut(value = "receiptsCache", key = "#p0")
     Collection<RecordItemReceiptCacheInfo> updateReceipts(String apiId, List<Long> rptIds,
         ReceiptStatus newStatus, Integer newDuration = null) {
 

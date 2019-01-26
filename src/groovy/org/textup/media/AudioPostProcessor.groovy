@@ -29,18 +29,22 @@ class AudioPostProcessor implements CanProcessMedia {
         _temp = _audioUtils.createTempFile(d1)
     }
 
+    @Override
     void close() {
         _audioUtils.delete(_temp)
     }
 
+    @Override
     Result<UploadItem> createInitialVersion() {
-        buildUploadItem(_type, _data)
+        UploadItem.tryCreate(_type, _data)
     }
 
+    @Override
     Result<UploadItem> createSendVersion() {
         convertData(SEND_TYPE)
     }
 
+    @Override
     ResultGroup<UploadItem> createAlternateVersions() {
         convertData(ALT_TYPE).toGroup()
     }
@@ -55,14 +59,6 @@ class AudioPostProcessor implements CanProcessMedia {
         }
         _audioUtils
             .convert(CONVERSION_TIMEOUT_IN_MILLIS, _type, _temp, outputType)
-            .then { byte[] newData -> buildUploadItem(outputType, newData) }
-    }
-
-    protected Result<UploadItem> buildUploadItem(MediaType type, byte[] data) {
-        UploadItem uItem = new UploadItem(type: type, data: data)
-        if (uItem.validate()) {
-            IOCUtils.resultFactory.success(uItem)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(uItem.errors) }
+            .then { byte[] newData -> UploadItem.tryCreate(outputType, newData) }
     }
 }

@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.structure.*
@@ -13,18 +14,20 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
 class RecordItemRequest implements CanValidate {
 
     private static final String DEFAULT_START = "beginning"
     private static final String DEFAULT_END = "end"
 
-    Phone mutablePhone // when shared, this is the mutable, not original, phone
+    final boolean groupByEntity = false
+    final Collection<? extends PhoneRecordWrapper> wrappers
+    final Phone mutablePhone // when shared, this is the mutable, not original, phone
+
     Collection<Class<? extends RecordItem>> types
     DateTime start
     DateTime end
-    boolean groupByEntity = false
-    Collection<? extends PhoneRecordWrapper> wrappers
 
     static constraints = {
         types nullable: true
@@ -46,9 +49,9 @@ class RecordItemRequest implements CanValidate {
     static Result<RecordItemRequest> tryCreate(Phone p1, Collection<PhoneRecordWrapper> wrappers,
         boolean isGrouped) {
 
-        RecordItemRequest iReq1 = new RecordItemRequest(mutablePhone: p1,
-            wrappers: wrappers,
-            groupByEntity: isGrouped)
+        RecordItemRequest iReq1 = new RecordItemRequest(isGrouped,
+            Collections.unmodifiableCollection(wrappers),
+            p1)
         DomainUtils.tryValidate(iReq1, ResultStatus.CREATED)
     }
 

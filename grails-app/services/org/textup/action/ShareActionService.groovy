@@ -48,7 +48,7 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
                 AuthUtils.tryGetAuthUser().curry(permissionToNames)
             }
             .then { Map<SharePermission, HashSet<String>> permissionToNames, Staff s1 ->
-                tryRecordSharingChanges(pr1.record, s1.toAuthor(), permissionToNames)
+                tryRecordSharingChanges(pr1.record, Author.create(s1), permissionToNames)
             }
     }
 

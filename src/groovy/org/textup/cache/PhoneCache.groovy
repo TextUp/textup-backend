@@ -33,7 +33,7 @@ class PhoneCache {
 
     // Must be a non-static public method for Spring AOP advice to apply
     // Key is a SpEL list, see: https://stackoverflow.com/a/17406598
-    @CacheEvict(value = Constants.CACHE_PHONES, key = "{ #p1, #p2 }")
+    @CacheEvict(value = "phonesCache", key = "{ #p1, #p2 }")
     Result<Phone> tryUpdateOwner(Phone p1, Long ownerId, PhoneOwnershipType type) {
         p1.owner.ownerId = ownerId
         p1.owner.type = type
@@ -41,7 +41,7 @@ class PhoneCache {
     }
 
     // Must be a non-static public method for Spring AOP advice to apply
-    @Cacheable(value = Constants.CACHE_PHONES, key = "{ #p0, #p1 }")
+    @Cacheable(value = "phonesCache", key = "{ #p0, #p1 }")
     Long findAnyPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
         Phones.buildAnyForOwnerIdAndType(ownerId, type)
             .build(CriteriaUtils.returnsId())

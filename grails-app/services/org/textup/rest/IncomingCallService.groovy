@@ -52,7 +52,7 @@ class IncomingCallService {
                     .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
                         w1.tryGetRecord()
                             .then { Record rec1 ->
-                                rec1.storeOutgoing(RecordItemType.CALL, s1.toAuthor())
+                                rec1.storeOutgoing(RecordItemType.CALL, Author.create(s1))
                             }
                             .then { RecordCall rCall1 ->
                                 rCall1.addReceipt(rpt)
@@ -71,7 +71,7 @@ class IncomingCallService {
                 ResultGroup
                     .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
                         w1.tryGetRecord().then { Record rec1 ->
-                            rec1.storeIncoming(RecordItemType.CALL, is1.toAuthor(), is1.number, apiId)
+                            rec1.storeIncoming(RecordItemType.CALL, Author.create(is1), is1.number, apiId)
                         }
                     }
                     .logFail("relayCall")

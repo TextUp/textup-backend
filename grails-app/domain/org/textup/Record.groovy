@@ -15,7 +15,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
 
-    DateTime lastRecordActivity = JodaUtils.now()
+    DateTime lastRecordActivity = JodaUtils.utcNow()
     VoiceLanguage language = VoiceLanguage.ENGLISH
 
     static mapping = {
@@ -30,7 +30,7 @@ class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
     // ---------
 
     void updateLastActivity() {
-        lastRecordActivity = JodaUtils.now()
+        lastRecordActivity = JodaUtils.utcNow()
     }
 
     Result<? extends RecordItem> storeOutgoing(RecordItemType type, Author a1,

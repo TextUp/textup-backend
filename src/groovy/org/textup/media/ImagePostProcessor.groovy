@@ -12,7 +12,8 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class ImagePostProcessor implements CanProcessMedia {
 
-    protected static final ImagePostProcessor.ImageData SEND_VERSION = new ImagePostProcessor.ImageData(maxWidthInPixels: 640, maxSizeInBytes: 5000)
+    protected static final ImagePostProcessor.ImageData SEND_VERSION =
+        new ImagePostProcessor.ImageData(maxWidthInPixels: 640, maxSizeInBytes: 5000)
     protected static final List<ImagePostProcessor.ImageData> ALT_VERSIONS = [
         new ImagePostProcessor.ImageData(maxWidthInPixels: 1280, maxSizeInBytes: 200000),
         new ImagePostProcessor.ImageData(maxWidthInPixels: 640, maxSizeInBytes: 100000),
@@ -31,46 +32,39 @@ class ImagePostProcessor implements CanProcessMedia {
         }
     }
 
+    @Override
     void close() {}
 
+    @Override
     Result<UploadItem> createInitialVersion() {
-        getInitialUploadItem()
+        UploadItem.tryCreate(_type, _data, _image)
     }
 
+    @Override
     Result<UploadItem> createSendVersion() {
         buildUploadItem(SEND_VERSION)
     }
 
+    @Override
     ResultGroup<UploadItem> createAlternateVersions() {
-        new ResultGroup<UploadItem>(ALT_VERSIONS.collect { ImagePostProcessor.ImageData d1 -> buildUploadItem(d1) })
+        ResultGroup.collect(ALT_VERSIONS) { ImagePostProcessor.ImageData d1 -> buildUploadItem(d1) }
     }
 
     // Helpers
     // -------
 
     protected Result<UploadItem> buildUploadItem(ImagePostProcessor.ImageData target) {
-        getInitialUploadItem().then { UploadItem uItem ->
-            ImageUtils.tryResizeToWidth(_type, _data, _image, target.maxWidthInPixels)
-                .then { Tuple<byte[], BufferedImage> after ->
-                    ImageUtils.tryCompress(_type, after.first, after.second, target.maxSizeInBytes)
+        ImageUtils.tryResizeToWidth(_type, _data, _image, target.maxWidthInPixels)
+            .then { Tuple<byte[], BufferedImage> tup1 ->
+                Tuple.split(tup1) { byte[] newData, BufferedImage newImage ->
+                    ImageUtils.tryCompress(_type, newData, newImage, target.maxSizeInBytes)
                 }
-                .thenEnd { Tuple<byte[], BufferedImage> after ->
-                    uItem.data = after.first
-                    uItem.image = after.second
-                }
-            if (uItem.validate()) {
-                IOCUtils.resultFactory.success(uItem)
             }
-            else { IOCUtils.resultFactory.failWithValidationErrors(uItem.errors) }
-        }
-    }
-
-    protected Result<UploadItem> getInitialUploadItem() {
-        UploadItem uItem = new UploadItem(type: _type, data: _data, image: _image)
-        if (uItem.validate()) {
-            IOCUtils.resultFactory.success(uItem)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(uItem.errors) }
+            .then { Tuple<byte[], BufferedImage> tup1 ->
+                Tuple.split(tup1) { byte[] newData, BufferedImage newImage ->
+                    UploadItem.tryCreate(_type, newData, newImage)
+                }
+            }
     }
 
     protected static class ImageData {

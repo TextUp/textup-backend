@@ -238,7 +238,7 @@ class TestUtils {
     // -----------------
 
     static Location buildLocation() {
-        Location loc1 = new Location(address:"Testing Address", lat:0G, lon:0G)
+        Location loc1 = new Location(address: "Testing Address", lat: 0G, lng: 0G)
         loc1.save(flush:true, failOnError:true)
     }
 
@@ -250,9 +250,7 @@ class TestUtils {
     }
 
     static UploadItem buildUploadItem(MediaType type = MediaType.AUDIO_MP3) {
-        UploadItem uItem = new UploadItem(type: type, data: getSampleDataForMimeType(type))
-        assert uItem.validate()
-        uItem
+        UploadItem.tryCreate(type, getSampleDataForMimeType(type)).payload
     }
 
     static MediaElementVersion buildMediaElementVersion(BigDecimal sendSize = 88) {
@@ -276,7 +274,7 @@ class TestUtils {
             .tryCreate(TestUtils.randString(), TestUtils.randPhoneNumber())
             .payload
         rpt1.status = status
-        rpt1.numSegments = TestUtils.randIntegerUpTo(10)
+        rpt1.numBillable = TestUtils.randIntegerUpTo(10)
         assert rpt1.validate()
         rpt1
     }

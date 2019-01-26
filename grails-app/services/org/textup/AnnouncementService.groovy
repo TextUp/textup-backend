@@ -25,7 +25,7 @@ class AnnouncementService implements ManagesDomain.Creater<FeaturedAnnouncement>
             }
             .then { FeaturedAnnouncement fa1 -> AuthUtils.tryGetAuthUser().curry(fa1) }
             .then { FeaturedAnnouncement fa1, Staff s1 ->
-                outgoingAnnouncementService.send(fa1, s1.toAuthor())
+                outgoingAnnouncementService.send(fa1, Author.create(s1))
             }
             .then { FeaturedAnnouncement fa1 -> DomainUtils.trySave(fa1, ResultStatus.CREATED) }
 	}

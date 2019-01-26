@@ -111,7 +111,7 @@ class MergeActionService implements HandlesActions<Long, Void> {
             List<GroupPhoneRecord> gprs = GroupPhoneRecords
                 .buildForMemberIdsAndOptions(toBeMerged*.id)
                 .list()
-            gprs.each { GroupPhoneRecord gpr1 -> gpr1.addToMembers(ipr1) }
+            gprs.each { GroupPhoneRecord gpr1 -> gpr1.members.addToPhoneRecords(ipr1) }
             DomainUtils.trySaveAll(gprs)
         }
         catch (Throwable e) {

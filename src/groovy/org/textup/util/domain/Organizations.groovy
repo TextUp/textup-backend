@@ -61,8 +61,10 @@ class Organizations {
         new DetachedCriteria(Organization)
             .build {
                 eq("name", name)
-                eq("location.lat", lat)
-                eq("location.lng", lng)
+                location {
+                    eq("lat", lat)
+                    eq("lng", lng)
+                }
             }
     }
 
@@ -75,7 +77,9 @@ class Organizations {
                 String formattedQuery = StringUtils.toQuery(query)
                 or {
                     ilike("name", formattedQuery)
-                    ilike("location.address", formattedQuery)
+                    location {
+                        ilike("address", formattedQuery)
+                    }
                 }
             }
         }

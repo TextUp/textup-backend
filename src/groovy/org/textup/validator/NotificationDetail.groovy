@@ -3,6 +3,7 @@ package org.textup.validator
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -11,11 +12,12 @@ import org.textup.util.domain.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
 class NotificationDetail implements CanValidate {
 
     final PhoneRecordWrapper wrapper
-    final HashSet<? extends RecordItem> items = new HashSet<>()
+    final HashSet<? extends RecordItem> items
 
     static constraints = {
         wrapper validator: { PhoneRecordWrapper val ->
@@ -30,7 +32,8 @@ class NotificationDetail implements CanValidate {
     }
 
     static Result<NotificationDetail> tryCreate(PhoneRecordWrapper w1) {
-        DomainUtils.tryValidate(new NotificationDetail(wrapper: w1), ResultStatus.CREATED)
+        NotificationDetail nd1 = new NotificationDetail(w1, new HashSet<? extends RecordItem>())
+        DomainUtils.tryValidate(nd1, ResultStatus.CREATED)
     }
 
     // Methods
