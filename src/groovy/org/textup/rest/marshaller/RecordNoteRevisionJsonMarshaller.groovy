@@ -25,7 +25,7 @@ class RecordNoteRevisionJsonMarshaller extends JsonNamedMarshaller {
             if (rev1.authorId) authorId     = rev1.authorId
             if (rev1.authorType) authorType = rev1.authorType.toString()
         }
-        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE).thenEnd { String tz ->
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).thenEnd { String tz ->
             json.whenChanged = JodaUtils.toDateTimeWithZone(json.whenChanged, tz)
         }
         json

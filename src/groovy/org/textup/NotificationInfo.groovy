@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TupleConstructor
+import org.textup.structure.*
 import org.textup.validator.*
 import org.textup.util.*
 
@@ -23,16 +24,19 @@ class NotificationInfo {
     final int numOutgoingCall
     final String outgoingNames
 
-    static NotificationInfo create(OwnerPolicy op1, Notification notif1) {
-        new NotificationInfo(notif1.mutablePhone.owner.buildName(),
-            notif1.mutablePhone.number,
-            notif1.countVoicemails(op1),
-            notif1.countItems(false, op1, RecordText),
-            notif1.countItems(false, op1, RecordCall),
-            NotificationUtils.buildPublicNames(notif1, false),
-            notif1.countItems(true, op1, RecordText),
-            notif1.countItems(true, op1, RecordCall),
-            NotificationUtils.buildPublicNames(notif1, true))
+    static NotificationInfo create(ReadOnlyOwnerPolicy rop1, Notification notif1) {
+        if (rop1 && notif1) {
+            new NotificationInfo(notif1.mutablePhone.owner.buildName(),
+                notif1.mutablePhone.number,
+                notif1.countVoicemails(rop1),
+                notif1.countItems(false, rop1, RecordText),
+                notif1.countItems(false, rop1, RecordCall),
+                NotificationUtils.buildPublicNames(notif1, false),
+                notif1.countItems(true, rop1, RecordText),
+                notif1.countItems(true, rop1, RecordCall),
+                NotificationUtils.buildPublicNames(notif1, true))
+        }
+        else { new NotificationInfo() }
     }
 
     // Methods

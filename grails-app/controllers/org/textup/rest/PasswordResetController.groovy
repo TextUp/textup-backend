@@ -21,7 +21,7 @@ class PasswordResetController extends BaseController {
     void save() {
         RequestUtils.tryGetJsonBody(request)
             .then { TypeMap body -> passwordResetService.start(body.string("username")) }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     @Override
@@ -30,6 +30,6 @@ class PasswordResetController extends BaseController {
             .then { TypeMap body ->
                 passwordResetService.finish(body.string("token"), body.string("password"))
             }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 }

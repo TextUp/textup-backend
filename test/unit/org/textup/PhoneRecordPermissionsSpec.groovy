@@ -14,8 +14,74 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
 @TestMixin(GrailsUnitTestMixin)
 class PhoneRecordPermissionsSpec extends Specification {
+
+    void "test creation"() {
+        given:
+        DateTime dt = DateTime.now()
+        SharePermission perm1 = SharePermission.values()[0]
+
+        when:
+        PhoneRecordPermissions permissions = new PhoneRecordPermissions(dt, perm1)
+
+        then:
+        permissions.level == perm1
+    }
+
+    void "test properties"() {
+        given:
+        DateTime expiredDt = DateTime.now().minusDays(1)
+        DateTime futureDt = DateTime.now().plusDays(1)
+
+        when:
+        PhoneRecordPermissions permissions = new PhoneRecordPermissions(null, null)
+
+        then:
+        permissions.level == null
+        permissions.isOwner() == true
+        permissions.isNotExpired() == true
+        permissions.canModify() == true
+        permissions.canView() == true
+
+        when:
+        permissions = new PhoneRecordPermissions(expiredDt, SharePermission.DELEGATE)
+
+        then:
+        permissions.level == SharePermission.DELEGATE
+        permissions.isOwner() == false
+        permissions.isNotExpired() == false
+        permissions.canModify() == false
+        permissions.canView() == false
+
+        when:
+        permissions = new PhoneRecordPermissions(expiredDt, SharePermission.VIEW)
+
+        then:
+        permissions.level == SharePermission.VIEW
+        permissions.isOwner() == false
+        permissions.isNotExpired() == false
+        permissions.canModify() == false
+        permissions.canView() == false
+
+        when:
+        permissions = new PhoneRecordPermissions(futureDt, SharePermission.DELEGATE)
+
+        then:
+        permissions.level == SharePermission.DELEGATE
+        permissions.isOwner() == false
+        permissions.isNotExpired() == true
+        permissions.canModify() == true
+        permissions.canView() == true
+
+        when:
+        permissions = new PhoneRecordPermissions(futureDt, SharePermission.VIEW)
+
+        then:
+        permissions.level == SharePermission.VIEW
+        permissions.isOwner() == false
+        permissions.isNotExpired() == true
+        permissions.canModify() == false
+        permissions.canView() == true
+    }
 }

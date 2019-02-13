@@ -22,70 +22,99 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 @Unroll
-class StaffSpec extends CustomSpec {
+class StaffSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
-
-    def setup() {
-    	setupData()
+        resultFactory(ResultFactory)
     }
 
-    def cleanup() {
-    	cleanupData()
+    def setup() {
+        TestUtils.standardMockSetup()
     }
 
     void "test constraints"() {
-    	when: "we have an empty staff"
-    	Staff staff1 = new Staff(lockCode:Constants.DEFAULT_LOCK_CODE)
+        given:
+        String encoded = TestUtils.randString()
+        MockedMethod encodeSecureString = TestUtils.forceMock(AuthUtils, "encodeSecureString") { encoded }
 
-    	then:
-        staff1.username == null
-        staff1.channelName == ""
-    	staff1.validate() == false
+        Organization org1 = TestUtils.buildOrg()
+        Role role1 = TestUtils.buildRole()
+        String name = TestUtils.randString()
+        String un1 = TestUtils.randString()
+        String pwd = TestUtils.randString()
+        String email = TestUtils.randEmail()
 
-    	when: "we have fill in info except for invalid email"
-    	String un = "8stAFf"
-		staff1.username = un
-		staff1.password = "password"
-		staff1.name = "Staff"
-		staff1.email = "invalid email"
-		staff1.org = org
-		staff1.personalPhoneAsString = "1112223333"
+        when:
+        Result res = Staff.tryCreate(null, null, null, null, null, null)
 
-    	then:
-    	staff1.getUsername() == un.toLowerCase()
-        staff1.channelName.contains("private")
-        staff1.channelName.contains(un.toLowerCase())
-    	staff1.validate() == false
-    	staff1.errors.errorCount == 1
-    	staff1.errors.getFieldErrorCount("email") == 1
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    	when: "we fill in all valid and unique info"
-    	staff1.email = "staff@textup.org"
+        when:
+        res = Staff.tryCreate(role1, org1, name, un1, pwd, email)
 
-    	then:
-    	staff1.validate() == true
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.org == org1
+        res.payload.name == name
+        res.payload.username == un1
+        res.payload.password != pwd
+        res.payload.password == encoded
+        res.payload.email == email
+        encodeSecureString.callCount > 0
 
-    	when: "we try to create a staff with duplicate username"
-    	mockForConstraintsTests(Staff, [staff1])
-    	staff1.save(flush:true, failOnError:true)
+        cleanup:
+        encodeSecureString.restore()
+    }
 
-    	Staff staff2 = new Staff(username:un, password:"password",
-    		name:"Staff", email:"staff@textup.org", org:org,
-            lockCode:Constants.DEFAULT_LOCK_CODE)
-    	staff2.personalPhoneAsString = "1112223333"
+    void "test creation"() {
+        given:
+        boolean shouldBeNew = true
+        MockedMethod isNew = TestUtils.mock(DomainUtils, "isNew") { shouldBeNew }
 
-    	then: "usernames are NOT case sensitive"
-    	staff2.validate() == false
-    	staff2.errors.errorCount == 1
-    	staff2.errors.getFieldErrorCount("username") == 1
+        Organization org1 = TestUtils.buildOrg()
+        Role role1 = TestUtils.buildRole()
+        String name = TestUtils.randString()
+        String un1 = TestUtils.randString()
+        String un2 = TestUtils.randString()
+        String pwd = TestUtils.randString()
+        String email = TestUtils.randEmail()
+
+        int srBaseline = StaffRole.count()
+
+        when: "is new"
+        shouldBeNew = true
+        Result res = Staff.tryCreate(role1, org1, name, un1, pwd, email)
+        Staff.withSession { it.flush() }
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.status == StaffStatus.ADMIN
+        res.payload.authorities.size() == 1
+        res.payload.authorities[0].authority == role1.authority
+        isNew.callCount == 1
+        StaffRole.count() == srBaseline + 1
+
+        when: "is not new"
+        shouldBeNew = false
+        res = Staff.tryCreate(role1, org1, name, un2, pwd, email)
+        Staff.withSession { it.flush() }
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.status == StaffStatus.PENDING
+        res.payload.authorities.size() == 1
+        res.payload.authorities[0].authority == role1.authority
+        isNew.callCount == 2
+        StaffRole.count() == srBaseline + 2
+
+        cleanup:
+        isNew.restore()
     }
 
     void "test lockCode"() {
-        given: "a valid staff member"
-        assert s1.validate() == true
+        given:
+        Staff s1 = TestUtils.buildStaff()
 
         when: "lock code is empty"
         s1.lockCode = ""
@@ -109,8 +138,8 @@ class StaffSpec extends CustomSpec {
     }
 
     void "test valid username"() {
-        given: "a valid staff"
-        assert s1.validate()
+        given:
+        Staff s1 = TestUtils.buildStaff()
 
         when:
         s1.username = null
@@ -141,121 +170,5 @@ class StaffSpec extends CustomSpec {
 
         then:
         s1.validate()
-    }
-
-    void "test converting to author"() {
-        given: "a valid unsaved staff"
-        Staff unsavedStaff = new Staff(username:"9StAf92", password:"password",
-            name:"Name", org:org, personalPhoneAsString:"1112223333",
-            email:"ok@ok.com", lockCode:Constants.DEFAULT_LOCK_CODE)
-        assert unsavedStaff.validate()
-
-        when: "we convert saved and unsaved staff to author"
-        Author unsavedAuth = unsavedStaff.toAuthor(),
-            savedAuth = s1.toAuthor()
-
-        then:
-        unsavedAuth.id == null // staff is unsaved
-        unsavedAuth.type == AuthorType.STAFF
-        unsavedAuth.name == unsavedStaff.name
-
-        savedAuth.id == s1.id
-        savedAuth.type == AuthorType.STAFF
-        savedAuth.name == s1.name
-    }
-
-    void "test getting phones"() {
-        given: "phone"
-        Phone ph = s1.phone
-
-    	when: "phone is active"
-        assert ph.isActive
-
-        then:
-        s1.hasInactivePhone == false
-    	s1.phone == p1
-        s1.phoneWithAnyStatus == p1
-    	s1.allPhones.size() == 2
-    	s1.allPhones.every {
-    		it == p1 || it == tPh1
-    	}
-
-        when: "phone is inactive"
-        ph.deactivate()
-        ph.save(flush:true, failOnError:true)
-        assert !ph.isActive
-
-        then:
-        s1.hasInactivePhone == true
-        s1.phone == null
-        s1.phoneWithAnyStatus == p1
-        s1.allPhones.size() == 1
-        s1.allPhones.every { it == tPh1 }
-    }
-
-    void "test operations on schedules"() {
-    	given: "a valid staff"
-    	Staff staff1 = new Staff(username:"12staff", password:"password",
-    		name:"Staff", email:"staff@textup.org", org:org,
-    		personalPhoneAsString:"1112223333", lockCode:Constants.DEFAULT_LOCK_CODE)
-    	staff1.save(flush:true, failOnError:true)
-
-    	when: "manual schedule is off"
-    	staff1.manualSchedule = false
-    	staff1.isAvailable = true
-
-    	LocalTime midnight = new LocalTime(0, 0)
-		LocalTime t1 = new LocalTime(1, 0)
-		DateTime availableTime = DateTime.now(DateTimeZone.UTC)
-				.plusDays(1).withHourOfDay(0).withMinuteOfHour(30),
-			tomMidnight = DateTime.now(DateTimeZone.UTC)
-				.plusDays(1).withTimeAtStartOfDay(),
-			tom1AM = DateTime.now(DateTimeZone.UTC)
-				.plusDays(1).withTimeAtStartOfDay().plusHours(1)
-
-    	String tomString = getDayOfWeekStringFor(DateTime.now(DateTimeZone.UTC).plusDays(1))
-    	staff1.updateSchedule((tomString):[new LocalInterval(midnight, t1)])
-    	staff1.save(flush:true, failOnError:true)
-
-    	then: "we can ask all the schedule questions"
-    	staff1.isAvailableNow() == false
-		staff1.isAvailableAt(availableTime).payload == true
-		staff1.nextChange().payload instanceof ScheduleChange
-		staff1.nextChange().payload.type == ScheduleStatus.AVAILABLE
-		staff1.nextChange().payload.when == tomMidnight
-		staff1.nextAvailable().payload == tomMidnight
-		staff1.nextUnavailable().payload == tom1AM
-
-    	when: "manual schedule is on"
-    	staff1.manualSchedule = true
-
-    	then: "we can only ask about availability right now"
-    	staff1.isAvailableNow() == staff1.isAvailable
-    	staff1.isAvailableAt(availableTime).status == ResultStatus.BAD_REQUEST
-    	staff1.isAvailableAt(availableTime).errorMessages[0] == "staff.scheduleInfoUnavailable"
-    	staff1.nextChange().status == ResultStatus.BAD_REQUEST
-    	staff1.nextChange().errorMessages[0] == "staff.scheduleInfoUnavailable"
-    	staff1.nextAvailable().status == ResultStatus.BAD_REQUEST
-    	staff1.nextAvailable().errorMessages[0] == "staff.scheduleInfoUnavailable"
-    	staff1.nextUnavailable().status == ResultStatus.BAD_REQUEST
-    	staff1.nextUnavailable().errorMessages[0] == "staff.scheduleInfoUnavailable"
-    }
-
-    protected String getDayOfWeekStringFor(DateTime dt) {
-    	switch(dt.dayOfWeek) {
-            case DateTimeConstants.SUNDAY: return "sunday"
-            case DateTimeConstants.MONDAY: return "monday"
-            case DateTimeConstants.TUESDAY: return "tuesday"
-            case DateTimeConstants.WEDNESDAY: return "wednesday"
-            case DateTimeConstants.THURSDAY: return "thursday"
-            case DateTimeConstants.FRIDAY: return "friday"
-            case DateTimeConstants.SATURDAY: return "saturday"
-        }
-    }
-
-    void "test can share with"() {
-    	expect:
-    	s1.canShareWith.size() == 1
-    	s1.canShareWith.every { it == s2 }
     }
 }

@@ -1,15 +1,12 @@
 package org.textup.validator.action
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
-import java.nio.charset.StandardCharsets
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.codec.digest.DigestUtils
 import org.textup.*
-import org.textup.util.*
+import org.textup.test.*
 import org.textup.type.*
+import org.textup.util.*
 import spock.lang.*
 
 @Domain([CustomAccountDetails, Organization, Location])
@@ -17,8 +14,12 @@ import spock.lang.*
 class MediaActionSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
 	void "test constraints when empty"() {
 		when: "completely empty"
@@ -26,24 +27,20 @@ class MediaActionSpec extends Specification {
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 1
-		act1.errors.getFieldError("action").code == "nullable"
 
 		when: "empty for removing"
-		act1.action = Constants.MEDIA_ACTION_REMOVE
+		act1.action = MediaAction.REMOVE
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 1
 		act1.errors.getFieldErrorCount("uid") == 1
 		act1.errors.getFieldError("uid").code == "missingForRemove"
 
 		when: "empty for adding"
-		act1.action = Constants.MEDIA_ACTION_ADD
+		act1.action = MediaAction.ADD
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 3
 		act1.errors.getFieldErrorCount("mimeType") == 1
 		act1.errors.getFieldError("mimeType").code == "requiredForAdd"
 		act1.errors.getFieldErrorCount("data") == 1
@@ -54,40 +51,43 @@ class MediaActionSpec extends Specification {
 
 	void "test constraints for removing"() {
 		given: "an empty action to remove"
-		MediaAction act1 = new MediaAction(action:Constants.MEDIA_ACTION_REMOVE)
+		MediaAction act1 = new MediaAction(action: MediaAction.REMOVE)
 
 		when: "uid specified for removing"
-		act1.uid = "I am a random string uid"
+		act1.uid = TestUtils.randString()
 
 		then: "ok + can't get byte data"
-		act1.validate() == true
-		act1.byteData == null
-		act1.type == null
+		act1.validate()
+		act1.buildByteData() == null
+		act1.buildType() == null
 	}
 
 	void "test constraints for adding"() {
-		when: "a valid action to add"
+		given:
 		String mimeType = MediaType.IMAGE_PNG.mimeType
 		String rawData = "I am some data*~~~~|||"
-		String encodedData = Base64.encodeBase64String(rawData.getBytes(StandardCharsets.UTF_8))
-		String checksum = DigestUtils.md5Hex(encodedData)
-		MediaAction act1 = new MediaAction(action:Constants.MEDIA_ACTION_ADD,
-			mimeType:mimeType, data:encodedData, checksum:checksum)
+		String encodedData = TestUtils.encodeBase64String(rawData.bytes)
+		String checksum = TestUtils.getChecksum(encodedData)
+
+		when: "a valid action to add"
+		MediaAction act1 = new MediaAction(action: MediaAction.ADD,
+			mimeType: mimeType,
+			data: encodedData,
+			checksum: checksum)
 
 		then: "can get byte data"
 		act1.validate() == true
-		act1.byteData instanceof byte[]
-		act1.type == MediaType.IMAGE_PNG
+		act1.buildByteData() instanceof byte[]
+		act1.buildType() == MediaType.IMAGE_PNG
 
 		when: "invalid mime type"
 		act1.mimeType = "invalid"
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 1
 		act1.errors.getFieldErrorCount("mimeType") == 1
 		act1.errors.getFieldError("mimeType").code == "invalidType"
-		act1.type == null
+		act1.buildType() == null
 
 		when: "incorrectly encoded data"
 		act1.mimeType = mimeType
@@ -97,13 +97,12 @@ class MediaActionSpec extends Specification {
 
 		then: "invalid + can't get byte data"
 		act1.validate() == false
-		act1.errors.errorCount == 2
 		act1.errors.getFieldErrorCount("data") == 1
 		act1.errors.getFieldError("data").code == "invalidFormat"
 		act1.errors.getFieldErrorCount("checksum") == 1
 		act1.errors.getFieldError("checksum").code == "compromisedIntegrity"
-		act1.byteData == null
-		act1.type == MediaType.IMAGE_PNG
+		act1.buildByteData() == null
+		act1.buildType() == MediaType.IMAGE_PNG
 
 		when: "checksum that does not match data"
 		act1.data = encodedData
@@ -113,10 +112,9 @@ class MediaActionSpec extends Specification {
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 1
 		act1.errors.getFieldErrorCount("checksum") == 1
 		act1.errors.getFieldError("checksum").code == "compromisedIntegrity"
-		act1.byteData instanceof byte[]
-		act1.type == MediaType.IMAGE_PNG
+		act1.buildByteData() instanceof byte[]
+		act1.buildType() == MediaType.IMAGE_PNG
 	}
 }

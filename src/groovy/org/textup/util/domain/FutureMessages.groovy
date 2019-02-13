@@ -51,11 +51,10 @@ class FutureMessages {
     // -------
 
     protected static DetachedCriteria<FutureMessage> buildForAuth(Long thisId, Long authId) {
+        Collection<Long> recIds = PhoneRecords.findEveryAllowedRecordIdForStaffId(authId)
         new DetachedCriteria(FutureMessage).build {
             idEq(thisId)
-            "in"("record", PhoneRecords
-                .buildActiveForStaffId(authId)
-                .build(PhoneRecords.returnsRecord()))
+            CriteriaUtils.inList(delegate, "record.id", recIds)
         }
     }
 }

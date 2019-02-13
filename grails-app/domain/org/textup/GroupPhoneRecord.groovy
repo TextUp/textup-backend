@@ -17,11 +17,10 @@ class GroupPhoneRecord extends PhoneRecord {
     String hexColor = Constants.DEFAULT_BRAND_COLOR
     String name
 
+    // `name` and `isDeleted` columns are shared with `IndividualPhoneRecord`
     static mapping = {
         hexColor column: "group_hex_color"
-        isDeleted column: "group_is_deleted"
-        members fetch: "join", cascade: "all-delete-orphan"
-        name column: "group_name"
+        members fetch: "join", cascade: "save-update"
     }
     static constraints = {
         hexColor validator: { String val ->
@@ -38,6 +37,11 @@ class GroupPhoneRecord extends PhoneRecord {
                     record: rec1,
                     members: prMembers)
                 DomainUtils.trySave(gpr1, ResultStatus.CREATED)
+                    .ifFail { Result<?> failRes ->
+                        rec1.delete()
+                        prMembers.delete()
+                        failRes
+                    }
             }
     }
 
@@ -49,7 +53,7 @@ class GroupPhoneRecord extends PhoneRecord {
 
     @Override
     Collection<Record> buildRecords() {
-        CollectionUtils.mergeUnique([[record], getActiveMembers()*.record])
+        CollectionUtils.mergeUnique([[record], members.allActive*.record])
     }
 
     // Properties
@@ -57,17 +61,4 @@ class GroupPhoneRecord extends PhoneRecord {
 
     @Override
     String getSecureName() { name }
-
-    Collection<PhoneRecord> getActiveMembers() {
-        members.phoneRecords?.findAll { PhoneRecord pr1 -> pr1.isActive() } ?: new ArrayList<PhoneRecord>()
-    }
-
-    // Can't move to static class because Grails manages this relationship so no direct queries
-    Collection<PhoneRecord> getMembersByStatus(Collection<PhoneRecordStatus> statuses) {
-        if (statuses) {
-            HashSet<PhoneRecordStatus> statusesToFind = new HashSet<>(statuses)
-            getActiveMembers().findAll { PhoneRecord pr1 -> statusesToFind.contains(pr1.status) }
-        }
-        else { getActiveMembers() }
-    }
 }

@@ -14,7 +14,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
 
-    static final Closure marshalClosure = { Schedule sched1 ->
+    static final Closure marshalClosure = { ReadOnlySchedule sched1 ->
         Map json = [:]
         json.with {
             id                = sched1.id
@@ -23,7 +23,7 @@ class ScheduleJsonMarshaller extends JsonNamedMarshaller {
             manualIsAvailable = sched1.manualIsAvailable
         }
 
-        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
+        RequestUtils.tryGet(RequestUtils.TIMEZONE)
             .then { String tz ->
                 json.with {
                     nextAvailable   = sched1.nextAvailable(tz)
@@ -43,6 +43,6 @@ class ScheduleJsonMarshaller extends JsonNamedMarshaller {
     }
 
     ScheduleJsonMarshaller() {
-        super(Schedule, marshalClosure)
+        super(ReadOnlySchedule, marshalClosure)
     }
 }

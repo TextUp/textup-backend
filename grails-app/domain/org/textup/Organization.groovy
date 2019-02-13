@@ -13,7 +13,7 @@ import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Organization implements WithId, CanSave<Organization> {
+class Organization implements WithId, CanSave<Organization>, ReadOnlyOrganization {
 
     DateTime whenCreated = JodaUtils.utcNow()
 	String name
@@ -27,17 +27,16 @@ class Organization implements WithId, CanSave<Organization> {
         location cascade: "save-update"
     }
     static constraints = {
-    	name blank:false, validator:{ String val, Organization obj ->
-    		//must have unique (name, location) combination
+    	name validator: { String val, Organization obj ->
+    		//must have unique name + location combination
     		if (val && obj.location && Utils.<Boolean>doWithoutFlush {
                     Organizations.buildForNameAndLatLng(val, obj.location.lat, obj.location.lng)
-                        .build(CriteriaUtils.forNotId(obj.id))
+                        .build(CriteriaUtils.forNotIdIfPresent(obj.id))
                         .count() > 0
                 }) {
                 ["duplicate", obj.location.address]
             }
     	}
-        status blank: false, nullable: false
         timeout min: 0, max: ValidationUtils.MAX_LOCK_TIMEOUT_MILLIS
         // leave one character for the space for joining this suffix with an away message
         awayMessageSuffix nullable: true, blank: true, size: 1..(ValidationUtils.TEXT_BODY_LENGTH - 1)
@@ -47,4 +46,9 @@ class Organization implements WithId, CanSave<Organization> {
     static Result<Organization> tryCreate(String name, Location loc1) {
         DomainUtils.trySave(new Organization(name: name, location: loc1), ResultStatus.CREATED)
     }
+
+    // Properties
+    // ----------
+
+    ReadOnlyLocation getReadOnlyLocation() { location }
 }

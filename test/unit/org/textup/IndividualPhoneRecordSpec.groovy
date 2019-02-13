@@ -14,8 +14,6 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -25,251 +23,189 @@ import spock.lang.*
 @TestMixin(HibernateTestMixin)
 class IndividualPhoneRecordSpec extends Specification {
 
-    // static doWithSpring = {
-    //     resultFactory(ResultFactory)
-    // }
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    // def setup() {
-    //     setupData()
-    // }
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-    // def cleanup() {
-    //     cleanupData()
-    // }
+    void "test creation + constraints"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        int rBaseline = Record.count()
 
-    // void "test constraints"() {
-    //     when: "we have a contact with only a phone defined"
-    //     Contact c1 = new Contact(phone:p1)
+        when:
+        Result res = IndividualPhoneRecord.tryCreate(null)
+        IndividualPhoneRecord.withSession { it.flush() }
 
-    //     then: "an empty record is automatically added"
-    //     c1.validate() == true
-    //     c1.record != null
+        then: "no stray `Record` is created"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        Record.count() == rBaseline
 
-    //     when: "we add a tag membership and define a too-long note"
-    //     c1.save(flush:true, failOnError:true)
-    //     c1.note =  TestUtils.buildVeryLongString()
+        when:
+        res = IndividualPhoneRecord.tryCreate(p1)
 
-    //     then:
-    //     c1.validate() == false
-    //     c1.errors.errorCount == 1
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.record != null
+        res.payload.phone == p1
+        res.payload.numbers == null
+        Record.count() == rBaseline + 1
+    }
 
-    //     when: "we remove the note"
-    //     c1.note = null
+    void "getting names"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        String name = "Hello there"
+        String initials = "H.T."
 
-    //     then:
-    //     c1.validate() == true
-    // }
+        when:
+        IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1).payload
 
-    // void "test getting from num and subaccount id"() {
-    //     given:
-    //     String customAccountId = TestUtils.randString()
-    //     p1.customAccount = Stub(CustomAccountDetails) { getAccountId() >> customAccountId }
+        then:
+        ipr1.secureName == ""
+        ipr1.publicName == ""
 
-    //     when:
-    //     Contact c1 = new Contact(phone:p1)
+        when:
+        ipr1.name = name
 
-    //     then: "an empty record is automatically added"
-    //     c1.validate() == true
-    //     c1.fromNum.number == p1.number.number
-    //     c1.customAccountId == p1.customAccount.accountId
-    // }
+        then:
+        ipr1.secureName == name
+        ipr1.publicName == initials
+    }
 
-    // void "test no duplicate numbers for one contact, autoincrement preference"() {
-    //     given:
-    //     int maxPref = c1.numbers.max { it.preference }.preference
-    //     int numNums = c1.numbers.size()
-    //     int numBaseline = ContactNumber.count()
-    //     String number = "1234349230"
-    //     List<String> sortedNums = c1.numbers
-    //         .sort(false) { a, b -> a.preference <=> b.preference}
-    //         .collect { it.number }
+    void "test determining if active"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
 
-    //     when: "we try to add a unique number"
-    //     ContactNumber cn = c1.mergeNumber(number).payload
-    //     cn.save(flush:true, failOnError:true)
+        when:
+        IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1).payload
 
-    //     List<ContactNumber> contactSorted = c1.sortedNumbers
-    //     sortedNums << number
+        then:
+        ipr1.isActive()
 
-    //     then:
-    //     c1.numbers.size() == numNums + 1
-    //     cn.preference == maxPref + 1
-    //     sortedNums.size() == contactSorted.size()
-    //     sortedNums.eachWithIndex { n, i ->
-    //         assert contactSorted[i].number == n
-    //     }
-    //     ContactNumber.count() == numBaseline + 1
+        when:
+        ipr1.status = PhoneRecordStatus.ACTIVE
+        ipr1.isDeleted = true
 
-    //     when: "we try to add a duplicate number"
-    //     cn = c1.mergeNumber(number).payload
-    //     cn.save(flush:true, failOnError:true)
+        then:
+        ipr1.isActive() == false
+    }
 
-    //     then: "duplicate is ignored"
-    //     c1.numbers.size() == numNums + 1
-    //     cn.preference == maxPref + 1
-    //     ContactNumber.count() == numBaseline + 1
+    void "test merging + deleting errors"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        PhoneNumber invalidNum = PhoneNumber.create("invalid")
+        IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1).payload
 
-    //     when: "we try to add another unique number"
-    //     String number2 = "1234390980"
-    //     cn = c1.mergeNumber(number2).payload
-    //     cn.save(flush:true, failOnError:true)
+        when:
+        Result res = ipr1.mergeNumber(null, -8)
 
-    //     contactSorted = c1.sortedNumbers
-    //     sortedNums << number2
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        ipr1.numbers.isEmpty()
 
-    //     then:
-    //     c1.numbers.size() == numNums + 2
-    //     cn.preference == maxPref + 2
-    //     sortedNums.size() == contactSorted.size()
-    //     sortedNums.eachWithIndex { n, i ->
-    //         assert contactSorted[i].number == n
-    //     }
-    //     ContactNumber.count() == numBaseline + 2
+        when:
+        res = ipr1.mergeNumber(invalidNum, -8)
 
-    //     when: "we try to add another unique number"
-    //     String number3 = "1234390981"
-    //     cn = c1.mergeNumber(number3).payload
-    //     cn.save(flush:true, failOnError:true)
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        ipr1.numbers.isEmpty()
 
-    //     contactSorted = c1.sortedNumbers
-    //     sortedNums << number3
+        when:
+        res = ipr1.deleteNumber(null)
 
-    //     then:
-    //     c1.numbers.size() == numNums + 3
-    //     cn.preference == maxPref + 3
-    //     sortedNums.size() == contactSorted.size()
-    //     sortedNums.eachWithIndex { n, i ->
-    //         assert contactSorted[i].number == n
-    //     }
-    //     ContactNumber.count() == numBaseline + 3
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        ipr1.numbers.isEmpty()
+    }
 
-    //     when: "we delete a number"
-    //     c1.deleteNumber(number)
-    //     c1.save(flush:true, failOnError:true)
+    void "test merging + deleting + normalizing preferences for numbers"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum2 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum3 = TestUtils.randPhoneNumber()
+        IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1).payload
+        Integer pref1 = -8
+        Integer pref2 = 3
+        Integer pref3 = -12
 
-    //     contactSorted = c1.sortedNumbers
-    //     sortedNums.removeAll { it == number }
+        when:
+        Result res = ipr1.mergeNumber(pNum1, pref1)
 
-    //     then:
-    //     c1.numbers.size() == numNums + 2
-    //     sortedNums.size() == contactSorted.size()
-    //     sortedNums.eachWithIndex { n, i ->
-    //         assert contactSorted[i].number == n
-    //     }
-    //     ContactNumber.count() == numBaseline + 2
-    // }
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.number == pNum1.number
+        ipr1.numbers.size() == 1
+        ipr1.numbers[0].number == pNum1.number
+        ipr1.numbers[0].preference == pref1 // not normalized yet
 
-    // void "test getting name or number"() {
-    //     given:
-    //     String name = TestUtils.randString()
+        when:
+        res = ipr1.mergeNumber(pNum2, pref2)
 
-    //     when: "contact has name"
-    //     c1.name = name
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.number == pNum2.number
+        ipr1.numbers.size() == 2
+        ipr1.numbers[1].number == pNum2.number
+        ipr1.numbers[1].preference == pref2 // not normalized yet
 
-    //     then:
-    //     c1.nameOrNumber == name
+        when:
+        res = ipr1.deleteNumber(pNum1)
 
-    //     when: "contact no name"
-    //     c1.name = null
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        ipr1.numbers.size() == 1
+        ipr1.numbers[0].number == pNum2.number
+        ipr1.numbers[0].preference == pref2 // not normalized yet
 
-    //     then:
-    //     c1.nameOrNumber == c1.numbers[0].number
-    // }
+        when:
+        res = ipr1.mergeNumber(pNum3, pref3)
 
-    // void "test static finders"() {
-    //     given: "a phone with contacts"
-    //     Phone phone1 = new Phone(numberAsString:TestUtils.randPhoneNumberString()),
-    //         phone2 = new Phone(numberAsString:TestUtils.randPhoneNumberString())
-    //     phone1.updateOwner(s1)
-    //     phone2.updateOwner(s2)
-    //     phone1.save(failOnError:true)
-    //     phone2.save(failOnError:true)
-    //     List<Contact> contacts = []
-    //     List<Contact> sharedContacts = []
-    //     Map<ContactStatus,String> statusToContactNum = [:]
-    //     Map<ContactStatus,String> statusToSharedContactNum = [:]
-    //     ContactStatus.values().each { ContactStatus cStatus ->
-    //         String strNum1 = TestUtils.randPhoneNumberString()
-    //         String strNum2 = TestUtils.randPhoneNumberString()
-    //         // creating contacts
-    //         statusToContactNum[cStatus] = strNum1
-    //         contacts << phone1.createContact([status:cStatus], [strNum1]).payload
-    //         // creating shared contacts
-    //         statusToSharedContactNum[cStatus] = strNum2
-    //         Contact otherContact = phone2.createContact([status:cStatus], [strNum2]).payload
-    //         SharedContact sc1 = new SharedContact(contact:otherContact, sharedBy:phone2,
-    //             sharedWith:phone1, permission:SharePermission.DELEGATE)
-    //         sc1.save(flush:true, failOnError:true)
-    //         sharedContacts << sc1
-    //         // create deleted contact and shared contact that should not show up
-    //         phone1.createContact([status:cStatus, isDeleted:true], [strNum1])
-    //         Contact otherContact2 = phone2.createContact([status:cStatus, isDeleted:true], [strNum2]).payload
-    //         SharedContact sc2 = new SharedContact(contact:otherContact, sharedBy:phone2,
-    //             sharedWith:phone1, permission:SharePermission.DELEGATE)
-    //         sc2.save(flush:true, failOnError:true)
-    //         // ensure that getting shared contacts respects when contact is deleted
-    //         assert otherContact2.sharedContacts.isEmpty() == true
-    //         if (cStatus == ContactStatus.ACTIVE || cStatus == ContactStatus.UNREAD ||
-    //             cStatus == ContactStatus.ARCHIVED) {
-    //             assert otherContact.sharedContacts[0]?.id == sc1.id
-    //         }
-    //         else {
-    //             assert otherContact.sharedContacts.isEmpty() == true
-    //         }
-    //     }
-    //     String otherNum = TestUtils.randPhoneNumberString()
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.number == pNum3.number
+        ipr1.numbers.size() == 2
+        ipr1.numbers[1].number == pNum3.number
+        ipr1.numbers[1].preference == pref3 // not normalized yet
 
-    //     expect:
-    //     Contact.countForPhoneAndSearch(phone1, otherNum) == 0
-    //     Contact.countForPhoneAndSearch(phone1, "") == 0
-    //     Contact.countForPhoneAndSearch(phone1, null) == 0
-    //     Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.UNREAD]) == 1
-    //     Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.ACTIVE]) == 1
-    //     Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.ARCHIVED]) == 1
-    //     Contact.countForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.BLOCKED]) == 0
-    //     Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.UNREAD]) == 1
-    //     Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ACTIVE]) == 1
-    //     Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED]) == 1
-    //     Contact.countForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.BLOCKED]) == 0
+        when: "actually saving"
+        IndividualPhoneRecord.withSession { it.flush() }
 
-    //     Contact.listForPhoneAndSearch(phone1, otherNum).isEmpty()
-    //     Contact.listForPhoneAndSearch(phone1, "").isEmpty()
-    //     Contact.listForPhoneAndSearch(phone1, null).isEmpty()
-    //     Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.UNREAD])[0].id in contacts*.contactId
-    //     Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.ACTIVE])[0].id in contacts*.contactId
-    //     Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.ARCHIVED])[0].id in contacts*.contactId
-    //     Contact.listForPhoneAndSearch(phone1, statusToContactNum[ContactStatus.BLOCKED]).isEmpty()
-    //     Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.UNREAD])[0].id in sharedContacts*.contactId
-    //     Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ACTIVE])[0].id in sharedContacts*.contactId
-    //     Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.ARCHIVED])[0].id in sharedContacts*.contactId
-    //     Contact.listForPhoneAndSearch(phone1, statusToSharedContactNum[ContactStatus.BLOCKED]).isEmpty()
+        then: "preferences are normalized"
+        ipr1.numbers.size() == 2
+        ipr1.sortedNumbers.size() == 2
+        ipr1.sortedNumbers[0].number == pNum3.number
+        ipr1.sortedNumbers[0].preference == 0
+        ipr1.sortedNumbers[1].number == pNum2.number
+        ipr1.sortedNumbers[1].preference == 1
+    }
 
-    //     Contact.countForPhoneAndStatuses(phone1) == 4  // defaults to `ContactStatus.ACTIVE_STATUSES`
-    //     Contact.countForPhoneAndStatuses(phone1, null) == 4  // defaults to `ContactStatus.ACTIVE_STATUSES`
-    //     Contact.countForPhoneAndStatuses(phone1, []) == 4  // defaults to `ContactStatus.ACTIVE_STATUSES`
-    //     Contact.countForPhoneAndStatuses(phone1, [ContactStatus.UNREAD]) == 2
-    //     Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ACTIVE]) == 2
-    //     Contact.countForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED]) == 2
-    //     Contact.countForPhoneAndStatuses(phone1, [ContactStatus.BLOCKED]) == 1 // Shared.sharedWithMe excludes BLOCKED
+    void "test getting wrapper"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        PhoneRecord pr1 = new PhoneRecord(phone: p1,
+            record: TestUtils.buildRecord(),
+            permission: SharePermission.VIEW)
 
-    //     Contact.listForPhoneAndStatuses(phone1)*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
-    //     Contact.listForPhoneAndStatuses(phone1, null)*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
-    //     Contact.listForPhoneAndStatuses(phone1, [])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
-    //     Contact.listForPhoneAndStatuses(phone1, [ContactStatus.UNREAD])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
-    //     Contact.listForPhoneAndStatuses(phone1, [ContactStatus.ACTIVE])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
-    //     Contact.listForPhoneAndStatuses(phone1, [ContactStatus.ARCHIVED])*.id.every { it in contacts*.contactId || it in sharedContacts*.contactId }
-    //     Contact.listForPhoneAndStatuses(phone1, [ContactStatus.BLOCKED])*.id.every { it in contacts*.contactId }
+        when:
+        IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1).payload
+        def w1 = ipr1.toWrapper()
 
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:otherNum)).isEmpty()
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:"")).isEmpty()
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:null)).isEmpty()
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToContactNum[ContactStatus.UNREAD]))[0].id in contacts*.contactId
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToContactNum[ContactStatus.ACTIVE]))[0].id in contacts*.contactId
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToContactNum[ContactStatus.ARCHIVED]))[0].id in contacts*.contactId
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToContactNum[ContactStatus.BLOCKED]))[0].id in contacts*.contactId
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToSharedContactNum[ContactStatus.UNREAD])).isEmpty()
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToSharedContactNum[ContactStatus.ACTIVE])).isEmpty()
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToSharedContactNum[ContactStatus.ARCHIVED])).isEmpty()
-    //     Contact.listForPhoneAndNum(phone1, new PhoneNumber(number:statusToSharedContactNum[ContactStatus.BLOCKED])).isEmpty()
-    // }
+        then:
+        w1 instanceof IndividualPhoneRecordWrapper
+        w1.permissions.isOwner()
+
+        when:
+        w1 = ipr1.toWrapper(pr1)
+
+        then:
+        w1 instanceof IndividualPhoneRecordWrapper
+        w1.permissions.isOwner() == false
+        w1.permissions.canModify() == false
+        w1.permissions.canView() == true
+    }
 }

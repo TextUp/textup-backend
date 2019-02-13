@@ -1,10 +1,13 @@
 package org.textup.type
 
-import spock.lang.*
 import org.textup.test.*
-
-// TODO
+import spock.lang.*
 
 class FutureMessageTypeSpec extends Specification {
 
+    void "test converting to record item type"() {
+        expect:
+        FutureMessageType.CALL.toRecordItemType() == RecordItemType.CALL
+        FutureMessageType.TEXT.toRecordItemType() == RecordItemType.TEXT
+    }
 }

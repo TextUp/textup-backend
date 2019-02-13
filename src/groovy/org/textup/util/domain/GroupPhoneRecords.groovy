@@ -40,8 +40,10 @@ class GroupPhoneRecords {
         new DetachedCriteria(GroupPhoneRecord)
             .build {
                 members {
-                    CriteriaUtils.inList(delegate, "id", memberIds)
-                    CriteriaUtils.compose(delegate, PhoneRecords.forActive())
+                    phoneRecords {
+                        CriteriaUtils.inList(delegate, "id", memberIds)
+                        ClosureUtils.compose(delegate, PhoneRecords.forActive())
+                    }
                 }
                 if (phoneId) {
                     eq("phone.id", phoneId)

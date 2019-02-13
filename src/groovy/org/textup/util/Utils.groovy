@@ -39,7 +39,20 @@ class Utils {
     }
 
     static Long inclusiveBound(Long val, Long min, Long max) {
-        Math.max(min, Math.min(val, max))
+        Long newVal = val
+        if ([val, min, max].every { it != null } && max > min) {
+            if (val > max) { // val is above range
+                newVal = max
+            }
+            else if (val < min) { // val is below range
+                newVal = min
+            }
+            else { // val is within range
+                if (max != null) newVal = Math.min(val, max)
+                if (min != null) newVal = Math.max(min, val)
+            }
+        }
+        newVal
     }
 
     // Data helpers

@@ -23,16 +23,19 @@ class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureM
 	static transients = ["repeatIntervalInDays"]
     static constraints = {
         repeatIntervalInMillis min: TypeUtils.to(Long, TimeUnit.DAYS.toMillis(1))
-		repeatCount nullable:true, validator: { Integer rNum, SimpleFutureMessage msg ->
+		repeatCount nullable: true, validator: { Integer rNum, SimpleFutureMessage msg ->
 			if (rNum == SimpleTrigger.REPEAT_INDEFINITELY && !msg.endDate) {
 				["unboundedNeedsEndDate"]
 			}
 		}
     }
 
-    static Result<SimpleFutureMessage> tryCreate(Record rec1, String message, MediaInfo mInfo) {
+    static Result<SimpleFutureMessage> tryCreate(Record rec1, FutureMessageType type, String msg,
+        MediaInfo mInfo) {
+
         SimpleFutureMessage sMsg = new SimpleFutureMessage(record: rec1,
-            message: message,
+            type: type,
+            message: msg,
             media: mInfo)
         DomainUtils.trySave(sMsg, ResultStatus.CREATED)
     }

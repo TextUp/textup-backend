@@ -85,4 +85,14 @@ class LocalIntervalSpec extends Specification {
     	l3.overlaps(l4) && l4.overlaps(l3)
     	[l1, l3, l4, l5].every { l2.overlaps(it) && !l2.abuts(it) }
     }
+
+    void "test building string representation"() {
+        given:
+        LocalInterval lInt1 = new LocalInterval()
+        LocalInterval lInt2 = new LocalInterval(new LocalTime(5, 0), new LocalTime(7, 0))
+
+        expect:
+        lInt1.toString() == ""
+        lInt2.toString() == "0500:0700"
+    }
 }

@@ -68,8 +68,8 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     //     trigger.startTime == startDate.toDate()
     //     trigger.endTime == endDate.toDate()
     //     trigger.jobDataMap.size() == 2
-    //     trigger.jobDataMap[Constants.JOB_DATA_FUTURE_MESSAGE_KEY] == keyName
-    //     trigger.jobDataMap[Constants.JOB_DATA_STAFF_ID] == s1.id
+    //     trigger.jobDataMap[QuartzUtils.DATA_FUTURE_MESSAGE_KEY] == keyName
+    //     trigger.jobDataMap[QuartzUtils.DATA_STAFF_ID] == s1.id
     // }
 
     // @DirtiesRuntime
@@ -283,5 +283,71 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     //     1 * fMsg.setIsDone(true)
     //     1 * fMsg.save() >> fMsg
     //     res.status == ResultStatus.OK
+    // }
+
+    // // TODO from future message
+    // void "test converting to outgoing message for record"() {
+    //     given: "a valid future message"
+    //     def owner = (type == "contact") ? c1 : tag1
+    //     MediaInfo mInfo = new MediaInfo()
+    //     mInfo.save(flush: true, failOnError: true)
+    //     FutureMessage fMsg = new FutureMessage(
+    //         type:FutureMessageType.CALL,
+    //         record:owner.record,
+    //         message:"hi"
+    //     )
+    //     assert fMsg.validate()
+
+    //     when: "message is a text without media"
+    //     fMsg.type = FutureMessageType.TEXT
+    //     fMsg.language = VoiceLanguage.CHINESE
+    //     fMsg.media = null
+    //     OutgoingMessage msg = fMsg.tryGetOutgoingMessage().payload
+    //     Collection hasMembers, noMembers
+    //     if (type == "contact") {
+    //         hasMembers = msg.contacts.recipients
+    //         noMembers = msg.tags.recipients
+    //     }
+    //     else {
+    //         hasMembers = msg.tags.recipients
+    //         noMembers = msg.contacts.recipients
+    //     }
+
+    //     then: "make outgoing message without flushing"
+    //     msg.type == RecordItemType.TEXT
+    //     msg.media == null
+    //     msg.language == VoiceLanguage.CHINESE
+    //     msg.message == fMsg.message
+    //     noMembers.isEmpty()
+    //     hasMembers.size() == 1
+    //     hasMembers[0].id == owner.id
+
+    //     when: "message is a call with media"
+    //     fMsg.type = FutureMessageType.CALL
+    //     fMsg.language = VoiceLanguage.ITALIAN
+    //     fMsg.media = mInfo
+    //     msg = fMsg.tryGetOutgoingMessage().payload
+    //     if (type == "contact") {
+    //         hasMembers = msg.contacts.recipients
+    //         noMembers = msg.tags.recipients
+    //     }
+    //     else {
+    //         hasMembers = msg.tags.recipients
+    //         noMembers = msg.contacts.recipients
+    //     }
+
+    //     then: "make outgoing message without flushing"
+    //     msg.type == RecordItemType.CALL
+    //     msg.media == mInfo
+    //     msg.language == VoiceLanguage.ITALIAN
+    //     msg.message == fMsg.message
+    //     noMembers.isEmpty()
+    //     hasMembers.size() == 1
+    //     hasMembers[0].id == owner.id
+
+    //     where:
+    //     type      | _
+    //     "contact" | _
+    //     "tag"     | _
     // }
 }

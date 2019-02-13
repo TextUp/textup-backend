@@ -15,13 +15,15 @@ import org.textup.validator.*
 @Validateable
 class ActionContainer<T extends BaseAction> implements CanValidate {
 
-	Object data
-	Class<T> clazz
-	List<T> actions = []
+	final Object data
+	final Class<T> clazz
+	final List<? extends T> actions
 
-	ActionContainer(Class<T> clazz, Object data) {
-		data = data
-		clazz = clazz
+	ActionContainer(Class<T> c1, Object d1) {
+		clazz = c1
+		data = d1
+		// try building actions after setting data
+		actions = Collections.<T>unmodifiableList(tryBuildActions())
 	}
 
 	static constraints = {
@@ -49,20 +51,12 @@ class ActionContainer<T extends BaseAction> implements CanValidate {
 			IOCUtils.resultFactory.failWithValidationErrors(ac1.errors)
 	}
 
-	// Property access
-	// ---------------
-
-	void setData(Object obj) {
-		data = obj
-		actions = tryBuildActions()
-	}
-
 	// Helpers
 	// -------
 
-	protected List<T> tryBuildActions() {
-		List<T> actions = []
-		if (validate(["data"])) {
+	protected List<? extends T> tryBuildActions() {
+		List<? extends T> actions = []
+		if (clazz && validate(["data"])) {
 			TypeUtils.to(Collection, data)?.each { Object obj ->
 				T action = (clazz.newInstance() as T)
 				action.update(TypeUtils.to(Map, obj))

@@ -16,8 +16,10 @@ enum SharePermission {
     }
 
     String buildSummary(Collection<String> names) {
-        List<String> namesList = new ArrayList<>(names)
-        String namesString = CollectionUtils.joinWithDifferentLast(namesList, ", ", ", and ")
-        IOCUtils.getMessage(messageCode, [namesString])
+        if (names) {
+            String namesString = CollectionUtils.joinWithDifferentLast(names.toList(), ", ", ", and ")
+            IOCUtils.getMessage(messageCode, [namesString])
+        }
+        else { "" }
     }
 }

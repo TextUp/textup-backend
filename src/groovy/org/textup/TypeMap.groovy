@@ -24,7 +24,7 @@ class TypeMap extends TypeConvertingMap {
         new TypeMap(obj)
     }
 
-    static TypeMap create(Map map) {
+    static TypeMap create(Map map = null) {
         new TypeMap(map)
     }
 

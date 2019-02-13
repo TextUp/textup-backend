@@ -13,15 +13,13 @@ class PhoneCache {
 
     // need to get wired `PhoneCache` bean so that internal calls heed AOP advice
     Phone findPhone(Long ownerId, PhoneOwnershipType type, boolean includeInactive = false) {
-        PhoneCache phoneCache = IOCUtils.getBean(PhoneCache)
-        Long pId = phoneCache.findAnyPhoneIdForOwner(ownerId, type)
+        Long pId = IOCUtils.phoneCache.findAnyPhoneIdForOwner(ownerId, type)
         Phone p1 = Phone.get(pId) // Phone uses second level cache
         p1?.isActive() || includeInactive ? p1 : null
     }
 
     Result<Long> mustFindAnyPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
-        PhoneCache phoneCache = IOCUtils.getBean(PhoneCache)
-        Long pId = phoneCache.findAnyPhoneIdForOwner(ownerId, type)
+        Long pId = IOCUtils.phoneCache.findAnyPhoneIdForOwner(ownerId, type)
         if (pId) {
             IOCUtils.resultFactory.success(pId)
         }
@@ -35,16 +33,19 @@ class PhoneCache {
     // Key is a SpEL list, see: https://stackoverflow.com/a/17406598
     @CacheEvict(value = "phonesCache", key = "{ #p1, #p2 }")
     Result<Phone> tryUpdateOwner(Phone p1, Long ownerId, PhoneOwnershipType type) {
-        p1.owner.ownerId = ownerId
-        p1.owner.type = type
+        p1?.owner?.ownerId = ownerId
+        p1?.owner?.type = type
         DomainUtils.trySave(p1)
     }
 
     // Must be a non-static public method for Spring AOP advice to apply
     @Cacheable(value = "phonesCache", key = "{ #p0, #p1 }")
     Long findAnyPhoneIdForOwner(Long ownerId, PhoneOwnershipType type) {
-        Phones.buildAnyForOwnerIdAndType(ownerId, type)
-            .build(CriteriaUtils.returnsId())
-            .list(max: 1)[0] as Long
+        if (ownerId && type) {
+            Phones.buildAnyForOwnerIdAndType(ownerId, type)
+                .build(CriteriaUtils.returnsId())
+                .list(max: 1)[0] as Long
+        }
+        else { null }
     }
 }

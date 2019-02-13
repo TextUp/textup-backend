@@ -14,9 +14,6 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
-// Need to mock Organization and Location to enable rolling back transaction on resultFactory failure
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -24,129 +21,113 @@ import spock.lang.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
+@Unroll
 class RecordSpec extends Specification {
 
-	// static doWithSpring = {
- //        resultFactory(ResultFactory)
- //    }
+	static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-	// def setup() {
- //        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-	// }
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
- //    void "test adding items errors"() {
- //    	given: "a valid record"
- //    	Record rec = new Record()
- //    	rec.save(flush:true, failOnError:true)
+    void "test static creation"() {
+        when:
+        Result res = Record.tryCreate()
 
- //    	when: "we add a missing item"
- //    	Result res = rec.add(null, null)
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.lastRecordActivity != null
+        res.payload.language == VoiceLanguage.ENGLISH
+    }
 
- //    	then:
- //    	res.success == false
- //        res.status == ResultStatus.BAD_REQUEST
- //        res.errorMessages.size() == 1
- //    	res.errorMessages[0] == "record.noRecordItem"
- //    }
+    void "test try adding notes"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
 
- //    void "test adding items, keeping lastRecordActivity up-to-date"() {
- //        given: "a valid record"
- //        Record rec = new Record()
- //        rec.save(flush:true, failOnError:true)
+        when:
+        Result res = rec1.tryCreateItem(RecordItemType.NOTE, TestUtils.randString())
 
- //        DateTime currentTimestamp = rec.lastRecordActivity
+        then:
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages == ["record.cannotAddNoteHere"]
+    }
 
- //        when: "add an outgoing text"
- //        assert rec.storeOutgoingText("hello").success
- //        rec.save(flush: true, failOnError: true)
+    void "test adding outgoing items for type #type"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
+        Author a1 = TestUtils.buildAuthor()
+        String msg = TestUtils.randString()
 
- //        then: "lastRecordActivity is updated"
- //        !rec.lastRecordActivity.isBefore(currentTimestamp)
- //        RecordItem.countByRecord(rec) == 1
- //        RecordText.countByRecord(rec) == 1
- //        RecordCall.countByRecord(rec) == 0
+        int iBaseline = RecordItem.count()
+        int rBaseline = RecordItemReceipt.count()
+        int mBaseline = MediaInfo.count()
+        DateTime origRecordActivity = rec1.lastRecordActivity
 
- //        when: "add an outgoing call"
- //        currentTimestamp = rec.lastRecordActivity
- //        assert rec.storeOutgoingCall().success
+        when:
+        Result res = rec1.storeOutgoing(type, a1, msg, new MediaInfo())
+        RecordItem.withSession { it.flush() }
 
- //        then: "lastRecordActivity is updated"
- //        !rec.lastRecordActivity.isBefore(currentTimestamp)
- //        RecordItem.countByRecord(rec) == 2
- //        RecordText.countByRecord(rec) == 1
- //        RecordCall.countByRecord(rec) == 1
+        then:
+        res.status == ResultStatus.CREATED
+        type.toClass().isAssignableFrom(res.payload.class)
+        res.payload.outgoing == true
+        res.payload.record == rec1
+        res.payload[msgPropName] == msg
+        rec1.lastRecordActivity.isAfter(origRecordActivity)
 
- //        when: "add an incoming text"
- //        currentTimestamp = rec.lastRecordActivity
- //        IncomingText text = new IncomingText(apiId: "apiId", message: "hi", numSegments: 88)
- //        IncomingSession session1 = new IncomingSession(phone: new Phone(), numberAsString: "6261231234")
- //        Result<RecordText> textRes = rec.storeIncomingText(text, session1)
+        res.payload.receipts == null
 
- //        then: "lastRecordActivity is updated"
- //        textRes.success == true
- //        textRes.payload.receipts.size() == 1
- //        textRes.payload.receipts[0].contactNumberAsString == session1.numberAsString
- //        textRes.payload.receipts[0].status == ReceiptStatus.SUCCESS
- //        textRes.payload.numSegments == text.numSegments
- //        !rec.lastRecordActivity.isBefore(currentTimestamp)
- //        RecordItem.countByRecord(rec) == 3
- //        RecordText.countByRecord(rec) == 2
- //        RecordCall.countByRecord(rec) == 1
+        RecordItem.count() == iBaseline + 1
+        RecordItemReceipt.count() == rBaseline
+        MediaInfo.count() == mBaseline + 1
 
- //        when: "add an incoming call"
- //        currentTimestamp = rec.lastRecordActivity
- //        Result<RecordCall> callRes = rec.storeIncomingCall("apiId", session1)
+        where:
+        type                | msgPropName
+        RecordItemType.TEXT | "contents"
+        RecordItemType.CALL | "noteContents"
+    }
 
- //        then: "lastRecordActivity is updated"
- //        callRes.success == true
- //        callRes.payload.receipts[0].contactNumberAsString == session1.numberAsString
- //        callRes.payload.receipts[0].status == ReceiptStatus.SUCCESS
- //        !rec.lastRecordActivity.isBefore(currentTimestamp)
- //        RecordItem.countByRecord(rec) == 4
- //        RecordText.countByRecord(rec) == 2
- //        RecordCall.countByRecord(rec) == 2
- //    }
+    void "test adding incoming items for type #type"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
+        Author a1 = TestUtils.buildAuthor()
+        PhoneNumber pNum = TestUtils.randPhoneNumber()
+        String apiId = TestUtils.randString()
+        String msg = TestUtils.randString()
+        Integer numBillable = TestUtils.randIntegerUpTo(88, true)
 
- //    void "test checking for unread info"() {
- //        given:
- //        Record rec1 = new Record()
- //        rec1.save(flush: true, failOnError: true)
+        int iBaseline = RecordItem.count()
+        int rBaseline = RecordItemReceipt.count()
+        int mBaseline = MediaInfo.count()
+        DateTime origRecordActivity = rec1.lastRecordActivity
 
- //        DateTime dt = DateTime.now()
- //        RecordItem rItem1 = new RecordItem(record: rec1, whenCreated: dt)
- //        rItem1.save(flush: true, failOnError: true)
+        when:
+        Result res = rec1.storeIncoming(type, a1, pNum, apiId, msg, numBillable)
+        RecordItem.withSession { it.flush() }
 
- //        expect:
- //        rec1.hasUnreadInfo(dt.minusDays(1)) == true
- //        rec1.hasUnreadInfo(dt.plusDays(1)) == false
- //    }
+        then:
+        res.status == ResultStatus.CREATED
+        type.toClass().isAssignableFrom(res.payload.class)
+        res.payload.outgoing == false
+        res.payload.record == rec1
+        res.payload[msgPropName] == msg
+        rec1.lastRecordActivity.isAfter(origRecordActivity)
 
- //    void "test building unread info"() {
- //        given:
- //        Record rec1 = new Record()
- //        rec1.save(flush: true, failOnError: true)
+        res.payload.receipts.size() == 1
+        res.payload.receipts[0].apiId == apiId
+        res.payload.receipts[0].numBillable == numBillable
+        res.payload.receipts[0].contactNumberAsString == pNum.number
+        res.payload.receipts[0].status == ReceiptStatus.SUCCESS
 
- //        RecordText rText1 = rec1.storeOutgoingText("hello").payload,
- //            rText2 = rec1.storeOutgoingText("hello").payload
- //        rText1.outgoing = false
- //        rText2.outgoing = true
- //        RecordCall rCall1 = rec1.storeOutgoingCall().payload,
- //            rCall2 = rec1.storeOutgoingCall().payload,
- //            rCall3 = rec1.storeOutgoingCall().payload
- //        rCall1.outgoing = false
- //        rCall2.outgoing = false
- //        rCall2.voicemailInSeconds = 22
- //        rCall2.hasAwayMessage = true
- //        rCall3.outgoing = true
- //        RecordNote rNote1 = new RecordNote(record:rec1)
- //        [rText1, rText2, rCall1, rCall2, rCall3, rNote1]*.save(flush:true, failOnError:true)
+        RecordItem.count() == iBaseline + 1
+        RecordItemReceipt.count() == rBaseline + 1
+        MediaInfo.count() == mBaseline
 
- //        when:
- //        UnreadInfo uInfo = rec1.getUnreadInfo(null)
-
- //        then: "unread info only includes counts for incoming items"
- //        uInfo.numTexts == 1 // excludes outgoing text
- //        uInfo.numCalls == 1 // excludes outgoing call and call with voicemail
- //        uInfo.numVoicemails == 1
- //    }
+        where:
+        type                | msgPropName
+        RecordItemType.TEXT | "contents"
+        RecordItemType.CALL | "noteContents"
+    }
 }

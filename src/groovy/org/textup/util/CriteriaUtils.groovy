@@ -18,7 +18,7 @@ class CriteriaUtils {
     static void inList(Object delegate, String propName, Collection<?> objList,
         boolean optional = false) {
 
-        CriteriaUtils.compose(delegate) {
+        ClosureUtils.compose(delegate) {
             if (objList) {
                 "in"(propName, objList)
             }
@@ -26,11 +26,6 @@ class CriteriaUtils {
                 eq(propName, null)
             }
         }
-    }
-
-    static void compose(Object delegate, Closure action) {
-        action.delegate = delegate
-        action.call()
     }
 
     static Closure returnsId() {
@@ -41,9 +36,11 @@ class CriteriaUtils {
         }
     }
 
-    static Closure forNotId(Long thisId) {
+    static Closure forNotIdIfPresent(Long thisId) {
         return {
-            ne("id", thisId)
+            if (thisId != null) {
+                ne("id", thisId)
+            }
         }
     }
 

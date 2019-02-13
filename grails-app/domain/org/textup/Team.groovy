@@ -30,17 +30,17 @@ class Team implements WithId, CanSave<Team> {
         location fetch: "join", cascade: "save-update"
     }
     static constraints = {
-    	name blank:false, validator: { String val, Team obj ->
+    	name validator: { String val, Team obj ->
             //within an org, team name must be unique
             if (val && Utils.<Boolean>doWithoutFlush {
                     Teams.buildActiveForOrgIdAndName(obj.org?.id, val)
-                        .build(CriteriaUtils.forNotId(obj.id))
+                        .build(CriteriaUtils.forNotIdIfPresent(obj.id))
                         .count() > 0
                 }) {
                 ["duplicate", obj.org?.name]
             }
         }
-        hexColor blank:false, nullable:false, validator:{ String val ->
+        hexColor validator: { String val ->
             if (!ValidationUtils.isValidHexCode(val)) { ["invalidHex"] }
         }
         location cascadeValidation: true

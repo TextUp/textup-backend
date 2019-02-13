@@ -61,7 +61,6 @@ class JodaUtils {
         lt.toDateTimeToday(zone).withZone(DateTimeZone.UTC)
     }
 
-    // TODO test
     static DateTime atStartOfMonth(DateTime dt) {
         if (dt) {
             dt
@@ -71,7 +70,6 @@ class JodaUtils {
         else { dt }
     }
 
-    // TODO test
     static DateTime atEndOfMonth(DateTime dt) {
         if (dt) {
             dt

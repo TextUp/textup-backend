@@ -22,54 +22,70 @@ class IncomingMediaInfoSpec extends Specification {
         resultFactory(ResultFactory)
     }
 
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     void "test validation for incoming media"() {
+        given:
+        String mediaId = TestUtils.randString()
+        MockedMethod extractMediaIdFromUrl = TestUtils.mock(TwilioUtils, "extractMediaIdFromUrl") {
+            mediaId
+        }
+        int index = TestUtils.randIntegerUpTo(88, true)
+        String messageId = TestUtils.randString()
+        TypeMap params = new TypeMap((TwilioUtils.ID_ACCOUNT): TestUtils.randString(),
+            ("${TwilioUtils.MEDIA_CONTENT_TYPE_PREFIX}${index}".toString()): TestUtils.randString(),
+            ("${TwilioUtils.MEDIA_URL_PREFIX}${index}".toString()): TestUtils.randUrl())
+
         when: "empty"
-        IncomingMediaInfo media1 = new IncomingMediaInfo()
+        Result res = IncomingMediaInfo.tryCreate(null, null, 0)
 
         then:
-        media1.validate() == false
-        media1.errors.errorCount > 0
+        extractMediaIdFromUrl.callCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when: "invalid"
-        media1.accountId = TestUtils.randString()
-        media1.mimeType = MediaType.AUDIO_MP3.mimeType
-        media1.url = "not a url"
-        media1.messageId = TestUtils.randString()
-        media1.mediaId = TestUtils.randString()
-        media1.isPublic = true
+        res = IncomingMediaInfo.tryCreate(messageId, params, index)
 
         then:
-        media1.validate() == false
-        media1.errors.errorCount > 0
+        extractMediaIdFromUrl.callCount == 2
+        extractMediaIdFromUrl.callArguments[1] == [params.string("${TwilioUtils.MEDIA_URL_PREFIX}${index}")]
+        res.status == ResultStatus.CREATED
+        res.payload.accountId == params.string(TwilioUtils.ID_ACCOUNT)
+        res.payload.mediaId == mediaId
+        res.payload.messageId == messageId
+        res.payload.mimeType == params.string("${TwilioUtils.MEDIA_CONTENT_TYPE_PREFIX}${index}")
+        res.payload.url == params.string("${TwilioUtils.MEDIA_URL_PREFIX}${index}")
+        res.payload.isPublic == false // default is false
 
-        when: "properly formatted"
-        media1.url = "https://www.example.com"
-
-        then:
-        media1.validate() == true
-        media1.errors.errorCount == 0
+        cleanup:
+        extractMediaIdFromUrl.restore()
     }
 
     void "test deleting for incoming media"() {
         given: "valid incoming media"
         ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
-        IncomingMediaInfo media1 = new IncomingMediaInfo(accountId: TestUtils.randString(),
-            mimeType: MediaType.AUDIO_MP3.mimeType,
-            url: "https://www.example.com",
-            messageId: TestUtils.randString(),
-            mediaId: TestUtils.randString(),
-            isPublic: true)
-        assert media1.validate()
+        MockedMethod extractMediaIdFromUrl = TestUtils.mock(TwilioUtils, "extractMediaIdFromUrl") {
+            TestUtils.randString()
+        }
+        int index = TestUtils.randIntegerUpTo(88, true)
+        String messageId = TestUtils.randString()
+        TypeMap params = new TypeMap((TwilioUtils.ID_ACCOUNT): TestUtils.randString(),
+            ("${TwilioUtils.MEDIA_CONTENT_TYPE_PREFIX}${index}".toString()): TestUtils.randString(),
+            ("${TwilioUtils.MEDIA_URL_PREFIX}${index}".toString()): TestUtils.randUrl())
+        IncomingMediaInfo im1 = IncomingMediaInfo.tryCreate(messageId, params, index).payload
+        assert im1.validate()
 
         when: "throws an exception"
-        Result<Boolean> res = media1.delete()
+        Result<Boolean> res = im1.delete()
 
         then: "gracefully handled"
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
         stdErr.toString().contains("com.twilio.exception.AuthenticationException")
-        stdErr.toString().contains("SmsMediaDeleter.delete")
 
         cleanup:
+        extractMediaIdFromUrl.restore()
         TestUtils.restoreAllStreams()
     }
 }

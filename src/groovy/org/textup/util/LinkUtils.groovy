@@ -26,12 +26,12 @@ class LinkUtils {
 
     static String passwordReset(String tokenVal) {
         String root = Holders.flatConfig["${LINK_CONFIG_ROOT}.passwordReset"]
-        root + "/" + tokenVal
+        root + tokenVal
     }
 
     static String notification(String tokenVal) {
         String root = Holders.flatConfig["${LINK_CONFIG_ROOT}.notification"]
-        root + "/" + tokenVal
+        root + tokenVal
     }
 
     // for voicemail greetings to enable caching

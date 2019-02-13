@@ -52,15 +52,17 @@ class LocalIntervalUtils {
     static String dehydrateLocalIntervals(List<LocalInterval> intervals) {
         List<String> intStrings = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(ScheduleUtils.TIME_FORMAT).withZoneUTC()
-        intervals.each { LocalInterval i ->
-            intStrings <<
-                "${dtf.print(i.start)}${ScheduleUtils.TIME_DELIMITER}${dtf.print(i.end)}".toString()
+        intervals?.each { LocalInterval i ->
+            if (i) {
+                intStrings <<
+                    "${dtf.print(i.start)}${ScheduleUtils.TIME_DELIMITER}${dtf.print(i.end)}".toString()
+            }
         }
         intStrings.join(ScheduleUtils.RANGE_DELIMITER)
     }
 
     static List<Interval> rehydrateAsIntervals(DateTime dt, Closure<String> getValueForDayOfWeek,
-        boolean stitchEndOfDay = true) {
+        boolean recursiveShouldStichEndOfDay = true) {
 
         DateTimeFormatter dtf = DateTimeFormat.forPattern(ScheduleUtils.TIME_FORMAT).withZoneUTC()
         Interval endOfDayInterval = null //stitch intervals that cross between days
@@ -88,7 +90,7 @@ class LocalIntervalUtils {
                 log.error("rehydrateAsIntervals: for intervals $intervalsString, invalid range: $rangeString")
             }
         }
-        if (stitchEndOfDay && endOfDayInterval) {
+        if (recursiveShouldStichEndOfDay && endOfDayInterval) {
             List<Interval> tomorrowIntervals = rehydrateAsIntervals(dt.plusDays(1), getValueForDayOfWeek, false)
             Interval startOfDayInterval = tomorrowIntervals.find { isStartOfDay(it.start) }
             if (startOfDayInterval) {
@@ -105,14 +107,14 @@ class LocalIntervalUtils {
     // assuming that sunday corresponds to day, monday to tomorrow and so forth.
     // For wraparound purposes, yesterday corresponds to saturday
     static Map<String, List<LocalInterval>> fromIntervalsToLocalIntervalsMap(List<Interval> intervals) {
-        List<String> daysOfWeek = ScheduleUtils.DAYS_OF_WEEK
-        Map<String,List<LocalInterval>> localIntervals = daysOfWeek.collectEntries { [(it):[]] }
+        Map<String, List<LocalInterval>> localIntervals = ScheduleUtils.DAYS_OF_WEEK
+            .collectEntries { [(it):[]] }
         DateTime today = JodaUtils.utcNow()
         intervals.each { Interval interval ->
             int startDayOfWeek = getDayOfWeekIndex(ScheduleUtils.getDaysBetween(today, interval.start)),
                 endDayOfWeek = getDayOfWeekIndex(ScheduleUtils.getDaysBetween(today, interval.end))
-            String startDay = daysOfWeek[startDayOfWeek],
-                endDay = daysOfWeek[endDayOfWeek]
+            String startDay = ScheduleUtils.DAYS_OF_WEEK[startDayOfWeek],
+                endDay = ScheduleUtils.DAYS_OF_WEEK[endDayOfWeek]
             //if interval does not span two days
             if (startDayOfWeek == endDayOfWeek) {
                 localIntervals[startDay] << new LocalInterval(interval)
@@ -131,9 +133,7 @@ class LocalIntervalUtils {
     // -------
 
     //0 corresponds to sunday, 6 to saturday
-    protected static int getDayOfWeekIndex(int num) {
-        Math.abs(num % 7)
-    }
+    protected static int getDayOfWeekIndex(int num) { num % 7 }
 
     protected static boolean isEndOfDay(DateTime dt) {
         dt.plusMinutes(2).dayOfWeek != dt.dayOfWeek

@@ -26,7 +26,7 @@ class UtilsSpec extends Specification {
     }
 
     def setup() {
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        TestUtils.standardMockSetup()
     }
 
     void "test getting notification number"() {
@@ -38,7 +38,7 @@ class UtilsSpec extends Specification {
 
         then:
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0] == "utils.getNotificationNumber.missing"
+        res.errorMessages[0] == "utils.missingNotificationNumber"
 
         when: "invalid notification number"
         Holders.metaClass."static".getFlatConfig = { ->
@@ -63,52 +63,32 @@ class UtilsSpec extends Specification {
         notifNum == res.payload.number
     }
 
-    void "test calling closure"() {
-        when: "no args"
-        boolean wasCalled = false
-        Utils.callClosure({ -> wasCalled = true }, [] as Object[])
-
-        then:
-        true == wasCalled
-
-        when: "one arg"
-        wasCalled = false
-        Utils.callClosure({ Integer a1 -> wasCalled = true }, [1] as Object[])
-
-        then:
-        true == wasCalled
-
-        when: "many args"
-        wasCalled = false
-        Utils.callClosure({ Integer a1, Integer a2, Integer a3 -> wasCalled = true },
-            [1, 2, 3] as Object[])
-
-        then:
-        true == wasCalled
-    }
-
-    void "test error handling on request operations"() {
-        when: "setting -- no request"
-        Result<Void> res = Utils.trySetOnRequest("hello", "world")
-
-        then: "IllegalStateException is caught and gracefully returned -- see mock"
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0].contains("No thread-bound request found")
-
-        when: "getting -- no request"
-        res = Utils.tryGetFromRequest("hello")
-
-        then:
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0].contains("No thread-bound request found")
-    }
-
     void "test with default"() {
         expect:
         "hello" == Utils.withDefault(null, "hello")
         "wut" == Utils.withDefault("wut", "hello")
         22L == Utils.withDefault(null, 22L)
         8L == Utils.withDefault(8L, 22L)
+    }
+
+    void "test inclusive bound"() {
+        expect:
+        Utils.inclusiveBound(8, 5, 10) == 8
+        Utils.inclusiveBound(8, 9, 10) == 9
+        Utils.inclusiveBound(8, 2, 5) == 5
+
+        and: "when initial value is null, bounding is skipped"
+        Utils.inclusiveBound(null, null, null) == null
+        Utils.inclusiveBound(null, 2, 5) == null
+        Utils.inclusiveBound(null, null, 5) == null
+
+        and: "invalid inputs where max is NOT greater than min cause bound operation to be skipped"
+        Utils.inclusiveBound(8, null, 5) == 8
+        Utils.inclusiveBound(8, 10, null) == 8
+        Utils.inclusiveBound(8, null, null) == 8
+        Utils.inclusiveBound(8, 5, 2) == 8
+        Utils.inclusiveBound(8, 10, 2) == 8
+        Utils.inclusiveBound(8, 12, 9) == 8
     }
 
     void "test executing closures without flushing the session"() {
@@ -128,32 +108,5 @@ class UtilsSpec extends Specification {
 
         then: "saved but not persisted instance still isn't flushed"
         org1.isDirty()
-    }
-
-    void "test normalizing pagination"() {
-        when: "no inputs"
-        List<Integer> normalized = Utils.normalizePagination(null, null)
-
-        then:
-        normalized.size() == 2
-        normalized[0] == 0
-        normalized[1] == Constants.DEFAULT_PAGINATION_MAX
-
-        when: "negative inputs"
-        normalized = Utils.normalizePagination(-8, -8)
-
-        then:
-        normalized.size() == 2
-        normalized[0] == 0
-        normalized[1] == Constants.DEFAULT_PAGINATION_MAX
-
-        when: "max is too high"
-        Integer offset = 888
-        normalized = Utils.normalizePagination(offset, Constants.MAX_PAGINATION_MAX * 2)
-
-        then:
-        normalized.size() == 2
-        normalized[0] == offset
-        normalized[1] == Constants.MAX_PAGINATION_MAX
     }
 }

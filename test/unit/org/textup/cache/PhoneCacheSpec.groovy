@@ -10,6 +10,7 @@ import org.springframework.cache.Cache
 import org.textup.*
 import org.textup.test.*
 import org.textup.type.*
+import org.textup.util.*
 import spock.lang.*
 
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
@@ -21,4 +22,96 @@ import spock.lang.*
 @TestMixin(HibernateTestMixin)
 class PhoneCacheSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    PhoneCache pCache
+
+    def setup() {
+        TestUtils.standardMockSetup()
+
+        pCache = new PhoneCache()
+        IOCUtils.metaClass."static".getPhoneCache = { -> pCache }
+    }
+
+    void "test try updating owner"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        Team t1 = TestUtils.buildTeam()
+
+        when:
+        Result res = pCache.tryUpdateOwner(null, null, null)
+
+        then:
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+
+        when:
+        res = pCache.tryUpdateOwner(p1, t1.id, PhoneOwnershipType.GROUP)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload.owner.ownerId == t1.id
+        res.payload.owner.type == PhoneOwnershipType.GROUP
+    }
+
+    void "test finding phone id of any status given owner"() {
+        when:
+        Phone p1 = TestUtils.buildStaffPhone()
+
+        then:
+        p1.isActive() == false
+
+        when:
+        Long pId = pCache.findAnyPhoneIdForOwner(null, null)
+
+        then:
+        pId == null
+
+        when:
+        pId = pCache.findAnyPhoneIdForOwner(p1.owner.ownerId, p1.owner.type)
+
+        then:
+        pId == p1.id
+    }
+
+    void "test must find phone id of any status given owner"() {
+        when:
+        Phone p1 = TestUtils.buildStaffPhone()
+
+        then:
+        p1.isActive() == false
+
+        when:
+        Result res = pCache.mustFindAnyPhoneIdForOwner(null, null)
+
+        then:
+        res.status == ResultStatus.NOT_FOUND
+
+        when:
+        res = pCache.mustFindAnyPhoneIdForOwner(p1.owner.ownerId, p1.owner.type)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == p1.id
+    }
+
+    void "test finding phone object given owner"() {
+        when:
+        Phone inactivePhone = TestUtils.buildStaffPhone()
+        Phone activePhone = TestUtils.buildStaffPhone()
+        activePhone.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+
+        then:
+        inactivePhone.isActive() == false
+        activePhone.isActive() == true
+
+        expect:
+        pCache.findPhone(inactivePhone.owner.id, inactivePhone.owner.type, false) == null
+        pCache.findPhone(inactivePhone.owner.id, inactivePhone.owner.type, true) == inactivePhone
+
+        and:
+        pCache.findPhone(activePhone.owner.id, activePhone.owner.type, false) == activePhone
+        pCache.findPhone(activePhone.owner.id, activePhone.owner.type, true) == activePhone
+    }
 }

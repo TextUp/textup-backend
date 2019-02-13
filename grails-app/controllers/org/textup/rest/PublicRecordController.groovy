@@ -33,6 +33,6 @@ class PublicRecordController extends BaseController {
                 }
                 else { callbackService.process(qParams) }
             }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 }

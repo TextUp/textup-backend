@@ -25,21 +25,19 @@ class AsyncUtilsSpec extends Specification {
         resultFactory(ResultFactory)
     }
 
-    void "test building id to object map"() {
+    void "test getting all ids"() {
         given:
-        Location loc1 = TestUtils.buildLocation()
-        Location loc2 = TestUtils.buildLocation()
+        Collection locs = []
+        5.times { locs << TestUtils.buildLocation() }
+        Location.withSession { it.flush() }
 
-        expect:
-        AsyncUtils.idMap(null) == [:]
-        AsyncUtils.idMap([]) == [:]
+        when:
+        Collection foundLocs = AsyncUtils.getAllIds(Location, locs*.id + [null, -88, null])
 
-        AsyncUtils.idMap([loc1, loc1]).size() == 1
-        AsyncUtils.idMap([loc1, loc1])[loc1.id] == loc1
-
-        AsyncUtils.idMap([loc1, null, loc2]).size() == 2
-        AsyncUtils.idMap([loc1, null, loc2])[loc1.id] == loc1
-        AsyncUtils.idMap([loc1, null, loc2])[loc2.id] == loc2
+        then:
+        foundLocs.size() == locs.size() // all found and null/not found ids excluded
+        foundLocs.every { it instanceof Location }
+        locs.every { it in foundLocs }
     }
 
     void "test generating a no-op Future object"() {
@@ -76,7 +74,7 @@ class AsyncUtilsSpec extends Specification {
         }
 
         when: "calling async helper method"
-        List<Integer> after = AsyncUtils.<Integer, Integer>doAsyncInBatches(before, action, batchSize)
+        List<Integer> after = AsyncUtils.<Integer, Integer>doAsyncInBatches(before, batchSize, action)
 
         then: "all items in the list are processed"
         before.size() == _numTimesCalled

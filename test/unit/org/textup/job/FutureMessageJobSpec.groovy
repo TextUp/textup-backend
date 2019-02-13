@@ -34,8 +34,8 @@ class FutureMessageJobSpec extends Specification {
         String key = TestUtils.randString()
         Long id = 88
         Map data = [
-            (Constants.JOB_DATA_FUTURE_MESSAGE_KEY): key,
-            (Constants.JOB_DATA_STAFF_ID): id
+            (QuartzUtils.DATA_FUTURE_MESSAGE_KEY): key,
+            (QuartzUtils.DATA_STAFF_ID): id
         ]
 
     	when: "execution does not succeed but will not fire again"

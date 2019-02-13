@@ -13,24 +13,24 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class RequestUtils {
 
-    static final String OWNER_POLICY_ID = "ownerPolicyId"
     static final String PAGINATION_OPTIONS = "paginationOptions"
     static final String PHONE_ID = "phoneId"
     static final String PHONE_RECORD_ID = "phoneRecordId"
+    static final String STAFF_ID = "staffId"
     static final String TIMEZONE = "timezone"
     static final String UPLOAD_ERRORS = "uploadErrors"
 
-    static Result<Void> trySetOnRequest(String key, Object obj) {
+    static Result<Void> trySet(String key, Object obj) {
         try {
             WebUtils.retrieveGrailsWebRequest().currentRequest.setAttribute(key, obj)
             Result.void()
         }
         catch (IllegalStateException e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "trySetOnRequest")
+            IOCUtils.resultFactory.failWithThrowable(e, "trySet")
         }
     }
 
-    static <T> Result<T> tryGetFromRequest(String key) {
+    static <T> Result<T> tryGet(String key) {
         try {
             HttpServletRequest req = WebUtils.retrieveGrailsWebRequest().currentRequest
             Object obj = req.getAttribute(key) ?: req.getParameter(key)
@@ -44,7 +44,7 @@ class RequestUtils {
             }
         }
         catch (IllegalStateException e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "tryGetFromRequest")
+            IOCUtils.resultFactory.failWithThrowable(e, "tryGet")
         }
     }
 

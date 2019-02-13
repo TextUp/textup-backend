@@ -90,6 +90,7 @@ enum ResultStatus {
 		}
 		foundStat
 	}
+
 	static ResultStatus convert(int status) {
 		ResultStatus foundStat = ResultStatus.values().find { ResultStatus rStat ->
 			rStat.intStatus == status

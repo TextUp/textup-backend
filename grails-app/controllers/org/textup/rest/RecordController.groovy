@@ -29,14 +29,14 @@ class RecordController extends BaseController {
         TypeMap qParams = TypeMap.create(params)
         ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
             .then { Long pId ->
-                RequestUtils.trySetOnRequest(RequestUtils.PHONE_ID, pId)
+                RequestUtils.trySet(RequestUtils.PHONE_ID, pId)
                 RecordUtils.buildRecordItemRequest(pId, qParams)
             }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { RecordItemRequest iReq ->
                 if (qParams.format == ControllerUtils.FORMAT_PDF) {
-                    RequestUtils.trySetOnRequest(RequestUtils.PAGINATION_OPTIONS, qParams)
-                    RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+                    RequestUtils.trySet(RequestUtils.PAGINATION_OPTIONS, qParams)
+                    RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
                     String ts = JodaUtils.FILE_TIMESTAMP_FORMAT.print(DateTime.now())
                     respondWithPdf("textup-export-${ts}.pdf", pdfService.buildRecordItems(iReq))
                 }
@@ -61,7 +61,7 @@ class RecordController extends BaseController {
         doSave(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) {
             ControllerUtils.tryGetPhoneId(params.long("teamId"))
                 .then { Long pId ->
-                    RequestUtils.trySetOnRequest(RequestUtils.PHONE_ID, pId)
+                    RequestUtils.trySet(RequestUtils.PHONE_ID, pId)
                     IOCUtils.resultFactory.success(pId)
                 }
         }

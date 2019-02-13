@@ -22,7 +22,7 @@ class GroupPhoneRecordJsonMarshaller extends JsonNamedMarshaller {
             lastRecordActivity = gpr1.record.lastRecordActivity
             links              = MarshallerUtils.buildLinks(RestUtils.RESOURCE_TAG, gpr1.id)
             name               = gpr1.name
-            numMembers         = gpr1.getMembersByStatus(PhoneRecordStatus.ACTIVE_STATUSES).size()
+            numMembers         = gpr1.members.getByStatus(PhoneRecordStatus.ACTIVE_STATUSES).size()
             phone              = gpr1.phone.id
         }
         json

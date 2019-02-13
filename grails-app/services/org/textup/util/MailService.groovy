@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.domain.*
 import org.textup.validator.*
@@ -69,10 +70,10 @@ class MailService {
             .then { EmailEntity toEntity -> sendMail(toEntity, md1) }
     }
 
-    Result<Void> notifyMessages(NotificationFrequency freq1, Staff s1, NotificationInfo notifInfo,
-        Token tok1 = null) {
+    Result<Void> notifyMessages(NotificationFrequency freq1, ReadOnlyStaff rs1,
+        NotificationInfo notifInfo, Token tok1 = null) {
 
-        MailData.Notification md1 = new MailData.Notification(staffName: s1.name,
+        MailData.Notification md1 = new MailData.Notification(staffName: rs1.name,
             phoneName: notifInfo.phoneName,
             phoneNumber: notifInfo.phoneNumber.prettyPhoneNumber,
             timePeriodDescription: freq1.readableDescription,
@@ -82,7 +83,7 @@ class MailService {
             numOutgoing: notifInfo.numOutgoingText + notifInfo.numOutgoingCall,
             link: tok1 ? LinkUtils.notification(tok1.token) : null)
         DomainUtils.tryValidate(md1)
-            .then { EmailEntity.tryCreate(s1.name, s1.email) }
+            .then { EmailEntity.tryCreate(rs1.name, rs1.email) }
             .then { EmailEntity toEntity -> sendMail(toEntity, md1) }
     }
 

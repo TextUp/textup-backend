@@ -7,6 +7,7 @@ import grails.test.mixin.support.*
 import grails.test.runtime.*
 import grails.validation.*
 import org.joda.time.*
+import org.quartz.*
 import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
@@ -24,15 +25,12 @@ import spock.lang.*
 class SimpleFutureMessageSpec extends CustomSpec {
 
     static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
-
-    def setup() {
-    	setupData()
+        resultFactory(ResultFactory)
     }
 
-    def cleanup() {
-    	cleanupData()
+    def setup() {
+        TestUtils.standardMockSetup()
+        IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
     }
 
     void "test constraints"() {
@@ -48,8 +46,8 @@ class SimpleFutureMessageSpec extends CustomSpec {
 
     	when: "all required fields filled out"
     	sMsg.type = FutureMessageType.TEXT
-    	sMsg.record = c1.record
-    	sMsg.message = "hi"
+    	sMsg.record = TestUtils.buildRecord()
+    	sMsg.message = TestUtils.randString()
 
     	then: "ok"
     	sMsg.validate() == true
@@ -72,6 +70,29 @@ class SimpleFutureMessageSpec extends CustomSpec {
     	then:
     	sMsg.validate() == false
     	sMsg.errors.getFieldErrorCount("repeatCount") == 1
+    }
+
+    void "test static creation"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
+        String message = TestUtils.randString()
+        MediaInfo mInfo = new MediaInfo()
+
+        when:
+        Result res = SimpleFutureMessage.tryCreate(null, null, null, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = SimpleFutureMessage.tryCreate(rec1, FutureMessageType.CALL, message, mInfo)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.type == FutureMessageType.CALL
+        res.payload.record == rec1
+        res.payload.message == message
+        res.payload.media == mInfo
     }
 
     void "test repeating"() {

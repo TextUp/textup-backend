@@ -33,35 +33,38 @@ class RecordItems {
     @GrailsTypeChecked
     static List<RecordItem> findEveryForApiId(String apiId) {
         List<RecordItem> results = []
-        HashSet<Long> itemIds = new HashSet<>()
-        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
-        receipts.each { RecordItemReceipt receipt ->
-            if (!itemIds.contains(receipt.item.id)) {
-                results << receipt.item
-                itemIds << receipt.item.id
+        if (apiId) {
+            HashSet<Long> itemIds = new HashSet<>()
+            List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
+            receipts.each { RecordItemReceipt receipt ->
+                if (!itemIds.contains(receipt.item.id)) {
+                    results << receipt.item
+                    itemIds << receipt.item.id
+                }
             }
         }
         results
     }
 
-    static DetachedCriteria<RecordItem> buildIncomingMessagesAfter(DateTime afterTime) {
+    static DetachedCriteria<RecordItem> buildForIncomingMessagesAfter(DateTime afterTime) {
         new DetachedCriteria(RecordItem)
             .build { ne("class", RecordNote) }
             .build(forDates(afterTime, null))
             .build(RecordItems.forIncoming())
     }
 
+    // Subqueries cannot include an `or` clause or else results in an NPE because of an existing bug.
+    // see: https://github.com/grails/grails-data-mapping/issues/655
     static DetachedCriteria<RecordItem> buildForPhoneIdWithOptions(Long phoneId,
         DateTime start = null, DateTime end = null,
         Collection<Class<? extends RecordItem>> types = null) {
 
+        Collection<Long> recIds = PhoneRecords.buildActiveForPhoneIds([phoneId])
+            .build(PhoneRecords.returnsRecordId())
+            .list()
         new DetachedCriteria(RecordItem)
-            .build {
-                "in"("record", PhoneRecords
-                    .buildActiveForPhoneIds([phoneId])
-                    .build(PhoneRecords.returnsRecord()))
-            }
-            .build(forDates(start, end))
+            .build { CriteriaUtils.inList(delegate, "record.id", recIds) }
+            .build(forOptionalDates(start, end))
             .build(forTypes(types))
     }
 
@@ -71,7 +74,7 @@ class RecordItems {
 
         new DetachedCriteria(RecordItem)
             .build { CriteriaUtils.inList(delegate, "record.id", recordIds) }
-            .build(forDates(start, end))
+            .build(forOptionalDates(start, end))
             .build(forTypes(types))
     }
 
@@ -96,6 +99,10 @@ class RecordItems {
     // Helpers
     // -------
 
+    protected static Closure forOptionalDates(DateTime start, DateTime end) {
+        return start || end ? forDates(start, end) : { }
+    }
+
     protected static Closure forDates(DateTime start, DateTime end) {
         return {
             if (start && end) {
@@ -104,19 +111,24 @@ class RecordItems {
             else if (start) {
                 ge("whenCreated", start)
             }
+            else if (end) {
+                le("whenCreated", end)
+            }
+            else { eq("whenCreated", null) }
         }
     }
 
     protected static Closure forTypes(Collection<Class<? extends RecordItem>> types) {
-        return { CriteriaUtils.inList(delegate, "class", types*.canonicalName) }
+        return {
+            CriteriaUtils.inList(delegate, "class", types*.canonicalName, true) // optional
+        }
     }
 
     protected static DetachedCriteria<RecordItem> buildForAuth(Long thisId, Long authId) {
+        Collection<Long> recIds = PhoneRecords.findEveryAllowedRecordIdForStaffId(authId)
         new DetachedCriteria(RecordItem).build {
             idEq(thisId)
-            "in"("record", PhoneRecords
-                .buildActiveForStaffId(authId)
-                .build(PhoneRecords.returnsRecord()))
+            CriteriaUtils.inList(delegate, "record.id", recIds)
         }
     }
 }

@@ -42,7 +42,10 @@ class ScheduleUtils {
     }
 
     static boolean validateIntervalsString(String str) {
-        List<String> strInts = str.tokenize(RANGE_DELIMITER)
+        List<String> strInts = str?.tokenize(RANGE_DELIMITER)
+        if (!strInts) {
+            return false
+        }
         DateTimeFormatter dtf = DateTimeFormat.forPattern(TIME_FORMAT).withZoneUTC()
         List<LocalTime> times = []
         try {
@@ -56,7 +59,8 @@ class ScheduleUtils {
                 if (start.isAfter(end) || !times.isEmpty() && times.last().isAfter(start)) {
                     return false
                 }
-                (times << start) << end
+                times << start
+                times << end
             }
             return true
         }
@@ -66,7 +70,7 @@ class ScheduleUtils {
     }
 
     static Result<List<Interval>> parseIntervalStringsToUTCIntervals(List<String> intStrings,
-        int addDays, DateTimeZone zone=null) {
+        int addDays, DateTimeZone zone = DateTimeZone.UTC) {
 
         List<Interval> result = []
         DateTimeFormatter dtf = DateTimeFormat.forPattern(TIME_FORMAT).withZoneUTC()
@@ -79,27 +83,29 @@ class ScheduleUtils {
 
         for (str in intStrings) {
             try {
-                List<String> times = str.tokenize(REST_DELIMITER)
-                if (times.size() == 2) {
-                    DateTime start = JodaUtils.toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[0]), zone),
-                        end = JodaUtils.toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[1]), zone)
-                    //add days until we've reached the desired offset from today
-                    //we use the start date as reference and increment the end date
-                    //accordingly to preserve the range
-                    //NO NEED to take into account the # days between start/end date and today here
-                    //because if the start/end dates are actually a day ahead or behind because
-                    //of timezone differences, the helper to parse the strings into DateTime objects
-                    //already takes that into account. All we need to do is boost by the correct
-                    //number of days here scaled by the number of days between UTC today and timezone today
-                    (addDays + daysBetween).times {
-                        start = start.plusDays(1)
-                        end = end.plusDays(1)
+                if (str) {
+                    List<String> times = str.tokenize(REST_DELIMITER)
+                    if (times.size() == 2) {
+                        DateTime start = JodaUtils.toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[0]), zone),
+                            end = JodaUtils.toZoneDateTimeTodayThenUTC(dtf.parseLocalTime(times[1]), zone)
+                        //add days until we've reached the desired offset from today
+                        //we use the start date as reference and increment the end date
+                        //accordingly to preserve the range
+                        //NO NEED to take into account the # days between start/end date and today here
+                        //because if the start/end dates are actually a day ahead or behind because
+                        //of timezone differences, the helper to parse the strings into DateTime objects
+                        //already takes that into account. All we need to do is boost by the correct
+                        //number of days here scaled by the number of days between UTC today and timezone today
+                        (addDays + daysBetween).times {
+                            start = start.plusDays(1)
+                            end = end.plusDays(1)
+                        }
+                        result << new Interval(start, end)
                     }
-                    result << new Interval(start, end)
-                }
-                else {
-                    return IOCUtils.resultFactory.failWithCodeAndStatus("scheduleUtils.invalidRestTimeFormat",
-                        ResultStatus.UNPROCESSABLE_ENTITY, [str])
+                    else {
+                        return IOCUtils.resultFactory.failWithCodeAndStatus("scheduleUtils.invalidRestTimeFormat",
+                            ResultStatus.UNPROCESSABLE_ENTITY, [str])
+                    }
                 }
             }
             catch (e) {

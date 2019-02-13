@@ -100,8 +100,8 @@ class CallRetryFunctionalSpec extends RestSpec {
             job.execute([
                 getMergedJobDataMap: { ->
                     [
-                        (Constants.JOB_DATA_FUTURE_MESSAGE_KEY):jobKey,
-                        (Constants.JOB_DATA_STAFF_ID):staffId
+                        (QuartzUtils.DATA_FUTURE_MESSAGE_KEY):jobKey,
+                        (QuartzUtils.DATA_STAFF_ID):staffId
                     ] as JobDataMap
                 },
                 getTrigger: {

@@ -24,7 +24,7 @@ class MergeGroupItem implements CanValidate {
 	    mergeIds minSize: 1, validator: { Collection<Long> val ->
 			Collection<Long> foundIds = Utils.<Collection<Long>>doWithoutFlush {
 				IndividualPhoneRecords
-					.buildForIds(mergeIds)
+					.buildForIds(val)
 					.build(CriteriaUtils.returnsId())
 					.list() as Collection<Long>
 			}
@@ -35,8 +35,9 @@ class MergeGroupItem implements CanValidate {
 	    }
 	}
 
-	static MergeGroupItem create(PhoneNumber number, Collection<Long> mergeIds) {
-		new MergeGroupItem(number, Collections.unmodifiableCollection(mergeIds))
+	static MergeGroupItem create(PhoneNumber pNum1, Collection<Long> thisMergeIds) {
+		Collection<Long> mergeIds = thisMergeIds ?: new ArrayList<Long>()
+		new MergeGroupItem(pNum1, Collections.unmodifiableCollection(mergeIds))
 	}
 
 	// Methods

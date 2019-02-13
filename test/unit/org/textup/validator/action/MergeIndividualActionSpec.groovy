@@ -6,8 +6,6 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
 
-// TODO
-
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -17,155 +15,115 @@ import org.textup.*
 @TestMixin(HibernateTestMixin)
 class MergeIndividualActionSpec extends CustomSpec {
 
-	// static doWithSpring = {
-	// 	resultFactory(ResultFactory)
-	// }
+	static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
- //    def setup() {
- //    	setupData()
- //    }
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
- //    def cleanup() {
- //    	cleanupData()
- //    }
+	void "test constraints"() {
+		when: "all empty"
+		MergeIndividualAction act1 = new MergeIndividualAction()
 
-	// void "test constraints error"() {
-	// 	when: "all empty"
-	// 	MergeIndividualAction act1 = new MergeIndividualAction()
+		then:
+		act1.validate() == false
 
-	// 	then:
-	// 	act1.validate() == false
-	// 	// would be 4 but nameId and noteId optional if not reconciliation merge
-	// 	act1.errors.errorCount == 2
+		when: "empty for default merge action"
+		act1.action = MergeIndividualAction.DEFAULT
 
-	// 	when: "empty for default merge action"
-	// 	act1.action = Constants.MERGE_ACTION_DEFAULT
+		then:
+		act1.validate() == false
+		act1.errors.getFieldError("mergeIds").code == "nullable"
 
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 1
-	// 	act1.errors.getFieldError("mergeIds").code == "nullable"
+		when: "empty for reconciliation action"
+		act1.action = MergeIndividualAction.RECONCILE
 
-	// 	when: "empty for reconciliation action"
-	// 	act1.action = Constants.MERGE_ACTION_RECONCILE
+		then:
+		act1.validate() == false
+		act1.errors.getFieldError("mergeIds").code == "nullable"
+		act1.errors.getFieldError("nameId").code == "requiredForReconciliation"
+		act1.errors.getFieldError("noteId").code == "requiredForReconciliation"
+	}
 
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 3
-	// 	act1.errors.getFieldError("mergeIds").code == "nullable"
-	// 	act1.errors.getFieldError("nameId").code == "requiredForReconciliation"
-	// 	act1.errors.getFieldError("noteId").code == "requiredForReconciliation"
-	// }
+	void "test constraints for default merge"() {
+		given: "empty default merge action"
+		Long nonexistentId = -88L
+		MergeIndividualAction act1 = new MergeIndividualAction(action: MergeIndividualAction.DEFAULT)
 
-	// void "test constraints for default merge"() {
-	// 	given: "empty default merge action"
-	// 	MergeIndividualAction act1 = new MergeIndividualAction(action:Constants.MERGE_ACTION_DEFAULT)
+		when: "merge ids are empty"
+		act1.mergeIds = []
 
-	// 	when: "merge ids are empty"
-	// 	act1.mergeIds = []
+		then:
+		act1.validate() == false
+		act1.errors.getFieldError("toBeMergedIds").code == "emptyOrNotACollection"
+		act1.buildName() == null
+		act1.buildNote() == null
 
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 1
-	// 	act1.errors.getFieldError("mergeIds").code == "emptyOrNotACollection"
-	// 	act1.contacts.isEmpty() == true
-	// 	act1.name == null
-	// 	act1.note == null
+		when: "merge ids are not a collection"
+		act1.mergeIds = "not a collection"
 
-	// 	when: "merge ids are not a collection"
-	// 	act1.mergeIds = "not a collection"
+		then:
+		act1.validate() == false
+		act1.errors.getFieldError("toBeMergedIds").code == "emptyOrNotACollection"
 
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 1
-	// 	act1.errors.getFieldError("mergeIds").code == "emptyOrNotACollection"
-	// 	act1.contacts.isEmpty() == true
-	// 	act1.name == null
-	// 	act1.note == null
+		when: "merge ids are not all numeric values"
+		act1.mergeIds = [nonexistentId, "not a number", [:]]
 
-	// 	when: "merge ids are not all numeric values"
-	// 	act1.mergeIds = [-88L, "not a number", [:]]
+		then: "do not do existence check here"
+		act1.validate()
+		act1.toBeMergedIds == [nonexistentId]
+	}
 
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 1
-	// 	act1.errors.getFieldError("mergeIds").code == "notAllNumbers"
-	// 	act1.contacts.isEmpty() == true
-	// 	act1.name == null
-	// 	act1.note == null
+	void "test constraints for reconciliation action"() {
+		given: "reconciliation action with valid merge ids"
+		IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+		ipr1.name = TestUtils.randString()
+		IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord()
+		ipr2.note = TestUtils.randString()
+		MergeIndividualAction act1 = new MergeIndividualAction(action: MergeIndividualAction.RECONCILE,
+				mergeIds: [ipr1.id, ipr2.id])
 
-	// 	when: "merge ids point to contacts that do not all exist"
-	// 	act1.mergeIds = [c1.id, -88L]
+		when: "no name or note ids specified"
+		act1.nameId = null
+		act1.noteId = null
 
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 1
-	// 	act1.errors.getFieldError("mergeIds").code == "someDoNotExist"
-	// 	act1.contacts.every { it.id == c1.id }
-	// 	act1.name == null
-	// 	act1.note == null
+		then:
+		act1.validate() == false
+		act1.errors.getFieldError("nameId").code == "requiredForReconciliation"
+		act1.errors.getFieldError("noteId").code == "requiredForReconciliation"
+		ipr1.id in act1.toBeMergedIds
+		ipr2.id in act1.toBeMergedIds
+		act1.buildName() == null
+		act1.buildNote() == null
 
-	// 	when: "merge ids are number in a collection corresponding to existent contacts"
-	// 	Collection<Contact> toBeMergedIds = [c1, c1_1]*.id
-	// 	act1.mergeIds = toBeMergedIds
+		when: "name id is not in the list of merge ids"
+		act1.nameId = -88L
 
-	// 	then:
-	// 	act1.validate() == true
-	// 	act1.contacts.every { it.id in toBeMergedIds }
-	// 	act1.name == null
-	// 	act1.note == null
-	// }
+		then:
+		act1.validate() == false
+		act1.errors.getFieldError("nameId").code == "notInIdsList"
+		act1.errors.getFieldError("noteId").code == "requiredForReconciliation"
+		act1.buildName() == null
+		act1.buildNote() == null
 
-	// void "test constraints for reconciliation action"() {
-	// 	given: "reconciliation action with valid merge ids"
-	// 	Collection<Contact> toBeMergedIds = [c1, c1_1]*.id
-	// 	MergeIndividualAction act1 = new MergeIndividualAction(action:Constants.MERGE_ACTION_RECONCILE,
-	// 			mergeIds:toBeMergedIds)
+		when: "note id is not in the list of merge ids"
+		act1.nameId = ipr1.id
+		act1.noteId = -88L
 
-	// 	when: "no name or note ids specified"
-	// 	act1.nameId = null
-	// 	act1.noteId = null
+		then:
+		act1.validate() == false
+		act1.errors.getFieldError("noteId").code == "notInIdsList"
+		act1.buildName() == ipr1.name
+		act1.buildNote() == null
 
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 2
-	// 	act1.errors.getFieldError("nameId").code == "requiredForReconciliation"
-	// 	act1.errors.getFieldError("noteId").code == "requiredForReconciliation"
-	// 	act1.contacts.every { it.id in toBeMergedIds }
-	// 	act1.name == null
-	// 	act1.note == null
+		when: "name and note ids are in the list of merge ids"
+		act1.noteId = ipr2.id
 
-	// 	when: "name id is not in the list of merge ids"
-	// 	act1.nameId = -88L
-
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 2
-	// 	act1.errors.getFieldError("nameId").code == "notInIdsList"
-	// 	act1.errors.getFieldError("noteId").code == "requiredForReconciliation"
-	// 	act1.contacts.every { it.id in toBeMergedIds }
-	// 	act1.name == null
-	// 	act1.note == null
-
-	// 	when: "note id is not in the list of merge ids"
-	// 	act1.nameId = c1.id
-	// 	act1.noteId = -88L
-
-	// 	then:
-	// 	act1.validate() == false
-	// 	act1.errors.errorCount == 1
-	// 	act1.errors.getFieldError("noteId").code == "notInIdsList"
-	// 	act1.contacts.every { it.id in toBeMergedIds }
-	// 	act1.name == c1.name
-	// 	act1.note == null
-
-	// 	when: "name and note ids are in the list of merge ids"
-	// 	act1.noteId = c1.id
-
-	// 	then:
-	// 	act1.validate() == true
-	// 	act1.contacts.every { it.id in toBeMergedIds }
-	// 	act1.name == c1.name
-	// 	act1.note == c1.note
-	// }
+		then:
+		act1.validate()
+		act1.buildName() == ipr1.name
+		act1.buildNote() == ipr2.note
+	}
 }

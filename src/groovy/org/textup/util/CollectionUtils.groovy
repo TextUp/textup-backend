@@ -2,6 +2,7 @@ package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
 import groovy.util.logging.Log4j
+import org.apache.commons.collections.CollectionUtils as CommonsCollectionUtils
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -35,17 +36,26 @@ class CollectionUtils {
         (list.size() > 2) ? (list[0..-2].join(delim) + lastDelim + list[-1]) : list.join(lastDelim)
     }
 
-    static <T> Collection<T> ensureNoNull(Collection<T> collection) {
+    static <T extends Collection<?>> T ensureNoNull(T collection) {
         collection?.removeAll { it == null }
         collection
     }
 
-    static <T> List<T> ensureNoNull(List<T> list) {
-        list?.removeAll { it == null }
-        list
+    static <T> Collection<T> difference(Collection<T> obj1, Collection<T> obj2) {
+        if (obj1 && obj2) {
+            CommonsCollectionUtils.disjunction(obj1, obj2)
+        }
+        else { CollectionUtils.shallowCopyNoNull(obj1 ?: obj2) }
     }
 
-    // TODO test
+    static <T> Collection<T> shallowCopyNoNull(Collection<T> obj) {
+        Collection<T> newObj = []
+        if (obj) {
+            newObj.addAll(obj)
+        }
+        newObj
+    }
+
     static <T> List<T> mergeUnique(Collection<? extends Collection<T>> toBeMerged) {
         List<T> allItems = []
         toBeMerged?.each { Collection<T> items ->

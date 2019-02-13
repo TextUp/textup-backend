@@ -37,8 +37,8 @@ class ActivityRecord {
         monthString = UsageUtils.queryMonthToMonthString(queryMonth)
         monthObj = UsageUtils.monthStringToDateTime(monthString)
     }
-    void setMonthStringDirectly(String monthString) {
-        monthString = monthString
+    void setMonthStringDirectly(String val) {
+        monthString = val
     }
 
     BigDecimal getCost() {

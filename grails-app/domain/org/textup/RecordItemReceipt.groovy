@@ -41,7 +41,7 @@ class RecordItemReceipt implements WithId, CanSave<RecordItemReceipt> {
         BasePhoneNumber bNum) {
 
         RecordItemReceipt rpt1 = new RecordItemReceipt(apiId: aId, status: stat, contactNumber: bNum)
-        rItem1.addToReceipts(rpt1)
+        rItem1?.addToReceipts(rpt1)
         rpt1
     }
 

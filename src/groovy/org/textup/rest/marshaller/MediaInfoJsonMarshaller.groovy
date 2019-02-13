@@ -19,7 +19,7 @@ class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
             images : mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES)
         ]
         // Display upload error from uploading the initial versions
-        RequestUtils.tryGetFromRequest(RequestUtils.UPLOAD_ERRORS)
+        RequestUtils.tryGet(RequestUtils.UPLOAD_ERRORS)
             .thenEnd { json.uploadErrors = it }
 
         json

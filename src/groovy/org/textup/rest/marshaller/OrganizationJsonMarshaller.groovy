@@ -13,27 +13,27 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class OrganizationJsonMarshaller extends JsonNamedMarshaller {
 
-    static final Closure marshalClosure = { Organization org1 ->
+    static final Closure marshalClosure = { ReadOnlyOrganization rorg1 ->
         Map<String, ConstrainedProperty> constraints = Organization.constraints as Map
 
         Map json = [:]
         json.with {
-            id       = org1.id
-            links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_ORGANIZATION, org1.id)
-            location = org1.location
-            name     = org1.name
+            id       = rorg1.id
+            links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_ORGANIZATION, rorg1.id)
+            location = rorg1.readOnlyLocation
+            name     = rorg1.name
         }
-        AuthUtils.tryGetAuthUser().thenEnd { Staff authUser ->
+        AuthUtils.tryGetActiveAuthUser().thenEnd { Staff authUser ->
             // only show this private information if the logged-in user is
             // (1) active and (2) a member of this organization
-            if (authUser.org.id == org1.id) {
+            if (authUser.org.id == rorg1.id) {
                 json.with {
-                    awayMessageSuffix          = org1.awayMessageSuffix
+                    awayMessageSuffix          = rorg1.awayMessageSuffix
                     awayMessageSuffixMaxLength = constraints.awayMessageSuffix.size.to
-                    numAdmins                  = Staffs.buildForOrgIdAndOptions(org1.id, null, [StaffStatus.ADMIN]).count()
-                    status                     = org1.status.toString()
-                    teams                      = Teams.buildForOrgIds([org1.id]).list()
-                    timeout                    = org1.timeout
+                    numAdmins                  = Staffs.buildForOrgIdAndOptions(rorg1.id, null, [StaffStatus.ADMIN]).count()
+                    status                     = rorg1.status.toString()
+                    teams                      = Teams.buildActiveForOrgIds([rorg1.id]).list()
+                    timeout                    = rorg1.timeout
                     timeoutMax                 = constraints.timeout.max
                     timeoutMin                 = constraints.timeout.min
                 }
@@ -43,6 +43,6 @@ class OrganizationJsonMarshaller extends JsonNamedMarshaller {
     }
 
     OrganizationJsonMarshaller() {
-        super(Organization, marshalClosure)
+        super(ReadOnlyOrganization, marshalClosure)
     }
 }

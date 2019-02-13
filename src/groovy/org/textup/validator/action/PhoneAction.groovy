@@ -29,13 +29,13 @@ class PhoneAction extends BaseAction {
 	String numberId // required when creating new phone with existing number
 
 	static constraints = {
-		id nullable:true, validator: { Long val, PhoneAction obj ->
+		id nullable: true, validator: { Long val, PhoneAction obj ->
 			// existence check for this id happens already in Phone.transferTo
 			if (obj.matches(TRANSFER) && !val) {
 				["requiredForTransfer"]
 			}
 		}
-		type nullable:true, blank:true, validator: { String val, PhoneAction obj ->
+		type nullable: true, blank: true, validator: { String val, PhoneAction obj ->
 			if (obj.matches(TRANSFER)) {
 				if (!val) {
 					return ["requiredForTransfer"]
@@ -46,14 +46,14 @@ class PhoneAction extends BaseAction {
 				}
 			}
 		}
-		number nullable:true, blank:true, phoneNumber: true, validator: { String val, PhoneAction obj ->
+		number nullable: true, blank: true, phoneNumber: true, validator: { String val, PhoneAction obj ->
 			if (obj.matches(NEW_NUM_BY_NUM)) {
 				if (!val) {
 					return ["requiredForChangeToNewNumber"]
 				}
 			}
 		}
-		numberId nullable:true, blank:true, validator: { String val, PhoneAction obj ->
+		numberId nullable: true, blank: true, validator: { String val, PhoneAction obj ->
 			if (obj.matches(NEW_NUM_BY_ID) && !val) {
 				["requiredForChangeToExistingNumber"]
 			}

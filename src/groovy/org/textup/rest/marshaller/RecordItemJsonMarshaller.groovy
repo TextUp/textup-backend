@@ -52,13 +52,13 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             }
         }
 
-        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
+        RequestUtils.tryGet(RequestUtils.TIMEZONE)
             .thenEnd { String tz ->
                 json.whenCreated = JodaUtils.toDateTimeWithZone(json.whenCreated, tz)
                 json.whenChanged = JodaUtils.toDateTimeWithZone(json.whenChanged, tz)
             }
 
-        RequestUtils.tryGetFromRequest(RequestUtils.PHONE_ID)
+        RequestUtils.tryGet(RequestUtils.PHONE_ID)
             .thenEnd { Long pId ->
                 PhoneRecord pr1 = PhoneRecords.buildActiveForRecordIds([rItem1.id])
                     .build(PhoneRecords.forPhoneIds([pId]))

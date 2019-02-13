@@ -39,25 +39,25 @@ class NotificationDetail implements CanValidate {
     // Methods
     // -------
 
-    Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(OwnerPolicy op1) {
-        items.findAll { RecordItem rItem1 -> op1.isAllowed(rItem1.id) }
+    Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(ReadOnlyOwnerPolicy rop1) {
+        items.findAll { RecordItem rItem1 -> rItem1 && rop1?.isAllowed(rItem1.record.id) }
     }
 
-    int countItemsForOutgoingAndOptions(boolean isOut, OwnerPolicy op1 = null,
+    int countItemsForOutgoingAndOptions(boolean isOut, ReadOnlyOwnerPolicy rop1 = null,
         Class<? extends RecordItem> clazz = null) {
 
         items.count { RecordItem rItem1 ->
-            rItem1.outgoing == isOut &&
-                (!op1 || op1.isAllowed(rItem1.id)) && // owner policy is optional
+            rItem1 && rItem1.outgoing == isOut &&
+                (!rop1 || rop1.isAllowed(rItem1.record.id)) && // owner policy is optional
                 (!clazz || clazz.isAssignableFrom(rItem1.class)) // class is optional
         } as Integer
     }
 
-    int countVoicemails(OwnerPolicy op1) {
+    int countVoicemails(ReadOnlyOwnerPolicy rop1) {
         items.count { RecordItem rItem1 ->
             if (rItem1 instanceof RecordCall) {
                 RecordCall rCall1 = rItem1 as RecordCall
-                op1.isAllowed(rCall1.id) && rCall1.isVoicemail
+                rop1?.isAllowed(rCall1.record.id) && rCall1.isVoicemail
             }
             else { false }
         } as Integer

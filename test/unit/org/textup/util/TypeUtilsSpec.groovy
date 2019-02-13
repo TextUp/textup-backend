@@ -72,10 +72,12 @@ class TypeUtilsSpec extends Specification {
     }
 
     void "test type conversion of all types in a collection"() {
-        expect:
-        TypeUtils.allTo(Boolean, [true, "false", "yes", [:]]) == [true, false, null, null]
+        expect: "nulls to be taken out..."
+        TypeUtils.allTo(Boolean, [true, "false", "yes", [:]]) == [true, false]
+        TypeUtils.allTo(Integer, [1, "2", false, "32.5"]) == [1, 2, 32]
+
+        and: "...unless fallback value is specified"
         TypeUtils.allTo(Boolean, [true, "false", "yes", [:]], false) == [true, false, false, false]
-        TypeUtils.allTo(Integer, [1, "2", false, "32.5"]) == [1, 2, null, 32]
         TypeUtils.allTo(Integer, null) == []
     }
 }

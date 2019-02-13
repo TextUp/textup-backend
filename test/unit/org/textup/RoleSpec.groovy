@@ -14,18 +14,32 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-/**
- * See the API for {@link grails.test.mixin.domain.DomainClassUnitTestMixin} for usage instructions
- */
 @TestFor(Role)
 class RoleSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
     def setup() {
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-    }
+    void "test static creation"() {
+        given:
+        String authority = TestUtils.randString()
 
-    void "test something"() {
+        when:
+        Result res = Role.tryCreate(null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = Role.tryCreate(authority)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.authority == authority
     }
 }

@@ -11,6 +11,8 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class CascadeValidationConstraintSpec extends Specification {
 
+    static final String INVALID_PARAM_VALUE = "not a boolean but needs to be one"
+
     void "test error when cascading property is not validateable"() {
         when: "a single association"
         InvalidSingle invalidSingle = new InvalidSingle(address: "hi")
@@ -27,12 +29,29 @@ class CascadeValidationConstraintSpec extends Specification {
     }
 
     void "test error when cascading constraint parameter is not a boolean"() {
+        given:
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
+
         when:
         InvalidParam invalidParam = new InvalidParam(address: ["hi", "there"])
         invalidParam.validate()
 
         then: "ConstraintException wrapping IllegalArgumentException"
         thrown ConstraintException
+        stdErr.toString().contains(INVALID_PARAM_VALUE)
+
+        cleanup:
+        TestUtils.restoreAllStreams()
+    }
+
+    void "test skipping if constraint parameter value is set to false"() {
+        when:
+        ValidateableChild vChild = new ValidateableChild()
+        NotValidateableParent notVParent = new NotValidateableParent(child: vChild)
+
+        then:
+        vChild.validate() == false
+        notVParent.validate() == true
     }
 
     void "test validating for a single validateable association"() {
@@ -118,7 +137,16 @@ class CascadeValidationConstraintSpec extends Specification {
         List<String> address
 
         static constraints = {
-            address cascadeValidation: "not a boolean but needs to be one"
+            address cascadeValidation: CascadeValidationConstraintSpec.INVALID_PARAM_VALUE
+        }
+    }
+
+    @Validateable
+    protected class NotValidateableParent {
+        ValidateableChild child
+
+        static constraints = { // default nullable: false
+            child cascadeValidation: false
         }
     }
 

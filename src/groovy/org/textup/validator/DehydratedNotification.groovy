@@ -24,7 +24,8 @@ class DehydratedNotification implements CanValidate, Rehydratable<Notification> 
             .then { tryCreate(notif1.mutablePhone.id, notif1.itemIds) }
     }
 
-    static Result<DehydratedNotification> tryCreate(Long pId, Collection<Long> itemIds) {
+    static Result<DehydratedNotification> tryCreate(Long pId, Collection<Long> thisItemIds) {
+        Collection<Long> itemIds = CollectionUtils.shallowCopyNoNull(thisItemIds)
         DehydratedNotification dn1 = new DehydratedNotification(
             Collections.unmodifiableCollection(itemIds),
             pId)

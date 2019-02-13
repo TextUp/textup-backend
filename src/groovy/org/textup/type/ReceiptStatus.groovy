@@ -15,9 +15,9 @@ enum ReceiptStatus {
 	BUSY(["busy", "no-answer"], 3),
 	FAILED(["failed", "undelivered"], 4)
 
-
 	private final Collection<String> statuses
 	private final int sequenceNumber
+
 	ReceiptStatus(Collection<String> thisStatuses, int thisNum) {
 		statuses = thisStatuses
 		sequenceNumber = thisNum

@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import org.joda.time.DateTime
 import org.textup.annotation.*
 import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
@@ -21,19 +22,19 @@ class NotificationService {
 
     Result<Void> send(NotificationFrequency freq1, NotificationGroup notifGroup) {
         ResultGroup<?> resGroup = new ResultGroup<>()
-        notifGroup.eachNotification(freq1) { OwnerPolicy op1, Notification notif1 ->
-            resGroup << tokenService.tryGeneratePreviewInfo(op1, notif1)
+        notifGroup.eachNotification(freq1) { ReadOnlyOwnerPolicy rop1, Notification notif1 ->
+            resGroup << tokenService.tryGeneratePreviewInfo(rop1, notif1)
                 .then { Token tok1 = null ->
-                    NotificationInfo notifInfo = NotificationInfo.create(op1, notif1)
-                    if (op1.method == NotificationMethod.TEXT) {
+                    NotificationInfo notifInfo = NotificationInfo.create(rop1, notif1)
+                    if (rop1.method == NotificationMethod.TEXT) {
                         textService
                             .send(notif1.mutablePhone.number,
-                                [op1.staff.personalNumber],
+                                [rop1.readOnlyStaff.personalNumber],
                                 notifInfo.buildTextMessage(tok1),
                                 notif1.mutablePhone.customAccountId)
-                            .logFail("send: owner policy `${op1.id}`")
+                            .logFail("send: phone `${notif1.mutablePhone.id}`, staff `${rop1.readOnlyStaff.id}`")
                     }
-                    else { mailService.notifyMessages(freq1, op1.staff, notifInfo, tok1) }
+                    else { mailService.notifyMessages(freq1, rop1.readOnlyStaff, notifInfo, tok1) }
                 }
         }
         resGroup.toEmptyResult(false)
@@ -42,8 +43,8 @@ class NotificationService {
     Result<Notification> redeem(String token) {
         tokenService.tryFindPreviewInfo(token)
             .then { Tuple<Long, Notification> tup1 ->
-                Tuple.split(tup1) { Long ownerPolicyId, Notification notif1 ->
-                    RequestUtils.trySetOnRequest(RequestUtils.OWNER_POLICY_ID, ownerPolicyId)
+                Tuple.split(tup1) { Long staffId = null, Notification notif1 ->
+                    RequestUtils.trySet(RequestUtils.STAFF_ID, staffId)
                     DomainUtils.tryValidate(notif1)
                 }
             }

@@ -30,7 +30,7 @@ class ResultGroup<T> {
         resGroup
     }
 
-    static <K, V, O> ResultGroup<O> collect(Map<K, V> objs, Closure<Result<O>> action) {
+    static <K, V, O> ResultGroup<O> collectEntries(Map<K, V> objs, Closure<Result<O>> action) {
         ResultGroup<O> resGroup = new ResultGroup<>()
         objs?.each { K key, V value -> resGroup << action(key, value) }
         resGroup
@@ -72,7 +72,7 @@ class ResultGroup<T> {
     }
 
     Result<List<T>> toResult(boolean allowSomeFailures) {
-        Result<List<T>> successRes = IOCUtils.resultFactory.success(getPayload(),
+        Result<List<T>> successRes = Result.createSuccess(getPayload(),
             getSuccessStatus() ?: ResultStatus.OK)
         ResultUtils.convertGroupToResult(this, successRes, allowSomeFailures)
     }
@@ -86,7 +86,7 @@ class ResultGroup<T> {
 
     List<T> getPayload() { successItems.collect { Result<T> res -> res.payload } }
 
-    List<String> getErrorMessages() { // TODO test
+    List<String> getErrorMessages() {
         List<String> errors = []
         failureItems.each { Result<T> res -> errors.addAll(res.errorMessages) }
         errors

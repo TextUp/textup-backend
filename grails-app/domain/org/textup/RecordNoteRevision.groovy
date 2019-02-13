@@ -36,21 +36,26 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId, CanSave<
 
     static Result<RecordNoteRevision> tryCreate(RecordNote rNote1) {
         RecordNoteRevision rev1 = new RecordNoteRevision(
-            authorName: rNote1.getPersistentValue("authorName"),
-            authorId: rNote1.getPersistentValue("authorId"),
-            authorType: rNote1.getPersistentValue("authorType"),
-            whenChanged: rNote1.getPersistentValue("whenChanged"),
-            noteContents: rNote1.getPersistentValue("noteContents"))
-        Object originalLoc = rNote1.getPersistentValue("location")
+            authorName: rNote1?.getPersistentValue("authorName"),
+            authorId: rNote1?.getPersistentValue("authorId"),
+            authorType: rNote1?.getPersistentValue("authorType"),
+            whenChanged: rNote1?.getPersistentValue("whenChanged"),
+            noteContents: rNote1?.getPersistentValue("noteContents"))
+        Object originalLoc = rNote1?.getPersistentValue("location")
         if (originalLoc instanceof Location) {
             rev1.location = originalLoc.tryDuplicatePersistentState()
         }
-        Object originalMedia = rNote1.getPersistentValue("media")
+        Object originalMedia = rNote1?.getPersistentValue("media")
         if (originalMedia instanceof MediaInfo) {
             rev1.media = originalMedia.tryDuplicatePersistentState()
         }
-        rNote1.addToRevisions(rev1)
-        DomainUtils.trySave(rev1)
+        rNote1?.addToRevisions(rev1)
+        DomainUtils.trySave(rev1, ResultStatus.CREATED)
+            .ifFail { Result<?> failRes ->
+                rNote1?.removeFromRevisions(rev1)
+                rev1.discard()
+                failRes
+            }
     }
 
     // Properties

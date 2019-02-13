@@ -23,15 +23,22 @@ class StringUtils {
         else { num }
     }
 
+    static String cleanUsername(String un) { un?.trim()?.toLowerCase() }
+
     static boolean equalsIgnoreCase(String str1, String str2) {
         str1?.toLowerCase() == str2?.toLowerCase()
     }
 
     static String toQuery(Object raw) {
-        String query = "$raw"
-        if (!query?.startsWith("%")) query = "%$query"
-        if (!query?.endsWith("%")) query = "$query%"
-        query
+        if (raw == null) {
+            ""
+        }
+        else {
+            String query = "$raw"
+            if (!query?.startsWith("%")) query = "%$query"
+            if (!query?.endsWith("%")) query = "$query%"
+            query
+        }
     }
 
     static String buildInitials(String contents) {
@@ -46,7 +53,7 @@ class StringUtils {
             .join(".") + "." // put a period after each initial
     }
 
-    protected String withUnits(int val, String measureWord) {
+    static String pluralize(Integer val, String measureWord) {
         if (val == 1) {
             "${val} ${measureWord}"
         }
@@ -62,8 +69,6 @@ class StringUtils {
         }
         result.toString()
     }
-
-    static String cleanUsername(String un) { un?.trim()?.toLowerCase() }
 
     // Helpers
     // -------

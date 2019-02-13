@@ -22,50 +22,48 @@ class IncomingRecordingInfoSpec extends Specification {
         resultFactory(ResultFactory)
     }
 
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     void "test validation for incoming recording"() {
+        given:
+        TypeMap params = new TypeMap((TwilioUtils.ID_ACCOUNT): TestUtils.randString(),
+            (TwilioUtils.ID_RECORDING): TestUtils.randString(),
+            (TwilioUtils.RECORDING_URL): TestUtils.randUrl())
+
         when: "empty"
-        IncomingRecordingInfo recording1 = new IncomingRecordingInfo()
+        Result res = IncomingRecordingInfo.tryCreate(null)
 
         then:
-        recording1.validate() == false
-        recording1.errors.errorCount > 0
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-        when: "invalid"
-        recording1.accountId = TestUtils.randString()
-        recording1.mimeType = MediaType.AUDIO_MP3.mimeType
-        recording1.url = "not a url"
-        recording1.mediaId = TestUtils.randString()
-        recording1.isPublic = true
+        when:
+        res = IncomingRecordingInfo.tryCreate(params)
 
         then:
-        recording1.validate() == false
-        recording1.errors.errorCount > 0
-
-        when: "properly formatted"
-        recording1.url = "https://www.example.com"
-
-        then:
-        recording1.validate() == true
-        recording1.errors.errorCount == 0
+        res.status == ResultStatus.CREATED
+        res.payload.accountId == params.string(TwilioUtils.ID_ACCOUNT)
+        res.payload.mediaId == params.string(TwilioUtils.ID_RECORDING)
+        res.payload.url == params.string(TwilioUtils.RECORDING_URL)
+        res.payload.mimeType == MediaType.AUDIO_MP3.mimeType
     }
 
     void "test deleting for incoming recording"() {
         given: "valid incoming media"
         ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
-        IncomingRecordingInfo recording1 = new IncomingRecordingInfo(accountId: TestUtils.randString(),
-            mimeType: MediaType.AUDIO_MP3.mimeType,
-            url: "https://www.example.com",
-            mediaId: TestUtils.randString(),
-            isPublic: true)
-        assert recording1.validate()
+        TypeMap params = new TypeMap((TwilioUtils.ID_ACCOUNT): TestUtils.randString(),
+            (TwilioUtils.ID_RECORDING): TestUtils.randString(),
+            (TwilioUtils.RECORDING_URL): TestUtils.randUrl())
+        IncomingRecordingInfo ir1 = IncomingRecordingInfo.tryCreate(params).payload
+        assert ir1.validate()
 
         when: "throws an exception"
-        Result<Boolean> res = recording1.delete()
+        Result res = ir1.delete()
 
         then: "gracefully handled"
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
         stdErr.toString().contains("com.twilio.exception.AuthenticationException")
-        stdErr.toString().contains("CallRecordingDeleter.delete")
 
         cleanup:
         TestUtils.restoreAllStreams()

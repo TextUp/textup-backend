@@ -12,8 +12,8 @@ class SocketUtils {
 
     private static final SOCKET_PREFIX = "private-"
 
-    static String channelName(Staff s1) {
-        userToChannelName(s1.username)
+    static String channelName(ReadOnlyStaff rs1) {
+        userToChannelName(rs1.username)
     }
 
     static String channelToUserName(String channelName) {

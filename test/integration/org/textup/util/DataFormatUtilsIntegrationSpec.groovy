@@ -12,7 +12,7 @@ import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
-import spock.lang.Specification
+import spock.lang.*
 
 class DataFormatUtilsIntegrationSpec extends Specification {
 
@@ -27,7 +27,7 @@ class DataFormatUtilsIntegrationSpec extends Specification {
 
     void "test converting object to json string uses custom marshallers when possible"() {
         when: "object does not have custom marshaller"
-        Map seedData = [hello:[1, 2, 3], goodbye: "hello"]
+        Map seedData = [hello: [1, 2, 3], goodbye: "hello"]
         String jsonString = DataFormatUtils.toJsonString(seedData)
 
         then:

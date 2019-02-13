@@ -1,9 +1,21 @@
 package org.textup.type
 
-import spock.lang.*
+import grails.test.mixin.*
+import grails.test.mixin.support.*
+import org.textup.*
 import org.textup.test.*
+import spock.lang.*
 
+@TestMixin(GrailsUnitTestMixin)
 class MediaTypeSpec extends Specification {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
     void "test validating content types"() {
         expect: "case insensitive, input will be lowercased"
@@ -25,6 +37,22 @@ class MediaTypeSpec extends Specification {
         and: "multiple mime types can resolve to the same enum value"
         MediaType.convertMimeType("audio/mp3") == MediaType.AUDIO_MP3
         MediaType.convertMimeType("audio/mpeg") == MediaType.AUDIO_MP3
+    }
+
+    void "test trying to convert type"() {
+        when: "invalid"
+        Result res = MediaType.tryConvertMimeType("invalid")
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages == ["mediaType.invalidMimeType"]
+
+        when: "valid"
+        res = MediaType.tryConvertMimeType("image/png")
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == MediaType.IMAGE_PNG
     }
 
     void "test getting mime type from enum"() {

@@ -14,7 +14,7 @@ import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Staff implements WithId, CanSave<Staff> {
+class Staff implements WithId, CanSave<Staff>, ReadOnlyStaff {
 
     boolean enabled = true
     boolean accountExpired
@@ -38,13 +38,13 @@ class Staff implements WithId, CanSave<Staff> {
         password column: "`password`"
     }
 	static constraints = {
-		username blank:false, unique:true, validator: { String val ->
+		username blank: false, unique: true, validator: { String val ->
             if (!ValidationUtils.isValidForPusher(val)) { ["format"] }
         }
-		password blank:false
-        lockCode blank:false
-		email email:true
-        personalNumberAsString blank:true, nullable:true, phoneNumber: true
+		password blank: false
+        lockCode blank: false
+		email email: true
+        personalNumberAsString blank: true, nullable: true, phoneNumber: true
 	}
 
     static Result<Staff> tryCreate(Role r1, Organization org1, String name, String un,
@@ -83,8 +83,11 @@ class Staff implements WithId, CanSave<Staff> {
 
     void setPersonalNumber(BasePhoneNumber num) { personalNumberAsString = num?.number }
 
+    @Override
     PhoneNumber getPersonalNumber() { PhoneNumber.create(personalNumberAsString) }
 
+    @Override
+    ReadOnlyOrganization getReadOnlyOrg() { org }
 
     // Helpers
     // -------

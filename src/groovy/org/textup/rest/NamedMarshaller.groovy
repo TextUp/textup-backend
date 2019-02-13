@@ -11,16 +11,17 @@ import org.textup.util.*
 class NamedMarshaller {
 
     ObjectMarshaller marshaller
-    Class<? extends Converter> converterClass
     int priority = DefaultConverterConfiguration.DEFAULT_PRIORITY
     String name = MarshallerUtils.MARSHALLER_DEFAULT
-    Closure closure
-    Class clazz
 
-    NamedMarshaller(Class<? extends Converter> converterClass, Class clazz, Closure closure) {
-        converterClass = converterClass // distinguishes beans in initializer service
-        clazz = clazz
-        closure = closure
+    Class<? extends Converter> converterClass
+    Class clazz
+    Closure closure
+
+    NamedMarshaller(Class<? extends Converter> thisConverter, Class thisClass, Closure thisClosure) {
+        converterClass = thisConverter // distinguishes beans in initializer service
+        clazz = thisClass
+        closure = thisClosure
     }
 
     ObjectMarshaller getMarshaller() {

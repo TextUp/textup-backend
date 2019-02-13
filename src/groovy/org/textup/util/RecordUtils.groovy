@@ -52,7 +52,7 @@ class RecordUtils {
             }
             .then { RecordItemRequest iReq1 ->
                 iReq1.with {
-                    types = parseTypes(body.list("types[]"))
+                    types = body.enumList(RecordItemType, "types[]")*.toClass()
                     start = body.dateTime("start")
                     end = body.dateTime("end")
                 }
@@ -64,7 +64,7 @@ class RecordUtils {
         Collection<? extends PhoneRecordWrapper> wrappers) {
 
         RecordItemRequestSection
-            .tryCreate(mutPhone1.owner.buildName(), mutPhone1.number, rItems, wrappers)
+            .tryCreate(mutPhone1?.buildName(), mutPhone1?.number, rItems, wrappers)
             .logFail("buildSingleSection")
             .payload as RecordItemRequestSection
     }
@@ -73,7 +73,7 @@ class RecordUtils {
         Collection<? extends PhoneRecordWrapper> wrappers) {
 
         Map<Long, Collection<RecordItem>> recordIdToItems = MapUtils
-                .<Long, RecordItem>buildManyObjectsMap(rItems) { RecordItem i1 -> i1.record.id }
+                .<Long, RecordItem>buildManyUniqueObjectsMap(rItems) { RecordItem i1 -> i1.record.id }
         ResultGroup
             .collect(wrappers) { PhoneRecordWrapper w1 ->
                 w1.tryGetReadOnlyRecord()
@@ -87,20 +87,5 @@ class RecordUtils {
             }
             .logFail("buildSectionsByEntity")
             .payload
-    }
-
-    // Helpers
-    // -------
-
-    protected static Collection<Class<? extends RecordItem>> parseTypes(Collection<?> rawTypes) {
-        HashSet<Class<? extends RecordItem>> types = new HashSet<>()
-        rawTypes?.each { Object obj ->
-            switch (obj as String) {
-                case "text": types << RecordText; break;
-                case "call": types << RecordCall; break;
-                case "note": types << RecordNote
-            }
-        }
-        types
     }
 }

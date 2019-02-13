@@ -12,6 +12,10 @@ import org.textup.validator.*
 @Log4j
 class ResultUtils {
 
+    static Object[] normalizeVarArgs(Object[] args) {
+        args == null ? [null] as Object[] : args
+    }
+
     static <T> Result<T> convertGroupToResult(ResultGroup<?> resGroup, Result<T> successRes,
         boolean allowSomeFailures) {
 

@@ -4,9 +4,10 @@ import grails.compiler.GrailsTypeChecked
 import grails.gorm.DetachedCriteria
 import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
-import org.hibernate.criterion.CriteriaSpecification
+import org.hibernate.sql.JoinType
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.override.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -17,7 +18,7 @@ class IndividualPhoneRecordWrappers {
     @GrailsTypeChecked
     static Result<IndividualPhoneRecordWrapper> tryCreate(Phone p1) {
         IndividualPhoneRecord.tryCreate(p1).then { IndividualPhoneRecord ipr1 ->
-            IOCUtils.resultFactory.success(ipr1.toWrapper())
+            IOCUtils.resultFactory.success(ipr1.toWrapper(), ResultStatus.CREATED)
         }
     }
 
@@ -34,46 +35,59 @@ class IndividualPhoneRecordWrappers {
         }
     }
 
-    static DetachedCriteria<PhoneRecord> buildForPhoneIdWithOptions(Long phoneId,
+    static DetachedJoinableCriteria<PhoneRecord> buildForPhoneIdWithOptions(Long phoneId,
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES,
         boolean onlyShared = false) {
 
-        DetachedCriteria<PhoneRecord> criteria = buildBase(query, statuses)
+        DetachedJoinableCriteria<PhoneRecord> criteria = buildActiveBase(query, statuses)
             .build { eq("phone.id", phoneId) }
         onlyShared ? criteria.build { isNotNull("shareSource") } : criteria // inner join
     }
 
-    static DetachedCriteria<PhoneRecord> buildForSharedByIdWithOptions(Long sharedById,
+    static DetachedJoinableCriteria<PhoneRecord> buildForSharedByIdWithOptions(Long sharedById,
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES) {
 
-        buildBase(query, statuses).build { eq("shareSource.phone.id", sharedById) } // inner join
+        buildActiveBase(query, statuses).build { eq("ssource1.phone.id", sharedById) }
     }
 
-    static Closure<List<IndividualPhoneRecordWrapper>> listAction(DetachedCriteria<PhoneRecord> query) {
-        return { Map opts -> query.build(forSort()).list(opts)*.toWrapper() }
+    static Closure<List<IndividualPhoneRecordWrapper>> listAction(DetachedCriteria<PhoneRecord> criteria) {
+        return { Map opts ->
+            if (criteria) {
+                criteria.build(forSort())
+                    .list(opts)
+                    *.toWrapper()
+                    .findAll { it instanceof IndividualPhoneRecordWrapper }
+            }
+            else { [] }
+        }
     }
 
     @GrailsTypeChecked
-    static Result<List<IndividualPhoneRecordWrapper>> tryFindEveryByNumbers(Phone p1,
+    static Result<List<IndividualPhoneRecordWrapper>> tryFindOrCreateEveryByPhoneAndNumbers(Phone p1,
         List<? extends BasePhoneNumber> bNums, boolean createIfAbsent) {
-
-        IndividualPhoneRecords.tryFindEveryByNumbers(p1, bNums, createIfAbsent)
-            .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPRecs ->
-                List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(numToPRecs.values())
-                List<PhoneRecord> sharedRecs = PhoneRecords
+        // step 1: create any missing contacts
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, bNums, createIfAbsent)
+            .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPhoneRecs ->
+                List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(numToPhoneRecs.values())
+                // step 2: find shared contacts (excludes tags)
+                List<PhoneRecord> sprs = PhoneRecords
                     .buildActiveForShareSourceIds(iprs*.id)
                     .list()
-                CollectionUtils.mergeUnique([sharedRecs*.toWrapper(), iprs*.toWrapper()])
+                // step 3: merge all together, removing duplicates
+                Collection<IndividualPhoneRecordWrapper> wraps = CollectionUtils
+                    .mergeUnique([sprs*.toWrapper(), iprs*.toWrapper()])
+                    .findAll { it instanceof IndividualPhoneRecordWrapper }
+                IOCUtils.resultFactory.success(wraps)
             }
     }
 
     // Helpers
     // -------
 
-    static DetachedCriteria<PhoneRecord> buildBase(String query,
+    static DetachedJoinableCriteria<PhoneRecord> buildActiveBase(String query,
         Collection<PhoneRecordStatus> statuses) {
 
-        new DetachedCriteria(PhoneRecord)
+        new DetachedJoinableCriteria(PhoneRecord)
             .build { ne("class", GroupPhoneRecord) } // only owned or shared individuals
             .build(forStatuses(statuses))
             .build(forQuery(query))
@@ -86,24 +100,22 @@ class IndividualPhoneRecordWrappers {
 
     // For hasMany left join, see: https://stackoverflow.com/a/45193881
     protected static Closure forQuery(String query) {
-        if (!query) {
-            return { }
-        }
+        String formattedQuery = StringUtils.toQuery(query)
+        PhoneNumber pNum1 = PhoneNumber.create(query)
+        String numberQuery = pNum1.validate() ? StringUtils.toQuery(pNum1.number) : null
         return {
             // need to use createAlias because this property is not on the superclass
-            createAlias("numbers", "indNumbers1", CriteriaSpecification.LEFT_JOIN)
-            or {
-                // TODO how does same property name for two subclasses work??
-                String formattedQuery = StringUtils.toQuery(query)
-                ilike("name", formattedQuery)
-                shareSource(CriteriaSpecification.LEFT_JOIN) { ilike("name", formattedQuery) }
-                // don't include the numbers constraint if not number or else will match all
-                String cleanedAsNumber = StringUtils.cleanPhoneNumber(query)
-                if (cleanedAsNumber) {
-                    String numberQuery = StringUtils.toQuery(cleanedAsNumber)
-                    ilike("indNumbers1.number", numberQuery)
-                    shareSource(CriteriaSpecification.LEFT_JOIN) {
-                        numbers(CriteriaSpecification.LEFT_JOIN) { ilike("number", numberQuery) }
+            createAliasWithJoin("numbers", "indnumbers1", JoinType.LEFT_OUTER_JOIN)
+            createAliasWithJoin("shareSource", "ssource1", JoinType.LEFT_OUTER_JOIN)
+            createAliasWithJoin("ssource1.numbers", "ssourcenums1", JoinType.LEFT_OUTER_JOIN)
+            if (formattedQuery) {
+                or {
+                    ilike("name", formattedQuery)
+                    ilike("ssource1.name", formattedQuery)
+                    // don't include the numbersQuery if null or else will match all
+                    if (numberQuery) {
+                        ilike("indnumbers1.number", numberQuery)
+                        ilike("ssourcenums1.number", numberQuery)
                     }
                 }
             }
@@ -114,7 +126,9 @@ class IndividualPhoneRecordWrappers {
     protected static Closure forSort() {
         return {
             order("status", "desc") // unread first then active
-            order("record.lastRecordActivity", "desc") // more recent first
+            record {
+                order("lastRecordActivity", "desc") // more recent first
+            }
         }
     }
 }

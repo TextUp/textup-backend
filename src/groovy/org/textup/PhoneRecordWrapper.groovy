@@ -8,29 +8,29 @@ import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 
-@EqualsAndHashCode
+@EqualsAndHashCode(includeFields = true)
 @GrailsTypeChecked
 class PhoneRecordWrapper implements CanSave<PhoneRecordWrapper> {
 
     private final PhoneRecord phoneRecord
     final PhoneRecordPermissions permissions
 
-    PhoneRecordWrapper(PhoneRecord pr1, PhoneRecordPermissions permissions) {
+    PhoneRecordWrapper(PhoneRecord pr1, PhoneRecordPermissions perm1) {
         phoneRecord = pr1
-        permissions = permissions
+        permissions = perm1
     }
 
     // Methods
     // -------
 
-    PhoneRecordWrapper save() { phoneRecord.save() ? this : null }
+    PhoneRecordWrapper save() { phoneRecord?.save() ? this : null }
 
-    Errors getErrors() { phoneRecord.errors }
+    Errors getErrors() { phoneRecord?.errors }
 
-    boolean validate() { phoneRecord.validate() }
+    boolean validate() { phoneRecord?.validate() }
 
     Result<? extends PhoneRecord> tryUnwrap() {
-        permissions.isOwner() ?
+        permissions?.isOwner() ?
             IOCUtils.resultFactory.success(phoneRecord) :
             insufficientPermission()
     }
@@ -40,72 +40,72 @@ class PhoneRecordWrapper implements CanSave<PhoneRecordWrapper> {
     // Getters
     // -------
 
-    Class getWrappedClass() { phoneRecord.class }
+    Class getWrappedClass() { phoneRecord?.class }
 
-    Long getId() { phoneRecord.id }
+    Long getId() { phoneRecord?.id }
 
     Result<DateTime> tryGetLastTouched() {
-        permissions.canView() ?
+        permissions?.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.lastTouched) :
             insufficientPermission()
     }
 
     Result<DateTime> tryGetWhenCreated() {
-        permissions.canView() ?
+        permissions?.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.whenCreated) :
             insufficientPermission()
     }
 
     Result<Phone> tryGetMutablePhone() {
-        permissions.canModify() ?
+        permissions?.canModify() ?
             IOCUtils.resultFactory.success(phoneRecord.phone) :
             insufficientPermission()
     }
 
     Result<ReadOnlyPhone> tryGetReadOnlyMutablePhone() {
-        permissions.canView() ?
+        permissions?.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.phone) :
             insufficientPermission()
     }
 
     Result<Phone> tryGetOriginalPhone() {
-        permissions.canModify() ?
+        permissions?.canModify() ?
             IOCUtils.resultFactory.success(phoneRecord.phone) :
             insufficientPermission()
     }
 
     Result<ReadOnlyPhone> tryGetReadOnlyOriginalPhone() {
-        permissions.canView() ?
+        permissions?.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.phone) :
             insufficientPermission()
     }
 
     Result<PhoneRecordStatus> tryGetStatus() {
-        permissions.canView() ?
+        permissions?.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.status) :
             insufficientPermission()
     }
 
     Result<Record> tryGetRecord() {
-        permissions.canModify() ?
+        permissions?.canModify() ?
             IOCUtils.resultFactory.success(phoneRecord.record) :
             insufficientPermission()
     }
 
     Result<ReadOnlyRecord> tryGetReadOnlyRecord() {
-        permissions.canView() ?
+        permissions?.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.record) :
             insufficientPermission()
     }
 
     Result<String> tryGetSecureName() {
-        permissions.canView() ?
+        permissions?.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.secureName) :
             insufficientPermission()
     }
 
     Result<String> tryGetPublicName() {
-        permissions.canView() ?
+        permissions?.canView() ?
             IOCUtils.resultFactory.success(phoneRecord.publicName) :
             insufficientPermission()
     }
@@ -117,7 +117,7 @@ class PhoneRecordWrapper implements CanSave<PhoneRecordWrapper> {
         if (!status) {
             return Result.void()
         }
-        if (permissions.canView()) { // all sharing relationships have their own status
+        if (permissions?.canView()) { // all sharing relationships have their own status
             phoneRecord.status = status
             phoneRecord.lastTouched = DateTime.now()
             Result.void()
@@ -126,7 +126,10 @@ class PhoneRecordWrapper implements CanSave<PhoneRecordWrapper> {
     }
 
     Result<Void> trySetStatusIfNotBlocked(PhoneRecordStatus status) {
-        if (permissions.canView()) { // all sharing relationships have their own status
+        if (!status) {
+            return Result.void()
+        }
+        if (permissions?.canView()) { // all sharing relationships have their own status
             if (phoneRecord.status != PhoneRecordStatus.BLOCKED) {
                 phoneRecord.status = status // do not update lastTouched timestamp
             }
@@ -139,7 +142,7 @@ class PhoneRecordWrapper implements CanSave<PhoneRecordWrapper> {
         if (!lang) {
             return Result.void()
         }
-        if (permissions.canModify()) {
+        if (permissions?.canModify()) {
             phoneRecord.record.language = lang
             Result.void()
         }

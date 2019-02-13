@@ -22,14 +22,14 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
             phoneNumber        = iReq1.mutablePhone.number
             totalNumItems      = iReq1.criteria.count()
         }
-        AuthUtils.tryGetAuthUser()
+        AuthUtils.tryGetActiveAuthUser()
             .thenEnd { Staff authUser -> json.exportedBy = authUser.name }
         // fetching sections with appropriate pagination options
-    	RequestUtils.tryGetFromRequest(RequestUtils.PAGINATION_OPTIONS)
+    	RequestUtils.tryGet(RequestUtils.PAGINATION_OPTIONS)
             .ifFail { json.sections = iReq1.buildSections() }
             .thenEnd { Map opts -> json.sections = iReq1.buildSections(opts) }
         // setting timestamps with appropriate
-        RequestUtils.tryGetFromRequest(RequestUtils.TIMEZONE)
+        RequestUtils.tryGet(RequestUtils.TIMEZONE)
             .thenEnd { String tz ->
                 json.with {
                     startDate      = iReq1.buildFormattedStart(tz)

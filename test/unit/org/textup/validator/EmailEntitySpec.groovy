@@ -19,32 +19,47 @@ import spock.lang.*
 @Unroll
 class EmailEntitySpec extends Specification {
 
+	static doWithSpring = {
+		resultFactory(ResultFactory)
+	}
+
+	def setup() {
+		TestUtils.standardMockSetup()
+	}
+
 	void "test constraints and conversion"() {
+		given:
+		String name = TestUtils.randString()
+		String email = "${name}@kiki.com"
+
 		when: "all fields are null"
-		EmailEntity emailEnt = new EmailEntity()
+		Result res = EmailEntity.tryCreate(null, null)
 
 		then: "invalid"
-		emailEnt.validate() == false
-		emailEnt.errors.errorCount == 2
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
+		res.errorMessages.size() == 2
 
 		when: "all fields are filled, but email is invalid format"
-		emailEnt = new EmailEntity(name:"Kiki", email:"what is this?")
+		res = EmailEntity.tryCreate("Kiki", "what is this?")
 
 		then: "invalid"
-		emailEnt.validate() == false
-		emailEnt.errors.errorCount == 1
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
+		res.errorMessages.size() == 1
 
 		when: "has name and valid email"
-		emailEnt = new EmailEntity(name:"Kiki", email:"hello@kiki.com")
+		res = EmailEntity.tryCreate(name, email)
 
 		then: "valid"
-		emailEnt.validate() == true
+		res.status == ResultStatus.CREATED
+		res.payload instanceof EmailEntity
+		res.payload.name == name
+		res.payload.email == email
 
 		when: "converting a SendGrid email"
-		Email email1 = emailEnt.toEmail()
+		Email email1 = res.payload.toSendGridEmail()
 
 		then:
-		email1.name == emailEnt.name
-		email1.email == emailEnt.email
+		email1.name == name
+		email1.email == email
 	}
 }

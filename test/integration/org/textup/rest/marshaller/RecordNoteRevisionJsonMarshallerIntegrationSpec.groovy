@@ -48,7 +48,7 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends Specification {
 
         when: "add timezone"
         String tzId = "Europe/Stockholm"
-        Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, tzId)
+        RequestUtils.trySet(Constants.REQUEST_TIMEZONE, tzId)
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
             json = TestUtils.jsonToMap(rev1 as JSON)
         }

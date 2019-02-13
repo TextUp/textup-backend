@@ -14,9 +14,8 @@ import org.textup.validator.*
 class DuplicateService {
 
     Result<List<MergeGroup>> findDuplicates(Long phoneId, Collection<Long> iprIds = null) {
-        IndividualPhoneRecords.tryFindEveryIdByNumbers(phoneId, iprIds)
-            .then { Map<PhoneNumber, HashSet<Long>> numToIds ->
-                DuplicateUtils.tryBuildMergeGroups(numToIds).toResult(false)
-            }
+        Map<PhoneNumber, HashSet<Long>> numToIds = IndividualPhoneRecords
+            .findNumToIdByPhoneIdAndOptions(phoneId, iprIds)
+        DuplicateUtils.tryBuildMergeGroups(numToIds).toResult(false)
     }
 }

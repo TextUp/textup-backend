@@ -3,23 +3,20 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TypeCheckingMode
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
-import org.joda.time.DateTimeConstants
-import org.joda.time.format.DateTimeFormatter
+import org.joda.time.*
+import org.joda.time.format.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
-import org.joda.time.Interval
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class Schedule implements WithId, CanSave<Schedule> {
+class Schedule implements WithId, CanSave<Schedule>, ReadOnlySchedule {
 
-    boolean manual = true
-    boolean manualIsAvailable = true
+    boolean manual = DefaultSchedule.DEFAULT_MANUAL
+    boolean manualIsAvailable = DefaultSchedule.DEFAULT_MANUAL_IS_AVAILABLE
 
     String sunday = ""
     String monday = ""
@@ -31,25 +28,25 @@ class Schedule implements WithId, CanSave<Schedule> {
 
     static constraints = {
         sunday validator: { String val ->
-            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
         monday validator: { String val ->
-            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
         tuesday validator: { String val ->
-            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
         wednesday validator: { String val ->
-            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
         thursday validator: { String val ->
-            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
         friday validator: { String val ->
-            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
         saturday validator: { String val ->
-            if (!ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
         }
     }
 
@@ -60,6 +57,7 @@ class Schedule implements WithId, CanSave<Schedule> {
     // Methods
     // -------
 
+    @Override
     boolean isAvailableNow() {
         isAvailableAt(JodaUtils.utcNow())
     }
@@ -80,6 +78,7 @@ class Schedule implements WithId, CanSave<Schedule> {
         }
     }
 
+    @Override
     DateTime nextAvailable(String timezone = null) {
         if (manual) {
             null
@@ -87,6 +86,7 @@ class Schedule implements WithId, CanSave<Schedule> {
         else { nextChangeForType(ScheduleStatus.AVAILABLE, timezone)?.payload?.when }
     }
 
+    @Override
     DateTime nextUnavailable(String timezone = null) {
         if (manual) {
             null
@@ -117,6 +117,7 @@ class Schedule implements WithId, CanSave<Schedule> {
     // ----------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    @Override
     Map<String,List<LocalInterval>> getAllAsLocalIntervals(String timezone = ScheduleUtils.DEFAULT_TIMEZONE) {
         DateTimeZone zone = JodaUtils.getZoneFromId(timezone)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(ScheduleUtils.TIME_FORMAT).withZoneUTC()
@@ -221,14 +222,14 @@ class Schedule implements WithId, CanSave<Schedule> {
         boolean lastDayAtEnd = false,
             firstDayAtBeginning = false
         String firstDayWrappedEnd
-        for (wrapRange in this."${ScheduleUtils.DAYS_OF_WEEK[0]}".tokenize(RANGE_DELIMITER)) {
+        for (wrapRange in this."${ScheduleUtils.DAYS_OF_WEEK[0]}".tokenize(ScheduleUtils.RANGE_DELIMITER)) {
             if (wrapRange.tokenize(TIME_DELIMITER)[0] == "0000") {
                 firstDayWrappedEnd = wrapRange.tokenize(TIME_DELIMITER)[1]
                 firstDayAtBeginning = true
                 break
             }
         }
-        for (wrapRange in this."${ScheduleUtils.DAYS_OF_WEEK.last()}".tokenize(RANGE_DELIMITER)) {
+        for (wrapRange in this."${ScheduleUtils.DAYS_OF_WEEK.last()}".tokenize(ScheduleUtils.RANGE_DELIMITER)) {
             if (wrapRange.tokenize(TIME_DELIMITER)[1] == "2359") {
                 lastDayAtEnd = true
                 break

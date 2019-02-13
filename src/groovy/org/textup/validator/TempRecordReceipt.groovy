@@ -33,7 +33,7 @@ class TempRecordReceipt implements CanValidate {
 	}
 
     static Result<TempRecordReceipt> tryCreate(String apiId, BasePhoneNumber bNum) {
-        TempRecordReceipt tempRpt1 = new TempRecordReceipt(PhoneNumber.create(bNum), apiId)
+        TempRecordReceipt tempRpt1 = new TempRecordReceipt(PhoneNumber.copy(bNum), apiId)
         DomainUtils.tryValidate(tempRpt1, ResultStatus.CREATED)
     }
 }

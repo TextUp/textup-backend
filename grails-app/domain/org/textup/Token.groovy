@@ -31,8 +31,8 @@ class Token implements WithId, CanSave<Token> {
         stringData type: "text"
     }
     static constraints = {
-    	token unique:true
-        maxNumAccess nullable:true
+    	token unique: true
+        maxNumAccess nullable: true
     	stringData maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE, validator: { String data, Token obj ->
     		if (!obj.type?.requiredKeys.every { String key -> data.contains(key) }) {
     			["requiredKeys", obj.type, obj.type.requiredKeys]
@@ -41,7 +41,8 @@ class Token implements WithId, CanSave<Token> {
     }
 
     static Result<Token> tryCreate(TokenType type, Map data) {
-        DomainUtils.trySave(new Token(type: type, data: data), ResultStatus.CREATED)
+        Token tok1 = new Token(type: type, stringData: DataFormatUtils.toJsonString(data))
+        DomainUtils.trySave(tok1, ResultStatus.CREATED)
     }
 
     def beforeValidate() {
@@ -54,12 +55,6 @@ class Token implements WithId, CanSave<Token> {
     // ----------
 
     boolean getIsExpired() { expires.isBeforeNow() || !isAllowedNumAccess() }
-
-    void setData(Map p) {
-        if (p != null) {
-            stringData = DataFormatUtils.toJsonString(p)
-        }
-    }
 
     TypeMap getData() {
         try {

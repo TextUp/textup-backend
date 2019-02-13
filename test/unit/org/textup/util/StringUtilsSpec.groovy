@@ -19,18 +19,40 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class StringUtilsSpec extends Specification {
 
-    void "test to lower case string"() {
+    void "test cleaning phone number"() {
         expect:
-        StringUtils.toLowerCaseString(["HELLO"]) == "[hello]"
-        StringUtils.toLowerCaseString("yEsS") == "yess"
-        StringUtils.toLowerCaseString(null) == "null"
+        StringUtils.cleanPhoneNumber(null) == null
+        StringUtils.cleanPhoneNumber("1112223333") == "1112223333"
+        StringUtils.cleanPhoneNumber("881asdaf@()#@!(@#)9301223") == "8819301223"
+        StringUtils.cleanPhoneNumber("8 abc @# 88") == "888"
+        StringUtils.cleanPhoneNumber("12223338888") == "2223338888" // strip US country code
+    }
+
+    void "test cleaning username"() {
+        expect:
+        StringUtils.cleanUsername(null) == null
+        StringUtils.cleanUsername("   hiTHERE ") == "hithere"
+        StringUtils.cleanUsername("hello!@#123") == "hello!@#123"
+    }
+
+    void "test case insensitive equals"() {
+        expect:
+        StringUtils.equalsIgnoreCase("HIII", "hiii") == true
+        StringUtils.equalsIgnoreCase(null, null) == true
+        StringUtils.equalsIgnoreCase("hIiI", "hiii") == true
+        StringUtils.equalsIgnoreCase("h@@IiI123", "h@@iii123") == true
+
+        StringUtils.equalsIgnoreCase("h@@IiI123  ", "  h@@iii123") == false
+        StringUtils.equalsIgnoreCase("yes", "y  es") == false
+        StringUtils.equalsIgnoreCase(null, "hiii") == false
+        StringUtils.equalsIgnoreCase("  HIII", "hiii") == false
     }
 
     void "test formatting string as SQL query"() {
         expect:
         StringUtils.toQuery(["HELLO"]) == "%[HELLO]%"
         StringUtils.toQuery("yEsS") == "%yEsS%"
-        StringUtils.toQuery(null) == "%null%"
+        StringUtils.toQuery(null) == ""
         StringUtils.toQuery("%hi") == "%hi%"
         StringUtils.toQuery("hi%") == "%hi%"
         StringUtils.toQuery("%hi%") == "%hi%"
@@ -47,6 +69,18 @@ class StringUtilsSpec extends Specification {
             all right
             3920 @@okay!!
         """) == "H.Y.A.R.@."
+    }
+
+    void "test pluralize units in phrase"() {
+        given:
+        String word = TestUtils.randString()
+
+        expect:
+        StringUtils.pluralize(-88, word) == "-88 ${word}s"
+        StringUtils.pluralize(-1, word) == "-1 ${word}s"
+        StringUtils.pluralize(0, word) == "0 ${word}s"
+        StringUtils.pluralize(1, word) == "1 ${word}"
+        StringUtils.pluralize(88, word) == "88 ${word}s"
     }
 
     void "test generating random alphanumeric strings"() {

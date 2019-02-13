@@ -22,7 +22,7 @@ class NumberController extends BaseController {
     @Override
     void index() {
         TypeMap qParams = TypeMap.create(params)
-        AuthUtils.tryGetAuthUser()
+        AuthUtils.tryGetActiveAuthUser()
             .then { Staff authUser -> numberService.listExistingNumbers().curry(authUser) }
             .then { Staff authUser, Collection<AvailablePhoneNumber> iNums ->
                 numberService.listNewNumbers(qParams.string("search"), authUser.org.location)
@@ -44,7 +44,7 @@ class NumberController extends BaseController {
         TypeMap qParams = TypeMap.create(params)
         PhoneNumber.tryCreate(qParams.string("id"))
             .then { PhoneNumber pNum -> numberService.validateNumber(pNum) }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     // requesting and checking phone number validation tokens
@@ -58,6 +58,6 @@ class NumberController extends BaseController {
                     numberService.finishVerifyOwnership(token, pNum) :
                     numberService.startVerifyOwnership(pNum)
             }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 }

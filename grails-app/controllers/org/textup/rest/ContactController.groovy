@@ -67,7 +67,7 @@ class ContactController extends BaseController {
             .then { GroupPhoneRecords.mustFindForId(gprId) }
             .ifFail { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { GroupPhoneRecord gpr1 ->
-                Collection<PhoneRecord> prs = gpr1.getMembersByStatus(statuses)
+                Collection<PhoneRecord> prs = gpr1.members.getByStatus(statuses)
                 respondWithMany({ prs.size() },
                     { prs*.toWrapper() },
                     qParams,

@@ -55,7 +55,7 @@ class MediaService {
                 Collection<String> errors = storageService.uploadAsync(pu1.uploads)
                     .logFail("tryStartProcessing: uploading initial media")
                     .errorMessages
-                RequestUtils.trySetOnRequest(RequestUtils.UPLOAD_ERRORS, errors)
+                RequestUtils.trySet(RequestUtils.UPLOAD_ERRORS, errors)
                 IOCUtils.resultFactory.success(threadService.delay(5, TimeUnit.SECONDS) {
                     DehydratedPartialUploads.tryCreate(pu1)
                         .then { DehydratedPartialUploads dpu1 -> tryFinishProcessing(mInfo.id, dpu1) }

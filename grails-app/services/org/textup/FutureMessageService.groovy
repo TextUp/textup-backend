@@ -29,7 +29,10 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
             .then { Record rec1, Tuple<MediaInfo, Future<?>> tup1->
                 Tuple.split(tup1) { MediaInfo mInfo, Future<?> fut1 ->
                     future = fut1
-                    SimpleFutureMessage.tryCreate(rec1, body.string("message"), mInfo)
+                    SimpleFutureMessage.tryCreate(rec1,
+                        body.enum(FutureMessageType, "type"),
+                        body.string("message"),
+                        mInfo)
                 }
             }
             .then { FutureMessage fMsg -> trySetFields(fMsg, body, body.string("timezone")) }

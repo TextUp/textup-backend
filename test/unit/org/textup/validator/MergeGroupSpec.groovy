@@ -21,118 +21,58 @@ import spock.lang.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class MergeGroupSpec extends CustomSpec {
+class MergeGroupSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
 
     def setup() {
-    	setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-    	cleanupData()
-    }
+	void "test creation + constraints"() {
+		given:
+		IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+		IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord()
+		MergeGroupItem mItem1 = MergeGroupItem.create(TestUtils.randPhoneNumber(), [ipr1.id])
+		MergeGroupItem mItem2 = MergeGroupItem.create(TestUtils.randPhoneNumber(), [ipr1.id])
 
-	void "test constraints"() {
-		when: "empty"
-		MergeGroup mGroup = new MergeGroup()
-
-		then:
-		mGroup.validate() == false
-		mGroup.errors.errorCount == 2
-		mGroup.errors.getFieldError("targetContactId").code == "nullable"
-		mGroup.errors.getFieldError("possibleMerges").code == "minSize.notmet"
-		mGroup.targetContact == null
-
-		when: "nonexistent target contact id"
-		mGroup.targetContactId = -88L
+		when:
+		Result res = MergeGroup.tryCreate(null, null)
 
 		then:
-		mGroup.validate() == false
-		mGroup.errors.errorCount == 2
-		mGroup.errors.getFieldError("targetContactId").code == "doesNotExist"
-		mGroup.errors.getFieldError("possibleMerges").code == "minSize.notmet"
-		mGroup.targetContact == null
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-		when: "items with overlapping ids"
-		MergeGroupItem mItem1 = new MergeGroupItem(contactIds:[c1.id]),
-			mItem2 = new MergeGroupItem(contactIds:[c1.id])
-		// note that the standard validation method does not cascade
-		// validation to the contained items
-		assert mItem1.validate() == false
-		assert mItem2.validate() == false
-		mGroup.possibleMerges = [mItem1, mItem2]
+		when:
+		res = MergeGroup.tryCreate(-88L, [mItem1])
 
 		then:
-		mGroup.validate() == false
-		mGroup.errors.errorCount == 2
-		mGroup.errors.getFieldError("targetContactId").code == "doesNotExist"
-		mGroup.errors.getFieldError("possibleMerges").code == "overlappingId"
-		mGroup.targetContact == null
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
+		res.errorMessages == ["doesNotExist"]
 
-		when: "items with some nonexistent ids"
-		mItem1.contactIds[0] = -109L // must not be -88L or will overlap with target contact id
-		mGroup.possibleMerges = [mItem1]
+		when:
+		res = MergeGroup.tryCreate(ipr1.id, [mItem1])
 
 		then:
-		mGroup.validate() == false
-		mGroup.errors.errorCount == 2
-		mGroup.errors.getFieldError("targetContactId").code == "doesNotExist"
-		mGroup.errors.getFieldError("possibleMerges").code == "someDoNotExist"
-		mGroup.targetContact == null
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
+		res.errorMessages == ["cannotMergeWithSelf"]
 
-		when: "all valid"
-		mGroup.targetContactId = c1.id
-		mItem1.contactIds[0] = c1_1.id
-		mItem2.contactIds[0] = c1_2.id
-		mGroup.possibleMerges = [mItem1, mItem2]
+		when:
+		res = MergeGroup.tryCreate(ipr2.id, [mItem1, mItem2])
 
 		then:
-		mGroup.validate() == true
-		mGroup.targetContact.id == c1.id
-	}
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
+		res.errorMessages == ["overlappingIds"]
 
-	void "test cascading validation to contained items"() {
-		given: "valid group with invalid items"
-		MergeGroupItem mItem1 = new MergeGroupItem(contactIds:[c1_1.id]),
-			mItem2 = new MergeGroupItem(contactIds:[c1_2.id])
-		MergeGroup mGroup = new MergeGroup(targetContactId:c1.id, possibleMerges:[mItem1, mItem2])
-		assert mItem1.validate() == false
-		assert mItem2.validate() == false
-
-		when: "shallow validate"
-		assert mGroup.validate() == true
+		when:
+		res = MergeGroup.tryCreate(ipr2.id, [mItem1])
 
 		then:
-		mGroup.errors.errorCount == 0
-
-		when: "deep validate"
-		assert mGroup.deepValidate() == false
-
-		then:
-		mGroup.errors.errorCount == 1
-		mGroup.errors.getFieldErrorCount("possibleMerges") == 1
-		mGroup.errors.getFieldError("possibleMerges").code == "mergeGroup.possibleMerges.invalidItems"
-	}
-
-	void "test adding merge group items"() {
-		given: "merge group with valid target and no items"
-		MergeGroup mGroup = new MergeGroup(targetContactId:c1.id)
-		assert mGroup.targetContact.id == c1.id
-
-		when: "adding a merge group item"
-		PhoneNumber pNum = new PhoneNumber(number:"111222 afasf 3333")
-		assert pNum.validate() == true
-		mGroup.add(pNum, [c1_1.id])
-
-		then:
-		mGroup.validate() == true
-		mGroup.deepValidate() == true
-		mGroup.possibleMerges.size() == 1
-		mGroup.possibleMerges[0].number.number == pNum.number
-		mGroup.possibleMerges[0].contactIds.size() == 1
-		mGroup.possibleMerges[0].contactIds[0] == c1_1.id
+		res.status == ResultStatus.CREATED
+		res.payload.targetId == ipr2.id
+		res.payload.possibleMerges.size() == 1
+		mItem1 in res.payload.possibleMerges
+		res.payload.buildTarget() == ipr2
 	}
 }

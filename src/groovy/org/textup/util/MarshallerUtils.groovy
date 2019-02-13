@@ -57,7 +57,7 @@ class MarshallerUtils {
     static void setupJsonMarshaller(Object delegate, String key, Class clazz,
         Class<? extends JsonNamedMarshaller> marshallerClazz) {
 
-        CriteriaUtils.compose(delegate) {
+        ClosureUtils.compose(delegate) {
             "${key}Renderer"(ApiJsonRenderer, clazz) {
                 label = MarshallerUtils.resolveCodeToSingular(key)
             }

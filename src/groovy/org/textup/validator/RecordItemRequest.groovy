@@ -18,8 +18,8 @@ import org.textup.util.domain.*
 @Validateable
 class RecordItemRequest implements CanValidate {
 
-    private static final String DEFAULT_START = "beginning"
-    private static final String DEFAULT_END = "end"
+    static final String DEFAULT_START = "beginning"
+    static final String DEFAULT_END = "end"
 
     final boolean groupByEntity = false
     final Collection<? extends PhoneRecordWrapper> wrappers
@@ -46,11 +46,12 @@ class RecordItemRequest implements CanValidate {
         }
     }
 
-    static Result<RecordItemRequest> tryCreate(Phone p1, Collection<PhoneRecordWrapper> wrappers,
+    static Result<RecordItemRequest> tryCreate(Phone p1, Collection<? extends PhoneRecordWrapper> thisWraps,
         boolean isGrouped) {
 
+        Collection<PhoneRecordWrapper> wraps = thisWraps ?: new ArrayList<? extends PhoneRecordWrapper>()
         RecordItemRequest iReq1 = new RecordItemRequest(isGrouped,
-            Collections.unmodifiableCollection(wrappers),
+            Collections.unmodifiableCollection(wraps),
             p1)
         DomainUtils.tryValidate(iReq1, ResultStatus.CREATED)
     }

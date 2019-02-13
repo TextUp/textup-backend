@@ -47,8 +47,8 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
     // -------
 
     Result<RecordNote> tryCreateRevision() {
-        if (DomainUtils.hasDirtyNonObjectFields(this, ["isDeleted"]) ||
-            location?.isDirty() || media?.isDirty()) {
+        if (DomainUtils.hasDirtyNonObjectFields(this, ["isDeleted"]) || location?.isDirty() ||
+            media?.isDirty()) {
             // update whenChanged timestamp to keep it current for any revisions
             whenChanged = JodaUtils.utcNow()
             // create revision of persistent values

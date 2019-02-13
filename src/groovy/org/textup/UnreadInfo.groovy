@@ -31,7 +31,7 @@ class UnreadInfo {
     protected static <T extends RecordItem> Collection<T> forClass(Collection<? extends RecordItem> rItems,
         Class<T> clazz) {
 
-        rItems.collect { RecordItem rItem1 -> clazz.isAssignableFrom(rItem1.class) }
+        rItems.findAll { RecordItem rItem1 -> clazz.isAssignableFrom(rItem1.class) }
     }
 
     protected static Collection<RecordCall> notVoicemail(Collection<? extends RecordItem> rItems) {

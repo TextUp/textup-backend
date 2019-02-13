@@ -24,7 +24,7 @@ class FutureMessageController extends BaseController {
     @Override
     void index() {
         Long prId = params.long("contactId") ?: params.long("tagId")
-        RequestUtils.trySetOnRequest(RequestUtils.PHONE_RECORD_ID, prId)
+        RequestUtils.trySet(RequestUtils.PHONE_RECORD_ID, prId)
         PhoneRecords.isAllowed(prId)
             .then { PhoneRecordWrappers.mustFindForId(prId) }
             .then { PhoneRecordWrapper w1 -> w1.tryGetReadOnlyRecord() }
@@ -47,7 +47,7 @@ class FutureMessageController extends BaseController {
     void save() {
         doSave(MarshallerUtils.KEY_FUTURE_MESSAGE, request, futureMessageService) {
             Long prId = params.long("contactId") ?: params.long("tagId")
-            RequestUtils.trySetOnRequest(RequestUtils.PHONE_RECORD_ID, prId)
+            RequestUtils.trySet(RequestUtils.PHONE_RECORD_ID, prId)
             PhoneRecords.isAllowed(prId)
         }
     }

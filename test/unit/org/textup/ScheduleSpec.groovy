@@ -22,12 +22,12 @@ import spock.lang.*
 class ScheduleSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
 
-	def setup() {
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-	}
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
     void "test constraints and deletion"() {
     	given:
@@ -47,7 +47,7 @@ class ScheduleSpec extends Specification {
     	when: "update with all valid local intervals for one day"
         LocalInterval lInt1 = new LocalInterval(t1, t2),
             lInt2 = new LocalInterval(midnight, t2)
-    	Result res = s.update(monday:[lInt1, lInt2])
+    	Result res = s.updateLocalIntervals(monday:[lInt1, lInt2])
     	String mondayString = "0000,2059"
 
     	then:
@@ -61,7 +61,7 @@ class ScheduleSpec extends Specification {
         LocalInterval lInt3 = new LocalInterval(t2, endOfDay),
             lInt4 = new LocalInterval(t3, t4),
             lInt5 = new LocalInterval(t1, t4)
-    	res = s.update(tuesday:[lInt3, lInt4, lInt5])
+    	res = s.updateLocalIntervals(tuesday:[lInt3, lInt4, lInt5])
 
     	then: "both days should be preserved"
     	s.validate() == true
@@ -73,7 +73,7 @@ class ScheduleSpec extends Specification {
         res.payload.allAsLocalIntervals.tuesday.every { it in [lInt3, lInt4, lInt5] }
 
     	when: "update with all valid intervals but some invalid map keys"
-	    res = s.update(invalid:[new LocalInterval(t1, t2), new LocalInterval(midnight, t2)])
+	    res = s.updateLocalIntervals(invalid:[new LocalInterval(t1, t2), new LocalInterval(midnight, t2)])
 
     	then:
     	s.validate() == true
@@ -82,7 +82,7 @@ class ScheduleSpec extends Specification {
         res.errorMessages.size() == 1
 
     	when: "update with both the same valid time interval"
-	    res = s.update(friday:[new LocalInterval(midnight, t1),
+	    res = s.updateLocalIntervals(friday:[new LocalInterval(midnight, t1),
 	    	new LocalInterval(t3, t4), new LocalInterval(t3, t4)])
 
     	then:
@@ -92,7 +92,7 @@ class ScheduleSpec extends Specification {
     	res.payload.friday == "0000,0100;0559,0759"
 
     	when: "update with some invalid local intervals"
-		res = s.update(tuesday:[new LocalInterval(t2, t1), new LocalInterval(midnight, t2)])
+		res = s.updateLocalIntervals(tuesday:[new LocalInterval(t2, t1), new LocalInterval(midnight, t2)])
 
     	then:
     	s.validate() == true
@@ -117,7 +117,7 @@ class ScheduleSpec extends Specification {
     	s.errors.errorCount == 1
 
     	when: "clear field with update method"
-    	res = s.update(thursday:[])
+    	res = s.updateLocalIntervals(thursday:[])
 
     	then:
     	s.validate() == true
@@ -132,6 +132,16 @@ class ScheduleSpec extends Specification {
     	Schedule.count() == baseline - 1
     }
 
+    void "test static creation"() {
+        when:
+        Result res = Schedule.tryCreate()
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.manual == true
+        res.payload.manualIsAvailable == true
+    }
+
     void "test updating with interval strings"() {
         given: "a weekly schedule"
         Schedule s = new Schedule()
@@ -144,7 +154,6 @@ class ScheduleSpec extends Specification {
         then:
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "Schedule.strIntsNotList"
 
         when: "the interval strings are invalidly formatted"
         updateInfo = [monday:["invalid", "0130:0230"]]
@@ -153,7 +162,6 @@ class ScheduleSpec extends Specification {
         then:
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "Schedule.invalidRestTimeFormat"
 
         when: "we have a map of lists of valid interval strings"
         updateInfo = [monday:["0130:0231", "0230:0330", "0400:0430"]]
@@ -273,7 +281,31 @@ class ScheduleSpec extends Specification {
             new LocalInterval(new LocalTime(18, 59), new LocalTime(19, 0))]
     }
 
-    void "test updating and asking availability"() {
+    void "test updating and asking availability for manual schedule"() {
+        when:
+        Schedule sched1 = new Schedule()
+
+        then:
+        sched1.manual == true
+        sched1.manualIsAvailable == true
+        sched1.isAvailableNow() == true
+        sched1.isAvailableAt(DateTime.now()) == true
+        sched1.nextAvailable() == null
+        sched1.nextUnavailable() == null
+
+        when:
+        sched1.manualIsAvailable = false
+
+        then:
+        sched1.manual == true
+        sched1.manualIsAvailable == false
+        sched1.isAvailableNow() == false
+        sched1.isAvailableAt(DateTime.now()) == false
+        sched1.nextAvailable() == null
+        sched1.nextUnavailable() == null
+    }
+
+    void "test updating and asking availability for a weekly schedule"() {
     	given:
     	LocalTime midnight = new LocalTime(0, 0)
     	LocalTime endOfDay = new LocalTime(23, 59)
@@ -281,35 +313,23 @@ class ScheduleSpec extends Specification {
     	LocalTime t2 = new LocalTime(20, 59)
     	LocalTime t3 = new LocalTime(5, 59)
     	LocalTime t4 = new LocalTime(7, 59)
-    	Schedule s = new Schedule()
-
-    	when: "we ask an empty schedule"
-    	Result res = s.nextChange()
-
-    	then:
-    	res.success == false
-    	res.status == ResultStatus.NOT_FOUND
-    	res.errorMessages[0] == "Schedule.nextChangeNotFound"
+    	Schedule s = new Schedule(manual: false)
 
     	when:
-    	res = s.nextAvailable()
+    	DateTime dt = s.nextAvailable()
 
     	then:
-    	res.success == false
-    	res.status == ResultStatus.NOT_FOUND
-    	res.errorMessages[0] == "Schedule.nextChangeNotFound"
+    	dt == null
 
     	when:
-    	res = s.nextUnavailable()
+    	dt = s.nextUnavailable()
 
     	then:
-    	res.success == false
-    	res.status == ResultStatus.NOT_FOUND
-    	res.errorMessages[0] == "Schedule.nextChangeNotFound"
+    	dt == null
 
     	when: "we add some times"
     	String tomString = getDayOfWeekStringFor(DateTime.now(DateTimeZone.UTC).plusDays(1))
-    	s.update((tomString):[new LocalInterval(midnight, t1),
+    	s.updateLocalIntervals((tomString):[new LocalInterval(midnight, t1),
     		new LocalInterval(t3, t4), new LocalInterval(t3, t4),
     		new LocalInterval(t2, endOfDay)])
     	s.save(flush:true, failOnError:true)
@@ -318,30 +338,23 @@ class ScheduleSpec extends Specification {
     		unavailableTime = DateTime.now(DateTimeZone.UTC).plusDays(1).withHourOfDay(2),
     		tomorrowAvailable = DateTime.now(DateTimeZone.UTC).plusDays(1).withTimeAtStartOfDay(),
     		tomorrowUnavail = tomorrowAvailable.plusHours(1)
-    	Result nextChange = s.nextChange(),
-    		nextAvail = s.nextAvailable(),
+    	DateTime nextAvail = s.nextAvailable(),
     		nextUnavail = s.nextUnavailable()
 
     	then:
     	s."$tomString" == "0000,0100;0559,0759;2059,2359"
     	s.isAvailableAt(availableTime) == true
     	s.isAvailableAt(unavailableTime) == false
-    	nextChange.payload instanceof ScheduleChange
-    	nextChange.payload.type == ScheduleStatus.AVAILABLE
-    	nextChange.payload.when == tomorrowAvailable
-    	nextAvail.payload instanceof DateTime
-    	nextAvail.payload == tomorrowAvailable
-    	nextUnavail.payload instanceof DateTime
-    	nextUnavail.payload == tomorrowUnavail
+    	nextAvail == tomorrowAvailable
+    	nextUnavail == tomorrowUnavail
 
     	when: "we test wrapping around times"
     	String todayString = getDayOfWeekStringFor(DateTime.now(DateTimeZone.UTC)),
     		followingString = getDayOfWeekStringFor(DateTime.now(DateTimeZone.UTC).plusDays(2))
-    	s.update((todayString):[], (tomString):[new LocalInterval(t2, endOfDay)],
+    	s.updateLocalIntervals((todayString):[], (tomString):[new LocalInterval(t2, endOfDay)],
     		(followingString):[new LocalInterval(midnight, t1)])
     	s.save(flush:true, failOnError:true)
 
-    	nextChange = s.nextChange()
 		nextAvail = s.nextAvailable()
 		nextUnavail = s.nextUnavailable()
 		DateTime nextAvailTime = DateTime.now(DateTimeZone.UTC).plusDays(1)
@@ -355,17 +368,12 @@ class ScheduleSpec extends Specification {
     	s."$todayString" == ""
     	s."$tomString" == "2059,2359"
     	s."$followingString" == "0000,0100"
-    	nextChange.payload instanceof ScheduleChange
-    	nextChange.payload.type == ScheduleStatus.AVAILABLE
-    	nextChange.payload.when == nextAvailTime
-    	nextAvail.payload instanceof DateTime
-    	nextAvail.payload == nextAvailTime
-    	nextUnavail.payload instanceof DateTime
-    	nextUnavail.payload == nextUnavailTime
+    	nextAvail == nextAvailTime
+    	nextUnavail == nextUnavailTime
     }
 
     private String getDayOfWeekStringFor(DateTime dt) {
-    	switch(dt.dayOfWeek) {
+        switch (dt.dayOfWeek) {
             case DateTimeConstants.SUNDAY: return "sunday"
             case DateTimeConstants.MONDAY: return "monday"
             case DateTimeConstants.TUESDAY: return "tuesday"

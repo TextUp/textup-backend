@@ -19,143 +19,128 @@ import spock.lang.*
 @TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 class TokenSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
     def setup() {
-        TestUtils.mockJsonToString()
+        TestUtils.standardMockSetup()
     }
 
-    void "test constraints"() {
-    	when: "we have an empty token"
-    	Token token = new Token()
+    void "test creation + constraints using TokenType.PASSWORD_RESET"() {
+        given:
+        TokenType type = TokenType.PASSWORD_RESET
+        Map invalidData = [:]
+        Map data = TokenType.passwordResetData(TestUtils.randIntegerUpTo(88))
 
-    	then: "invalid but token is auto-populated"
-    	token.validate() == false
-    	token.errors.errorCount == 2
-        token.errors.getFieldErrorCount('token') == 0
-
-        when: "we try to set token property directly"
-        String customVal = UUID.randomUUID().toString()
-        token.token = customVal
-
-        then: "can do so"
-        token.token == customVal
-
-        when: "we try to set stringData property directly"
-        token.stringData = customVal
-
-        then: "can do so"
-        token.stringData == customVal
-    }
-
-    void "test data formatting for TokenType.PASSWORD_RESET"() {
-        when: "invalid data for password reset"
-        Token token = new Token(type:TokenType.PASSWORD_RESET)
-        token.data = [randomThing: 123]
+        when:
+        Result res = Token.tryCreate(null, null)
 
         then:
-        token.validate() == false
-        token.errors.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-        when: "valid data for password reset"
-        token.data = [toBeResetId: 88L]
+        when:
+        res = Token.tryCreate(type, invalidData)
 
         then:
-        token.validate() == true
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = Token.tryCreate(type, data)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.type == type
+        res.payload.token instanceof String
+        res.payload.data == data
     }
 
     void "test data formatting for TokenType.VERIFY_NUMBER"() {
-        when: "invalid data for verify number"
-        Token token = new Token(type:TokenType.VERIFY_NUMBER)
-        token.data = [randomThing: 123]
+        given:
+        TokenType type = TokenType.VERIFY_NUMBER
+        Map data = TokenType.verifyNumberData(TestUtils.randPhoneNumber())
+
+        when:
+        Result res = Token.tryCreate(type, data)
 
         then:
-        token.validate() == false
-        token.errors.errorCount == 1
-
-        when: "valid data for verify number"
-        PhoneNumber num = new PhoneNumber(number:"1112223333")
-        assert num.validate()
-        token.data = [toVerifyNumber: num.number]
-
-        then:
-        token.validate() == true
+        res.status == ResultStatus.CREATED
+        res.payload.type == type
+        res.payload.token instanceof String
+        res.payload.data == data
     }
 
     void "test data formatting for TokenType.NOTIFY_STAFF"() {
-        when: "invalid data for notification"
-        Token token = new Token(type:TokenType.NOTIFY_STAFF)
-        token.data = [randomThing: 123]
+        given:
+        TokenType type = TokenType.NOTIFY_STAFF
+        Map data = TokenType.notifyStaffData(TestUtils.randIntegerUpTo(88),
+            [TestUtils.randIntegerUpTo(88), TestUtils.randIntegerUpTo(88)],
+            TestUtils.randIntegerUpTo(88))
+
+        when:
+        Result res = Token.tryCreate(type, data)
 
         then:
-        token.validate() == false
-        token.errors.errorCount == 1
-
-        when: "valid data for notification"
-        token.data = [recordId:88L, phoneId:88L, contents:'hi', outgoing:true]
-
-        then:
-        token.validate() == true
+        res.status == ResultStatus.CREATED
+        res.payload.type == type
+        res.payload.token instanceof String
+        res.payload.data == data
     }
 
     void "test data formatting for TokenType.CALL_DIRECT_MESSAGE"() {
-        when: "invalid data for call direct message"
-        Token token = new Token(type:TokenType.CALL_DIRECT_MESSAGE)
-        token.data = [randomThing: 123]
+        given:
+        TokenType type = TokenType.CALL_DIRECT_MESSAGE
+        Map data = TokenType.callDirectMessageData(TestUtils.randString(),
+            VoiceLanguage.values()[0],
+            TestUtils.randString(),
+            TestUtils.randIntegerUpTo(88))
+
+        when:
+        Result res = Token.tryCreate(type, data)
 
         then:
-        token.validate() == false
-        token.errors.errorCount == 1
-
-        when: "valid data for call direct message"
-        token.data = [
-            message: "hi",
-            identifier: "Kiki",
-            mediaId: 88,
-            language: VoiceLanguage.ENGLISH.toString()
-        ]
-
-        then:
-        token.validate() == true
+        res.status == ResultStatus.CREATED
+        res.payload.type == type
+        res.payload.token instanceof String
+        res.payload.data == data
     }
 
     void "test expiration"() {
         when: "a valid token without maxNumAccess"
-        Token token = new Token(type: TokenType.PASSWORD_RESET)
-        token.data = [toBeResetId:88L]
-        assert token.validate()
+        Token tok1 = Token
+            .tryCreate(TokenType.PASSWORD_RESET,
+                TokenType.passwordResetData(TestUtils.randIntegerUpTo(88)))
+            .payload
 
         then: "not expired"
-        token.isExpired == false
+        tok1.isExpired == false
 
         when: "a valid token with negative maxNumAccess"
-        token.maxNumAccess = -1
-        token.timesAccessed = 1
-        assert token.validate()
+        tok1.maxNumAccess = -1
+        tok1.timesAccessed = 1
 
         then: "not expired"
-        token.isExpired == false
+        tok1.isExpired == false
 
         when: "valid token with zero maxNumAccess"
-        token.maxNumAccess = 0
-        token.timesAccessed = 1
-        assert token.validate()
+        tok1.maxNumAccess = 0
+        tok1.timesAccessed = 1
 
         then: "not expired"
-        token.isExpired == false
+        tok1.isExpired == false
 
         when: "valid token with positive maxNumAccess"
-        token.maxNumAccess = 2
-        token.timesAccessed = 1
-        assert token.validate()
+        tok1.maxNumAccess = 2
+        tok1.timesAccessed = 1
 
         then: "no expired"
-        token.isExpired == false
+        tok1.isExpired == false
 
         when: "accessed too many times"
-        token.maxNumAccess = 2
-        token.timesAccessed = 4
-        assert token.validate()
+        tok1.maxNumAccess = 2
+        tok1.timesAccessed = 4
 
         then: "expired"
-        token.isExpired == true
+        tok1.isExpired == true
     }
 }

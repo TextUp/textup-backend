@@ -19,7 +19,7 @@ class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
 
     static hasMany = [policies: OwnerPolicy]
     static mapping = {
-        policies fetch: "join", cascade:"all-delete-orphan"
+        policies fetch: "join", cascade: "all-delete-orphan"
     }
     static constraints = {
     	ownerId validator: { Long val, PhoneOwnership obj ->
@@ -34,6 +34,11 @@ class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
     	}
     }
 
+    static Result<PhoneOwnership> tryCreate(Phone p1, Long ownerId, PhoneOwnershipType type) {
+        PhoneOwnership own1 = new PhoneOwnership(ownerId: ownerId, type: type, phone: p1)
+        DomainUtils.trySave(own1, ResultStatus.CREATED)
+    }
+
     // Methods
     // -------
 
@@ -45,11 +50,22 @@ class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
         else { Team.get(ownerId)?.getActiveMembers() ?: [] }
     }
 
-    Collection<OwnerPolicy> buildActivePoliciesForFrequency(NotificationFrequency freq1) {
-        HashSet<Long> staffIds = new HashSet<>(buildAllStaff()*.id)
-        policies?.findAll { OwnerPolicy op1 ->
-            staffIds.contains(op1.staff?.id) && op1.frequency == freq1
+    Collection<? extends ReadOnlyOwnerPolicy> buildActiveReadOnlyPoliciesForFrequency(NotificationFrequency freq1) {
+        HashSet<Staff> allStaffs = new HashSet<>(buildAllStaff())
+        if (freq1) {
+            Collection<? extends ReadOnlyOwnerPolicy> founds = []
+            policies?.each { OwnerPolicy op1 ->
+                if (allStaffs.contains(op1.staff) && op1.frequency == freq1) {
+                    founds << op1
+                }
+            }
+            if (DefaultOwnerPolicy.shouldEnsureAll(freq1)) {
+                Collection<Staff> missing = CollectionUtils.difference(allStaffs, founds*.readOnlyStaff)
+                founds.addAll(DefaultOwnerPolicy.createAll(missing))
+            }
+            founds
         }
+        else { [] }
     }
 
     Organization buildOrganization() {

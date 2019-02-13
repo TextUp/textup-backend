@@ -84,7 +84,7 @@ class TwilioUtils {
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static Result<Closure> wrapTwiml(Closure body) {
         IOCUtils.resultFactory.success {
-            Response { CriteriaUtils.compose(delegate, body) }
+            Response { ClosureUtils.compose(delegate, body) }
         }
     }
 

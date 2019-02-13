@@ -72,13 +72,15 @@ class Staffs {
     @GrailsTypeChecked
     static Collection<Staff> findEveryForSharingId(Long shareWithStaffId) {
         HashSet<Staff> shareCandidates = new HashSet<>()
-        List<Team> teams = Teams.buildForStaffIds([shareWithStaffId]).list()
-        teams.each { Team t1 ->
-            // add only staff members that have a phone!
-            Collection<Staff> staffWitPhones = t1.activeMembers.findAll { Staff s1 ->
-                !!Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, false).payload
+        if (shareWithStaffId) {
+            List<Team> teams = Teams.buildActiveForStaffIds([shareWithStaffId]).list()
+            teams.each { Team t1 ->
+                // add only staff members that have a phone!
+                Collection<Staff> staffWitPhones = t1.activeMembers.findAll { Staff s1 ->
+                    !!Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, false).payload
+                }
+                shareCandidates.addAll(staffWitPhones)
             }
-            shareCandidates.addAll(staffWitPhones)
         }
         // exclude the staff members we are finding share candidates for
         shareCandidates.findAll { Staff s1 -> s1.id != shareWithStaffId }
@@ -107,19 +109,19 @@ class Staffs {
     // -------
 
     protected static Closure forQuery(String query) {
-        if (!query) {
-            return { }
-        }
-        return {
-            or {
-                String formattedQuery = StringUtils.toQuery(query)
-                ilike("name", formattedQuery)
-                ilike("email", formattedQuery)
-                ilike("username", formattedQuery)
+        String formattedQuery = StringUtils.toQuery(query)
+        PhoneNumber pNum1 = PhoneNumber.create(query)
+        String numberQuery = pNum1.validate() ? StringUtils.toQuery(pNum1.number) : null
 
-                String cleanedAsNumber = StringUtils.cleanPhoneNumber(query)
-                if (cleanedAsNumber) {
-                    ilike("personalPhoneAsString", StringUtils.toQuery(cleanedAsNumber))
+        return {
+            if (formattedQuery) {
+                or {
+                    ilike("name", formattedQuery)
+                    ilike("email", formattedQuery)
+                    ilike("username", formattedQuery)
+                    if (numberQuery) {
+                        ilike("personalNumberAsString", numberQuery)
+                    }
                 }
             }
         }
@@ -134,7 +136,9 @@ class Staffs {
     protected static DetachedCriteria<Staff> buildForAdminAtSameOrg(Long thisId, Long authId) {
         new DetachedCriteria(Staff).build {
             idEq(thisId)
-            "in"("org", Organizations.buildActiveForAdminIds([authId]))
+            "in"("org.id", Organizations
+                .buildActiveForAdminIds([authId])
+                .build(CriteriaUtils.returnsId()))
         }
     }
 }

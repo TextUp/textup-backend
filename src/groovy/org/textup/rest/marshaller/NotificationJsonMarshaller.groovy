@@ -13,19 +13,24 @@ import org.textup.validator.*
 class NotificationJsonMarshaller extends JsonNamedMarshaller {
 
 	static final Closure marshalClosure = { Notification notif1 ->
+        PhoneOwnership own1 = notif1.mutablePhone.owner
         Map json = [:]
         json.with {
-            id          = notif1.mutablePhone.owner.ownerId
-            name        = notif1.mutablePhone.owner.buildName()
+            id          = own1.ownerId
+            name        = own1.buildName()
             phoneNumber = notif1.mutablePhone.number
-            type        = notif1.mutablePhone.owner.type.toString()
+            type        = own1.type.toString()
         }
-        RequestUtils.tryGetFromRequest(RequestUtils.OWNER_POLICY_ID)
-            .ifFail { json.details = notif1.items }
-            .thenEnd { OwnerPolicy op1 ->
-                json.details = notif1.buildAllowedItemsForOwnerPolicy(op1)
-                json.putAll(NotificationInfo.create(op1, notif1).properties)
+        RequestUtils.tryGet(RequestUtils.STAFF_ID)
+            .then { Long staffId -> Staffs.mustFindForId(staffId) }
+            .logFail("NotificationJsonMarshaller: staff not found")
+            .then { Staff s1 ->
+                ReadOnlyOwnerPolicy rop1 = OwnerPolicies.findReadOnlyOrDefaultForOwnerAndStaff(own1, s1)
+                json.details = notif1.buildAllowedItemsForOwnerPolicy(rop1)
+                json.putAll(NotificationInfo.create(rop1, notif1).properties)
+                Result.void()
             }
+            .ifFailEnd { json.details = notif1.items }
         json
 	}
 

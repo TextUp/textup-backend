@@ -12,11 +12,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class UsageUtils {
 
+    static final double UNIT_COST_CALL = 0.015
     static final double UNIT_COST_NUMBER = 5
     static final double UNIT_COST_TEXT = 0.01
-    static final double UNIT_COST_CALL = 0.015
-
-    private static final String NO_NUMBERS = "deactivated"
+    static final String NO_NUMBERS = "deactivated"
 
     // Query helpers
     // -------------
@@ -68,8 +67,10 @@ class UsageUtils {
             .logFail("buildNumbersStringForMonth")
             .payload as Phone
         List<String> nums = []
-        p1.buildNumbersForMonth(monthObj?.monthOfYear()?.get(), monthObj?.year()?.get())
-            .each { PhoneNumber pNum -> nums << pNum.prettyPhoneNumber }
+        if (p1 && monthObj) {
+            p1.buildNumbersForMonth(monthObj.monthOfYear, monthObj.year)
+                .each { PhoneNumber pNum -> nums << pNum.prettyPhoneNumber }
+        }
         nums ? CollectionUtils.joinWithDifferentLast(nums, ", ", " and ") : NO_NUMBERS
     }
 

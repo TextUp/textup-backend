@@ -58,7 +58,7 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
 
     static Result<PhoneRecord> tryCreate(SharePermission perm, PhoneRecord toShare, Phone sWith) {
         PhoneRecord pr1 = new PhoneRecord(shareSource: toShare,
-            record: toShare.record,
+            record: toShare?.record,
             phone: sWith,
             permission: perm)
         DomainUtils.trySave(pr1, ResultStatus.CREATED)

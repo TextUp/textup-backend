@@ -6,6 +6,7 @@ import grails.test.mixin.hibernate.*
 import grails.test.mixin.support.*
 import grails.test.runtime.*
 import grails.validation.*
+import java.awt.image.BufferedImage
 import org.joda.time.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -17,6 +18,14 @@ import spock.lang.*
 @Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class MediaElementVersionSpec extends Specification {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
     void "test constraints + width and link custom getters"() {
         given: "storage service mock"
@@ -113,5 +122,33 @@ class MediaElementVersionSpec extends Specification {
         then:
         mVers.validate()
         mVers.errors.errorCount == 0
+    }
+
+    void "test creating from UploadItem"() {
+        given:
+        byte[] inputData1 = TestUtils.getJpegSampleData512()
+        BufferedImage image1 = Stub() {
+            getWidth() >> 888
+            getHeight() >> 1000
+        }
+        UploadItem uItem1 = UploadItem.tryCreate(MediaType.IMAGE_JPEG, inputData1, image1).payload
+
+        when:
+        MediaElementVersion mVers1 = MediaElementVersion.createIfPresent(null)
+
+        then:
+        mVers1 == null
+
+        when:
+        mVers1 = MediaElementVersion.createIfPresent(uItem1)
+
+        then:
+        mVers1.validate()
+        mVers1.type == uItem1.type
+        mVers1.versionId == uItem1.key
+        mVers1.sizeInBytes == inputData1.length
+        mVers1.widthInPixels == uItem1.widthInPixels
+        mVers1.heightInPixels == uItem1.heightInPixels
+        mVers1.isPublic == uItem1.isPublic
     }
 }

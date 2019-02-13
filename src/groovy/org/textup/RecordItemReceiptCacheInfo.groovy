@@ -14,12 +14,12 @@ import org.textup.validator.*
 @TupleConstructor(includeFields = true)
 class RecordItemReceiptCacheInfo {
 
-    final long id
-    final long itemId
+    final Long id
+    final Long itemId
     final ReceiptStatus status
     final Integer numBillable
 
-    static RecordItemReceiptCacheInfo create(long id, RecordItem rItem1, ReceiptStatus status,
+    static RecordItemReceiptCacheInfo create(Long id, RecordItem rItem1, ReceiptStatus status,
         Integer numBillable) {
 
         new RecordItemReceiptCacheInfo(id, rItem1?.id, status, numBillable)

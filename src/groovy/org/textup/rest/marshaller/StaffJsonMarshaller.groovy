@@ -12,25 +12,25 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class StaffJsonMarshaller extends JsonNamedMarshaller {
 
-    static final Closure marshalClosure = { Staff s1 ->
+    static final Closure marshalClosure = { ReadOnlyStaff rs1 ->
         Map json = [:]
         json.with {
-            id       = s1.id
-            links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_STAFF, s1.id)
-            name     = s1.name
-            phone    = Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, false)
-            status   = s1.status.toString()
-            username = s1.username
+            id       = rs1.id
+            links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_STAFF, rs1.id)
+            name     = rs1.name
+            phone    = Phones.mustFindActiveForOwner(rs1.id, PhoneOwnershipType.INDIVIDUAL, false)
+            status   = rs1.status.toString()
+            username = rs1.username
         }
 
-        Staffs.isAllowed(s1.id)
+        Staffs.isAllowed(rs1.id)
             .thenEnd {
                 json.with {
-                    channelName    = SocketUtils.channelName(s1)
-                    email          = s1.email
-                    org            = s1.org
-                    personalNumber = s1.personalNumber
-                    teams          = Teams.buildForStaffIds([s1.id])
+                    channelName    = SocketUtils.channelName(rs1)
+                    email          = rs1.email
+                    org            = rs1.readOnlyOrg
+                    personalNumber = rs1.personalNumber
+                    teams          = Teams.buildActiveForStaffIds([rs1.id])
                 }
             }
 
@@ -38,6 +38,6 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
     }
 
     StaffJsonMarshaller() {
-        super(Staff, marshalClosure)
+        super(ReadOnlyStaff, marshalClosure)
     }
 }

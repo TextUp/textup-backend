@@ -8,6 +8,7 @@ import org.joda.time.DateTimeZone
 import org.springframework.transaction.annotation.Propagation
 import org.textup.annotation.*
 import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
@@ -85,11 +86,12 @@ class TokenService {
             .then { Token tok1 -> PhoneNumber.tryCreate(tok1.data.string(TokenType.PARAM_VN_NUM)) }
     }
 
-    Result<Token> tryGeneratePreviewInfo(OwnerPolicy op1, Notification notif1) {
-        if (op1.shouldSendPreviewLink) {
+    Result<Token> tryGeneratePreviewInfo(ReadOnlyOwnerPolicy rop1, Notification notif1) {
+        if (rop1.shouldSendPreviewLink) {
             DehydratedNotification.tryCreate(notif1)
                 .then { DehydratedNotification dn1 ->
-                    Map data = TokenType.notifyStaffData(op1.id, dn1.itemIds, dn1.phoneId)
+                    Map data = TokenType
+                        .notifyStaffData(rop1.readOnlyStaff.id, dn1.itemIds, dn1.phoneId)
                     Token.tryCreate(TokenType.NOTIFY_STAFF, data)
                 }
                 .then { Token tok1 ->
@@ -109,13 +111,13 @@ class TokenService {
                 DehydratedNotification
                     .tryCreate(data.long(TokenType.PARAM_NS_PHONE),
                         data.typedList(Long, TokenType.PARAM_NS_ITEMS))
-                    .curry(data.long(TokenType.PARAM_NS_OWNER_POLICY))
+                    .curry(data.long(TokenType.PARAM_NS_STAFF))
             }
-            .then { Long ownerPolicyId, DehydratedNotification dn1 ->
-                dn1.tryRehydrate().curry(ownerPolicyId)
+            .then { Long staffId, DehydratedNotification dn1 ->
+                dn1.tryRehydrate().curry(staffId)
             }
-            .then { Long ownerPolicyId, Notification notif1 ->
-                IOCUtils.resultFactory.success(ownerPolicyId, notif1)
+            .then { Long staffId, Notification notif1 ->
+                IOCUtils.resultFactory.success(staffId, notif1)
             }
     }
 

@@ -19,15 +19,6 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class JodaUtilsSpec extends Specification {
 
-    void "test printing local interval"() {
-        given:
-        LocalInterval lInt = new LocalInterval(new LocalTime(5, 0), new LocalTime(7, 0))
-
-        expect:
-        JodaUtils.printLocalInterval(null) == ""
-        JodaUtils.printLocalInterval(lInt) == "0500:0700"
-    }
-
     void "test getting timezone from zone id"() {
         expect:
         JodaUtils.getZoneFromId(null) == DateTimeZone.UTC
@@ -77,25 +68,51 @@ class JodaUtilsSpec extends Specification {
             .contains("${hourNum + 5}:00:00")
     }
 
-    void "test calculating # days between two date times"() {
+    void "test determining start of the month"() {
         given:
-        DateTime now = DateTime.now()
+        DateTime dt = DateTime.now()
 
-        expect:
-        JodaUtils.getDaysBetween(null, null) == 0
-        JodaUtils.getDaysBetween(now, null) == 0
-        JodaUtils.getDaysBetween(null, now) == 0
-        JodaUtils.getDaysBetween(now, now) == 0
-        JodaUtils.getDaysBetween(now.plusDays(3), now) == -3
-        JodaUtils.getDaysBetween(now, now.plusDays(8)) == 8
+        when:
+        DateTime newDt = JodaUtils.atStartOfMonth(null)
+
+        then:
+        newDt == null
+
+        when:
+        newDt = JodaUtils.atStartOfMonth(dt)
+
+        then:
+        dt.millis != newDt.millis
+        dt.year == newDt.year
+        dt.monthOfYear == newDt.monthOfYear
+        newDt.dayOfMonth == 1
+        newDt.hourOfDay == 0
+        newDt.minuteOfDay == 0
+        newDt.secondOfMinute == 0
+        newDt.millisOfSecond == 0
     }
 
-    void "test get day of week index"() {
-        expect:
-        JodaUtils.getDayOfWeekIndex(-1) == 1
-        JodaUtils.getDayOfWeekIndex(0) == 0
-        JodaUtils.getDayOfWeekIndex(5) == 5
-        JodaUtils.getDayOfWeekIndex(7) == 0
-        JodaUtils.getDayOfWeekIndex(8) == 1
+    void "test determining end of the month"() {
+        given:
+        DateTime dt = DateTime.now()
+
+        when:
+        DateTime newDt = JodaUtils.atEndOfMonth(null)
+
+        then:
+        newDt == null
+
+        when:
+        newDt = JodaUtils.atEndOfMonth(dt)
+
+        then:
+        dt.millis != newDt.millis
+        dt.year == newDt.year
+        dt.monthOfYear == newDt.monthOfYear
+        newDt.dayOfMonth > 0
+        newDt.hourOfDay > 0
+        newDt.minuteOfDay > 0
+        newDt.secondOfMinute > 0
+        newDt.millisOfSecond > 0
     }
 }

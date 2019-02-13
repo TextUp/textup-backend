@@ -39,7 +39,7 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 			}
         }
 
-        RequestUtils.tryGetFromRequest(RequestUtils.PHONE_RECORD_ID)
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID)
             .then { Long prId ->
                 PhoneRecord pr1 = PhoneRecord.get(prId)
                 if (pr1) {

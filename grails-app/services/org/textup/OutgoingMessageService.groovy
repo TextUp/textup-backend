@@ -78,7 +78,7 @@ class OutgoingMessageService {
             .thenEnd { Recipients r1, TempRecordItem temp1, Token callToken ->
                 Collection<RecordItem> rItems = AsyncUtils.getAllIds(RecordItem, itemIds)
                 Map<Long, Collection<RecordItem>> recIdToItems = MapUtils
-                    .buildManyObjectsMap(rItems) { RecordItem rItem1 -> rItem1.record.id }
+                    .buildManyUniqueObjectsMap(rItems) { RecordItem rItem1 -> rItem1.record.id }
                 r1.eachIndividualWithRecords { IndividualPhoneRecordWrapper w1, Collection<Record> recs ->
                     sendAndStore(w1, recs, temp1, recIdToItems, callToken)
                         .logFail("finishProcessing: sending PhoneRecord `${w1.id}`")

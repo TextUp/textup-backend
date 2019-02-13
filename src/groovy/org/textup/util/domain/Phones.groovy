@@ -13,22 +13,8 @@ import org.textup.validator.*
 class Phones {
 
     @GrailsTypeChecked
-    static Result<Phone> mustFindActiveForOwner(Long ownerId, PhoneOwnershipType type,
-        boolean createIfAbsent) {
-
-        IOCUtils.getBean(PhoneCache).mustFindAnyPhoneIdForOwner(ownerId, type)
-            .then { Long pId -> Phones.mustFindActiveForId(pId) }
-            .ifFail { Result<?> failRes ->
-                if (createIfAbsent) {
-                    Phone.tryCreate(ownerId, type)
-                }
-                else { failRes }
-            }
-    }
-
-    @GrailsTypeChecked
     static Result<Phone> mustFindActiveForId(Long pId) {
-        Phone p1 = Phone.get(pId)
+        Phone p1 = pId ? Phone.get(pId) : null
         if (p1?.isActive()) {
             IOCUtils.resultFactory.success(p1)
         }
@@ -40,7 +26,7 @@ class Phones {
 
     @GrailsTypeChecked
     static Result<Phone> mustFindActiveForNumber(BasePhoneNumber bNum) {
-        Phone p1 = Phones.buildActiveForNumber(bNum).list()[0]
+        Phone p1 = bNum ? Phones.buildActiveForNumber(bNum).list(max: 1)[0] : null
         if (p1) {
             IOCUtils.resultFactory.success(p1)
         }
@@ -50,9 +36,23 @@ class Phones {
         }
     }
 
+    @GrailsTypeChecked
+    static Result<Phone> mustFindActiveForOwner(Long ownerId, PhoneOwnershipType type,
+        boolean createIfAbsent) {
+
+        IOCUtils.phoneCache.mustFindAnyPhoneIdForOwner(ownerId, type)
+            .then { Long pId -> Phones.mustFindActiveForId(pId) }
+            .ifFail { Result<?> failRes ->
+                if (createIfAbsent) {
+                    Phone.tryCreate(ownerId, type)
+                }
+                else { failRes }
+            }
+    }
+
     static DetachedCriteria<Phone> buildActiveForNumber(BasePhoneNumber bNum) {
         new DetachedCriteria(Phone)
-            .build { eq("numberAsString", bNum.number) }
+            .build { eq("numberAsString", bNum?.number) }
             .build(Phones.forActive())
     }
 
@@ -60,28 +60,32 @@ class Phones {
     static DetachedCriteria<Phone> buildAnyForOwnerIdAndType(Long ownerId, PhoneOwnershipType type) {
         new DetachedCriteria(Phone)
             .build {
-                eq("owner.ownerId", ownerId)
-                eq("owner.type", type)
+                owner {
+                    eq("ownerId", ownerId)
+                    eq("type", type)
+                }
             }
     }
 
-    static DetachedCriteria<Phone> buildAllActivePhonesForStaffId(Long staffId) {
-        new DetachedCriteria(Phone)
-            .build {
+    // Subqueries cannot include an `or` clause or else results in an NPE because of an existing bug.
+    // Therefore, we move `or` out of the subquery and return a closure instead of a `DetachedCriteria`
+    // see: https://github.com/grails/grails-data-mapping/issues/655
+    static Closure activeForPhonePropNameAndStaffId(String phonePropName, Long staffId) {
+        return {
+            if (phonePropName) {
                 or {
-                    and {
-                        eq("owner.type", PhoneOwnershipType.INDIVIDUAL)
-                        eq("owner.ownerId", staffId)
-                    }
-                    and {
-                        eq("owner.type", PhoneOwnershipType.GROUP)
-                        eq("owner.ownerId", Teams
-                            .buildForStaffIds([staffId])
-                            .build(CriteriaUtils.returnsId()))
-                    }
+                    "in"("${phonePropName}.id", PhoneOwnerships
+                        .buildAnyStaffPhonesForStaffId(staffId)
+                        .build(PhoneOwnerships.returnsPhoneId()))
+                    "in"("${phonePropName}.id", PhoneOwnerships
+                        .buildAnyTeamPhonesForStaffId(staffId)
+                        .build(PhoneOwnerships.returnsPhoneId()))
+                }
+                "${phonePropName}" {
+                    ClosureUtils.compose(delegate, Phones.forActive())
                 }
             }
-            .build(Phones.forActive())
+        }
     }
 
     static Closure forActive() {
@@ -92,28 +96,30 @@ class Phones {
 
     @GrailsTypeChecked
     static Result<Void> canShare(PhoneOwnership owner, PhoneOwnership target) {
-        PhoneOwnershipType ownerType = owner.type,
-            targetType = target.type
         Boolean canShare
-        if (ownerType == PhoneOwnershipType.INDIVIDUAL) {
-            if (targetType == PhoneOwnershipType.INDIVIDUAL) { // individual --> individual
-                canShare = Teams.hasTeamsInCommon(owner.ownerId, target.ownerId)
+        if (owner && target) {
+            PhoneOwnershipType ownerType = owner.type,
+                targetType = target.type
+            if (ownerType == PhoneOwnershipType.INDIVIDUAL) {
+                if (targetType == PhoneOwnershipType.INDIVIDUAL) { // individual --> individual
+                    canShare = Teams.hasTeamsInCommon(owner.ownerId, target.ownerId)
+                }
+                else { // individual --> group
+                    canShare = Teams.teamContainsMember(target.ownerId, owner.ownerId)
+                }
             }
-            else { // individual --> group
-                canShare = Teams.teamContainsMember(target.ownerId, owner.ownerId)
-            }
-        }
-        else {
-            if (targetType == PhoneOwnershipType.INDIVIDUAL) { // group --> individual
-                canShare = Teams.teamContainsMember(owner.ownerId, target.ownerId)
-            }
-            else { // group --> group
-                canShare = owner.allowSharingWithOtherTeams
+            else {
+                if (targetType == PhoneOwnershipType.INDIVIDUAL) { // group --> individual
+                    canShare = Teams.teamContainsMember(owner.ownerId, target.ownerId)
+                }
+                else { // group --> group
+                    canShare = owner.allowSharingWithOtherTeams
+                }
             }
         }
         canShare ?
             Result.void() :
             IOCUtils.resultFactory.failWithCodeAndStatus("phones.shareForbidden",
-                ResultStatus.FORBIDDEN, [owner.buildName(), target.buildName()])
+                ResultStatus.FORBIDDEN, [owner?.buildName(), target?.buildName()])
     }
 }

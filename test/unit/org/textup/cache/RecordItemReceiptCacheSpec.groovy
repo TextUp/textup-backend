@@ -10,6 +10,7 @@ import org.springframework.cache.Cache
 import org.textup.*
 import org.textup.test.*
 import org.textup.type.*
+import org.textup.util.*
 import spock.lang.*
 
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
@@ -25,31 +26,38 @@ class RecordItemReceiptCacheSpec extends Specification {
         resultFactory(ResultFactory)
     }
 
+    RecordItemReceiptCache rCache
+
+    def setup() {
+        TestUtils.standardMockSetup()
+
+        rCache = new RecordItemReceiptCache()
+    }
+
     @DirtiesRuntime
     void "test finding all receipts by api id"() {
         given:
-        RecordItemReceiptCache rCache = new RecordItemReceiptCache()
         RecordItemReceipt mockRpt = GroovyMock()
         RecordItemReceipt.metaClass."static".findAllByApiId = { String apiId -> [mockRpt] }
         String apiId = TestUtils.randString()
 
         when:
-        List<RecordItemReceipt> rptList = rCache.findReceiptsByApiId(apiId)
+        List rptList = rCache.findEveryReceiptInfoByApiId(apiId)
 
         then:
-        rptList == [mockRpt]
+        1 * mockRpt.toInfo() >> GroovyMock(RecordItemReceiptCacheInfo)
+        rptList.size() == 1
     }
 
     void "test updating receipts no receipts"() {
         given:
         ReceiptStatus newStatus = ReceiptStatus.SUCCESS
         Integer newDuration = TestUtils.randIntegerUpTo(100, true)
-
-        RecordItemReceiptCache rCache = new RecordItemReceiptCache()
+        String apiId = TestUtils.randString()
 
         expect:
-        rCache.updateReceipts(null, newStatus, newDuration).isEmpty()
-        rCache.updateReceipts([], newStatus, newDuration).isEmpty()
+        rCache.updateReceipts(apiId, null, newStatus, newDuration).isEmpty()
+        rCache.updateReceipts(apiId, [], newStatus, newDuration).isEmpty()
     }
 
     void "test updating receipts"() {
@@ -57,40 +65,38 @@ class RecordItemReceiptCacheSpec extends Specification {
         ReceiptStatus newStatus = ReceiptStatus.SUCCESS
         Integer newDuration = TestUtils.randIntegerUpTo(100, true)
         Integer invalidDuration = -88
-        RecordItemReceiptCache rCache = new RecordItemReceiptCache()
-        RecordItemReceipt mockRpt = GroovyMock() { asBoolean() >> true }
+        String apiId = TestUtils.randString()
+        Long rptId = TestUtils.randIntegerUpTo(88)
 
-        Record rec1 = new Record()
-        rec1.save(flush: true, failOnError: true)
-        RecordItem rItem = new RecordItem(record: rec1)
-        rItem.save(flush: true, failOnError: true)
-        RecordItemReceipt rpt1 = new RecordItemReceipt(item: rItem,
-            contactNumberAsString: TestUtils.randPhoneNumberString(),
-            apiId: TestUtils.randString())
-        assert rpt1.validate()
+        RecordItemReceipt rpt1 = TestUtils.buildReceipt()
+        MockedMethod getAllIds = TestUtils.mock(AsyncUtils, "getAllIds") { [rpt1] }
 
         when: "only status"
-        List<RecordItemReceipt> rptList = rCache.updateReceipts([mockRpt], newStatus)
+        List resList = rCache.updateReceipts(apiId, [rptId], newStatus)
 
         then:
-        1 * mockRpt.setStatus(newStatus)
-        0 * mockRpt.setNumBillable(*_)
-        1 * mockRpt.merge() >> mockRpt
-        rptList == [mockRpt]
+        getAllIds.callCount == 1
+        rpt1.status == newStatus
+        rpt1.numBillable == null
+        resList == [rpt1.toInfo()]
 
         when: "both status and duration"
-        rptList = rCache.updateReceipts([mockRpt], newStatus, newDuration)
+        resList = rCache.updateReceipts(apiId, [rptId], newStatus, newDuration)
 
         then:
-        1 * mockRpt.setStatus(newStatus)
-        1 * mockRpt.setNumBillable(newDuration)
-        1 * mockRpt.merge() >> mockRpt
-        rptList == [mockRpt]
+        getAllIds.callCount == 2
+        rpt1.status == newStatus
+        rpt1.numBillable == newDuration
+        resList == [rpt1.toInfo()]
 
         when: "invalid inputs"
-        rptList = rCache.updateReceipts([rpt1], null, invalidDuration)
+        resList = rCache.updateReceipts(apiId, [rptId], null, invalidDuration)
 
         then: "errors are logged and failing receipts not returned"
-        rptList.isEmpty()
+        getAllIds.callCount == 3
+        resList.isEmpty()
+
+        cleanup:
+        getAllIds.restore()
     }
 }

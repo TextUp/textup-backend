@@ -10,13 +10,13 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
-@EqualsAndHashCode
+@EqualsAndHashCode(includeFields = true)
 @GrailsTypeChecked
 @TupleConstructor(includeFields = true)
 @Validateable
 class NotificationGroup implements CanValidate {
 
-    private final Collection<Notification> notifications
+    final Collection<Notification> notifications
 
     static constraints = {
         notifications cascadeValidation: true
@@ -24,9 +24,9 @@ class NotificationGroup implements CanValidate {
 
     static Result<NotificationGroup> tryCreate(Collection<Notification> many1) {
         Map<Phone, Collection<Notification>> phoneToNotifs = MapUtils
-            .buildManyObjectsMap(many1) { Notification notif1 -> notif1.mutablePhone }
+            .buildManyUniqueObjectsMap(many1) { Notification notif1 -> notif1.mutablePhone }
         ResultGroup
-            .collect(phoneToNotifs) { Phone mutPhone1, Collection<Notification> many2 ->
+            .collectEntries(phoneToNotifs) { Phone mutPhone1, Collection<Notification> many2 ->
                 Notification.tryCreate(mutPhone1)
                     .then { Notification notif1 ->
                         Collection<NotificationDetail> nds = CollectionUtils.mergeUnique(many2*.details)
@@ -36,8 +36,8 @@ class NotificationGroup implements CanValidate {
             }
             .toResult(false)
             .then { List<Notification> many2 ->
-                NotificationGroup notifGroup = new NotificationGroup(many2)
-                DomainUtils.tryValidate(notifGroup, ResultStatus.CREATED)
+                Collection<Notification> notifs = Collections.unmodifiableCollection(many2)
+                DomainUtils.tryValidate(new NotificationGroup(notifs), ResultStatus.CREATED)
             }
     }
 
@@ -48,14 +48,18 @@ class NotificationGroup implements CanValidate {
         notifications?.any { Notification notif1 -> notif1.canNotifyAny(freq1) }
     }
 
-    Collection<OwnerPolicy> buildCanNotifyPolicies(NotificationFrequency freq1) {
-        CollectionUtils.mergeUnique(notifications*.buildCanNotifyPolicies(freq1))
+    Collection<? extends ReadOnlyOwnerPolicy> buildCanNotifyReadOnlyPolicies(NotificationFrequency freq1) {
+        HashSet<? extends ReadOnlyOwnerPolicy> canNotifyPolicies = new HashSet<>()
+        notifications.each { Notification notif1 ->
+            canNotifyPolicies.addAll(notif1.buildCanNotifyReadOnlyPolicies(freq1))
+        }
+        CollectionUtils.ensureNoNull(canNotifyPolicies)
     }
 
     void eachNotification(NotificationFrequency freq1, Closure<?> action) {
         notifications.each { Notification notif1 ->
-            notif1.buildCanNotifyPolicies(freq1).each { OwnerPolicy op1 ->
-                action.call(op1, notif1)
+            notif1.buildCanNotifyReadOnlyPolicies(freq1).each { ReadOnlyOwnerPolicy rop1 ->
+                action.call(rop1, notif1)
             }
         }
     }

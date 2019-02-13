@@ -41,9 +41,7 @@ class CustomSpec extends Specification {
         setupData(iterNum)
     }
     void setupData(int iterNum) {
-        IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-        TestUtils.mockJsonToString()
+        TestUtils.standardMockSetup()
 
         loggedInUsername = "loggedinstaff$iterNum"
         loggedInPassword = "password"

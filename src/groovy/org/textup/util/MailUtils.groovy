@@ -24,13 +24,17 @@ class MailUtils {
     static EmailEntity defaultFromEntity() {
         String name = Holders.flatConfig["textup.mail.standard.name"],
             email = Holders.flatConfig["textup.mail.standard.email"]
-        new EmailEntity(name: name, email: email)
+        EmailEntity.tryCreate(name, email)
+            .logFail("defaultFromEntity")
+            .payload as EmailEntity
     }
 
     static EmailEntity selfEntity() {
         String name = Holders.flatConfig["textup.mail.self.name"],
             email = Holders.flatConfig["textup.mail.self.email"]
-        new EmailEntity(name: name, email: email)
+        EmailEntity.tryCreate(name, email)
+            .logFail("selfEntity")
+            .payload as EmailEntity
     }
 
     static String getTemplateId(Class<?> clazz) {

@@ -41,14 +41,16 @@ class CascadeValidationConstraint extends AbstractVetoingConstraint {
     @Override
     protected boolean processValidateWithVetoing(Object target, Object propertyValue, Errors errors) {
         boolean shouldVetoSubsequent = false
-        if (propertyValue instanceof Collection) {
-            (propertyValue as Collection).eachWithIndex { Object obj, int index ->
-                shouldVetoSubsequent =
-                    doValidate(target, obj, errors, index) || shouldVetoSubsequent
+        if (parameter == true) {
+            if (propertyValue instanceof Collection) {
+                (propertyValue as Collection).eachWithIndex { Object obj, int index ->
+                    shouldVetoSubsequent =
+                        doValidate(target, obj, errors, index) || shouldVetoSubsequent
+                }
             }
-        }
-        else {
-            shouldVetoSubsequent = doValidate(target, propertyValue, errors)
+            else {
+                shouldVetoSubsequent = doValidate(target, propertyValue, errors)
+            }
         }
         shouldVetoSubsequent
     }

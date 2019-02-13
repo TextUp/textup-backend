@@ -11,7 +11,6 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class NotificationUtils {
 
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static Result<NotificationGroup> tryBuildNotificationGroup(Collection<? extends RecordItem> rItems1) {
         NotificationUtils.tryBuildNotificationsForItems(rItems1)
             .then { List<Notification> notifs -> NotificationGroup.tryCreate(notifs) }
@@ -20,7 +19,10 @@ class NotificationUtils {
     static Result<List<Notification>> tryBuildNotificationsForItems(Collection<? extends RecordItem> rItems1,
         Collection<Long> phoneIds = null) {
 
-        // Seems to not compile if we use MapUtils.buildManyObjectsMap
+        if (!rItems1) {
+            return IOCUtils.resultFactory.success([])
+        }
+        // Seems to not compile if we use MapUtils.buildManyUniqueObjectsMap
         Map<Long, Collection<? extends RecordItem>> recIdToItems = [:]
             .withDefault { [] as Collection<? extends RecordItem> }
         rItems1.each { RecordItem rItem1 -> recIdToItems[rItem1.record.id] << rItem1 }
@@ -29,84 +31,87 @@ class NotificationUtils {
             .buildActiveForRecordIds(recIdToItems.keySet())
             .build(PhoneRecords.forPhoneIds(phoneIds, true)) // optional
             .list()
+        Map<Phone, Notification> mutPhoneToNotif = [:]
         ResultGroup
             .collect(prs) { PhoneRecord pr1 ->
                 PhoneRecordWrapper w1 = pr1.toWrapper()
-                w1.tryGetRecord()
-                    .then { Record rec1 ->
-                        // NOT original phone so that we notify shared staff too
-                        w1.tryGetMutablePhone().curry(rec1)
+                // NOT original phone so that we notify shared staff too
+                w1.tryGetMutablePhone()
+                    .then { Phone p1 -> Notification.tryCreate(p1) }
+                    .then { Notification fallbackNotif ->
+                        if (!mutPhoneToNotif.containsKey(fallbackNotif.mutablePhone)) {
+                            mutPhoneToNotif[fallbackNotif.mutablePhone] = fallbackNotif
+                        }
+                        NotificationDetail.tryCreate(w1)
+                            .curry(mutPhoneToNotif[fallbackNotif.mutablePhone])
                     }
-                    .then { Record rec1, Phone p1 ->
-                        ResultGroup
-                            .collect(recIdToItems[rec1.id]) { Collection<? extends RecordItem> rItems2 ->
-                                NotificationDetail.tryCreate(w1)
-                                    .then { NotificationDetail nd1 ->
-                                        nd1.items.addAll(rItems2)
-                                        DomainUtils.tryValidate(nd1)
-                                    }
-                            }
-                            .toResult(false)
-                            .curry(p1)
+                    .then { Notification notif1, NotificationDetail nd1 ->
+                        // only notify those that has modify permissions or higher
+                        w1.tryGetRecord().curry(notif1, nd1)
                     }
-                    .then { Phone p1, List<NotificationDetail> notifDetails ->
-                        Notification.tryCreate(p1).curry(notifDetails)
-                    }
-                    .then { List<NotificationDetail> notifDetails, Notification notif1 ->
-                        notifDetails.each { NotificationDetail nd1 -> notif1.addDetail(nd1) }
+                    .then { Notification notif1, NotificationDetail nd1, Record rec1 ->
+                        Collection<? extends RecordItem> rItems2 = recIdToItems[rec1.id]
+                        if (rItems2) {
+                            nd1.items.addAll(rItems2)
+                        }
+                        notif1.addDetail(nd1)
                         DomainUtils.tryValidate(notif1)
                     }
             }
-            .toResult(false)
+            .toEmptyResult(false)
+            .then {
+                IOCUtils.resultFactory.success(CollectionUtils.shallowCopyNoNull(mutPhoneToNotif.values()))
+            }
     }
 
     static String buildPublicNames(Notification notif1, boolean isOut) {
         List<String> initials = WrapperUtils
-            .publicNamesIgnoreFails(notif1.getWrappersForOutgoing(isOut))
+            .publicNamesIgnoreFails(notif1?.getWrappersForOutgoing(isOut))
             .toList()
         CollectionUtils.joinWithDifferentLast(initials, ", ", " and ")
     }
 
     static String buildTextMessage(NotificationInfo n1) {
-        List<String> parts = [n1.phoneName]
-
-        String incoming = NotificationUtils.buildIncomingMessage(n1)
-        if (incoming) {
-            parts << IOCUtils.getMessage("notificationInfo.received")
-            parts << incoming
-        }
-
-        String outgoing = NotificationUtils.buildOutgoingMessage(n1)
-        if (outgoing) {
+        List<String> parts = []
+        if (n1) {
+            parts << n1.phoneName
+            String incoming = NotificationUtils.buildIncomingMessage(n1)
             if (incoming) {
-                parts << IOCUtils.getMessage("notificationInfo.and")
+                parts << IOCUtils.getMessage("notificationInfo.received")
+                parts << incoming
             }
-            parts << IOCUtils.getMessage("notificationInfo.sent")
-            parts << outgoing
-        }
 
+            String outgoing = NotificationUtils.buildOutgoingMessage(n1)
+            if (outgoing) {
+                if (incoming) {
+                    parts << IOCUtils.getMessage("notificationInfo.and")
+                }
+                parts << IOCUtils.getMessage("notificationInfo.sent")
+                parts << outgoing
+            }
+        }
         parts.join(" ")
     }
 
     static String buildIncomingMessage(NotificationInfo n1) {
         List<String> parts = [],
             countParts = []
-        if (n1.numIncomingText) {
-            countParts << StringUtils.withUnits(n1.numIncomingText,
+        if (n1?.numIncomingText) {
+            countParts << StringUtils.pluralize(n1.numIncomingText,
                 IOCUtils.getMessage("notificationInfo.text"))
         }
-        if (n1.numIncomingCall) {
-            countParts << StringUtils.withUnits(n1.numIncomingCall,
+        if (n1?.numIncomingCall) {
+            countParts << StringUtils.pluralize(n1.numIncomingCall,
                 IOCUtils.getMessage("notificationInfo.call"))
         }
-        if (n1.numVoicemail) {
-            countParts << StringUtils.withUnits(n1.numVoicemail,
+        if (n1?.numVoicemail) {
+            countParts << StringUtils.pluralize(n1.numVoicemail,
                 IOCUtils.getMessage("notificationInfo.voicemail"))
         }
         if (countParts) {
             parts << countParts.join(", ")
 
-            if (n1.incomingNames) {
+            if (n1?.incomingNames) {
                 parts << IOCUtils.getMessage("notificationInfo.from")
                 parts << n1.incomingNames
             }
@@ -117,18 +122,18 @@ class NotificationUtils {
     static String buildOutgoingMessage(NotificationInfo n1) {
         List<String> parts = [],
             countParts = []
-        if (n1.numOutgoingText) {
-            countParts << StringUtils.withUnits(n1.numOutgoingText,
+        if (n1?.numOutgoingText) {
+            countParts << StringUtils.pluralize(n1.numOutgoingText,
                 IOCUtils.getMessage("notificationInfo.scheduledText"))
         }
-        if (n1.numOutgoingCall) {
-            countParts << StringUtils.withUnits(n1.numOutgoingCall,
+        if (n1?.numOutgoingCall) {
+            countParts << StringUtils.pluralize(n1.numOutgoingCall,
                 IOCUtils.getMessage("notificationInfo.scheduledCall"))
         }
         if (countParts) {
             parts << countParts.join(", ")
 
-            if (n1.outgoingNames) {
+            if (n1?.outgoingNames) {
                 parts << IOCUtils.getMessage("notificationInfo.to")
                 parts << n1.outgoingNames
             }

@@ -12,8 +12,9 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 
 // Grails Domain classes cannot apply the `@Sortable` without a compilation error
+// Use `@EqualsAndHashCode` to ensure that addTo* and removeFrom* work properly
 
-@EqualsAndHashCode(callSuper = true, includes = ["number", "preference"])
+@EqualsAndHashCode(includes = ["number", "preference"])
 @GrailsTypeChecked
 class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNumber>, Comparable<ContactNumber> {
 
@@ -24,13 +25,16 @@ class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNu
         number phoneNumber: true
     }
 
-    static Result<ContactNumber> tryCreate(IndividualPhoneRecord owner, BasePhoneNumber bNum,
-        int preference) {
+    static Result<ContactNumber> tryCreate(IndividualPhoneRecord ipr1, BasePhoneNumber bNum,
+        Integer preference) {
 
-        ContactNumber cNum = new ContactNumber(preference: preference)
-        cNum.number = bNum.number
-        owner.addToNumbers(cNum)
+        ContactNumber cNum = new ContactNumber(preference: preference, number: bNum?.number)
+        ipr1?.addToNumbers(cNum)
         DomainUtils.trySave(cNum, ResultStatus.CREATED)
+            .ifFail { Result<?> failRes ->
+                ipr1?.removeFromNumbers(cNum)
+                failRes
+            }
     }
 
     // Methods

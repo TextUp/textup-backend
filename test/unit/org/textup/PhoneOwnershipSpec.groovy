@@ -15,8 +15,6 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -26,187 +24,166 @@ import spock.lang.*
 @TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
 class PhoneOwnershipSpec extends CustomSpec {
 
-	// static doWithSpring = {
-	// 	resultFactory(ResultFactory)
-	// }
+	static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
- //    def setup() {
- //    	setupData()
- //    }
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
- //    def cleanup() {
- //    	cleanupData()
- //    }
+    void "test creation + constraints"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        Staff s1 = TestUtils.buildStaff()
+        Team t1 = TestUtils.buildTeam()
 
- //    void "test constraints"() {
- //    	when: "we have an empty phone ownership"
- //    	PhoneOwnership own = new PhoneOwnership()
+    	when: "we have an empty phone ownership"
+    	Result res = PhoneOwnership.tryCreate(null, null, null)
 
- //    	then: "invalid"
- //    	own.validate() == false
- //    	own.errors.errorCount == 3
+    	then: "invalid"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
- //    	when: "we fill out fields"
- //    	own = new PhoneOwnership(phone:p1, type:PhoneOwnershipType.INDIVIDUAL,
- //    		ownerId:s1.id)
+        when:
+        res = PhoneOwnership.tryCreate(p1, -88, PhoneOwnershipType.INDIVIDUAL)
 
- //    	then: "valid"
- //    	own.validate() == true
- //    }
+        then: "fail on nonexistent"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
- //    void "test getting owners"() {
- //    	given: "team has all active staff"
- //    	t1.members.each { it.status = StaffStatus.STAFF }
- //    	t1.save(flush:true, failOnError:true)
+    	when:
+        res = PhoneOwnership.tryCreate(p1, s1.id, PhoneOwnershipType.INDIVIDUAL)
 
- //    	when: "we have an individual phone ownership"
- //    	PhoneOwnership own = new PhoneOwnership(phone:p1, ownerId:s1.id,
- //    		type:PhoneOwnershipType.INDIVIDUAL)
+    	then:
+    	res.status == ResultStatus.CREATED
+        res.payload.phone == p1
+        res.payload.ownerId == s1.id
+        res.payload.type == PhoneOwnershipType.INDIVIDUAL
 
- //    	then:
- //    	own.validate() == true
- //    	own.buildName() == s1.name
- //    	own.buildAllStaff().size() == 1
- //    	own.buildAllStaff()[0] == s1
+        when:
+        res = PhoneOwnership.tryCreate(p1, t1.id, PhoneOwnershipType.GROUP)
 
- //    	when: "we have a group phone ownership"
- //    	own = new PhoneOwnership(phone:p1, ownerId:t1.id,
- //    		type:PhoneOwnershipType.GROUP)
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.validate()
+        res.payload.phone == p1
+        res.payload.ownerId == t1.id
+        res.payload.type == PhoneOwnershipType.GROUP
+    }
 
- //    	then:
- //    	own.validate() == true
- //    	own.buildName() == t1.name
- //    	own.buildAllStaff().size() == t1.members.size()
- //    	own.buildAllStaff().every { Staff s1 ->
- //            t1.members.find { Staff s2 -> s1.id == s2.id }}
- //    }
+    void "test getting all staff"() {
+    	given: "team has all active staff"
+        Staff s1 = TestUtils.buildStaff()
+        s1.status == StaffStatus.STAFF
+        Staff s2 = TestUtils.buildStaff()
+        s2.status == StaffStatus.STAFF
+        Team t1 = TestUtils.buildTeam()
+        t1.addToMembers(s1)
+        t1.addToMembers(s2)
+    	t1.save(flush: true, failOnError: true)
+        Phone p1 = TestUtils.buildStaffPhone(s1)
 
- //    void "test building organization"() {
- //        when: "individual ownership"
- //        PhoneOwnership own = new PhoneOwnership(phone: p1, type: PhoneOwnershipType.INDIVIDUAL,
- //            ownerId: s1.id)
+    	when: "we have an individual phone ownership"
+        Result res = PhoneOwnership.tryCreate(p1, s1.id, PhoneOwnershipType.INDIVIDUAL)
 
- //        then:
- //        own.buildOrganization().id == s1.org.id
+    	then:
+        res.status == ResultStatus.CREATED
+    	res.payload.buildAllStaff().size() == 1
+    	res.payload.buildAllStaff()[0] == s1
 
- //        when: "group ownership"
- //        own.type = PhoneOwnershipType.GROUP
- //        own.ownerId = t1.id
+    	when: "we have a group phone ownership"
+    	res = PhoneOwnership.tryCreate(p1, t1.id, PhoneOwnershipType.GROUP)
 
- //        then:
- //        own.buildOrganization().id == t1.org.id
- //    }
+    	then:
+    	res.status == ResultStatus.CREATED
+    	res.payload.buildAllStaff().size() == t1.members.size()
+    	s1 in res.payload.buildAllStaff()
+        s2 in res.payload.buildAllStaff()
+    }
 
- //    void "test policies"() {
- //        given: "a phone ownership without any notification policies"
- //        PhoneOwnership owner1 = p1.owner
- //        assert owner1.policies == null
+    void "test building active policies for certain notification frequency"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+        Staff s2 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildStaffPhone(s1)
+        Phone p2 = TestUtils.buildStaffPhone(s2)
+        PhoneOwnership noPolicesOwn1 = p1.owner
+        PhoneOwnership own1 = p2.owner
+        OwnerPolicy op1 = TestUtils.buildOwnerPolicy(own1, s1)
+        OwnerPolicy op2 = TestUtils.buildOwnerPolicy(own1, s2)
+        op2.frequency = NotificationFrequency.QUARTER_HOUR
 
- //        when: "we get or create a policy for a staff id"
- //        Long sId = 88L
- //        NotificationPolicy np1 = owner1.getOrCreatePolicyForStaff(sId)
+        when:
+        Collection policies = noPolicesOwn1.buildActiveReadOnlyPoliciesForFrequency(null)
 
- //        then: "a new, unsaved policy is created"
- //        np1.id == null
+        then:
+        policies == []
 
- //        when: "we try to get a policy for this same staff id"
- //        np1.save(flush:true, failOnError:true)
- //        NotificationPolicy np2 = owner1.findPolicyForStaff(np1.staffId)
+        when:
+        policies = noPolicesOwn1.buildActiveReadOnlyPoliciesForFrequency(DefaultOwnerPolicy.DEFAULT_FREQUENCY)
 
- //        then:
- //        np2 != null
- //        np2.id == np1.id
- //    }
+        then: "create a default policy for `s1`"
+        policies.size() == 1
+        policies[0] instanceof DefaultOwnerPolicy
+        policies[0].readOnlyStaff == s1
 
- //    void "test getting notification statuses"() {
- //        given: "notification policy for a staff "
- //        Staff staff1 = new Staff(username: UUID.randomUUID().toString(),
- //            name: "Name",
- //            password: "password",
- //            email: "hello@its.me",
- //            org: org,
- //            manualSchedule: true,
- //            isAvailable: false)
- //        staff1.save(flush:true, failOnError:true)
+        when:
+        policies = own1.buildActiveReadOnlyPoliciesForFrequency(null)
 
- //        Long recId = 2L
- //        // policy-level is available and staff-level is NOT available
- //        NotificationPolicy np1 = new NotificationPolicy(
- //            staffId: staff1.id,
- //            level: NotificationLevel.ALL,
- //            useStaffAvailability: false,
- //            manualSchedule: true,
- //            isAvailable: true)
- //        np1.addToBlacklist(recId)
- //        np1.save(flush:true, failOnError:true)
+        then:
+        policies == []
 
- //        p1.owner.addToPolicies(np1)
- //        p1.owner.save(flush:true, failOnError:true)
+        when:
+        policies = own1.buildActiveReadOnlyPoliciesForFrequency(NotificationFrequency.QUARTER_HOUR)
 
- //        when: "we get notification status for a staff that has policies"
- //        List<NotificationStatus> statuses = p1.owner
- //            .getNotificationStatusesForStaffsAndRecords([staff1], [recId])
+        then:
+        policies.size() == 1
+        !(policies[0] instanceof DefaultOwnerPolicy)
+        policies[0] == op2
 
- //        then: "policy is found and use policy-level availability"
- //        statuses.size() == 1
- //        statuses[0].staff.id == staff1.id
- //        statuses[0].canNotify == false
- //        statuses[0].validate() == true
- //        statuses[0].isAvailableNow == true // policy-level is available even if staff-level is not
+        when:
+        policies = own1.buildActiveReadOnlyPoliciesForFrequency(DefaultOwnerPolicy.DEFAULT_FREQUENCY)
 
- //        when: "we get notification status for staff that does not have any policies"
- //        assert p1.owner.findPolicyForStaff(s1.id) == null
- //        s1.with {
- //            manualSchedule = true
- //            isAvailable = false
- //        }
- //        p1.owner.with {
- //            type = PhoneOwnershipType.INDIVIDUAL
- //            ownerId = s1.id
- //        }
- //        [s1, p1.owner]*.save(flush:true, failOnError:true)
+        then: "create a default policy for `s2`"
+        policies.size() == 1
+        policies[0] instanceof DefaultOwnerPolicy
+        policies[0].readOnlyStaff == s2
+    }
 
- //        statuses = p1.owner.getNotificationStatusesForStaffsAndRecords([s1], [recId])
- //        List<NotificationStatus> statuses2 = p1.owner.getNotificationStatusesForRecords([recId])
- //        List<Staff> staffList = p1.owner.getCanNotifyAndAvailable([recId])
+    void "test building organization"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildStaffPhone(s1)
+        Team t1 = TestUtils.buildTeam()
 
- //        then: "default is permissive and uses staff-level availability"
- //        statuses.size() == 1
- //        statuses[0].staff.id == s1.id
- //        statuses[0].canNotify == true
- //        statuses[0].isAvailableNow == false
- //        // if not specify statuses, then use getAll()
- //        statuses2.size() == 1
- //        statuses2[0].staff.id == s1.id
- //        statuses2[0].canNotify == true
- //        statuses[0].isAvailableNow == false
+        when: "individual ownership"
+        Result res = PhoneOwnership.tryCreate(p1, s1.id, PhoneOwnershipType.INDIVIDUAL)
 
- //        // policy is permissive, but the staff-level is NOT available
- //        staffList.size() == 0
+        then:
+        res.payload.buildOrganization().id == s1.org.id
 
- //        when: "the staff member is available but does not have a personal phone"
- //        s1.with {
- //            manualSchedule = true
- //            isAvailable = true
- //            personalPhoneAsString = ""
- //        }
- //        s1.save(flush:true, failOnError:true)
- //        statuses = p1.owner.getNotificationStatusesForStaffsAndRecords([s1], [recId])
- //        statuses2 = p1.owner.getNotificationStatusesForRecords([recId])
- //        staffList = p1.owner.getCanNotifyAndAvailable([recId])
+        when: "group ownership"
+        res = PhoneOwnership.tryCreate(p1, t1.id, PhoneOwnershipType.GROUP)
 
- //        then: "all statuses are available, but this person cannot be notified"
- //        statuses.size() == 1
- //        statuses[0].staff.id == s1.id
- //        statuses[0].canNotify == true
- //        statuses[0].isAvailableNow == true
- //        // if not specify statuses, then use getAll()
- //        statuses2.size() == 1
- //        statuses2[0].staff.id == s1.id
- //        statuses2[0].canNotify == true
- //        statuses[0].isAvailableNow == true
+        then:
+        res.payload.buildOrganization().id == t1.org.id
+    }
 
- //        // policy is permissive, but the staff-level is NOT available
- //        staffList.size() == 0
- //    }
+    void "test building name"() {
+        given: "team has all active staff"
+        Staff s1 = TestUtils.buildStaff()
+        Team t1 = TestUtils.buildTeam()
+        Phone p1 = TestUtils.buildStaffPhone(s1)
+
+        when: "we have an individual phone ownership"
+        Result res = PhoneOwnership.tryCreate(p1, s1.id, PhoneOwnershipType.INDIVIDUAL)
+
+        then:
+        res.payload.buildName() == s1.name
+
+        when: "we have a group phone ownership"
+        res = PhoneOwnership.tryCreate(p1, t1.id, PhoneOwnershipType.GROUP)
+
+        then:
+        res.payload.buildName() == t1.name
+    }
 }

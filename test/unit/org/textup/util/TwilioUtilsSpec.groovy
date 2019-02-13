@@ -25,6 +25,10 @@ class TwilioUtilsSpec extends Specification {
         resultFactory(ResultFactory)
     }
 
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     // Validating Twilio request
     // -------------------------
 
@@ -43,21 +47,6 @@ class TwilioUtilsSpec extends Specification {
         params.test1 == allParams.test1
         params.test2 == allParams.test2
         params.test3 == null
-    }
-
-    void "test getting browser URL"() {
-        given:
-        HttpServletRequest mockRequest = GroovyMock(HttpServletRequest) // to mock forwardURI
-
-        when:
-        String result = TwilioUtils.getBrowserURL(mockRequest)
-
-        then:
-        1 * mockRequest.requestURL >> new StringBuffer("https://www.example.com/a.html")
-        1 * mockRequest.requestURI >> "/a.html"
-        1 * mockRequest.forwardURI >> "/b.html"
-        2 * mockRequest.queryString >> "test3=bye&"
-        result == "https://www.example.com/b.html?test3=bye&"
     }
 
     @DirtiesRuntime
@@ -113,7 +102,7 @@ class TwilioUtilsSpec extends Specification {
         then:
         1 * mockRequest.getHeader(*_) >> null
         res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "twilioUtils.validate.invalid"
+        res.errorMessages[0] == "twilioUtils.invalidRequest"
 
         when: "invalid"
         res = TwilioUtils.validate(mockRequest, allParams)
@@ -130,7 +119,7 @@ class TwilioUtilsSpec extends Specification {
         1 * new RequestValidator(authToken) >> Stub(RequestValidator) { validate(*_) >> false }
 
         res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "twilioUtils.validate.invalid"
+        res.errorMessages[0] == "twilioUtils.invalidRequest"
 
         when: "valid"
         res = TwilioUtils.validate(mockRequest, allParams)
@@ -178,75 +167,33 @@ class TwilioUtilsSpec extends Specification {
         List<String> urls = []
         int numMedia = 2
         numMedia.times {
-            String mockUrl = UUID.randomUUID().toString()
+            String mockUrl = TestUtils.randUrl()
             urls << mockUrl
             params["MediaUrl${it}"] = mockUrl
             params["MediaContentType${it}"] = MediaType.IMAGE_JPEG.mimeType
         }
 
         when: "no media"
-        List<IncomingMediaInfo> mediaList = TwilioUtils.buildIncomingMedia(0, messageId, params)
+        params[TwilioUtils.NUM_MEDIA] = 0
+        Result res = TwilioUtils.tryBuildIncomingMedia(messageId, params)
 
         then:
-        mediaList == []
+        res.status == ResultStatus.OK
+        res.payload == []
 
         when:
-        mediaList = TwilioUtils.buildIncomingMedia(numMedia, messageId, params)
+        params[TwilioUtils.NUM_MEDIA] = numMedia
+        res = TwilioUtils.tryBuildIncomingMedia(messageId, params)
 
         then:
-        numMedia == mediaList.size()
-        mediaList.every { it instanceof IncomingMediaInfo }
-        mediaList.every { it.accountId == accountId }
-        mediaList.every { it.messageId == messageId }
-        mediaList.every { it.mimeType == MediaType.IMAGE_JPEG.mimeType }
-        mediaList.every { it.mediaId == mediaId }
-        mediaList.every { it.url in urls}
-    }
-
-    void "test building incoming recording"() {
-        given:
-        String accountId = TestUtils.randString()
-        String url = TestUtils.randString()
-        String sid = TestUtils.randString()
-        TypeMap params = TypeMap.create(AccountSid: accountId,
-            RecordingUrl: url,
-            RecordingSid: sid)
-
-        when:
-        IncomingRecordingInfo rInfo = TwilioUtils.buildIncomingRecording(params)
-
-        then:
-        MediaType.AUDIO_MP3.mimeType == rInfo.mimeType
-        accountId == rInfo.accountId
-        url == rInfo.url
-        sid == rInfo.mediaId
-    }
-
-    // Updating status
-    // ---------------
-
-    void "test if should update receipt status"() {
-        expect:
-        TwilioUtils.shouldUpdateStatus(null, null) == false
-        TwilioUtils.shouldUpdateStatus(ReceiptStatus.SUCCESS, null) == false
-        TwilioUtils.shouldUpdateStatus(ReceiptStatus.SUCCESS, ReceiptStatus.PENDING) == false
-
-        and:
-        TwilioUtils.shouldUpdateStatus(null, ReceiptStatus.SUCCESS) == true
-        TwilioUtils.shouldUpdateStatus(ReceiptStatus.PENDING, ReceiptStatus.SUCCESS) == true
-        TwilioUtils.shouldUpdateStatus(ReceiptStatus.SUCCESS, ReceiptStatus.BUSY) == true
-        TwilioUtils.shouldUpdateStatus(ReceiptStatus.SUCCESS, ReceiptStatus.FAILED) == true
-    }
-
-    void "test if should update receipt call duration"() {
-        expect:
-        TwilioUtils.shouldUpdateDuration(null, null) == false
-        TwilioUtils.shouldUpdateDuration(88, null) == false
-        TwilioUtils.shouldUpdateDuration(88, 88) == false
-
-        and:
-        TwilioUtils.shouldUpdateDuration(null, 88) == true
-        TwilioUtils.shouldUpdateDuration(88, 21) == true
+        res.status == ResultStatus.CREATED
+        res.payload.size() == numMedia
+        res.payload.every { it instanceof IncomingMediaInfo }
+        res.payload.every { it.accountId == accountId }
+        res.payload.every { it.messageId == messageId }
+        res.payload.every { it.mimeType == MediaType.IMAGE_JPEG.mimeType }
+        res.payload.every { it.mediaId == mediaId }
+        res.payload.every { it.url in urls}
     }
 
     // Twiml
@@ -262,7 +209,7 @@ class TwilioUtilsSpec extends Specification {
         then:
         res.status == ResultStatus.BAD_REQUEST
         res.errorMessages.size() == 1
-        res.errorMessages[0] == "twimlBuilder.invalidCode"
+        res.errorMessages[0] == "twilioUtils.invalidCode"
     }
 
     void "test no response Twiml"() {
@@ -286,6 +233,15 @@ class TwilioUtilsSpec extends Specification {
         res.success == true
         res.status == ResultStatus.OK
         TestUtils.buildXml(res.payload) == TestUtils.buildXml({ Response { Say(msg) } })
+    }
+
+    // Formatting
+    // ----------
+
+    void "test cleaning number search query"() {
+        expect:
+        TwilioUtils.cleanNumbersQuery(null) == ""
+        TwilioUtils.cleanNumbersQuery("&&&!@#abcABC123") == "abcABC123"
     }
 
     void "test inserting space between digits in strings passed to Say Twiml verb"() {
@@ -348,21 +304,21 @@ class TwilioUtilsSpec extends Specification {
         List<String> formattedList = TwilioUtils.formatAnnouncementsForRequest(null)
 
         then:
-        ["twimlBuilder.noAnnouncements"] == formattedList
+        ["twilioUtils.noAnnouncements"] == formattedList
 
         when: "one announcement"
         String formatted = TwilioUtils.formatAnnouncementForRequest(dt, id, msg)
 
         then:
-        "twimlBuilder.announcement" == formatted
+        "twilioUtils.announcement" == formatted
 
         when: "many announcements"
-        FeaturedAnnouncement a1 = new FeaturedAnnouncement(whenCreated: dt, owner: mockPhone, message: msg)
+        FeaturedAnnouncement a1 = new FeaturedAnnouncement(whenCreated: dt, phone: mockPhone, message: msg)
         formattedList = TwilioUtils.formatAnnouncementsForRequest([a1])
 
         then:
-        1 * mockPhone.name >> "hi"
-        ["twimlBuilder.announcement"] == formattedList
+        1 * mockPhone.buildName() >> "hi"
+        ["twilioUtils.announcement"] == formattedList
     }
 
     void "test building announcement for sending via text"() {
@@ -375,6 +331,6 @@ class TwilioUtilsSpec extends Specification {
         String formatted = TwilioUtils.formatAnnouncementForSend(id, msg)
 
         then:
-        "${id}: ${msg}. twimlBuilder.text.announcementUnsubscribe" == formatted
+        "${id}: ${msg}. twilioUtils.announcementUnsubscribe" == formatted
     }
 }

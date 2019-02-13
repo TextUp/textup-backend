@@ -20,10 +20,9 @@ class Organizations {
 
     @GrailsTypeChecked
     static Result<Void> tryIfAdmin(Long org1, Long staffId) {
-        AuthUtils.tryGetAuthUser()
-            .then { Staff s1 ->
-                AuthUtils.isAllowed(s1.status == StaffStatus.ADMIN && s1.org.id == org1)
-            }
+        Staffs.mustFindForId(staffId).then { Staff s1 ->
+            AuthUtils.isAllowed(s1.status == StaffStatus.ADMIN && s1.org.id == org1)
+        }
     }
 
     @GrailsTypeChecked
@@ -52,7 +51,7 @@ class Organizations {
 
         new DetachedCriteria(Organization)
             .build(forQuery())
-            .build(forStatuses())
+            .build(forStatuses(orgStatuses))
     }
 
     static DetachedCriteria<Organization> buildForNameAndLatLng(String name, BigDecimal lat,

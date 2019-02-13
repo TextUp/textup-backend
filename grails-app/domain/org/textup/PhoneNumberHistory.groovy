@@ -18,8 +18,8 @@ import org.textup.validator.*
 class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Comparable<PhoneNumberHistory> {
 
     DateTime endTime
-    final DateTime whenCreated
-    final String numberAsString
+    DateTime whenCreated
+    String numberAsString
 
     static mapping = {
         endTime type: PersistentDateTime
@@ -45,6 +45,9 @@ class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Compara
 
     boolean includes(Integer month, Integer year) {
         try {
+            if (month == null || year == null) {
+                return false
+            }
             DateTime dt = DateTime.now()
                 .withMonthOfYear(month)
                 .withYear(year)

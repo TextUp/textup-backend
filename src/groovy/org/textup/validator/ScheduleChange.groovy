@@ -25,16 +25,15 @@ class ScheduleChange implements CanValidate {
     final ScheduleStatus type
     final DateTime when
     final String timezone
-    private final DateTimeZone tz
+    private final DateTimeZone tz = DateTimeZone.UTC
 
     static constraints = {
     	timezone blank: true, nullable: true
-    	tz nullable: true
     }
 
     static Result<ScheduleChange> tryCreate(ScheduleStatus type, DateTime when, String timezone) {
-        DateTimeZone tz = JodaUtils.getZoneFromId(timezone)
-        ScheduleChange sChange1 = new ScheduleChange(type, when, timezone, tz)
+        DateTimeZone zoneObj = JodaUtils.getZoneFromId(timezone)
+        ScheduleChange sChange1 = new ScheduleChange(type, when, timezone, zoneObj)
         DomainUtils.tryValidate(sChange1, ResultStatus.CREATED)
     }
 

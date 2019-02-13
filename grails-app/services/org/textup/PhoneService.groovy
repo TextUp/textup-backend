@@ -71,7 +71,7 @@ class PhoneService {
 
     protected Result<?> tryRequestVoicemailGreetingCall(Phone p1, String numToCall) {
         if (numToCall) {
-            AuthUtils.tryGetAuthUser()
+            AuthUtils.tryGetActiveAuthUser()
                 .then { Staff authUser ->
                     tryGetGreetingCallNum(numToCall, authUser.personalNumber)
                 }

@@ -8,7 +8,9 @@ import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.quartz.Scheduler
 import org.springframework.context.*
 import org.springframework.context.i18n.LocaleContextHolder as LCH
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.textup.*
+import org.textup.cache.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.domain.*
@@ -18,25 +20,17 @@ import org.textup.validator.*
 @Log4j
 class IOCUtils {
 
-    static <T> T getBean(Class<T> clazz) {
-        Holders.applicationContext.getBean(clazz)
-    }
+    static SpringSecurityService getSecurity() { getBean(SpringSecurityService) }
 
-    static SpringSecurityService getSecurity() {
-        IOCUtils.getBean(SpringSecurityService)
-    }
+    static DaoAuthenticationProvider getAuthProvider() { getBean(DaoAuthenticationProvider) }
 
-    static ResultFactory getResultFactory() {
-        IOCUtils.getBean(ResultFactory)
-    }
+    static PhoneCache getPhoneCache() { getBean(PhoneCache) }
 
-    static Scheduler getQuartzScheduler() {
-        IOCUtils.getBean(Scheduler)
-    }
+    static ResultFactory getResultFactory() { getBean(ResultFactory) }
 
-    static LinkGenerator getLinkGenerator() {
-        IOCUtils.getBean(LinkGenerator)
-    }
+    static Scheduler getQuartzScheduler() { getBean(Scheduler) }
+
+    static LinkGenerator getLinkGenerator() { getBean(LinkGenerator) }
 
     static String getWebhookLink(Map linkParams = [:]) {
         IOCUtils.linkGenerator.link(namespace: "v1",
@@ -47,12 +41,9 @@ class IOCUtils {
     }
 
     static String getHandleLink(String handle, Map linkParams = [:]) {
-        linkParams.put(CallbackUtils.PARAM_HANDLE, handle)
-        IOCUtils.linkGenerator.link(namespace: "v1",
-            resource: "publicRecord",
-            action: "save",
-            absolute: true,
-            params: linkParams)
+        Map combinedParams = new HashMap(linkParams)
+        combinedParams.put(CallbackUtils.PARAM_HANDLE, handle)
+        getWebhookLink(combinedParams)
     }
 
     static String getMessage(String code, List params = []) {
@@ -78,7 +69,11 @@ class IOCUtils {
     // Helpers
     // -------
 
+    protected static <T> T getBean(Class<T> clazz) {
+        Holders.applicationContext.getBean(clazz)
+    }
+
     protected static MessageSource getMessageSource() {
-        IOCUtils.getBean(MessageSource)
+        getBean(MessageSource)
     }
 }

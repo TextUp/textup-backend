@@ -325,7 +325,7 @@ class MediaServiceSpec extends Specification {
     //     given:
     //     service.threadService = Mock(ThreadService)
     //     service.storageService = Mock(StorageService)
-    //     MockedMethod trySetOnRequest = TestUtils.mock(Utils, "trySetOnRequest") { new Result() }
+    //     MockedMethod trySet = TestUtils.mock(Utils, "trySet") { new Result() }
     //     MediaInfo mInfo = new MediaInfo()
     //     mInfo.save(flush: true, failOnError: true)
     //     int mBaseline = MediaInfo.count()
@@ -346,7 +346,7 @@ class MediaServiceSpec extends Specification {
     //         AsyncUtils.noOpFuture() as ScheduledFuture
     //     }
     //     1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
-    //     trySetOnRequest.callCount == 1
+    //     trySet.callCount == 1
     //     res.status == ResultStatus.OK
     //     res.payload.first.id == mInfo.id
     //     res.payload.first.mediaElements.size() == 1
@@ -361,7 +361,7 @@ class MediaServiceSpec extends Specification {
 
     //     then:
     //     1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // again after finishing
-    //     trySetOnRequest.callCount == 1
+    //     trySet.callCount == 1
     //     finishedRes.status == ResultStatus.OK
     //     finishedRes.payload.id == mInfo.id
     //     finishedRes.payload.mediaElements.size() == 1
@@ -377,7 +377,7 @@ class MediaServiceSpec extends Specification {
     //     given:
     //     service.threadService = Mock(ThreadService)
     //     service.storageService = Mock(StorageService)
-    //     MockedMethod trySetOnRequest = TestUtils.mock(Utils, "trySetOnRequest") { new Result() }
+    //     MockedMethod trySet = TestUtils.mock(Utils, "trySet") { new Result() }
     //     WithMedia withMedia = Mock(WithMedia)
     //     int mBaseline = MediaInfo.count()
     //     int eBaseline = MediaElement.count()
@@ -401,7 +401,7 @@ class MediaServiceSpec extends Specification {
     //         AsyncUtils.noOpFuture() as ScheduledFuture
     //     }
     //     1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
-    //     trySetOnRequest.callCount == 1
+    //     trySet.callCount == 1
     //     res.status == ResultStatus.OK
     //     res.payload.first instanceof WithMedia
     //     res.payload.second instanceof Future
@@ -416,7 +416,7 @@ class MediaServiceSpec extends Specification {
 
     //     then:
     //     1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // again after finishing
-    //     trySetOnRequest.callCount == 1
+    //     trySet.callCount == 1
     //     finishedRes.status == ResultStatus.OK
     //     finishedRes.payload instanceof MediaInfo
     //     finishedRes.payload.mediaElements.size() == 1
@@ -433,7 +433,7 @@ class MediaServiceSpec extends Specification {
     //     given:
     //     service.threadService = Mock(ThreadService)
     //     service.storageService = Mock(StorageService)
-    //     MockedMethod trySetOnRequest = TestUtils.mock(Utils, "trySetOnRequest") { new Result() }
+    //     MockedMethod trySet = TestUtils.mock(Utils, "trySet") { new Result() }
     //     MediaInfo mInfo = new MediaInfo()
     //     mInfo.save(flush: true, failOnError: true)
     //     WithMedia withMedia = Mock(WithMedia)
@@ -457,7 +457,7 @@ class MediaServiceSpec extends Specification {
     //     }
     //     1 * service.threadService.delay(*_) >> (AsyncUtils.noOpFuture() as ScheduledFuture)
     //     1 * service.storageService.uploadAsync(*_) >> new ResultGroup() // once synchronously
-    //     trySetOnRequest.callCount == 1
+    //     trySet.callCount == 1
     //     res.status == ResultStatus.OK
     //     res.payload.first instanceof WithMedia
     //     res.payload.second instanceof Future
@@ -479,7 +479,7 @@ class MediaServiceSpec extends Specification {
     //         new Result(payload: uItem).toGroup()
     //     }
     //     MockedMethod tryFinishProcessing = TestUtils.mock(service, "tryFinishProcessing")
-    //     MockedMethod trySetOnRequest = TestUtils.forceMock(Utils, "trySetOnRequest") { new Result() }
+    //     MockedMethod trySet = TestUtils.forceMock(Utils, "trySet") { new Result() }
     //     MediaInfo mInfo = new MediaInfo()
     //     Closure delayedAction
 

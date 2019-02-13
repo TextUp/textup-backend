@@ -71,7 +71,7 @@ class BaseController {
     protected void doShow(Closure<Result<?>> checkAllowed, Closure<Result<?>> doFind) {
         ClosureUtils.execute(checkAllowed, [])
             .then { ClosureUtils.execute(doFind, []) }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     protected void doSave(String key, HttpServletRequest req, ManagesDomain.Creater service,
@@ -80,7 +80,7 @@ class BaseController {
         RequestUtils.tryGetJsonBody(req, key)
             .then { TypeMap body -> ClosureUtils.execute(checkAllowed, [body]).curry(body) }
             .then { TypeMap body, Long id -> service.create(id, body) }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     protected void doUpdate(String key, HttpServletRequest req, ManagesDomain.Updater service,
@@ -89,13 +89,13 @@ class BaseController {
         RequestUtils.tryGetJsonBody(req, key)
             .then { TypeMap body -> ClosureUtils.execute(checkAllowed, [body]).curry(body) }
             .then { TypeMap body, Long id -> service.update(id, body) }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     protected void doDelete(ManagesDomain.Deleter service, Closure<Result<Long>> checkAllowed) {
         ClosureUtils.execute(checkAllowed, [])
             .then { Long id -> service.delete(id) }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     protected void respondWithResult(Result<?> res) {

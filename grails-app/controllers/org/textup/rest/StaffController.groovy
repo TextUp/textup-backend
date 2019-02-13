@@ -25,7 +25,7 @@ class StaffController extends BaseController {
         TypeMap qParams = TypeMap.create(params)
         Collection<StaffStatus> statuses = qParams
             .enumList(StaffStatus, "status[]") ?: StaffStatus.ACTIVE_STATUSES
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         if (qParams.organizationId) {
             listForOrg(statuses, qParams)
         }
@@ -38,7 +38,7 @@ class StaffController extends BaseController {
     @Override
     void show() {
         TypeMap qParams = TypeMap.create(params)
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         Long id = qParams.long("id")
         doShow({ Staffs.isAllowed(id) }, { Staffs.mustFindForId(id) })
     }
@@ -47,16 +47,16 @@ class StaffController extends BaseController {
     @Override
     void save() {
         TypeMap qParams = TypeMap.create(params)
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         RequestUtils.tryGetJsonBody(request, MarshallerUtils.KEY_STAFF)
             .then { TypeMap body -> staffService.create(body) }
-            .anyEnd { Result<?> res -> respondWithResult(res) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     @Override
     void update() {
         TypeMap qParams = TypeMap.create(params)
-        RequestUtils.trySetOnRequest(RequestUtils.TIMEZONE, qParams.string("timezone"))
+        RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         doUpdate(MarshallerUtils.KEY_STAFF, request, staffService) {
             Staffs.isAllowed(qParams.long("id"))
         }

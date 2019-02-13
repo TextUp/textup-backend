@@ -93,7 +93,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
         sMsg.repeatCount = null
         sMsg.endDate = DateTime.now().plusDays(1)
         sMsg.save(flush:true, failOnError:true)
-        Utils.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, ["errors1", "errors2"])
+        RequestUtils.trySet(Constants.REQUEST_UPLOAD_ERRORS, ["errors1", "errors2"])
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
             json = TestUtils.jsonToMap(sMsg as JSON)
         }

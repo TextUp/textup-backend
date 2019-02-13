@@ -11,17 +11,15 @@ import org.textup.validator.*
 
 class PhoneRecords {
 
-    @GrailsTypeChecked
     static Result<Long> isAllowed(Long thisId) {
         AuthUtils.tryGetAuthId()
-            .then { Long authId -> AuthUtils.isAllowed(buildForAuth(thisId, authId).count() > 0) }
+            .then { Long authId ->
+                int numAllowed = buildAllowed(authId)
+                    .build { idEq(thisId) }
+                    .count()
+                AuthUtils.isAllowed(numAllowed > 0)
+            }
             .then { IOCUtils.resultFactory.success(thisId) }
-    }
-
-    static DetachedCriteria<PhoneRecord> buildActiveForStaffId(Long staffId) {
-        new DetachedCriteria(PhoneRecord)
-            .build { "in"("phone", Phones.buildAllActivePhonesForStaffId(staffId)) }
-            .build(PhoneRecords.forActive())
     }
 
     static DetachedCriteria<PhoneRecord> buildActiveForRecordIds(Collection<Long> recordIds) {
@@ -32,7 +30,7 @@ class PhoneRecords {
 
     static DetachedCriteria<PhoneRecord> buildActiveForPhoneIds(Collection<Long> phoneIds) {
         new DetachedCriteria(PhoneRecord)
-            .build(PhoneRecords.forPhoneIds(phoneIds), false)
+            .build(PhoneRecords.forPhoneIds(phoneIds, false))
             .build(PhoneRecords.forActive())
     }
 
@@ -40,6 +38,22 @@ class PhoneRecords {
         new DetachedCriteria(PhoneRecord)
             .build(PhoneRecords.forShareSourceIds(sourceIds))
             .build(PhoneRecords.forActive())
+    }
+
+    // Subqueries cannot include an `or` clause or else results in an NPE because of an existing bug.
+    // Therefore, we have to first get the record ids via this method and then pass these record ids
+    // into where we would have put a subquery. We can't use the closure-based workaround we did in
+    // `Phones` because the active condition in this class ALSO has `or` clauses. If we were to try
+    // to build all possible combinations of the phone ownerships AND the active conditions
+    // this would have resulted in an infeasibly large number of subqueries.
+    // see: https://github.com/grails/grails-data-mapping/issues/655
+    static Collection<Long> findEveryAllowedRecordIdForStaffId(Long staffId) {
+        if (staffId) {
+            buildAllowed(staffId)
+                .build(PhoneRecords.returnsRecordId())
+                .list()
+        }
+        else { [] }
     }
 
     static Closure forShareSourceIds(Collection<Long> sourceIds) {
@@ -76,15 +90,26 @@ class PhoneRecords {
         }
     }
 
+    static Closure returnsRecordId() {
+        return {
+            projections {
+                property("record.id")
+            }
+        }
+    }
+
     static Closure forActive() {
         return {
-            eq("isDeleted", false) // TODO does this work?
+            or {
+                isNull("isDeleted") // this column is null for `PhoneRecord`s
+                eq("isDeleted", false) // all subclasses need to share this column
+            }
             or {
                 isNull("dateExpired") // not expired if null
                 gt("dateExpired", JodaUtils.utcNow())
             }
             phone {
-                CriteriaUtils.compose(delegate, Phones.forActive())
+                ClosureUtils.compose(delegate, Phones.forActive())
             }
         }
     }
@@ -92,12 +117,9 @@ class PhoneRecords {
     // Helpers
     // -------
 
-    protected static DetachedCriteria<PhoneRecord> buildForAuth(Long thisId, Long authId) {
+    protected static DetachedCriteria<PhoneRecord> buildAllowed(Long staffId) {
         new DetachedCriteria(PhoneRecord)
-            .build {
-                idEq(thisId)
-                "in"("phone", Phones.buildAllActivePhonesForStaffId(authId))
-            }
+            .build(Phones.activeForPhonePropNameAndStaffId("phone", staffId))
             .build(PhoneRecords.forActive())
     }
 }

@@ -47,7 +47,7 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
             //phone number must be unique for phones
             if (num && Utils.<Boolean>doWithoutFlush {
                     Phones.buildActiveForNumber(PhoneNumber.create(num))
-                        .build(CriteriaUtils.forNotId(obj.id))
+                        .build(CriteriaUtils.forNotIdIfPresent(obj.id))
                         .count() > 0
                 }) {
                 return ["duplicate"]
@@ -62,8 +62,11 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
     static Result<Phone> tryCreate(Long ownerId, PhoneOwnershipType type) {
         Phone p1 = new Phone()
-        p1.owner = new PhoneOwnership(ownerId: ownerId, type: type, phone: p1)
-        DomainUtils.trySave(p1, ResultStatus.CREATED)
+        PhoneOwnership.tryCreate(p1, ownerId, type)
+            .then { PhoneOwnership own1 ->
+                p1.owner = own1
+                DomainUtils.trySave(p1, ResultStatus.CREATED)
+            }
     }
 
     // Methods
@@ -76,7 +79,7 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
             Collection<PhoneNumber> pNums = numberHistoryEntries
                 .findAll { PhoneNumberHistory nh1 -> nh1.includes(month, year) }
                 *.numberIfPresent
-            CollectionUtils.ensureNoNull(pNums)
+            CollectionUtils.ensureNoNull(pNums.unique())
         }
         else { [] }
     }
@@ -84,14 +87,14 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
     Result<String> tryActivate(BasePhoneNumber bNum, String newApiId) {
         apiId = newApiId
         number = bNum
-        tryAddHistoryEntry()
+        PhoneUtils.tryAddChangeToHistory(this, bNum)
             .then { IOCUtils.resultFactory.success(getPersistentValue("apiId") as String) }
     }
 
     Result<String> tryDeactivate() {
         apiId = null
         numberAsString = null
-        tryAddHistoryEntry()
+        PhoneUtils.tryAddChangeToHistory(this, null)
             .then { IOCUtils.resultFactory.success(getPersistentValue("apiId") as String) }
     }
 
@@ -117,23 +120,5 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
     URL getVoicemailGreetingUrl() {
         media?.getMostRecentByType(MediaType.AUDIO_TYPES)?.sendVersion?.link
-    }
-
-    // Helpers
-    // -------
-
-    protected Result<Phone> tryAddHistoryEntry() {
-        DateTime dt = JodaUtils.utcNow()
-        PhoneNumber pNum = PhoneNumber
-            .tryCreate(getPersistentValue("numberAsString") as String)
-            .payload
-        PhoneNumberHistory.tryCreate(dt, pNum)
-            .then { PhoneNumberHistory nh1 ->
-                // find most recent entry before adding new one
-                numberHistoryEntries?.max()?.setEndTime(dt) // phone save will cascade
-                // add new entry
-                addToNumberHistoryEntries(nh1)
-                DomainUtils.trySave(this)
-            }
     }
 }

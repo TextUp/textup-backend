@@ -28,8 +28,9 @@ class RecordItemRequestSection implements CanValidate {
     }
 
     static Result<RecordItemRequestSection> tryCreate(String pName, BasePhoneNumber pNum,
-        Collection<? extends ReadOnlyRecordItem> rItems, Collection<? extends PhoneRecordWrapper> wraps) {
+        Collection<? extends ReadOnlyRecordItem> thisItems, Collection<? extends PhoneRecordWrapper> wraps) {
 
+        Collection<? extends ReadOnlyRecordItem> rItems = thisItems ?: []
         Collection<String> cNames = WrapperUtils.secureNamesIgnoreFails(wraps) { PhoneRecordWrapper w1 ->
             WrapperUtils.isContact(w1)
         }
@@ -45,7 +46,7 @@ class RecordItemRequestSection implements CanValidate {
             Collections.unmodifiableCollection(sNames),
             Collections.unmodifiableCollection(tNames),
             pName,
-            pNum.prettyPhoneNumber)
+            pNum?.prettyPhoneNumber)
         DomainUtils.tryValidate(section1, ResultStatus.CREATED)
     }
 }

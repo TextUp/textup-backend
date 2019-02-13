@@ -3,6 +3,7 @@ package org.textup.rest
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
@@ -95,9 +96,9 @@ class IncomingCallService {
     protected Result<Closure> buildCallResponse(Phone p1, IncomingSession is1,
         List<RecordCall> rCalls, NotificationGroup notifGroup) {
 
-        Collection<OwnerPolicy> policies = notifGroup
-            .buildCanNotifyPolicies(NotificationFrequency.IMMEDIATELY)
-        Collection<PhoneNumber> pNums = CollectionUtils.ensureNoNull(policies*.staff*.personalNumber)
+        Collection<? extends ReadOnlyOwnerPolicy> policies = notifGroup
+            .buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY)
+        Collection<PhoneNumber> pNums = CollectionUtils.ensureNoNull(policies*.readOnlyStaff*.personalNumber)
         if (pNums) {
             CallTwiml.connectIncoming(p1.number, is1.number, pNums)
         }

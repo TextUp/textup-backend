@@ -197,7 +197,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
     void "test marshalling note with specified timezone"() {
         given:
         String tzId = "Europe/Stockholm"
-        Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, tzId)
+        RequestUtils.trySet(Constants.REQUEST_TIMEZONE, tzId)
 
         RecordNote note1 = new RecordNote(record: rec, noteContents: TestUtils.randString())
         note1.save(flush:true, failOnError:true)

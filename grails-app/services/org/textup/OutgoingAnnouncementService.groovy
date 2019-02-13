@@ -90,12 +90,12 @@ class OutgoingAnnouncementService {
         Phone p1, Author author1, String msg, Collection<IncomingSession> sess,
         Collection<TempRecordReceipt> rpts) {
 
-        IndividualPhoneRecords.tryFindEveryByNumbers(p1, sess*.number, true)
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, sess*.number, true)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPhoneRecs ->
                 Map<PhoneNumber, TempRecordReceipt> numToReceipt = MapUtils
                     .buildObjectMap(rpts) { TempRecordReceipt rpt1 -> rpt1.contactNumber }
                 ResultGroup
-                    .collect(numToPhoneRecs) { PhoneNumber pNum, List<IndividualPhoneRecord> iprs ->
+                    .collectEntries(numToPhoneRecs) { PhoneNumber pNum, List<IndividualPhoneRecord> iprs ->
                         tryCreateItems(iprs*.record, type, author1, msg, numToReceipt[pNum])
                     }
                     .logFail("tryStoreForRecords")

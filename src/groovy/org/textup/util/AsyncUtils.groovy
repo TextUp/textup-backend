@@ -18,12 +18,13 @@ class AsyncUtils {
     static final int UPLOAD_BATCH_SIZE = 8
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static <T extends CanSave> Collection<T> getAllIds(Class<T> clazz, Collection<Long> ids) {
-        Collection<T> found = clazz.getAll(ids?.unique() as Iterable<Serializable>)
+    static <T extends CanSave> Collection<T> getAllIds(Class<T> clazz, Collection<Long> thisIds) {
+        Collection<Long> ids = CollectionUtils.shallowCopyNoNull(thisIds)
+        Collection<T> found = clazz.getAll(ids as Iterable<Serializable>)
         if (found.size() != ids.size()) {
             log.error("getAllIds: did not find all for `$clazz` and `$ids`")
         }
-        CollectionUtils.ensureNoNulls(found)
+        CollectionUtils.ensureNoNull(found)
     }
 
     static <T> Future<T> noOpFuture(T obj = null) {

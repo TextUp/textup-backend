@@ -33,7 +33,7 @@ class UsageUtilsSpec extends Specification {
 
         expect:
         UsageUtils.dateTimeToTimestamp(null) == ""
-        UsageUtils.dateTimeToTimestamp(dt) == DateTimeUtils.CURRENT_TIME_FORMAT.print(dt)
+        UsageUtils.dateTimeToTimestamp(dt) == JodaUtils.CURRENT_TIME_FORMAT.print(dt)
     }
 
     void "test DateTime obj -> month string"() {
@@ -42,7 +42,7 @@ class UsageUtilsSpec extends Specification {
 
         expect:
         UsageUtils.dateTimeToMonthString(null) == ""
-        UsageUtils.dateTimeToMonthString(dt) == DateTimeUtils.DISPLAYED_MONTH_FORMAT.print(dt)
+        UsageUtils.dateTimeToMonthString(dt) == JodaUtils.DISPLAYED_MONTH_FORMAT.print(dt)
     }
 
     void "test month string -> DateTime obj"() {
@@ -86,6 +86,44 @@ class UsageUtilsSpec extends Specification {
         monthStrings.size() == 8 + 1 // 8 prior months + 1 "now" month
     }
 
+    void "testing building numbers for a certain phone and month"() {
+        given:
+        MockedMethod mustFindActiveForId
+        Phone p1 = Mock()
+        Long pId = TestUtils.randIntegerUpTo(88)
+        DateTime dt = DateTime.now()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum2 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum3 = TestUtils.randPhoneNumber()
+
+        when: "null inputs"
+        mustFindActiveForId = TestUtils.mock(Phones, "mustFindActiveForId") { Result.void() }
+        String numbers = UsageUtils.buildNumbersStringForMonth(null, null)
+
+        then:
+        numbers == UsageUtils.NO_NUMBERS
+
+        when: "valid but no numbers found"
+        mustFindActiveForId.restore()
+        mustFindActiveForId = TestUtils.mock(Phones, "mustFindActiveForId") { Result.createSuccess(p1) }
+        numbers = UsageUtils.buildNumbersStringForMonth(pId, dt)
+
+        then:
+        1 * p1.buildNumbersForMonth(dt.monthOfYear, dt.year) >> []
+        numbers == UsageUtils.NO_NUMBERS
+
+        when:
+        numbers = UsageUtils.buildNumbersStringForMonth(pId, dt)
+
+        then:
+        1 * p1.buildNumbersForMonth(dt.monthOfYear, dt.year) >> [pNum1, pNum2, pNum3]
+        numbers != UsageUtils.NO_NUMBERS
+        numbers == "${pNum1}, ${pNum2} and ${pNum3}"
+
+        cleanup:
+        mustFindActiveForId.restore()
+    }
+
     @DirtiesRuntime
     void "test get available month string index"() {
         given:
@@ -118,7 +156,8 @@ class UsageUtilsSpec extends Specification {
         List<ActivityEntity.HasActivity> owners2 = UsageUtils.associateActivity(owners1, activityList)
 
         then: "returns copied owners -- no side effects"
-        owners2 != owners1
+        // `.is()` in Groovy is `==` in Java. See http://mrhaki.blogspot.com/2009/09/groovy-goodness-check-for-object.html
+        owners2.is(owners1) == false
         owners1.size() == numOwners
         owners1.every { it.activity.ownerId == null }
         owners2.size() == numOwners
@@ -132,11 +171,11 @@ class UsageUtilsSpec extends Specification {
         RecordItem mockItem = Stub() { getWhenCreated() >> now.minusMonths(2) }
         RecordItem.metaClass."static".first = { String propName -> mockItem }
 
-        ActivityRecord actNow = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now)),
-            actNowMinusOne = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(1))),
-            actNowMinusTwo = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(2))),
-            actNowMinusEight = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(8))),
-            actNowPlusOne = new ActivityRecord(monthString: DateTimeUtils.QUERY_MONTH_FORMAT.print(now.plusMonths(1)))
+        ActivityRecord actNow = new ActivityRecord(monthString: JodaUtils.QUERY_MONTH_FORMAT.print(now)),
+            actNowMinusOne = new ActivityRecord(monthString: JodaUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(1))),
+            actNowMinusTwo = new ActivityRecord(monthString: JodaUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(2))),
+            actNowMinusEight = new ActivityRecord(monthString: JodaUtils.QUERY_MONTH_FORMAT.print(now.minusMonths(8))),
+            actNowPlusOne = new ActivityRecord(monthString: JodaUtils.QUERY_MONTH_FORMAT.print(now.plusMonths(1)))
 
         when:
         List<ActivityRecord> activities = UsageUtils.ensureMonths(null)

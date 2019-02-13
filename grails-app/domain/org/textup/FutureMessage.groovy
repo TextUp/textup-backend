@@ -54,28 +54,28 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, CanSave
 
 	static transients = ["trigger"]
     static mapping = {
-        whenCreated type:PersistentDateTime
-        startDate type:PersistentDateTime
-        endDate type:PersistentDateTime
-        whenAdjustDaylightSavings type:PersistentDateTime
-        daylightSavingsZone type:PersistentDateTimeZoneAsString
+        whenCreated type: PersistentDateTime
+        startDate type: PersistentDateTime
+        endDate type: PersistentDateTime
+        whenAdjustDaylightSavings type: PersistentDateTime
+        daylightSavingsZone type: PersistentDateTimeZoneAsString
         media lazy: false, cascade: "save-update"
     }
     static constraints = {
         // removed the constraint the prohibited message from being null because a future message
         // can now have media so outgoing message can have either text only, media only, or both.
-        message blank: true, nullable: true, maxSize:(ValidationUtils.TEXT_BODY_LENGTH * 2)
+        message blank: true, nullable: true, maxSize: (ValidationUtils.TEXT_BODY_LENGTH * 2)
         media nullable: true, validator: { MediaInfo mInfo, FutureMessage obj ->
             // message must have at least one of text and media
             if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }
         }
-        endDate nullable:true, validator:{ DateTime end, FutureMessage msg ->
+        endDate nullable: true, validator: { DateTime end, FutureMessage msg ->
             if (end && end.isBefore(msg.startDate)) {
                 ["endBeforeStart"]
             }
         }
-        whenAdjustDaylightSavings nullable:true
-        daylightSavingsZone nullable:true
+        whenAdjustDaylightSavings nullable: true
+        daylightSavingsZone nullable: true
     }
 
     def afterInsert() { refreshTrigger() }

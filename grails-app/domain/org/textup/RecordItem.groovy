@@ -39,11 +39,11 @@ class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem> {
         noteContents type: "text"
     }
     static constraints = {
-    	authorName blank:true, nullable:true
-    	authorId nullable:true
-        authorType nullable:true
-        media nullable:true, cascadeValidation: true // can be null for backwards compatibility for RecordItems that predate this
-        noteContents blank:true, nullable:true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
+    	authorName blank: true, nullable: true
+    	authorId nullable: true
+        authorType nullable: true
+        media nullable: true, cascadeValidation: true // can be null for backwards compatibility for RecordItems that predate this
+        noteContents blank: true, nullable: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
         numNotified min: 0
     }
 

@@ -45,7 +45,7 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
             elements << e1
         }
         Collection<String> errorMessages = ["errors1", "errors2"]
-        Utils.trySetOnRequest(Constants.REQUEST_UPLOAD_ERRORS, errorMessages)
+        RequestUtils.trySet(Constants.REQUEST_UPLOAD_ERRORS, errorMessages)
 
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
             json = TestUtils.jsonToMap(mInfo as JSON)

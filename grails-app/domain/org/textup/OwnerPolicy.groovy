@@ -11,12 +11,12 @@ import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
-class OwnerPolicy implements WithId, CanSave<OwnerPolicy> {
+class OwnerPolicy implements WithId, CanSave<OwnerPolicy>, ReadOnlyOwnerPolicy {
 
-    boolean shouldSendPreviewLink = true
-    NotificationFrequency frequency = NotificationFrequency.IMMEDIATELY
-    NotificationLevel level = NotificationLevel.ALL
-    NotificationMethod method = NotificationMethod.TEXT
+    boolean shouldSendPreviewLink = DefaultOwnerPolicy.DEFAULT_SEND_PREVIEW_LINK
+    NotificationFrequency frequency = DefaultOwnerPolicy.DEFAULT_FREQUENCY
+    NotificationLevel level = DefaultOwnerPolicy.DEFAULT_LEVEL
+    NotificationMethod method = DefaultOwnerPolicy.DEFAULT_METHOD
     Schedule schedule
     Staff staff
 
@@ -27,7 +27,7 @@ class OwnerPolicy implements WithId, CanSave<OwnerPolicy> {
     }
     static constraints = {
         schedule cascadeValidation: true
-        frequency validation: { NotificationFrequency val, OwnerPolicy obj ->
+        frequency validator: { NotificationFrequency val, OwnerPolicy obj ->
             if (obj.method == NotificationMethod.EMAIL &&
                 val == NotificationFrequency.IMMEDIATELY) {
                 ["cannotSendEmailImmediately"]
@@ -39,9 +39,9 @@ class OwnerPolicy implements WithId, CanSave<OwnerPolicy> {
         Staffs.mustFindForId(staffId)
             .then { Staff s1 -> Schedule.tryCreate().curry(s1) }
             .then { Staff s1, Schedule sched1 ->
-                OwnerPolicy np1 = new OwnerPolicy(staff: s1, schedule: sched1)
-                own1.addToPolicies(np1)
-                DomainUtils.trySave(np1, ResultStatus.CREATED)
+                OwnerPolicy op1 = new OwnerPolicy(staff: s1, schedule: sched1)
+                own1.addToPolicies(op1)
+                DomainUtils.trySave(op1, ResultStatus.CREATED)
             }
 
     }
@@ -52,22 +52,37 @@ class OwnerPolicy implements WithId, CanSave<OwnerPolicy> {
     // can notify = schedule is available + recordId is allowed
     // [NOTE] the staff member returned may not have the required info to notify with
     // For example, if a staff member does not have a personal phone, we can't notify via text
+    @Override
     boolean canNotifyForAny(Collection<Long> recordIds) {
         schedule?.isAvailableNow() && recordIds?.any { Long rId -> isAllowed(rId) }
     }
 
+    @Override
  	boolean isAllowed(Long recordId) {
  		if (level == NotificationLevel.ALL) {
-            blacklist?.contains(recordId)
+            !blacklist?.contains(recordId)
  		}
  		else { whitelist?.contains(recordId) } // otherwise is NotificationLevel.NONE
  	}
 
     boolean enable(Long recordId) {
-        addToWhitelist(recordId) && removeFromBlacklist(recordId)
+        if (recordId) {
+            addToWhitelist(recordId) && removeFromBlacklist(recordId)
+        }
     }
 
     boolean disable(Long recordId) {
-        addToBlacklist(recordId) && removeFromWhitelist(recordId)
+        if (recordId) {
+            addToBlacklist(recordId) && removeFromWhitelist(recordId)
+        }
     }
+
+    // Properties
+    // ----------
+
+    @Override
+    ReadOnlySchedule getReadOnlySchedule() { schedule }
+
+    @Override
+    ReadOnlyStaff getReadOnlyStaff() { staff }
 }

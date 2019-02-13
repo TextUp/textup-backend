@@ -32,11 +32,11 @@ class IncomingMediaInfo implements IsIncomingMedia  {
     }
 
     static Result<IncomingMediaInfo> tryCreate(String messageId, TypeMap params, int index) {
-        String contentUrl = params.string(TwilioUtils.MEDIA_URL_PREFIX + index)
-        IncomingMediaInfo im1 = new IncomingMediaInfo(params.string(TwilioUtils.ID_ACCOUNT),
+        String contentUrl = params?.string(TwilioUtils.MEDIA_URL_PREFIX + index)
+        IncomingMediaInfo im1 = new IncomingMediaInfo(params?.string(TwilioUtils.ID_ACCOUNT),
             TwilioUtils.extractMediaIdFromUrl(contentUrl),
             messageId,
-            params.string(TwilioUtils.MEDIA_CONTENT_TYPE_PREFIX + index),
+            params?.string(TwilioUtils.MEDIA_CONTENT_TYPE_PREFIX + index),
             contentUrl)
         DomainUtils.tryValidate(im1, ResultStatus.CREATED)
     }

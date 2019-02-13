@@ -22,49 +22,84 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 @Unroll
-class ContactNumberSpec extends CustomSpec {
+class ContactNumberSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
+    void "test creation + constraints"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneNumber invalidNum = PhoneNumber.create("invalid")
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        Integer pref = TestUtils.randIntegerUpTo(88)
+
+        when:
+        Result res = ContactNumber.tryCreate(null, null, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = ContactNumber.tryCreate(ipr1, invalidNum, pref)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = ContactNumber.tryCreate(ipr1, pNum1, pref)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.owner == ipr1
+        res.payload.preference == pref
+        res.payload.number == pNum1.number
     }
 
-    void "test constraints"() {
-        when: "we have an empty contact number"
-        ContactNumber cn = new ContactNumber()
+    void "test sorting"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum2 = TestUtils.randPhoneNumber()
+        Integer pref1 = -8
+        Integer pref2 = 0
 
-        then: "invalid"
-        cn.validate() == false
-        cn.errors.errorCount == 3
+        when:
+        ContactNumber cNum1 = ContactNumber.tryCreate(ipr1, pNum1, pref1).payload
+        ContactNumber cNum2 = ContactNumber.tryCreate(ipr1, pNum2, pref2).payload
 
-        when: "we fill out fields"
-        String number = "1233940349"
-        cn = new ContactNumber(preference:8, owner:c1, number:number)
+        then:
+        [cNum2, cNum1].sort() == [cNum1, cNum2]
+    }
 
-        then: "valid"
-        cn.validate() == true
+    void "test equals and hash code"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum2 = TestUtils.randPhoneNumber()
+        Integer pref1 = -8
+        Integer pref2 = 0
 
-        when: "we officially add to relationship"
-        c1.addToNumbers(cn)
-        c1.save(flush:true, failOnError:true)
+        ContactNumber cNum1 = ContactNumber.tryCreate(ipr1, pNum1, pref1).payload
+        ContactNumber cNum2 = ContactNumber.tryCreate(ipr1, pNum1, pref1).payload
+        ContactNumber cNum3 = ContactNumber.tryCreate(ipr1, pNum2, pref2).payload
 
-        then: "getting contacts for phone and numbers"
-        ContactNumber.getContactsForPhoneAndNumbers(p1,
-            ["2390254789", number])[number] == [c1]
+        expect:
+        cNum1 == cNum1
+        cNum1.hashCode() == cNum1.hashCode()
 
-        when: "mark contact as deleted"
-        c1.isDeleted = true
-        c1.save(flush:true, failOnError:true)
+        cNum1 == cNum2
+        cNum1.hashCode() == cNum2.hashCode()
 
-        then: "no results for the number specified"
-        ContactNumber.getContactsForPhoneAndNumbers(p1,
-            ["2390254789", number])[number].isEmpty() == true
+        cNum1 != cNum3
+        cNum1.hashCode() != cNum3.hashCode()
+
+        cNum2 != cNum3
+        cNum2.hashCode() != cNum3.hashCode()
     }
 }

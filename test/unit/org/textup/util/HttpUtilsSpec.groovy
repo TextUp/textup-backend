@@ -23,6 +23,10 @@ class HttpUtilsSpec extends Specification {
         resultFactory(ResultFactory)
     }
 
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     void "test executing basic auth request"() {
         given:
         String root = TestConstants.TEST_HTTP_ENDPOINT
@@ -39,22 +43,20 @@ class HttpUtilsSpec extends Specification {
 
         when: "invalid credentials"
         res = HttpUtils.executeBasicAuthRequest("incorrect", "incorrect", request) { HttpResponse resp ->
-            statusCode = resp.statusLine.statusCode
             new Result()
         }
 
         then:
-        res.status == ResultStatus.OK
-        statusCode >= 400
+        res.status == ResultStatus.UNAUTHORIZED
 
         when: "valid credentials"
         res = HttpUtils.executeBasicAuthRequest(un, pwd, request) { HttpResponse resp ->
             statusCode = resp.statusLine.statusCode
-            new Result()
+            Result.void()
         }
 
         then:
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.NO_CONTENT
         statusCode < 400
     }
 }

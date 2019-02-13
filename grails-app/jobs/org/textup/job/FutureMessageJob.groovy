@@ -24,8 +24,8 @@ class FutureMessageJob implements Job {
 
     void execute(JobExecutionContext context) {
         JobDataMap data = context.mergedJobDataMap
-        String futureKey = data.getString(Constants.JOB_DATA_FUTURE_MESSAGE_KEY)
-        Long staffId = data.getLong(Constants.JOB_DATA_STAFF_ID)
+        String futureKey = data.getString(QuartzUtils.DATA_FUTURE_MESSAGE_KEY)
+        Long staffId = data.getLong(QuartzUtils.DATA_STAFF_ID)
         // delay to allow for the future message to be saved if we are firing it immediately so we
         // are able to find the future message when we are executing in the futureMessageJobService.
         // Delegate this to a new scheduled thread instead of blocking this thread to free up

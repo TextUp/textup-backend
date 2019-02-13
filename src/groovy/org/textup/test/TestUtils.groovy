@@ -14,6 +14,7 @@ import org.apache.commons.io.IOUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.reflection.*
+import org.joda.time.*
 import org.quartz.*
 import org.springframework.context.MessageSource
 import org.textup.*
@@ -64,10 +65,9 @@ class TestUtils {
     // ---------
 
     static PhoneNumber randPhoneNumber() {
-        PhoneNumber pNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        assert pNum.validate()
-        pNum
+        PhoneNumber.tryCreate(TestUtils.randPhoneNumberString()).payload
     }
+
     static String randPhoneNumberString() {
         String randNumber = generatePhoneNumber()
         while (GENERATED_NUMBERS.contains(randNumber)) {
@@ -76,6 +76,7 @@ class TestUtils {
         GENERATED_NUMBERS.add(randNumber)
         randNumber
     }
+
     private static String generatePhoneNumber() {
         int randString = TestUtils.randIntegerUpTo(Math.pow(10, 10) as Integer)
         "${TestConstants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
@@ -86,13 +87,11 @@ class TestUtils {
         (ensurePositive && rand <= 0) ? 1 : rand
     }
 
-    static String randString() {
-        UUID.randomUUID().toString()
-    }
+    static String randString() { UUID.randomUUID().toString() }
 
-    static String randUrl() {
-        new URI("https://www.example.com/${TestUtils.randString()}")
-    }
+    static String randUrl() { new URI("https://www.example.com/${TestUtils.randString()}") }
+
+    static String randEmail() { "${TestUtils.randString()}@textup.org" }
 
     static String encodeBase64String(byte[] rawData) {
         Base64.encodeBase64String(rawData)
@@ -189,6 +188,14 @@ class TestUtils {
     // --------------------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static void standardMockSetup() {
+        TestUtils.forceMock(AuthUtils, "encodeSecureString") { it }
+        IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        TestUtils.mockJsonToString()
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static <T> T getBean(GrailsApplication grailsApplication, Class<T> beanName) {
         grailsApplication.mainContext.getBean(beanName)
     }
@@ -210,7 +217,7 @@ class TestUtils {
     }
 
     static LinkGenerator mockLinkGenerator() {
-        [link: { Map m -> (m.params ?: [:]).toString() }] as LinkGenerator
+        [link: { Map m -> (m ?: [:]).toString() }] as LinkGenerator
     }
 
     static LinkGenerator mockLinkGeneratorWithDomain(String domain = "https://www.example.com") {
@@ -228,6 +235,8 @@ class TestUtils {
         MESSAGE_SOURCE
     }
 
+    // [NOTE] may need to also mix in `ControllerUnitTestMixin` via `@TestMixin` for as JSON casting to work
+    // see https://stackoverflow.com/a/15485593
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static void mockJsonToString() {
         // in unit tests, don't have custom `default` marshallers so replace with simple JSON cast
@@ -237,9 +246,144 @@ class TestUtils {
     // Object generators
     // -----------------
 
+    static Author buildAuthor() {
+        Author.create(TestUtils.randIntegerUpTo(88, true) as Long,
+            TestUtils.randString(),
+            AuthorType.STAFF)
+    }
+
+    static Role buildRole() {
+        new Role(authority: TestUtils.randString()).save(flush: true, failOnError: true)
+    }
+
     static Location buildLocation() {
-        Location loc1 = new Location(address: "Testing Address", lat: 0G, lng: 0G)
+        Location loc1 = new Location(address: TestUtils.randString(),
+            lat: TestUtils.randIntegerUpTo(90),
+            lng: TestUtils.randIntegerUpTo(180))
         loc1.save(flush:true, failOnError:true)
+    }
+
+    static Organization buildOrg(OrgStatus status = OrgStatus.PENDING) {
+        new Organization(name: TestUtils.randString(), location: TestUtils.buildLocation(), status: status)
+            .save(flush: true, failOnError: true)
+    }
+
+    static Staff buildStaff(Organization org1 = null) {
+        Staff s1 = new Staff(name: TestUtils.randString(),
+            username: TestUtils.randString(),
+            password: TestUtils.randString(),
+            email: TestUtils.randEmail(),
+            personalNumber: TestUtils.randPhoneNumber(),
+            status: StaffStatus.STAFF,
+            org: org1 ?: TestUtils.buildOrg())
+        s1.save(flush: true, failOnError: true)
+    }
+
+    static Team buildTeam(Organization org1 = null) {
+        Team t1 = Team.tryCreate(org1 ?: TestUtils.buildOrg(),
+            TestUtils.randString(),
+            TestUtils.buildLocation())
+            .logFail("buildTeam")
+            .payload as Team
+        t1.save(flush: true, failOnError: true)
+    }
+
+    static OwnerPolicy buildOwnerPolicy(PhoneOwnership own1, Staff s1) {
+        OwnerPolicy op1 = OwnerPolicy.tryCreate(own1, s1.id)
+            .logFail("buildOwnerPolicy")
+            .payload as OwnerPolicy
+        op1.save(flush: true, failOnError: true)
+    }
+
+    static Phone buildTeamPhone(Team thisTeam = null) {
+        Team t1 = thisTeam ?: TestUtils.buildTeam()
+        Phone p1 = Phone.tryCreate(t1.id, PhoneOwnershipType.GROUP)
+            .logFail("buildTeamPhone")
+            .payload as Phone
+        p1.save(flush: true, failOnError: true)
+    }
+
+    static Phone buildActiveTeamPhone(Team thisTeam = null) {
+        Phone p1 = TestUtils.buildTeamPhone(thisTeam)
+        p1.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+        p1.save(flush: true, failOnError: true)
+    }
+
+    static Phone buildStaffPhone(Staff thisStaff = null) {
+        Staff s1 = thisStaff ?: TestUtils.buildStaff()
+        Phone p1 = Phone.tryCreate(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            .logFail("buildStaffPhone")
+            .payload as Phone
+        p1.save(flush: true, failOnError: true)
+    }
+
+    static Phone buildActiveStaffPhone(Staff thisStaff = null) {
+        Phone p1 = TestUtils.buildStaffPhone(thisStaff)
+        p1.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+        p1.save(flush: true, failOnError: true)
+    }
+
+    static IncomingSession buildSession(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildStaffPhone()
+        IncomingSession is1 = IncomingSession.tryCreate(p1, TestUtils.randPhoneNumber())
+            .logFail("buildSession")
+            .payload as IncomingSession
+        is1.save(flush: true, failOnError: true)
+    }
+
+    static FeaturedAnnouncement buildAnnouncement(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildStaffPhone()
+        FeaturedAnnouncement fa1 = FeaturedAnnouncement
+            .tryCreate(p1, DateTime.now().plusDays(2), TestUtils.randString())
+            .logFail("buildAnnouncement")
+            .payload as FeaturedAnnouncement
+        fa1.save(flush: true, failOnError: true)
+    }
+
+    static AnnouncementReceipt buildAnnouncementReceipt(FeaturedAnnouncement thisAnnounce = null) {
+        FeaturedAnnouncement fa1 = thisAnnounce ?: TestUtils.buildAnnouncement()
+        IncomingSession is1 = TestUtils.buildSession(fa1.phone)
+        AnnouncementReceipt aRpt1 = AnnouncementReceipt.tryCreate(fa1, is1, RecordItemType.CALL)
+            .logFail("buildAnnouncementReceipt")
+            .payload as AnnouncementReceipt
+        aRpt1.save(flush: true, failOnError: true)
+    }
+
+    static PhoneRecord buildSharedPhoneRecord(PhoneRecord recToShare = null, Phone sWith = null) {
+        PhoneRecord toShare = recToShare ?: TestUtils.buildIndPhoneRecord()
+        Phone p1 = sWith ?: TestUtils.buildStaffPhone()
+        PhoneRecord pr1 = PhoneRecord.tryCreate(SharePermission.DELEGATE, toShare, p1)
+            .logFail("buildSharedPhoneRecord")
+            .payload as PhoneRecord
+        pr1.save(flush: true, failOnError: true)
+    }
+
+    static IndividualPhoneRecord buildIndPhoneRecord(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildStaffPhone()
+        IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1)
+            .logFail("buildIndPhoneRecord")
+            .payload as IndividualPhoneRecord
+        ipr1.name = TestUtils.randString()
+        ipr1.mergeNumber(TestUtils.randPhoneNumber(), 0)
+            .logFail("buildIndPhoneRecord")
+        ipr1.save(flush: true, failOnError: true)
+    }
+
+    static GroupPhoneRecord buildGroupPhoneRecord(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildStaffPhone()
+        GroupPhoneRecord gpr1 = GroupPhoneRecord.tryCreate(p1, TestUtils.randString())
+            .logFail("buildGroupPhoneRecord")
+            .payload as GroupPhoneRecord
+        gpr1.name = TestUtils.randString()
+        gpr1.save(flush: true, failOnError: true)
+    }
+
+    static MediaInfo buildMediaInfo(MediaElement el1 = null) {
+        MediaInfo mInfo1 = new MediaInfo()
+        if (el1) {
+            mInfo1.addToMediaElements(el1)
+        }
+        mInfo1.save(flush: true, failOnError: true)
     }
 
     static MediaElement buildMediaElement(BigDecimal sendSize = 88) {
@@ -255,18 +399,37 @@ class TestUtils {
 
     static MediaElementVersion buildMediaElementVersion(BigDecimal sendSize = 88) {
         MediaElementVersion mVers1 = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
-            versionId: UUID.randomUUID().toString(),
+            versionId: TestUtils.randString(),
             sizeInBytes: sendSize.longValue(),
             widthInPixels: 888)
         assert mVers1.validate()
         mVers1
     }
 
+    static Record buildRecord() {
+        new Record().save(flush: true, failOnError: true)
+    }
+
+    static SimpleFutureMessage buildFutureMessage(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        SimpleFutureMessage sMsg1 = SimpleFutureMessage
+            .tryCreate(rec1, FutureMessageType.TEXT, TestUtils.randString(), null)
+            .logFail("buildFutureMessage")
+            .payload as SimpleFutureMessage
+        sMsg1.save(flush: true, failOnError: true)
+    }
+
+    static RecordItem buildRecordItem(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        new RecordItem(record: rec1).save(flush: true, failOnError: true)
+    }
+
     static RecordItemReceipt buildReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
         RecordItemReceipt rpt1 = new RecordItemReceipt(status: status,
             contactNumberAsString: TestUtils.randPhoneNumberString(),
-            apiId: UUID.randomUUID().toString())
-        rpt1
+            apiId: TestUtils.randString(),
+            item: TestUtils.buildRecordItem())
+        rpt1.save(flush: true, failOnError: true)
     }
 
     static TempRecordReceipt buildTempReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
@@ -287,6 +450,33 @@ class TestUtils {
         CustomAccountDetails cad1 = new CustomAccountDetails(accountId: TestUtils.randString(),
             authToken: TestUtils.randString())
         cad1.save(flush: true, failOnError: true)
+    }
+
+    static Token buildToken() {
+        Map data = TokenType.passwordResetData(TestUtils.randIntegerUpTo(88) as Long)
+        Token tok1 = Token.tryCreate(TokenType.PASSWORD_RESET, data).payload
+        tok1.save(flush: true, failOnError: true)
+    }
+
+    static Notification buildNotification() {
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+
+        NotificationDetail nd1 = NotificationDetail.tryCreate(ipr1.toWrapper()).payload
+        NotificationDetail nd2 = NotificationDetail.tryCreate(gpr1.toWrapper()).payload
+
+        RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
+        nd1.items << rItem1
+        RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
+        nd2.items << rItem2
+
+        Notification notif1 = Notification.tryCreate(p1).payload
+        notif1.addDetail(nd1)
+        notif1.addDetail(nd2)
+
+        assert notif1.validate()
+        notif1
     }
 
     // Mocking

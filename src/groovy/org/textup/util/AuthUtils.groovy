@@ -3,7 +3,6 @@ package org.textup.util
 import grails.compiler.GrailsTypeChecked
 import grails.plugin.springsecurity.userdetails.NoStackUsernameNotFoundException
 import org.springframework.security.authentication.BadCredentialsException
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
@@ -18,7 +17,7 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class AuthUtils {
 
-    static Result<Staff> tryGetAuthUser() {
+    static Result<Staff> tryGetActiveAuthUser() {
         AuthUtils.tryGetAuthId()
             .then { Long authId ->
                 Staff s1 = Staff.get(authId)
@@ -41,7 +40,7 @@ class AuthUtils {
         try {
             UserDetailsService userDetailsService = IOCUtils.security.userDetailsService as UserDetailsService
             UserDetails details = userDetailsService.loadUserByUsername(username)
-            IOCUtils.getBean(DaoAuthenticationProvider)
+            IOCUtils.authProvider
                 .authenticate(new UsernamePasswordAuthenticationToken(details, password))
                 .authenticated
         }

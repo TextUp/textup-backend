@@ -4,6 +4,7 @@ import com.twilio.rest.api.v2010.account.message.Media
 import com.twilio.rest.api.v2010.account.Recording
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.TupleConstructor
 import groovy.util.logging.Log4j
 import org.springframework.validation.Errors
 import org.textup.*
@@ -14,6 +15,7 @@ import org.textup.util.domain.*
 
 @GrailsTypeChecked
 @Log4j
+@TupleConstructor(includeFields = true)
 @Validateable
 class IncomingRecordingInfo implements IsIncomingMedia {
 
@@ -29,10 +31,10 @@ class IncomingRecordingInfo implements IsIncomingMedia {
     }
 
     static Result<IncomingRecordingInfo> tryCreate(TypeMap params) {
-        IncomingRecordingInfo ir1 = new IncomingRecordingInfo(params.string(TwilioUtils.ID_ACCOUNT),
-            params.string(TwilioUtils.ID_RECORDING),
+        IncomingRecordingInfo ir1 = new IncomingRecordingInfo(params?.string(TwilioUtils.ID_ACCOUNT),
+            params?.string(TwilioUtils.ID_RECORDING),
             MediaType.AUDIO_MP3.mimeType,
-            params.string(TwilioUtils.RECORDING_URL))
+            params?.string(TwilioUtils.RECORDING_URL))
         DomainUtils.tryValidate(ir1, ResultStatus.CREATED)
     }
 

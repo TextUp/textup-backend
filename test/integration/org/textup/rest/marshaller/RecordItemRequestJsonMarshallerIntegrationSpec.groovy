@@ -43,7 +43,7 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends CustomSpec {
         json.sections[0].recordItems.size() == iReq.recordItems.size()
 
         when: "with pagination options"
-        Utils.trySetOnRequest(Constants.REQUEST_PAGINATION_OPTIONS, [offset: 1000])
+        RequestUtils.trySet(Constants.REQUEST_PAGINATION_OPTIONS, [offset: 1000])
 
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
             json = TestUtils.jsonToMap(iReq as JSON)
@@ -74,7 +74,7 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends CustomSpec {
 
         when:
         String tzId = "Europe/Stockholm"
-        Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, tzId)
+        RequestUtils.trySet(Constants.REQUEST_TIMEZONE, tzId)
 
         Map json
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {

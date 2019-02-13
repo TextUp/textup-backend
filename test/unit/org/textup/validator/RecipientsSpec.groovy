@@ -14,266 +14,218 @@ import org.textup.type.*
 import org.textup.util.*
 import spock.lang.*
 
-@TestMixin(GrailsUnitTestMixin)
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
+@TestMixin(HibernateTestMixin)
 class RecipientsSpec extends Specification {
 
-    void "test constraints"() {
-        when: "empty object"
-        Recipients<String, String> recip = new Recipients<>()
-
-        then: "invalid"
-        recip.validate() == false
-
-        when: "set phone"
-        recip.phone = new Phone()
-
-        then: "valid"
-        recip.validate() == true
+    static doWithSpring = {
+        resultFactory(ResultFactory)
     }
 
-    void "test custom setter"() {
-        given: "obj with both ids and recipients"
-        Recipients<Integer, Integer> recip = new Recipients<>(phone: new Phone(),
-            ids: [1, 2, 3], recipients: [4, 5, 6])
-        assert recip.validate()
-
-        when: "set null ids"
-        recip.ids = null
-
-        then: "both ids and recipients are cleared"
-        Collections.emptyList() == recip.ids
-        Collections.emptyList() == recip.recipients
-
-        when: "set new ids"
-        recip.ids = [2, 4, 6]
-
-        then: "setting new ids attempts to build recipients from ids"
-        [2, 4, 6] == recip.ids
-        Collections.emptyList() == recip.recipients // from non-overridden method
+    def setup() {
+        TestUtils.standardMockSetup()
     }
 
-    void "test merging"() {
-        given: "valid obj"
-        Recipients<Integer, Integer> recip = new Recipients<>(phone: new Phone(),
-            ids: [1, 2, 3], recipients: [4, 5, 6])
-        assert recip.validate()
+    void "test creation given phone, phone record ids, and phone numbers"() {
+        given:
+        Phone p1 = TestUtils.buildActiveTeamPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        int prBaseline = PhoneRecord.count()
 
-        when: "merge with another where both generics agree"
-        Recipients<Integer, Integer> result = recip.mergeRecipients(new Recipients<Integer, Integer>(
-            recipients: [2, 3, 4]))
+        when:
+        Result res = Recipients.tryCreate(null, null, null, 0)
 
-        then: "ok"
-        result != null
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        PhoneRecord.count() == prBaseline
 
-        when: "merge with another where only recipients generic agrees"
-        result = recip.mergeRecipients(new Recipients<String, Integer>(
-            recipients: [2, 3, 4]))
+        when:
+        res = Recipients.tryCreate(p1, [ipr1, gpr1, spr1]*.id, [pNum1], 1)
 
-        then: "ok"
-        result != null
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-        when: "merge with another where neither generic agrees"
-        result = recip.mergeRecipients(new Recipients<String, String>(
-            recipients: ["hello", "there"]))
+        when:
+        res = Recipients.tryCreate(p1, [ipr1, gpr1, spr1]*.id, [pNum1], 10)
 
-        then: "still OK because generics type checking happens at compile time, not run time"
-        result != null
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.phone == p1
+        res.payload.all.size() == 4
+        ipr1 in res.payload.all
+        gpr1 in res.payload.all
+        spr1 in res.payload.all
+        res.payload.all.find { it instanceof IndividualPhoneRecord && it.sortedNumbers[0].number == pNum1.number }
+        PhoneRecord.count() == prBaseline + 1
+
+        when:
+        Result res2 = Recipients.tryCreate(p1, [ipr1, gpr1, spr1]*.id, [pNum1], 10)
+
+        then:
+        res2.status == ResultStatus.CREATED
+        res2.payload.phone == res.payload.phone
+        res2.payload.all.every { it in res.payload.all }
+        PhoneRecord.count() == prBaseline + 1
     }
 
-    // void "test building recipients from id"() {
-    //     given:
-    //     ContactRecipients recip = new ContactRecipients()
+    void "test creation given phone records"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
+        int prBaseline = PhoneRecord.count()
 
-    //     expect:
-    //     recip.buildRecipientsFromIds([]) == []
-    //     recip.buildRecipientsFromIds([c1.id, c1_1.id]) == [c1, c1_1]
-    //     recip.buildRecipientsFromIds([c1.id, c1_1.id, c2.id]) == [c1, c1_1, c2]
-    // }
+        when:
+        Result res = Recipients.tryCreate(null, null, 0)
 
-    // void "test constraints"() {
-    //     when: "empty obj with no recipients"
-    //     ContactRecipients recips = new ContactRecipients()
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        PhoneRecord.count() == prBaseline
 
-    //     then: "superclass constraints execute"
-    //     recips.validate() == false
-    //     recips.errors.getFieldErrorCount("phone") == 1
+        when:
+        res = Recipients.tryCreate([ipr1, gpr1], lang1, 10)
 
-    //     when: "set phone"
-    //     recips.phone = c1.phone
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.phone == ipr1.phone
+        res.payload.all.size() == 2
+        ipr1 in res.payload.all
+        gpr1 in res.payload.all
+        res.payload.language == lang1
+        PhoneRecord.count() == prBaseline
+    }
 
-    //     then: "valid"
-    //     recips.validate() == true
+    void "test getters"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
 
-    //     when: "array of null ids"
-    //     recips.ids = [null, null]
+        when:
+        Recipients recip1 = Recipients.tryCreate([ipr1], lang1, 10).payload
 
-    //     then: "null values are ignored"
-    //     recips.validate() == true
+        then:
+        recip1.tryGetOne().payload == ipr1.toWrapper()
+        recip1.tryGetOneIndividual().payload == ipr1.toWrapper()
 
-    //     when: "set ids with one foreign contact id + setter populates recipients"
-    //     recips.ids = [c1.id, c2.id]
+        when:
+        recip1 = Recipients.tryCreate([gpr1], lang1, 10).payload
 
-    //     then: "invalid foreign id"
-    //     recips.validate() == false
-    //     recips.errors.getFieldErrorCount("recipients") == 1
+        then:
+        recip1.tryGetOne().payload == gpr1.toWrapper()
+        recip1.tryGetOneIndividual().status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    //     when: "setting new ids + setter populates recipients"
-    //     recips.ids = [c1.id, c1_1.id]
+        when:
+        recip1 = Recipients.tryCreate([gpr1, ipr1], lang1, 10).payload
 
-    //     then: "all valid"
-    //     recips.validate() == true
-    // }
+        then:
+        recip1.tryGetOne().payload == gpr1.toWrapper()
+        recip1.tryGetOneIndividual().payload == ipr1.toWrapper()
+    }
 
-    // void "test building recipients from id"() {
-    //     given:
-    //     ContactTagRecipients recips = new ContactTagRecipients()
+    void "test building from name"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
 
-    //     expect:
-    //     recips.buildRecipientsFromIds([]) == []
-    //     recips.buildRecipientsFromIds([tag1.id, tag1_1.id, tag2.id]) == [tag1, tag1_1, tag2]
-    // }
+        when:
+        Recipients recip1 = Recipients.tryCreate([ipr1], lang1, 10).payload
 
-    // void "test constraints"() {
-    //     when: "empty obj with no recipients"
-    //     ContactTagRecipients recips = new ContactTagRecipients()
+        then:
+        recip1.buildFromName() == ipr1.phone.owner.buildName()
+    }
 
-    //     then: "superclass constraints execute"
-    //     recips.validate() == false
-    //     recips.errors.getFieldErrorCount("phone") == 1
+    void "test iterating through unique records"() {
+        given:
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
+        Phone p1 = TestUtils.buildActiveTeamPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        gpr1.members.addToPhoneRecords(ipr2)
 
-    //     when: "with phone"
-    //     recips.phone = p1
+        PhoneRecord.withSession { it.flush() }
 
-    //     then:
-    //     recips.validate() == true
+        List records = []
+        Closure doAction = { rec1 -> records << rec1 }
 
-    //     when: "array of null ids"
-    //     recips.ids = [null, null]
+        when:
+        Recipients.tryCreate([ipr1, gpr1], lang1, 10)
+            .payload
+            .eachRecord(doAction)
 
-    //     then: "null values are ignored"
-    //     recips.validate() == true
+        then:
+        records.size() == 3
+        ipr1.record in records
+        ipr2.record in records
+        gpr1.record in records
+    }
 
-    //     when: "set ids with one foreign id + setter populates recipients"
-    //     recips.ids = [tag1.id, tag1_1.id, tag2.id]
+    void "test iterating through owned and shared `IndividualPhoneRecord`s"() {
+        given:
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
+        Phone p1 = TestUtils.buildActiveTeamPhone()
 
-    //     then: "invalid foreign id"
-    //     recips.validate() == false
-    //     recips.errors.getFieldErrorCount("recipients") == 1
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        GroupPhoneRecord gpr2 = TestUtils.buildGroupPhoneRecord(p1)
 
-    //     when: "setting new ids + setter populates recipients"
-    //     recips.ids = [tag1.id, tag1_1.id]
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        gpr1.members.addToPhoneRecords(ipr2)
+        gpr2.members.addToPhoneRecords(ipr2)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        gpr1.members.addToPhoneRecords(spr1)
 
-    //     then: "all valid"
-    //     recips.validate() == true
-    // }
+        PhoneRecord.withSession { it.flush() }
 
-    // void "test building recipients from string phone number"() {
-    //     given: "empty obj"
-    //     NumberToContactRecipients recips = new NumberToContactRecipients()
+        List args = []
+        Closure doAction = { arg1, arg2 -> args << [arg1, arg2] }
 
-    //     when: "without phone or invalid"
-    //     List<Contact> recipList = recips.buildRecipientsFromIds(["626 123 1234", "626 349 1029"])
+        when:
+        Recipients.tryCreate([ipr1, gpr1, gpr2], lang1, 10)
+            .payload
+            .eachIndividualWithRecords(doAction)
 
-    //     then: "short circuit, returns empty list"
-    //     recipList == []
+        then:
+        args.size() == 3
+        args.find {
+            it[0] == ipr1.toWrapper() && it[1] == [ipr1.record]
+        }
+        args.find {
+            it[0] == ipr2.toWrapper() && it[1].size() == 3 &&
+                ipr2.record in it[1] &&
+                gpr1.record in it[1] &&
+                gpr2.record in it[1]
+        }
+        args.find {
+            it[0] == spr1.toWrapper() && it[1].size() == 2 &&
+                spr1.record in it[1] &&
+                gpr1.record in it[1]
+        }
 
-    //     when: "with phone and some invalid numbers"
-    //     recips.phone = p1
-    //     recipList = recips.buildRecipientsFromIds(["626 123 1234", "626 349", "291 291"])
+        when:
+        args.clear()
+        Recipients.tryCreate([ipr1, gpr2], lang1, 10)
+            .payload
+            .eachIndividualWithRecords(doAction)
 
-    //     then: "obj has errors"
-    //     recipList.size() == 1 // only build the one valid number
-    //     recips.hasErrors() == false // save the error building for when we call validate
-
-    //     when: "with phone and all valid numbers"
-    //     recipList = recips.buildRecipientsFromIds(["626 123 1234", "626 349 2910"])
-
-    //     then: "obj is valid"
-    //     recipList.size() == 2
-    //     recips.hasErrors() == false
-    // }
-
-    // void "test constraints"() {
-    //     when: "empty obj with no recipients"
-    //     NumberToContactRecipients recips = new NumberToContactRecipients()
-
-    //     then: "superclass constraints execute"
-    //     recips.validate() == false
-    //     recips.errors.getFieldErrorCount("phone") == 1
-
-    //     when: "with phone"
-    //     recips.phone = p1
-
-    //     then: "valid"
-    //     recips.validate() == true
-
-    //     when: "array of null ids"
-    //     recips.ids = [null, null]
-
-    //     then: "null values are ignored"
-    //     recips.validate() == true
-
-    //     when: "some invalid numbers"
-    //     recips.ids = ["626 123 1234", "i am not a real phone number"]
-
-    //     then:
-    //     recips.validate() == false
-    //     recips.errors.getFieldErrorCount("recipients") == 1
-
-    //     when: "with some ids"
-    //     recips.ids = ["626 123 1234", "626 349 2910"]
-
-    //     then:
-    //     recips.validate() == true
-    //     recips.ids.size() == 2
-    //     recips.recipients.size() == 2
-    // }
-
-    // void "test building recipients from id"() {
-    //     when: "without phone"
-    //     SharedContactRecipients recip = new SharedContactRecipients()
-
-    //     then: "empty result"
-    //     recip.buildRecipientsFromIds([1, 2, 3]) == Collections.emptyList()
-
-    //     when: "with phone"
-    //     recip.phone = p1
-
-    //     then: "appropriate shared contacts from contact ids"
-    //     recip.buildRecipientsFromIds([sc2.contactId]) == [sc2]
-    // }
-
-    // void "test constraints"() {
-    //     when: "empty obj with no recipients"
-    //     SharedContactRecipients recips = new SharedContactRecipients()
-
-    //     then: "superclass constraints execute"
-    //     recips.validate() == false
-    //     recips.errors.getFieldErrorCount("phone") == 1
-
-    //     when: "with phone"
-    //     recips.phone = p1
-
-    //     then: "valid"
-    //     recips.validate() == true
-
-    //     when: "array of null ids"
-    //     recips.ids = [null, null]
-
-    //     then: "null values are ignored"
-    //     recips.validate() == true
-
-    //     when: "set ids with one not shared contact id + setter populates recipients"
-    //     recips.ids = [sc1.contactId, sc2.contactId]
-
-    //     then: "invalid not shared id"
-    //     recips.validate() == false
-    //     recips.errors.getFieldErrorCount("recipients") == 1
-
-    //     when: "setting new ids + setter populates recipients"
-    //     recips.ids = [sc2.contactId]
-
-    //     then: "all valid"
-    //     recips.validate() == true
-    // }
+        then:
+        args.size() == 2
+        args.find {
+            it[0] == ipr1.toWrapper() && it[1] == [ipr1.record]
+        }
+        args.find {
+            it[0] == ipr2.toWrapper() && it[1].size() == 2 &&
+                ipr2.record in it[1] &&
+                gpr2.record in it[1]
+        }
+    }
 }

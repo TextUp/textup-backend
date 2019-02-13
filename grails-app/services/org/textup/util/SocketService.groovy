@@ -25,7 +25,7 @@ class SocketService {
     Pusher pusherService
 
     Result<Object> authenticate(String channelName, String socketId) {
-        AuthUtils.tryGetAuthUser()
+        AuthUtils.tryGetActiveAuthUser()
             .then { Staff authUser ->
                 if (socketId && authUser.username == SocketUtils.channelToUserName(channelName)) {
                     try {

@@ -69,7 +69,7 @@ class LocalInterval implements Comparable<LocalInterval>, CanValidate {
 
     @Override
     int compareTo(LocalInterval i) {
-        (start != i.start) ? start <=> i.start : end <=> i.end
+        start <=> i.start ?: end <=> i.end
     }
 
     @Override

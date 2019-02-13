@@ -40,7 +40,7 @@ class Result<T> {
         getSuccess() ? tryExecuteSuccess(successAction) : null
     }
 
-    void anyEnd(Closure<?> action) {
+    void alwaysEnd(Closure<?> action) {
         action?.call(this)
     }
 
@@ -79,9 +79,9 @@ class Result<T> {
     Result<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {
         if (!getSuccess()) {
             String statusString = status.intStatus.toString()
-            String msg = prefix
-                ? "${prefix}: ${statusString}: ${errorMessages}"
-                : "${statusString}: ${errorMessages}"
+            String msg = prefix ?
+                "${prefix}: ${statusString}: ${errorMessages}" :
+                "${statusString}: ${errorMessages}"
             switch (level) {
                 case LogLevel.DEBUG:
                     log.debug(msg)
@@ -101,16 +101,17 @@ class Result<T> {
     // Currying
     // --------
 
+    // TODO handle if we try to curry one thing and it ends up being null
     Result<T> curry(Object... args) {
         currySuccess(args)
         curryFailure(args)
     }
     Result<T> currySuccess(Object... args) {
-        successArgs.addAll(args)
+        successArgs.addAll(ResultUtils.normalizeVarArgs(args))
         this
     }
     Result<T> curryFailure(Object... args) {
-        failureArgs.addAll(args)
+        failureArgs.addAll(ResultUtils.normalizeVarArgs(args))
         this
     }
 
@@ -125,6 +126,12 @@ class Result<T> {
     Result<T> clearCurryFailure() {
         failureArgs.clear()
         this
+    }
+
+    boolean hasErrorBeenHandled() { hasErrorBeenHandled }
+
+    void resetErrorHandling() {
+        hasErrorBeenHandled = false
     }
 
     // Properties

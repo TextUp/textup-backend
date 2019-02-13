@@ -17,7 +17,6 @@ import org.textup.validator.*
 class PhoneRecordMembers implements WithId, CanSave<PhoneRecordMembers> {
 
     static hasMany = [phoneRecords: PhoneRecord]
-
     static constraints = {
         phoneRecords validator: { Collection<PhoneRecord> val ->
             if (val.any { PhoneRecord pr1 -> pr1.instanceOf(GroupPhoneRecord) }) {
@@ -28,5 +27,21 @@ class PhoneRecordMembers implements WithId, CanSave<PhoneRecordMembers> {
 
     static Result<PhoneRecordMembers> tryCreate() {
         DomainUtils.trySave(new PhoneRecordMembers(), ResultStatus.CREATED)
+    }
+
+    // Properties
+    // ----------
+
+    Collection<PhoneRecord> getAllActive() {
+        phoneRecords?.findAll { PhoneRecord pr1 -> pr1.isActive() } ?: new ArrayList<PhoneRecord>()
+    }
+
+    // Can't move to static class because Grails manages this relationship so no direct queries
+    Collection<PhoneRecord> getByStatus(Collection<PhoneRecordStatus> statuses) {
+        if (statuses) {
+            HashSet<PhoneRecordStatus> statusesToFind = new HashSet<>(statuses)
+            getAllActive().findAll { PhoneRecord pr1 -> statusesToFind.contains(pr1.status) }
+        }
+        else { getAllActive() }
     }
 }

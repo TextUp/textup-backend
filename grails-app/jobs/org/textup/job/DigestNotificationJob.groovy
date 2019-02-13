@@ -42,7 +42,7 @@ class DigestNotificationJob implements Job {
         NotificationFrequency freq1 = context.mergedJobDataMap.get(FREQ_KEY) as NotificationFrequency
         if (freq1) {
             Collection<RecordItem> rItems = RecordItems
-                .buildIncomingMessagesAfter(freq1.buildDateTimeInPast())
+                .buildForIncomingMessagesAfter(freq1.buildDateTimeInPast())
                 .list()
             NotificationUtils.tryBuildNotificationGroup(rItems)
                 .then { NotificationGroup notifGroup ->

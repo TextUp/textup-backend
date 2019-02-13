@@ -44,20 +44,23 @@ class TypeUtils {
     static <T> T to(Class<T> clazz, Object val) {
         TypeUtils.to(clazz, val, null)
     }
-    // TODO test if this works for object types like `Collection`
     static <T> T to(Class<T> clazz, Object val, T fallbackVal) {
         if (val == null) {
             return fallbackVal
         }
         Class<T> wrappedClazz = ClassUtils.primitiveToWrapper(clazz)
         try {
-            String str = "${val}".toLowerCase()
             switch (wrappedClazz) {
-                // note for String conversion we use default toString method on `val` not `str`
-                case String: return val?.toString() ?: fallbackVal
-                case Boolean: return (str == "true" || str == "false") ? str.toBoolean() : fallbackVal
-                case Number: return str.isBigDecimal() ? str.toBigDecimal().asType(wrappedClazz) : fallbackVal
-                default: return wrappedClazz.isAssignableFrom(val.getClass()) ? val.asType(wrappedClazz) : fallbackVal
+                case String:
+                    return val?.toString() ?: fallbackVal
+                case Boolean:
+                    String str = "${val}".toLowerCase()
+                    return (str == "true" || str == "false") ? str.toBoolean() : fallbackVal
+                case Number:
+                    String str = "${val}".toLowerCase()
+                    return str.isBigDecimal() ? str.toBigDecimal().asType(wrappedClazz) : fallbackVal
+                default:
+                    return wrappedClazz.isAssignableFrom(val.getClass()) ? val.asType(wrappedClazz) : fallbackVal
             }
         }
         catch (ClassCastException e) {

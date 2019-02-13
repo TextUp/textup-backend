@@ -28,8 +28,8 @@ class EmailEntity implements CanValidate {
     }
 
     static Result<EmailEntity> tryCreate(String name, String email) {
-        EmailEntity ee1 = new EmailEntity(name, email)
-        DomainUtils.tryValidate(ee1, ResultStatus.CREATED)
+        EmailEntity emailEntity1 = new EmailEntity(name, email)
+        DomainUtils.tryValidate(emailEntity1, ResultStatus.CREATED)
     }
 
     // Methods

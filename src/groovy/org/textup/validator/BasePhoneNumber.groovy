@@ -19,6 +19,14 @@ abstract class BasePhoneNumber implements CanValidate {
     @Override
     String toString() { prettyPhoneNumber }
 
+    @Override
+    boolean equals(Object obj) {
+        obj instanceof BasePhoneNumber ? number?.equals(obj.number) : false
+    }
+
+    @Override
+    int hashCode() { number?.hashCode() ?: 0 }
+
     // Properties
     // ----------
 

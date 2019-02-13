@@ -30,13 +30,13 @@ class Teams {
         }
     }
 
-    static DetachedCriteria<Team> buildForOrgIds(Collection<Long> orgIds) {
+    static DetachedCriteria<Team> buildActiveForOrgIds(Collection<Long> orgIds) {
         new DetachedCriteria(Team)
             .build { CriteriaUtils.inList(delegate, "org.id", orgIds) }
             .build(forActive())
     }
 
-    static DetachedCriteria<Team> buildForStaffIds(Collection<Long> staffIds) {
+    static DetachedCriteria<Team> buildActiveForStaffIds(Collection<Long> staffIds) {
         new DetachedCriteria(Team)
             .build(forStaffIds(staffIds))
             .build(forActive())
@@ -53,20 +53,26 @@ class Teams {
 
     // simulated INTERSECT, see http://www.mysqltutorial.org/mysql-intersect/
     static boolean hasTeamsInCommon(Long staffId1, Long staffId2) {
-        new DetachedCriteria(Team)
-            .build {
-                "in"("id", Teams.buildForStaffIds([staffId1])
-                    .build(CriteriaUtils.returnsId()))
-            }
-            .build(forStaffIds([staffId2]))
-            .count() > 0
+        if (staffId1 && staffId2) {
+            new DetachedCriteria(Team)
+                .build {
+                    "in"("id", Teams.buildActiveForStaffIds([staffId1])
+                        .build(CriteriaUtils.returnsId()))
+                }
+                .build(forStaffIds([staffId2]))
+                .count() > 0
+        }
+        else { false }
     }
 
     static boolean teamContainsMember(Long teamId, Long staffId) {
-        new DetachedCriteria(Team)
-            .build { idEq(teamId) }
-            .build(forStaffIds([staffId]))
-            .count() > 0
+        if (teamId && staffId) {
+            new DetachedCriteria(Team)
+                .build { idEq(teamId) }
+                .build(forStaffIds([staffId]))
+                .count() > 0
+        }
+        else { false }
     }
 
     // Helpers
@@ -91,8 +97,12 @@ class Teams {
         new DetachedCriteria(Team).build {
             idEq(thisId)
             or {
-                "in"("id", Teams.buildForStaffIds([authId]).build(CriteriaUtils.returnsId()))
-                "in"("org", Organizations.buildActiveForAdminIds([authId]))
+                "in"("id", Teams
+                    .buildActiveForStaffIds([authId])
+                    .build(CriteriaUtils.returnsId()))
+                "in"("org.id", Staffs
+                    .buildForIdsAndStatuses([authId], [StaffStatus.ADMIN])
+                    .build(Staffs.returnsOrgId()))
             }
         }
     }

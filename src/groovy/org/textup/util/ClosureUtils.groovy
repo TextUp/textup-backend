@@ -22,23 +22,29 @@ class ClosureUtils {
         }
     }
 
+    static def compose(Object delegate, Closure action) {
+        action.delegate = delegate
+        action.call()
+    }
+
     // Helpers
     // -------
 
     static List<Object> buildArgs(int maxNumArgs, List<?> args) {
-        int numArgs = args.size()
+        List thisArgs = args ?: []
+        int numArgs = thisArgs.size()
         if (maxNumArgs == 0) {
             []
         }
         else if (numArgs == maxNumArgs) {
-            args
+            thisArgs
         }
         else if (numArgs > maxNumArgs) {
-            args[0..(maxNumArgs - 1)]
+            thisArgs[0..(maxNumArgs - 1)]
         }
         else { // numArgs < maxNumArgs
-            args.addAll(Collections.nCopies(maxNumArgs - numArgs, null))
-            args
+            thisArgs.addAll(Collections.nCopies(maxNumArgs - numArgs, null))
+            thisArgs
         }
     }
 }

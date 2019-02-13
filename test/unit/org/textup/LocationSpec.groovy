@@ -18,82 +18,79 @@ import spock.lang.*
 @TestMixin(HibernateTestMixin)
 class LocationSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     void "test constraints and deletion"() {
+        given:
+        String address = TestUtils.randString()
+        BigDecimal validLat = 0G
+        BigDecimal validLng = 88G
+
     	when:
-    	Location l = new Location(address:"testing address")
+        Result res = Location.tryCreate(null, null, null)
 
     	then:
-    	l.validate() == false
-    	l.errors.errorCount == 2
+    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    	when: "lat out of bounds"
-    	l.lat = -100G
-    	l.lon = 0G
+    	when:
+        res = Location.tryCreate(address, -888G, -888G)
 
-    	then:
-    	l.validate() == false
-    	l.errors.errorCount == 1
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    	when: "lon out of bounds"
-    	l.lat = 0G
-    	l.lon = 200G
+        when:
+        res = Location.tryCreate(address, validLat, validLng)
 
-    	then:
-    	l.validate() == false
-    	l.errors.errorCount == 1
-
-    	when: "valid bounds"
-    	l.lat = 0G
-    	l.lon = 0G
-
-    	then:
-    	l.save(flush:true)
-
-    	when: "delete this location"
-    	int baseline = Location.count()
-    	l.delete(flush:true)
-
-    	then:
-    	Location.count() == baseline - 1
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.address == address
+        res.payload.lat == validLat
+        res.payload.lng == validLng
     }
 
     void "test duplicating persistent state"() {
         given: "an unsaved obj"
-        Location loc = new Location(address: "hi", lat: 0G, lon: 0G)
-        assert loc.validate()
+        Location loc1 = new Location(address: "hi", lat: 0G, lng: 0G)
+        assert loc1.validate()
 
         when: "try create duplicate"
-        Location dup = loc.tryDuplicatePersistentState()
+        Location dup = loc1.tryDuplicatePersistentState()
 
         then: "cannot do so because no persisted values to draw from"
         dup == null
 
         when: "save obj, then create duplicate"
-        loc.save(flush: true, failOnError:true)
-        dup = loc.tryDuplicatePersistentState()
+        loc1.save(flush: true, failOnError:true)
+        dup = loc1.tryDuplicatePersistentState()
 
         then: "persisted values are NOT null"
         dup instanceof Location
         null != dup.address
-        dup.address == loc.address
+        dup.address == loc1.address
         null != dup.lat
-        dup.lat == loc.lat
-        null != dup.lon
-        dup.lon == loc.lon
+        dup.lat == loc1.lat
+        null != dup.lng
+        dup.lng == loc1.lng
 
         when: "change some values on the Location"
-        loc.address = "something else"
-        loc.lat = 8G
-        assert loc.validate()
-        dup = loc.tryDuplicatePersistentState()
+        loc1.address = "something else"
+        loc1.lat = 8G
+        assert loc1.validate()
+        dup = loc1.tryDuplicatePersistentState()
 
         then: "duplicate still uses persisted values"
         dup instanceof Location
         null != dup.address
-        dup.address != loc.address
+        dup.address != loc1.address
         null != dup.lat
-        dup.lat != loc.lat
-        null != dup.lon
-        dup.lon == loc.lon
+        dup.lat != loc1.lat
+        null != dup.lng
+        dup.lng == loc1.lng
     }
 }

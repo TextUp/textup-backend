@@ -23,7 +23,7 @@ class AnnouncementService implements ManagesDomain.Creater<FeaturedAnnouncement>
             .then { Phone p1 ->
                 FeaturedAnnouncement.tryCreate(p1, body.dateTime("expiresAt"), body.string("message"))
             }
-            .then { FeaturedAnnouncement fa1 -> AuthUtils.tryGetAuthUser().curry(fa1) }
+            .then { FeaturedAnnouncement fa1 -> AuthUtils.tryGetActiveAuthUser().curry(fa1) }
             .then { FeaturedAnnouncement fa1, Staff s1 ->
                 outgoingAnnouncementService.send(fa1, Author.create(s1))
             }

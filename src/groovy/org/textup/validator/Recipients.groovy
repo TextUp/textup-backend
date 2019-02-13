@@ -10,7 +10,7 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
-@EqualsAndHashCode
+@EqualsAndHashCode(includeFields = true)
 @GrailsTypeChecked
 @TupleConstructor(includeFields = true)
 @Validateable
@@ -28,6 +28,8 @@ class Recipients implements CanValidate {
                 if (val.findAll { !it.toPermissions().canModify() }) {
                     return ["someNoPermissions", all*.id]
                 }
+                // TODO for text we want to also count the members within each tag, but we do not want
+                // to do this for calls and notes -- how to handle this?
                 if (val.size() > obj.maxNum) {
                     return ["tooManyRecipients", val.size(), obj.maxNum]
                 }
@@ -38,28 +40,29 @@ class Recipients implements CanValidate {
     static Result<Recipients> tryCreate(Phone p1, Collection<Long> prIds,
         Collection<PhoneNumber> pNums, int maxNum) {
         // create new contacts as needed
-        IndividualPhoneRecords.tryFindEveryByNumbers(p1, pNums, true)
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, pNums, true)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> ipRecs ->
                 // then fetch the shared contacts + tags
                 Collection<? extends PhoneRecord> pRecs = PhoneRecords
-                    .buildActiveForPhoneIds([p1.id])
+                    .buildActiveForPhoneIds([p1?.id])
                     .build(PhoneRecords.forIds(prIds))
                     .list()
                 pRecs.addAll(CollectionUtils.mergeUnique(ipRecs.values()))
-                Recipients.tryCreate(p1, pRecs, p1.language, maxNum)
+                Recipients.tryCreateForPhoneAndObjs(p1, pRecs, p1?.language, maxNum)
             }
     }
 
     static Result<Recipients> tryCreate(Collection<? extends PhoneRecord> pRecs,
         VoiceLanguage language, int maxNum) {
 
-        Recipients.tryCreate(pRecs?.getAt(0)?.phone, pRecs, language, maxNum)
+        Recipients.tryCreateForPhoneAndObjs(pRecs?.getAt(0)?.phone, pRecs, language, maxNum)
     }
 
-    static Result<Recipients> tryCreate(Phone p1, Collection<? extends PhoneRecord> pRecs,
+    static Result<Recipients> tryCreateForPhoneAndObjs(Phone p1, Collection<? extends PhoneRecord> thisPhoneRecs,
         VoiceLanguage language, int maxNum) {
 
-        Recipients r1 = new Recipients(Collections.unmodifiableCollection(pRecs),
+        Collection<? extends PhoneRecord> prs = thisPhoneRecs ?: new ArrayList<? extends PhoneRecord>()
+        Recipients r1 = new Recipients(Collections.unmodifiableCollection(prs),
             maxNum,
             p1,
             language)
@@ -96,18 +99,21 @@ class Recipients implements CanValidate {
         CollectionUtils.mergeUnique(all*.buildRecords()).each(action)
     }
 
-    // loops through owned and shared individuals, calling each passing the
+    // loops through owned and shared `IndividualPhoneRecord`s, calling each passing the
     // `IndividualPhoneRecordWrapper` and all relevant individual and group records
     void eachIndividualWithRecords(Closure action) {
         Collection<GroupPhoneRecord> groups = []
-        all.each { PhoneRecord pr1 ->
+        HashSet<? extends PhoneRecord> individualPhoneRecs = new HashSet<>()
+        all?.each { PhoneRecord pr1 ->
             if (pr1 instanceof GroupPhoneRecord) {
                 GroupPhoneRecord gpr1 = pr1 as GroupPhoneRecord
                 groups << gpr1
+                individualPhoneRecs.addAll(gpr1.members.allActive)
             }
+            else { individualPhoneRecs << pr1 }
         }
         Map<Long, Collection<GroupPhoneRecord>> idToGroups = PhoneRecordUtils.buildMemberIdToGroups(groups)
-        all?.each { PhoneRecord pr1 ->
+        individualPhoneRecs.each { PhoneRecord pr1 ->
             PhoneRecordWrapper w1 = pr1.toWrapper()
             if (w1 instanceof IndividualPhoneRecordWrapper) {
                 action.call(w1, CollectionUtils.mergeUnique([[pr1.record], idToGroups[pr1.id]*.record]))

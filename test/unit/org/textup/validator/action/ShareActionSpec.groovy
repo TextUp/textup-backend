@@ -1,10 +1,12 @@
 package org.textup.validator.action
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
+import org.textup.test.*
+import org.textup.type.*
+import spock.lang.*
 
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
@@ -13,18 +15,14 @@ import org.textup.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class ShareActionSpec extends CustomSpec {
+class ShareActionSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
-
-    def setup() {
-    	setupData()
+        resultFactory(ResultFactory)
     }
 
-    def cleanup() {
-    	cleanupData()
+    def setup() {
+        TestUtils.standardMockSetup()
     }
 
 	void "test constraints for empty"() {
@@ -33,36 +31,34 @@ class ShareActionSpec extends CustomSpec {
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 2
 
 		when: "empty for merging"
-		act1.action = Constants.SHARE_ACTION_MERGE
+		act1.action = ShareAction.MERGE
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 2
 		act1.errors.getFieldError("id").code == "nullable"
 		act1.errors.getFieldError("permission").code == "invalid"
 
 		when: "empty for stopping"
-		act1.action = Constants.SHARE_ACTION_STOP
+		act1.action = ShareAction.STOP
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 1
 		act1.errors.getFieldError("id").code == "nullable"
+		act1.errors.getFieldErrorCount("permission") == 0
 	}
 
 	void "test constraints for stopping"() {
 		given: "an empty stop action"
-		ShareAction act1 = new ShareAction(action:Constants.SHARE_ACTION_STOP)
+		Phone p1 = TestUtils.buildStaffPhone()
+		ShareAction act1 = new ShareAction(action: ShareAction.STOP)
 
 		when: "a nonexistent phone id"
 		act1.id = -88L
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 1
 		act1.errors.getFieldError("id").code == "doesNotExist"
 
 		when: "an existing phone id"
@@ -70,26 +66,28 @@ class ShareActionSpec extends CustomSpec {
 
 		then:
 		act1.validate() == true
+		act1.buildPhone() == p1
 	}
 
 	void "test constraints for merging"() {
-		given: "a valid merge action"
-		ShareAction act1 = new ShareAction(action:Constants.SHARE_ACTION_MERGE,
-			id:p1.id, permission:"dElEgATE")
-		assert act1.validate() == true
+		given:
+		Phone p1 = TestUtils.buildStaffPhone()
 
-		when: "invalid permission"
-		act1.permission = "i am an invalid permission level"
-
-		then:
-		act1.validate() == false
-		act1.errors.errorCount == 1
-		act1.errors.getFieldError("permission").code == "invalid"
-
-		when: "valid permission of varying case"
-		act1.permission = "vieW"
+		when:
+		ShareAction act1 = new ShareAction(action: ShareAction.MERGE,
+			id: p1.id,
+			permission: "dElEgATE")
 
 		then:
 		act1.validate() == true
+		act1.buildPhone() == p1
+		act1.buildSharePermission() == SharePermission.DELEGATE
+
+		when:
+		act1.permission = TestUtils.randString()
+
+		then:
+		act1.validate() == false
+		act1.errors.getFieldError("permission").code == "invalid"
 	}
 }

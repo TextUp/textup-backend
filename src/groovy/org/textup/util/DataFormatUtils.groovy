@@ -9,6 +9,7 @@ import groovy.util.logging.Log4j
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
@@ -26,7 +27,7 @@ class DataFormatUtils {
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static String toJsonString(Object data) {
         if (data) {
-            JSON.use(Holders.flatConfig["textup.rest.defaultLabel"]) {
+            JSON.use(MarshallerUtils.MARSHALLER_DEFAULT) {
                 (data as JSON).toString()
             }
         }
@@ -36,6 +37,7 @@ class DataFormatUtils {
     static Object jsonToObject(Object data) throws JsonException {
         data ? new JsonSlurper().parseText(toJsonString(data)) : null
     }
+
     static Object jsonToObject(String str) throws JsonException {
         str ? new JsonSlurper().parseText(str) : null
     }

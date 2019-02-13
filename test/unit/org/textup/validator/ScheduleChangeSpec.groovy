@@ -18,32 +18,44 @@ import spock.lang.*
 @Unroll
 class ScheduleChangeSpec extends Specification {
 
+	static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
 	void "test constraints"() {
+		given:
+		DateTime dt = DateTime.now()
+		String tz = "America/Los_Angeles"
+
 		when: "we have a blank object"
-		ScheduleChange sc = new ScheduleChange()
+		Result res = ScheduleChange.tryCreate(null, null, null)
 
 		then: "invalid"
-		sc.validate() == false
-		sc.errors.errorCount == 2
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
 		when: "we fill out the type and when"
-		sc = new ScheduleChange(type:ScheduleStatus.AVAILABLE,
-			when:DateTime.now())
+		res = ScheduleChange.tryCreate(ScheduleStatus.AVAILABLE, dt, null)
 
 		then: "valid"
-		sc.validate() == true
-	}
+		res.status == ResultStatus.CREATED
+		res.payload instanceof ScheduleChange
+		res.payload.type == ScheduleStatus.AVAILABLE
+		res.payload.when == dt
+		res.payload.timezone == null
 
-	void "test timezones"() {
-		given: "a valid ScheduleChange"
-		ScheduleChange sc = new ScheduleChange(type:ScheduleStatus.AVAILABLE,
-			when:DateTime.now())
-		assert sc.validate()
+		when:
+		res = ScheduleChange.tryCreate(ScheduleStatus.UNAVAILABLE, dt, tz)
 
-		when: "we set the timezone"
-		sc.timezone = "America/Los_Angeles"
-
-		then: "we get times in that timezone"
-		sc.when.zone.getID() == "America/Los_Angeles"
+		then:
+		res.status == ResultStatus.CREATED
+		res.payload instanceof ScheduleChange
+		res.payload.type == ScheduleStatus.UNAVAILABLE
+		res.payload.when == dt
+		res.payload.when.zone.getID() == tz
+		res.payload.timezone == tz
 	}
 }

@@ -21,11 +21,11 @@ class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
     String message
 
     static mapping = {
-        whenCreated type:PersistentDateTime
-        expiresAt type:PersistentDateTime
+        whenCreated type: PersistentDateTime
+        expiresAt type: PersistentDateTime
     }
     static constraints = {
-    	expiresAt validator:{ DateTime val, FeaturedAnnouncement obj ->
+    	expiresAt validator: { DateTime val, FeaturedAnnouncement obj ->
     		if (!val?.isAfter(obj.whenCreated)) { ["expiresBeforeCreation"] }
     	}
     }
@@ -33,13 +33,6 @@ class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
     static Result<FeaturedAnnouncement> tryCreate(Phone p1, DateTime expires, String msg) {
         FeaturedAnnouncement fa1 = new FeaturedAnnouncement(phone: p1, expiresAt: expires, message: msg)
         DomainUtils.trySave(fa1, ResultStatus.CREATED)
-    }
-
-    // Methods
-    // -------
-
-    void expireNow() {
-    	expiresAt = JodaUtils.utcNow()
     }
 
     // Properties

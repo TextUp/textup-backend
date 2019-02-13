@@ -10,20 +10,20 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
-@EqualsAndHashCode
+@EqualsAndHashCode(includeFields = true)
 @GrailsTypeChecked
-@TupleConstructor(includeFields = true, includes = ["mutablePhone"])
+@TupleConstructor(includeFields = true, includes = ["mutablePhone", "wrapperToDetails"])
 @Validateable
 class Notification implements CanValidate {
 
 	final Phone mutablePhone
-	private final Map<PhoneRecordWrapper, NotificationDetail> wrapperToDetails = [:]
+	final Map<PhoneRecordWrapper, NotificationDetail> wrapperToDetails
 
     final Collection<NotificationDetail> details
 
 	static constraints = {
 		details cascadeValidation: true
-		wrapperToDetails validation: { Map<PhoneRecordWrapper, NotificationDetail> val, Notification obj ->
+		wrapperToDetails validator: { Map<PhoneRecordWrapper, NotificationDetail> val, Notification obj ->
 			if (val && obj.mutablePhone) {
 				Collection<Long> pIds = WrapperUtils.mutablePhoneIdsIgnoreFails(val.keySet())
 				if (pIds.any { Long pId -> pId != obj.mutablePhone.id }) {
@@ -34,7 +34,7 @@ class Notification implements CanValidate {
 	}
 
 	static Result<Notification> tryCreate(Phone mutPhone1) {
-		DomainUtils.tryValidate(new Notification(mutPhone1), ResultStatus.CREATED)
+		DomainUtils.tryValidate(new Notification(mutPhone1, [:]), ResultStatus.CREATED)
 	}
 
 	// Methods
@@ -49,33 +49,33 @@ class Notification implements CanValidate {
 	}
 
 	boolean canNotifyAny(NotificationFrequency freq1) {
-		buildCanNotifyPolicies(freq1).isEmpty() == false
+		buildCanNotifyReadOnlyPolicies(freq1).isEmpty() == false
 	}
 
-	Collection<OwnerPolicy> buildCanNotifyPolicies(NotificationFrequency freq1) {
+	Collection<? extends ReadOnlyOwnerPolicy> buildCanNotifyReadOnlyPolicies(NotificationFrequency freq1) {
 		Collection<Long> itemIds = getItemIds()
 		mutablePhone?.owner
-			?.buildActivePoliciesForFrequency(freq1)
-			?.findAll { OwnerPolicy op1 -> op1.canNotifyForAny(itemIds) }
-			?: new ArrayList<OwnerPolicy>()
+			?.buildActiveReadOnlyPoliciesForFrequency(freq1)
+			?.findAll { ReadOnlyOwnerPolicy op1 -> op1.canNotifyForAny(itemIds) }
+			?: new ArrayList<ReadOnlyOwnerPolicy>()
 	}
 
-	int countItems(boolean isOut, OwnerPolicy op1, Class<? extends RecordItem> clazz) {
+	int countItems(boolean isOut, ReadOnlyOwnerPolicy rop1, Class<? extends RecordItem> clazz) {
 		getDetails().inject(0) { int sum, NotificationDetail nd1 ->
-    		sum + nd1.countItemsForOutgoingAndOptions(isOut, op1, clazz)
+    		sum + nd1.countItemsForOutgoingAndOptions(isOut, rop1, clazz)
     	} as Integer
     }
 
-    int countVoicemails(OwnerPolicy op1) {
+    int countVoicemails(ReadOnlyOwnerPolicy rop1) {
         getDetails().inject(0) { int sum, NotificationDetail nd1 ->
-        	sum + nd1.countVoicemails(op1)
+        	sum + nd1.countVoicemails(rop1)
         } as Integer
     }
 
-    Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(OwnerPolicy op1) {
+    Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(ReadOnlyOwnerPolicy rop1) {
         Collection<? extends RecordItem> allowedItems = []
         getDetails().each { NotificationDetail nd1 ->
-            allowedItems.addAll(nd1.buildAllowedItemsForOwnerPolicy(op1))
+            allowedItems.addAll(nd1.buildAllowedItemsForOwnerPolicy(rop1))
         }
         allowedItems
     }
@@ -91,13 +91,13 @@ class Notification implements CanValidate {
 
 	int getNumNotifiedForItem(NotificationFrequency freq1, RecordItem item) {
         getDetails().any { NotificationDetail nd1 -> nd1.items.contains(item) } ?
-        	buildCanNotifyPolicies(freq1).size() :
+        	buildCanNotifyReadOnlyPolicies(freq1).size() :
         	0
     }
 
     Collection<PhoneRecordWrapper> getWrappersForOutgoing(boolean isOut) {
     	getDetails()
     		.findAll { NotificationDetail nd1 -> nd1.countItemsForOutgoingAndOptions(isOut) > 0 }
-    		*.wrapper
+            *.wrapper
     }
 }

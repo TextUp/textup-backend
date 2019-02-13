@@ -17,7 +17,7 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
     int voicemailInSeconds = 0
 
     static constraints = { // default nullable: false
-        voicemailInSeconds minSize:0
+        voicemailInSeconds min: 0
     }
 
     static Result<RecordCall> tryCreate(Record rec1) {
@@ -59,7 +59,7 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
     // Properties
     // ----------
 
-    int getIsVoicemail() {
+    boolean getIsVoicemail() {
         voicemailInSeconds != 0
     }
 

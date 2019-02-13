@@ -38,7 +38,7 @@ class FeaturedAnnouncements {
     static DetachedCriteria<FeaturedAnnouncement> buildActiveForPhoneId(Long phoneId) {
         new DetachedCriteria(FeaturedAnnouncement).build {
             eq("phone.id", phoneId)
-            gt(expiresAt, DateTime.now())
+            gt("expiresAt", DateTime.now())
         }
     }
 
@@ -50,9 +50,8 @@ class FeaturedAnnouncements {
     // -------
 
     protected static DetachedCriteria<FeaturedAnnouncement> buildForAuth(Long thisId, Long authId) {
-        new DetachedCriteria(FeaturedAnnouncement).build {
-            idEq(thisId)
-            "in"("phone", Phones.buildAllActivePhonesForStaffId(authId))
-        }
+        new DetachedCriteria(FeaturedAnnouncement)
+            .build { idEq(thisId) }
+            .build(Phones.activeForPhonePropNameAndStaffId("phone", authId))
     }
 }

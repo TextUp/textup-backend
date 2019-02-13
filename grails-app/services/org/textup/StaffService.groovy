@@ -63,7 +63,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
             res = mailService.notifyAboutPendingStaff(s1, admins)
         }
         else if (s1.status == StaffStatus.STAFF) {
-            res = AuthUtils.tryGetAuthUser()
+            res = AuthUtils.tryGetActiveAuthUser()
                 .then { Staff authUser ->
                     mailService.notifyInvitation(authUser,
                         s1,

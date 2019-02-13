@@ -1,9 +1,10 @@
 package org.textup.util
 
-import grails.test.runtime.DirtiesRuntime
+import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
+import grails.test.runtime.DirtiesRuntime
 import grails.util.Holders
 import java.util.concurrent.*
 import org.apache.http.client.methods.*
@@ -12,7 +13,9 @@ import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.joda.time.DateTime
 import org.quartz.Scheduler
 import org.springframework.context.*
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.textup.*
+import org.textup.cache.*
 import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
@@ -53,6 +56,24 @@ class IOCUtilsSpec extends Specification {
 
         then:
         1 * applicationContext.getBean(MessageSource)
+
+        when:
+        IOCUtils.security
+
+        then:
+        1 * applicationContext.getBean(SpringSecurityService)
+
+        when:
+        IOCUtils.authProvider
+
+        then:
+        1 * applicationContext.getBean(DaoAuthenticationProvider)
+
+        when:
+        IOCUtils.phoneCache
+
+        then:
+        1 * applicationContext.getBean(PhoneCache)
     }
 
     void "testing getting webhook link"() {
@@ -71,6 +92,7 @@ class IOCUtilsSpec extends Specification {
         link.contains("publicRecord")
         link.contains("save")
         link.contains("v1")
+        link == IOCUtils.getHandleLink(handle)
     }
 
     void "test resolving message"() {

@@ -30,22 +30,30 @@ class ValidationUtils {
     static final long MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES = 5000000
     static final int MAX_NUM_MEDIA_PER_MESSAGE = 10
 
-    static final Pattern ABBREVIATED_HEX_PATTERN = Pattern.compile(/^#(\d|\w){3}/)
-    static final Pattern FULL_HEX_PATTERN = Pattern.compile(/^#(\d|\w){6}/)
+    static final Pattern HEX_PATTERN = Pattern.compile(/^#[a-fA-F\d]{3}|#[a-fA-F\d]{6}/)
     static final Pattern LOCK_CODE_PATTERN = Pattern.compile(/\d{${LOCK_CODE_LENGTH}}/)
     static final Pattern PUSHER_VALID_CHARS_PATTERN = Pattern.compile(/^[-_=@.,;A-Za-z0-9]+$/)
 
+    // `.matcher()` is not null safe. see: https://stackoverflow.com/a/41286846
     static boolean isValidLockCode(String lockCode) {
-        LOCK_CODE_PATTERN.matcher(ensureString(lockCode)).matches()
+        if (lockCode) {
+            LOCK_CODE_PATTERN.matcher(ensureString(lockCode)).matches()
+        }
+        else { false }
     }
 
     static boolean isValidForPusher(String val) {
-        PUSHER_VALID_CHARS_PATTERN.matcher(ensureString(val)).matches()
+        if (val) {
+            PUSHER_VALID_CHARS_PATTERN.matcher(ensureString(val)).matches()
+        }
+        else { false }
     }
 
-    static boolean isValidHexCode(String val) {
-        String hex = ensureString(val)
-        ABBREVIATED_HEX_PATTERN.matcher(hex).matches() || FULL_HEX_PATTERN.matcher(hex).matches()
+    static boolean isValidHexCode(String hex) {
+        if (hex) {
+            HEX_PATTERN.matcher(ensureString(hex)).matches()
+        }
+        else { false }
     }
 
     // Helpers

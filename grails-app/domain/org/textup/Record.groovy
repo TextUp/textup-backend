@@ -39,9 +39,6 @@ class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
         tryCreateItem(type, message)
             .then { RecordItem rItem1 ->
                 rItem1.outgoing = true
-                if (type == RecordItemType.CALL) {
-                    rItem1.noteContents = message
-                }
                 finishAdd(rItem1, a1, mInfo)
             }
     }
@@ -69,7 +66,20 @@ class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
     // -------
 
     protected Result<? extends RecordItem> tryCreateItem(RecordItemType type, String msg) {
-        type == RecordItemType.TEXT ? RecordText.tryCreate(this, msg) : RecordCall.tryCreate(this)
+        switch (type) {
+            case RecordItemType.TEXT:
+                RecordText.tryCreate(this, msg)
+                break
+            case RecordItemType.CALL:
+                RecordCall.tryCreate(this).then { RecordCall rCall1 ->
+                    rCall1.noteContents = msg
+                    IOCUtils.resultFactory.success(rCall1)
+                }
+                break
+            default:
+                IOCUtils.resultFactory.failWithCodeAndStatus("record.cannotAddNoteHere",
+                    ResultStatus.INTERNAL_SERVER_ERROR)
+        }
     }
 
     // don't handle note here because adding note should not update record timestamp

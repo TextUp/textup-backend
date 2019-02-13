@@ -21,49 +21,43 @@ import spock.lang.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class AnnouncementReceiptSpec extends CustomSpec {
+class AnnouncementReceiptSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
 
     def setup() {
-    	setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-    	cleanupData()
-    }
-
-    void "test constraints"() {
+    void "test static creation + constraints"() {
     	given: "announcement and session"
-    	FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-    		message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-    	IncomingSession session = new IncomingSession(phone:p1, numberAsString:"2223334444"),
-    		otherSess = new IncomingSession(phone:p2, numberAsString:"2223334444")
-    	[announce, session, otherSess]*.save(flush:true, failOnError:true)
+        Phone p1 = TestUtils.buildStaffPhone()
+    	FeaturedAnnouncement fa1 = TestUtils.buildAnnouncement(p1)
+        IncomingSession is1 = TestUtils.buildSession(p1)
+        IncomingSession is2 = TestUtils.buildSession()
 
-    	when: "we have an empty announcement receip"
-    	AnnouncementReceipt aRec = new AnnouncementReceipt()
+    	when: "we have an empty announcement receipt"
+        Result res = AnnouncementReceipt.tryCreate(null, null, null)
 
     	then: "invalid"
-    	aRec.validate() == false
-    	aRec.errors.errorCount == 3
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
     	when: "we fill out required fields from different phones"
-    	aRec = new AnnouncementReceipt(announcement:announce, session:otherSess,
-			type:RecordItemType.CALL)
+        res = AnnouncementReceipt.tryCreate(fa1, is2, RecordItemType.CALL)
 
     	then: "invalid"
-    	aRec.validate() == false
-    	aRec.errors.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
     	when: "we fill out required fields from same phone"
-    	aRec = new AnnouncementReceipt(announcement:announce, session:session,
-			type:RecordItemType.CALL)
+        res = AnnouncementReceipt.tryCreate(fa1, is1, RecordItemType.CALL)
 
     	then: "valid"
-    	aRec.validate() == true
-    	aRec.save(flush:true, failOnError:true)
+        res.status == ResultStatus.CREATED
+        res.payload instanceof AnnouncementReceipt
+        res.payload.type == RecordItemType.CALL
+        res.payload.session == is1
+        res.payload.announcement == fa1
     }
 }

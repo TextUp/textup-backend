@@ -24,10 +24,4 @@ class Constants {
 	static final String CACHE_PHONES_MAX_SIZE = 500
 	static final String CACHE_RECEIPTS = "receiptsCache"
 	static final String CACHE_RECEIPTS_MAX_SIZE = 500
-
-	// Quartz jobs
-	// -----------
-
-	static final String JOB_DATA_FUTURE_MESSAGE_KEY = "futureMessageKey"
-	static final String JOB_DATA_STAFF_ID = "futureMessageStaffId"
 }

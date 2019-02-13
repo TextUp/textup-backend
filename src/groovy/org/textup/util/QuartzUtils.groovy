@@ -14,6 +14,9 @@ import org.textup.validator.*
 @Log4j
 class QuartzUtils {
 
+    static final String DATA_FUTURE_MESSAGE_KEY = "futureMessageKey"
+    static final String DATA_STAFF_ID = "futureMessageStaffId"
+
     static Result<Tuple<Trigger, Trigger>> tryBuildTrigger(FutureMessage fMsg) {
         AuthUtils.tryGetAuthId()
             .then { Long authId ->
@@ -24,8 +27,8 @@ class QuartzUtils {
                     .forJob(FutureMessageJob.class.canonicalName)
                     .withIdentity(trigKey)
                     .startAt(fMsg.startDate?.toDate())
-                    .usingJobData(Constants.JOB_DATA_FUTURE_MESSAGE_KEY, fMsg.keyName)
-                    .usingJobData(Constants.JOB_DATA_STAFF_ID, authId)
+                    .usingJobData(QuartzUtils.DATA_FUTURE_MESSAGE_KEY, fMsg.keyName)
+                    .usingJobData(QuartzUtils.DATA_STAFF_ID, authId)
                 if (fMsg.endDate) {
                     builder.endAt(fMsg.endDate.toDate())
                 }

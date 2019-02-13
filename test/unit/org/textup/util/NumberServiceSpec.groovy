@@ -62,10 +62,4 @@ class NumberServiceSpec extends Specification {
         1 * service.tokenService.verifyNumber(*_) >> new Result()
         res.status == ResultStatus.OK
     }
-
-    void "test cleaning number search query"() {
-        expect:
-        service.cleanQuery(null) == ""
-        service.cleanQuery("&&&!@#abcABC123") == "abcABC123"
-    }
 }

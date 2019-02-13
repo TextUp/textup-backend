@@ -12,21 +12,21 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class OwnerPolicyJsonMarshaller extends JsonNamedMarshaller {
 
-    static final Closure marshalClosure = { OwnerPolicy op1 ->
+    static final Closure marshalClosure = { ReadOnlyOwnerPolicy rop1 ->
         Map json = [:]
         json.with {
-            frequency             = op1.frequency.toString()
-            level                 = op1.level.toString()
-            method                = op1.method.toString()
-            name                  = op1.staff.name
-            schedule              = op1.schedule
-            shouldSendPreviewLink = op1.shouldSendPreviewLink
-            staff                 = op1.staff.id
+            frequency             = rop1.frequency.toString()
+            level                 = rop1.level.toString()
+            method                = rop1.method.toString()
+            name                  = rop1.readOnlyStaff.name
+            schedule              = rop1.readOnlySchedule
+            shouldSendPreviewLink = rop1.shouldSendPreviewLink
+            staff                 = rop1.readOnlyStaff.id
         }
         json
     }
 
     OwnerPolicyJsonMarshaller() {
-        super(OwnerPolicy, marshalClosure)
+        super(ReadOnlyOwnerPolicy, marshalClosure)
     }
 }

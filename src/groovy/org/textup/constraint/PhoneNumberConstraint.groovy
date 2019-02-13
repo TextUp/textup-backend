@@ -37,13 +37,16 @@ class PhoneNumberConstraint extends AbstractVetoingConstraint {
 
     @Override
     protected boolean processValidateWithVetoing(Object target, Object propertyValue, Errors errors) {
-        boolean shouldVeto = !PHONE_NUMBER_PATTERN.matcher(propertyValue?.toString()).matches()
-        if (shouldVeto) {
-            rejectValue(target,
-                errors,
-                DEFAULT_CODE,
-                NAME + ConstrainedProperty.INVALID_SUFFIX,
-                [constraintPropertyName, constraintOwningClass, propertyValue] as Object[])
+        boolean shouldVeto = false
+        if (parameter == true) {
+            shouldVeto = !PHONE_NUMBER_PATTERN.matcher(propertyValue?.toString()).matches()
+            if (shouldVeto) {
+                rejectValue(target,
+                    errors,
+                    DEFAULT_CODE,
+                    NAME + ConstrainedProperty.INVALID_SUFFIX,
+                    [constraintPropertyName, constraintOwningClass, propertyValue] as Object[])
+            }
         }
         shouldVeto
     }

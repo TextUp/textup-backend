@@ -16,14 +16,15 @@ import org.textup.util.domain.*
 @Validateable
 class DehydratedRecipients implements CanValidate, Rehydratable<Recipients> {
 
-    private final Long phoneId
-    private final Collection<Long> allIds
-    private final Integer maxNum
-    private final VoiceLanguage language
+    final Long phoneId
+    final Collection<Long> allIds
+    final Integer maxNum
+    final VoiceLanguage language
 
     static Result<DehydratedRecipients> tryCreate(Recipients recips1) {
         DomainUtils.tryValidate(recips1).then {
-            DehydratedRecipients dr1 = new DehydratedRecipients(recips1.phone.id, recips1.all*.id,
+            Collection<Long> allIds = recips1.all.collect { it.id }
+            DehydratedRecipients dr1 = new DehydratedRecipients(recips1.phone.id, allIds,
                 recips1.maxNum, recips1.language)
             DomainUtils.tryValidate(dr1, ResultStatus.CREATED)
         }
@@ -34,7 +35,7 @@ class DehydratedRecipients implements CanValidate, Rehydratable<Recipients> {
 
     @Override
     Result<Recipients> tryRehydrate() {
-        Recipients.tryCreate(Phone.get(phoneId),
+        Recipients.tryCreateForPhoneAndObjs(Phone.get(phoneId),
             AsyncUtils.getAllIds(PhoneRecord, allIds),
             language,
             maxNum)

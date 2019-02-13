@@ -17,10 +17,9 @@ class IndividualPhoneRecord extends PhoneRecord {
     String note
 
     static hasMany = [numbers: ContactNumber]
+    // `name` and `isDeleted` columns are shared with `GroupPhoneRecord`
     static mapping = {
         numbers fetch: "join", cascade: "all-delete-orphan"
-        isDeleted column: "individual_is_deleted"
-        name column: "individual_name"
         note column: "individual_note", type: "text"
     }
     static constraints = {
@@ -33,6 +32,10 @@ class IndividualPhoneRecord extends PhoneRecord {
             .then { Record rec1 ->
                 IndividualPhoneRecord ipr1 = new IndividualPhoneRecord(phone: p1, record: rec1)
                 DomainUtils.trySave(ipr1, ResultStatus.CREATED)
+                    .ifFail { Result<?> failRes ->
+                        rec1.delete()
+                        failRes
+                    }
             }
     }
 

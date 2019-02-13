@@ -31,7 +31,12 @@ class PartialUploads implements CanValidate {
     }
 
     static Result<PartialUploads> tryCreate(Collection<UploadItem> uItems) {
-        ResultGroup.collect(uItems) { UploadItem uItem -> createAndAdd(uItem) }
+        ResultGroup
+            .collect(uItems) { UploadItem uItem ->
+                MediaElement.tryCreate([uItem]).then { MediaElement el1 ->
+                    IOCUtils.resultFactory.success(uItem, el1)
+                }
+            }
             .toResult(false)
             .then { Collection<Tuple<UploadItem, MediaElement>> tuples ->
                 PartialUploads.tryCreateFromTuples(tuples)
@@ -60,13 +65,5 @@ class PartialUploads implements CanValidate {
 
     Collection<MediaElement> getElements() {
         tuples.collect { Tuple<UploadItem, MediaElement> tup1 -> tup1.second }
-    }
-
-    // Helpers
-    // -------
-
-    protected Result<Tuple<UploadItem, MediaElement>> createAndAdd(UploadItem uItem) {
-        MediaElement.tryCreate([uItem])
-            .then { MediaElement el1 -> IOCUtils.resultFactory.success(uItem, el1) }
     }
 }

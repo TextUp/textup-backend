@@ -11,7 +11,7 @@ import org.textup.validator.*
 class WrapperUtils {
 
     static boolean isContact(PhoneRecordWrapper w1) {
-        w1 && w1.wrappedClass instanceof IndividualPhoneRecord && w1.isOverridden() == false
+        w1 && w1.wrappedClass?.isAssignableFrom(IndividualPhoneRecord) && w1.isOverridden() == false
     }
 
     static boolean isSharedContact(PhoneRecordWrapper w1) {
@@ -19,7 +19,7 @@ class WrapperUtils {
     }
 
     static boolean isTag(PhoneRecordWrapper w1) {
-        w1 && w1.wrappedClass instanceof GroupPhoneRecord
+        w1 && w1.wrappedClass?.isAssignableFrom(GroupPhoneRecord)
     }
 
     static Collection<Long> recordIdsIgnoreFails(Collection<? extends PhoneRecordWrapper> wraps) {
@@ -37,7 +37,7 @@ class WrapperUtils {
 
         ResultGroup<String> resGroup = new ResultGroup<>()
         wraps.each { PhoneRecordWrapper w1 ->
-            if (w1 && filterAction.call(w1)) {
+            if (w1 && ClosureUtils.execute(filterAction, [w1])) {
                 resGroup << w1.tryGetSecureName()
             }
         }

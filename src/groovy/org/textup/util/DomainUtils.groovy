@@ -23,11 +23,11 @@ class DomainUtils {
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static boolean hasDirtyNonObjectFields(Object obj, Collection<String> propsToIgnore) {
-        if (obj.metaClass.hasProperty("dirtyPropertyNames")) {
+    static boolean hasDirtyNonObjectFields(Object obj, Collection<String> propsToIgnore = []) {
+        if (obj.metaClass.respondsTo(obj, "getDirtyPropertyNames")) {
             List<String> dirtyProps = obj.dirtyPropertyNames
             !dirtyProps.isEmpty() &&
-                dirtyProps.findAll { !propsToIgnore.contains(it) }.size() > 0
+                dirtyProps.findAll { !propsToIgnore?.contains(it) }.size() > 0
         }
         else { false }
     }
@@ -43,7 +43,7 @@ class DomainUtils {
     }
 
     static <T extends CanSave> Result<Void> trySaveAll(Collection<T> objList) {
-        if (objList == null) {
+        if (objList != null) {
             ResultGroup<T> resGroup = new ResultGroup<>()
             objList.each { T obj -> resGroup << DomainUtils.trySave(obj) }
             if (resGroup.anyFailures) {
@@ -67,7 +67,7 @@ class DomainUtils {
     }
 
     static <T extends CanValidate> Result<Void> tryValidateAll(Collection<T> objList) {
-        if (objList == null) {
+        if (objList != null) {
             ResultGroup<T> resGroup = new ResultGroup<>()
             objList.each { T obj -> resGroup << DomainUtils.tryValidate(obj) }
             if (resGroup.anyFailures) {
