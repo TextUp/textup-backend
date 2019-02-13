@@ -97,7 +97,7 @@ class UsageUtilsSpec extends Specification {
         PhoneNumber pNum3 = TestUtils.randPhoneNumber()
 
         when: "null inputs"
-        mustFindActiveForId = TestUtils.mock(Phones, "mustFindActiveForId") { Result.void() }
+        mustFindActiveForId = MockedMethod.create(Phones, "mustFindActiveForId") { Result.void() }
         String numbers = UsageUtils.buildNumbersStringForMonth(null, null)
 
         then:
@@ -105,7 +105,7 @@ class UsageUtilsSpec extends Specification {
 
         when: "valid but no numbers found"
         mustFindActiveForId.restore()
-        mustFindActiveForId = TestUtils.mock(Phones, "mustFindActiveForId") { Result.createSuccess(p1) }
+        mustFindActiveForId = MockedMethod.create(Phones, "mustFindActiveForId") { Result.createSuccess(p1) }
         numbers = UsageUtils.buildNumbersStringForMonth(pId, dt)
 
         then:

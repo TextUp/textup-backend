@@ -36,8 +36,8 @@ class FutureMessagesSpec extends Specification {
         Staff s1 = TestUtils.buildStaff()
         FutureMessage fMsg1 = TestUtils.buildFutureMessage()
 
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
-        MockedMethod findEveryAllowedRecordIdForStaffId = TestUtils.mock(PhoneRecords, "findEveryAllowedRecordIdForStaffId") {
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
+        MockedMethod findEveryAllowedRecordIdForStaffId = MockedMethod.create(PhoneRecords, "findEveryAllowedRecordIdForStaffId") {
             []
         }
 
@@ -56,7 +56,7 @@ class FutureMessagesSpec extends Specification {
 
         when:
         findEveryAllowedRecordIdForStaffId.restore()
-        findEveryAllowedRecordIdForStaffId = TestUtils.mock(PhoneRecords, "findEveryAllowedRecordIdForStaffId") {
+        findEveryAllowedRecordIdForStaffId = MockedMethod.create(PhoneRecords, "findEveryAllowedRecordIdForStaffId") {
             [fMsg1.record.id]
         }
         res = FutureMessages.isAllowed(fMsg1.id)

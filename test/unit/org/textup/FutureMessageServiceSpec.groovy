@@ -392,7 +392,7 @@ class FutureMessageServiceSpec extends CustomSpec {
         given:
         service.mediaService = Mock(MediaService)
         Future fut1 = Mock()
-        MockedMethod setFromBody = TestUtils.mock(service, "setFromBody")
+        MockedMethod setFromBody = MockedMethod.create(service, "setFromBody")
             { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
 
         when: "error during creation"

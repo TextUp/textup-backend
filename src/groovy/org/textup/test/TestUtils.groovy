@@ -189,7 +189,7 @@ class TestUtils {
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static void standardMockSetup() {
-        TestUtils.forceMock(AuthUtils, "encodeSecureString") { it }
+        MockedMethod.force(AuthUtils, "encodeSecureString") { it }
         IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
         IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
         TestUtils.mockJsonToString()
@@ -324,7 +324,7 @@ class TestUtils {
     }
 
     static IncomingSession buildSession(Phone thisPhone = null) {
-        Phone p1 = thisPhone ?: TestUtils.buildStaffPhone()
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
         IncomingSession is1 = IncomingSession.tryCreate(p1, TestUtils.randPhoneNumber())
             .logFail("buildSession")
             .payload as IncomingSession
@@ -332,7 +332,7 @@ class TestUtils {
     }
 
     static FeaturedAnnouncement buildAnnouncement(Phone thisPhone = null) {
-        Phone p1 = thisPhone ?: TestUtils.buildStaffPhone()
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
         FeaturedAnnouncement fa1 = FeaturedAnnouncement
             .tryCreate(p1, DateTime.now().plusDays(2), TestUtils.randString())
             .logFail("buildAnnouncement")
@@ -351,7 +351,7 @@ class TestUtils {
 
     static PhoneRecord buildSharedPhoneRecord(PhoneRecord recToShare = null, Phone sWith = null) {
         PhoneRecord toShare = recToShare ?: TestUtils.buildIndPhoneRecord()
-        Phone p1 = sWith ?: TestUtils.buildStaffPhone()
+        Phone p1 = sWith ?: TestUtils.buildActiveStaffPhone()
         PhoneRecord pr1 = PhoneRecord.tryCreate(SharePermission.DELEGATE, toShare, p1)
             .logFail("buildSharedPhoneRecord")
             .payload as PhoneRecord
@@ -359,7 +359,7 @@ class TestUtils {
     }
 
     static IndividualPhoneRecord buildIndPhoneRecord(Phone thisPhone = null) {
-        Phone p1 = thisPhone ?: TestUtils.buildStaffPhone()
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
         IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1)
             .logFail("buildIndPhoneRecord")
             .payload as IndividualPhoneRecord
@@ -370,7 +370,7 @@ class TestUtils {
     }
 
     static GroupPhoneRecord buildGroupPhoneRecord(Phone thisPhone = null) {
-        Phone p1 = thisPhone ?: TestUtils.buildStaffPhone()
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
         GroupPhoneRecord gpr1 = GroupPhoneRecord.tryCreate(p1, TestUtils.randString())
             .logFail("buildGroupPhoneRecord")
             .payload as GroupPhoneRecord
@@ -481,18 +481,6 @@ class TestUtils {
 
     // Mocking
     // -------
-
-    static MockedMethod mock(Object obj, String methodName, Closure action = null) {
-        new MockedMethod(obj, methodName, action)
-    }
-    static MockedMethod forceMock(Object obj, String methodName, Closure action = null) {
-        try {
-            new MockedMethod(obj, methodName, action, true)
-        }
-        catch (IllegalArgumentException e) {
-            log.info("TestUtils.forceMock: ${e.message}")
-        }
-    }
 
     static ByteArrayOutputStream captureAllStreamsReturnStdOut() {
         OUTPUT_CAPTOR.capture().first

@@ -38,9 +38,9 @@ class NotificationInfoSpec extends Specification {
         String randStr1 = TestUtils.randString()
         int randInt1 = TestUtils.randIntegerUpTo(88)
         int randInt2 = TestUtils.randIntegerUpTo(88)
-        MockedMethod buildPublicNames = TestUtils.mock(NotificationUtils, "buildPublicNames") { randStr1 }
-        MockedMethod countVoicemails = TestUtils.mock(notif1, "countVoicemails") { randInt1 }
-        MockedMethod countItems = TestUtils.mock(notif1, "countItems") { randInt2 }
+        MockedMethod buildPublicNames = MockedMethod.create(NotificationUtils, "buildPublicNames") { randStr1 }
+        MockedMethod countVoicemails = MockedMethod.create(notif1, "countVoicemails") { randInt1 }
+        MockedMethod countItems = MockedMethod.create(notif1, "countItems") { randInt2 }
         ReadOnlyOwnerPolicy rop1 = GroovyMock() { asBoolean() >> true }
 
         when:
@@ -63,17 +63,17 @@ class NotificationInfoSpec extends Specification {
 
         then:
         buildPublicNames.callCount == 2
-        buildPublicNames.callArguments.find { it == [notif1, false] }
-        buildPublicNames.callArguments.find { it == [notif1, true] }
+        buildPublicNames.allArgs.find { it == [notif1, false] }
+        buildPublicNames.allArgs.find { it == [notif1, true] }
 
         countVoicemails.callCount == 1
-        countVoicemails.callArguments[0] == [rop1]
+        countVoicemails.allArgs[0] == [rop1]
 
         countItems.callCount == 4
-        countItems.callArguments.find { it == [false, rop1, RecordText] }
-        countItems.callArguments.find { it == [false, rop1, RecordCall] }
-        countItems.callArguments.find { it == [true, rop1, RecordText] }
-        countItems.callArguments.find { it == [true, rop1, RecordCall] }
+        countItems.allArgs.find { it == [false, rop1, RecordText] }
+        countItems.allArgs.find { it == [false, rop1, RecordCall] }
+        countItems.allArgs.find { it == [true, rop1, RecordText] }
+        countItems.allArgs.find { it == [true, rop1, RecordCall] }
 
         notifInfo.phoneName == p1.buildName()
         notifInfo.phoneNumber.number == p1.number.number
@@ -95,7 +95,7 @@ class NotificationInfoSpec extends Specification {
         given:
         String randStr1 = TestUtils.randString()
         String randStr2 = TestUtils.randString()
-        MockedMethod buildTextMessage = TestUtils.mock(NotificationUtils, "buildTextMessage") {
+        MockedMethod buildTextMessage = MockedMethod.create(NotificationUtils, "buildTextMessage") {
             randStr1
         }
         Token tok1 = GroovyStub() {
@@ -109,7 +109,7 @@ class NotificationInfoSpec extends Specification {
 
         then:
         buildTextMessage.callCount == 1
-        buildTextMessage.callArguments[0] == [notifInfo]
+        buildTextMessage.allArgs[0] == [notifInfo]
         msg.contains(randStr1)
         msg.contains(randStr2) == false
         msg.contains("notificationInfo.previewLink") == false
@@ -119,7 +119,7 @@ class NotificationInfoSpec extends Specification {
 
         then:
         buildTextMessage.callCount == 2
-        buildTextMessage.callArguments[1] == [notifInfo]
+        buildTextMessage.allArgs[1] == [notifInfo]
         msg.contains(randStr1)
         msg.contains(randStr2)
         msg.contains("notificationInfo.previewLink")

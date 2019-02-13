@@ -86,7 +86,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
     //     String phoneName = p1.name
     //     String phoneNumber = p1.number.prettyPhoneNumber
     //     String staffName = TestUtils.randString()
-    //     MockedMethod getAuthName = TestUtils.mock(authService, "getLoggedInAndActive") { ->
+    //     MockedMethod getAuthName = MockedMethod.create(authService, "getLoggedInAndActive") { ->
     //         GroovyStub(Staff) { getName() >> staffName }
     //     }
 
@@ -144,7 +144,7 @@ class ExportTransformIntegrationSpec extends CustomSpec {
     //     given:
     //     RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
     //     int totalNum = Constants.MAX_PAGINATION_MAX * 2
-    //     MockedMethod countRecordItems = TestUtils.mock(iReq, "countRecordItems") { totalNum }
+    //     MockedMethod countRecordItems = MockedMethod.create(iReq, "countRecordItems") { totalNum }
 
     //     when:
     //     GPathResult xml = TestUtils.buildXmlTransformOutput(grailsApplication, iReq)

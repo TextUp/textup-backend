@@ -54,7 +54,7 @@ class RecordControllerSpec extends CustomSpec {
     //     given:
     //     controller.authService = Mock(AuthService)
     //     String errorMsg = TestUtils.randString()
-    //     MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
+    //     MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
     //         Result.createError([errorMsg], ResultStatus.BAD_REQUEST)
     //     }
     //     Long teamId = TestUtils.randIntegerUpTo(88) + 1
@@ -103,7 +103,7 @@ class RecordControllerSpec extends CustomSpec {
     //         countRecordItems() >> 100
     //         getRecordItems(*_) >> []
     //     }
-    //     MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
+    //     MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
     //         Result.createSuccess(stubItemRequest, ResultStatus.OK)
     //     }
     //     String tzId = TestUtils.randString()
@@ -124,7 +124,7 @@ class RecordControllerSpec extends CustomSpec {
     //     Phone mockPhone = Mock()
     //     Staff staffStub = Stub { getPhone() >> mockPhone }
     //     RecordItemRequest mockItemRequest = Mock()
-    //     MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
+    //     MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
     //         Result.createSuccess(mockItemRequest, ResultStatus.OK)
     //     }
 
@@ -136,9 +136,9 @@ class RecordControllerSpec extends CustomSpec {
     //     1 * mockItemRequest.countRecordItems() >> 100
     //     1 * mockItemRequest.getRecordItems(*_) >> []
     //     buildRecordItemRequest.callCount == 1
-    //     buildRecordItemRequest.callArguments[0][0] == mockPhone
-    //     buildRecordItemRequest.callArguments[0][1] == params
-    //     buildRecordItemRequest.callArguments[0][2] == false
+    //     buildRecordItemRequest.allArgs[0][0] == mockPhone
+    //     buildRecordItemRequest.allArgs[0][1] == params
+    //     buildRecordItemRequest.allArgs[0][2] == false
     //     response.status == ResultStatus.OK.intStatus
     //     response.getHeaderValue("Content-Type") == "application/json;charset=UTF-8"
     //     response.json.records.size() == 0 // getRecordItems returns an empty list
@@ -153,7 +153,7 @@ class RecordControllerSpec extends CustomSpec {
     //     Phone mockPhone = Mock()
     //     Staff staffStub = Stub { getPhone() >> mockPhone }
     //     RecordItemRequest mockItemRequest = Mock()
-    //     MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
+    //     MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
     //         Result.createSuccess(mockItemRequest, ResultStatus.OK)
     //     }
 
@@ -166,9 +166,9 @@ class RecordControllerSpec extends CustomSpec {
     //     1 * controller.pdfService.buildRecordItems(mockItemRequest) >>
     //         Result.createSuccess([] as byte[], ResultStatus.OK)
     //     buildRecordItemRequest.callCount == 1
-    //     buildRecordItemRequest.callArguments[0][0] == mockPhone
-    //     buildRecordItemRequest.callArguments[0][1] == params
-    //     buildRecordItemRequest.callArguments[0][2] == false
+    //     buildRecordItemRequest.allArgs[0][0] == mockPhone
+    //     buildRecordItemRequest.allArgs[0][1] == params
+    //     buildRecordItemRequest.allArgs[0][2] == false
     //     response.status == ResultStatus.OK.intStatus
     //     response.getHeaderValue("Content-Type") == "application/pdf;charset=utf-8"
     //     response.getHeaderValue("Content-Disposition").contains("attachment;filename=")

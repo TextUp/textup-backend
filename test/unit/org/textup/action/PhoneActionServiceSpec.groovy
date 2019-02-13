@@ -1,104 +1,308 @@
 package org.textup.action
 
-import grails.test.mixin.TestFor
-import spock.lang.Specification
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import org.textup.*
+import org.textup.cache.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import org.textup.validator.action.*
+import spock.lang.*
 
-/**
- * See the API for {@link grails.test.mixin.services.ServiceUnitTestMixin} for usage instructions
- */
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
+@TestMixin(HibernateTestMixin)
 @TestFor(PhoneActionService)
 class PhoneActionServiceSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+        phoneCache(PhoneCache)
+    }
+
     def setup() {
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
+    void "test has actions"() {
+        expect:
+        service.hasActions(doPhoneActions: null) == false
+        service.hasActions(doPhoneActions: "hi")
     }
 
-    void "test something"() {
+    void "test handling actions errors"() {
+        given:
+        Phone p1 = GroovyStub() {
+            getCustomAccountId() >> TestUtils.randString()
+            getNumber() >> TestUtils.randPhoneNumber()
+        }
+        Phone p2 = GroovyStub()
+        PhoneAction a1 = GroovyMock()
+        MockedMethod tryProcess = MockedMethod.create(ActionContainer, "tryProcess") {
+            Result.createSuccess([a1])
+        }
+        MockedMethod tryDeactivatePhone = MockedMethod.create(service, "tryDeactivatePhone") {
+            Result.createError([], ResultStatus.UNPROCESSABLE_ENTITY)
+        }
+
+        when:
+        Result res = service.tryHandleActions(p1, [:])
+
+        then:
+        res.status == ResultStatus.FORBIDDEN
+
+        when:
+        res = service.tryHandleActions(p2, [:])
+
+        then:
+        1 * a1.toString() >> PhoneAction.DEACTIVATE
+        tryDeactivatePhone.latestArgs == [p2]
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        cleanup:
+        tryProcess?.restore()
+        tryDeactivatePhone?.restore()
     }
 
-    // TODO From Phone
-    // void "test transferring phone"() {
-    //     given: "baselines, staff without phone"
-    //     int oBaseline = PhoneOwnership.count()
-    //     int pBaseline = Phone.count()
+    void "test handling actions success"() {
+        given:
+        String str1 = TestUtils.randString()
+        PhoneOwnershipType pType = PhoneOwnershipType.values()[0]
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        String numId = TestUtils.randString()
+        Long targetId = TestUtils.randIntegerUpTo(88)
 
-    //     Staff noPhoneStaff = new Staff(username:"888-8sta$iterNum",
-    //         password:"password", name:"Staff", email:"staff@textup.org",
-    //         org:org, personalPhoneAsString:"1112223333", status: StaffStatus.STAFF,
-    //         lockCode:Constants.DEFAULT_LOCK_CODE)
-    //     noPhoneStaff.save(flush:true, failOnError:true)
+        Phone p1 = TestUtils.buildStaffPhone()
+        PhoneAction a1 = GroovyMock() {
+            getId() >> targetId
+            buildPhoneOwnershipType() >> pType
+            buildPhoneNumber() >> pNum1
+            getNumberId() >> numId
+        }
+        MockedMethod tryProcess = MockedMethod.create(ActionContainer, "tryProcess") {
+            Result.createSuccess([a1])
+        }
+        MockedMethod tryDeactivatePhone = MockedMethod.create(service, "tryDeactivatePhone") { Result.void() }
+        MockedMethod tryExchangeOwners = MockedMethod.create(service, "tryExchangeOwners") { Result.void() }
+        MockedMethod tryUpdatePhoneForNumber = MockedMethod.create(service, "tryUpdatePhoneForNumber") { Result.void() }
+        MockedMethod tryUpdatePhoneForApiId = MockedMethod.create(service, "tryUpdatePhoneForApiId") { Result.void() }
 
-    //     when: "transferring to a nonexistent entity"
-    //     Result<PhoneOwnership> res = s1.phone.transferTo(-88888,
-    //         PhoneOwnershipType.INDIVIDUAL)
+        when:
+        Result res = service.tryHandleActions(p1, [doPhoneActions: str1])
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
+        then:
+        tryProcess.latestArgs == [PhoneAction, str1]
+        a1.toString() >> PhoneAction.DEACTIVATE
+        tryDeactivatePhone.callCount == 1
+        tryDeactivatePhone.latestArgs == [p1]
+        tryExchangeOwners.callCount == 0
+        tryUpdatePhoneForNumber.callCount == 0
+        tryUpdatePhoneForApiId.callCount == 0
+        res.status == ResultStatus.OK
+        res.payload == p1
 
-    //     when: "transferring to an entity that doesn't already have a phone"
-    //     Phone myPhone = s1.phone,
-    //         targetPhone = null
-    //     def initialOwner = s1,
-    //         targetOwner = noPhoneStaff
-    //     res = myPhone.transferTo(targetOwner.id, PhoneOwnershipType.INDIVIDUAL)
-    //     myPhone.save(flush:true, failOnError:true)
+        when:
+        res = service.tryHandleActions(p1, [doPhoneActions: str1])
 
-    //     then: "phone is transferred"
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof PhoneOwnership
-    //     res.payload.ownerId == targetOwner.id
-    //     res.payload.type == PhoneOwnershipType.INDIVIDUAL
-    //     myPhone.owner.ownerId == targetOwner.id
-    //     myPhone.owner.type == PhoneOwnershipType.INDIVIDUAL
-    //     PhoneOwnership.count() == oBaseline
-    //     Phone.count() == pBaseline
+        then:
+        tryProcess.latestArgs == [PhoneAction, str1]
+        a1.toString() >> PhoneAction.TRANSFER
+        tryDeactivatePhone.callCount == 1
+        tryExchangeOwners.callCount == 1
+        tryExchangeOwners.latestArgs == [p1, targetId, pType]
+        tryUpdatePhoneForNumber.callCount == 0
+        tryUpdatePhoneForApiId.callCount == 0
+        res.status == ResultStatus.OK
+        res.payload == p1
 
-    //     when: "transferring to an entity that has an INactive phone"
-    //     initialOwner = targetOwner
-    //     targetPhone = s2.phone
-    //     targetOwner = s2
+        when:
+        res = service.tryHandleActions(p1, [doPhoneActions: str1])
 
-    //     targetPhone.deactivate()
-    //     targetPhone.save(flush:true, failOnError:true)
-    //     res = myPhone.transferTo(targetOwner.id, PhoneOwnershipType.INDIVIDUAL)
+        then:
+        tryProcess.latestArgs == [PhoneAction, str1]
+        a1.toString() >> PhoneAction.NEW_NUM_BY_NUM
+        tryDeactivatePhone.callCount == 1
+        tryExchangeOwners.callCount == 1
+        tryUpdatePhoneForNumber.callCount == 1
+        tryUpdatePhoneForNumber.latestArgs == [p1, pNum1]
+        tryUpdatePhoneForApiId.callCount == 0
+        res.status == ResultStatus.OK
+        res.payload == p1
 
-    //     then: "phones are swapped"
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof PhoneOwnership
-    //     res.payload.ownerId == targetOwner.id
-    //     res.payload.type == PhoneOwnershipType.INDIVIDUAL
-    //     myPhone.owner.ownerId == targetOwner.id
-    //     myPhone.owner.type == PhoneOwnershipType.INDIVIDUAL
-    //     targetPhone.owner.ownerId == initialOwner.id
-    //     targetPhone.owner.type == PhoneOwnershipType.INDIVIDUAL
-    //     PhoneOwnership.count() == oBaseline
-    //     Phone.count() == pBaseline
+        when:
+        res = service.tryHandleActions(p1, [doPhoneActions: str1])
 
-    //     when: "transferring to an entity that has an active phone"
-    //     initialOwner = targetOwner
-    //     targetPhone = t1.phone
-    //     targetOwner = t1
+        then:
+        tryProcess.latestArgs == [PhoneAction, str1]
+        a1.toString() >> PhoneAction.NEW_NUM_BY_ID
+        tryDeactivatePhone.callCount == 1
+        tryExchangeOwners.callCount == 1
+        tryUpdatePhoneForNumber.callCount == 1
+        tryUpdatePhoneForApiId.callCount == 1
+        tryUpdatePhoneForApiId.latestArgs == [p1, numId]
+        res.status == ResultStatus.OK
+        res.payload == p1
 
-    //     assert targetPhone.isActive
-    //     res = myPhone.transferTo(targetOwner.id, PhoneOwnershipType.GROUP)
+        cleanup:
+        tryProcess?.restore()
+        tryDeactivatePhone?.restore()
+        tryExchangeOwners?.restore()
+        tryUpdatePhoneForNumber?.restore()
+        tryUpdatePhoneForApiId?.restore()
+    }
 
-    //     then: "phones are swapped"
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof PhoneOwnership
-    //     res.payload.ownerId == targetOwner.id
-    //     res.payload.type == PhoneOwnershipType.GROUP
-    //     myPhone.owner.ownerId == targetOwner.id
-    //     myPhone.owner.type == PhoneOwnershipType.GROUP
-    //     targetPhone.owner.ownerId == initialOwner.id
-    //     targetPhone.owner.type == PhoneOwnershipType.INDIVIDUAL
-    //     PhoneOwnership.count() == oBaseline
-    //     Phone.count() == pBaseline
-    // }
+    void "test cleaning existing number"() {
+        given:
+        String apiId = TestUtils.randString()
+        Phone p1 = GroovyMock()
+        service.numberService = GroovyMock(NumberService)
+
+        when:
+        Result res = service.tryCleanExistingNumber(p1, null)
+
+        then:
+        0 * service.numberService._
+        res.status == ResultStatus.OK
+        res.payload == p1
+
+        when:
+        res = service.tryCleanExistingNumber(p1, apiId)
+
+        then:
+        1 * service.numberService.freeExistingNumberToInternalPool(apiId) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == p1
+    }
+
+    void "test trying to update phone given api id"() {
+        given:
+        String apiId1 = TestUtils.randString()
+        String apiId2 = TestUtils.randString()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+
+        Phone p1 = TestUtils.buildStaffPhone()
+        p1.apiId = apiId1
+
+        Phone.withSession { it.flush() }
+
+        service.numberService = GroovyMock(NumberService)
+
+        when:
+        Result res = service.tryUpdatePhoneForApiId(p1, apiId1)
+
+        then:
+        0 * service.numberService._
+        res.status == ResultStatus.OK
+        res.payload == p1
+        p1.apiId == apiId1
+        p1.number != pNum1
+
+        when:
+        res = service.tryUpdatePhoneForApiId(p1, apiId2)
+
+        then:
+        1 * service.numberService.changeForApiId(apiId2) >> Result.createSuccess(pNum1)
+        1 * service.numberService.freeExistingNumberToInternalPool(apiId1) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == p1
+        p1.apiId == apiId2
+        p1.number == pNum1
+    }
+
+    void "test trying to update phone given new phone number"() {
+        given:
+        String apiId1 = TestUtils.randString()
+        String apiId2 = TestUtils.randString()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum2 = TestUtils.randPhoneNumber()
+
+        Phone p1 = TestUtils.buildStaffPhone()
+        p1.number = pNum1
+        p1.apiId = apiId1
+
+        Phone.withSession { it.flush() }
+
+        service.numberService = GroovyMock(NumberService)
+
+        when:
+        Result res = service.tryUpdatePhoneForNumber(p1, pNum1)
+
+        then:
+        0 * service.numberService._
+        res.status == ResultStatus.OK
+        res.payload == p1
+        p1.number == pNum1
+
+        when:
+        res = service.tryUpdatePhoneForNumber(p1, pNum2)
+
+        then:
+        1 * service.numberService.changeForNumber(pNum2) >> Result.createSuccess(apiId2)
+        1 * service.numberService.freeExistingNumberToInternalPool(apiId1) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == p1
+        p1.number == pNum2
+        p1.number == pNum2
+    }
+
+    void "test trying exchange phone owners"() {
+        given:
+        Team t1 = TestUtils.buildTeam()
+        Staff s1 = TestUtils.buildStaff()
+
+        Phone p1 = TestUtils.buildStaffPhone()
+        Phone p2 = TestUtils.buildStaffPhone(s1)
+
+        when:
+        Result res = service.tryExchangeOwners(p1, t1.id, PhoneOwnershipType.GROUP)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == p1
+        res.payload.owner.ownerId == t1.id
+        res.payload.owner.type == PhoneOwnershipType.GROUP
+        p2.owner.ownerId == s1.id
+        p2.owner.type == PhoneOwnershipType.INDIVIDUAL
+
+        when:
+        res = service.tryExchangeOwners(p1, s1.id, PhoneOwnershipType.INDIVIDUAL)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == p1
+        res.payload.owner.ownerId == s1.id
+        res.payload.owner.type == PhoneOwnershipType.INDIVIDUAL
+        p2.owner.ownerId == t1.id
+        p2.owner.type == PhoneOwnershipType.GROUP
+    }
+
+    void "test trying to deactivate phone"() {
+        given:
+        String apiId = TestUtils.randString()
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        p1.apiId = apiId
+
+        Phone.withSession { it.flush() }
+        assert p1.isActive()
+
+        service.numberService = GroovyMock(NumberService)
+
+        when:
+        Result res = service.tryDeactivatePhone(p1)
+
+        then:
+        1 * service.numberService.freeExistingNumberToInternalPool(apiId) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == p1
+        res.payload.isActive() == false
+    }
 }

@@ -137,8 +137,8 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
         RecordItemReceipt mockRpt1 = GroovyMock()
         RecordItemReceipt mockRpt2 = GroovyMock()
-        MockedMethod shouldUpdateStatus = TestUtils.mock(TwilioUtils, "shouldUpdateStatus") { true }
-        MockedMethod shouldUpdateDuration = TestUtils.mock(TwilioUtils, "shouldUpdateDuration") { true }
+        MockedMethod shouldUpdateStatus = MockedMethod.create(TwilioUtils, "shouldUpdateStatus") { true }
+        MockedMethod shouldUpdateDuration = MockedMethod.create(TwilioUtils, "shouldUpdateDuration") { true }
 
         when: "no receipts found"
         Result<List<RecordItemReceipt>> res = service.updateExistingReceipts(apiId, status1, duration1)
@@ -179,19 +179,19 @@ class CallbackStatusServiceSpec extends CustomSpec {
         String textId = TestUtils.randString()
         ReceiptStatus status = ReceiptStatus.SUCCESS
 
-        MockedMethod updateExistingReceipts = TestUtils.mock(service, "updateExistingReceipts") {
+        MockedMethod updateExistingReceipts = MockedMethod.create(service, "updateExistingReceipts") {
             new Result(payload: [mockRpt])
         }
-        MockedMethod sendItemsThroughSocket = TestUtils.mock(service, "sendItemsThroughSocket")
+        MockedMethod sendItemsThroughSocket = MockedMethod.create(service, "sendItemsThroughSocket")
 
         when:
         Result<Void> res = service.handleUpdateForText(textId, status)
 
         then:
         updateExistingReceipts.callCount == 1
-        updateExistingReceipts.callArguments[0] == [textId, status, null]
+        updateExistingReceipts.allArgs[0] == [textId, status, null]
         sendItemsThroughSocket.callCount == 1
-        sendItemsThroughSocket.callArguments[0] == [[mockRpt]]
+        sendItemsThroughSocket.allArgs[0] == [[mockRpt]]
         res.status == ResultStatus.NO_CONTENT
 
         cleanup:
@@ -208,10 +208,10 @@ class CallbackStatusServiceSpec extends CustomSpec {
         Integer duration = TestUtils.randIntegerUpTo(100, true)
 
         RecordItemReceipt mockRpt = GroovyMock()
-        MockedMethod createNewReceipts = TestUtils.mock(service, "createNewReceipts") {
+        MockedMethod createNewReceipts = MockedMethod.create(service, "createNewReceipts") {
             new Result(payload: [mockRpt])
         }
-        MockedMethod sendItemsThroughSocket = TestUtils.mock(service, "sendItemsThroughSocket")
+        MockedMethod sendItemsThroughSocket = MockedMethod.create(service, "sendItemsThroughSocket")
 
         when:
         Result<Void> res = service
@@ -219,9 +219,9 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
         then:
         createNewReceipts.callCount == 1
-        createNewReceipts.callArguments[0] == [parentId, childId, childNumber, status, duration]
+        createNewReceipts.allArgs[0] == [parentId, childId, childNumber, status, duration]
         sendItemsThroughSocket.callCount == 1
-        sendItemsThroughSocket.callArguments[0] == [[mockRpt]]
+        sendItemsThroughSocket.allArgs[0] == [[mockRpt]]
         res.status == ResultStatus.NO_CONTENT
 
         cleanup:
@@ -236,11 +236,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
         TypeMap params = TypeMap.create([:])
 
         RecordItemReceipt mockRpt = GroovyMock()
-        MockedMethod updateExistingReceipts = TestUtils.mock(service, "updateExistingReceipts") {
+        MockedMethod updateExistingReceipts = MockedMethod.create(service, "updateExistingReceipts") {
             new Result(payload: [mockRpt])
         }
-        MockedMethod tryRetryParentCall = TestUtils.mock(service, "tryRetryParentCall")
-        MockedMethod sendItemsThroughSocket = TestUtils.mock(service, "sendItemsThroughSocket")
+        MockedMethod tryRetryParentCall = MockedMethod.create(service, "tryRetryParentCall")
+        MockedMethod sendItemsThroughSocket = MockedMethod.create(service, "sendItemsThroughSocket")
 
         when: "not failed"
         Result<Void> res = service
@@ -248,10 +248,10 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
         then:
         updateExistingReceipts.callCount == 1
-        updateExistingReceipts.callArguments[0] == [callId, ReceiptStatus.SUCCESS, duration]
+        updateExistingReceipts.allArgs[0] == [callId, ReceiptStatus.SUCCESS, duration]
         tryRetryParentCall.callCount == 0
         sendItemsThroughSocket.callCount == 1
-        sendItemsThroughSocket.callArguments[0] == [[mockRpt]]
+        sendItemsThroughSocket.allArgs[0] == [[mockRpt]]
         res.status == ResultStatus.NO_CONTENT
 
         when: "is failed"
@@ -259,11 +259,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
 
         then:
         updateExistingReceipts.callCount == 2
-        updateExistingReceipts.callArguments[1] == [callId, ReceiptStatus.FAILED, duration]
+        updateExistingReceipts.allArgs[1] == [callId, ReceiptStatus.FAILED, duration]
         tryRetryParentCall.callCount == 1
-        tryRetryParentCall.callArguments[0] == [callId, params]
+        tryRetryParentCall.allArgs[0] == [callId, params]
         sendItemsThroughSocket.callCount == 2
-        sendItemsThroughSocket.callArguments[1] == [[mockRpt]]
+        sendItemsThroughSocket.allArgs[1] == [[mockRpt]]
         res.status == ResultStatus.NO_CONTENT
 
         cleanup:
@@ -278,11 +278,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test selecting update method from passed-in parameters"() {
         given:
-        MockedMethod handleUpdateForText = TestUtils.mock(service, "handleUpdateForText")
+        MockedMethod handleUpdateForText = MockedMethod.create(service, "handleUpdateForText")
             { new Result() }
-        MockedMethod handleUpdateForChildCall = TestUtils.mock(service, "handleUpdateForChildCall")
+        MockedMethod handleUpdateForChildCall = MockedMethod.create(service, "handleUpdateForChildCall")
             { new Result() }
-        MockedMethod handleUpdateForParentCall = TestUtils.mock(service, "handleUpdateForParentCall")
+        MockedMethod handleUpdateForParentCall = MockedMethod.create(service, "handleUpdateForParentCall")
             { new Result() }
 
         when: "empty input"

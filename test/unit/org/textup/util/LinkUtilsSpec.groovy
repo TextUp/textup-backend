@@ -40,7 +40,7 @@ class LinkUtilsSpec extends Specification {
         given:
         String ident = TestUtils.randString()
         String signedUrl = "https://www.example.com"
-        MockedMethod getSignedLink = TestUtils.mock(LinkUtils, "getSignedLink") {
+        MockedMethod getSignedLink = MockedMethod.create(LinkUtils, "getSignedLink") {
             new URL(signedUrl)
         }
 
@@ -51,7 +51,7 @@ class LinkUtilsSpec extends Specification {
         link instanceof URL
         link.toString() == signedUrl
         getSignedLink.callCount == 1
-        getSignedLink.callArguments.every { it[3] == ident }
+        getSignedLink.allArgs.every { it[3] == ident }
 
         expect:
         LinkUtils.signedLink(null) == null

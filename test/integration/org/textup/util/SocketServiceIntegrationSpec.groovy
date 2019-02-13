@@ -61,7 +61,7 @@ class SocketServiceIntegrationSpec extends CustomSpec {
 
     void "test sending a phone"() {
         given:
-        MockedMethod sendToDataToStaff = TestUtils.mock(socketService, "sendToDataToStaff") {
+        MockedMethod sendToDataToStaff = MockedMethod.create(socketService, "sendToDataToStaff") {
             new Result()
         }
 

@@ -57,7 +57,7 @@ class TwilioUtilsSpec extends Specification {
         String subId = TestUtils.randString()
         CustomAccountDetails cad1 = GroovyStub() { getAuthToken() >> TestUtils.randString() }
 
-        TestUtils.mock(Holders, "getFlatConfig") {
+        MockedMethod.create(Holders, "getFlatConfig") {
             ["textup.apiKeys.twilio.sid": masterId, "textup.apiKeys.twilio.authToken": masterToken]
         }
 
@@ -91,7 +91,7 @@ class TwilioUtilsSpec extends Specification {
         HttpServletRequest mockRequest = GroovyMock(HttpServletRequest) // to mock forwardURI
 
         String authToken = TestUtils.randString()
-        MockedMethod getAuthToken = TestUtils.mock(TwilioUtils, "getAuthToken") { authToken }
+        MockedMethod getAuthToken = MockedMethod.create(TwilioUtils, "getAuthToken") { authToken }
         GroovyMock(RequestValidator, global: true)
 
         TypeMap allParams = TypeMap.create([:])

@@ -31,7 +31,7 @@ class IOCUtilsSpec extends Specification {
     void "test getting beans from application context"() {
         given:
         ApplicationContext applicationContext = Mock()
-        TestUtils.mock(Holders, "getApplicationContext") { applicationContext }
+        MockedMethod.create(Holders, "getApplicationContext") { applicationContext }
 
         when:
         IOCUtils.resultFactory

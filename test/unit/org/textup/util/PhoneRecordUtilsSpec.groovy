@@ -65,7 +65,7 @@ class PhoneRecordUtilsSpec extends Specification {
         PhoneNumber pNum1 = TestUtils.randPhoneNumber()
         Phone mockPhone = GroovyMock()
         IndividualPhoneRecordWrapper mockWrap = GroovyMock()
-        MockedMethod tryFindOrCreateEveryByPhoneAndNumbers = TestUtils.mock(IndividualPhoneRecordWrappers,
+        MockedMethod tryFindOrCreateEveryByPhoneAndNumbers = MockedMethod.create(IndividualPhoneRecordWrappers,
             "tryFindOrCreateEveryByPhoneAndNumbers") {
             Result.createSuccess([mockWrap])
         }
@@ -75,7 +75,7 @@ class PhoneRecordUtilsSpec extends Specification {
 
         then:
         tryFindOrCreateEveryByPhoneAndNumbers.callCount == 1
-        tryFindOrCreateEveryByPhoneAndNumbers.callArguments[0] == [mockPhone, [pNum1], true]
+        tryFindOrCreateEveryByPhoneAndNumbers.allArgs[0] == [mockPhone, [pNum1], true]
         1 * mockWrap.trySetStatusIfNotBlocked(PhoneRecordStatus.UNREAD) >> Result.void()
         res.status == ResultStatus.OK
         res.payload == [mockWrap]

@@ -84,9 +84,9 @@ class RecordServiceSpec extends CustomSpec {
     //     given:
     //     Phone p1 = t1.phone
     //     service.authService = Stub(AuthService) { getLoggedInAndActive() >> p1.owner.buildAllStaff()[0] }
-    //     MockedMethod createText = TestUtils.mock(service, "createText") { new ResultGroup() }
-    //     MockedMethod createCall = TestUtils.mock(service, "createCall") { new Result() }
-    //     MockedMethod createNote = TestUtils.mock(service, "createNote") { new Result() }
+    //     MockedMethod createText = MockedMethod.create(service, "createText") { new ResultGroup() }
+    //     MockedMethod createCall = MockedMethod.create(service, "createCall") { new Result() }
+    //     MockedMethod createNote = MockedMethod.create(service, "createNote") { new Result() }
 
     //     when: "text"
     //     TypeMap itemInfo = TypeMap.create(contents:"hi", sendToPhoneNumbers:["2223334444"],
@@ -136,7 +136,7 @@ class RecordServiceSpec extends CustomSpec {
     //     resGroup.failureStatus == ResultStatus.FORBIDDEN
 
     //     when: "error when building target"
-    //     TestUtils.mock(RecordUtils, "buildOutgoingMessageTarget")
+    //     MockedMethod.create(RecordUtils, "buildOutgoingMessageTarget")
     //         { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
     //     resGroup = service.createText(null, null)
 
@@ -154,8 +154,7 @@ class RecordServiceSpec extends CustomSpec {
     //     service.authService = Stub(AuthService)
     //     service.mediaService = Mock(MediaService)
     //     service.outgoingMessageService = Mock(OutgoingMessageService)
-    //     MockedMethod buildOutgoingMessageTarget = TestUtils
-    //         .mock(RecordUtils, "buildOutgoingMessageTarget") { new Result() }
+    //     MockedMethod buildOutgoingMessageTarget = MockedMethod.create(RecordUtils, "buildOutgoingMessageTarget") { new Result() }
 
     //     when: "no media"
     //     ResultGroup<RecordItem> resGroup = service.createText(null, null)
@@ -180,8 +179,7 @@ class RecordServiceSpec extends CustomSpec {
     //     service.authService = Stub(AuthService)
     //     service.outgoingMessageService = Mock(OutgoingMessageService)
     //     RecordCall rCall = Mock()
-    //     MockedMethod buildOutgoingCallTarget = TestUtils
-    //         .mock(RecordUtils, "buildOutgoingCallTarget") { new Result() }
+    //     MockedMethod buildOutgoingCallTarget = MockedMethod.create(RecordUtils, "buildOutgoingCallTarget") { new Result() }
 
     //     when:
     //     Result<RecordItem> res = service.createCall(null, null)

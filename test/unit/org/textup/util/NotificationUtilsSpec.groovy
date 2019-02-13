@@ -278,7 +278,7 @@ class NotificationUtilsSpec extends Specification {
         given:
         Phone tp1 = TestUtils.buildActiveTeamPhone()
         Notification notif1 = Notification.tryCreate(tp1).payload
-        MockedMethod tryBuildNotificationsForItems = TestUtils.mock(NotificationUtils, "tryBuildNotificationsForItems") {
+        MockedMethod tryBuildNotificationsForItems = MockedMethod.create(NotificationUtils, "tryBuildNotificationsForItems") {
             Result.createSuccess([notif1])
         }
         RecordItem rItem1 = TestUtils.buildRecordItem()
@@ -288,7 +288,7 @@ class NotificationUtilsSpec extends Specification {
 
         then:
         tryBuildNotificationsForItems.callCount == 1
-        tryBuildNotificationsForItems.callArguments[0] == [[rItem1], null]
+        tryBuildNotificationsForItems.allArgs[0] == [[rItem1], null]
         res.status == ResultStatus.CREATED
         res.payload.notifications.size() == 1
         res.payload.notifications[0].mutablePhone == tp1

@@ -88,7 +88,7 @@ class OrganizationsSpec extends Specification {
         Staff s2 = TestUtils.buildStaff(org1)
         s2.status = StaffStatus.STAFF
 
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
 
         when:
         Result res = Organizations.isAllowed(null)
@@ -107,7 +107,7 @@ class OrganizationsSpec extends Specification {
 
         when:
         tryGetAuthId.restore()
-        tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s2.id) }
+        tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s2.id) }
 
         res = Organizations.isAllowed(org1.id)
 

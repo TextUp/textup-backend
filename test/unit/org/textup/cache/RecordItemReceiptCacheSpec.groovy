@@ -69,7 +69,7 @@ class RecordItemReceiptCacheSpec extends Specification {
         Long rptId = TestUtils.randIntegerUpTo(88)
 
         RecordItemReceipt rpt1 = TestUtils.buildReceipt()
-        MockedMethod getAllIds = TestUtils.mock(AsyncUtils, "getAllIds") { [rpt1] }
+        MockedMethod getAllIds = MockedMethod.create(AsyncUtils, "getAllIds") { [rpt1] }
 
         when: "only status"
         List resList = rCache.updateReceipts(apiId, [rptId], newStatus)

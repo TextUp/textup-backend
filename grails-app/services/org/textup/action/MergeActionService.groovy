@@ -123,9 +123,12 @@ class MergeActionService implements HandlesActions<Long, Void> {
         Collection<IndividualPhoneRecord> toBeMerged) {
 
         try {
-            new DetachedCriteria(PhoneRecords)
-                .build(PhoneRecords.forShareSourceIds(toBeMerged*.id))
-                .updateAll(record: ipr1.record, shareSource: ipr1)
+            CriteriaUtils.updateAll(PhoneRecord, [record: ipr1.record, shareSource: ipr1]) {
+                new DetachedCriteria(PhoneRecord)
+                    .build(PhoneRecords.forShareSourceIds(toBeMerged*.id))
+                    .build(CriteriaUtils.returnsId())
+                    .list() as Collection<Long>
+            }
             Result.void()
         }
         catch (Throwable e) {
@@ -137,12 +140,18 @@ class MergeActionService implements HandlesActions<Long, Void> {
         Collection<IndividualPhoneRecord> toBeMerged) {
 
         try {
-            RecordItems
-                .buildForRecordIdsWithOptions(toBeMerged*.record*.id)
-                .updateAll(record: ipr1.record)
-            FutureMessages
-                .buildForRecordIds(toBeMerged*.record*.id)
-                .updateAll(record: ipr1.record)
+            CriteriaUtils.updateAll(RecordItem, [record: ipr1.record]) {
+                RecordItems
+                    .buildForRecordIdsWithOptions(toBeMerged*.record*.id)
+                    .build(CriteriaUtils.returnsId())
+                    .list() as Collection<Long>
+            }
+            CriteriaUtils.updateAll(FutureMessage, [record: ipr1.record]) {
+                FutureMessages
+                    .buildForRecordIds(toBeMerged*.record*.id)
+                    .build(CriteriaUtils.returnsId())
+                    .list() as Collection<Long>
+            }
             Result.void()
         }
         catch (Throwable e) {

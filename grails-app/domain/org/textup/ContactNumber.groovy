@@ -14,7 +14,7 @@ import org.textup.validator.*
 // Grails Domain classes cannot apply the `@Sortable` without a compilation error
 // Use `@EqualsAndHashCode` to ensure that addTo* and removeFrom* work properly
 
-@EqualsAndHashCode(includes = ["number", "preference"])
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
 class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNumber>, Comparable<ContactNumber> {
 

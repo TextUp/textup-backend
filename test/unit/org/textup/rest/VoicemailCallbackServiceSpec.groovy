@@ -101,7 +101,7 @@ class VoicemailCallbackServiceSpec extends CustomSpec {
         service.incomingMediaService = Mock(IncomingMediaService)
         service.socketService = Mock(SocketService)
         IncomingRecordingInfo ir1 = Mock(IncomingRecordingInfo)
-        MockedMethod updateVoicemailForCall = TestUtils.mock(service, "updateVoicemailForCall")
+        MockedMethod updateVoicemailForCall = MockedMethod.create(service, "updateVoicemailForCall")
             { RecordCall call -> new Result(payload: call) }
 
         when: "incoming media service does not return any media elements"

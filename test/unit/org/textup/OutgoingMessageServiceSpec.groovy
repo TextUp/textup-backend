@@ -261,7 +261,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     //     ContactTag ct1 = Mock()
     //     service.tokenService = Mock(TokenService)
     //     service.outgoingMediaService = Mock(OutgoingMediaService)
-    //     MockedMethod tryStoreReceipts = TestUtils.mock(service, "tryStoreReceipts") { new Result() }
+    //     MockedMethod tryStoreReceipts = MockedMethod.create(service, "tryStoreReceipts") { new Result() }
 
     //     when:
     //     ResultGroup<?> resGroup = service.sendAndStore(null, null, msg1)
@@ -312,7 +312,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     //     OutgoingMessage msg1 = Mock()
     //     Future<Result<MediaInfo>> mediaFuture = Mock()
     //     MediaInfo mInfo = Mock()
-    //     MockedMethod sendAndStore = TestUtils.mock(service, "sendAndStore") { new ResultGroup() }
+    //     MockedMethod sendAndStore = MockedMethod.create(service, "sendAndStore") { new ResultGroup() }
 
     //     when: "no media"
     //     ResultGroup<?> resGroup = service.finishProcessingMessages(null, null, msg1)
@@ -349,7 +349,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     //     RecordItem i1 = Mock()
     //     ScheduledFuture fut1 = Mock()
     //     service.threadService = Mock(ThreadService)
-    //     MockedMethod finishProcessingMessages = TestUtils.mock(service, "finishProcessingMessages")
+    //     MockedMethod finishProcessingMessages = MockedMethod.create(service, "finishProcessingMessages")
     //         { new ResultGroup() }
     //     Record rec1 = Mock()
     //     Long recordId = 88
@@ -367,7 +367,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     //     tuple.second instanceof Future // no-op future
 
     //     when: "building messages yields some errors"
-    //     MockedMethod buildMessages = TestUtils.mock(service, "buildMessages")
+    //     MockedMethod buildMessages = MockedMethod.create(service, "buildMessages")
     //         { new Result(status: ResultStatus.LOCKED).toGroup() }
     //     tuple = service.processMessage(phone, null, staff, null)
 
@@ -382,7 +382,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
 
     //     when: "building messages is successful"
     //     buildMessages.restore()
-    //     buildMessages = TestUtils.mock(service, "buildMessages")
+    //     buildMessages = MockedMethod.create(service, "buildMessages")
     //         { new Result(payload: i1).toGroup() }
     //     tuple = service.processMessage(phone, null, staff, null)
 
@@ -394,7 +394,7 @@ class OutgoingMessageServiceSpec extends CustomSpec {
     //     buildMessages.callCount == 1
     //     finishProcessingMessages.callCount == 1
     //     // build map of record id to record items
-    //     finishProcessingMessages.callArguments[0][0][recordId].contains(i1.id)
+    //     finishProcessingMessages.allArgs[0][0][recordId].contains(i1.id)
     //     tuple.first.anyFailures == false
     //     tuple.first.successes.size() == 1
     //     tuple.second == fut1

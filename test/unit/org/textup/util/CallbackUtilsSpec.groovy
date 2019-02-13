@@ -51,7 +51,7 @@ class CallbackUtilsSpec extends Specification {
         PhoneNumber fromNum = TestUtils.randPhoneNumber()
         PhoneNumber toNum = TestUtils.randPhoneNumber()
         PhoneNumber processedNum = TestUtils.randPhoneNumber()
-        MockedMethod tryExtractScreenIncomingFrom = TestUtils.mock(CallTwiml, "tryExtractScreenIncomingFrom") {
+        MockedMethod tryExtractScreenIncomingFrom = MockedMethod.create(CallTwiml, "tryExtractScreenIncomingFrom") {
             Result.createSuccess(processedNum)
         }
 

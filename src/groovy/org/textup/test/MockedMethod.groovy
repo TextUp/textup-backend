@@ -1,6 +1,7 @@
 package org.textup.test
 
 import grails.compiler.GrailsTypeChecked
+import groovy.util.logging.Log4j
 import org.codehaus.groovy.reflection.*
 import org.codehaus.groovy.runtime.MethodClosure
 import org.textup.*
@@ -9,12 +10,13 @@ import org.textup.*
 //      This is an existing limitation of this implementation.
 
 @GrailsTypeChecked
+@Log4j
 class MockedMethod {
 
     private List<List<?>> callArgs = []
 
-    private final Object obj
-    private final String methodName
+    final Object obj
+    final String methodName
     private final Closure action
 
     MockedMethod(Object thisObj, String thisMethodName, Closure thisAction = null,
@@ -33,13 +35,26 @@ class MockedMethod {
         startOverride(metaMethods)
     }
 
-    int getCallCount() {
-        callArgs.size()
+    static MockedMethod create(Object obj, String methodName, Closure action = null) {
+        new MockedMethod(obj, methodName, action)
     }
 
-    List<Object[]> getCallArguments() {
-        Collections.unmodifiableList(callArgs)
+    static MockedMethod create(MockedMethod mockedMethod, Closure action = null) {
+        mockedMethod.restore()
+        new MockedMethod(mockedMethod.obj, mockedMethod.methodName, action)
     }
+
+    static MockedMethod force(Object obj, String methodName, Closure action = null) {
+        try {
+            new MockedMethod(obj, methodName, action, true)
+        }
+        catch (IllegalArgumentException e) {
+            log.info("force: ${e.message}")
+        }
+    }
+
+    // Methods
+    // -------
 
     MockedMethod reset() {
         callArgs.clear()
@@ -50,6 +65,30 @@ class MockedMethod {
         stopOverride()
         reset()
     }
+
+    List<?> argsForCount(int callCount) {
+        callCount > 0 && callCount <= callArgs.size() ? callArgs[callCount - 1] : []
+    }
+
+    // Properties
+    // ----------
+
+    int getCallCount() { callArgs.size() }
+
+    boolean getNotCalled() { getCallCount() == 0 }
+
+    boolean getHasBeenCalled() { getCallCount() > 0 }
+
+    List<List<?>> getAllArgs() {
+        Collections.unmodifiableList(callArgs)
+    }
+
+    List<?> getLatestArgs() {
+        callArgs ? callArgs[-1] : []
+    }
+
+    // Helpers
+    // -------
 
     // Only store the original method once. We store the original method as another "expando" method
     // on because storing closures as a metaproperty seems to make them unretrievable. Also, we no

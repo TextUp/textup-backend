@@ -162,7 +162,7 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         given: "re-override storage service to have some upload errors"
         String errorMsg = TestUtils.randString()
         remote.exec({ thisError ->
-            TestUtils.forceMock(ctx.storageService, "uploadAsync") {
+            MockedMethod.force(ctx.storageService, "uploadAsync") {
                 Result failRes = new Result(status: ResultStatus.BAD_REQUEST,
                     errorMessages: [thisError])
                 new ResultGroup([failRes])

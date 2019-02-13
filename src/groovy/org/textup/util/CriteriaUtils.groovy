@@ -47,4 +47,11 @@ class CriteriaUtils {
     static Closure<Integer> countAction(DetachedCriteria<?> criteria) {
         return { criteria ? criteria.count() : 0 }
     }
+
+    // Ensures a no-join query when attempting to batch update
+    static Number updateAll(Class clazz, Map properties, Closure<Collection<Long>> getIds) {
+        new DetachedCriteria(clazz)
+            .build { CriteriaUtils.inList(delegate, "id", getIds.call()) }
+            .updateAll(properties)
+    }
 }

@@ -18,12 +18,12 @@ class VoicemailGreetingFunctionalSpec extends RestSpec {
     def setup() {
         setupData()
         remote.exec({ mockedMethodsKey ->
-            app.config[mockedMethodsKey] << TestUtils.mock(MediaPostProcessor, "process") {
+            app.config[mockedMethodsKey] << MockedMethod.create(MediaPostProcessor, "process") {
                 UploadItem uItem1 = TestUtils.buildUploadItem(MediaType.AUDIO_MP3)
                 UploadItem uItem2 = TestUtils.buildUploadItem(MediaType.AUDIO_WEBM_OPUS)
                 ctx.resultFactory.success(uItem1, [uItem2])
             }
-            app.config[mockedMethodsKey] << TestUtils.mock(ctx.callService, "interrupt") {
+            app.config[mockedMethodsKey] << MockedMethod.create(ctx.callService, "interrupt") {
                 ctx.resultFactory.success()
             }
             return

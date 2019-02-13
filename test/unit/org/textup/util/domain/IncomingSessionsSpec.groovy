@@ -42,7 +42,7 @@ class IncomingSessionsSpec extends Specification {
         IncomingSession is1 = TestUtils.buildSession(p1)
         IncomingSession is2 = TestUtils.buildSession(tp1)
 
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
 
         when:
         Result res = IncomingSessions.isAllowed(null)

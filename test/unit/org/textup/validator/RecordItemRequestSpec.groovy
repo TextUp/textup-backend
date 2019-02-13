@@ -127,13 +127,13 @@ class RecordItemRequestSpec extends CustomSpec {
         PhoneRecordWrapper w1 = TestUtils.buildIndPhoneRecord(p1).toWrapper()
         Map params = [(TestUtils.randString()): TestUtils.randString()]
         RecordItemRequestSection mockSection = GroovyStub() { asBoolean() >> true }
-        MockedMethod buildPagination = TestUtils.mock(ControllerUtils, "buildPagination") {
+        MockedMethod buildPagination = MockedMethod.create(ControllerUtils, "buildPagination") {
             [:]
         }
-        MockedMethod buildSectionsByEntity = TestUtils.mock(RecordUtils, "buildSectionsByEntity") {
+        MockedMethod buildSectionsByEntity = MockedMethod.create(RecordUtils, "buildSectionsByEntity") {
             [mockSection]
         }
-        MockedMethod buildSingleSection = TestUtils.mock(RecordUtils, "buildSingleSection") {
+        MockedMethod buildSingleSection = MockedMethod.create(RecordUtils, "buildSingleSection") {
             mockSection
         }
 
@@ -170,7 +170,7 @@ class RecordItemRequestSpec extends CustomSpec {
         then:
         sections == [mockSection]
         buildPagination.callCount == 4
-        buildPagination.callArguments.every { it == [params, 0] }
+        buildPagination.allArgs.every { it == [params, 0] }
         buildSectionsByEntity.callCount == 1
         buildSingleSection.callCount == 3
 

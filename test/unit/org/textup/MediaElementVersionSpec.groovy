@@ -29,8 +29,8 @@ class MediaElementVersionSpec extends Specification {
 
     void "test constraints + width and link custom getters"() {
         given: "storage service mock"
-        MockedMethod unsignedLink = TestUtils.mock(LinkUtils, 'unsignedLink')
-        MockedMethod signedLink = TestUtils.mock(LinkUtils, 'signedLink')
+        MockedMethod unsignedLink = MockedMethod.create(LinkUtils, 'unsignedLink')
+        MockedMethod signedLink = MockedMethod.create(LinkUtils, 'signedLink')
 
         when: "empty obj"
         MediaElementVersion mVers = new MediaElementVersion()
@@ -51,7 +51,7 @@ class MediaElementVersionSpec extends Specification {
         then: "valid, defaults to being private"
         unsignedLink.callCount == 0
         signedLink.callCount == 2
-        signedLink.callArguments[1][0] == mVers.versionId
+        signedLink.allArgs[1][0] == mVers.versionId
         mVers.validate() == true
 
         when: "is public"
@@ -60,7 +60,7 @@ class MediaElementVersionSpec extends Specification {
 
         then:
         unsignedLink.callCount == 1
-        unsignedLink.callArguments[0][0] == mVers.versionId
+        unsignedLink.allArgs[0][0] == mVers.versionId
         signedLink.callCount == 2
         mVers.validate() == true
     }

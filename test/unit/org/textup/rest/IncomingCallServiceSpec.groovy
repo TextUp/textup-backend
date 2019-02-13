@@ -265,8 +265,8 @@ class IncomingCallServiceSpec extends Specification {
     // @DirtiesRuntime
     // void "test receiving call"() {
     //     given:
-    //     MockedMethod handleSelfCall = TestUtils.mock(service, "handleSelfCall") { new Result() }
-    //     MockedMethod relayCall = TestUtils.mock(service, "relayCall") { new Result() }
+    //     MockedMethod handleSelfCall = MockedMethod.create(service, "handleSelfCall") { new Result() }
+    //     MockedMethod relayCall = MockedMethod.create(service, "relayCall") { new Result() }
     //     service.announcementService = GroovyMock(AnnouncementService)
     //     Phone p1 = GroovyMock(Phone)
     //     String pNum = TestUtils.randPhoneNumberString()

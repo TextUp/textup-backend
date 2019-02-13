@@ -28,8 +28,8 @@ class OutgoingMediaServiceSpec extends Specification {
 
     def setup() {
         service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-        unsignedLink = TestUtils.mock(LinkUtils, 'unsignedLink')
-        signedLink = TestUtils.mock(LinkUtils, 'signedLink')
+        unsignedLink = MockedMethod.create(LinkUtils, 'unsignedLink')
+        signedLink = MockedMethod.create(LinkUtils, 'signedLink')
     }
     def cleanup() {
         unsignedLink.restore()

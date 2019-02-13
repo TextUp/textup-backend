@@ -29,7 +29,7 @@ class IncomingMediaInfoSpec extends Specification {
     void "test validation for incoming media"() {
         given:
         String mediaId = TestUtils.randString()
-        MockedMethod extractMediaIdFromUrl = TestUtils.mock(TwilioUtils, "extractMediaIdFromUrl") {
+        MockedMethod extractMediaIdFromUrl = MockedMethod.create(TwilioUtils, "extractMediaIdFromUrl") {
             mediaId
         }
         int index = TestUtils.randIntegerUpTo(88, true)
@@ -50,7 +50,7 @@ class IncomingMediaInfoSpec extends Specification {
 
         then:
         extractMediaIdFromUrl.callCount == 2
-        extractMediaIdFromUrl.callArguments[1] == [params.string("${TwilioUtils.MEDIA_URL_PREFIX}${index}")]
+        extractMediaIdFromUrl.allArgs[1] == [params.string("${TwilioUtils.MEDIA_URL_PREFIX}${index}")]
         res.status == ResultStatus.CREATED
         res.payload.accountId == params.string(TwilioUtils.ID_ACCOUNT)
         res.payload.mediaId == mediaId
@@ -66,7 +66,7 @@ class IncomingMediaInfoSpec extends Specification {
     void "test deleting for incoming media"() {
         given: "valid incoming media"
         ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
-        MockedMethod extractMediaIdFromUrl = TestUtils.mock(TwilioUtils, "extractMediaIdFromUrl") {
+        MockedMethod extractMediaIdFromUrl = MockedMethod.create(TwilioUtils, "extractMediaIdFromUrl") {
             TestUtils.randString()
         }
         int index = TestUtils.randIntegerUpTo(88, true)

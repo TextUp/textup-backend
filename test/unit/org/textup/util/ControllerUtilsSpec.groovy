@@ -28,9 +28,9 @@ class ControllerUtilsSpec extends Specification {
         Long sId = TestUtils.randIntegerUpTo(88)
         PhoneCache mockPhoneCache = Mock()
         Result retVal = Result.void()
-        MockedMethod isAllowed = TestUtils.mock(Teams, "isAllowed") { Result.createSuccess(tId) }
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(sId) }
-        MockedMethod getPhoneCache = TestUtils.mock(IOCUtils, "getPhoneCache") { mockPhoneCache }
+        MockedMethod isAllowed = MockedMethod.create(Teams, "isAllowed") { Result.createSuccess(tId) }
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(sId) }
+        MockedMethod getPhoneCache = MockedMethod.create(IOCUtils, "getPhoneCache") { mockPhoneCache }
 
         when: "for team"
         Result res = ControllerUtils.tryGetPhoneId(tId)
@@ -38,7 +38,7 @@ class ControllerUtilsSpec extends Specification {
         then:
         1 * mockPhoneCache.mustFindAnyPhoneIdForOwner(tId, PhoneOwnershipType.GROUP) >> retVal
         isAllowed.callCount == 1
-        isAllowed.callArguments[0] == [tId]
+        isAllowed.allArgs[0] == [tId]
         tryGetAuthId.callCount == 0
         res == retVal
 

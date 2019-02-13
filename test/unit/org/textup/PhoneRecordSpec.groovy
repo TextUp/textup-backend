@@ -101,7 +101,7 @@ class PhoneRecordSpec extends Specification {
     void "test cancelling future messages related to this record"() {
         given:
         List fMsgs = [GroovyMock(FutureMessage)]
-        MockedMethod buildForRecordIds = TestUtils.mock(FutureMessages, "buildForRecordIds") {
+        MockedMethod buildForRecordIds = MockedMethod.create(FutureMessages, "buildForRecordIds") {
             GroovyStub(DetachedCriteria) { list() >> fMsgs }
         }
 
@@ -116,7 +116,7 @@ class PhoneRecordSpec extends Specification {
         then:
         1 * pr1.futureMessageJobService.cancelAll(fMsgs) >> new ResultGroup()
         buildForRecordIds.callCount == 1
-        buildForRecordIds.callArguments[0] == [[pr1.record.id]]
+        buildForRecordIds.allArgs[0] == [[pr1.record.id]]
         res.payload == []
 
         cleanup:

@@ -181,7 +181,7 @@ class PhoneSpec extends CustomSpec {
         mInfo.addToMediaElements(el1)
 
         String randUrlString = TestUtils.randUrl()
-        MockedMethod getLink = TestUtils.mock(el1.sendVersion, "getLink") { new URL(randUrlString) }
+        MockedMethod getLink = MockedMethod.create(el1.sendVersion, "getLink") { new URL(randUrlString) }
 
         when:
         p1.media = null

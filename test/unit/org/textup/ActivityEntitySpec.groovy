@@ -71,7 +71,7 @@ class ActivityEntitySpec extends Specification {
         Long pId = TestUtils.randIntegerUpTo(88)
         DateTime dt = DateTime.now()
         String str1 = TestUtils.randString()
-        MockedMethod buildNumbersStringForMonth = TestUtils.mock(UsageUtils, "buildNumbersStringForMonth") {
+        MockedMethod buildNumbersStringForMonth = MockedMethod.create(UsageUtils, "buildNumbersStringForMonth") {
             str1
         }
 
@@ -91,7 +91,7 @@ class ActivityEntitySpec extends Specification {
 
         then:
         buildNumbersStringForMonth.callCount == 1
-        buildNumbersStringForMonth.callArguments[0] == [pId, dt]
+        buildNumbersStringForMonth.allArgs[0] == [pId, dt]
         nums == str1
 
         cleanup:
@@ -103,7 +103,7 @@ class ActivityEntitySpec extends Specification {
         Long pId = TestUtils.randIntegerUpTo(88)
         DateTime dt = DateTime.now()
         String str1 = TestUtils.randString()
-        MockedMethod buildNumbersStringForMonth = TestUtils.mock(UsageUtils, "buildNumbersStringForMonth") {
+        MockedMethod buildNumbersStringForMonth = MockedMethod.create(UsageUtils, "buildNumbersStringForMonth") {
             str1
         }
 
@@ -122,7 +122,7 @@ class ActivityEntitySpec extends Specification {
 
         then:
         buildNumbersStringForMonth.callCount == 1
-        buildNumbersStringForMonth.callArguments[0] == [pId, dt]
+        buildNumbersStringForMonth.allArgs[0] == [pId, dt]
         nums == str1
 
         cleanup:

@@ -2,12 +2,14 @@ package org.textup.validator
 
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
 abstract class BasePhoneNumber implements CanValidate {
 

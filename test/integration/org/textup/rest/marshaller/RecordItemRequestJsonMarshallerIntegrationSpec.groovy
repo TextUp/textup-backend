@@ -59,8 +59,7 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends CustomSpec {
 
     void "test marshalling specified timezone"() {
         given:
-        MockedMethod toDateTimeWithZone = TestUtils
-            .mock(DateTimeUtils, "toDateTimeWithZone") { DateTime dt -> dt }
+        MockedMethod toDateTimeWithZone = MockedMethod.create(DateTimeUtils, "toDateTimeWithZone") { DateTime dt -> dt }
 
         RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
         iReq.with {
@@ -83,9 +82,9 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends CustomSpec {
 
         then:
         toDateTimeWithZone.callCount == 3
-        toDateTimeWithZone.callArguments.every { it[1] == tzId }
-        toDateTimeWithZone.callArguments.any { it[0] == iReq.start }
-        toDateTimeWithZone.callArguments.any { it[0] == iReq.end }
+        toDateTimeWithZone.allArgs.every { it[1] == tzId }
+        toDateTimeWithZone.allArgs.any { it[0] == iReq.start }
+        toDateTimeWithZone.allArgs.any { it[0] == iReq.end }
 
         cleanup:
         toDateTimeWithZone.restore()

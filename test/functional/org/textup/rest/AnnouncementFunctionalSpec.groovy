@@ -23,7 +23,7 @@ class AnnouncementFunctionalSpec extends RestSpec {
             app.config.callParamsList = []
             app.config.textRecipientList = []
 
-            TestUtils.forceMock(ctx.textService, "send") { fromNum, toNums ->
+            MockedMethod.force(ctx.textService, "send") { fromNum, toNums ->
                 assert toNums.isEmpty() == false
                 TempRecordReceipt temp = TestUtils.buildTempReceipt()
                 temp.contactNumber = toNums[0]
@@ -33,7 +33,7 @@ class AnnouncementFunctionalSpec extends RestSpec {
                 // return temp
                 ctx.resultFactory.success(temp)
             }
-            TestUtils.forceMock(ctx.callService, "start") { fromNum, toNums, pickup ->
+            MockedMethod.force(ctx.callService, "start") { fromNum, toNums, pickup ->
                 TempRecordReceipt temp = TestUtils.buildTempReceipt()
                 temp.contactNumber = toNums[0]
                 assert temp.validate()

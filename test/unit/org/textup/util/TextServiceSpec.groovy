@@ -103,14 +103,14 @@ class TextServiceSpec extends Specification {
         assert toNum1.validate()
 
         MessageCreator mockMsgCreator = GroovyMock()
-        MockedMethod messageCreator = TestUtils.mock(service, "messageCreator") { mockMsgCreator }
+        MockedMethod messageCreator = MockedMethod.create(service, "messageCreator") { mockMsgCreator }
 
         when: "no media"
         Result res = service.tryText(fromNum, toNum1, msg, customAccountId, [])
 
         then:
         messageCreator.callCount == 1
-        messageCreator.callArguments[0] == [fromNum, toNum1, msg, customAccountId]
+        messageCreator.allArgs[0] == [fromNum, toNum1, msg, customAccountId]
         1 * mockMsgCreator.setStatusCallback(*_) >> mockMsgCreator
         1 * mockMsgCreator.setMediaUrl([]) >> mockMsgCreator
         1 * mockMsgCreator.create() >> GroovyMock(Message) // all getters are final so can't mock
@@ -123,7 +123,7 @@ class TextServiceSpec extends Specification {
 
         then:
         messageCreator.callCount == 2
-        messageCreator.callArguments[1] == [fromNum, toNum1, msg, customAccountId]
+        messageCreator.allArgs[1] == [fromNum, toNum1, msg, customAccountId]
         1 * mockMsgCreator.setStatusCallback(*_) >> mockMsgCreator
         1 * mockMsgCreator.setMediaUrl(mediaLinks) >> mockMsgCreator
         1 * mockMsgCreator.create() >> GroovyMock(Message) // all getters are final so can't mock
@@ -148,7 +148,7 @@ class TextServiceSpec extends Specification {
         assert toNum1.validate() && toNum2.validate()
 
         TextService.Outcome mockMsgResult = GroovyMock()
-        MockedMethod tryText = TestUtils.mock(service, "tryText") {
+        MockedMethod tryText = MockedMethod.create(service, "tryText") {
             new Result(payload: mockMsgResult)
         }
 
@@ -161,7 +161,7 @@ class TextServiceSpec extends Specification {
 
         then:
         tryText.callCount == 1
-        tryText.callArguments[0] == [fromNum, toNum1, msg, customAccountId, mediaLinks]
+        tryText.allArgs[0] == [fromNum, toNum1, msg, customAccountId, mediaLinks]
         1 * mockMsgResult.getSid() >> apiId
         1 * mockMsgResult.getNumSegments() >> numSegments
 

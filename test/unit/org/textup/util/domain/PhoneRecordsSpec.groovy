@@ -78,7 +78,7 @@ class PhoneRecordsSpec extends Specification {
         Phone tp1 = TestUtils.buildTeamPhone(t1)
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(tp1)
 
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
 
         when:
         Result res = PhoneRecords.isAllowed(null)

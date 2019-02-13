@@ -29,7 +29,7 @@ class CallRetryFunctionalSpec extends RestSpec {
 
         setupData()
         remote.exec({ nums, apiId1, apiId2 ->
-            TestUtils.forceMock(ctx.callService, "retry") { from, toNums, existingApiId ->
+            MockedMethod.force(ctx.callService, "retry") { from, toNums, existingApiId ->
                 String toNumAsString = toNums[0].number
                 String retryApiId = apiId2
                 TempRecordReceipt tempReceipt = new TempRecordReceipt(apiId:retryApiId,
@@ -40,7 +40,7 @@ class CallRetryFunctionalSpec extends RestSpec {
                 }
                 ctx.resultFactory.success(tempReceipt)
             }
-            TestUtils.forceMock(ctx.callService, "start") { fromNum, toNums ->
+            MockedMethod.force(ctx.callService, "start") { fromNum, toNums ->
                 String toNumAsString = toNums[0].number
                 String apiId = apiId1
                 ctx.resultFactory.success(new TempRecordReceipt(apiId: apiId,

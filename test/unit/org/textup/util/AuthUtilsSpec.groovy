@@ -44,7 +44,7 @@ class AuthUtilsSpec extends Specification {
 
     void "test determining if a staff is active"() {
         given:
-        MockedMethod encodeSecureString = TestUtils.mock(AuthUtils, "encodeSecureString") { it }
+        MockedMethod encodeSecureString = MockedMethod.create(AuthUtils, "encodeSecureString") { it }
         Staff s1 = TestUtils.buildStaff()
 
         when:
@@ -95,7 +95,7 @@ class AuthUtilsSpec extends Specification {
 
     void "try getting auth user"() {
         given:
-        MockedMethod encodeSecureString = TestUtils.mock(AuthUtils, "encodeSecureString") { it }
+        MockedMethod encodeSecureString = MockedMethod.create(AuthUtils, "encodeSecureString") { it }
         Staff s1 = TestUtils.buildStaff()
 
         when:

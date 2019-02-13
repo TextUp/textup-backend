@@ -72,8 +72,7 @@ class NotificationGroupSpec extends Specification {
         NotificationGroup notifGroup1 = NotificationGroup.tryCreate([notif1]).payload
 
         OwnerPolicy mockOwnerPolicy = GroovyMock()
-        MockedMethod buildCanNotifyReadOnlyPolicies = TestUtils
-            .mock(notifGroup1.notifications[0], "buildCanNotifyReadOnlyPolicies") {
+        MockedMethod buildCanNotifyReadOnlyPolicies = MockedMethod.create(notifGroup1.notifications[0], "buildCanNotifyReadOnlyPolicies") {
                 [mockOwnerPolicy]
             }
 
@@ -82,7 +81,7 @@ class NotificationGroupSpec extends Specification {
 
         then:
         buildCanNotifyReadOnlyPolicies.callCount == 1
-        buildCanNotifyReadOnlyPolicies.callArguments[0] == [null]
+        buildCanNotifyReadOnlyPolicies.allArgs[0] == [null]
         policies.size() == 1
         policies[0] == mockOwnerPolicy
 
@@ -96,15 +95,14 @@ class NotificationGroupSpec extends Specification {
         Notification notif1 = Notification.tryCreate(p1).payload
         NotificationGroup notifGroup1 = NotificationGroup.tryCreate([notif1]).payload
 
-        MockedMethod canNotifyAny = TestUtils
-            .mock(notifGroup1.notifications[0], "canNotifyAny") { true }
+        MockedMethod canNotifyAny = MockedMethod.create(notifGroup1.notifications[0], "canNotifyAny") { true }
 
         when:
         boolean retBool = notifGroup1.canNotifyAny(null)
 
         then:
         canNotifyAny.callCount == 1
-        canNotifyAny.callArguments[0] == [null]
+        canNotifyAny.allArgs[0] == [null]
         retBool == true
 
         cleanup:
@@ -118,8 +116,7 @@ class NotificationGroupSpec extends Specification {
         NotificationGroup notifGroup1 = NotificationGroup.tryCreate([notif1]).payload
 
         OwnerPolicy mockOwnerPolicy = GroovyMock()
-        MockedMethod buildCanNotifyReadOnlyPolicies = TestUtils
-            .mock(notifGroup1.notifications[0], "buildCanNotifyReadOnlyPolicies") { [mockOwnerPolicy] }
+        MockedMethod buildCanNotifyReadOnlyPolicies = MockedMethod.create(notifGroup1.notifications[0], "buildCanNotifyReadOnlyPolicies") { [mockOwnerPolicy] }
 
         Collection args = []
         Closure doAction = { op1, notif2 -> args << [op1, notif2] }
@@ -129,7 +126,7 @@ class NotificationGroupSpec extends Specification {
 
         then:
         buildCanNotifyReadOnlyPolicies.callCount == 1
-        buildCanNotifyReadOnlyPolicies.callArguments[0] == [null]
+        buildCanNotifyReadOnlyPolicies.allArgs[0] == [null]
         args.size() == 1
         args[0] == [mockOwnerPolicy, notifGroup1.notifications[0]]
 
@@ -147,8 +144,8 @@ class NotificationGroupSpec extends Specification {
 
         RecordItem rItem1 = GroovyMock()
         RecordItem rItem2 = GroovyMock()
-        MockedMethod getItems1 = TestUtils.mock(notifGroup1.notifications[0], "getItems") { [rItem1] }
-        MockedMethod getItems2 = TestUtils.mock(notifGroup1.notifications[1], "getItems") { [rItem2] }
+        MockedMethod getItems1 = MockedMethod.create(notifGroup1.notifications[0], "getItems") { [rItem1] }
+        MockedMethod getItems2 = MockedMethod.create(notifGroup1.notifications[1], "getItems") { [rItem2] }
 
         Collection rItems = []
         Closure doAction = { arg1 -> rItems << arg1 }
@@ -174,8 +171,7 @@ class NotificationGroupSpec extends Specification {
         int randNum = TestUtils.randIntegerUpTo(88, true)
 
         OwnerPolicy mockOwnerPolicy = GroovyMock()
-        MockedMethod getNumNotifiedForItem = TestUtils
-            .mock(notifGroup1.notifications[0], "getNumNotifiedForItem") { randNum }
+        MockedMethod getNumNotifiedForItem = MockedMethod.create(notifGroup1.notifications[0], "getNumNotifiedForItem") { randNum }
 
         NotificationFrequency freq1 = NotificationFrequency.values()[0]
         RecordItem rItem1 = GroovyMock()
@@ -185,7 +181,7 @@ class NotificationGroupSpec extends Specification {
 
         then:
         getNumNotifiedForItem.callCount == 1
-        getNumNotifiedForItem.callArguments[0] == [freq1, rItem1]
+        getNumNotifiedForItem.allArgs[0] == [freq1, rItem1]
         retInt == randNum
 
         cleanup:

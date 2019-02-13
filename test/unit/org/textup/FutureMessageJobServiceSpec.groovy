@@ -77,7 +77,7 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     //     given:
     //     service.quartzScheduler = Mock(Scheduler)
     //     FutureMessage fMsg = GroovyMock()
-    //     MockedMethod buildTrigger = TestUtils.mock(service, "buildTrigger")
+    //     MockedMethod buildTrigger = MockedMethod.create(service, "buildTrigger")
 
     //     when: "error scheduling job"
     //     Result<Void> res = service.schedule(fMsg)
@@ -132,7 +132,7 @@ class FutureMessageJobServiceSpec extends CustomSpec {
     // @DirtiesRuntime
     // void "test cancelling all"() {
     //     given:
-    //     MockedMethod unschedule = TestUtils.mock(service, 'unschedule') { new Result() }
+    //     MockedMethod unschedule = MockedMethod.create(service, 'unschedule') { new Result() }
     //     // see https://github.com/spockframework/spock/issues/438
     //     FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
 

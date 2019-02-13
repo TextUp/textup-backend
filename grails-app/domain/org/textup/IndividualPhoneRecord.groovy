@@ -69,7 +69,6 @@ class IndividualPhoneRecord extends PhoneRecord {
         ContactNumber cNum = numbers?.find { it.number == bNum?.number }
         if (cNum) {
             removeFromNumbers(cNum)
-            cNum.delete()
         }
         DomainUtils.trySave(this).then { Result.void() }
     }

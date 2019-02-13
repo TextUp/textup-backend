@@ -164,24 +164,24 @@ class NotificationSpec extends CustomSpec {
 		Notification notif1 = Notification.tryCreate(GroovyMock(Phone)).payload
 
 		when:
-		MockedMethod buildCanNotifyReadOnlyPolicies = TestUtils.mock(notif1, "buildCanNotifyReadOnlyPolicies") { [] }
+		MockedMethod buildCanNotifyReadOnlyPolicies = MockedMethod.create(notif1, "buildCanNotifyReadOnlyPolicies") { [] }
 
 		boolean retVal = notif1.canNotifyAny(NotificationFrequency.QUARTER_HOUR)
 
 		then:
 		buildCanNotifyReadOnlyPolicies.callCount == 1
-		buildCanNotifyReadOnlyPolicies.callArguments[0] == [NotificationFrequency.QUARTER_HOUR]
+		buildCanNotifyReadOnlyPolicies.allArgs[0] == [NotificationFrequency.QUARTER_HOUR]
 		retVal == false
 
 		when:
 		buildCanNotifyReadOnlyPolicies.restore()
-		buildCanNotifyReadOnlyPolicies = TestUtils.mock(notif1, "buildCanNotifyReadOnlyPolicies") { [GroovyMock(OwnerPolicy)] }
+		buildCanNotifyReadOnlyPolicies = MockedMethod.create(notif1, "buildCanNotifyReadOnlyPolicies") { [GroovyMock(OwnerPolicy)] }
 
 		retVal = notif1.canNotifyAny(NotificationFrequency.HOUR)
 
 		then:
 		buildCanNotifyReadOnlyPolicies.callCount == 1
-		buildCanNotifyReadOnlyPolicies.callArguments[0] == [NotificationFrequency.HOUR]
+		buildCanNotifyReadOnlyPolicies.allArgs[0] == [NotificationFrequency.HOUR]
 		retVal == true
 
 		cleanup:

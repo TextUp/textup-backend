@@ -72,17 +72,15 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
     }
 
     protected Result<Void> tryRecordSharingChanges(Record rec1, Author author,
-        Map<SharePermission, HashSet<String>> permissionToNames) {
+        Map<SharePermission, ? extends Collection<String>> permissionToNames) {
 
         ResultGroup
-            .collectEntries(permissionToNames) { SharePermission perm1, HashSet<String> names ->
+            .collectEntries(permissionToNames) { SharePermission perm1, Collection<String> names ->
                 TempRecordItem.tryCreate(perm1.buildSummary(names), null, null)
                     .then { TempRecordItem temp1 -> RecordNote.tryCreate(rec1, temp1) }
                     .then { RecordNote rNote1 ->
-                        rNote1.with {
-                            author = author
-                            isReadOnly = true
-                        }
+                        rNote1.author = author
+                        rNote1.isReadOnly = true
                         DomainUtils.trySave(rNote1)
                     }
             }

@@ -43,7 +43,7 @@ class RequestUtilsSpec extends Specification {
     void "test setting and getting on request"() {
         given:
         HttpServletRequest mockRequest = Mock()
-        MockedMethod retrieveGrailsWebRequest = TestUtils.mock(WebUtils, "retrieveGrailsWebRequest") {
+        MockedMethod retrieveGrailsWebRequest = MockedMethod.create(WebUtils, "retrieveGrailsWebRequest") {
             Stub(GrailsWebRequest) { getCurrentRequest() >> mockRequest }
         }
         String key1 = TestUtils.randString()

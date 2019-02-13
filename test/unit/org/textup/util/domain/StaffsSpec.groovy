@@ -41,7 +41,7 @@ class StaffsSpec extends Specification {
         Staff s2 = TestUtils.buildStaff(org1)
         Staff s3 = TestUtils.buildStaff()
 
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
 
         when:
         Result res = Staffs.isAllowed(null)

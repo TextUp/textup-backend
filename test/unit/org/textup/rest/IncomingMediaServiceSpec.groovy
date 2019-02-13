@@ -169,9 +169,9 @@ class IncomingMediaServiceSpec extends Specification {
         UploadItem uItem = TestUtils.buildUploadItem()
         Collection<IsIncomingMedia> incomingMedia = []
         5.times { incomingMedia << Mock(IsIncomingMedia) }
-        MockedMethod processElement = TestUtils.mock(service, "processElement")
+        MockedMethod processElement = MockedMethod.create(service, "processElement")
             { new Result(payload: Tuple.create([uItem], e1)) }
-        MockedMethod finishProcessingUploads = TestUtils.mock(service, "finishProcessingUploads")
+        MockedMethod finishProcessingUploads = MockedMethod.create(service, "finishProcessingUploads")
             { new Result() }
 
         when: "is a public asset"
@@ -180,9 +180,9 @@ class IncomingMediaServiceSpec extends Specification {
         then:
         processElement.callCount == incomingMedia.size()
         finishProcessingUploads.callCount == 1
-        finishProcessingUploads.callArguments.every { it[0] == incomingMedia }
+        finishProcessingUploads.allArgs.every { it[0] == incomingMedia }
         // in the processElement mock we return 1 UploadItem per call
-        finishProcessingUploads.callArguments.every { it[1].size() == incomingMedia.size() }
+        finishProcessingUploads.allArgs.every { it[1].size() == incomingMedia.size() }
         resGroup.successes.size() == incomingMedia.size()
         resGroup.anyFailures == false
         resGroup.payload.every { it == e1 }

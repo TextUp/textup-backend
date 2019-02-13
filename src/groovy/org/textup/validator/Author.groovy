@@ -11,7 +11,7 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 
-@EqualsAndHashCode
+@EqualsAndHashCode(includeFields = true)
 @GrailsTypeChecked
 @ToString
 @TupleConstructor(includeFields = true)

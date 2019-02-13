@@ -76,9 +76,9 @@ class UsageControllerSpec extends Specification {
     @DirtiesRuntime
     void "test building timeframe parameters"() {
         given:
-        MockedMethod dateTimeToMonthString = TestUtils.mock(UsageUtils, "dateTimeToMonthString") { "hi" }
-        MockedMethod getAvailableMonthStrings = TestUtils.mock(UsageUtils, "getAvailableMonthStrings") { "hi" }
-        MockedMethod dateTimeToTimestamp = TestUtils.mock(UsageUtils, "dateTimeToTimestamp") { "hi" }
+        MockedMethod dateTimeToMonthString = MockedMethod.create(UsageUtils, "dateTimeToMonthString") { "hi" }
+        MockedMethod getAvailableMonthStrings = MockedMethod.create(UsageUtils, "getAvailableMonthStrings") { "hi" }
+        MockedMethod dateTimeToTimestamp = MockedMethod.create(UsageUtils, "dateTimeToTimestamp") { "hi" }
 
         when:
         Map info = controller.buildTimeframeParams(null)
@@ -143,7 +143,7 @@ class UsageControllerSpec extends Specification {
     void "test getting longitudinal activity action"() {
         given:
         controller.usageService = Mock(UsageService)
-        MockedMethod getAvailableMonthStringIndex = TestUtils.mock(UsageUtils, "getAvailableMonthStringIndex") { 8 }
+        MockedMethod getAvailableMonthStringIndex = MockedMethod.create(UsageUtils, "getAvailableMonthStringIndex") { 8 }
 
         Long orgId = TestUtils.randIntegerUpTo(88) + 1
         String number = TestUtils.randString()
@@ -195,7 +195,7 @@ class UsageControllerSpec extends Specification {
         Long orgId = TestUtils.randIntegerUpTo(88) + 1
         Organization mockOrg = Mock()
         Organization.metaClass."static".get = { Long id -> mockOrg }
-        MockedMethod getAvailableMonthStrings = TestUtils.mock(UsageUtils, "getAvailableMonthStrings") { 8 }
+        MockedMethod getAvailableMonthStrings = MockedMethod.create(UsageUtils, "getAvailableMonthStrings") { 8 }
 
         when: "missing orgId"
         controller.show()
@@ -232,7 +232,7 @@ class UsageControllerSpec extends Specification {
     void "test index endpoint"() {
         given:
         controller.usageService = Mock(UsageService)
-        MockedMethod getAvailableMonthStrings = TestUtils.mock(UsageUtils, "getAvailableMonthStrings") { 8 }
+        MockedMethod getAvailableMonthStrings = MockedMethod.create(UsageUtils, "getAvailableMonthStrings") { 8 }
 
         when:
         Map model = controller.index()

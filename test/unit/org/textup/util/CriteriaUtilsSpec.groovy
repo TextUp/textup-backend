@@ -95,4 +95,27 @@ class CriteriaUtilsSpec extends Specification {
         then:
         retVal == lBaseline
     }
+
+    void "test updating all"() {
+        given:
+        String address = TestUtils.randString()
+        Location loc1 = TestUtils.buildLocation()
+        Location loc2 = TestUtils.buildLocation()
+
+        when:
+        def numUpdated = CriteriaUtils.updateAll(Location, [address: address]) { null }
+
+        then:
+        numUpdated == 0
+        loc1.refresh().address != address
+        loc2.refresh().address != address
+
+        when:
+        numUpdated = CriteriaUtils.updateAll(Location, [address: address]) { [loc1, loc2]*.id }
+
+        then:
+        numUpdated == 2
+        loc1.refresh().address == address
+        loc2.refresh().address == address
+    }
 }

@@ -192,7 +192,7 @@ class MediaServiceSpec extends Specification {
     //     UploadItem uItem = Mock()
     //     UploadItem uItem1 = Mock() { toMediaElementVersion() >> TestUtils.buildMediaElementVersion() }
     //     UploadItem uItem2 = Mock() { toMediaElementVersion() >> TestUtils.buildMediaElementVersion() }
-    //     MockedMethod process = TestUtils.mock(MediaPostProcessor, "process") {
+    //     MockedMethod process = MockedMethod.create(MediaPostProcessor, "process") {
     //         new Result(payload: Tuple.create(uItem1, [uItem2]))
     //     }
 
@@ -325,7 +325,7 @@ class MediaServiceSpec extends Specification {
     //     given:
     //     service.threadService = Mock(ThreadService)
     //     service.storageService = Mock(StorageService)
-    //     MockedMethod trySet = TestUtils.mock(Utils, "trySet") { new Result() }
+    //     MockedMethod trySet = MockedMethod.create(Utils, "trySet") { new Result() }
     //     MediaInfo mInfo = new MediaInfo()
     //     mInfo.save(flush: true, failOnError: true)
     //     int mBaseline = MediaInfo.count()
@@ -377,7 +377,7 @@ class MediaServiceSpec extends Specification {
     //     given:
     //     service.threadService = Mock(ThreadService)
     //     service.storageService = Mock(StorageService)
-    //     MockedMethod trySet = TestUtils.mock(Utils, "trySet") { new Result() }
+    //     MockedMethod trySet = MockedMethod.create(Utils, "trySet") { new Result() }
     //     WithMedia withMedia = Mock(WithMedia)
     //     int mBaseline = MediaInfo.count()
     //     int eBaseline = MediaElement.count()
@@ -433,7 +433,7 @@ class MediaServiceSpec extends Specification {
     //     given:
     //     service.threadService = Mock(ThreadService)
     //     service.storageService = Mock(StorageService)
-    //     MockedMethod trySet = TestUtils.mock(Utils, "trySet") { new Result() }
+    //     MockedMethod trySet = MockedMethod.create(Utils, "trySet") { new Result() }
     //     MediaInfo mInfo = new MediaInfo()
     //     mInfo.save(flush: true, failOnError: true)
     //     WithMedia withMedia = Mock(WithMedia)
@@ -474,12 +474,12 @@ class MediaServiceSpec extends Specification {
     //     service.storageService = Stub(StorageService) {  uploadAsync(*_) >> new ResultGroup() }
     //     service.threadService = Mock(ThreadService)
     //     UploadItem uItem = Mock()
-    //     MockedMethod hasMediaActions = TestUtils.mock(service, "hasMediaActions") { true }
-    //     MockedMethod handleActions = TestUtils.mock(service, "handleActions") {
+    //     MockedMethod hasMediaActions = MockedMethod.create(service, "hasMediaActions") { true }
+    //     MockedMethod handleActions = MockedMethod.create(service, "handleActions") {
     //         new Result(payload: uItem).toGroup()
     //     }
-    //     MockedMethod tryFinishProcessing = TestUtils.mock(service, "tryFinishProcessing")
-    //     MockedMethod trySet = TestUtils.forceMock(Utils, "trySet") { new Result() }
+    //     MockedMethod tryFinishProcessing = MockedMethod.create(service, "tryFinishProcessing")
+    //     MockedMethod trySet = MockedMethod.force(Utils, "trySet") { new Result() }
     //     MediaInfo mInfo = new MediaInfo()
     //     Closure delayedAction
 
@@ -495,9 +495,9 @@ class MediaServiceSpec extends Specification {
     //     hasMediaActions.callCount == 1
     //     handleActions.callCount == 1
     //     tryFinishProcessing.callCount == 1
-    //     tryFinishProcessing.callArguments[0][0] == mInfo.id
-    //     tryFinishProcessing.callArguments[0][1] instanceof Collection
-    //     tryFinishProcessing.callArguments[0][1].each { Tuple<UploadItem, Long> processed ->
+    //     tryFinishProcessing.allArgs[0][0] == mInfo.id
+    //     tryFinishProcessing.allArgs[0][1] instanceof Collection
+    //     tryFinishProcessing.allArgs[0][1].each { Tuple<UploadItem, Long> processed ->
     //         assert processed.first == uItem
     //     }
 

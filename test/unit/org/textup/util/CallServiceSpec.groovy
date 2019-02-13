@@ -134,7 +134,7 @@ class CallServiceSpec extends Specification {
         res.errorMessages == ["callService.doCall.missingInfo"]
 
         when: "non ApiException is thrown"
-        MockedMethod callCreator = TestUtils.mock(service, "callCreator") {
+        MockedMethod callCreator = MockedMethod.create(service, "callCreator") {
             throw new IllegalArgumentException(TestUtils.randString())
         }
         res = service.doCall(fromNum, toNum, afterPickup, callback, customAccountId)
@@ -144,7 +144,7 @@ class CallServiceSpec extends Specification {
 
         when: "ApiException is thrown"
         callCreator.restore()
-        callCreator = TestUtils.mock(service, "callCreator") {
+        callCreator = MockedMethod.create(service, "callCreator") {
             throw new ApiException(TestUtils.randString())
         }
         res = service.doCall(fromNum, toNum, afterPickup, callback, customAccountId)
@@ -166,8 +166,8 @@ class CallServiceSpec extends Specification {
 
         String callId = TestUtils.randString()
         CallCreator creator = Mock()
-        MockedMethod callCreator = TestUtils.mock(service, "callCreator") { creator }
-        MockedMethod executeCall = TestUtils.mock(service, "executeCall") {
+        MockedMethod callCreator = MockedMethod.create(service, "callCreator") { creator }
+        MockedMethod executeCall = MockedMethod.create(service, "executeCall") {
             new CallService.Outcome(sid: callId)
         }
 
@@ -176,9 +176,9 @@ class CallServiceSpec extends Specification {
 
         then:
         callCreator.callCount == 1
-        callCreator.callArguments[0] == [fromNum, toNum, afterPickup, customAccountId]
+        callCreator.allArgs[0] == [fromNum, toNum, afterPickup, customAccountId]
         executeCall.callCount == 1
-        executeCall.callArguments[0] == [creator, callback]
+        executeCall.allArgs[0] == [creator, callback]
         res.status == ResultStatus.OK
         res.payload instanceof TempRecordReceipt
         res.payload.contactNumber.number == toNum.number
@@ -220,7 +220,7 @@ class CallServiceSpec extends Specification {
         String pickupVal = TestUtils.randString()
 
         CallUpdater updater = GroovyMock()
-        MockedMethod callUpdater = TestUtils.mock(service, "callUpdater") {
+        MockedMethod callUpdater = MockedMethod.create(service, "callUpdater") {
             throw new IllegalArgumentException(TestUtils.randString())
         }
 
@@ -232,7 +232,7 @@ class CallServiceSpec extends Specification {
 
         when: "no error"
         callUpdater.restore()
-        callUpdater = TestUtils.mock(service, "callUpdater") { updater }
+        callUpdater = MockedMethod.create(service, "callUpdater") { updater }
         res = service.interrupt(callId, [(pickupKey): pickupVal], customAccountId)
 
         then:
@@ -256,17 +256,17 @@ class CallServiceSpec extends Specification {
 
         TempRecordReceipt tempRpt1 = TestUtils.buildTempReceipt()
         RecordItem mockItem = Mock()
-        MockedMethod start = TestUtils.mock(service, "start") { new Result(payload: tempRpt1) }
-        MockedMethod findEveryByApiId = TestUtils.mock(RecordItem, "findEveryByApiId") { [mockItem] }
+        MockedMethod start = MockedMethod.create(service, "start") { new Result(payload: tempRpt1) }
+        MockedMethod findEveryByApiId = MockedMethod.create(RecordItem, "findEveryByApiId") { [mockItem] }
 
         when:
         Result<TempRecordReceipt> res = service.retry(fromNum, [toNum], apiId, afterPickup, customAccountId)
 
         then:
         start.callCount == 1
-        start.callArguments[0] == [fromNum, [toNum], afterPickup, customAccountId]
+        start.allArgs[0] == [fromNum, [toNum], afterPickup, customAccountId]
         findEveryByApiId.callCount == 1
-        findEveryByApiId.callArguments[0] == [apiId]
+        findEveryByApiId.allArgs[0] == [apiId]
         1 * mockItem.addReceipt(tempRpt1)
         1 * mockItem.save()
         res.status == ResultStatus.OK
@@ -285,7 +285,7 @@ class CallServiceSpec extends Specification {
         String customAccountId = TestUtils.randString()
 
         String errorMsg = TestUtils.randString()
-        MockedMethod doCall = TestUtils.mock(service, "doCall") {
+        MockedMethod doCall = MockedMethod.create(service, "doCall") {
             new Result(status: ResultStatus.INTERNAL_SERVER_ERROR,
                 errorMessages: [errorMsg])
         }
@@ -318,19 +318,19 @@ class CallServiceSpec extends Specification {
         String customAccountId = TestUtils.randString()
 
         TempRecordReceipt tempRpt = TestUtils.buildTempReceipt()
-        MockedMethod doCall = TestUtils.mock(service, "doCall") { new Result(payload: tempRpt) }
+        MockedMethod doCall = MockedMethod.create(service, "doCall") { new Result(payload: tempRpt) }
 
         when: "one number"
         Result<TempRecordReceipt> res = service.start(fromNum, [toNum1], afterPickup, customAccountId)
 
         then:
         doCall.callCount == 1
-        doCall.callArguments[0][0] == fromNum
-        doCall.callArguments[0][1] == toNum1
-        doCall.callArguments[0][2] == afterPickup
-        doCall.callArguments[0][3].contains("remaining") == false
-        doCall.callArguments[0][3].contains("afterPickup") == false
-        doCall.callArguments[0][4] == customAccountId
+        doCall.allArgs[0][0] == fromNum
+        doCall.allArgs[0][1] == toNum1
+        doCall.allArgs[0][2] == afterPickup
+        doCall.allArgs[0][3].contains("remaining") == false
+        doCall.allArgs[0][3].contains("afterPickup") == false
+        doCall.allArgs[0][4] == customAccountId
         res.status == ResultStatus.OK
         res.payload == tempRpt
 
@@ -339,13 +339,13 @@ class CallServiceSpec extends Specification {
 
         then: "stop on first number that works"
         doCall.callCount == 2
-        doCall.callArguments[1][0] == fromNum
-        doCall.callArguments[1][1] == toNum2
-        doCall.callArguments[1][2] == afterPickup
-        doCall.callArguments[1][3].contains("remaining") == true
-        doCall.callArguments[1][3].contains(toNum3.e164PhoneNumber) == true
-        doCall.callArguments[1][3].contains("afterPickup") == true
-        doCall.callArguments[1][4] == customAccountId
+        doCall.allArgs[1][0] == fromNum
+        doCall.allArgs[1][1] == toNum2
+        doCall.allArgs[1][2] == afterPickup
+        doCall.allArgs[1][3].contains("remaining") == true
+        doCall.allArgs[1][3].contains(toNum3.e164PhoneNumber) == true
+        doCall.allArgs[1][3].contains("afterPickup") == true
+        doCall.allArgs[1][4] == customAccountId
         res.status == ResultStatus.OK
         res.payload == tempRpt
 

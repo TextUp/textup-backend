@@ -31,7 +31,7 @@ class QuartzUtilsSpec extends Specification {
         given:
         TriggerKey trigKey = new TriggerKey(TestUtils.randString())
         Long authId = TestUtils.randIntegerUpTo(88)
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") {
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
             Result.createSuccess(authId)
         }
         FutureMessage mockMsg = GroovyMock() {

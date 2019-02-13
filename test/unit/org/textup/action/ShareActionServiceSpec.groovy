@@ -1,110 +1,179 @@
 package org.textup.action
 
-import grails.test.mixin.TestFor
-import spock.lang.Specification
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import org.textup.validator.action.*
+import spock.lang.*
 
-/**
- * See the API for {@link grails.test.mixin.services.ServiceUnitTestMixin} for usage instructions
- */
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
+@TestMixin(HibernateTestMixin)
 @TestFor(ShareActionService)
 class ShareActionServiceSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
     def setup() {
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
+    void "test has actions"() {
+        expect:
+        service.hasActions(doShareActions: null) == false
+        service.hasActions(doShareActions: "hi")
     }
 
-    void "test something"() {
+    void "test handling actions"() {
+        given:
+        String str1 = TestUtils.randString()
+        SharePermission perm1 = SharePermission.VIEW
+
+        Staff s1 = TestUtils.buildStaff()
+        Phone tp1 = TestUtils.buildTeamPhone()
+        Phone tp2 = TestUtils.buildTeamPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+
+        ShareAction a1 = GroovyMock()
+        ShareAction a2 = GroovyMock()
+        MockedMethod tryProcess = MockedMethod.create(ActionContainer, "tryProcess") {
+            Result.createSuccess([a1, a2])
+        }
+        MockedMethod tryStartShare = MockedMethod.create(service, "tryStartShare") {
+            Result.createError([], ResultStatus.UNPROCESSABLE_ENTITY)
+        }
+        MockedMethod tryStopShare = MockedMethod.create(service, "tryStopShare") { Result.void() }
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s1)
+        }
+        MockedMethod tryRecordSharingChanges = MockedMethod.create(service, "tryRecordSharingChanges") { Result.void() }
+
+        when:
+        Result res = service.tryHandleActions(ipr1, [doShareActions: str1])
+
+        then:
+        a1.buildPhone() >> tp1
+        a1.toString() >> ShareAction.MERGE
+        a2.buildPhone() >> tp1
+        tryProcess.latestArgs == [ShareAction, str1]
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        tryStartShare = MockedMethod.create(tryStartShare) { Result.void() }
+        res = service.tryHandleActions(ipr1, [doShareActions: str1])
+
+        then:
+        a1.buildPhone() >> tp1
+        a1.toString() >> ShareAction.MERGE
+        a1.buildSharePermission() >> perm1
+        tryStartShare.latestArgs == [ipr1, tp1, perm1]
+
+        a2.buildPhone() >> tp2
+        a2.toString() >> ShareAction.STOP
+        tryStopShare.latestArgs == [ipr1, tp2]
+
+        tryProcess.latestArgs == [ShareAction, str1]
+        tryGetActiveAuthUser.hasBeenCalled
+        tryRecordSharingChanges.latestArgs[0] == ipr1.record
+        tryRecordSharingChanges.latestArgs[2] instanceof Map
+        tryRecordSharingChanges.latestArgs[2].size() == 2
+        tryRecordSharingChanges.latestArgs[2][perm1].size() == 1
+        tryRecordSharingChanges.latestArgs[2][perm1][0] == tp1.buildName()
+        tryRecordSharingChanges.latestArgs[2][SharePermission.NONE].size() == 1
+        tryRecordSharingChanges.latestArgs[2][SharePermission.NONE][0] == tp2.buildName()
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        tryProcess?.restore()
+        tryStartShare?.restore()
+        tryStopShare?.restore()
+        tryGetActiveAuthUser?.restore()
+        tryRecordSharingChanges?.restore()
     }
 
-    // TODO
-    // void "test sharing contact operations"() {
-    //     when: "we start sharing one of our contacts with someone on a different team"
-    //     Result res = p1.share(c1, p3, SharePermission.DELEGATE)
+    void "test recording sharing changes"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
+        Author author1 = TestUtils.buildAuthor()
+        String name1 = TestUtils.randString()
+        String name2 = TestUtils.randString()
+        String name3 = TestUtils.randString()
+        Map permissionToNames = [
+            (SharePermission.DELEGATE): [name1],
+            (SharePermission.VIEW): [name2],
+            (SharePermission.NONE): [name3]
+        ]
+        int noteBaseline = RecordNote.count()
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.FORBIDDEN
-    //     res.errorMessages.size() == 1
-    //     res.errorMessages[0] == "phone.share.cannotShare"
+        service.socketService = GroovyMock(SocketService)
 
-    //     when: "we start sharing contact with someone on the same team"
-    //     c1.status = ContactStatus.ARCHIVED
-    //     assert c1.save(flush:true)
-    //     res = p1.share(c1, p2, SharePermission.DELEGATE)
+        when:
+        Result res = service.tryRecordSharingChanges(rec1, author1, permissionToNames)
 
-    //     then: "new shared contact created with contact's status"
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload.instanceOf(SharedContact)
-    //     res.payload.status == c1.status
+        then:
+        1 * service.socketService.sendItems(*_)
+        res.status == ResultStatus.NO_CONTENT
+        RecordNote.count() == noteBaseline + permissionToNames.size()
 
-    //     when: "we start sharing contact that we've already shared with the same person"
-    //     c1.status = ContactStatus.UNREAD
-    //     assert c1.save(flush:true)
-    //     int sBaseline = SharedContact.count()
-    //     res = p1.share(c1, p2, SharePermission.DELEGATE)
-    //     assert res.success
-    //     SharedContact shared0 = res.payload
-    //     res.payload.save(flush:true, failOnError:true)
+        and:
+        RecordNote.findAllByRecord(rec1).each {
+            assert it.author == author1
+            assert it.isReadOnly == true
+            assert it.noteContents != null
+        }
+    }
 
-    //     then: "we don't create a duplicate SharedContact and status is updated"
-    //     res.status == ResultStatus.OK
-    //     shared0.instanceOf(SharedContact)
-    //     SharedContact.count() == sBaseline
-    //     shared0.status == c1.status
+    void "test trying to stop share"() {
+        given:
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+        assert spr1.isActive()
 
-    //     when: "we share three more and list all shared so far"
-    //     SharedContact shared1 = p1.share(c1_1, p2, SharePermission.DELEGATE).payload,
-    //         shared2 = p1.share(c1_2, p2, SharePermission.DELEGATE).payload,
-    //         shared3 = p2.share(c2, p1, SharePermission.DELEGATE).payload
-    //     [shared1, shared2, shared3]*.save(flush:true, failOnError:true)
+        when:
+        Result res = service.tryStopShare(spr1.shareSource, spr1.phone)
 
-    //     then:
-    //     p1.sharedByMe.every { it in [shared2, shared1, shared0]*.contact }
-    //     p1.sharedWithMe == [shared3]
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        spr1.isActive() == false
+    }
 
-    //     when: "we stop sharing someone else's contact"
-    //     res = p1.stopShare(tC1)
+    void "test trying to start share"() {
+        given:
+        SharePermission perm1 = SharePermission.VIEW
+        Phone shareWith = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(ipr1, shareWith)
+        assert spr1.isActive()
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.BAD_REQUEST
-    //     res.errorMessages.size() == 1
-    //     res.errorMessages[0] == "phone.contactNotMine"
+        int prBaseline = PhoneRecord.count()
 
-    //     when: "we stop sharing contact that is not shared"
-    //     Contact c1_3 = p1.createContact([:], ["12223334447"]).payload
-    //     c1_3.save(flush:true, failOnError:true)
-    //     res = p1.stopShare(c1_3)
+        MockedMethod canShare = MockedMethod.create(Phones, "canShare") { Result.void() }
 
-    //     then: "silently ignore that contact is not shared"
-    //     res.success == true
-    //     res.status == ResultStatus.NO_CONTENT
+        when:
+        Result res = service.tryStartShare(ipr1, shareWith, perm1)
 
-    //     when: "we stop sharing by phones"
-    //     assert p1.stopShare(p2).success
-    //     p1.merge(flush:true)
+        then:
+        canShare.hasBeenCalled
+        res.status == ResultStatus.CREATED
+        res.payload instanceof PhoneRecord
+        res.payload != ipr1
+        res.payload != spr1
+        spr1.isActive() == false
+        PhoneRecord.count() == prBaseline + 1
 
-    //     then:
-    //     p1.sharedByMe.isEmpty() == true
-    //     p1.sharedWithMe.size() == 1
-    //     p1.sharedWithMe[0].id == shared3.id
-
-    //     when: "stop sharing by contacts"
-    //     SharedContact shared4 = p2.share(c2, p3, SharePermission.DELEGATE).payload
-    //     shared4.save(flush:true, failOnError:true)
-    //     //same underlying contact
-    //     assert p2.sharedByMe.every { it in [shared4, shared3]*.contact }
-    //     assert p1.sharedWithMe[0].id == shared3.id && p3.sharedWithMe[0].id == shared4.id
-
-    //     p2.stopShare(c2)
-    //     p2.merge(flush:true)
-
-    //     then:
-    //     p2.sharedByMe.isEmpty() == true
-    //     p1.sharedWithMe.isEmpty() == true
-    //     p3.sharedWithMe.isEmpty() == true
-    // }
+        cleanup:
+        canShare?.restore()
+    }
 }

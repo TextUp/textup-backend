@@ -35,7 +35,7 @@ class StaffSpec extends Specification {
     void "test constraints"() {
         given:
         String encoded = TestUtils.randString()
-        MockedMethod encodeSecureString = TestUtils.forceMock(AuthUtils, "encodeSecureString") { encoded }
+        MockedMethod encodeSecureString = MockedMethod.force(AuthUtils, "encodeSecureString") { encoded }
 
         Organization org1 = TestUtils.buildOrg()
         Role role1 = TestUtils.buildRole()
@@ -70,7 +70,7 @@ class StaffSpec extends Specification {
     void "test creation"() {
         given:
         boolean shouldBeNew = true
-        MockedMethod isNew = TestUtils.mock(DomainUtils, "isNew") { shouldBeNew }
+        MockedMethod isNew = MockedMethod.create(DomainUtils, "isNew") { shouldBeNew }
 
         Organization org1 = TestUtils.buildOrg()
         Role role1 = TestUtils.buildRole()

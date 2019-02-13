@@ -177,10 +177,10 @@ class PhoneServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test handling phone actions overall"() {
         given:
-        MockedMethod deactivatePhone = TestUtils.mock(service, "deactivatePhone") { new Result() }
-        MockedMethod transferPhone = TestUtils.mock(service, "transferPhone") { new Result() }
-        MockedMethod updatePhoneForNumber = TestUtils.mock(service, "updatePhoneForNumber") { new Result() }
-        MockedMethod updatePhoneForApiId = TestUtils.mock(service, "updatePhoneForApiId") { new Result() }
+        MockedMethod deactivatePhone = MockedMethod.create(service, "deactivatePhone") { new Result() }
+        MockedMethod transferPhone = MockedMethod.create(service, "transferPhone") { new Result() }
+        MockedMethod updatePhoneForNumber = MockedMethod.create(service, "updatePhoneForNumber") { new Result() }
+        MockedMethod updatePhoneForApiId = MockedMethod.create(service, "updatePhoneForApiId") { new Result() }
 
         when: "no phone actions"
         Result<Phone> res = service.handlePhoneActions(p1, [:])
@@ -439,7 +439,7 @@ class PhoneServiceSpec extends CustomSpec {
     void "test short circuiting when logged-in user is not active"() {
         given:
         service.authService = Mock(AuthService)
-        MockedMethod mergeHelper = TestUtils.mock(service, "mergeHelper") { new Result() }
+        MockedMethod mergeHelper = MockedMethod.create(service, "mergeHelper") { new Result() }
 
         when: "merge for staff"
         Result<Staff> staffRes = service.mergePhone(s1, [phone: [awayMessage: "hi"]], null)
@@ -480,7 +480,7 @@ class PhoneServiceSpec extends CustomSpec {
             location: new Location(address: "address", lat: 8G, lon: 10G))
         [staff1, team1]*.save(flush: true, failOnError: true)
         service.authService = Stub(AuthService) { getIsActive() >> true }
-        MockedMethod mergeHelper = TestUtils.mock(service, "mergeHelper")
+        MockedMethod mergeHelper = MockedMethod.create(service, "mergeHelper")
             { Phone p1 -> p1.save(); new Result(); }
         int pBaseline = Phone.count()
         int oBaseline = PhoneOwnership.count()
@@ -556,9 +556,9 @@ class PhoneServiceSpec extends CustomSpec {
     void "test cancelling future processing if error during merging"() {
         given:
         service.mediaService = Mock(MediaService)
-        MockedMethod handlePhoneActions = TestUtils.mock(service, "handlePhoneActions")
+        MockedMethod handlePhoneActions = MockedMethod.create(service, "handlePhoneActions")
             { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
-        MockedMethod requestVoicemailGreetingCall = TestUtils.mock(service, "requestVoicemailGreetingCall")
+        MockedMethod requestVoicemailGreetingCall = MockedMethod.create(service, "requestVoicemailGreetingCall")
         Future fut1 = Mock()
 
         when:
@@ -575,13 +575,13 @@ class PhoneServiceSpec extends CustomSpec {
     void "test requesting voicemail greeting call during merging"() {
         given:
         service.mediaService = Mock(MediaService)
-        MockedMethod handlePhoneActions = TestUtils.mock(service, "handlePhoneActions")
+        MockedMethod handlePhoneActions = MockedMethod.create(service, "handlePhoneActions")
             { new Result() }
-        MockedMethod handleAvailability = TestUtils.mock(service, "handleAvailability")
+        MockedMethod handleAvailability = MockedMethod.create(service, "handleAvailability")
             { new Result() }
-        MockedMethod updateFields = TestUtils.mock(service, "updateFields")
+        MockedMethod updateFields = MockedMethod.create(service, "updateFields")
             { new Result() }
-        MockedMethod requestVoicemailGreetingCall = TestUtils.mock(service, "requestVoicemailGreetingCall")
+        MockedMethod requestVoicemailGreetingCall = MockedMethod.create(service, "requestVoicemailGreetingCall")
             { new Result() }
         Future fut1 = Mock()
 

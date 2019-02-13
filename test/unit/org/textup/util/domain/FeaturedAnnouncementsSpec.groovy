@@ -42,7 +42,7 @@ class FeaturedAnnouncementsSpec extends Specification {
         FeaturedAnnouncement fa1 = TestUtils.buildAnnouncement()
         FeaturedAnnouncement fa2 = TestUtils.buildAnnouncement(tp1)
 
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
 
         when:
         Result res = FeaturedAnnouncements.isAllowed(null)

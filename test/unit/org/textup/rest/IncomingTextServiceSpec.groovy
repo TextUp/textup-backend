@@ -137,8 +137,7 @@ class IncomingTextServiceSpec extends Specification {
     //     IncomingText text = Stub(IncomingText) { getApiId() >> "hi" }
     //     TypeMap params = TypeMap.create()
     //     MediaElement e1 = TestUtils.buildMediaElement()
-    //     MockedMethod finishProcessingTextHelper = TestUtils
-    //         .mock(service, "finishProcessingTextHelper") { new Result() }
+    //     MockedMethod finishProcessingTextHelper = MockedMethod.create(service, "finishProcessingTextHelper") { new Result() }
     //     int mBaseline = MediaInfo.count()
     //     int eBaseline = MediaElement.count()
 
@@ -171,13 +170,13 @@ class IncomingTextServiceSpec extends Specification {
     //     given:
     //     service.notificationService = GroovyMock(NotificationService)
     //     service.threadService = GroovyMock(ThreadService)
-    //     MockedMethod finishProcessingText = TestUtils.mock(service, "finishProcessingText")
+    //     MockedMethod finishProcessingText = MockedMethod.create(service, "finishProcessingText")
     //         { new Result() }
-    //     MockedMethod buildTextResponse = TestUtils.mock(service, "buildTextResponse")
+    //     MockedMethod buildTextResponse = MockedMethod.create(service, "buildTextResponse")
     //         { new Result() }
 
     //     when: "blocked"
-    //     MockedMethod buildTexts = TestUtils.mock(service, "buildTexts")
+    //     MockedMethod buildTexts = MockedMethod.create(service, "buildTexts")
     //         { new Result(payload: Tuple.create([], [])) }
     //     Result<Closure> res = service.processText(null, null, null, null)
 
@@ -192,7 +191,7 @@ class IncomingTextServiceSpec extends Specification {
 
     //     when: "not blocked"
     //     buildTexts.restore()
-    //     buildTexts = TestUtils.mock(service, "buildTexts")
+    //     buildTexts = MockedMethod.create(service, "buildTexts")
     //         { new Result(payload: Tuple.create([], [c1])) }
     //     res = service.processText(null, null, null, null)
 

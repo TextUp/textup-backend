@@ -26,15 +26,15 @@ class NotificationActionService implements HandlesActions<Tuple<Phone, Long>, Vo
                     ResultGroup
                         .collect(actions) { NotificationAction a1 ->
                             OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, a1.id)
-                                .then { OwnerPolicy np1 ->
+                                .then { OwnerPolicy op1 ->
                                     switch (a1) {
                                         case NotificationAction.ENABLE:
-                                            np1.enable(recordId)
+                                            op1.enable(recordId)
                                             break
                                         default: // NotificationAction.DISABLE
-                                            np1.disable(recordId)
+                                            op1.disable(recordId)
                                     }
-                                    DomainUtils.trySave(np1)
+                                    DomainUtils.trySave(op1)
                                 }
                         }
                         .toEmptyResult(false)

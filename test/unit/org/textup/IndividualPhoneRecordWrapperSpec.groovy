@@ -60,7 +60,7 @@ class IndividualPhoneRecordWrapperSpec extends Specification {
         String note = TestUtils.randString()
         PhoneNumber pNum1 = TestUtils.randPhoneNumber()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
-        MockedMethod tryCancelFutureMessages = TestUtils.mock(ipr1, "tryCancelFutureMessages") {
+        MockedMethod tryCancelFutureMessages = MockedMethod.create(ipr1, "tryCancelFutureMessages") {
             Result.void()
         }
 

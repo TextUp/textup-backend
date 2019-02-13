@@ -156,7 +156,7 @@ class TeamsSpec extends Specification {
 
         Team.withSession { it.flush() }
 
-        MockedMethod tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s1.id) }
 
         when:
         Result res = Teams.isAllowed(null)
@@ -174,7 +174,7 @@ class TeamsSpec extends Specification {
 
         when:
         tryGetAuthId.restore()
-        tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s2.id) }
+        tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s2.id) }
         res = Teams.isAllowed(t1.id)
 
         then: "staff is not admin"
@@ -183,7 +183,7 @@ class TeamsSpec extends Specification {
 
         when:
         tryGetAuthId.restore()
-        tryGetAuthId = TestUtils.mock(AuthUtils, "tryGetAuthId") { Result.createSuccess(s3.id) }
+        tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") { Result.createSuccess(s3.id) }
         res = Teams.isAllowed(t1.id)
 
         then: "staff is admin"

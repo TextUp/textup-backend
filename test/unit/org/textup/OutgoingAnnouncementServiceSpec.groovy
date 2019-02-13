@@ -138,8 +138,8 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
     @DirtiesRuntime
     void "test announcement none reached"() {
         given: "phone and incoming sessions, some coinciding with contacts"
-        MockedMethod sendTextAnnouncement = TestUtils.mock(service, "sendTextAnnouncement") { [:] }
-        MockedMethod startCallAnnouncement = TestUtils.mock(service, "startCallAnnouncement") { [:] }
+        MockedMethod sendTextAnnouncement = MockedMethod.create(service, "sendTextAnnouncement") { [:] }
+        MockedMethod startCallAnnouncement = MockedMethod.create(service, "startCallAnnouncement") { [:] }
 
         when: "none reached with no subscribers"
         Result<FeaturedAnnouncement> res = service.send(p1, "hello", DateTime.now().plusDays(1), s1)
@@ -177,9 +177,9 @@ class OutgoingAnnouncementServiceSpec extends CustomSpec {
             isSubscribedToText:true, isSubscribedToCall:true)
         sess.save(flush:true, failOnError:true)
         // mock helper methods
-        MockedMethod sendTextAnnouncement = TestUtils.mock(service, "sendTextAnnouncement")
+        MockedMethod sendTextAnnouncement = MockedMethod.create(service, "sendTextAnnouncement")
             { [(subNum): new Result(status:ResultStatus.OK)] }
-        MockedMethod startCallAnnouncement = TestUtils.mock(service, "startCallAnnouncement")
+        MockedMethod startCallAnnouncement = MockedMethod.create(service, "startCallAnnouncement")
             { [(subNum): new Result(status:ResultStatus.OK)] }
         // baselines
         int featBaseline = FeaturedAnnouncement.count(),
