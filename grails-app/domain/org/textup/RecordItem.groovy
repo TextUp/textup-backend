@@ -82,6 +82,12 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
         useForCreation = false)
     MediaInfo media
 
+    @RestApiObjectField(
+        description    = "Whether this item is deleted",
+        allowedType    = "Boolean",
+        useForCreation = false)
+    boolean isDeleted = false
+
     @RestApiObjectFields(params=[
         @RestApiObjectField(
             apiFieldName   = "type",

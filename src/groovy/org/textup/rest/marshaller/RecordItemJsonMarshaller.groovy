@@ -26,6 +26,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             wasScheduled = item.wasScheduled
             receipts = item.groupReceiptsByStatus()
             media = item.readOnlyMedia
+            isDeleted = item.isDeleted
             if (item.authorName) { authorName = item.authorName }
             if (item.authorId) { authorId = item.authorId }
             if (item.authorType) { authorType = item.authorType.toString() }
@@ -42,7 +43,6 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             }
             else if (item instanceof ReadOnlyRecordNote) {
                 whenChanged = item.whenChanged
-                isDeleted = item.isDeleted
                 isReadOnly = item.isReadOnly
                 revisions = item.revisions
                 location = item.readOnlyLocation

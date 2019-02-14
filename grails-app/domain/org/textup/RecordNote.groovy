@@ -23,12 +23,6 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 	DateTime whenChanged = DateTime.now(DateTimeZone.UTC)
 
     @RestApiObjectField(
-        description    = "Whether this item is deleted",
-        allowedType    = "Boolean",
-        useForCreation = false)
-	boolean isDeleted = false
-
-    @RestApiObjectField(
         description    = "Whether this item is a read-only note",
         allowedType    = "Boolean",
         useForCreation = false)

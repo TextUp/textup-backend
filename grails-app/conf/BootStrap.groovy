@@ -128,6 +128,7 @@ class BootStrap {
 				[c1, c2, tC1]*.save(flush:true, failOnError:true)
 				RecordText rText1 = c1.record
 					.storeOutgoingText("Hi! Hope you're doing well today.", null).payload
+				rText1.isDeleted = true
 		        RecordText rText2 = c2.record
 		        	.storeOutgoingText("Hi! Hope you're doing well today.", null).payload
 		        RecordText rTeText1 = tC1.record

@@ -67,6 +67,7 @@ interface ReadOnlyRecordItem extends Authorable, WithMedia {
     boolean getHasAwayMessage()
     boolean getIsAnnouncement()
     boolean getWasScheduled()
+    boolean getIsDeleted()
 
     String getNoteContents()
     RecordItemStatus groupReceiptsByStatus()
@@ -86,7 +87,6 @@ interface ReadOnlyBaseRecordNote extends Authorable {
 // RecordNoteRevisions should not have
 @GrailsTypeChecked
 interface ReadOnlyRecordNote extends ReadOnlyBaseRecordNote {
-    boolean getIsDeleted()
     boolean getIsReadOnly()
     Set<? extends ReadOnlyRecordNoteRevision> getRevisions()
 }
