@@ -965,6 +965,4 @@ databaseChangeLog = {
 	include file: 'phone-subaccount-credentials.groovy'
 
 	include file: 'receipt-api-id-index.groovy'
-
-	include file: 'record-item-delete.groovy'
 }
