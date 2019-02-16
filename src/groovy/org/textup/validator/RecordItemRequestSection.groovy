@@ -16,16 +16,13 @@ import org.textup.util.domain.*
 @Validateable
 class RecordItemRequestSection implements CanValidate {
 
+    // Need to allow empty record items because FOP still expects the other fields even if no items
     final Collection<? extends ReadOnlyRecordItem> recordItems
     final Collection<String> contactNames
     final Collection<String> sharedContactNames
     final Collection<String> tagNames
     final String phoneName
     final String phoneNumber
-
-    static constraints = {
-        recordItems minSize: 1
-    }
 
     static Result<RecordItemRequestSection> tryCreate(String pName, BasePhoneNumber pNum,
         Collection<? extends ReadOnlyRecordItem> thisItems, Collection<? extends PhoneRecordWrapper> wraps) {

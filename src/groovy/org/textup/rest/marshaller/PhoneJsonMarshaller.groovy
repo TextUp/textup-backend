@@ -36,9 +36,10 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
             if (allStaffs.contains(authUser)) {
                 ReadOnlyOwnerPolicy myPolicy = OwnerPolicies
                     .findReadOnlyOrDefaultForOwnerAndStaff(p1.owner, authUser)
-                Collection<ReadOnlyOwnerPolicy> otherPolicies = allStaffs.collect { Staff s1 ->
+                Collection<ReadOnlyOwnerPolicy> otherPolicies = []
+                allStaffs.each { Staff s1 ->
                     if (s1 != authUser) {
-                        OwnerPolicies.findReadOnlyOrDefaultForOwnerAndStaff(p1.owner, s1)
+                        otherPolicies << OwnerPolicies.findReadOnlyOrDefaultForOwnerAndStaff(p1.owner, s1)
                     }
                 }
                 json.with {

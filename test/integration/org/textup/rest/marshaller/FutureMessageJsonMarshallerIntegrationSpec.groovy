@@ -1,109 +1,113 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.joda.time.DateTime
+import org.joda.time.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 import spock.lang.*
 
 class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
 
-    def grailsApplication
-    Record rec
-
-    def setup() {
-    	rec = new Record()
-        rec.save(flush: true, failOnError: true)
-    }
-
-    protected boolean validate(Map json, FutureMessage fMsg) {
-        assert json.id == fMsg.id
-        assert json.whenCreated == fMsg.whenCreated.toString()
-        assert json.startDate == fMsg.startDate.toString()
-        assert json.notifySelf == fMsg.notifySelf
-        assert json.type == fMsg.type.toString()
-        assert json.message == fMsg.message
-        assert json.isDone == fMsg.isReallyDone
-        assert json.isRepeating == fMsg.isRepeating
-        assert json.language == fMsg.language.toString()
-        assert json.media instanceof Map
-        // always will be null because we aren't actually scheduling
-        assert json.timesTriggered == null
-        assert json.nextFireDate == null
-        // didn't mock up contacts or tags
-        assert json.contact == null
-        assert json.tag == null
-        true
-    }
-
     void "test marshalling future message"() {
         given: "a nonrepeating future message"
-        FutureMessage fMsg = new FutureMessage(
-            type:FutureMessageType.CALL,
-            message:"hi",
-            record:rec,
-            language: VoiceLanguage.PORTUGUESE,
-            media: new MediaInfo()
-        )
-        fMsg.save(flush:true, failOnError:true)
+        FutureMessage fMsg1 = new FutureMessage(type: FutureMessageType.CALL,
+            message: TestUtils.randString(),
+            record: TestUtils.buildRecord(),
+            language: VoiceLanguage.values()[0],
+            media: TestUtils.buildMediaInfo())
+        fMsg1.save(flush:true, failOnError:true)
 
         when: "we marshal this message"
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(fMsg as JSON)
-        }
+        Map json = TestUtils.objToJsonMap(fMsg1)
 
         then:
-        validate(json, fMsg)
+        json.id == fMsg1.id
+        json.whenCreated == fMsg1.whenCreated.toString()
+        json.startDate == fMsg1.startDate.toString()
+        json.notifySelf == fMsg1.notifySelf
+        json.type == fMsg1.type.toString()
+        json.message == fMsg1.message
+        json.isDone == fMsg1.isReallyDone
+        json.isRepeating == fMsg1.isRepeating
+        json.language == fMsg1.language.toString()
+        json.media instanceof Map
+
+        json.timesTriggered == null
+        json.nextFireDate == null
         json.endDate == null
         json.hasEndDate == null
         json.nextFireDate == null
     }
 
-    void "test marshalling simple future message"() {
-        given: "a nonrepeating simple future message"
-        SimpleFutureMessage sMsg = new SimpleFutureMessage(
-            type:FutureMessageType.CALL,
-            message:"hi",
-            record:rec,
-            language: VoiceLanguage.ITALIAN,
-            media: new MediaInfo()
-        )
-        sMsg.save(flush:true, failOnError:true)
+    void "test marshalling with different owners"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
 
-        when: "we make this message repeating via repeatCount then marshal"
-        sMsg.repeatCount = 10
-        sMsg.save(flush:true, failOnError:true)
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(sMsg as JSON)
-        }
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage()
+
+        when:
+        RequestUtils.trySet(RequestUtils.PHONE_RECORD_ID, "not a number")
+        Map json = TestUtils.objToJsonMap(fMsg1)
 
         then:
-        validate(json, sMsg)
-        json.repeatIntervalInDays == sMsg.repeatIntervalInDays
+        json.tag == null
+        json.contact == null
+
+        when:
+        RequestUtils.trySet(RequestUtils.PHONE_RECORD_ID, ipr1.id)
+        json = TestUtils.objToJsonMap(fMsg1)
+
+        then:
+        json.tag == null
+        json.contact == ipr1.id
+
+        when:
+        RequestUtils.trySet(RequestUtils.PHONE_RECORD_ID, spr1.id)
+        json = TestUtils.objToJsonMap(fMsg1)
+
+        then:
+        json.tag == null
+        json.contact == spr1.id
+
+        when:
+        RequestUtils.trySet(RequestUtils.PHONE_RECORD_ID, gpr1.id)
+        json = TestUtils.objToJsonMap(fMsg1)
+
+        then:
+        json.tag == gpr1.id
+        json.contact == null
+    }
+
+    void "test marshalling simple future message"() {
+        given:
+        SimpleFutureMessage sMsg1 = TestUtils.buildFutureMessage()
+        sMsg1.repeatCount = 10
+        SimpleFutureMessage.withSession { it.flush() }
+
+        when: "we make this message repeating via repeatCount then marshal"
+        Map json = TestUtils.objToJsonMap(sMsg1)
+
+        then:
+        json.repeatIntervalInDays == sMsg1.repeatIntervalInDays
         json.endDate == null
-        json.hasEndDate == false
-        json.repeatCount == sMsg.repeatCount
-        json.uploadErrors == null
+        json.repeatCount == sMsg1.repeatCount
 
         when: "we make this message repeating via endDate then marshal"
-        sMsg.repeatCount = null
-        sMsg.endDate = DateTime.now().plusDays(1)
-        sMsg.save(flush:true, failOnError:true)
-        RequestUtils.trySet(Constants.REQUEST_UPLOAD_ERRORS, ["errors1", "errors2"])
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(sMsg as JSON)
-        }
+        sMsg1.repeatCount = null
+        sMsg1.endDate = DateTime.now().plusDays(1)
+        sMsg1.save(flush: true, failOnError: true)
+
+        json = TestUtils.objToJsonMap(sMsg1)
 
         then: "no upload errors here -- see MediaInfo json marshaller"
-        validate(json, sMsg)
-        json.repeatIntervalInDays == sMsg.repeatIntervalInDays
-        json.endDate == sMsg.endDate.toString()
-        json.hasEndDate == true
+        json.repeatIntervalInDays == sMsg1.repeatIntervalInDays
+        json.endDate == sMsg1.endDate.toString()
         json.repeatCount == null
-        json.uploadErrors == null
     }
 }

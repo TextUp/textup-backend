@@ -101,7 +101,6 @@ class Result<T> {
     // Currying
     // --------
 
-    // TODO handle if we try to curry one thing and it ends up being null
     Result<T> curry(Object... args) {
         currySuccess(args)
         curryFailure(args)

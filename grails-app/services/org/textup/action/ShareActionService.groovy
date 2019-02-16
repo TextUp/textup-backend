@@ -24,7 +24,7 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
     Result<Void> tryHandleActions(PhoneRecord pr1, Map body) {
         ActionContainer.tryProcess(ShareAction, body.doShareActions)
             .then { List<ShareAction> actions ->
-                Map<SharePermission, HashSet<String>> permissionToNames = [:]
+                Map<SharePermission, Collection<String>> permissionToNames = [:]
                     .withDefault { new HashSet<String>() }
                 ResultGroup
                     .<ShareAction, ?>collect(actions) { ShareAction a1 ->
@@ -44,10 +44,10 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
                     .toEmptyResult(false)
                     .curry(permissionToNames)
             }
-            .then { Map<SharePermission, HashSet<String>> permissionToNames ->
+            .then { Map<SharePermission, Collection<String>> permissionToNames ->
                 AuthUtils.tryGetActiveAuthUser().curry(permissionToNames)
             }
-            .then { Map<SharePermission, HashSet<String>> permissionToNames, Staff s1 ->
+            .then { Map<SharePermission, Collection<String>> permissionToNames, Staff s1 ->
                 tryRecordSharingChanges(pr1.record, Author.create(s1), permissionToNames)
             }
     }
@@ -72,7 +72,7 @@ class ShareActionService implements HandlesActions<PhoneRecord, Void> {
     }
 
     protected Result<Void> tryRecordSharingChanges(Record rec1, Author author,
-        Map<SharePermission, ? extends Collection<String>> permissionToNames) {
+        Map<SharePermission, Collection<String>> permissionToNames) {
 
         ResultGroup
             .collectEntries(permissionToNames) { SharePermission perm1, Collection<String> names ->

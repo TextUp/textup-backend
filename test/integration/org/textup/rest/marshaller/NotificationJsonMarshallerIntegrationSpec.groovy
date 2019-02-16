@@ -1,50 +1,58 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.textup.test.*
 import org.textup.*
-import org.textup.type.PhoneOwnershipType
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.Notification
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-class NotificationJsonMarshallerIntegrationSpec extends CustomSpec {
+class NotificationJsonMarshallerIntegrationSpec extends Specification {
 
-	def grailsApplication
-
-    def setup() {
-    	setupIntegrationData()
-    }
-
-    def cleanup() {
-    	cleanupIntegrationData()
-    }
-
-    void "test marshalling notification"() {
-    	given: "notification"
-    	String contents = "hi"
-        Boolean isOutgoing = true
-    	Notification notif = new Notification(owner:p1.owner, record:tag1.record,
-    		contents:contents, outgoing:isOutgoing, tokenId:1L)
-    	assert notif.validate() == true
+    void "test marshalling"() {
+    	given:
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildActiveStaffPhone(s1)
+        Notification notif1 = TestUtils.buildNotification(p1)
 
     	when:
-    	Map json
-    	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestUtils.jsonToMap(notif as JSON)
-    	}
+        RequestUtils.trySet(RequestUtils.STAFF_ID, "not a number")
+    	Map json = TestUtils.objToJsonMap(notif1)
 
     	then:
-        json.id == notif.tokenId
-        json.ownerType ==
-    		(p1.owner.type == PhoneOwnershipType.INDIVIDUAL ? "staff" : "team")
-		json.ownerId == (p1.owner.type == PhoneOwnershipType.INDIVIDUAL ?
-            Staff.get(p1.owner.ownerId).username : p1.owner.buildName())
-		json.ownerName == p1.owner.buildName()
-		json.ownerNumber == p1.number.e164PhoneNumber
-		json.contents == contents
-        json.outgoing == isOutgoing
-		json.otherType == "tag"
-		json.otherId == tag1.name
-		json.otherName == tag1.name
+        json.id == s1.id
+        json.name == s1.name
+        json.phoneNumber.noFormatNumber == p1.number.number
+        json.type == PhoneOwnershipType.INDIVIDUAL.toString()
+        json.details instanceof Collection
+        json.details.size() > 0
+        json.numVoicemail == null
+        json.numIncomingText == null
+        json.numIncomingCall == null
+        json.incomingNames == null
+        json.numOutgoingText == null
+        json.numOutgoingCall == null
+        json.outgoingNames == null
+
+        when:
+        RequestUtils.trySet(RequestUtils.STAFF_ID, s1.id)
+        json = TestUtils.objToJsonMap(notif1)
+
+        then:
+        json.id == s1.id
+        json.name == s1.name
+        json.phoneNumber.noFormatNumber == p1.number.number
+        json.type == PhoneOwnershipType.INDIVIDUAL.toString()
+        json.details instanceof Collection
+        json.details.size() > 0
+        json.numVoicemail != null
+        json.numIncomingText != null
+        json.numIncomingCall != null
+        json.incomingNames != null
+        json.numOutgoingText != null
+        json.numOutgoingCall != null
+        json.outgoingNames != null
     }
 }

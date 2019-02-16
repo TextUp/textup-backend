@@ -1,12 +1,9 @@
 package org.textup.util
 
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.web.ControllerUnitTestMixin
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -22,164 +19,230 @@ import spock.lang.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(MailService)
-@TestMixin(HibernateTestMixin)
-class MailServiceSpec extends CustomSpec {
+@TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
+class MailServiceSpec extends Specification {
 
 	static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
-    Map flatConfig
+    MockedMethod send
 
     def setup() {
-    	setupData()
-
-        flatConfig = config.flatten()
-        service.grailsApplication.flatConfig = flatConfig
-    	service.metaClass.sendMail = { EmailEntity to, EmailEntity from, String templateId,
-            Map<String, String> data ->
-	    	new Result(status:ResultStatus.OK, payload:[
-	    		to:to,
-	    		from:from,
-	    		templateId:templateId,
-                data: data
-    		])
-	    }
+        TestUtils.standardMockSetup()
+        send = MockedMethod.create(MailUtils, "send") { Result.void() }
     }
 
     def cleanup() {
-    	cleanupData()
+        send?.restore()
     }
 
-    void "test password reset"() {
-    	when:
-    	String token = "secretPasswordToken"
-    	Result res = service.notifyPasswordReset(s1, token)
-
-    	then:
-    	res.success == true
-        res.status == ResultStatus.OK
-    	res.payload.to.validate()
-    	res.payload.to.name == s1.name
-    	res.payload.to.email == s1.email
-    	res.payload.from.validate()
-		res.payload.from.name == flatConfig["textup.mail.standard.name"]
-		res.payload.from.email == flatConfig["textup.mail.standard.email"]
-		res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.passwordReset"]
-        res.payload.data.name == s1.name
-        res.payload.data.username == s1.username
-        res.payload.data.link == flatConfig["textup.links.passwordReset"] + token
-    }
-
-    void "test pending new organization"() {
-    	when:
-    	Result res = service.notifyAboutPendingOrg(org)
-
-    	then:
-    	res.success == true
-        res.status == ResultStatus.OK
-    	res.payload.to.validate()
-        res.payload.to.name == flatConfig["textup.mail.self.name"]
-        res.payload.to.email == flatConfig["textup.mail.self.email"]
-    	res.payload.from.validate()
-		res.payload.from.name == flatConfig["textup.mail.standard.name"]
-        res.payload.from.email == flatConfig["textup.mail.standard.email"]
-		res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.pendingOrg"]
-        res.payload.data.org == org.name
-        res.payload.data.link == flatConfig["textup.links.superDashboard"]
-    }
-
-    void "testing notifying of pending staff"() {
-        when: "no admins"
-        Result res = service.notifyAboutPendingStaff(s3, [])
-
-        then:
-        res.success == false
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "mailService.notifyAboutPendingStaff.noAdmins"
+    void "test notify staff of invitation"() {
+        given:
+        Staff invitedBy = TestUtils.buildStaff()
+        Staff invited = TestUtils.buildStaff()
+        String pwd = TestUtils.randString()
+        String lockCode = TestUtils.randString()
 
         when:
-        res = service.notifyAboutPendingStaff(s3, [s1, s2])
+        Result res = service.notifyInvitation(null, null, null, null)
 
         then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload.size() == 2
-        res.payload[0].to.validate()
-        res.payload[0].to.name == s1.name
-        res.payload[0].to.email == s1.email
-        res.payload[0].from.validate()
-        res.payload[0].from.name == flatConfig["textup.mail.standard.name"]
-        res.payload[0].from.email == flatConfig["textup.mail.standard.email"]
-        res.payload[0].templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.pendingStaff"]
-        res.payload[0].data.staff == s3.name
-        res.payload[0].data.org == s3.org.name
-        res.payload[0].data.link == flatConfig["textup.links.adminDashboard"]
-        // just check the email recipient, everything else should be the same
-        res.payload[1].to.validate()
-        res.payload[1].to.name == s2.name
-        res.payload[1].to.email == s2.email
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = service.notifyInvitation(invitedBy, invited, pwd, lockCode)
+
+        then:
+        send.callCount == 1
+        send.latestArgs[0].name == invited.name
+        send.latestArgs[0].email == invited.email
+        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[2] != null
+        send.latestArgs[3].inviter == invitedBy.name
+        send.latestArgs[3].invitee == invited.name
+        send.latestArgs[3].username == invited.username
+        send.latestArgs[3].password == pwd
+        send.latestArgs[3].lockCode == lockCode
+        send.latestArgs[3].link != null
+        res.status == ResultStatus.NO_CONTENT
     }
 
-    void "test sending new user invitation"() {
+    void "test notify staff of approval by admin"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+
         when:
-        String pwd = "i am a password"
-        String code = "i am a lock code"
-        Result res = service.notifyInvitation(s1, s2, pwd, code)
+        Result res = service.notifyApproval(null)
 
         then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload.to.validate()
-        res.payload.to.name == s2.name
-        res.payload.to.email == s2.email
-        res.payload.from.validate()
-        res.payload.from.name == flatConfig["textup.mail.standard.name"]
-        res.payload.from.email == flatConfig["textup.mail.standard.email"]
-        res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.invited"]
-        res.payload.data.inviter == s1.name
-        res.payload.data.invitee == s2.name
-        res.payload.data.username == s2.username
-        res.payload.data.password == pwd
-        res.payload.data.lockCode == code
-        res.payload.data.link == flatConfig["textup.links.setupAccount"]
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = service.notifyApproval(s1)
+
+        then:
+        send.callCount == 1
+        send.latestArgs[0].name == s1.name
+        send.latestArgs[0].email == s1.email
+        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[2] != null
+        send.latestArgs[3].name == s1.name
+        send.latestArgs[3].username == s1.username
+        send.latestArgs[3].org == s1.org.name
+        send.latestArgs[3].link != null
+        res.status == ResultStatus.NO_CONTENT
     }
 
-    void "test sending approval"() {
+    void "test notify admins of pending staff"() {
+        given:
+        Staff pendingStaff = TestUtils.buildStaff()
+        Collection admins = [TestUtils.buildStaff(), TestUtils.buildStaff()]
+
         when:
-        Result res = service.notifyApproval(s1)
+        Result res = service.notifyAboutPendingStaff(null, null)
 
         then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload.to.validate()
-        res.payload.to.name == s1.name
-        res.payload.to.email == s1.email
-        res.payload.from.validate()
-        res.payload.from.name == flatConfig["textup.mail.standard.name"]
-        res.payload.from.email == flatConfig["textup.mail.standard.email"]
-        res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.approved"]
-        res.payload.data.name == s1.name
-        res.payload.data.username == s1.username
-        res.payload.data.org == s1.org.name
-        res.payload.data.link == flatConfig["textup.links.setupAccount"]
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = service.notifyAboutPendingStaff(pendingStaff, admins)
+
+        then:
+        send.callCount == admins.size()
+        send.callArgs.every { it[0].name in admins*.name && it[0].email in admins*.email }
+        send.callArgs.every { it[1] == MailUtils.defaultFromEntity() }
+        send.callArgs.every { it[2] != null }
+        send.callArgs.every { it[3].staff == pendingStaff.name }
+        send.callArgs.every { it[3].org == pendingStaff.org.name }
+        send.callArgs.every { it[3].link != null }
+        res.status == ResultStatus.NO_CONTENT
     }
 
-    void "test sending rejection"() {
+    void "test notify super about pending org"() {
+        given:
+        Organization org1 = TestUtils.buildOrg()
+
         when:
-        Result res = service.notifyRejection(s1)
+        Result res = service.notifyAboutPendingOrg(null)
 
         then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload.to.validate()
-        res.payload.to.name == s1.name
-        res.payload.to.email == s1.email
-        res.payload.from.validate()
-        res.payload.from.name == flatConfig["textup.mail.standard.name"]
-        res.payload.from.email == flatConfig["textup.mail.standard.email"]
-        res.payload.templateId == flatConfig["textup.apiKeys.sendGrid.templateIds.rejected"]
-        res.payload.data.name == s1.name
-        res.payload.data.username == s1.username
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = service.notifyAboutPendingOrg(org1)
+
+        then:
+        send.callCount == 1
+        send.latestArgs[0] == MailUtils.selfEntity()
+        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[2] != null
+        send.latestArgs[3].org == org1.name
+        send.latestArgs[3].link != null
+        res.status == ResultStatus.NO_CONTENT
+    }
+
+    void "test notify staff of rejection"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+
+        when:
+        Result res = service.notifyRejection(null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = service.notifyRejection(s1)
+
+        then:
+        send.callCount == 1
+        send.latestArgs[0].name == s1.name
+        send.latestArgs[0].email == s1.email
+        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[2] != null
+        send.latestArgs[3].name == s1.name
+        send.latestArgs[3].username == s1.username
+        res.status == ResultStatus.NO_CONTENT
+    }
+
+    void "test notify staff of password reset"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+        Token tok1 = TestUtils.buildToken()
+
+        when:
+        Result res = service.notifyPasswordReset(null, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = service.notifyPasswordReset(s1, tok1)
+
+        then:
+        send.callCount == 1
+        send.latestArgs[0].name == s1.name
+        send.latestArgs[0].email == s1.email
+        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[2] != null
+        send.latestArgs[3].name == s1.name
+        send.latestArgs[3].username == s1.username
+        send.latestArgs[3].link.contains(tok1.token)
+        res.status == ResultStatus.NO_CONTENT
+    }
+
+    void "test send staff digest email notification"() {
+        given:
+        NotificationFrequency freq1 = NotificationFrequency.values()[0]
+        Staff s1 = TestUtils.buildStaff()
+        NotificationInfo notifInfo = TestUtils.buildNotificationInfo()
+        Token tok1 = TestUtils.buildToken()
+
+        when:
+        Result res = service.notifyMessages(null, null, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = service.notifyMessages(freq1, s1, notifInfo)
+
+        then:
+        send.callCount == 1
+        send.latestArgs[0].name == s1.name
+        send.latestArgs[0].email == s1.email
+        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[2] != null
+        send.latestArgs[3].staffName == s1.name
+        send.latestArgs[3].phoneName == notifInfo.phoneName
+        send.latestArgs[3].phoneNumber == notifInfo.phoneNumber.prettyPhoneNumber
+        send.latestArgs[3].timePeriodDescription == freq1.readableDescription
+        send.latestArgs[3].incomingDescription instanceof String
+        send.latestArgs[3].outgoingDescription instanceof String
+        send.latestArgs[3].numIncoming == notifInfo.numIncomingText + notifInfo.numIncomingCall
+        send.latestArgs[3].numOutgoing == notifInfo.numOutgoingText + notifInfo.numOutgoingCall
+        send.latestArgs[3].link == null
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        res = service.notifyMessages(freq1, s1, notifInfo, tok1)
+
+        then:
+        send.callCount == 2
+        send.latestArgs[0].name == s1.name
+        send.latestArgs[0].email == s1.email
+        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[2] != null
+        send.latestArgs[3].staffName == s1.name
+        send.latestArgs[3].phoneName == notifInfo.phoneName
+        send.latestArgs[3].phoneNumber == notifInfo.phoneNumber.prettyPhoneNumber
+        send.latestArgs[3].timePeriodDescription == freq1.readableDescription
+        send.latestArgs[3].incomingDescription instanceof String
+        send.latestArgs[3].outgoingDescription instanceof String
+        send.latestArgs[3].numIncoming == notifInfo.numIncomingText + notifInfo.numIncomingCall
+        send.latestArgs[3].numOutgoing == notifInfo.numOutgoingText + notifInfo.numOutgoingCall
+        send.latestArgs[3].link.contains(tok1.token)
+        res.status == ResultStatus.NO_CONTENT
     }
 }

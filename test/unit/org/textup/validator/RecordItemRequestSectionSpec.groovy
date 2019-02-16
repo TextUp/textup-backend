@@ -35,7 +35,6 @@ class RecordItemRequestSectionSpec extends Specification {
         given:
         String name = TestUtils.randString()
         PhoneNumber pNum1 = TestUtils.randPhoneNumber()
-        RecordItem rItem1 = TestUtils.buildRecordItem()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
@@ -47,13 +46,13 @@ class RecordItemRequestSectionSpec extends Specification {
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when:
-        res = RecordItemRequestSection.tryCreate(name, pNum1, [rItem1], [ipr1, gpr1,  spr1]*.toWrapper())
+        res = RecordItemRequestSection.tryCreate(name, pNum1, null, [ipr1, gpr1,  spr1]*.toWrapper())
 
-        then:
+        then: "no record items is allowed"
         res.status == ResultStatus.CREATED
         res.payload.phoneName == name
         res.payload.phoneNumber == pNum1.prettyPhoneNumber
-        res.payload.recordItems*.id == [rItem1.id]
+        res.payload.recordItems.isEmpty()
         res.payload.contactNames.size() == 1
         res.payload.contactNames[0] == ipr1.secureName
         res.payload.sharedContactNames.size() == 1

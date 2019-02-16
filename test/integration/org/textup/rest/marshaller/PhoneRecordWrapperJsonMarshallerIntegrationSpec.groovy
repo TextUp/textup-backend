@@ -1,139 +1,112 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.joda.time.DateTime
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-// TODO
+class PhoneRecordWrapperJsonMarshallerIntegrationSpec extends Specification {
 
-class PhoneRecordWrapperJsonMarshallerIntegrationSpec extends CustomSpec {
+    void "test marshalling errors"() {
+        given:
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+        spr1.permission = SharePermission.NONE
 
-    // def grailsApplication
+        PhoneRecord.withSession { it.flush() }
 
-    // def setup() {
-    // 	setupIntegrationData()
-    // }
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
 
-    // def cleanup() {
-    // 	cleanupIntegrationData()
-    // }
+        when:
+        Map json = TestUtils.objToJsonMap(gpr1.toWrapper())
 
-    // protected boolean validate(Map json, Contactable c1) {
-    //     assert json.id == c1.contactId
-    //     assert json.lastRecordActivity == c1.tryGetRecord().payload.lastRecordActivity.toString()
-    //     assert json.name == c1.name
-    //     assert json.note == c1.note
-    //     assert json.numbers instanceof List
-    //     assert json.language == c1.tryGetRecord().payload.language.toString()
-    //     assert json.numbers.size() == (c1.numbers ? c1.numbers.size() : 0)
-    //     c1.numbers?.each { ContactNumber num ->
-    //         assert json.numbers.find { it.number == num.prettyPhoneNumber }
-    //     }
-    //     assert json.futureMessages instanceof List
-    //     assert json.futureMessages.size() == (c1.tryGetRecord().payload.futureMessages?.size() ?: 0)
-    //     c1.tryGetRecord().payload.futureMessages?.each { FutureMessage fMsg ->
-    //         assert json.futureMessages.find { it.id == fMsg.id }
-    //     }
-    //     true
-    // }
+        then:
+        stdErr.toString().contains("is not an `IndividualPhoneRecordWrapper`")
+        json == [:]
 
-    // void "test marshalling contact"() {
-    //     given:
-    //     IncomingSession sess1 = new IncomingSession(phone:c1.phone,
-    //         numberAsString:c1.numbers[0].number)
-    //     sess1.save(flush:true, failOnError:true)
+        when:
+        json = TestUtils.objToJsonMap(spr1.toWrapper())
 
-    // 	when:
-    // 	Map json
-    // 	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    // 		json = TestUtils.jsonToMap(c1 as JSON)
-    // 	}
+        then:
+        stdErr.toString().contains("cannot be viewed")
+        json == [:]
 
-    // 	then:
-    //     validate(json, c1)
-    //     json.status == c1.status.toString()
-    //     json.tags instanceof List
-    //     json.tags.size() == c1.tags.size()
-    //     c1.tags.every { ContactTag ct1 -> json.tags.find { it.id == ct1.id } }
-    //     json.sessions instanceof List
-    //     json.sessions.size() == c1.sessions.size()
-    //     c1.sessions.every { IncomingSession session ->
-    //         json.sessions.find { it.id == session.id }
-    //     }
-    //     json.sharedWith instanceof List
-    //     json.sharedWith.size() == c1.sharedContacts.size()
-    //     c1.sharedContacts.every { SharedContact sc1 ->
-    //         json.sharedWith.find { it.id == sc1.id }
-    //     }
-    // }
+        cleanup:
+        TestUtils.restoreAllStreams()
+    }
 
-    // void "test marshalling shared contact"() {
-    //     given: "different statuses for contact and shared contact"
-    //     sc2.contact.status = ContactStatus.ARCHIVED
-    //     sc2.status = ContactStatus.UNREAD
-    //     [sc2, sc2.contact]*.save(flush:true, failOnError:true)
+    void "test marshalling wrapped owned contact"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.status = PhoneRecordStatus.ACTIVE
+        PhoneRecord.withSession { it.flush() }
 
-    //     when:
-    //     Map json
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(sc2 as JSON)
-    //     }
+        when:
+        Map json = TestUtils.objToJsonMap(ipr1.toWrapper())
 
-    //     then:
-    //     validate(json, sc2)
-    //     json.status == sc2.status.toString()
-    //     json.status != sc2.contact.status.toString()
-    //     json.permission == sc2.permission.toString()
-    //     json.startedSharing == sc2.whenCreated.toString()
-    //     json.sharedBy == sc2.sharedBy.name
-    //     json.sharedById == sc2.sharedBy.id
-    // }
+        then:
+        json.futureMessages instanceof Collection
+        json.futureMessages.isEmpty()
+        json.id == ipr1.id
+        json.language == ipr1.record.language.toString()
+        json.lastRecordActivity == ipr1.record.lastRecordActivity.toString()
+        json.name == ipr1.name
+        json.note == ipr1.note
+        json.numbers instanceof Collection
+        json.numbers.size() == ipr1.sortedNumbers.size()
+        json.phone == ipr1.phone.id
+        json.status == ipr1.status.toString()
+        json.tags instanceof Collection
+        json.tags.isEmpty()
+        json.whenCreated == ipr1.whenCreated.toString()
+        json.unreadInfo == null
+        json.permission == null
+        json.sharedByName == null
+        json.sharedByPhone == null
+        json.sharedWith instanceof Collection
+        json.sharedWith.isEmpty()
 
-    // void "test marshalling unread contactable and detailed unread info"() {
-    //     given: "a contactable NOT UNREAD with last touched before some record items"
-    //     c1.lastTouched = DateTime.now()
-    //     c1.status = ContactStatus.ACTIVE
-    //     DateTime dtInFuture = DateTime.now().plusDays(2)
-    //     RecordText rText1 = c1.record.storeOutgoingText("text").payload
-    //     RecordCall rCall1 = c1.record.storeOutgoingCall().payload
-    //     rText1.outgoing = false
-    //     rCall1.outgoing = false
-    //     rCall1.whenCreated = dtInFuture
-    //     [c1, rText1, rCall1]*.save(flush: true, failOnError: true)
+        when: "is unread"
+        ipr1.status = PhoneRecordStatus.UNREAD
+        ipr1.save(flush: true, failOnError: true)
+        json = TestUtils.objToJsonMap(ipr1.toWrapper())
 
-    //     when: "we marshal this contactable"
-    //     Map json
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(c1 as JSON)
-    //     }
+        then:
+        json.unreadInfo instanceof Map
+        json.unreadInfo.numTexts >= 0
+        json.unreadInfo.numCalls >= 0
+        json.unreadInfo.numVoicemails >= 0
 
-    //     then: "detailed unread info DOES NOT show up because status is not unread"
-    //     json.unreadInfo == null
+        when: "is shared with someone"
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(ipr1)
+        json = TestUtils.objToJsonMap(ipr1.toWrapper())
 
-    //     when: "we update status to be unread"
-    //     c1.status = ContactStatus.UNREAD
-    //     c1.save(flush: true, failOnError: true)
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(c1 as JSON)
-    //     }
+        then:
+        json.sharedWith instanceof Collection
+        json.sharedWith.size() == 1
+        json.sharedWith[0].whenCreated == spr1.whenCreated.toString()
+        json.sharedWith[0].phoneId == spr1.phone.id
+        json.sharedWith[0].permission == spr1.permission.toString()
+    }
 
-    //     then: "detailed unread info shows up"
-    //     json.unreadInfo instanceof Map
-    //     json.unreadInfo.numTexts == 1
-    //     json.unreadInfo.numCalls == 1
-    //     json.unreadInfo.numVoicemails == 0
+    void "test marshalling wrapped shared contact"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(ipr1)
 
-    //     when: "we update last touched so it is after all record items"
-    //     c1.lastTouched = dtInFuture.plusDays(2)
-    //     c1.save(flush: true, failOnError: true)
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(c1 as JSON)
-    //     }
+        when:
+        Map json = TestUtils.objToJsonMap(spr1.toWrapper())
 
-    //     then: "no detailed unread info even if status is unread"
-    //     json.unreadInfo == null
-    // }
+        then:
+        json.id == spr1.id
+        json.status == spr1.status.toString()
+        json.phone == spr1.phone.id
+        json.permission == spr1.permission.toString()
+        json.sharedByName == ipr1.phone.buildName()
+        json.sharedByPhone == ipr1.phone.id
+    }
 }

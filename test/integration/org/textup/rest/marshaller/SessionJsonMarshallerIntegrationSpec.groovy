@@ -1,43 +1,33 @@
 package org.textup.rest.marshaller
 
-import org.textup.test.*
-import org.textup.util.*
-import grails.converters.JSON
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-class SessionJsonMarshallerIntegrationSpec extends CustomSpec {
+class SessionJsonMarshallerIntegrationSpec extends Specification {
 
-	def grailsApplication
-
-    def setup() {
-    	setupIntegrationData()
-    }
-
-    def cleanup() {
-    	cleanupIntegrationData()
-    }
-
-    void "test marshalling session"() {
+    void "test marshalling"() {
         given:
-        IncomingSession sess1 = new IncomingSession(phone:p1,
-            numberAsString:"1112223333")
-        sess1.save(flush:true, failOnError:true)
+        Phone p1 = TestUtils.buildStaffPhone()
+        IncomingSession is1 = TestUtils.buildSession(p1)
 
     	when:
-    	Map json
-    	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestUtils.jsonToMap(sess1 as JSON)
-    	}
+    	Map json = TestUtils.objToJsonMap(is1)
 
     	then:
-    	json.id == sess1.id
-        json.isSubscribedToText == sess1.isSubscribedToText
-        json.isSubscribedToCall == sess1.isSubscribedToCall
-        json.number == sess1.number.e164PhoneNumber
-        json.whenCreated == sess1.whenCreated.toString()
-        json.lastSentInstructions == sess1.lastSentInstructions.toString()
-        json.shouldSendInstructions == sess1.shouldSendInstructions
-        json.staff == sess1.phone.owner.ownerId
+    	json.id == is1.id
+        json.isSubscribedToText == is1.isSubscribedToText
+        json.isSubscribedToCall == is1.isSubscribedToCall
+        json.number.noFormatNumber == is1.number.number
+        json.whenCreated == is1.whenCreated.toString()
+        json.lastSentInstructions == is1.lastSentInstructions.toString()
+        json.shouldSendInstructions == is1.shouldSendInstructions
+        json.staff == is1.phone.owner.ownerId
         json.team == null
     }
 }

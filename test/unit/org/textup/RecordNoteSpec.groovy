@@ -34,49 +34,41 @@ class RecordNoteSpec extends Specification {
 
     void "test validation + cascading to location"() {
         given:
-        Record rec1 = new Record()
-        rec1.save(flush: true, failOnError: true)
+        Record rec1 = TestUtils.buildRecord()
 
     	when: "empty note"
-        RecordNote note1 = new RecordNote()
+        Result res = RecordNote.tryCreate(null, null, null, null)
 
     	then: "invalid"
-        note1.validate() == false
-        note1.errors.getFieldErrorCount("record") == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when: "fill in a record"
-        note1.record = rec1
+        res = RecordNote.tryCreate(rec1, null, null, null)
 
-        then:
-        note1.validate() == true
+        then: "validation for info within note is handled in `TempRecordItem`"
+        res.status == ResultStatus.CREATED
 
         when: "add a invalid location"
-        note1.location = new Location()
+        res = RecordNote.tryCreate(rec1, null, null, new Location())
 
         then: "parent is invalid"
-        note1.validate() == false
-        note1.errors.getFieldErrorCount("location.address") == 1
-        note1.errors.getFieldErrorCount("location.lat") == 1
-        note1.errors.getFieldErrorCount("location.lng") == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when: "fill in location"
-        note1.location.address = "hi"
-        note1.location.lat = 0G
-        note1.location.lng = 0G
+        res = RecordNote.tryCreate(rec1, null, null, TestUtils.buildLocation())
 
         then: "parent becomes valid again"
-        note1.validate() == true
+        res.status == ResultStatus.CREATED
     }
 
     void "test do not create revision for newly-created note"() {
         given:
-        Record rec = new Record()
-        rec.save(flush: true, failOnError: true)
+        Record rec1 = TestUtils.buildRecord()
         int lBaseline = Location.count()
         int mBaseline = MediaInfo.count()
 
         when: "an unsaved record note"
-        RecordNote note1 = new RecordNote(record: rec)
+        RecordNote note1 = RecordNote.tryCreate(rec1, null).payload
         Result<RecordNote> res = note1.tryCreateRevision()
         RecordNote.withSession { it.flush() }
 
@@ -99,16 +91,14 @@ class RecordNoteSpec extends Specification {
 
     void "test determining if should create revision for an existing note"() {
         given: "a saved valid note"
-        Record rec = new Record()
-        rec.save(flush: true, failOnError: true)
-        RecordNote note1 = new RecordNote(record: rec)
-        note1.authorName = "hello"
-        note1.authorId = 88L
-        note1.authorType = AuthorType.STAFF
-        note1.noteContents = "hello there!"
-        note1.location = new Location(address: "hi", lat: 0G, lng: 0G)
-        note1.media = new MediaInfo()
-        assert note1.save(flush: true, failOnError: true)
+        MediaElement el1 = TestUtils.buildMediaElement()
+        RecordNote note1 = RecordNote.tryCreate(TestUtils.buildRecord(),
+            TestUtils.randString(),
+            TestUtils.buildMediaInfo(),
+            TestUtils.buildLocation()).payload
+        note1.author = TestUtils.buildAuthor()
+        RecordNote.withSession { it.flush() }
+
         int initialNumRevisions = note1.revisions?.size() ?: 0
         DateTime initialWhenChanged = note1.whenChanged
 
@@ -143,8 +133,7 @@ class RecordNoteSpec extends Specification {
         note1.whenChanged.isAfter(initialWhenChanged)
 
         when: "add to media"
-        MediaElement e1 = TestUtils.buildMediaElement()
-        note1.media.addToMediaElements(e1)
+        note1.media.addToMediaElements(el1)
 
         initialNumRevisions = note1.revisions.size()
         initialWhenChanged = note1.whenChanged
@@ -166,7 +155,7 @@ class RecordNoteSpec extends Specification {
         note1.whenChanged == initialWhenChanged
 
         when: "remove from media"
-        note1.media.removeMediaElement(e1.uid)
+        note1.media.removeMediaElement(el1.uid)
 
         initialNumRevisions = note1.revisions.size()
         initialWhenChanged = note1.whenChanged

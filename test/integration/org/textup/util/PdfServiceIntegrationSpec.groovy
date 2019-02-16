@@ -5,37 +5,29 @@ import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
-import spock.lang.Specification
+import spock.lang.*
 
-class PdfServiceIntegrationSpec extends CustomSpec {
+class PdfServiceIntegrationSpec extends Specification {
 
     PdfService pdfService
 
-    def setup() {
-        setupIntegrationData()
-    }
-
-    def cleanup() {
-        cleanupIntegrationData()
-    }
-
     void "test building record items"() {
         given:
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        c1.phone = p1
-        RecordItem rItem1 = c1.record.storeOutgoingText(TestUtils.randString()).payload
-        tag1.phone = p1
-        RecordItem rItem2 = tag1.record.storeOutgoingCall().payload
-        RecordItem rItem3 = tag1.record.storeOutgoingCall().payload
+        Phone p1 = TestUtils.buildStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
 
-        Record.withSession { it.flush() }
+        RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
+        RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
+        RecordItem rItem3 = TestUtils.buildRecordItem(gpr1.record)
+
+        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
 
         when: "no input"
-        Result<byte[]> res = pdfService.buildRecordItems(null)
+        Result res = pdfService.buildRecordItems(null)
 
         then:
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages.size() == 1
 
         when: "has input"
         res = pdfService.buildRecordItems(iReq)

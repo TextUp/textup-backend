@@ -1,126 +1,96 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.textup.test.*
 import org.textup.*
-import org.textup.type.StaffStatus
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-// TODO
+class OrganizationJsonMarshallerIntegrationSpec extends Specification {
 
-class OrganizationJsonMarshallerIntegrationSpec extends CustomSpec {
+    void "test marshal organization when not logged in"() {
+        given:
+        Organization org1 = TestUtils.buildOrg()
 
-    // def grailsApplication
-    // def _originalGetLoggedInAndActive
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createError([], ResultStatus.FORBIDDEN)
+        }
 
-    // AuthService authService
+    	when:
+    	Map json = TestUtils.objToJsonMap(org1)
 
-    // def setup() {
-    // 	setupIntegrationData()
-    //     authService = grailsApplication.mainContext.getBean('authService')
-    // }
+    	then:
+        json.size() == 4
+    	json.id == org1.id
+    	json.name == org1.name
+    	json.location instanceof Map
+        json.links instanceof Map
 
-    // def cleanup() {
-    // 	cleanupIntegrationData()
-    //     // restore overridden methods
-    //     if (_originalGetLoggedInAndActive) {
-    //         authService.metaClass.getLoggedInAndActive = _originalGetLoggedInAndActive
-    //         _originalGetLoggedInAndActive = null
-    //     }
-    // }
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
 
-    // protected void overrideGetLoggedInAndActiveWith(Closure closure) {
-    //     if (!_originalGetLoggedInAndActive) {
-    //         _originalGetLoggedInAndActive = authService.metaClass.getLoggedInAndActive
-    //     }
-    //     authService.metaClass.getLoggedInAndActive = closure
-    // }
+    void "test marshal organization when active user but NOT a member of the organization"() {
+        given:
+        Organization org1 = TestUtils.buildOrg()
+        Staff s1 = TestUtils.buildStaff(org1)
+        Staff s2 = TestUtils.buildStaff()
+        s1.status = StaffStatus.ADMIN
+        Organization.withSession { it.flush() }
 
-    // void "test marshal organization when not logged in"() {
-    // 	when:
-    // 	Map json
-    // 	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    // 		json = TestUtils.jsonToMap(org as JSON)
-    // 	}
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s2)
+        }
 
-    // 	then:
-    // 	json.id == org.id
-    // 	json.name == org.name
-    // 	json.location instanceof Map
-    // 	json.location.address == org.location.address
-    // 	json.location.lat == org.location.lat
-    // 	json.location.lon == org.location.lon
-    //     json.status == null
-    //     json.numAdmins == null
-    // 	json.teams == null
-    //     json.timeout == null
-    //     json.awayMessageSuffix == null
-    //     json.timeoutMin == null
-    //     json.timeoutMax == null
-    //     json.awayMessageSuffixMaxLength == null
-    // }
+        when:
+        Map json = TestUtils.objToJsonMap(org1)
 
-    // void "test marshal organization when active user but NOT a member of the organization"() {
-    //     given:
-    //     otherS1.status = StaffStatus.ADMIN
-    //     otherS1.save(flush:true, failOnError:true)
+        then:
+        json.size() == 4
+        json.id == org1.id
+        json.name == org1.name
+        json.location instanceof Map
+        json.links instanceof Map
 
-    //     overrideGetLoggedInAndActiveWith({ otherS1 })
-    //     assert otherS1.org.id != org.id
-    //     assert otherS1.status == StaffStatus.STAFF || otherS1.status == StaffStatus.ADMIN
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
 
-    //     when:
-    //     Map json
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(org as JSON)
-    //     }
+    void "test marshal organization when active user that is a member of this organization"() {
+        given:
+        Organization org1 = TestUtils.buildOrg()
+        Staff s1 = TestUtils.buildStaff(org1)
+        Staff s2 = TestUtils.buildStaff(org1)
+        s2.status = StaffStatus.ADMIN
+        Team t1 = TestUtils.buildTeam(org1)
 
-    //     then:
-    //     json.id == org.id
-    //     json.name == org.name
-    //     json.location instanceof Map
-    //     json.location.address == org.location.address
-    //     json.location.lat == org.location.lat
-    //     json.location.lon == org.location.lon
-    //     json.status == null
-    //     json.numAdmins == null
-    //     json.teams == null
-    //     json.timeout == null
-    //     json.awayMessageSuffix == null
-    //     json.timeoutMin == null
-    //     json.timeoutMax == null
-    //     json.awayMessageSuffixMaxLength == null
-    // }
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s1)
+        }
 
-    // void "test marshal organization when active user that is a member of this organization"() {
-    //     given:
-    //     overrideGetLoggedInAndActiveWith({ s1 })
-    //     assert s1.org.id == org.id
-    //     assert s1.status == StaffStatus.STAFF || s1.status == StaffStatus.ADMIN
+        when:
+        Map json = TestUtils.objToJsonMap(org1)
 
-    //     when:
-    //     Map json
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(org as JSON)
-    //     }
+        then:
+        json.id == org1.id
+        json.name == org1.name
+        json.status == org1.status.toString()
+        json.numAdmins == 1
+        json.location instanceof Map
+        json.teams instanceof List
+        json.teams.size() == 1
+        json.teams[0].id == t1.id
 
-    //     then:
-    //     json.id == org.id
-    //     json.name == org.name
-    //     json.status == org.status.toString()
-    //     json.numAdmins == org.countPeople(statuses:[StaffStatus.ADMIN])
-    //     json.location instanceof Map
-    //     json.location.address == org.location.address
-    //     json.location.lat == org.location.lat
-    //     json.location.lon == org.location.lon
-    //     json.teams instanceof List
-    //     json.teams.size() == org.teams.size()
-    //     org.teams.every { Team team -> json.teams.find { it.id == team.id } }
+        json.timeout == org1.timeout
+        json.awayMessageSuffix == org1.awayMessageSuffix
+        json.timeoutMin == 0
+        json.timeoutMax == ValidationUtils.MAX_LOCK_TIMEOUT_MILLIS
+        json.awayMessageSuffixMaxLength == ValidationUtils.TEXT_BODY_LENGTH - 1
 
-    //     json.timeout == org.timeout
-    //     json.awayMessageSuffix == org.awayMessageSuffix
-    //     json.timeoutMin == Constants.DEFAULT_LOCK_TIMEOUT_MILLIS
-    //     json.timeoutMax == Constants.MAX_LOCK_TIMEOUT_MILLIS
-    //     json.awayMessageSuffixMaxLength == Constants.TEXT_LENGTH - 1
-    // }
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
 }

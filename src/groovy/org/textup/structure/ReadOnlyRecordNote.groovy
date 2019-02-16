@@ -6,7 +6,6 @@ import org.textup.type.*
 
 @GrailsTypeChecked
 interface ReadOnlyRecordNote extends ReadOnlyBaseRecordNote {
-    boolean getIsDeleted()
     boolean getIsReadOnly()
     Set<? extends ReadOnlyRecordNoteRevision> getRevisions()
 }

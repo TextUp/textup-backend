@@ -22,7 +22,7 @@ class TeamJsonMarshaller extends JsonNamedMarshaller {
             name       = t1.name
             numMembers = t1.activeMembers.size()
             org        = t1.org.id // MUST BE id or else you have circular reference in json
-            phone      = Phones.mustFindActiveForOwner(t1.id, PhoneOwnershipType.GROUP, false)
+            phone      = Phones.mustFindActiveForOwner(t1.id, PhoneOwnershipType.GROUP, false).payload
         }
         json
     }

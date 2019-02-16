@@ -1,41 +1,88 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.textup.test.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-class ScheduleJsonMarshallerIntegrationSpec extends CustomSpec {
-
-    def grailsApplication
-
-    def setup() {
-    	setupIntegrationData()
-    }
-
-    def cleanup() {
-    	cleanupIntegrationData()
-    }
+class ScheduleJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling schedule"() {
         given:
-        Schedule sched1 = s1.schedule
-        sched1.updateWithIntervalStrings([
-            monday:["0130:0231", "0230:0330", "0400:0430"]
-        ])
-        sched1.save(flush:true, failOnError:true)
+        Collection beforeIntStrings = ["0130:0231", "0230:0330", "0400:0430"]
+        Collection afterIntStrings = ["0130:0330", "0400:0430"]
+        Collection afterIntStringsWithOffset = ["0230:0430", "0500:0530"]
+
+        Schedule sched1 = Schedule.tryCreate().payload
+        sched1.manual = true
+        sched1.updateWithIntervalStrings(monday: beforeIntStrings)
+        Schedule.withSession { it.flush() }
 
         when:
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(sched1 as JSON)
-        }
+        Map json = TestUtils.objToJsonMap(sched1)
 
     	then:
     	json.id == sched1.id
         json.isAvailableNow == sched1.isAvailableNow()
-        json.nextUnavailable != null
-        json.nextAvailable != null
-        json.monday == ["0130:0330", "0400:0430"]
+        json.manual == sched1.manual
+        json.manualIsAvailable == sched1.manualIsAvailable
+        json.nextUnavailable == null
+        json.nextAvailable == null
+        json.monday == afterIntStrings
+        json.timezone == null
+
+        when:
+        sched1.manual = false
+        RequestUtils.trySet(RequestUtils.TIMEZONE, 123)
+        json = TestUtils.objToJsonMap(sched1)
+
+        then:
+        json.id == sched1.id
+        json.isAvailableNow == sched1.isAvailableNow()
+        json.manual == sched1.manual
+        json.manualIsAvailable == sched1.manualIsAvailable
+        json.nextUnavailable.contains("Z")
+        json.nextAvailable.contains("Z")
+        json.monday == afterIntStrings
+        json.timezone == "UTC"
+
+        when:
+        String tzId = "Europe/Stockholm"
+        RequestUtils.trySet(RequestUtils.TIMEZONE, tzId)
+
+        json = TestUtils.objToJsonMap(sched1)
+
+        then:
+        json.id == sched1.id
+        json.isAvailableNow == sched1.isAvailableNow()
+        json.manual == sched1.manual
+        json.manualIsAvailable == sched1.manualIsAvailable
+        json.nextUnavailable.contains("+01:00")
+        json.nextAvailable.contains("+01:00")
+        json.monday != afterIntStrings // now offset based on timezone
+        json.monday == afterIntStringsWithOffset
+        json.timezone == tzId
+    }
+
+    void "test marshalling default schedule"() {
+        given:
+        ReadOnlySchedule sched1 = DefaultSchedule.create()
+
+        when:
+        Map json = TestUtils.objToJsonMap(sched1)
+
+        then:
+        json.id == null
+        json.isAvailableNow == sched1.isAvailableNow()
+        json.manual == sched1.manual
+        json.manualIsAvailable == sched1.manualIsAvailable
+        json.nextUnavailable == null
+        json.nextAvailable == null
+        ScheduleUtils.DAYS_OF_WEEK.every { json[it] == [] }
+        json.timezone == null
     }
 }

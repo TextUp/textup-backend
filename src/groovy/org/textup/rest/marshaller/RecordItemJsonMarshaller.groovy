@@ -21,6 +21,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             hasAwayMessage = rItem1.hasAwayMessage
             id             = rItem1.id
             isAnnouncement = rItem1.isAnnouncement
+            isDeleted      = rItem1.isDeleted
             links          = MarshallerUtils.buildLinks(RestUtils.RESOURCE_RECORD_ITEM, rItem1.id)
             media          = rItem1.readOnlyMedia
             outgoing       = rItem1.outgoing
@@ -43,7 +44,6 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 type     = RecordItemType.TEXT.toString()
             }
             else if (rItem1 instanceof ReadOnlyRecordNote) {
-                isDeleted   = rItem1.isDeleted
                 isReadOnly  = rItem1.isReadOnly
                 location    = rItem1.readOnlyLocation
                 revisions   = rItem1.revisions
@@ -53,15 +53,15 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
         }
 
         RequestUtils.tryGet(RequestUtils.TIMEZONE)
-            .thenEnd { String tz ->
-                json.whenCreated = JodaUtils.toDateTimeWithZone(json.whenCreated, tz)
-                json.whenChanged = JodaUtils.toDateTimeWithZone(json.whenChanged, tz)
+            .thenEnd { Object zoneName ->
+                json.whenCreated = JodaUtils.toDateTimeWithZone(json.whenCreated, zoneName)
+                json.whenChanged = JodaUtils.toDateTimeWithZone(json.whenChanged, zoneName)
             }
 
         RequestUtils.tryGet(RequestUtils.PHONE_ID)
-            .thenEnd { Long pId ->
+            .thenEnd { Object pId ->
                 PhoneRecord pr1 = PhoneRecords.buildActiveForRecordIds([rItem1.id])
-                    .build(PhoneRecords.forPhoneIds([pId]))
+                    .build(PhoneRecords.forPhoneIds([TypeUtils.to(Long, pId)]))
                     .list(max: 1)[0]
                 if (pr1) {
                     if (pr1 instanceof GroupPhoneRecord) {

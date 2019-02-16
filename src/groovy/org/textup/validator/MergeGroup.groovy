@@ -28,10 +28,6 @@ class MergeGroup implements CanValidate {
 		possibleMerges cascadeValidation: true, minSize: 1,
 			validator: { Collection<MergeGroupItem> val, MergeGroup obj ->
 				if (val) {
-
-					println "val*.mergeIds: ${val*.mergeIds}"
-					println "\t obj.targetId: ${obj.targetId}"
-
 					Collection<Long> uniqueMergeIds = CollectionUtils.mergeUnique(val*.mergeIds)
 					// check for no self merge
 					if (uniqueMergeIds.contains(obj.targetId)) {

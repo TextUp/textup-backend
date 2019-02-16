@@ -66,13 +66,10 @@ class TextService {
             IOCUtils.resultFactory.success(msgRes)
         }
         catch (Throwable e) {
-            log.error("tryText: ${e.class}, ${e.message}")
-            // if an ApiException from Twilio, then would be a validation error
-            Result res = IOCUtils.resultFactory.failWithThrowable(e)
-            if (e instanceof ApiException) {
-                res.status = ResultStatus.UNPROCESSABLE_ENTITY
-            }
-            res
+            Result<?> res = IOCUtils.resultFactory.failWithThrowable(e, "tryText")
+            e instanceof ApiException ? // Twilio ApiException --> is validation error
+                IOCUtils.resultFactory.failWithResultsAndStatus([res], ResultStatus.UNPROCESSABLE_ENTITY) :
+                res
         }
     }
 

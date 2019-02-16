@@ -40,8 +40,8 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
         }
 
         RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID)
-            .then { Long prId ->
-                PhoneRecord pr1 = PhoneRecord.get(prId)
+            .thenEnd { Object prId ->
+                PhoneRecord pr1 = PhoneRecord.get(TypeUtils.to(Long, prId))
                 if (pr1) {
                     if (pr1 instanceof GroupPhoneRecord) {
                         json.tag = pr1.id

@@ -20,7 +20,6 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 	// is when this note actually was created
 	DateTime whenChanged = JodaUtils.utcNow()
 
-    boolean isDeleted = false
     Location location
     boolean isReadOnly = false
 
@@ -36,10 +35,14 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
     }
 
     static Result<RecordNote> tryCreate(Record rec1, TempRecordItem temp1) {
+        RecordNote.tryCreate(rec1, temp1?.text, temp1?.media, temp1?.location)
+    }
+
+    static Result<RecordNote> tryCreate(Record rec1, String text, MediaInfo mInfo, Location loc1) {
         RecordNote rNote1 = new RecordNote(record: rec1,
-            noteContents: temp1.text,
-            media: temp1.media,
-            location: temp1.location)
+            noteContents: text,
+            media: mInfo,
+            location: loc1)
         DomainUtils.trySave(rNote1, ResultStatus.CREATED)
     }
 

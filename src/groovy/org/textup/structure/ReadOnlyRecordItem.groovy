@@ -10,11 +10,12 @@ interface ReadOnlyRecordItem extends Authorable, WithMedia {
     Long getId()
     ReadOnlyRecord getReadOnlyRecord()
 
-    DateTime getWhenCreated()
-    boolean getOutgoing()
     boolean getHasAwayMessage()
     boolean getIsAnnouncement()
+    boolean getIsDeleted()
+    boolean getOutgoing()
     boolean getWasScheduled()
+    DateTime getWhenCreated()
 
     String getNoteContents()
     RecordItemReceiptInfo groupReceiptsByStatus()

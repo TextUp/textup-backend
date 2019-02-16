@@ -65,12 +65,22 @@ class ThreadServiceSpec extends Specification {
     }
 
     void "test catching uncaught exceptions"() {
+        given:
+        String err1 = TestUtils.randString()
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
+
         when:
-        Future<Boolean> future = service.submit { throw new NullPointerException("testing") }
+        Future future = service.submit { throw new NullPointerException(err1) }
+        def retVal = future.get()
 
         then: "error is logged and future is NOT cancelled because exception is caught"
-        future.get() == null
+        retVal == null
         future.isCancelled() == false
         future.isDone() == true
+        stdErr.toString().contains(err1)
+        stdErr.toString().contains("addSessionAndTransaction")
+
+        cleanup:
+        TestUtils.restoreAllStreams()
     }
 }

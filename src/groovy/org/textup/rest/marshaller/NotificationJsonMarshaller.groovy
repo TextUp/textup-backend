@@ -22,7 +22,7 @@ class NotificationJsonMarshaller extends JsonNamedMarshaller {
             type        = own1.type.toString()
         }
         RequestUtils.tryGet(RequestUtils.STAFF_ID)
-            .then { Long staffId -> Staffs.mustFindForId(staffId) }
+            .then { Object staffId -> Staffs.mustFindForId(TypeUtils.to(Long, staffId)) }
             .logFail("NotificationJsonMarshaller: staff not found")
             .then { Staff s1 ->
                 ReadOnlyOwnerPolicy rop1 = OwnerPolicies.findReadOnlyOrDefaultForOwnerAndStaff(own1, s1)

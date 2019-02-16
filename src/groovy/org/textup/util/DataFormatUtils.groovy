@@ -24,11 +24,13 @@ class DataFormatUtils {
         else { "" }
     }
 
+    // [NOTE] use `new JSON()` instead of `as JSON` because the case is only implemented for domain objects
+    // see: https://stackoverflow.com/a/30989508
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static String toJsonString(Object data) {
         if (data) {
             JSON.use(MarshallerUtils.MARSHALLER_DEFAULT) {
-                (data as JSON).toString()
+                new JSON(data).toString()
             }
         }
         else { "" }

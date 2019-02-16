@@ -92,7 +92,7 @@ class UsageController {
                 currentMonthIndex: currentMonthIndex
             ]
         }
-        render(payload as JSON)
+        render(new JSON(payload))
     }
 
     // Helpers

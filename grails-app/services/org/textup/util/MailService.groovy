@@ -14,9 +14,9 @@ import org.textup.validator.*
 class MailService {
 
     Result<Void> notifyInvitation(Staff invitedBy, Staff invited, String pwd, String lockCode) {
-        MailData.InvitedStaff md1 = new MailData.InvitedStaff(inviter: invitedBy.name,
-            invitee: invited.name,
-            username: invited.username,
+        MailData.InvitedStaff md1 = new MailData.InvitedStaff(inviter: invitedBy?.name,
+            invitee: invited?.name,
+            username: invited?.username,
             password: pwd,
             lockCode: lockCode)
         DomainUtils.tryValidate(md1)
@@ -25,17 +25,17 @@ class MailService {
     }
 
     Result<Void> notifyApproval(Staff s1) {
-        MailData.ApprovedStaff md1 = new MailData.ApprovedStaff(name: s1.name,
-            username: s1.username,
-            org: s1.org?.name)
+        MailData.ApprovedStaff md1 = new MailData.ApprovedStaff(name: s1?.name,
+            username: s1?.username,
+            org: s1?.org?.name)
         DomainUtils.tryValidate(md1)
             .then { EmailEntity.tryCreate(s1.name, s1.email) }
             .then { EmailEntity toEntity -> sendMail(toEntity, md1) }
     }
 
     Result<Void> notifyAboutPendingStaff(Staff pendingStaff, Collection<Staff> admins) {
-        MailData.PendingStaff md1 = new MailData.PendingStaff(staff: pendingStaff.name,
-            org: pendingStaff.org?.name)
+        MailData.PendingStaff md1 = new MailData.PendingStaff(staff: pendingStaff?.name,
+            org: pendingStaff?.org?.name)
         DomainUtils.tryValidate(md1)
             .then {
                 ResultGroup.collect(admins) { Staff s1 -> EmailEntity.tryCreate(s1.name, s1.email) }
@@ -48,23 +48,23 @@ class MailService {
     }
 
     Result<Void> notifyAboutPendingOrg(Organization newOrg) {
-        MailData.PendingOrg md1 = new MailData.PendingOrg(org: newOrg.name)
+        MailData.PendingOrg md1 = new MailData.PendingOrg(org: newOrg?.name)
         DomainUtils.tryValidate(md1)
-            .then { EmailEntity toEntity -> sendMail(MailUtils.selfEntity(), md1) }
+            .then { sendMail(MailUtils.selfEntity(), md1) }
     }
 
     Result<Void> notifyRejection(Staff s1) {
-        MailData.RejectedStaff md1 = new MailData.RejectedStaff(name: s1.name,
-            username: s1.username)
+        MailData.RejectedStaff md1 = new MailData.RejectedStaff(name: s1?.name,
+            username: s1?.username)
         DomainUtils.tryValidate(md1)
             .then { EmailEntity.tryCreate(s1.name, s1.email) }
             .then { EmailEntity toEntity -> sendMail(toEntity, md1) }
     }
 
     Result<Void> notifyPasswordReset(Staff s1, Token tok1) {
-        MailData.PasswordReset md1 = new MailData.PasswordReset(name: s1.name,
-            username: s1.username,
-            link: LinkUtils.passwordReset(tok1.token))
+        MailData.PasswordReset md1 = new MailData.PasswordReset(name: s1?.name,
+            username: s1?.username,
+            link: LinkUtils.passwordReset(tok1?.token))
         DomainUtils.tryValidate(md1)
             .then { EmailEntity.tryCreate(s1.name, s1.email) }
             .then { EmailEntity toEntity -> sendMail(toEntity, md1) }
@@ -73,15 +73,19 @@ class MailService {
     Result<Void> notifyMessages(NotificationFrequency freq1, ReadOnlyStaff rs1,
         NotificationInfo notifInfo, Token tok1 = null) {
 
-        MailData.Notification md1 = new MailData.Notification(staffName: rs1.name,
-            phoneName: notifInfo.phoneName,
-            phoneNumber: notifInfo.phoneNumber.prettyPhoneNumber,
-            timePeriodDescription: freq1.readableDescription,
+        MailData.Notification md1 = new MailData.Notification(staffName: rs1?.name,
+            phoneName: notifInfo?.phoneName,
+            phoneNumber: notifInfo?.phoneNumber?.prettyPhoneNumber,
+            timePeriodDescription: freq1?.readableDescription,
             incomingDescription: NotificationUtils.buildIncomingMessage(notifInfo),
-            outgoingDescription: NotificationUtils.buildOutgoingMessage(notifInfo),
-            numIncoming: notifInfo.numIncomingText + notifInfo.numIncomingCall,
-            numOutgoing: notifInfo.numOutgoingText + notifInfo.numOutgoingCall,
-            link: tok1 ? LinkUtils.notification(tok1.token) : null)
+            outgoingDescription: NotificationUtils.buildOutgoingMessage(notifInfo))
+        if (notifInfo) {
+            md1.numIncoming = notifInfo.numIncomingText + notifInfo.numIncomingCall
+            md1.numOutgoing = notifInfo.numOutgoingText + notifInfo.numOutgoingCall
+        }
+        if (tok1) {
+            md1.link = LinkUtils.notification(tok1.token)
+        }
         DomainUtils.tryValidate(md1)
             .then { EmailEntity.tryCreate(rs1.name, rs1.email) }
             .then { EmailEntity toEntity -> sendMail(toEntity, md1) }

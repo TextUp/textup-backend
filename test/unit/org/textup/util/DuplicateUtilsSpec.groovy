@@ -129,8 +129,6 @@ class DuplicateUtilsSpec extends Specification {
         when:
         resGroup = DuplicateUtils.tryBuildMergeGroups(numToIdsWithOneAmbiguous)
 
-        println resGroup.failures
-
         then:
         resGroup.anyFailures == false
         resGroup.anySuccesses == true

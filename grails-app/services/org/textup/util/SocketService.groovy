@@ -16,11 +16,11 @@ import org.textup.validator.*
 @Transactional(readOnly = true)
 class SocketService {
 
-    private static final int PAYLOAD_BATCH_SIZE = 20
-    private static final String EVENT_CONTACTS = "contacts"
-    private static final String EVENT_FUTURE_MESSAGES = "futureMessages"
-    private static final String EVENT_RECORDS_ITEMS = "recordItems"
-    private static final String EVENT_PHONES = "phones"
+    static final int PAYLOAD_BATCH_SIZE = 20
+    static final String EVENT_CONTACTS = "contacts"
+    static final String EVENT_FUTURE_MESSAGES = "futureMessages"
+    static final String EVENT_RECORD_ITEMS = "recordItems"
+    static final String EVENT_PHONES = "phones"
 
     Pusher pusherService
 
@@ -44,7 +44,7 @@ class SocketService {
     }
 
     void sendItems(Collection<? extends RecordItem> items) {
-        trySend(EVENT_RECORDS_ITEMS, Staffs.findEveryForRecordIds(items*.record*.id), items)
+        trySend(EVENT_RECORD_ITEMS, Staffs.findEveryForRecordIds(items*.record*.id), items)
             .logFail("sendItems: `${items*.id}`")
     }
 
@@ -77,17 +77,17 @@ class SocketService {
                 .each { Collection<?> batch ->
                     Object serialized = DataFormatUtils.jsonToObject(batch)
                     staffs.each { Staff s1 ->
-                        resGroup << trySendToDataToStaff(event, s1, serialized)
+                        resGroup << trySendDataToStaff(event, s1, serialized)
                     }
                 }
         }
         resGroup.toEmptyResult(false)
     }
 
-    protected Result<Void> trySendToDataToStaff(String event, Staff s1, Object data) {
+    protected Result<Void> trySendDataToStaff(String event, Staff s1, Object data) {
         try {
             String channelName = SocketUtils.channelName(s1)
-            PusherResult pRes = pusherService.get("/channels/$channelName")
+            PusherResult pRes = pusherService.get("/channels/$channelName".toString())
             if (pRes.status == PusherResult.Status.SUCCESS) {
                 Map channelInfo = DataFormatUtils.jsonToObject(pRes.message) as Map
                 if (channelInfo.occupied) {
@@ -99,12 +99,12 @@ class SocketService {
                 Result.void()
             }
             else {
-                log.error("trySendToDataToStaff: ${pRes.properties}")
+                log.error("trySendDataToStaff: ${pRes.properties}")
                 IOCUtils.resultFactory.failForPusher(pRes)
             }
         }
         catch (Throwable e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "trySendToDataToStaff", true)
+            IOCUtils.resultFactory.failWithThrowable(e, "trySendDataToStaff", true)
         }
     }
 }

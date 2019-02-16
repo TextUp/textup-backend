@@ -23,8 +23,8 @@ class CallService {
         Map afterPickup, String customAccountId) {
 
         ResultGroup<TempRecordReceipt> resGroup = new ResultGroup<>()
-        int numRemaining = toNums?.size()
-        List<String> toPhoneNums = toNums.collect { BasePhoneNumber n1 -> n1.e164PhoneNumber }
+        int numRemaining = toNums ? toNums.size() : 0
+        List<String> toPhoneNums = toNums.collect { BasePhoneNumber bNum1 -> bNum1.e164PhoneNumber }
         String afterPickupJson = DataFormatUtils.toJsonString(afterPickup)
         // We start with the first number **that doesn't IMMEDIATELY fail**
         for (int i = numRemaining; i > 0 && !resGroup.anySuccesses; --i) {
@@ -113,10 +113,9 @@ class CallService {
         }
         catch (Throwable e) {
             Result<?> res = IOCUtils.resultFactory.failWithThrowable(e, "doCall")
-            if (e instanceof ApiException) { // Twilio ApiException --> is validation error
-                res.status = ResultStatus.UNPROCESSABLE_ENTITY
-            }
-            res
+            e instanceof ApiException ? // Twilio ApiException --> is validation error
+                IOCUtils.resultFactory.failWithResultsAndStatus([res], ResultStatus.UNPROCESSABLE_ENTITY) :
+                res
         }
     }
     protected CallService.Outcome executeCall(CallCreator creator, String callback) {

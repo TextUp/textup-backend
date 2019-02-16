@@ -38,8 +38,13 @@ class TestUtils {
     // Display
     // -------
 
-    static Map jsonToMap(JSON json) {
-        DataFormatUtils.jsonToObject(json.toString()) as Map
+    // [NOTE] use `new JSON()` instead of `as JSON` because the case is only implemented for domain objects
+    // see: https://stackoverflow.com/a/30989508
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static Map objToJsonMap(Object obj) {
+        JSON.use(MarshallerUtils.MARSHALLER_DEFAULT) {
+            DataFormatUtils.jsonToObject(new JSON(obj).toString()) as Map
+        }
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -237,10 +242,12 @@ class TestUtils {
 
     // [NOTE] may need to also mix in `ControllerUnitTestMixin` via `@TestMixin` for as JSON casting to work
     // see https://stackoverflow.com/a/15485593
+    // [NOTE] use `new JSON()` instead of `as JSON` because the case is only implemented for domain objects
+    // see: https://stackoverflow.com/a/30989508
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static void mockJsonToString() {
         // in unit tests, don't have custom `default` marshallers so replace with simple JSON cast
-        DataFormatUtils.metaClass."static".toJsonString = { it ? (it as JSON).toString() : "" }
+        DataFormatUtils.metaClass."static".toJsonString = { it ? new JSON(it).toString() : "" }
     }
 
     // Object generators
@@ -288,7 +295,9 @@ class TestUtils {
         t1.save(flush: true, failOnError: true)
     }
 
-    static OwnerPolicy buildOwnerPolicy(PhoneOwnership own1, Staff s1) {
+    static OwnerPolicy buildOwnerPolicy(PhoneOwnership thisOwner = null, Staff thisStaff = null) {
+        PhoneOwnership own1 = thisOwner ?: TestUtils.buildActiveStaffPhone().owner
+        Staff s1 = thisStaff ?: TestUtils.buildStaff()
         OwnerPolicy op1 = OwnerPolicy.tryCreate(own1, s1.id)
             .logFail("buildOwnerPolicy")
             .payload as OwnerPolicy
@@ -424,6 +433,34 @@ class TestUtils {
         new RecordItem(record: rec1).save(flush: true, failOnError: true)
     }
 
+    static RecordCall buildRecordCall(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        RecordCall rCall1 = RecordCall.tryCreate(rec1)
+            .logFail("buildRecordCall")
+            .payload as RecordCall
+        rCall1.addReceipt(TestUtils.buildTempReceipt(ReceiptStatus.SUCCESS)) // for duration
+        rCall1.save(flush: true, failOnError: true)
+    }
+
+    static RecordText buildRecordText(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        RecordText rText1 = RecordText.tryCreate(rec1, TestUtils.randString())
+            .logFail("buildRecordText")
+            .payload as RecordText
+        rText1.save(flush: true, failOnError: true)
+    }
+
+    static RecordNote buildRecordNote(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        RecordNote rNote1 = RecordNote.tryCreate(rec1,
+                TestUtils.randString(),
+                TestUtils.buildMediaInfo(),
+                TestUtils.buildLocation())
+            .logFail("buildRecordNote")
+            .payload as RecordNote
+        rNote1.save(flush: true, failOnError: true)
+    }
+
     static RecordItemReceipt buildReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
         RecordItemReceipt rpt1 = new RecordItemReceipt(status: status,
             contactNumberAsString: TestUtils.randPhoneNumberString(),
@@ -442,8 +479,8 @@ class TestUtils {
         rpt1
     }
 
-    static RecordItemRequest buildRecordItemRequest(Phone p1) {
-        RecordItemRequest.tryCreate(p1, [], false).payload
+    static RecordItemRequest buildRecordItemRequest(Phone p1, boolean groupByEntity = false) {
+        RecordItemRequest.tryCreate(p1, [], groupByEntity).payload
     }
 
     static CustomAccountDetails buildCustomAccountDetails() {
@@ -458,8 +495,8 @@ class TestUtils {
         tok1.save(flush: true, failOnError: true)
     }
 
-    static Notification buildNotification() {
-        Phone p1 = TestUtils.buildActiveStaffPhone()
+    static Notification buildNotification(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
 
@@ -477,6 +514,18 @@ class TestUtils {
 
         assert notif1.validate()
         notif1
+    }
+
+    static NotificationInfo buildNotificationInfo() {
+        new NotificationInfo(TestUtils.randString(),
+            TestUtils.randPhoneNumber(),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randString(),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randString())
     }
 
     // Mocking

@@ -3,11 +3,10 @@ package org.textup.util
 import com.amazonaws.services.cloudfront.CloudFrontUrlSigner.Protocol
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import org.joda.time.DateTime
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import org.joda.time.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -27,26 +26,22 @@ import spock.lang.*
 class StorageServiceSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
 
-	void setup() {
-		service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-        service.grailsApplication = grailsApplication
-	}
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
     void "test uploading"() {
         given:
-        service.s3Service = Mock(AmazonS3Client)
         UploadItem invalidItem = new UploadItem()
-        assert invalidItem.validate() == false
+        UploadItem validItem = TestUtils.buildUploadItem(MediaType.IMAGE_PNG)
 
-        byte[] inputData1 = TestUtils.getPngSampleData()
-        UploadItem validItem = new UploadItem(type: MediaType.IMAGE_PNG, data: inputData1)
-        assert validItem.validate() == true
+        service.s3Service = GroovyMock(AmazonS3Client)
 
         when: "try to upload an invalid upload item"
-        Result<PutObjectResult> res = service.upload(invalidItem)
+        Result res = service.upload(invalidItem)
 
         then: "validation errors"
         0 * service.s3Service._
@@ -97,18 +92,16 @@ class StorageServiceSpec extends Specification {
 
     void "test uploading batch of items asynchronously"() {
         given: "many upload items"
-        service.s3Service = Mock(AmazonS3Client)
         List<UploadItem> uItems = []
         int numSuccesses = 5
+        numSuccesses.times { uItems << TestUtils.buildUploadItem(MediaType.IMAGE_PNG) }
         int numFailures = 3
-        byte[] inputData1 = TestUtils.getPngSampleData()
-        numSuccesses.times {
-            uItems << new UploadItem(type: MediaType.IMAGE_PNG, data: inputData1)
-        }
         numFailures.times { uItems << new UploadItem() }
 
+        service.s3Service = GroovyMock(AmazonS3Client)
+
         when: "empty list"
-        ResultGroup<PutObjectResult> resGroup = service.uploadAsync(null)
+        ResultGroup resGroup = service.uploadAsync(null)
 
         then:
         resGroup.isEmpty == true

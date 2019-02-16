@@ -20,6 +20,7 @@ class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem> {
     AuthorType authorType
     boolean hasAwayMessage = false
     boolean isAnnouncement = false
+    boolean isDeleted = false
     boolean outgoing = true // true is CM->client, false is CM<-client
     boolean wasScheduled = false
     DateTime whenCreated = JodaUtils.utcNow()

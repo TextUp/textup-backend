@@ -46,7 +46,7 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
     // Methods
     // -------
 
-    Result<MediaInfo> tryAddAllElements(Collection<MediaElement> els) { // TODO test
+    Result<MediaInfo> tryAddAllElements(Collection<MediaElement> els) {
         els?.each { MediaElement el1 -> addToMediaElements(el1) }
         DomainUtils.trySave(this)
     }

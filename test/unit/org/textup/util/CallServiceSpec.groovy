@@ -6,13 +6,10 @@ import com.twilio.rest.api.v2010.account.CallCreator
 import com.twilio.rest.api.v2010.account.CallUpdater
 import com.twilio.Twilio
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import grails.test.mixin.web.ControllerUnitTestMixin
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.springframework.context.MessageSource
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -37,9 +34,8 @@ class CallServiceSpec extends Specification {
     }
 
     def setup() {
+        TestUtils.standardMockSetup()
         IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGeneratorWithDomain() }
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-        TestUtils.mockJsonToString()
     }
 
     // Helpers
@@ -49,8 +45,8 @@ class CallServiceSpec extends Specification {
     @ConfineMetaClassChanges([Call])
     void "test building call creator"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber fromNum = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum = TestUtils.randPhoneNumber()
         TwilioPhoneNumber apiTo = toNum.toApiPhoneNumber()
         TwilioPhoneNumber apiFrom = fromNum.toApiPhoneNumber()
         String customAccountId = TestUtils.randString()
@@ -119,32 +115,32 @@ class CallServiceSpec extends Specification {
 
     void "test do call helper errors"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber fromNum = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum = TestUtils.randPhoneNumber()
         String customAccountId = TestUtils.randString()
         String callback = TestUtils.randString()
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
 
-        when: "missing from or to"
-        Result<TempRecordReceipt> res = service
-            .doCall(null, null, afterPickup, callback, customAccountId)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages == ["callService.doCall.missingInfo"]
-
-        when: "non ApiException is thrown"
         MockedMethod callCreator = MockedMethod.create(service, "callCreator") {
             throw new IllegalArgumentException(TestUtils.randString())
         }
+
+        when: "missing from or to"
+        Result res = service.doCall(null, null, afterPickup, callback, customAccountId)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages == ["callService.missingFromOrTo"]
+
+        when: "non ApiException is thrown"
+
         res = service.doCall(fromNum, toNum, afterPickup, callback, customAccountId)
 
         then:
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
 
         when: "ApiException is thrown"
-        callCreator.restore()
-        callCreator = MockedMethod.create(service, "callCreator") {
+        callCreator = MockedMethod.create(callCreator) {
             throw new ApiException(TestUtils.randString())
         }
         res = service.doCall(fromNum, toNum, afterPickup, callback, customAccountId)
@@ -153,13 +149,13 @@ class CallServiceSpec extends Specification {
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         cleanup:
-        callCreator.restore()
+        callCreator?.restore()
     }
 
     void "test do call helper success"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber fromNum = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum = TestUtils.randPhoneNumber()
         String customAccountId = TestUtils.randString()
         String callback = TestUtils.randString()
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
@@ -172,21 +168,21 @@ class CallServiceSpec extends Specification {
         }
 
         when:
-        Result<TempRecordReceipt> res = service.doCall(fromNum, toNum, afterPickup, callback, customAccountId)
+        Result res = service.doCall(fromNum, toNum, afterPickup, callback, customAccountId)
 
         then:
         callCreator.callCount == 1
         callCreator.allArgs[0] == [fromNum, toNum, afterPickup, customAccountId]
         executeCall.callCount == 1
         executeCall.allArgs[0] == [creator, callback]
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.CREATED
         res.payload instanceof TempRecordReceipt
         res.payload.contactNumber.number == toNum.number
         res.payload.apiId == callId
 
         cleanup:
-        callCreator.restore()
-        executeCall.restore()
+        callCreator?.restore()
+        executeCall?.restore()
     }
 
     void "test building callback url"() {
@@ -231,71 +227,67 @@ class CallServiceSpec extends Specification {
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
 
         when: "no error"
-        callUpdater.restore()
-        callUpdater = MockedMethod.create(service, "callUpdater") { updater }
+        callUpdater = MockedMethod.create(callUpdater) { updater }
         res = service.interrupt(callId, [(pickupKey): pickupVal], customAccountId)
 
         then:
-        1 * updater.setUrl({ it.toString().contains(pickupKey) &&
-            it.toString().contains(pickupVal) }) >> updater
-        1 * updater.setStatusCallback({ it.toString().contains(Constants.CALLBACK_STATUS) }) >> updater
+        1 * updater.setUrl({ it.toString().contains(pickupKey) && it.toString().contains(pickupVal) }) >> updater
+        1 * updater.setStatusCallback({ it.toString().contains(CallbackUtils.STATUS) }) >> updater
         1 * updater.update()
         res.status == ResultStatus.NO_CONTENT
 
         cleanup:
-        callUpdater.restore()
+        callUpdater?.restore()
     }
 
     void "test retrying call"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber fromNum = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum = TestUtils.randPhoneNumber()
         String apiId = TestUtils.randString()
         String customAccountId = TestUtils.randString()
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
 
         TempRecordReceipt tempRpt1 = TestUtils.buildTempReceipt()
-        RecordItem mockItem = Mock()
-        MockedMethod start = MockedMethod.create(service, "start") { new Result(payload: tempRpt1) }
-        MockedMethod findEveryByApiId = MockedMethod.create(RecordItem, "findEveryByApiId") { [mockItem] }
+        RecordItem rItem1 = TestUtils.buildRecordItem()
+        MockedMethod start = MockedMethod.create(service, "start") { Result.createSuccess(tempRpt1) }
+        MockedMethod findEveryByApiId = MockedMethod.create(RecordItems, "findEveryForApiId") { [rItem1] }
 
         when:
-        Result<TempRecordReceipt> res = service.retry(fromNum, [toNum], apiId, afterPickup, customAccountId)
+        Result res = service.retry(fromNum, [toNum], apiId, afterPickup, customAccountId)
 
         then:
         start.callCount == 1
         start.allArgs[0] == [fromNum, [toNum], afterPickup, customAccountId]
         findEveryByApiId.callCount == 1
         findEveryByApiId.allArgs[0] == [apiId]
-        1 * mockItem.addReceipt(tempRpt1)
-        1 * mockItem.save()
         res.status == ResultStatus.OK
         res.payload == tempRpt1
+        rItem1.receipts.find { it.apiId == tempRpt1.apiId }
 
         cleanup:
-        start.restore()
-        findEveryByApiId.restore()
+        start?.restore()
+        findEveryByApiId?.restore()
     }
 
     void "test starting call errors"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber fromNum = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum = TestUtils.randPhoneNumber()
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
         String customAccountId = TestUtils.randString()
 
         String errorMsg = TestUtils.randString()
         MockedMethod doCall = MockedMethod.create(service, "doCall") {
-            new Result(status: ResultStatus.INTERNAL_SERVER_ERROR,
-                errorMessages: [errorMsg])
+            Result.createError([errorMsg], ResultStatus.INTERNAL_SERVER_ERROR)
         }
 
         when: "no numbers"
-        Result<TempRecordReceipt> res = service.start(fromNum, null, afterPickup, customAccountId)
+        Result res = service.start(fromNum, null, afterPickup, customAccountId)
 
         then:
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "callService.start.missingInfoOrAllFailed"
+        res.errorMessages[0] == "callService.missingInfoOrAllFailed"
 
         when: "all numbers immediately failed"
         res = service.start(fromNum, [toNum], afterPickup, customAccountId)
@@ -305,23 +297,23 @@ class CallServiceSpec extends Specification {
         res.errorMessages[0] == errorMsg
 
         cleanup:
-        doCall.restore()
+        doCall?.restore()
     }
 
     void "test starting call successfully"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum3 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber fromNum = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum1 = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum2 = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum3 = TestUtils.randPhoneNumber()
         Map afterPickup = [(TestUtils.randString()): TestUtils.randString()]
         String customAccountId = TestUtils.randString()
 
         TempRecordReceipt tempRpt = TestUtils.buildTempReceipt()
-        MockedMethod doCall = MockedMethod.create(service, "doCall") { new Result(payload: tempRpt) }
+        MockedMethod doCall = MockedMethod.create(service, "doCall") { Result.createSuccess(tempRpt) }
 
         when: "one number"
-        Result<TempRecordReceipt> res = service.start(fromNum, [toNum1], afterPickup, customAccountId)
+        Result res = service.start(fromNum, [toNum1], afterPickup, customAccountId)
 
         then:
         doCall.callCount == 1
@@ -350,7 +342,7 @@ class CallServiceSpec extends Specification {
         res.payload == tempRpt
 
         cleanup:
-        doCall.restore()
+        doCall?.restore()
     }
 
     void "test starting a call to one or more numbers"() {
@@ -358,15 +350,15 @@ class CallServiceSpec extends Specification {
         Map twilioTestConfig = grailsApplication.config.textup.apiKeys.twilio
         Twilio.init(twilioTestConfig.sid, twilioTestConfig.authToken)
 
-        PhoneNumber invalidFrom1 = new PhoneNumber(number:TestConstants.TEST_CALL_FROM_NOT_VALID)
-        PhoneNumber fromNum1 = new PhoneNumber(number:TestConstants.TEST_CALL_FROM_VALID),
-            toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumberString()),
-            toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumberString()),
-            invalidNum1 = new PhoneNumber(number:TestConstants.TEST_CALL_TO_NOT_VALID)
+        PhoneNumber invalidFrom1 = PhoneNumber.create(TestConstants.TEST_CALL_FROM_NOT_VALID)
+        PhoneNumber fromNum1 = PhoneNumber.create(TestConstants.TEST_CALL_FROM_VALID),
+            toNum1 = TestUtils.randPhoneNumber(),
+            toNum2 = TestUtils.randPhoneNumber(),
+            invalidNum1 = PhoneNumber.create(TestConstants.TEST_CALL_TO_NOT_VALID)
         assert [invalidFrom1, fromNum1, toNum1, toNum2, invalidNum1].each { it.validate() }
 
         when: "we try to call with an invalid 'from' number"
-        Result<TempRecordReceipt> res = service.start(invalidFrom1, [toNum1], [:], null)
+        Result res = service.start(invalidFrom1, [toNum1], [:], null)
 
         then:
         res.success == false
@@ -389,7 +381,7 @@ class CallServiceSpec extends Specification {
         res.status == ResultStatus.OK
         res.payload instanceof TempRecordReceipt
         res.payload.apiId != null
-        res.payload.contactNumberAsString == toNum1.number
+        res.payload.contactNumber == toNum1
 
         when: "we start a call with multiple 'to' numbers where first is invalid"
         res = service.start(fromNum1, [invalidNum1, toNum1, toNum2], [:], null)
@@ -399,6 +391,6 @@ class CallServiceSpec extends Specification {
         res.status == ResultStatus.OK
         res.payload instanceof TempRecordReceipt
         res.payload.apiId != null
-        res.payload.contactNumberAsString == toNum1.number
+        res.payload.contactNumber == toNum1
     }
 }

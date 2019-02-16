@@ -77,13 +77,13 @@ class RecordItemRequest implements CanValidate {
         }
     }
 
-    String buildFormattedStart(String tz) {
+    String buildFormattedStart(Object tz = null) {
         start ?
             JodaUtils.FILE_TIMESTAMP_FORMAT.print(JodaUtils.toDateTimeWithZone(start, tz)) :
             DEFAULT_START
     }
 
-    String buildFormattedEnd(String tz) {
+    String buildFormattedEnd(Object tz = null) {
         end ?
             JodaUtils.FILE_TIMESTAMP_FORMAT.print(JodaUtils.toDateTimeWithZone(end, tz)) :
             DEFAULT_END

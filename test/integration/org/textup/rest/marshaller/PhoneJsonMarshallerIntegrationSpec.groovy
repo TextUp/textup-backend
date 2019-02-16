@@ -1,190 +1,151 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.textup.test.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Unroll
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-// TODO
+class PhoneJsonMarshallerIntegrationSpec extends Specification {
 
-class PhoneJsonMarshallerIntegrationSpec extends CustomSpec {
+    void "test marshalling when not logged in"() {
+        given:
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createError([], ResultStatus.NOT_FOUND)
+        }
 
-    // def _originalGetLoggedInAndActive
+        when:
+        Map json = TestUtils.objToJsonMap(p1)
 
-    // def grailsApplication
-    // AuthService authService
+        then:
+        json.awayMessage == p1.awayMessage
+        json.awayMessageMaxLength == ValidationUtils.TEXT_BODY_LENGTH * 2
+        json.id == p1.id
+        json.isActive == p1.isActive()
+        json.language == p1.language.toString()
+        json.media == null
+        json.number.noFormatNumber == p1.number.number
+        json.useVoicemailRecordingIfPresent == p1.useVoicemailRecordingIfPresent
+        json.voice == p1.voice.toString()
+        json.allowSharingWithOtherTeams == null
+        json.tags == null
+        json.self == null
+        json.others == null
 
-    // def setup() {
-    //     setupIntegrationData()
-    //     authService = grailsApplication.mainContext.getBean("authService")
-    // }
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
 
-    // def cleanup() {
-    //     cleanupIntegrationData()
-    //     // restore overridden methods
-    //     if (_originalGetLoggedInAndActive) {
-    //         authService.metaClass.getLoggedInAndActive = _originalGetLoggedInAndActive
-    //         _originalGetLoggedInAndActive = null
-    //     }
-    // }
+    void "test marshalling logged in"() {
+        given:
+        Team t1 = TestUtils.buildTeam()
 
-    // protected void overrideGetLoggedInAndActiveWith(Closure closure) {
-    //     if (!_originalGetLoggedInAndActive) {
-    //         _originalGetLoggedInAndActive = authService.metaClass.getLoggedInAndActive
-    //     }
-    //     authService.metaClass.getLoggedInAndActive = closure
-    // }
+        Staff s1 = TestUtils.buildStaff()
+        t1.addToMembers(s1)
+        Staff s2 = TestUtils.buildStaff()
+        t1.addToMembers(s2)
+        Staff s3 = TestUtils.buildStaff()
 
-    // @Unroll
-    // void "test marshal phone when has notification policy and is #description"() {
-    //     given:
-    //     Staff authUser
-    //     if (isLoggedIn) {
-    //         if (isOwner) {
-    //             authUser = p1.owner.buildAllStaff()[0]
-    //         }
-    //         else {
-    //             authUser = s2
-    //             assert p1.owner.buildAllStaff().contains(s2) == false
-    //         }
+        Phone tp1 = TestUtils.buildActiveTeamPhone(t1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(tp1)
 
-    //         NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authUser.id)
-    //         np1.useStaffAvailability = true
-    //         np1.save(flush:true, failOnError:true)
-    //     }
-    //     overrideGetLoggedInAndActiveWith({ authUser })
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s3)
+        }
 
-    //     when:
-    //     Map json
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(p1 as JSON)
-    //     }
+        when: "this is not a phone we can access"
+        Map json = TestUtils.objToJsonMap(tp1)
 
-    //     then:
-    //     json.id == p1.id
-    //     json.number == p1.number.e164PhoneNumber
-    //     json.awayMessage == p1.awayMessage
-    //     json.tags.size() == p1.tags.size()
-    //     json.voice == p1.voice.toString()
-    //     json.language == p1.language.toString()
-    //     json.awayMessageMaxLength == Constants.TEXT_LENGTH * 2
-    //     p1.tags.every { ContactTag ct1 ->
-    //         json.tags.find { it.id == ct1.id }
-    //     }
-    //     if (showAvailabilityInfo) {
-    //         NotificationPolicy np1 = p1.owner.findPolicyForStaff(authUser.id)
-    //         assert json.availability instanceof Map
-    //         assert json.availability.useStaffAvailability == true
-    //         assert json.availability.manualSchedule == np1.useStaffAvailability
-    //         assert json.availability.isAvailable == np1.useStaffAvailability
-    //         assert json.availability.isAvailableNow == s1.isAvailableNow()
-    //         assert json.availability.schedule == np1.schedule
-    //         assert json.availability.schedule == null // no schedule created yet
-    //         assert json.others instanceof Collection
-    //         assert json.others.size() == p1.owner.buildAllStaff().size() - 1
-    //     }
-    //     else {
-    //         assert json.availability == null
-    //         assert json.others == null
-    //     }
+        then:
+        json.awayMessage == tp1.awayMessage
+        json.awayMessageMaxLength == ValidationUtils.TEXT_BODY_LENGTH * 2
+        json.id == tp1.id
+        json.isActive == tp1.isActive()
+        json.language == tp1.language.toString()
+        json.media == null
+        json.number.noFormatNumber == tp1.number.number
+        json.useVoicemailRecordingIfPresent == tp1.useVoicemailRecordingIfPresent
+        json.voice == tp1.voice.toString()
+        json.allowSharingWithOtherTeams == null
+        json.tags == null
+        json.self == null
+        json.others == null
 
-    //     where:
-    //     isLoggedIn | isOwner | showAvailabilityInfo | description
-    //     false      | false   | false                | "not logged in"
-    //     true       | false   | false                | "logged in but not one of phone's owners"
-    //     true       | true    | true                 | "logged in, phone owner"
-    // }
+        when: "this is our phone"
+        tryGetActiveAuthUser = MockedMethod.create(tryGetActiveAuthUser) { Result.createSuccess(s1) }
+        json = TestUtils.objToJsonMap(tp1)
 
-    // void "test marshal phone when no notification policy"() {
-    //     given: "a new staff member owner for this phone"
-    //     Staff staff1 = new Staff(username: UUID.randomUUID().toString(),
-    //         name: "Name",
-    //         password: "password",
-    //         email: "hello@its.me",
-    //         org: org,
-    //         manualSchedule: true,
-    //         isAvailable: false)
-    //     staff1.save(flush:true, failOnError:true)
+        then:
+        json.awayMessage == tp1.awayMessage
+        json.awayMessageMaxLength == ValidationUtils.TEXT_BODY_LENGTH * 2
+        json.id == tp1.id
+        json.isActive == tp1.isActive()
+        json.language == tp1.language.toString()
+        json.media == null
+        json.number.noFormatNumber == tp1.number.number
+        json.useVoicemailRecordingIfPresent == tp1.useVoicemailRecordingIfPresent
+        json.voice == tp1.voice.toString()
+        json.allowSharingWithOtherTeams == tp1.owner.allowSharingWithOtherTeams
+        json.tags instanceof Collection
+        json.tags.size() == 1
+        json.tags[0].id == gpr1.id
+        json.self instanceof Map
+        json.self.staff == s1.id
+        json.others instanceof Collection
+        json.others.size() == 1
+        json.others[0].staff == s2.id
 
-    //     p1.updateOwner(staff1)
-    //     p1.save(flush:true, failOnError:true)
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
 
-    //     assert p1.owner.findPolicyForStaff(staff1.id) == null
-    //     overrideGetLoggedInAndActiveWith({ staff1 })
+    void "test marshalling with various voicemail options"() {
+        given:
+        String customMsg = TestUtils.randString()
 
-    //     when:
-    //     Map json
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(p1 as JSON)
-    //     }
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        p1.awayMessage = customMsg
+        p1.media = null
+        p1.useVoicemailRecordingIfPresent = false
+        p1.voice = VoiceType.FEMALE
 
-    //     then: "default to staff availability and do not show policy-level availability info"
-    //     json.id == p1.id
-    //     json.number == p1.number.e164PhoneNumber
-    //     json.awayMessage == p1.awayMessage
-    //     json.tags.size() == p1.tags.size()
-    //     json.voice == p1.voice.toString()
-    //     json.language == p1.language.toString()
-    //     json.awayMessageMaxLength == Constants.TEXT_LENGTH * 2
-    //     p1.tags.every { ContactTag ct1 ->
-    //         json.tags.find { it.id == ct1.id }
-    //     }
-    //     json.availability instanceof Map
-    //     json.availability.useStaffAvailability == true
-    //     json.availability.isAvailableNow == staff1.isAvailableNow()
-    //     // no policy-level availability info
-    //     json.availability.manualSchedule == null
-    //     json.availability.isAvailable == null
-    //     json.availability.schedule == null
-    //     json.others instanceof Collection
-    //     json.others.size() == 0 // this is a personal TextUp phone
-    // }
+        MediaElement el1 = TestUtils.buildMediaElement()
+        el1.sendVersion.type = MediaType.AUDIO_MP3
+        MediaInfo mInfo = TestUtils.buildMediaInfo()
+        mInfo.addToMediaElements(el1)
 
-    // void "test marshal phone with various voicemail options"() {
-    //     given:
-    //     String customMsg = TestUtils.randString()
-    //     p1.awayMessage = customMsg
-    //     p1.media = null
-    //     p1.useVoicemailRecordingIfPresent = false
-    //     p1.voice = VoiceType.FEMALE
-    //     p1.save(flush: true, failOnError: true)
+        Phone.withSession { it.flush() }
 
-    //     when: "use robovoice to read away message -- no voicemail recording"
-    //     Map json
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(p1 as JSON)
-    //     }
+        when: "use robovoice to read away message -- no voicemail recording"
+        Map json = TestUtils.objToJsonMap(p1)
 
-    //     then:
-    //     json.id == p1.id
-    //     json.awayMessage.contains(customMsg)
-    //     json.voice == VoiceType.FEMALE.toString()
-    //     json.useVoicemailRecordingIfPresent == false
-    //     json.media == null
+        then:
+        json.id == p1.id
+        json.awayMessage.contains(customMsg)
+        json.voice == VoiceType.FEMALE.toString()
+        json.useVoicemailRecordingIfPresent == false
+        json.media == null
 
-    //     when: "use voicemail recording"
-    //     MediaElement e1 = TestUtils.buildMediaElement()
-    //     e1.sendVersion.type = MediaType.AUDIO_MP3
-    //     p1.media = new MediaInfo()
-    //     p1.media.addToMediaElements(e1)
-    //     p1.useVoicemailRecordingIfPresent = true
-    //     p1.save(flush: true, failOnError: true)
+        when: "use voicemail recording"
+        p1.media = mInfo
+        p1.useVoicemailRecordingIfPresent = true
+        p1.save(flush: true, failOnError: true)
 
-    //     JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    //         json = TestUtils.jsonToMap(p1 as JSON)
-    //     }
+        json = TestUtils.objToJsonMap(p1)
 
-    //     then:
-    //     json.id == p1.id
-    //     json.awayMessage.contains(customMsg)
-    //     json.voice == VoiceType.FEMALE.toString()
-    //     json.useVoicemailRecordingIfPresent == true
-    //     json.media instanceof Map
-    //     json.media.id == p1.media.id
-    //     json.media.audio[0].uid == e1.uid
-    //     json.media.audio[0].versions instanceof Collection
-    //     json.media.audio[0].versions*.type.every { it in MediaType.AUDIO_TYPES*.mimeType }
-    // }
+        then:
+        json.id == p1.id
+        json.awayMessage.contains(customMsg)
+        json.voice == VoiceType.FEMALE.toString()
+        json.useVoicemailRecordingIfPresent == true
+        json.media instanceof Map
+        json.media.id == p1.media.id
+        json.media.audio[0].uid == el1.uid
+        json.media.audio[0].versions instanceof Collection
+        json.media.audio[0].versions*.type.every { it in MediaType.AUDIO_TYPES*.mimeType }
+    }
 }

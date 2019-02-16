@@ -48,7 +48,7 @@ class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
             result["$tokenPropertyName"] = accessToken.accessToken
         }
         // build json string result
-        def jsonResult = result as JSON
+        def jsonResult = new JSON(result)
         log.debug "CUSTOM Generated JSON:\n${jsonResult.toString(true)}"
         return jsonResult.toString()
     }

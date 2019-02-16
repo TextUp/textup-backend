@@ -4,10 +4,9 @@ import com.twilio.rest.api.v2010.account.Message
 import com.twilio.rest.api.v2010.account.MessageCreator
 import com.twilio.Twilio
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.springframework.context.MessageSource
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -25,16 +24,15 @@ class TextServiceSpec extends Specification {
     }
 
     def setup() {
-        IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        TestUtils.standardMockSetup()
     }
 
     // see global mock cleanup bug: https://github.com/spockframework/spock/issues/445
     @ConfineMetaClassChanges([Message])
     void "test building message creator"() {
         given:
-        BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        BasePhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        BasePhoneNumber fromNum = TestUtils.randPhoneNumber()
+        BasePhoneNumber toNum = TestUtils.randPhoneNumber()
         TwilioPhoneNumber apiTo = toNum.toApiPhoneNumber()
         TwilioPhoneNumber apiFrom = fromNum.toApiPhoneNumber()
         String message = TestUtils.randString()
@@ -79,7 +77,7 @@ class TextServiceSpec extends Specification {
     	then: "no numbers were attempted since no receipients so we get fallback error msg"
     	res.success == false
     	res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    	res.errorMessages[0] == "textService.text.noNumbers"
+    	res.errorMessages[0] == "textService.noNumbers"
 
         when: "try to text an invalid number"
         res = service.send(fromNum, [invalidToNum1, invalidToNum2], msg, customAccountId)
@@ -88,7 +86,7 @@ class TextServiceSpec extends Specification {
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
         res.errorMessages.size() == 2
-        res.errorMessages.every { it != "textService.text.noNumbers" }
+        res.errorMessages.every { it != "textService.noNumbers" }
     }
 
     void "test try text"() {
@@ -97,9 +95,9 @@ class TextServiceSpec extends Specification {
         String customAccountId = TestUtils.randString()
         Collection<URI> mediaLinks = [TestUtils.randUrl(), TestUtils.randUrl()]
 
-        PhoneNumber fromNum = new PhoneNumber(number: TestConstants.TEST_SMS_FROM_VALID)
+        PhoneNumber fromNum = PhoneNumber.create(TestConstants.TEST_SMS_FROM_VALID)
         assert fromNum.validate()
-        PhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        PhoneNumber toNum1 = TestUtils.randPhoneNumber()
         assert toNum1.validate()
 
         MessageCreator mockMsgCreator = GroovyMock()
@@ -132,29 +130,29 @@ class TextServiceSpec extends Specification {
         res.payload instanceof TextService.Outcome
 
         cleanup:
-        messageCreator.restore()
+        messageCreator?.restore()
     }
 
     void "test successfully sending for multiple numbers"() {
         given:
-        PhoneNumber fromNum = new PhoneNumber(number: TestConstants.TEST_SMS_FROM_VALID)
+        PhoneNumber fromNum = PhoneNumber.create(TestConstants.TEST_SMS_FROM_VALID)
         assert fromNum.validate()
         String msg = TestUtils.randString()
         String customAccountId = TestUtils.randString()
         Collection<URI> mediaLinks = [TestUtils.randUrl(), TestUtils.randUrl()]
 
-        PhoneNumber toNum1 = new PhoneNumber(number: TestUtils.randPhoneNumberString()),
-            toNum2 = new PhoneNumber(number: TestUtils.randPhoneNumberString())
+        PhoneNumber toNum1 = TestUtils.randPhoneNumber(),
+            toNum2 = TestUtils.randPhoneNumber()
         assert toNum1.validate() && toNum2.validate()
 
         TextService.Outcome mockMsgResult = GroovyMock()
         MockedMethod tryText = MockedMethod.create(service, "tryText") {
-            new Result(payload: mockMsgResult)
+            Result.createSuccess(mockMsgResult)
         }
 
         and: "message outcome values"
         String apiId = TestUtils.randString()
-        Integer numSegments = TestUtils.randIntegerUpTo(10, true)
+        Integer numBillable = TestUtils.randIntegerUpTo(10, true)
 
         when: "stop on first success"
         Result res = service.send(fromNum, [toNum1, toNum2], msg, customAccountId, mediaLinks)
@@ -163,16 +161,16 @@ class TextServiceSpec extends Specification {
         tryText.callCount == 1
         tryText.allArgs[0] == [fromNum, toNum1, msg, customAccountId, mediaLinks]
         1 * mockMsgResult.getSid() >> apiId
-        1 * mockMsgResult.getNumSegments() >> numSegments
+        1 * mockMsgResult.getNumBillable() >> numBillable
 
         res.success == true
         res.status == ResultStatus.OK
         res.payload instanceof TempRecordReceipt
-        res.payload.contactNumberAsString == toNum1.number
+        res.payload.contactNumber == toNum1
         res.payload.apiId == apiId
-        res.payload.numSegments == numSegments
+        res.payload.numBillable == numBillable
 
         cleanup:
-        tryText.restore()
+        tryText?.restore()
     }
 }

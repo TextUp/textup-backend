@@ -1,58 +1,54 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.textup.test.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
+import spock.lang.*
 
-// TODO
+class BasePhoneNumberJsonMarshallerIntegrationSpec extends Specification {
 
-class BasePhoneNumberJsonMarshallerIntegrationSpec extends CustomSpec {
+    void "test marshalling phone number"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
 
-    def grailsApplication
-
-    def setup() {
-        setupIntegrationData()
-    }
-
-    def cleanup() {
-        cleanupIntegrationData()
-    }
-
-    void "test marshalling image info"() {
-        given: "info"
-        String key = UUID.randomUUID().toString(),
-            link = "https://www.test.com/${key}"
-        AvailablePhoneNumber sidNum = new AvailablePhoneNumber(),
-            regionNum = new AvailablePhoneNumber()
-        sidNum.with {
-            phoneNumber = "1112223333"
-            sid = "i am sid"
-        }
-        regionNum.with {
-            phoneNumber = "1112223333"
-            region = "CA, USA"
-        }
-        assert [regionNum, sidNum]*.validate()
-
-        when: "a number with a sid"
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(sidNum as JSON)
-        }
+        when:
+        Map json = TestUtils.objToJsonMap(pNum1)
 
         then:
-        json.phoneNumber == sidNum.e164PhoneNumber
+        json.e164Number == pNum1.e164PhoneNumber
+        json.noFormatNumber == pNum1.number
+        json.number == pNum1.prettyPhoneNumber
+    }
+
+    void "test marshalling `AvailablePhoneNumber`"() {
+        given:
+        AvailablePhoneNumber sidNum = AvailablePhoneNumber
+            .tryCreateExisting(TestUtils.randPhoneNumberString(), TestUtils.randString())
+            .payload
+        AvailablePhoneNumber regionNum = AvailablePhoneNumber
+            .tryCreateNew(TestUtils.randPhoneNumberString(), TestUtils.randString(), TestUtils.randString())
+            .payload
+
+        when: "a number with a sid"
+        Map json = TestUtils.objToJsonMap(sidNum)
+
+        then:
+        json.e164Number == sidNum.e164PhoneNumber
+        json.noFormatNumber == sidNum.number
+        json.number == sidNum.prettyPhoneNumber
         json[sidNum.infoType] == sidNum.info
 
         when: "a number with a region"
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(regionNum as JSON)
-        }
+        json = TestUtils.objToJsonMap(regionNum)
 
         then:
-        json.phoneNumber == regionNum.e164PhoneNumber
+        json.e164Number == regionNum.e164PhoneNumber
+        json.noFormatNumber == regionNum.number
+        json.number == regionNum.prettyPhoneNumber
         json[regionNum.infoType] == regionNum.info
     }
 }

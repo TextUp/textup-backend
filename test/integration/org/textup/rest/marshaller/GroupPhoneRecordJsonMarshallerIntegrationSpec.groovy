@@ -1,40 +1,38 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.textup.test.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-class GroupPhoneRecordJsonMarshallerIntegrationSpec extends CustomSpec {
+class GroupPhoneRecordJsonMarshallerIntegrationSpec extends Specification {
 
-	def grailsApplication
+    void "test marshalling"() {
+        given:
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
 
-    def setup() {
-    	setupIntegrationData()
-    }
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        gpr1.members.addToPhoneRecords(ipr1)
 
-    def cleanup() {
-    	cleanupIntegrationData()
-    }
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage(gpr1.record)
 
-    void "test marshalling tag"() {
     	when:
-    	Map json
-    	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestUtils.jsonToMap(tag1 as JSON)
-    	}
+    	Map json = TestUtils.objToJsonMap(gpr1)
 
     	then:
-    	json.id == tag1.id
-    	json.name == tag1.name
-    	json.hexColor == tag1.hexColor
-        json.language == tag1.language.toString()
-    	json.lastRecordActivity == tag1.record.lastRecordActivity.toString()
-        json.futureMessages instanceof List
-        json.futureMessages.size() == (tag1.record.futureMessages ?
-            tag1.record.futureMessages.size() : 0)
-        tag1.record.futureMessages?.every { FutureMessage fMsg ->
-            json.futureMessages.any { it.id == fMsg.id }
-        }
+        json.futureMessages instanceof Collection
+        json.futureMessages.size() == 1
+        json.futureMessages[0].id == fMsg1.id
+        json.hexColor == gpr1.hexColor
+        json.id == gpr1.id
+        json.language == gpr1.record.language.toString()
+        json.lastRecordActivity == gpr1.record.lastRecordActivity.toString()
+        json.name == gpr1.name
+        json.numMembers == 1
+        json.phone == gpr1.phone.id
     }
 }

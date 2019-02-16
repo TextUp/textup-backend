@@ -61,7 +61,7 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
         ApiJson converter
         try {
             JSON.use(view) {
-                converter = object as ApiJson
+                converter = new ApiJson(object)
             }
         }
         catch (ConverterException e1) {
@@ -69,13 +69,13 @@ class ApiJsonRenderer<T> extends AbstractRenderer<T> {
             e1.printStackTrace()
             try {
                 JSON.use(MarshallerUtils.MARSHALLER_DEFAULT) {
-                    converter = object as ApiJson
+                    converter = new ApiJson(object)
                 }
             }
             catch (ConverterException e2) {
                 log.error "useJsonWithDetail: `default` converter also not found: ${e2.message}"
                 e2.printStackTrace()
-                converter = object as JSON
+                converter = new JSON(object)
             }
         }
         return converter

@@ -26,7 +26,13 @@ class MailDataSpec extends Specification {
         String val = TestUtils.randString()
 
         when:
-        MailData.InvitedStaff dataObj = new MailData.InvitedStaff(inviter: val,
+        MailData.InvitedStaff dataObj = new MailData.InvitedStaff()
+
+        then:
+        dataObj.validate() == false
+
+        when:
+        dataObj = new MailData.InvitedStaff(inviter: val,
             invitee: val,
             username: val,
             password: val,
@@ -42,7 +48,13 @@ class MailDataSpec extends Specification {
         String val = TestUtils.randString()
 
         when:
-        MailData.ApprovedStaff dataObj = new MailData.ApprovedStaff(name: val,
+        MailData.ApprovedStaff dataObj = new MailData.ApprovedStaff()
+
+        then:
+        dataObj.validate() == false
+
+        when:
+        dataObj = new MailData.ApprovedStaff(name: val,
             username: val,
             org: val)
 
@@ -56,7 +68,13 @@ class MailDataSpec extends Specification {
         String val = TestUtils.randString()
 
         when:
-        MailData.PendingStaff dataObj = new MailData.PendingStaff(staff: val, org: val)
+        MailData.PendingStaff dataObj = new MailData.PendingStaff()
+
+        then:
+        dataObj.validate() == false
+
+        when:
+        dataObj = new MailData.PendingStaff(staff: val, org: val)
 
         then:
         dataObj.validate()
@@ -68,7 +86,13 @@ class MailDataSpec extends Specification {
         String val = TestUtils.randString()
 
         when:
-        MailData.RejectedStaff dataObj = new MailData.RejectedStaff(name: val, username: val)
+        MailData.RejectedStaff dataObj = new MailData.RejectedStaff()
+
+        then:
+        dataObj.validate() == false
+
+        when:
+        dataObj = new MailData.RejectedStaff(name: val, username: val)
 
         then:
         dataObj.validate()
@@ -79,7 +103,13 @@ class MailDataSpec extends Specification {
         String val = TestUtils.randString()
 
         when:
-        MailData.PendingOrg dataObj = new MailData.PendingOrg(org: val)
+        MailData.PendingOrg dataObj = new MailData.PendingOrg()
+
+        then:
+        dataObj.validate() == false
+
+        when:
+        dataObj = new MailData.PendingOrg(org: val)
 
         then:
         dataObj.validate()
@@ -91,7 +121,13 @@ class MailDataSpec extends Specification {
         String val = TestUtils.randString()
 
         when:
-        MailData.PasswordReset dataObj = new MailData.PasswordReset(name: val, username: val)
+        MailData.PasswordReset dataObj = new MailData.PasswordReset()
+
+        then:
+        dataObj.validate() == false
+
+        when:
+        dataObj = new MailData.PasswordReset(name: val, username: val)
 
         then:
         !dataObj.validate()
@@ -110,7 +146,13 @@ class MailDataSpec extends Specification {
         String val = TestUtils.randString()
 
         when:
-        MailData.Notification dataObj = new MailData.Notification(staffName: val,
+        MailData.Notification dataObj = new MailData.Notification()
+
+        then:
+        dataObj.validate() == false
+
+        when:
+        dataObj = new MailData.Notification(staffName: val,
             phoneName: val,
             phoneNumber: val,
             timePeriodDescription: val,

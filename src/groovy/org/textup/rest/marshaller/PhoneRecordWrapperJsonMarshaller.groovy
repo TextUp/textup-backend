@@ -15,19 +15,19 @@ import org.textup.validator.*
 @Log4j
 class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
 
-    static final Closure marshalClosure = { PhoneRecordWrapper w1 ->
+    static final Closure marshalClosure = { PhoneRecordWrapper wrap1 ->
         Map json = [:]
 
-        if (!PhoneRecordWrapper instanceof IndividualPhoneRecordWrapper) {
-            log.error("`${w1.id}` is not an IndividualPhoneRecordWrapper")
+        if (!(wrap1 instanceof IndividualPhoneRecordWrapper)) {
+            log.error("`${wrap1.id}` is not an `IndividualPhoneRecordWrapper`")
             return json
         }
-        if (!w1.permissions.canView()) {
-            log.error("`${w1.id}` cannot be viewed")
+        if (!wrap1.permissions.canView()) {
+            log.error("`${wrap1.id}` cannot be viewed")
             return json
         }
 
-        DateTime lastTouched = w1.tryGetLastTouched().payload
+        IndividualPhoneRecordWrapper w1 = wrap1 as IndividualPhoneRecordWrapper
         ReadOnlyPhone mutPhone1 = w1.tryGetReadOnlyMutablePhone().payload
         ReadOnlyPhone origPhone1 = w1.tryGetReadOnlyOriginalPhone().payload
         PhoneRecordStatus stat1 = w1.tryGetStatus().payload
@@ -40,24 +40,17 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
             lastRecordActivity = rec1.lastRecordActivity
             links              = MarshallerUtils.buildLinks(RestUtils.RESOURCE_CONTACT, w1.id)
             name               = w1.tryGetSecureName().payload
+            note               = w1.tryGetNote().payload
+            numbers            = w1.tryGetSortedNumbers().payload
             phone              = mutPhone1.id
             status             = stat1.toString()
-            tags               = GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone1.id)
+            tags               = GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone1.id).list()
             whenCreated        = w1.tryGetWhenCreated().payload
 
             if (stat1 == PhoneRecordStatus.UNREAD) {
-                unreadInfo = UnreadInfo.create(rec1.id, lastTouched)
+                unreadInfo = UnreadInfo.create(rec1.id, w1.tryGetLastTouched().payload)
             }
         }
-
-        if (PhoneRecordWrapper instanceof IndividualPhoneRecordWrapper) {
-            IndividualPhoneRecordWrapper iw1 = w1 as IndividualPhoneRecordWrapper
-            json.with {
-                note    = iw1.tryGetNote().payload
-                numbers = iw1.tryGetSortedNumbers().payload
-            }
-        }
-
         if (WrapperUtils.isSharedContact(w1)) {
             json.with {
                 permission    = w1.permissions.level.toString()
@@ -65,7 +58,6 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
                 sharedByPhone = origPhone1.id
             }
         }
-
         if (WrapperUtils.isContact(w1)) {
             json.sharedWith = PhoneRecords.buildActiveForShareSourceIds([w1.id]).list()*.toShareInfo()
         }

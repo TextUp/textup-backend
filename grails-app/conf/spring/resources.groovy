@@ -35,9 +35,14 @@ beans = {
 
 	s3Service(AmazonS3Client,
 		new BasicAWSCredentials(apiConfig.aws.accessKey, apiConfig.aws.secretKey))
-	audioUtils(AudioUtils, audioConfig.executableDirectory, audioConfig.executableName,
+	audioUtils(AudioUtils,
+		audioConfig.executableDirectory,
+		audioConfig.executableName,
 		tConfig.tempDirectory)
-	pusherService(Pusher, apiConfig.pusher.appId, apiConfig.pusher.apiKey, apiConfig.pusher.apiSecret) {
+	pusherService(Pusher,
+		apiConfig.pusher.appId,
+		apiConfig.pusher.apiKey,
+		apiConfig.pusher.apiSecret) {
 		encrypted = true
 	}
 	resultFactory(ResultFactory) { bean ->
@@ -56,6 +61,7 @@ beans = {
 			(Constants.CACHE_PHONES): Constants.CACHE_PHONES_MAX_SIZE
 		]
 	}
+	phoneCache(PhoneCache)
 	receiptCache(RecordItemReceiptCache)
 
 	// Marshallers
