@@ -74,9 +74,11 @@ class SimpleFutureMessageSpec extends CustomSpec {
 
     void "test static creation"() {
         given:
-        Record rec1 = TestUtils.buildRecord()
         String message = TestUtils.randString()
-        MediaInfo mInfo = new MediaInfo()
+
+        Record rec1 = TestUtils.buildRecord()
+        rec1.language = VoiceLanguage.ITALIAN
+        MediaInfo mInfo = TestUtils.buildMediaInfo()
 
         when:
         Result res = SimpleFutureMessage.tryCreate(null, null, null, null)
@@ -93,6 +95,7 @@ class SimpleFutureMessageSpec extends CustomSpec {
         res.payload.record == rec1
         res.payload.message == message
         res.payload.media == mInfo
+        res.payload.language == rec1.language
     }
 
     void "test repeating"() {

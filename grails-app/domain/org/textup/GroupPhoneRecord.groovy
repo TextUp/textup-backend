@@ -29,7 +29,7 @@ class GroupPhoneRecord extends PhoneRecord {
     }
 
     static Result<GroupPhoneRecord> tryCreate(Phone p1, String name) {
-        Record.tryCreate()
+        Record.tryCreate(p1?.language)
             .then { Record rec1 -> PhoneRecordMembers.tryCreate().curry(rec1) }
             .then { Record rec1, PhoneRecordMembers prMembers ->
                 GroupPhoneRecord gpr1 = new GroupPhoneRecord(name: name,

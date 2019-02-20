@@ -17,6 +17,10 @@ class Tuple<X, Y> {
         second = arg2
     }
 
+    static <X, Y> Result<Tuple<X, Y>> tryCreate(X arg1, Y arg2) {
+        IOCUtils.resultFactory.success(Tuple.create(arg1, arg2), ResultStatus.CREATED)
+    }
+
     static <X, Y> Tuple<X, Y> create(X arg1, Y arg2) {
         new Tuple<X, Y>(arg1, arg2)
     }

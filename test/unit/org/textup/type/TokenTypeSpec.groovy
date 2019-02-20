@@ -34,7 +34,13 @@ class TokenTypeSpec extends Specification {
         VoiceLanguage lang = VoiceLanguage.ENGLISH
 
         when:
-        Map data = TokenType.callDirectMessageData(ident, lang, msg, mId)
+        Map data = TokenType.callDirectMessageData(null, null, null)
+
+        then:
+        data == [:]
+
+        when:
+        data = TokenType.callDirectMessageData(ident, lang, msg, mId)
 
         then:
         data[TokenType.PARAM_CDM_IDENT] == ident
@@ -48,7 +54,13 @@ class TokenTypeSpec extends Specification {
         Long sId = TestUtils.randIntegerUpTo(88)
 
         when:
-        Map data = TokenType.passwordResetData(sId)
+        Map data = TokenType.passwordResetData(null)
+
+        then:
+        data == [:]
+
+        when:
+        data = TokenType.passwordResetData(sId)
 
         then:
         data[TokenType.PARAM_PR_ID] == sId
@@ -59,7 +71,13 @@ class TokenTypeSpec extends Specification {
         PhoneNumber pNum = TestUtils.randPhoneNumber()
 
         when:
-        Map data = TokenType.verifyNumberData(pNum)
+        Map data = TokenType.verifyNumberData(null)
+
+        then:
+        data == [:]
+
+        when:
+        data = TokenType.verifyNumberData(pNum)
 
         then:
         data[TokenType.PARAM_VN_NUM] == pNum.number
@@ -72,7 +90,13 @@ class TokenTypeSpec extends Specification {
         Collection<Long> itemIds = [TestUtils.randIntegerUpTo(88)]
 
         when:
-        Map data = TokenType.notifyStaffData(sId, itemIds, phoneId)
+        Map data = TokenType.notifyStaffData(null, null, null)
+
+        then:
+        data == [:]
+
+        when:
+        data = TokenType.notifyStaffData(sId, itemIds, phoneId)
 
         then:
         data[TokenType.PARAM_NS_STAFF] == sId

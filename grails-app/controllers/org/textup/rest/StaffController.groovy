@@ -49,7 +49,7 @@ class StaffController extends BaseController {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         RequestUtils.tryGetJsonBody(request, MarshallerUtils.KEY_STAFF)
-            .then { TypeMap body -> staffService.create(body) }
+            .then { TypeMap body -> staffService.tryCreate(body) }
             .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 

@@ -21,7 +21,7 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
     SocketService socketService
 
     @RollbackOnResultFailure
-    Result<FutureMessage> create(Long prId, TypeMap body) {
+    Result<FutureMessage> tryCreate(Long prId, TypeMap body) {
         Future<?> future
         PhoneRecordWrappers.mustFindForId(prId)
             .then { PhoneRecordWrapper w1 -> w1.tryGetRecord() }
@@ -36,7 +36,7 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
                 }
             }
             .then { FutureMessage fMsg -> trySetFields(fMsg, body, body.string("timezone")) }
-            .then { FutureMessage fMsg -> trySchedule(fMsg) }
+            .then { FutureMessage fMsg -> trySchedule(true, fMsg) }
             .then { FutureMessage fMsg -> DomainUtils.trySave(fMsg, ResultStatus.CREATED) }
             .ifFail { Result<?> failRes ->
                 future?.cancel(true)
@@ -45,16 +45,18 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
     }
 
     @RollbackOnResultFailure
-    Result<FutureMessage> update(Long fId, TypeMap body) {
+    Result<FutureMessage> tryUpdate(Long fId, TypeMap body) {
         Future<?> future
         FutureMessages.mustFindForId(fId)
             // process media first to add in media info object BEFORE validation
-            .then { FutureMessage fMsg -> mediaService.tryCreateOrUpdate(fMsg, body).curry(fMsg) }
+            .then { FutureMessage fMsg ->
+                mediaService.tryCreateOrUpdate(fMsg, body).curry(fMsg)
+            }
             .then { FutureMessage fMsg, Future<?> fut1 ->
                 future = fut1
                 trySetFields(fMsg, body, body.string("timezone"))
             }
-            .then { FutureMessage fMsg -> trySchedule(fMsg) }
+            .then { FutureMessage fMsg -> trySchedule(false, fMsg) }
             .then { FutureMessage fMsg -> DomainUtils.trySave(fMsg) }
             .ifFail { Result<?> failRes ->
                 future?.cancel(true)
@@ -63,7 +65,7 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
     }
 
     @RollbackOnResultFailure
-    Result<Void> delete(Long fId) {
+    Result<Void> tryDelete(Long fId) {
         FutureMessages.mustFindForId(fId)
             .then { FutureMessage fMsg -> futureMessageJobService.tryUnschedule(fMsg).curry(fMsg) }
             .then { FutureMessage fMsg ->
@@ -104,9 +106,11 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
         DomainUtils.trySave(fMsg)
     }
 
-    protected Result<FutureMessage> trySchedule(FutureMessage fMsg) {
-        futureMessageJobService.trySchedule(fMsg)
-            .then { socketService.sendFutureMessages([fMsg]) } // will refresh trigger
-            .then { DomainUtils.trySave(fMsg) }
+    protected Result<FutureMessage> trySchedule(boolean isNew, FutureMessage fMsg) {
+        futureMessageJobService.trySchedule(isNew, fMsg)
+            .then {
+                socketService.sendFutureMessages([fMsg]) // will refresh trigger
+                DomainUtils.trySave(fMsg)
+            }
     }
 }

@@ -18,7 +18,7 @@ class AnnouncementService implements ManagesDomain.Creater<FeaturedAnnouncement>
     OutgoingAnnouncementService outgoingAnnouncementService
 
     @RollbackOnResultFailure
-	Result<FeaturedAnnouncement> create(Long pId, TypeMap body) {
+	Result<FeaturedAnnouncement> tryCreate(Long pId, TypeMap body) {
         Phones.mustFindActiveForId(pId)
             .then { Phone p1 ->
                 FeaturedAnnouncement.tryCreate(p1, body.dateTime("expiresAt"), body.string("message"))
@@ -31,7 +31,7 @@ class AnnouncementService implements ManagesDomain.Creater<FeaturedAnnouncement>
 	}
 
     @RollbackOnResultFailure
-    Result<FeaturedAnnouncement> update(Long aId, TypeMap body) {
+    Result<FeaturedAnnouncement> tryUpdate(Long aId, TypeMap body) {
         FeaturedAnnouncements.mustFindForId(aId)
             .then { FeaturedAnnouncement fa1 ->
                 fa1.expiresAt = body.dateTime("expiresAt")

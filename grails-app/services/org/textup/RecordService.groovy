@@ -23,7 +23,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
     OutgoingMessageService outgoingMessageService
 
     @RollbackOnResultFailure
-    Result<List<? extends RecordItem>> create(Long pId, TypeMap body) {
+    Result<List<? extends RecordItem>> tryCreate(Long pId, TypeMap body) {
         Future<?> future
         Phones.mustFindActiveForId(pId)
             .then { Phone p1 -> RecordUtils.tryDetermineClass(body).curry(p1) }
@@ -54,7 +54,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
     }
 
     @RollbackOnResultFailure
-    Result<RecordNote> update(Long noteId, TypeMap body) {
+    Result<RecordNote> tryUpdate(Long noteId, TypeMap body) {
         Future<?> future
         RecordNotes.mustFindModifiableForId(noteId)
             .then { RecordNote rNote1 -> AuthUtils.tryGetActiveAuthUser().curry(rNote1) }
@@ -78,7 +78,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
     }
 
     @RollbackOnResultFailure
-    Result<Void> delete(Long noteId) {
+    Result<Void> tryDelete(Long noteId) {
         RecordNotes.mustFindModifiableForId(noteId)
             .then { RecordNote rNote1 ->
                 rNote1.isDeleted = true
@@ -121,11 +121,11 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
             }
     }
 
-    protected Result<List<RecordText>> createNote(Phone p1, TypeMap body, MediaInfo mInfo = null) {
+    protected Result<List<RecordNote>> createNote(Phone p1, TypeMap body, MediaInfo mInfo = null) {
         Recipients.tryCreate(p1, body.typedList(Long, "ids[]"), body.phoneNumberList("numbers[]"), 1)
             .then { Recipients r1 -> r1.tryGetOne() }
             .then { PhoneRecordWrapper w1 ->
-                Location loc1 = locationService.create(body.typeMapNoNull("location")).payload
+                Location loc1 = locationService.tryCreate(body.typeMapNoNull("location")).payload
                 TempRecordItem.tryCreate(body.string("contents"), mInfo, loc1).curry(w1)
             }
             .then { PhoneRecordWrapper w1, TempRecordItem temp1 -> w1.tryGetRecord().curry(temp1) }
@@ -135,14 +135,14 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
                 trySetNoteFields(rNote1, body, Author.create(authUser))
             }
             .then { RecordNote rNote1 -> DomainUtils.trySave(rNote1) }
-            .then { RecordCall rNote1 ->
+            .then { RecordNote rNote1 ->
                 IOCUtils.resultFactory.success([rNote1], ResultStatus.CREATED)
             }
     }
 
     protected Result<RecordNote> trySetNoteFields(RecordNote rNote1, TypeMap body, Author author1) {
         rNote1.with {
-            author = author
+            author = author1
             if (body.contents != null) noteContents = body.string("contents")
             if (body.boolean("isDeleted") != null) isDeleted = body.boolean("isDeleted")
             if (body.after) {

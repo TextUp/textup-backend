@@ -102,10 +102,6 @@ class Result<T> {
     // --------
 
     Result<T> curry(Object... args) {
-        currySuccess(args)
-        curryFailure(args)
-    }
-    Result<T> currySuccess(Object... args) {
         successArgs.addAll(ResultUtils.normalizeVarArgs(args))
         this
     }
@@ -115,10 +111,6 @@ class Result<T> {
     }
 
     Result<T> clearCurry() {
-        clearCurrySuccess()
-        clearCurryFailure()
-    }
-    Result<T> clearCurrySuccess() {
         successArgs.clear()
         this
     }

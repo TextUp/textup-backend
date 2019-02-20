@@ -6,6 +6,8 @@ import grails.test.mixin.hibernate.*
 import grails.test.mixin.support.*
 import grails.test.runtime.*
 import grails.validation.*
+import java.util.concurrent.*
+import org.quartz.*
 import org.joda.time.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -13,8 +15,6 @@ import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
-
-// TODO
 
 // When writing Groovy code, use GroovyMock instead of Mock which is aware of Groovy features
 // such as normalizing setProperty("name", value) to setName(value)
@@ -28,326 +28,223 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 @TestFor(FutureMessageJobService)
-class FutureMessageJobServiceSpec extends CustomSpec {
+class FutureMessageJobServiceSpec extends Specification {
 
-    // static doWithSpring = {
-    //     resultFactory(ResultFactory)
-    // }
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    // def setup() {
-    //     setupData()
-    //     IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
-    //     service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-    // }
+    Scheduler scheduler
 
-    // def cleanup() {
-    //     cleanupData()
-    // }
+    def setup() {
+        TestUtils.standardMockSetup()
+        scheduler = GroovyMock(Scheduler)
+        IOCUtils.metaClass."static".getQuartzScheduler = { -> scheduler }
+    }
 
-    // // Job management
-    // // --------------
+    void "test finishing notify self"() {
+        given:
+        int num1 = TestUtils.randIntegerUpTo(88, true)
+        int num2 = TestUtils.randIntegerUpTo(88, true)
 
-    // void "test building trigger"() {
-    //     given:
-    //     service.authService = GroovyMock(AuthService)
-    //     TriggerBuilder builder = TriggerBuilder.newTrigger()
-    //     FutureMessage fMsg = GroovyMock()
-    //     String keyName = TestUtils.randString()
-    //     DateTime startDate = DateTime.now().plusDays(1)
-    //     DateTime endDate = DateTime.now().plusDays(8)
-    //     TriggerKey trigKey = TriggerKey.triggerKey(TestUtils.randString())
+        RecordItem rItem1 = TestUtils.buildRecordItem()
+        rItem1.record = null
+        assert rItem1.validate() == false
+        RecordItem rItem2 = TestUtils.buildRecordItem()
 
-    //     when:
-    //     Trigger trigger = service.buildTrigger(trigKey, builder, fMsg)
+        DehydratedNotificationGroup dng1 = GroovyMock()
+        NotificationGroup notifGroup1 = GroovyMock()
+        Future fut1 = GroovyMock()
+        service.notificationService = GroovyMock(NotificationService)
 
-    //     then:
-    //     (1.._) * fMsg.startDate >> startDate
-    //     (1.._) * fMsg.endDate >> endDate
-    //     (1.._) * fMsg.keyName >> keyName
-    //     (1.._) * service.authService.loggedInAndActive >> s1
-    //     trigger.startTime == startDate.toDate()
-    //     trigger.endTime == endDate.toDate()
-    //     trigger.jobDataMap.size() == 2
-    //     trigger.jobDataMap[QuartzUtils.DATA_FUTURE_MESSAGE_KEY] == keyName
-    //     trigger.jobDataMap[QuartzUtils.DATA_STAFF_ID] == s1.id
-    // }
+        when: "has some errors"
+        Result res = service.finishNotifySelf(dng1, fut1)
 
-    // @DirtiesRuntime
-    // void "test scheduling"() {
-    //     given:
-    //     service.quartzScheduler = Mock(Scheduler)
-    //     FutureMessage fMsg = GroovyMock()
-    //     MockedMethod buildTrigger = MockedMethod.create(service, "buildTrigger")
+        then:
+        1 * fut1.get()
+        1 * dng1.tryRehydrate() >> Result.createSuccess(notifGroup1)
+        1 * notifGroup1.eachItem(_ as Closure) >> { args -> args[0].call(rItem1) }
+        1 * notifGroup1.getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem1) >> num1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    //     when: "error scheduling job"
-    //     Result<Void> res = service.schedule(fMsg)
+        when: "no errors"
+        res = service.finishNotifySelf(dng1, fut1)
 
-    //     then:
-    //     1 * service.quartzScheduler.getTrigger(*_)
-    //     buildTrigger.callCount == 1
-    //     res.status == ResultStatus.INTERNAL_SERVER_ERROR
-    //     res.errorMessages[0] == "futureMessageService.schedule.unspecifiedError"
+        then:
+        1 * fut1.get()
+        1 * dng1.tryRehydrate() >> Result.createSuccess(notifGroup1)
+        1 * notifGroup1.eachItem(_ as Closure) >> { args -> args[0].call(rItem2) }
+        1 * notifGroup1.getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem2) >> num2
+        1 * service.notificationService.send(NotificationFrequency.IMMEDIATELY, notifGroup1) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+        rItem2.numNotified == num2
+    }
 
-    //     when: "new job without trigger"
-    //     res = service.schedule(fMsg)
+    void "test starting notify self"() {
+        given:
+        RecordItem rItem1 = TestUtils.buildRecordItem()
 
-    //     then:
-    //     1 * service.quartzScheduler.getTrigger(*_) >> null
-    //     1 * service.quartzScheduler.scheduleJob(*_) >> new Date()
-    //     0 * service.quartzScheduler.rescheduleJob(*_)
-    //     buildTrigger.callCount == 2
-    //     res.status == ResultStatus.NO_CONTENT
+        Future fut1 = GroovyMock()
+        NotificationGroup notifGroup1 = GroovyMock()
+        DehydratedNotificationGroup dng1 = GroovyMock()
+        service.threadService = GroovyMock(ThreadService)
+        MockedMethod tryBuildNotificationGroup = MockedMethod.create(NotificationUtils, "tryBuildNotificationGroup") {
+            Result.createSuccess(notifGroup1)
+        }
+        MockedMethod tryCreate = MockedMethod.create(DehydratedNotificationGroup, "tryCreate") {
+            Result.createSuccess(dng1)
+        }
+        MockedMethod finishNotifySelf = MockedMethod.create(service, "finishNotifySelf") {
+            Result.void()
+        }
 
-    //     when: "job with existing trigger"
-    //     res = service.schedule(fMsg)
+        when:
+        service.startNotifySelf([rItem1], fut1)
 
-    //     then:
-    //     1 * service.quartzScheduler.getTrigger(*_) >> Mock(Trigger)
-    //     0 * service.quartzScheduler.scheduleJob(*_)
-    //     1 * service.quartzScheduler.rescheduleJob(*_) >> new Date()
-    //     buildTrigger.callCount == 3
-    //     res.status == ResultStatus.NO_CONTENT
-    // }
+        then:
+        tryBuildNotificationGroup.latestArgs == [[rItem1]]
+        1 * notifGroup1.canNotifyAny(NotificationFrequency.IMMEDIATELY) >> true
+        1 * service.threadService.submit(_ as Closure) >> { args -> args[0].call(); null; }
+        tryCreate.latestArgs == [notifGroup1]
+        finishNotifySelf.latestArgs == [dng1, fut1]
 
-    // void "test unscheduling"() {
-    //     given:
-    //     service.quartzScheduler = Mock(Scheduler)
-    //     FutureMessage fMsg = GroovyMock()
+        cleanup:
+        tryBuildNotificationGroup?.restore()
+        tryCreate?.restore()
+        finishNotifySelf?.restore()
+    }
 
-    //     when: "gracefully catch exceptions"
-    //     Result<Void> res = service.unschedule(fMsg)
+    void "test marking done"() {
+        given:
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage()
 
-    //     then:
-    //     1 * service.quartzScheduler.unscheduleJob(*_) >> { throw new IllegalArgumentException() }
-    //     res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        service.socketService = GroovyMock(SocketService)
 
-    //     when:
-    //     res = service.unschedule(fMsg)
+        when:
+        Result res = service.markDone(fMsg1.keyName)
 
-    //     then:
-    //     1 * service.quartzScheduler.unscheduleJob(*_) >> true
-    //     res.status == ResultStatus.NO_CONTENT
-    // }
+        then:
+        1 * service.socketService.sendFutureMessages([fMsg1])
+        res.status == ResultStatus.OK
+        res.payload == fMsg1
+        fMsg1.isDone
+    }
 
-    // @DirtiesRuntime
-    // void "test cancelling all"() {
-    //     given:
-    //     MockedMethod unschedule = MockedMethod.create(service, 'unschedule') { new Result() }
-    //     // see https://github.com/spockframework/spock/issues/438
-    //     FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
+    void "test executing"() {
+        given:
+        RecordItem rItem1 = TestUtils.buildRecordItem()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(ipr1)
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage(ipr1.record)
+        fMsg1.notifySelf = true
+        Staff s1 = TestUtils.buildStaff()
 
-    //     when:
-    //     ResultGroup<FutureMessage> resGroup = service.cancelAll(null)
+        Future fut1 = GroovyMock()
+        service.outgoingMessageService = GroovyMock(OutgoingMessageService)
+        MockedMethod startNotifySelf = MockedMethod.create(service, "startNotifySelf")
 
-    //     then:
-    //     resGroup.isEmpty
-    //     unschedule.callCount == 0
+        when:
+        Result res = service.execute(fMsg1.keyName, s1.id)
 
-    //     when:
-    //     resGroup = service.cancelAll([fMsg])
+        then:
+        1 * service.outgoingMessageService.tryStart(fMsg1.type.toRecordItemType(),
+            { it.language == fMsg1.language && spr1 in it.all && ipr1 in it.all },
+            { it.text == fMsg1.message && !it.media && !it.location },
+            Author.create(s1)) >> Result.createSuccess(Tuple.create([rItem1], fut1))
+        startNotifySelf.latestArgs == [[rItem1], fut1]
+        res.status == ResultStatus.NO_CONTENT
+        rItem1.wasScheduled == true
 
-    //     then:
-    //     1 * fMsg.setIsDone(true)
-    //     1 * fMsg.save() >> fMsg
-    //     resGroup.successes.size() == 1
-    //     resGroup.anyFailures == false
-    //     unschedule.callCount == 1
-    // }
+        cleanup:
+        startNotifySelf?.restore()
+    }
 
-    // // Job execution
-    // // -------------
+    void "test trying to unschedule"() {
+        given:
+        String errMsg1 = TestUtils.randString()
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage()
 
-    // @DirtiesRuntime
-    // void "test execution errors"() {
-    //     given:
-    //     service.outgoingMessageService = GroovyMock(OutgoingMessageService)
-    //     service.notificationService = GroovyMock(NotificationService)
-    //     FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
-    //     OutgoingMessage msg1 = GroovyMock() { asBoolean() >> true }
+        when:
+        Result res = service.tryUnschedule(fMsg1)
 
-    //     when: "nonexistent keyName"
-    //     FutureMessage.metaClass."static".findByKeyName = { String key -> null }
-    //     ResultGroup<RecordItem> resGroup = service.execute(null, null)
+        then:
+        1 * scheduler.unscheduleJob(fMsg1.triggerKey) >> true
+        res.status == ResultStatus.NO_CONTENT
 
-    //     then: "not found"
-    //     0 * service.outgoingMessageService._
-    //     0 * service.notificationService._
-    //     resGroup.anySuccesses == false
-    //     resGroup.failureStatus == ResultStatus.NOT_FOUND
-    //     resGroup.failures.size() == 1
-    //     resGroup.failures[0].errorMessages[0] == "futureMessageService.execute.messageNotFound"
+        when:
+        res = service.tryUnschedule(fMsg1)
 
-    //     when: "invalid outgoing message"
-    //     FutureMessage.metaClass."static".findByKeyName = { String key -> fMsg }
-    //     resGroup = service.execute(null, null)
+        then:
+        1 * scheduler.unscheduleJob(fMsg1.triggerKey) >> {
+            throw new IllegalArgumentException(errMsg1)
+        }
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        errMsg1 in res.errorMessages
+    }
 
-    //     then:
-    //     0 * service.outgoingMessageService._
-    //     0 * service.notificationService._
-    //     1 * fMsg.tryGetOutgoingMessage() >> new Result(status: ResultStatus.UNPROCESSABLE_ENTITY)
-    //     resGroup.anySuccesses == false
-    //     resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
+    void "test cancelling all"() {
+        given:
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage()
 
-    //     when: "associated phone not found"
-    //     resGroup = service.execute(null, null)
+        when:
+        ResultGroup resGroup = service.cancelAll([fMsg1])
 
-    //     then:
-    //     0 * service.outgoingMessageService._
-    //     0 * service.notificationService._
-    //     1 * fMsg.tryGetOutgoingMessage() >> new Result(payload: msg1)
-    //     1 * msg1.phones >> []
-    //     resGroup.anySuccesses == false
-    //     resGroup.failureStatus == ResultStatus.NOT_FOUND
-    //     resGroup.failures.size() == 1
-    //     resGroup.failures[0].errorMessages[0] == "futureMessageService.execute.phoneNotFound"
-    // }
+        then:
+        1 * scheduler.unscheduleJob(fMsg1.triggerKey) >> true
+        resGroup.anyFailures == false
+        resGroup.payload == [fMsg1]
+        fMsg1.isDone
+    }
 
-    // @DirtiesRuntime
-    // void "test execute"() {
-    //     given: "overrides and baselines"
-    //     FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
-    //     OutgoingMessage msg1 = GroovyMock() { asBoolean() >> true }
-    //     RecordItem rItem = GroovyMock() { asBoolean() >> true }
-    //     Future fut1 = Mock()
-    //     service.outgoingMessageService = GroovyMock(OutgoingMessageService)
-    //     service.notificationService = GroovyMock(NotificationService)
-    //     service.threadService = GroovyMock(ThreadService)
-    //     FutureMessage.metaClass."static".findByKeyName = { String key -> fMsg }
-    //     Closure asyncAction
+    void "test trying to schedule"() {
+        given:
+        FutureMessage fMsg1 = GroovyMock()
+        TriggerKey trigKey = GroovyMock()
+        Trigger newTrigger = GroovyMock()
+        Trigger oldTrigger = GroovyMock() { asBoolean() >> true }
+        MockedMethod tryBuildTrigger = MockedMethod.create(QuartzUtils, "tryBuildTrigger") {
+            Result.createSuccess(Tuple.create(newTrigger, null))
+        }
 
-    //     when: "do not notify self"
-    //     ResultGroup<RecordItem> resGroup = service.execute(null, s1.id)
+        when:
+        Result res = service.trySchedule(false, fMsg1)
 
-    //     then:
-    //     1 * fMsg.tryGetOutgoingMessage() >> new Result(payload: msg1)
-    //     1 * msg1.phones >> [GroovyMock(Phone) { asBoolean() >> true }]
-    //     1 * service.outgoingMessageService.processMessage(_, _, s1) >>
-    //         Tuple.create(new Result(payload: rItem).toGroup(), fut1)
-    //     1 * fMsg.notifySelf >> false
-    //     0 * service.notificationService._
-    //     1 * rItem.setWasScheduled(true)
-    //     resGroup.anyFailures == false
-    //     resGroup.successes.size() == 1
-    //     resGroup.payload[0] == rItem
+        then:
+        1 * fMsg1.shouldReschedule >> false
+        tryBuildTrigger.notCalled
+        res.status == ResultStatus.NO_CONTENT
 
-    //     when: "yes notify self"
-    //     resGroup = service.execute(null, s1.id)
+        when: "only new trigger"
+        res = service.trySchedule(true, fMsg1)
 
-    //     then:
-    //     1 * fMsg.tryGetOutgoingMessage() >> new Result(payload: msg1)
-    //     1 * msg1.phones >> [GroovyMock(Phone) { asBoolean() >> true }]
-    //     1 * service.outgoingMessageService.processMessage(_, _, s1) >>
-    //         Tuple.create(new Result(payload: rItem).toGroup(), fut1)
-    //     1 * fMsg.notifySelf >> true
-    //     1 * rItem.setWasScheduled(true)
-    //     1 * service.notificationService.build(*_) >> [GroovyMock(BasicNotification)]
-    //     1 * msg1.contacts >> GroovyMock(Recipients)
-    //     1 * msg1.tags >> GroovyMock(Recipients)
-    //     1 * service.threadService.submit(*_) >> { Closure action -> asyncAction = action; null; }
-    //     resGroup.anyFailures == false
-    //     resGroup.successes.size() == 1
-    //     resGroup.payload[0] == rItem
+        then:
+        tryBuildTrigger.latestArgs == [fMsg1]
+        1 * scheduler.scheduleJob(newTrigger) >> new Date()
+        res.status == ResultStatus.NO_CONTENT
 
-    //     when:
-    //     RecordItem.metaClass."static".getAll = { Iterable<Serializable> ids -> [rItem] }
-    //     asyncAction.call() // notify self closure
+        when: "both old and new triggers"
+        tryBuildTrigger = MockedMethod.create(tryBuildTrigger) {
+            Result.createSuccess(Tuple.create(newTrigger, oldTrigger))
+        }
+        res = service.trySchedule(true, fMsg1)
 
-    //     then:
-    //     1 * fut1.get()
-    //     1 * service.notificationService.send(*_) >> new ResultGroup()
-    //     1 * rItem.save() >> rItem // need to save so that re-fetched rItems persist
-    //     1 * rItem.setNumNotified(1)
-    // }
+        then:
+        tryBuildTrigger.latestArgs == [fMsg1]
+        1 * fMsg1.triggerKey >> trigKey
+        1 * scheduler.rescheduleJob(trigKey, newTrigger) >> new Date()
+        res.status == ResultStatus.NO_CONTENT
 
-    // @DirtiesRuntime
-    // void "test mark done"() {
-    //     given:
-    //     service.socketService = GroovyMock(SocketService)
-    //     FutureMessage fMsg = GroovyMock() { asBoolean() >> true }
+        when:
+        res = service.trySchedule(true, fMsg1)
 
-    //     when: "passed in a nonexistent keyName"
-    //     FutureMessage.metaClass."static".findByKeyName = { String key -> null }
-    //     Result<FutureMessage> res = service.markDone(null)
+        then:
+        tryBuildTrigger.latestArgs == [fMsg1]
+        1 * fMsg1.triggerKey >> trigKey
+        1 * scheduler.rescheduleJob(trigKey, newTrigger) >> null
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        res.errorMessages == ["futureMessageJobService.unspecifiedError"]
 
-    //     then: "not found"
-    //     0 * service.socketService._
-    //     res.status == ResultStatus.NOT_FOUND
-    //     res.errorMessages[0] == "futureMessageService.markDone.messageNotFound"
-
-    //     when: "passed in an existing keyName"
-    //     FutureMessage.metaClass."static".findByKeyName = { String key -> fMsg }
-    //     res = service.markDone(null)
-
-    //     then:
-    //     1 * service.socketService.sendFutureMessages(*_)
-    //     1 * fMsg.setIsDone(true)
-    //     1 * fMsg.save() >> fMsg
-    //     res.status == ResultStatus.OK
-    // }
-
-    // // TODO from future message
-    // void "test converting to outgoing message for record"() {
-    //     given: "a valid future message"
-    //     def owner = (type == "contact") ? c1 : tag1
-    //     MediaInfo mInfo = new MediaInfo()
-    //     mInfo.save(flush: true, failOnError: true)
-    //     FutureMessage fMsg = new FutureMessage(
-    //         type:FutureMessageType.CALL,
-    //         record:owner.record,
-    //         message:"hi"
-    //     )
-    //     assert fMsg.validate()
-
-    //     when: "message is a text without media"
-    //     fMsg.type = FutureMessageType.TEXT
-    //     fMsg.language = VoiceLanguage.CHINESE
-    //     fMsg.media = null
-    //     OutgoingMessage msg = fMsg.tryGetOutgoingMessage().payload
-    //     Collection hasMembers, noMembers
-    //     if (type == "contact") {
-    //         hasMembers = msg.contacts.recipients
-    //         noMembers = msg.tags.recipients
-    //     }
-    //     else {
-    //         hasMembers = msg.tags.recipients
-    //         noMembers = msg.contacts.recipients
-    //     }
-
-    //     then: "make outgoing message without flushing"
-    //     msg.type == RecordItemType.TEXT
-    //     msg.media == null
-    //     msg.language == VoiceLanguage.CHINESE
-    //     msg.message == fMsg.message
-    //     noMembers.isEmpty()
-    //     hasMembers.size() == 1
-    //     hasMembers[0].id == owner.id
-
-    //     when: "message is a call with media"
-    //     fMsg.type = FutureMessageType.CALL
-    //     fMsg.language = VoiceLanguage.ITALIAN
-    //     fMsg.media = mInfo
-    //     msg = fMsg.tryGetOutgoingMessage().payload
-    //     if (type == "contact") {
-    //         hasMembers = msg.contacts.recipients
-    //         noMembers = msg.tags.recipients
-    //     }
-    //     else {
-    //         hasMembers = msg.tags.recipients
-    //         noMembers = msg.contacts.recipients
-    //     }
-
-    //     then: "make outgoing message without flushing"
-    //     msg.type == RecordItemType.CALL
-    //     msg.media == mInfo
-    //     msg.language == VoiceLanguage.ITALIAN
-    //     msg.message == fMsg.message
-    //     noMembers.isEmpty()
-    //     hasMembers.size() == 1
-    //     hasMembers[0].id == owner.id
-
-    //     where:
-    //     type      | _
-    //     "contact" | _
-    //     "tag"     | _
-    // }
+        cleanup:
+        tryBuildTrigger?.restore()
+    }
 }

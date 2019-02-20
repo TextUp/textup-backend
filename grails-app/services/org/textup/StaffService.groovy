@@ -20,7 +20,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
 
     // [NOTE] `create` can be called by anybody
     @RollbackOnResultFailure
-    Result<Staff> create(TypeMap body) {
+    Result<Staff> tryCreate(TypeMap body) {
         organizationService.tryFindOrCreate(body.typeMapNoNull("org"))
             .then { Organization org1 -> Roles.tryGetUserRole().curry(org1) }
             .then { Organization org1, Role r1 ->
@@ -37,7 +37,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
     }
 
     @RollbackOnResultFailure
-    Result<Staff> update(Long staffId, TypeMap body) {
+    Result<Staff> tryUpdate(Long staffId, TypeMap body) {
         Staffs.mustFindForId(staffId)
             .then { Staff s1 -> trySetFields(s1, body) }
             .then { Staff s1 -> trySetLockCode(s1, body.string("lockCode")) }
@@ -45,7 +45,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
             .then { Staff s1 ->
                 tryUpdatePhone(s1, body.typeMapNoNull("phone"), body.string("timezone")).curry(s1)
             }
-            .then { Staff s1 -> finishUpdate(s1, body) }
+            .then { Staff s1 -> finishUpdate(s1) }
     }
 
     // Helpers
@@ -74,7 +74,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
         res.then { IOCUtils.resultFactory.success(s1, ResultStatus.CREATED) }
     }
 
-    protected Result<Staff> finishUpdate(Staff s1, TypeMap body) {
+    protected Result<Staff> finishUpdate(Staff s1) {
         Result<?> res = Result.void()
         // email notifications if changing away from pending
         StaffStatus oldStatus = s1.getPersistentValue("status") as StaffStatus
@@ -143,6 +143,6 @@ class StaffService implements ManagesDomain.Updater<Staff> {
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(s1.org.id, authId) }
             .then { Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, true) }
-            .then { Phone p1 -> phoneService.update(p1, phoneInfo, timezone) }
+            .then { Phone p1 -> phoneService.tryUpdate(p1, phoneInfo, timezone) }
     }
 }

@@ -23,7 +23,7 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
     ShareActionService shareActionService
 
     @RollbackOnResultFailure
-	Result<IndividualPhoneRecordWrapper> create(Long pId, TypeMap body) {
+	Result<IndividualPhoneRecordWrapper> tryCreate(Long pId, TypeMap body) {
         Phones.mustFindActiveForId(pId)
             .then { Phone p1 -> IndividualPhoneRecordWrappers.tryCreate(p1) }
             .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
@@ -39,8 +39,8 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
 	}
 
     @RollbackOnResultFailure
-	Result<IndividualPhoneRecordWrapper> update(Long iprId, TypeMap body) {
-        IndividualPhoneRecordWrappers.mustFindForId(iprId)
+	Result<IndividualPhoneRecordWrapper> tryUpdate(Long prId, TypeMap body) {
+        IndividualPhoneRecordWrappers.mustFindForId(prId)
             .then { IndividualPhoneRecordWrapper w1 -> trySetFields(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 -> tryNotifications(w1, body) }
             .then { IndividualPhoneRecordWrapper w1 ->
@@ -51,8 +51,8 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
 	}
 
     @RollbackOnResultFailure
-    Result<Void> delete(Long iprId) {
-        IndividualPhoneRecordWrappers.mustFindForId(iprId)
+    Result<Void> tryDelete(Long prId) {
+        IndividualPhoneRecordWrappers.mustFindForId(prId)
             .then { IndividualPhoneRecordWrapper w1 -> w1.tryDelete().curry(w1) }
             .then { IndividualPhoneRecordWrapper w1 -> DomainUtils.trySave(w1) }
             .then { Result.void() }
@@ -74,30 +74,38 @@ class ContactService implements ManagesDomain.Creater<IndividualPhoneRecordWrapp
     protected Result<IndividualPhoneRecordWrapper> tryNotifications(IndividualPhoneRecordWrapper w1,
         TypeMap body) {
 
-        w1.tryGetMutablePhone() // NOT original phone, notification settings on shared phones too
-            .then { Phone p1 -> w1.tryGetRecord().curry(p1) }
-            .then { Phone p1, Record rec1 ->
-                notificationActionService.tryHandleActions(Tuple.create(p1, rec1.id), body)
-            }
-            .then { DomainUtils.trySave(w1) }
+        if (notificationActionService.hasActions(body)) {
+            w1.tryGetMutablePhone() // NOT original phone, notification settings on shared phones too
+                .then { Phone p1 -> w1.tryGetRecord().curry(p1) }
+                .then { Phone p1, Record rec1 ->
+                    notificationActionService.tryHandleActions(Tuple.create(p1, rec1.id), body)
+                }
+                .then { DomainUtils.trySave(w1) }
+        }
+        else { DomainUtils.trySave(w1) }
     }
 
     protected Result<IndividualPhoneRecordWrapper> trySharing(IndividualPhoneRecordWrapper w1,
         TypeMap body) {
 
-        w1.tryUnwrap()
-            .then { IndividualPhoneRecord ipr1 -> shareActionService.tryHandleActions(ipr1, body) }
-            .then { DomainUtils.trySave(w1) }
+        if (shareActionService.hasActions(body)) {
+            w1.tryUnwrap()
+                .then { IndividualPhoneRecord ipr1 -> shareActionService.tryHandleActions(ipr1, body) }
+                .then { DomainUtils.trySave(w1) }
+        }
+        else { DomainUtils.trySave(w1) }
     }
-
 
     protected Result<IndividualPhoneRecordWrapper> tryMerge(IndividualPhoneRecordWrapper w1,
         TypeMap body) {
 
-        w1.tryUnwrap()
-            .then { IndividualPhoneRecord ipr1 ->
-                mergeActionService.tryHandleActions(ipr1.id, body)
-            }
-            .then { DomainUtils.trySave(w1) }
+        if (mergeActionService.hasActions(body)) {
+            w1.tryUnwrap()
+                .then { IndividualPhoneRecord ipr1 ->
+                    mergeActionService.tryHandleActions(ipr1.id, body)
+                }
+                .then { DomainUtils.trySave(w1) }
+        }
+        else { DomainUtils.trySave(w1) }
     }
 }

@@ -22,13 +22,13 @@ class OrganizationService implements ManagesDomain.Updater<Organization> {
             IOCUtils.resultFactory.success(org1)
         }
         else {
-            locationService.create(orgInfo.typeMapNoNull("location"))
+            locationService.tryCreate(orgInfo.typeMapNoNull("location"))
                 .then { Location loc1 -> Organization.tryCreate(orgInfo.string("name"), loc1) }
         }
     }
 
     @RollbackOnResultFailure
-    Result<Organization> update(Long orgId, TypeMap body) {
+    Result<Organization> tryUpdate(Long orgId, TypeMap body) {
         Organizations.mustFindForId(orgId)
             .then { Organization org1 -> trySetFields(org1, body) }
             .then { Organization org1 ->

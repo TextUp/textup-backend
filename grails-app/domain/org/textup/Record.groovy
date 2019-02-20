@@ -22,8 +22,9 @@ class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
         lastRecordActivity type: PersistentDateTime
     }
 
-    static Result<Record> tryCreate() {
-        DomainUtils.trySave(new Record(), ResultStatus.CREATED)
+    static Result<Record> tryCreate(VoiceLanguage lang1 = VoiceLanguage.ENGLISH) {
+        Record rec1 = new Record(language: lang1)
+        DomainUtils.trySave(rec1, ResultStatus.CREATED)
     }
 
     // Methods

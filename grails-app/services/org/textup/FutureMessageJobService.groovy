@@ -2,7 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
-import java.util.concurrent.Future
+import java.util.concurrent.*
 import org.quartz.*
 import org.textup.annotation.*
 import org.textup.job.*
@@ -22,9 +22,8 @@ class FutureMessageJobService {
     SocketService socketService
     ThreadService threadService
 
-    Result<Void> trySchedule(FutureMessage fMsg) {
-        // TODO check to see if calling save before messes up the isNew check
-        if (!DomainUtils.isNew(fMsg) && !fMsg.shouldReschedule) {
+    Result<Void> trySchedule(boolean isNew, FutureMessage fMsg) {
+        if (!isNew && !fMsg.shouldReschedule) {
             return Result.void()
         }
         try {
@@ -71,7 +70,7 @@ class FutureMessageJobService {
     @RollbackOnResultFailure
     Result<Void> execute(String futureKey, Long staffId) {
         FutureMessages.mustFindForKey(futureKey)
-            .then { FutureMessage fMsg -> Staffs.mustFindForId(staffId) }
+            .then { FutureMessage fMsg -> Staffs.mustFindForId(staffId).curry(fMsg) }
             .then { FutureMessage fMsg, Staff s1 ->
                 TempRecordItem.tryCreate(fMsg.message, fMsg.media, null).curry(fMsg, s1)
             }
@@ -133,7 +132,7 @@ class FutureMessageJobService {
         // wait for processing and sending to finish. This Future SHOULD be resolve quickly
         // because media processing already took place when creating the future message
         // so in this future, we are simply sending and storing the outgoing message, including
-        // the already-processed media referred to in the `media` prop of the  OutgoingMessage
+        // the already-processed media referred to in the `media` prop of the outgoing message
         future.get()
         dng1.tryRehydrate()
             .then { NotificationGroup notifGroup ->

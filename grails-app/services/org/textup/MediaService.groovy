@@ -17,9 +17,9 @@ import org.textup.validator.*
 @Transactional
 class MediaService {
 
+    MediaActionService mediaActionService
     StorageService storageService
     ThreadService threadService
-    MediaActionService mediaActionService
 
     Result<Future<Result<?>>> tryCreateOrUpdate(WithMedia withMedia, Map body,
         boolean isPublic = false) {
@@ -29,7 +29,7 @@ class MediaService {
                 tryStartProcessing(mInfo, body, isPublic)
             }
         }
-        else { IOCUtils.resultFactory.success(null, AsyncUtils.noOpFuture()) }
+        else { IOCUtils.resultFactory.success(AsyncUtils.noOpFuture()) }
     }
 
     Result<Tuple<MediaInfo, Future<Result<?>>>> tryCreate(Map body, boolean isPublic = false) {
@@ -70,7 +70,7 @@ class MediaService {
             .then { MediaInfo mInfo, PartialUploads partials ->
                 ResultGroup<List<UploadItem>> resGroup = new ResultGroup<>()
                 partials.eachUpload { UploadItem uItem1, MediaElement el1 ->
-                    resGroup << completeUpload(uItem1, el1)
+                    resGroup << storeUpload(uItem1, el1)
                 }
                 resGroup.toResult(true).curry(mInfo)
             }
@@ -81,7 +81,7 @@ class MediaService {
             }
     }
 
-    protected Result<List<UploadItem>> completeUpload(UploadItem initialUpload, MediaElement el1) {
+    protected Result<List<UploadItem>> storeUpload(UploadItem initialUpload, MediaElement el1) {
         MediaPostProcessor.process(initialUpload.type, initialUpload.data)
             .then { Tuple<UploadItem, List<UploadItem>> processed ->
                 Tuple.split(processed) { UploadItem sendItem, List<UploadItem> altItems ->

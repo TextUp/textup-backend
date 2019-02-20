@@ -35,18 +35,6 @@ class DomainUtilsSpec extends Specification {
         DomainUtils.tryGetId(loc1) == loc1.id
     }
 
-    // // TODO use isAttached()? https://stackoverflow.com/a/29639191
-    // void "test checking if new"() {
-    //     when: "is new"
-
-    //     then:
-
-    //     when: "is not new"
-
-    //     then:
-
-    // }
-
     void "test checking for dirty non-object fields"() {
         when:
         Location loc1 = TestUtils.buildLocation()

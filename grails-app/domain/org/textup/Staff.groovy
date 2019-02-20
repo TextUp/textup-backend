@@ -51,7 +51,10 @@ class Staff implements WithId, CanSave<Staff>, ReadOnlyStaff {
         String pwd, String email) {
 
         Staff s1 = new Staff(name: name, username: un, password: pwd, email: email, org: org1)
-        s1.status = DomainUtils.isNew(org1) ? StaffStatus.ADMIN : StaffStatus.PENDING
+        Integer numAdmins = Staffs
+            .buildForOrgIdAndOptions(org1?.id, null, [StaffStatus.ADMIN])
+            .count() as Integer
+        s1.status = numAdmins > 0 ? StaffStatus.PENDING : StaffStatus.ADMIN
         DomainUtils.trySave(s1)
             .then { StaffRole.tryCreate(s1, r1) }
             .then { IOCUtils.resultFactory.success(s1, ResultStatus.CREATED) }

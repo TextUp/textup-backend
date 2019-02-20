@@ -34,6 +34,7 @@ class IndividualPhoneRecordSpec extends Specification {
     void "test creation + constraints"() {
         given:
         Phone p1 = TestUtils.buildStaffPhone()
+        p1.language = VoiceLanguage.JAPANESE
         int rBaseline = Record.count()
 
         when:
@@ -52,6 +53,7 @@ class IndividualPhoneRecordSpec extends Specification {
         res.payload.record != null
         res.payload.phone == p1
         res.payload.numbers == null
+        res.payload.record.language == p1.language
         Record.count() == rBaseline + 1
     }
 

@@ -31,26 +31,32 @@ enum TokenType {
 	}
 
 	static Map callDirectMessageData(String ident, VoiceLanguage lang, String msg, Long mId = null) {
-		[
-            (PARAM_CDM_IDENT): ident,
-            // cannot have language be of type VoiceLanguage because this hook is called
-            // after the the TextUp user picks up the call and we must serialize the
-            // parameters that are then passed back to TextUp by Twilio after pickup
-            (PARAM_CDM_LANG): lang?.toString(),
-            (PARAM_CDM_MESSAGE): msg,
-            (PARAM_CDM_MEDIA): mId // may be null
-        ]
+        if (ident && lang && msg) {
+            [
+                (PARAM_CDM_IDENT): ident,
+                // cannot have language be of type VoiceLanguage because this hook is called
+                // after the the TextUp user picks up the call and we must serialize the
+                // parameters that are then passed back to TextUp by Twilio after pickup
+                (PARAM_CDM_LANG): lang.toString(),
+                (PARAM_CDM_MESSAGE): msg,
+                (PARAM_CDM_MEDIA): mId // may be null
+            ]
+        }
+        else { [:] }
 	}
 
 	static Map passwordResetData(Long staffId) {
-		[(PARAM_PR_ID): staffId]
+		staffId ? [(PARAM_PR_ID): staffId] : [:]
 	}
 
 	static Map verifyNumberData(BasePhoneNumber bNum) {
-		[(PARAM_VN_NUM): bNum?.number]
+		bNum ? [(PARAM_VN_NUM): bNum.number] : [:]
 	}
 
 	static Map notifyStaffData(Long staffId, Collection<Long> itemIds, Long phoneId) {
-		[(PARAM_NS_STAFF): staffId, (PARAM_NS_ITEMS): itemIds, (PARAM_NS_PHONE): phoneId]
+        if (staffId && itemIds?.size() > 0 && phoneId) {
+            [(PARAM_NS_STAFF): staffId, (PARAM_NS_ITEMS): itemIds, (PARAM_NS_PHONE): phoneId]
+        }
+        else { [:] }
 	}
 }

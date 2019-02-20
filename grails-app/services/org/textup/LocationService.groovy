@@ -13,12 +13,12 @@ import org.textup.validator.*
 @Transactional
 class LocationService {
 
-    Result<Location> create(TypeMap body) {
-        Location.tryCreate(body.string("address"), body.double("lat"), body.double("lng"))
+    Result<Location> tryCreate(TypeMap body) {
+        Location.tryCreate(body?.string("address"), body?.double("lat"), body?.double("lng"))
     }
 
     Result<Void> tryUpdate(Location loc1, TypeMap body) {
-        if (loc1) {
+        if (loc1 && body) {
             loc1.with {
                 if (body.address) address = body.address
                 if (body.lat != null) lat = body.double("lat")

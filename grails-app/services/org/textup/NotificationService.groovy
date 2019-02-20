@@ -22,7 +22,7 @@ class NotificationService {
 
     Result<Void> send(NotificationFrequency freq1, NotificationGroup notifGroup) {
         ResultGroup<?> resGroup = new ResultGroup<>()
-        notifGroup.eachNotification(freq1) { ReadOnlyOwnerPolicy rop1, Notification notif1 ->
+        notifGroup?.eachNotification(freq1) { ReadOnlyOwnerPolicy rop1, Notification notif1 ->
             resGroup << tokenService.tryGeneratePreviewInfo(rop1, notif1)
                 .then { Token tok1 = null ->
                     NotificationInfo notifInfo = NotificationInfo.create(rop1, notif1)

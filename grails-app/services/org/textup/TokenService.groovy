@@ -18,6 +18,9 @@ import org.textup.validator.*
 @Transactional
 class TokenService {
 
+    // TokenType.CALL_DIRECT_MESSAGE
+    // -----------------------------
+
     // Note that this must return an ALREADY-SAVED token so that we don't have a
     // race condition in which the callback from the started call reaches the app before
     // the transaction finishes and the token is saved
@@ -63,6 +66,9 @@ class TokenService {
             }
     }
 
+    // TokenType.PASSWORD_RESET
+    // ------------------------
+
     Result<Token> generatePasswordReset(Long staffId) {
         Token.tryCreate(TokenType.PASSWORD_RESET, TokenType.passwordResetData(staffId))
             .then { Token tok1 ->
@@ -77,6 +83,9 @@ class TokenService {
             .then { Token tok1 -> Staffs.mustFindForId(tok1.data.long(TokenType.PARAM_PR_ID)) }
     }
 
+    // TokenType.VERIFY_NUMBER
+    // -----------------------
+
     Result<Token> generateVerifyNumber(PhoneNumber toNum) {
         Token.tryCreate(TokenType.VERIFY_NUMBER, TokenType.verifyNumberData(toNum))
     }
@@ -86,8 +95,11 @@ class TokenService {
             .then { Token tok1 -> PhoneNumber.tryCreate(tok1.data.string(TokenType.PARAM_VN_NUM)) }
     }
 
+    // TokenType.NOTIFY_STAFF
+    // ----------------------
+
     Result<Token> tryGeneratePreviewInfo(ReadOnlyOwnerPolicy rop1, Notification notif1) {
-        if (rop1.shouldSendPreviewLink) {
+        if (rop1?.shouldSendPreviewLink) {
             DehydratedNotification.tryCreate(notif1)
                 .then { DehydratedNotification dn1 ->
                     Map data = TokenType

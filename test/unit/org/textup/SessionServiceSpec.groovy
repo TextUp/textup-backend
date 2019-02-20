@@ -14,9 +14,6 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
-@TestFor(SessionService)
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -24,99 +21,71 @@ import spock.lang.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class SessionServiceSpec extends CustomSpec {
+@TestFor(SessionService)
+class SessionServiceSpec extends Specification {
 
-  //   static doWithSpring = {
-  //       resultFactory(ResultFactory)
-  //   }
+   static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-  //   def setup() {
-  //       super.setupData()
-  //       service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-  //       service.authService = [getLoggedInAndActive:{
-		// 	s1
-  //   	}] as AuthService
-  //   }
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-  //   def cleanup() {
-  //       super.cleanupData()
-  //   }
+    void "test creating"() {
+        given:
+        Phone p1 = TestUtils.buildActiveTeamPhone()
+        TypeMap body1 = TypeMap.create(number: TestUtils.randString())
+        TypeMap body2 = TypeMap.create(number: TestUtils.randPhoneNumberString(),
+            isSubscribedToText: true,
+            isSubscribedToCall: true)
 
-  //   void "test create"() {
-  //   	given: "baselines"
-  //   	int sBaseline = IncomingSession.count()
+        int isBaseline = IncomingSession.count()
 
-  //   	when: "without phone"
-  //   	Result res = service.create(null, [:])
+        when:
+        Result res = service.tryCreate(null, null)
 
-  //   	then:
-  //   	res.success == false
-  //   	res.status == ResultStatus.UNPROCESSABLE_ENTITY
-  //   	res.errorMessages[0] == "sessionService.create.noPhone"
+        then:
+        res.status == ResultStatus.NOT_FOUND
+        IncomingSession.count() == isBaseline
 
-  //   	when: "invalid number"
-		// res = service.create(p1, [number:"invalid"])
+        when:
+        res = service.tryCreate(p1.id, body1)
 
-  //   	then:
-  //   	res.success == false
-  //       res.status == ResultStatus.UNPROCESSABLE_ENTITY
-  //   	res.errorMessages.size() == 1
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        IncomingSession.count() == isBaseline
 
-  //   	when: "all valid"
-  //   	Map body = [number:"1112223333"]
-  //   	assert IncomingSession.findByNumberAsStringAndPhone(body.number, p1) == null
-  //   	res = service.create(p1, body)
+        when:
+        res = service.tryCreate(p1.id, body2)
 
-  //   	then:
-  //   	res.success == true
-  //       res.status == ResultStatus.CREATED
-  //   	res.payload instanceof IncomingSession
-  //   	res.payload.numberAsString == body.number
-  //   	IncomingSession.count() == sBaseline + 1
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.phone == p1
+        res.payload.number == PhoneNumber.create(body2.number)
+        res.payload.isSubscribedToText == true
+        res.payload.isSubscribedToCall == true
+        IncomingSession.count() == isBaseline + 1
+    }
 
-  //   	when: "same number"
-  //   	res = service.create(p1, body)
+    void "test updating"() {
+        given:
+        IncomingSession is1 = TestUtils.buildSession()
+        TypeMap body1 = TypeMap.create(isSubscribedToText: true, isSubscribedToCall: true)
 
-  //   	then: "merge"
-  //   	res.success == true
-  //       res.status == ResultStatus.CREATED
-  //   	res.payload instanceof IncomingSession
-  //   	res.payload.numberAsString == body.number
-  //   	IncomingSession.count() == sBaseline + 1
-  //   }
+        when:
+        Result res = service.tryUpdate(null, null)
 
-  //   void "test update"() {
-  //   	given: "baselines"
-  //   	String num = "2349302930"
-  //   	assert IncomingSession.findByNumberAsStringAndPhone(num, p1) == null
-  //   	IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString:num)
-  //   	sess1.save(flush:true, failOnError:true)
-  //   	int sBaseline = IncomingSession.count()
+        then:
+        res.status == ResultStatus.NOT_FOUND
 
-  //   	when: "nonexistent id"
-  //   	Result res = service.update(-88L, [:])
+        when:
+        res = service.tryUpdate(is1.id, body1)
 
-  //   	then:
-  //   	res.success == false
-  //   	res.status == ResultStatus.NOT_FOUND
-  //   	res.errorMessages[0] == "sessionService.update.notFound"
-
-  //   	when: "existing id, invalid"
-  //   	res = service.update(sess1.id, [isSubscribedToText:"hello"])
-
-  //   	then:
-  //   	res.success == false
-  //       res.status == ResultStatus.UNPROCESSABLE_ENTITY
-  //   	res.errorMessages.size() == 1
-
-  //   	when: "existing id, valid"
-  //   	res = service.update(sess1.id, [isSubscribedToText:true])
-
-  //   	then:
-  //   	res.success == true
-  //       res.status == ResultStatus.OK
-  //   	res.payload instanceof IncomingSession
-  //   	res.payload.isSubscribedToText == true
-  //   	IncomingSession.count() == sBaseline
-  //   }
+        then:
+        res.status == ResultStatus.OK
+        res.payload == is1
+        res.payload.isSubscribedToText == true
+        res.payload.isSubscribedToCall == true
+    }
 }

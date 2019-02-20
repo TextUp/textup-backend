@@ -7,14 +7,14 @@ import grails.test.mixin.support.*
 import grails.test.runtime.*
 import grails.validation.*
 import org.joda.time.*
+import org.textup.action.*
+import org.textup.cache.*
 import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
-
-// TODO
 
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
@@ -24,304 +24,158 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(TeamService)
 @TestMixin(HibernateTestMixin)
-class TeamServiceSpec extends CustomSpec {
+class TeamServiceSpec extends Specification {
 
-    // static doWithSpring = {
-    //     resultFactory(ResultFactory)
-    // }
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+        phoneCache(PhoneCache)
+    }
 
-    // def setup() {
-    //     super.setupData()
-    //     service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-    //     service.phoneService = [
-    //         mergePhone: { Team t1, Map body, String timezone ->
-    //             new Result(success:ResultStatus.OK, payload:t1)
-    //         }
-    //     ] as PhoneService
-    // }
-    // def cleanup() {
-    //     super.cleanupData()
-    // }
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-    // // Create
-    // // ------
+    void "test trying to update phone"() {
+        given:
+        TypeMap pInfo = TestUtils.randTypeMap()
+        String tz = TestUtils.randString()
 
-    // void "test update team info"() {
-    //     given: "baselines"
-    //     int baseline = Team.count()
-    //     int lBaseline = Location.count()
-    //     int pBaseline = Phone.count()
+        Organization org1 = TestUtils.buildOrg()
+        Team t1 = TestUtils.buildTeam(org1)
+        Staff s1 = TestUtils.buildStaff(org1)
+        s1.status = StaffStatus.ADMIN
+        Team.withSession { it.flush() }
 
-    //     when: "we create a team with an invalid location"
-    //     String name = "Team 77"
-    //     String hex = "#909"
-    //     String address = "testing address"
-    //     Map createInfo = [
-    //         name:name,
-    //         org:org.id,
-    //         hexColor:hex,
-    //         location:[
-    //             address:address,
-    //             lat:-888G,
-    //             lon:-888G
-    //         ]
-    //     ]
-    //     Team team1 = new Team(org:org)
-    //     Result res = service.updateTeamInfo(team1, createInfo)
+        int pBaseline = Phone.count()
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 2
-    //     Team.count() == baseline
-    //     Location.count() == lBaseline
-    //     Phone.count() == pBaseline
+        service.phoneService = GroovyMock(PhoneService)
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
+            Result.createSuccess(s1.id)
+        }
 
-    //     when: "we create a valid team"
-    //     BigDecimal lat = 8G, lon = 10G
-    //     createInfo.location.lat = lat
-    //     createInfo.location.lon = lon
-    //     res = service.updateTeamInfo(team1, createInfo)
-    //     assert res.success
-    //     res.payload.save(flush:true, failOnError:true)
+        when:
+        Result res = service.tryUpdatePhone(null, null, null)
 
-    //     then:
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Team
-    //     res.payload.name == name
-    //     res.payload.org.id == org.id
-    //     res.payload.hexColor == hex
-    //     res.payload.location.address == address
-    //     res.payload.location.lat == lat
-    //     res.payload.location.lon == lon
-    //     Team.count() == baseline + 1
-    //     Location.count() == lBaseline + 1
-    //     Phone.count() == pBaseline
+        then:
+        tryGetAuthId.notCalled
+        res.status == ResultStatus.NO_CONTENT
+        Phone.count() == pBaseline
 
-    //     when: "update away message when team has phone"
-    //     tPh1.updateOwner(team1)
-    //     tPh1.merge(flush:true, failOnError:true)
-    //     String msg = "you da best mon",
-    //         originalAwayMsg = team1.phone.awayMessage
-    //     res = service.updateTeamInfo(team1, [awayMessage:msg])
+        when:
+        res = service.tryUpdatePhone(t1, pInfo, tz)
 
-    //     then: "no change because update happens in phoneService"
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Team
-    //     res.payload.phone.awayMessage != msg
-    //     res.payload.phone.awayMessage == originalAwayMsg
-    //     Team.count() == baseline + 1
-    //     Location.count() == lBaseline + 1
-    //     Phone.count() == pBaseline
-    // }
+        then:
+        tryGetAuthId.hasBeenCalled
+        1 * service.phoneService.tryUpdate(_, pInfo, tz) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+        Phone.count() == pBaseline + 1
+        IOCUtils.phoneCache.findAnyPhoneIdForOwner(t1.id, PhoneOwnershipType.GROUP) != null
 
-    // void "test create"() {
-    //     given: "baselines"
-    //     int baseline = Team.count()
-    //     int lBaseline = Location.count()
+        cleanup:
+        tryGetAuthId.restore()
+    }
 
-    // 	when: "creation of a team with a nonexistent organization"
-    //     Map createInfo = [:]
-    //     Result res = service.create(createInfo, null)
+    void "test trying to update fields"() {
+        given:
+        TypeMap body = TypeMap.create(name: TestUtils.randString(),
+            hexColor: "#889900")
+        Team t1 = TestUtils.buildTeam()
 
-    // 	then:
-    //     res.success == false
-    //     res.errorMessages[0] == "teamService.create.orgNotFound"
-    //     res.status == ResultStatus.NOT_FOUND
+        when:
+        Result res = service.trySetFields(t1, body)
 
-    // 	when: "we create a valid team"
-    //     String name = "Team 888"
-    //     createInfo = [
-    //         name:name,
-    //         org:org.id,
-    //         location:[
-    //             address:"testing address",
-    //             lat:8G,
-    //             lon:10G
-    //         ]
-    //     ]
-    //     res = service.create(createInfo, null)
-    //     assert res.success
-    //     res.payload.save(flush:true, failOnError:true)
+        then:
+        res.status == ResultStatus.OK
+        res.payload == t1
+        t1.name == body.name
+        t1.hexColor == body.hexColor
+    }
 
-    // 	then:
-    //     res.status == ResultStatus.CREATED
-    //     res.payload instanceof Team
-    //     res.payload.name == name
-    //     res.payload.org.id == org.id
-    //     Team.count() == baseline + 1
-    //     Location.count() == lBaseline + 1
-    // }
+    void "test deleting"() {
+        given:
+        Team t1 = TestUtils.buildTeam()
 
-    // // Update
-    // // ------
+        when:
+        Result res = service.tryDelete(t1.id)
 
-    // void "test find team from id"() {
-    //     when: "nonexistent id"
-    //     Result<Team> res = service.findTeamFromId(-88L)
+        then:
+        res.status == ResultStatus.OK
+        res.payload == t1
+        t1.isDeleted
+    }
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.NOT_FOUND
-    //     res.errorMessages[0] == "teamService.update.notFound"
+    void "test updating overall"() {
+        given:
+        TypeMap body = TypeMap.create(location: TestUtils.randTypeMap(),
+            timezone: TestUtils.randString(),
+            phone: TestUtils.randTypeMap())
+        Team t1 = TestUtils.buildTeam()
 
-    //     when: "valid id"
-    //     res = service.findTeamFromId(t1.id)
+        service.locationService = GroovyMock(LocationService)
+        service.teamActionService = GroovyMock(TeamActionService)
+        MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") {
+            Result.createSuccess(t1)
+        }
+        MockedMethod tryUpdatePhone = MockedMethod.create(service, "tryUpdatePhone") {
+            Result.createSuccess(t1)
+        }
 
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Team
-    //     res.payload.id == t1.id
-    // }
+        when:
+        Result res = service.tryUpdate(t1.id, body)
 
-    // void "test team actions edge cases"() {
-    //     when: "no team actions"
-    //     Result<Team> res = service.handleTeamActions(t1, [:])
+        then:
+        trySetFields.latestArgs == [t1, body]
+        1 * service.locationService.tryUpdate(t1.location, body.location) >> Result.void()
+        1 * service.teamActionService.tryHandleActions(t1, body) >> Result.createSuccess(t1)
+        tryUpdatePhone.latestArgs == [t1, body.phone, body.timezone]
+        res.status == ResultStatus.OK
+        res.payload == t1
 
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Team
-    //     res.payload.id == t1.id
+        cleanup:
+        trySetFields?.restore()
+        tryUpdatePhone?.restore()
+    }
 
-    //     when: "we try to update with team actions that is not list"
-    //     Map updateInfo = [doTeamActions:"I am not a list"]
-    //     res = service.handleTeamActions(t1, updateInfo)
+    void "test creating overall"() {
+        given:
+        TypeMap body = TypeMap.create(location: TestUtils.randTypeMap(),
+            timezone: TestUtils.randString(),
+            phone: TestUtils.randTypeMap(),
+            name: TestUtils.randString())
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    //     res.errorMessages.any{ it.contains("emptyOrNotACollection") }
+        Organization org1 = TestUtils.buildOrg()
+        Location loc1 = TestUtils.buildLocation()
 
-    //     when: "we try to update team action with nonexistent staff member"
-    //     updateInfo = [doTeamActions:[
-    //         [id:-88L, action:Constants.TEAM_ACTION_ADD]
-    //     ]]
-    //     res = service.handleTeamActions(t1, updateInfo)
+        service.locationService = GroovyMock(LocationService)
+        service.teamActionService = GroovyMock(TeamActionService)
+        MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") { Team t1 ->
+            Result.createSuccess(t1)
+        }
+        MockedMethod tryUpdatePhone = MockedMethod.create(service, "tryUpdatePhone") { Team t1 ->
+            Result.createSuccess(t1)
+        }
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    //     res.errorMessages.contains("actionContainer.invalidActions")
+        when:
+        Result res = service.tryCreate(org1.id, body)
 
-    //     when: "we update with team action with unspecified action"
-    //     service.authService = [hasPermissionsForStaff: { Long sId ->
-    //         true
-    //     }] as AuthService
-    //     updateInfo = [doTeamActions:[
-    //         [id:s1.id, action:"invalid"]
-    //     ]]
-    //     res = service.handleTeamActions(t1, updateInfo)
+        then:
+        1 * service.locationService.tryCreate(body.location) >> Result.createSuccess(loc1)
+        trySetFields.latestArgs[0] instanceof Team
+        trySetFields.latestArgs[1] == body
+        1 * service.teamActionService.tryHandleActions(_ as Team, body) >> { args ->
+            Result.createSuccess(args[0])
+        }
+        tryUpdatePhone.latestArgs[0] instanceof Team
+        tryUpdatePhone.latestArgs[1] == body.phone
+        tryUpdatePhone.latestArgs[2] == body.timezone
+        res.status == ResultStatus.CREATED
+        res.payload instanceof Team
+        res.payload.name == body.name
+        res.payload.location == loc1
+        res.payload.org == org1
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    //     res.errorMessages.contains("actionContainer.invalidActions")
-
-    //     when: "we try to update team action with forbidden staff member"
-    //     service.authService = [hasPermissionsForStaff: { Long sId ->
-    //         false
-    //     }] as AuthService
-
-    //     updateInfo = [doTeamActions:[
-    //         [id:otherS3.id, action:Constants.TEAM_ACTION_ADD]
-    //     ]]
-    //     res = service.handleTeamActions(t1, updateInfo)
-
-    //     then:
-    //     res.success == false
-    //     res.errorMessages[0] == "teamService.update.staffForbidden"
-    //     res.status == ResultStatus.FORBIDDEN
-    // }
-
-    // void "test team actions valid"() {
-    //     when: "we update a team with valid fields and team actions"
-    //     service.authService = [hasPermissionsForStaff: { Long sId ->
-    //         true
-    //     }] as AuthService
-    //     Map updateInfo = [
-    //         doTeamActions:[
-    //             [id:s1.id, action:Constants.TEAM_ACTION_REMOVE],
-    //             [id:s2.id, action:Constants.TEAM_ACTION_REMOVE],
-    //             [id:s3.id, action:Constants.TEAM_ACTION_ADD]
-    //         ]
-    //     ]
-    //     Result<Team> res = service.handleTeamActions(t1, updateInfo)
-    //     assert res.success
-    //     t1.save(flush:true, failOnError:true)
-
-    //     then:
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Team
-    //     res.payload.id == t1.id
-    //     res.payload.members.contains(s1) == false
-    //     res.payload.members.contains(s2) == false
-    //     res.payload.members.contains(s3) == true
-    // }
-
-    // void "test update"() {
-    //     given: "baselines"
-    //     int baseline = Team.count()
-    //     int lBaseline = Location.count()
-    //     int pBaseline = Phone.count()
-
-    // 	when: "we update a team with an invalid location"
-    //     Map updateInfo = [location:[lat:-888G, lon:-888G]]
-    //     Result res = service.update(t1.id, updateInfo, null)
-
-    // 	then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 2
-    //     Team.count() == baseline
-    //     Location.count() == lBaseline
-    //     Phone.count() == pBaseline
-
-    //     when: "we update with valid location"
-    //     BigDecimal lat = 8G, lon = 10G
-    //     updateInfo.location.lat = lat
-    //     updateInfo.location.lon = lon
-    //     res = service.update(t1.id, updateInfo, null)
-
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Team
-    //     res.payload.location.lat == lat
-    //     res.payload.location.lon == lon
-    //     Team.count() == baseline
-    //     Location.count() == lBaseline
-    //     Phone.count() == pBaseline
-    // }
-
-    // // Delete
-    // // ------
-
-    // void "test delete"() {
-    // 	when: "we delete a nonexistent team"
-    //     Result res = service.delete(-88L)
-
-    // 	then:
-    //     res.success == false
-    //     res.errorMessages[0] == "teamService.delete.notFound"
-    //     res.status == ResultStatus.NOT_FOUND
-
-    // 	when: "we delete an existing team"
-    //     res = service.delete(t1.id)
-    //     assert res.success
-    //     // HYPOTHESIS: transction is committed and session closes after the
-    //     // service method returns. Therefore, we need to re-fetch the team
-    //     // in order to get the updated properties
-    //     t1 = Team.get(t1.id)
-
-    // 	then:
-    //     res.status == ResultStatus.NO_CONTENT
-    //     t1.isDeleted == true
-    //     t1.org.teams.contains(t1) == false
-    //     t1.members.every { !it.teams.contains(t1) }
-    // }
+        cleanup:
+        trySetFields?.restore()
+        tryUpdatePhone?.restore()
+    }
 }

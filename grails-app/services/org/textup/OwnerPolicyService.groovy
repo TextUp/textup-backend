@@ -15,9 +15,9 @@ class OwnerPolicyService {
 
     ScheduleService scheduleService
 
-    Result<OwnerPolicy> update(OwnerPolicy op1, TypeMap body, String timezone) {
+    Result<OwnerPolicy> tryUpdate(OwnerPolicy op1, TypeMap body, String timezone) {
         trySetFields(op1, body)
-            .then { scheduleService.update(op1.schedule, body.typeMapNoNull("schedule"), timezone) }
+            .then { scheduleService.tryUpdate(op1.schedule, body.typeMapNoNull("schedule"), timezone) }
             .then { DomainUtils.trySave(op1) }
     }
 
@@ -25,12 +25,14 @@ class OwnerPolicyService {
     // -------
 
     protected Result<OwnerPolicy> trySetFields(OwnerPolicy op1, TypeMap body) {
-        op1.with {
-            if (body.frequency) frequency = body.enum(NotificationFrequency, "frequency")
-            if (body.level) level = body.enum(NotificationLevel, "level")
-            if (body.method) method = body.enum(NotificationMethod, "method")
-            if (body.boolean("shouldSendPreviewLink") != null) {
-                shouldSendPreviewLink = body.boolean("shouldSendPreviewLink")
+        if (op1 && body) {
+            op1.with {
+                if (body.frequency) frequency = body.enum(NotificationFrequency, "frequency")
+                if (body.level) level = body.enum(NotificationLevel, "level")
+                if (body.method) method = body.enum(NotificationMethod, "method")
+                if (body.boolean("shouldSendPreviewLink") != null) {
+                    shouldSendPreviewLink = body.boolean("shouldSendPreviewLink")
+                }
             }
         }
         DomainUtils.trySave(op1)

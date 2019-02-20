@@ -7,14 +7,13 @@ import grails.test.mixin.support.*
 import grails.test.runtime.*
 import grails.validation.*
 import org.joda.time.*
+import org.textup.cache.*
 import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
-
-// TODO
 
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
@@ -24,542 +23,352 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(StaffService)
 @TestMixin(HibernateTestMixin)
-class StaffServiceSpec extends CustomSpec {
-
-    // static doWithSpring = {
-    //     resultFactory(ResultFactory)
-    // }
-
-    // def setup() {
-    //     super.setupData()
-    //     service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-    //     service.mailService = [
-    //         notifyAboutPendingStaff: { Staff s1, List<Staff> admins ->
-    //             new Result(status:ResultStatus.OK, payload:null)
-    //         },
-    //         notifyAboutPendingOrg: { Organization org1 ->
-    //             new Result(status:ResultStatus.OK, payload:null)
-    //         },
-    //         notifyApproval: { Staff approvedStaff ->
-    //             new Result(status:ResultStatus.OK, payload:null)
-    //         },
-    //         notifyRejection: { Staff rejectedStaff ->
-    //             new Result(status:ResultStatus.OK, payload:null)
-    //         },
-    //         notifyInvitation: { Staff invitedBy, Staff s1, String password, String lockCode ->
-    //             new Result(status:ResultStatus.OK, payload:null)
-    //         }
-    //     ] as MailService
-    //     service.authService = {
-    //         getIsActive: { true }
-    //     } as AuthService
-    //     service.phoneService = [
-    //         mergePhone: { Staff s1, Map body, String timezone ->
-    //             new Result(status:ResultStatus.OK, payload:s1)
-    //         }
-    //     ] as PhoneService
-    //     WeeklySchedule.metaClass.updateWithIntervalStrings = { Map params, String timezone="UTC" ->
-    //         service.resultFactory.success()
-    //     }
-    // }
-
-    // def cleanup() {
-    //     super.cleanupData()
-    // }
-
-    // // Create
-    // // ------
-
-    // void "test create"() {
-    //     given: "baselines"
-    //     int schedBaseline = WeeklySchedule.count()
-    //     int sBaseline = Staff.count()
-    //     int oBaseline = Organization.count()
-    //     int lBaseline = Location.count()
-    //     int rBaseline = StaffRole.count()
-
-    // 	when: "we create a staff member with invalid fields"
-    //     Map createInfo = [:]
-    //     Result res = service.create(createInfo, null)
-
-    // 	then:
-    //     res.success == false
-    //     res.errorMessages[0] == "staffService.create.mustSpecifyOrg"
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-
-    //     WeeklySchedule.count() == schedBaseline
-    //     Staff.count() == sBaseline
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline
-
-    // 	when: "we associate staff member with a nonexistent organization"
-    //     createInfo = [
-    //         username:"6sta${iterNum}",
-    //         password:"password",
-    //         name:"Staff1",
-    //         email:"staff@textup.org",
-    //         lockCode: Constants.DEFAULT_LOCK_CODE,
-    //         personalPhoneNumber:"12223334444",
-    //         org:[
-    //             id:-88L
-    //         ]
-    //     ]
-    //     res = service.create(createInfo, null)
-
-    // 	then:
-    //     res.success == false
-    //     res.errorMessages[0] == "staffService.create.orgNotFound"
-    //     res.status == ResultStatus.NOT_FOUND
-
-    //     WeeklySchedule.count() == schedBaseline
-    //     Staff.count() == sBaseline
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline
-
-    // 	when: "we create a staff member with invalid new organization"
-    //     createInfo = [
-    //         username:"6sta${iterNum}",
-    //         password:"password",
-    //         name:"Staff1",
-    //         email:"staff@textup.org",
-    //         personalPhoneNumber:"12223334444",
-    //         lockCode: Constants.DEFAULT_LOCK_CODE,
-    //         org:[
-    //             name:"I am a new org",
-    //             location:[
-    //                 address:"address",
-    //                 lat:-888G,
-    //                 lon:888G
-    //             ]
-    //         ]
-    //     ]
-    //     res = service.create(createInfo, null)
-
-    // 	then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 2
-    //     WeeklySchedule.count() == schedBaseline
-    //     Staff.count() == sBaseline
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline
-
-    // 	when: "we create a staff member with an existing org"
-    //     String username = UUID.randomUUID().toString(),
-    //         personalPhoneAsString = "2223334444"
-    //     createInfo = [
-    //         username:username,
-    //         password:"password",
-    //         name:"Staff1",
-    //         email:"staff@textup.org",
-    //         personalPhoneNumber:personalPhoneAsString,
-    //         lockCode: Constants.DEFAULT_LOCK_CODE,
-    //         org:[
-    //             id:org.id
-    //         ]
-    //     ]
-    //     res = service.create(createInfo, null)
-    //     assert res.success
-    //     assert res.payload.instanceOf(Staff)
-    //     res.payload.save(flush:true, failOnError:true)
-
-    // 	then:
-    //     WeeklySchedule.count() == schedBaseline + 1
-    //     Staff.count() == sBaseline + 1
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline + 0 // adding in role a separate step
-
-    //     res.status == ResultStatus.CREATED
-    //     res.payload instanceof Staff
-    //     res.payload.status == StaffStatus.PENDING
-    //     res.payload.username == username
-    //     res.payload.personalPhoneAsString == personalPhoneAsString
-
-    // 	when: "we create a staff member with a new org"
-    //     String orgName = "I am a new org!!"
-    //     username = UUID.randomUUID().toString()
-    //     personalPhoneAsString = "2228884444"
-    //     createInfo = [
-    //         username:username,
-    //         password:"password",
-    //         name:"Staff2",
-    //         email:"staff@textup.org",
-    //         lockCode: Constants.DEFAULT_LOCK_CODE,
-    //         personalPhoneNumber:personalPhoneAsString,
-    //         org:[
-    //             name:orgName,
-    //             location:[
-    //                 address:"new org address",
-    //                 lat:2G,
-    //                 lon:-8G
-    //             ]
-    //         ]
-    //     ]
-    //     res = service.create(createInfo, null)
-    //     assert res.success
-    //     assert res.payload.instanceOf(Staff)
-    //     res.payload.save(flush:true, failOnError:true)
-
-    // 	then:
-    //     WeeklySchedule.count() == schedBaseline + 2
-    //     Staff.count() == sBaseline + 2
-    //     Organization.count() == oBaseline + 1
-    //     Location.count() == lBaseline + 1
-    //     StaffRole.count() == rBaseline + 0 // adding in role a separate step
-
-    //     res.status == ResultStatus.CREATED
-    //     res.payload instanceof Staff
-    //     res.payload.status == StaffStatus.ADMIN
-    //     res.payload.org.status == OrgStatus.PENDING
-    //     res.payload.username == username
-    //     res.payload.personalPhoneAsString == personalPhoneAsString
-    //     Organization.findByName(orgName) != null
-
-    //     when: "add staff to new user"
-    //     Staff newStaff = res.payload
-    //     res = service.addRoleToStaff(newStaff.id)
-    //     assert res.success
-    //     assert res.payload.instanceOf(Staff)
-    //     res.payload.save(flush:true, failOnError:true)
-
-    //     then:
-    //     WeeklySchedule.count() == schedBaseline + 2
-    //     Staff.count() == sBaseline + 2
-    //     Organization.count() == oBaseline + 1
-    //     Location.count() == lBaseline + 1
-    //     StaffRole.count() == rBaseline + 1
-
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.status == StaffStatus.ADMIN
-    //     res.payload.org.status == OrgStatus.PENDING
-    //     res.payload.username == username
-    //     res.payload.personalPhoneAsString == personalPhoneAsString
-    //     Organization.findByName(orgName) != null
-    // }
-
-    // void "test create with validation errors"() {
-    //     given: "baselines"
-    //     int schedBaseline = WeeklySchedule.count()
-    //     int sBaseline = Staff.count()
-    //     int oBaseline = Organization.count()
-    //     int lBaseline = Location.count()
-    //     int rBaseline = StaffRole.count()
-
-    //     when: "we try to create a staff with invalid personal phone number"
-    //     String personalPhoneNumber = "invalid123"
-    //     Map createInfo = [
-    //         username:"7sta${iterNum}",
-    //         password:"password",
-    //         name:"Staff3",
-    //         email:"staff@textup.org",
-    //         lockCode: Constants.DEFAULT_LOCK_CODE,
-    //         personalPhoneNumber:personalPhoneNumber,
-    //         org:[
-    //             id:org.id
-    //         ]
-    //     ]
-    //     Result res = service.create(createInfo, null)
-
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-
-    //     Staff.count() == sBaseline
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline
-    //     WeeklySchedule.count() == schedBaseline
-    // }
-
-    // void "test create valid captcha validation"() {
-    //     given: "not logged in so requires captcha validation"
-    //     service.authService = {
-    //         getIsActive: { false }
-    //     } as AuthService
-
-    //     when: "missing captcha response"
-    //     Result res = service.verifyCreateRequest([captcha:null])
-
-    //     then: "invalid"
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages[0] == "staffService.create.couldNotVerifyCaptcha"
-
-    //     when: "has all fields but some are incorrect"
-    //     service.metaClass.doVerifyRequest = { String url -> [success:false] }
-    //     res = service.verifyCreateRequest([captcha:"invalid!"])
-
-    //     then: "invalid"
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages[0] == "staffService.create.couldNotVerifyCaptcha"
-
-    //     when: "all fields and all correct"
-    //     service.metaClass.doVerifyRequest = { String url -> [success:true] }
-    //     res = service.verifyCreateRequest([captcha:"valid!"])
-
-    //     then: "valid"
-    //     res.success == true
-    //     res.status == ResultStatus.NO_CONTENT
-    //     res.payload == null
-    // }
-
-    // // Update
-    // // ------
-
-    // void "test update"() {
-    //     given:
-    //     int pBaseline = Phone.count()
-    //     String awayMsg = "calm down.",
-    //         newName = "ting ting bai"
-
-    //     when: "updating away message"
-    //     String originalAwayMsg = s1.phone.awayMessage
-    //     Result<Staff> res = service.update(s1.id, [
-    //         phone:[awayMessage:awayMsg]
-    //     ], null)
-    //     assert res.success
-    //     s1.save(flush:true, failOnError:true)
-
-    //     then: "away message is updated in the phoneService"
-    //     Phone.count() == pBaseline
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.id == s1.id
-    //     res.payload.phone.awayMessage != awayMsg
-    //     res.payload.phone.awayMessage == originalAwayMsg
-
-    //     when: "update staff valid"
-    //     res = service.update(s1.id, [name:newName], null)
-    //     assert res.success
-    //     s1.save(flush:true, failOnError:true)
-
-    //     then:
-    //     Phone.count() == pBaseline
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.id == s1.id
-    //     res.payload.name == newName
-
-    //     when: "update staff invalid"
-    //     res = service.update(s1.id, [email:"invalid"], null)
-
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    // }
-
-    // void "test find staff for id"() {
-    //     when: "nonexistent id"
-    //     Result<Staff> res = service.findStaffForId(-88L)
-
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.NOT_FOUND
-    //     res.errorMessages[0] == "staffService.update.notFound"
-
-    //     when: "valid id"
-    //     res = service.findStaffForId(s2.id)
-
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.id == s2.id
-    // }
-
-    // void "test update staff fields"() {
-    //     given: "baselines"
-    //     int schedBaseline = WeeklySchedule.count()
-    //     int sBaseline = Staff.count()
-    //     int oBaseline = Organization.count()
-    //     int lBaseline = Location.count()
-    //     int rBaseline = StaffRole.count()
-
-    //     when: "invalid fields"
-    //     String name = "hellobud"
-    //     String username = UUID.randomUUID().toString()
-    //     String pwd = "iloveunicorns"
-    //     String invalidEmail = "whatismy"
-    //     String personalPhoneAsString = "2223334444"
-    //     Map updateInfo = [
-    //         name: name,
-    //         username:username,
-    //         password:pwd,
-    //         email:invalidEmail,
-    //         personalPhoneNumber:personalPhoneAsString
-    //     ]
-    //     Result res = service.update(s1.id, updateInfo, null)
-
-    //     then:
-    //     Staff.count() == sBaseline
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline
-    //     WeeklySchedule.count() == schedBaseline
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-
-    //     when: "update staff fields"
-    //     String email = "ok123@ok.com"
-    //     updateInfo.email = email
-    //     res = service.update(s1.id, updateInfo, null)
-
-    //     then:
-    //     Staff.count() == sBaseline
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline
-    //     WeeklySchedule.count() == schedBaseline
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.name == name
-    //     res.payload.username == username
-    //     res.payload.password == pwd
-    //     res.payload.email == email
-    //     res.payload.personalPhoneAsString == personalPhoneAsString
-
-    //     when: "remove personal phone number by passing in an empty string"
-    //     res = service.update(s1.id, [personalPhoneNumber: ""], null)
-
-    //     then:
-    //     Staff.count() == sBaseline
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline
-    //     WeeklySchedule.count() == schedBaseline
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.personalPhoneAsString == ""
-
-    //     when: "update schedule"
-    //     updateInfo = [
-    //         schedule:[
-    //             monday:["0100:0230", "0330:0430"],
-    //             thursday:["0230:0345", "0330:0430"]
-    //         ]
-    //     ]
-    //     res = service.update(s1.id, updateInfo, null)
-    //     List<LocalInterval> mondayInts = [
-    //         new LocalInterval(new LocalTime(1, 0), new LocalTime(2, 30)),
-    //         new LocalInterval(new LocalTime(3, 30), new LocalTime(4, 30)),
-    //     ], thursdayInts = [
-    //         new LocalInterval(new LocalTime(2, 30), new LocalTime(4, 30)),
-    //     ]
-
-    //     then:
-    //     Staff.count() == sBaseline
-    //     Organization.count() == oBaseline
-    //     Location.count() == lBaseline
-    //     StaffRole.count() == rBaseline
-    //     WeeklySchedule.count() == schedBaseline
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.schedule.getAllAsLocalIntervals().each { String day,
-    //         List<LocalInterval> ints ->
-    //         if (day == "monday") {
-    //             assert ints.every { it in mondayInts }
-    //         }
-    //         else if (day == "thursday") {
-    //             assert ints.every { it in thursdayInts }
-    //         }
-    //     }
-    // }
-
-    // void "test update lock code"() {
-    //     given: "a valid staff"
-    //     assert s1.validate() == true
-    //     String defaultLock = Constants.DEFAULT_LOCK_CODE
-
-    //     when: "blank lock code"
-    //     Map updateInfo = [lockCode:""]
-    //     String originalLockCode = s1.lockCode
-    //     Result<Staff> res = service.update(s1.id, updateInfo, null)
-
-    //     then: "no change"
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.id == s1.id
-    //     res.payload.lockCode == originalLockCode
-
-    //     when: "too long lock code"
-    //     updateInfo.lockCode = "${defaultLock}${defaultLock}"
-    //     res = service.update(s1.id, updateInfo, null)
-
-    //     then: "invalid"
-    //     res.success == false
-    //     res.errorMessages.size() == 1
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-
-    //     when: "lock code non-numbers"
-    //     updateInfo.lockCode = "ab12"
-    //     res = service.update(s1.id, updateInfo, null)
-
-    //     then: "invalid"
-    //     res.success == false
-    //     res.errorMessages.size() == 1
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-
-    //     when: "lock code only apropriate length with only numbers"
-    //     updateInfo.lockCode = Constants.DEFAULT_LOCK_CODE
-    //     res = service.update(s1.id, updateInfo, null)
-
-    //     then: "valid"
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.id == s1.id
-    //     res.payload.lockCode == updateInfo.lockCode
-    // }
-
-    // void "test update status"() {
-    //     when: "as staff"
-    //     service.authService = [isAdminAtSameOrgAs:{ Long sId ->
-    //         false
-    //     }] as AuthService
-    //     Map updateInfo = [status:"adMiN"]
-    //     Result<Staff> res = service.update(s1.id, updateInfo, null)
-
-    //     then: "silently ignore"
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.id == s1.id
-    //     res.payload.status == s1.status
-
-    //     when: "as admin"
-    //     service.authService = [isAdminAtSameOrgAs:{ Long sId ->
-    //         true
-    //     }] as AuthService
-    //     updateInfo = [status:"penDiNG"]
-    //     res = service.update(s2.id, updateInfo, null)
-
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof Staff
-    //     res.payload.id == s2.id
-    //     res.payload.status == StaffStatus.PENDING
-
-    //     when: "as admin with invalid status"
-    //     updateInfo = [status:"invalid"]
-    //     res = service.update(s2.id, updateInfo, null)
-
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    // }
+class StaffServiceSpec extends Specification {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+        phoneCache(PhoneCache)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
+    void "test updating phone"() {
+        given:
+        String tz = TestUtils.randString()
+        TypeMap pInfo = TestUtils.randTypeMap()
+
+        Organization org1 = TestUtils.buildOrg()
+        Staff s1 = TestUtils.buildStaff(org1)
+        s1.status = StaffStatus.ADMIN
+        Staff s2 = TestUtils.buildStaff(org1)
+
+        int pBaseline = Phone.count()
+
+        service.phoneService = GroovyMock(PhoneService)
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
+            Result.createSuccess(s1.id)
+        }
+
+        when:
+        Result res = service.tryUpdatePhone(null, null, null)
+
+        then:
+        tryGetAuthId.notCalled
+        res.status == ResultStatus.NO_CONTENT
+        Phone.count() == pBaseline
+
+        when:
+        res = service.tryUpdatePhone(s2, pInfo, tz)
+
+        then:
+        tryGetAuthId.hasBeenCalled
+        1 * service.phoneService.tryUpdate(_, pInfo, tz) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+        Phone.count() == pBaseline + 1
+        IOCUtils.phoneCache.findAnyPhoneIdForOwner(s2.id, PhoneOwnershipType.INDIVIDUAL) != null
+
+        cleanup:
+        tryGetAuthId?.restore()
+    }
+
+    void "test updating status"() {
+        given:
+        Organization org1 = TestUtils.buildOrg()
+        Staff s1 = TestUtils.buildStaff(org1)
+        s1.status = StaffStatus.ADMIN
+        Staff s2 = TestUtils.buildStaff(org1)
+
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
+            Result.createSuccess(s1.id)
+        }
+
+        when:
+        Result res = service.trySetStatus(null, null)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == null
+
+        when:
+        res = service.trySetStatus(s1, StaffStatus.PENDING)
+
+        then:
+        res.status == ResultStatus.FORBIDDEN
+        res.errorMessages == ["staffService.lastAdmin"]
+
+        when:
+        res = service.trySetStatus(s2, StaffStatus.PENDING)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == s2
+        s2.status == StaffStatus.PENDING
+
+        cleanup:
+        tryGetAuthId?.restore()
+    }
+
+    void "test updating lock code"() {
+        given:
+        String invalidCode = TestUtils.randString()
+        String validCode = "1234"
+        Staff s1 = TestUtils.buildStaff()
+
+        when:
+        Result res = service.trySetLockCode(s1, null)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == s1
+
+        when:
+        res = service.trySetLockCode(s1, invalidCode)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages == ["staffService.lockCodeFormat"]
+
+        when:
+        res = service.trySetLockCode(s1, validCode)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == s1
+        s1.lockCode == validCode
+    }
+
+    void "test updating fields"() {
+        given:
+        TypeMap body = TypeMap.create(name: TestUtils.randString(),
+            username: TestUtils.randString(),
+            password: TestUtils.randString(),
+            email: TestUtils.randEmail(),
+            personalNumber: TestUtils.randPhoneNumberString())
+        Staff s1 = TestUtils.buildStaff()
+
+        when:
+        Result res = service.trySetFields(s1, body)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == s1
+        s1.name == body.name
+        s1.username == body.username
+        s1.password == body.password
+        s1.email == body.email
+        s1.personalNumber == PhoneNumber.create(body.personalNumber)
+    }
+
+    void "test finishing update"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+        s1.status = StaffStatus.PENDING
+        Staff s2 = TestUtils.buildStaff()
+        s2.status = StaffStatus.PENDING
+        Staff s3 = TestUtils.buildStaff()
+        s3.status = StaffStatus.STAFF
+
+        Staff.withSession { it.flush() }
+
+        service.mailService = GroovyMock(MailService)
+
+        when: "pending -> active"
+        s1.status = StaffStatus.ADMIN
+        Result res = service.finishUpdate(s1)
+
+        then:
+        1 * service.mailService.notifyApproval(s1) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == s1
+
+        when: "pending -> inactive"
+        s2.status = StaffStatus.BLOCKED
+        res = service.finishUpdate(s2)
+
+        then:
+        1 * service.mailService.notifyRejection(s2) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == s2
+
+        when: "stays not pending"
+        s3.status = StaffStatus.ADMIN
+        res = service.finishUpdate(s3)
+
+        then:
+        0 * service.mailService._
+        res.status == ResultStatus.OK
+        res.payload == s3
+    }
+
+    void "test finishing create"() {
+        given:
+        TypeMap body = TypeMap.create(password: TestUtils.randString(), lockCode: TestUtils.randString())
+
+        Organization org1 = TestUtils.buildOrg()
+        Staff authUser = TestUtils.buildStaff(org1)
+        authUser.status = StaffStatus.ADMIN
+
+        Staff s1 = TestUtils.buildStaff()
+        s1.org.status = OrgStatus.PENDING
+        Staff s2 = TestUtils.buildStaff(org1)
+        s2.org.status = OrgStatus.APPROVED
+        s2.status = StaffStatus.PENDING
+        Staff s3 = TestUtils.buildStaff()
+        s3.org.status = OrgStatus.APPROVED
+        s3.status = StaffStatus.STAFF
+        Staff s4 = TestUtils.buildStaff()
+        s4.org.status = OrgStatus.APPROVED
+        s4.status = StaffStatus.BLOCKED
+
+        Staff.withSession { it.flush() }
+
+        service.mailService = GroovyMock(MailService)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(authUser)
+        }
+
+        when:
+        Result res = service.finishCreate(s1, body)
+
+        then:
+        1 * service.mailService.notifyAboutPendingOrg(s1.org) >> Result.void()
+        res.status == ResultStatus.CREATED
+        res.payload == s1
+
+        when:
+        res = service.finishCreate(s2, body)
+
+        then:
+        1 * service.mailService.notifyAboutPendingStaff(s2, [authUser]) >> Result.void()
+        res.status == ResultStatus.CREATED
+        res.payload == s2
+
+        when:
+        res = service.finishCreate(s3, body)
+
+        then:
+        1 * service.mailService.notifyInvitation(authUser, s3, body.password, body.lockCode) >> Result.void()
+        res.status == ResultStatus.CREATED
+        res.payload == s3
+
+        when:
+        res = service.finishCreate(s4, body)
+
+        then:
+        0 * service.mailService._
+        res.status == ResultStatus.CREATED
+        res.payload == s4
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
+
+    void "test updating overall"() {
+        given:
+        TypeMap body = TypeMap.create(lockCode: TestUtils.randString(),
+            status: StaffStatus.ADMIN,
+            phone: TestUtils.randTypeMap(),
+            timezone: TestUtils.randString())
+        Staff s1 = TestUtils.buildStaff()
+
+        MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") {
+            Result.createSuccess(s1)
+        }
+        MockedMethod trySetLockCode = MockedMethod.create(service, "trySetLockCode") {
+            Result.createSuccess(s1)
+        }
+        MockedMethod trySetStatus = MockedMethod.create(service, "trySetStatus") {
+            Result.createSuccess(s1)
+        }
+        MockedMethod tryUpdatePhone = MockedMethod.create(service, "tryUpdatePhone") {
+            Result.createSuccess(s1)
+        }
+        MockedMethod finishUpdate = MockedMethod.create(service, "finishUpdate") {
+            Result.createSuccess(s1)
+        }
+
+        when:
+        Result res = service.tryUpdate(s1.id, body)
+
+        then:
+        trySetFields.latestArgs == [s1, body]
+        trySetLockCode.latestArgs == [s1, body.lockCode]
+        trySetStatus.latestArgs == [s1, body.status]
+        tryUpdatePhone.latestArgs == [s1, body.phone, body.timezone]
+        finishUpdate.latestArgs == [s1]
+        res.status == ResultStatus.OK
+        res.payload == s1
+
+        cleanup:
+        trySetFields?.restore()
+        trySetLockCode?.restore()
+        trySetStatus?.restore()
+        tryUpdatePhone?.restore()
+        finishUpdate?.restore()
+    }
+
+    void "test creating overall"() {
+        given:
+        TypeMap body = TypeMap.create(org: TestUtils.randTypeMap(),
+            name: TestUtils.randString(),
+            username: TestUtils.randString(),
+            password: TestUtils.randString(),
+            email: TestUtils.randEmail(),
+            lockCode: TestUtils.randString(),
+            status: StaffStatus.ADMIN,
+            phone: TestUtils.randTypeMap(),
+            timezone: TestUtils.randString())
+
+        Organization org1 = TestUtils.buildOrg()
+
+        int srBaseline = StaffRole.count()
+        int sBaseline = Staff.count()
+
+        service.organizationService = GroovyMock(OrganizationService)
+        MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") { Staff s1 ->
+            Result.createSuccess(s1)
+        }
+        MockedMethod trySetLockCode = MockedMethod.create(service, "trySetLockCode") { Staff s1 ->
+            Result.createSuccess(s1)
+        }
+        MockedMethod trySetStatus = MockedMethod.create(service, "trySetStatus") { Staff s1 ->
+            Result.createSuccess(s1)
+        }
+        MockedMethod tryUpdatePhone = MockedMethod.create(service, "tryUpdatePhone") { Staff s1 ->
+            Result.createSuccess(s1)
+        }
+        MockedMethod finishCreate = MockedMethod.create(service, "finishCreate") { Staff s1 ->
+            Result.createSuccess(s1)
+        }
+
+        when:
+        Result res = service.tryCreate(body)
+
+        then:
+        1 * service.organizationService.tryFindOrCreate(body.org) >> Result.createSuccess(org1)
+        trySetFields.latestArgs[1] == body
+        trySetLockCode.latestArgs[1] == body.lockCode
+        trySetStatus.latestArgs[1] == body.status
+        tryUpdatePhone.latestArgs[1] == body.phone
+        tryUpdatePhone.latestArgs[2] == body.timezone
+        finishCreate.latestArgs[1] == body
+        res.status == ResultStatus.OK
+        res.payload instanceof Staff
+        res.payload.org == org1
+        res.payload.name == body.name
+        res.payload.username == body.username
+        res.payload.password == body.password
+        res.payload.email == body.email
+        StaffRole.count() == srBaseline + 1
+        Staff.count() == sBaseline + 1
+
+        cleanup:
+        trySetFields?.restore()
+        trySetLockCode?.restore()
+        trySetStatus?.restore()
+        tryUpdatePhone?.restore()
+        finishCreate?.restore()
+    }
 }

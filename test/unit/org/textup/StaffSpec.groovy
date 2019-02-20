@@ -69,21 +69,21 @@ class StaffSpec extends Specification {
 
     void "test creation"() {
         given:
-        boolean shouldBeNew = true
-        MockedMethod isNew = MockedMethod.create(DomainUtils, "isNew") { shouldBeNew }
-
-        Organization org1 = TestUtils.buildOrg()
-        Role role1 = TestUtils.buildRole()
         String name = TestUtils.randString()
         String un1 = TestUtils.randString()
         String un2 = TestUtils.randString()
         String pwd = TestUtils.randString()
         String email = TestUtils.randEmail()
 
+        Organization org1 = TestUtils.buildOrg()
+        Organization org2 = TestUtils.buildOrg()
+        Staff s1 = TestUtils.buildStaff(org2)
+        s1.status = StaffStatus.ADMIN
+        Role role1 = TestUtils.buildRole()
+
         int srBaseline = StaffRole.count()
 
         when: "is new"
-        shouldBeNew = true
         Result res = Staff.tryCreate(role1, org1, name, un1, pwd, email)
         Staff.withSession { it.flush() }
 
@@ -92,12 +92,10 @@ class StaffSpec extends Specification {
         res.payload.status == StaffStatus.ADMIN
         res.payload.authorities.size() == 1
         res.payload.authorities[0].authority == role1.authority
-        isNew.callCount == 1
         StaffRole.count() == srBaseline + 1
 
         when: "is not new"
-        shouldBeNew = false
-        res = Staff.tryCreate(role1, org1, name, un2, pwd, email)
+        res = Staff.tryCreate(role1, org2, name, un2, pwd, email)
         Staff.withSession { it.flush() }
 
         then:
@@ -105,11 +103,7 @@ class StaffSpec extends Specification {
         res.payload.status == StaffStatus.PENDING
         res.payload.authorities.size() == 1
         res.payload.authorities[0].authority == role1.authority
-        isNew.callCount == 2
         StaffRole.count() == srBaseline + 2
-
-        cleanup:
-        isNew.restore()
     }
 
     void "test lockCode"() {

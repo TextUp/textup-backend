@@ -40,6 +40,14 @@ class RecordSpec extends Specification {
         res.status == ResultStatus.CREATED
         res.payload.lastRecordActivity != null
         res.payload.language == VoiceLanguage.ENGLISH
+
+        when:
+        res = Record.tryCreate(VoiceLanguage.GERMAN)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.lastRecordActivity != null
+        res.payload.language == VoiceLanguage.GERMAN
     }
 
     void "test try adding notes"() {

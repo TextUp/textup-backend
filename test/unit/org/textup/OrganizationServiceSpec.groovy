@@ -22,66 +22,81 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(OrganizationService)
 @TestMixin(HibernateTestMixin)
-class OrganizationServiceSpec extends CustomSpec {
+class OrganizationServiceSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
-        super.setupData()
-        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
+        TestUtils.standardMockSetup()
     }
-    def cleanup() {
-        super.cleanupData()
+
+    void "test creation"() {
+        given:
+        Location loc1 = TestUtils.buildLocation()
+        TypeMap locMap = TestUtils.randTypeMap()
+        TypeMap body = TypeMap.create(location: locMap, name: TestUtils.randString())
+
+        int oBaseline = Organization.count()
+
+        service.locationService = GroovyMock(LocationService)
+
+        when:
+        Result res = service.tryFindOrCreate(body)
+
+        then:
+        1 * service.locationService.tryCreate(locMap) >> Result.createSuccess(loc1)
+        res.status == ResultStatus.CREATED
+        res.payload.name == body.name
+        res.payload.location == loc1
+        Organization.count() == oBaseline + 1
+
+        when:
+        body.id = res.payload.id
+        res = service.tryFindOrCreate(body)
+
+        then:
+        0 * service.locationService._
+        res.status == ResultStatus.OK
+        res.payload.id == body.id
     }
 
     void "test update"() {
+        given:
+        Organization org1 = TestUtils.buildOrg()
+        TypeMap body1 = TypeMap.create(name: TestUtils.randString())
+        TypeMap locMap = TypeMap.create(address: TestUtils.randString())
+        TypeMap body2 = TypeMap.create(name: TestUtils.randString(),
+            timeout: Constants.DEFAULT_LOCK_TIMEOUT_MILLIS + 1,
+            awayMessageSuffix: TestUtils.randString(),
+            location: locMap)
+
+        service.locationService = GroovyMock(LocationService)
+
     	when: "we try to update a nonexistent organization"
-        Map updateInfo = [:]
-        Result res = service.update(-88L, updateInfo)
+        Result res = service.tryUpdate(null, null)
 
     	then:
-        res.success == false
         res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "organizationService.update.notFound"
 
     	when: "we update location with invalid fields"
-        updateInfo = [location:[
-            lat:-1000G,
-            lon:-888G
-        ]]
-        res = service.update(org.id, updateInfo)
+        res = service.tryUpdate(org1.id, body1)
 
     	then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 2
+        1 * service.locationService.tryUpdate(org1.location, TypeMap.create()) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload.name == body1.name
 
     	when: "we update with valid fields"
-        org.awayMessageSuffix = TestUtils.randString()
-        org.save(flush: true, failOnError: true)
-
-        String newName = "I am a new name"
-        BigInteger newLat = 22G, newLon = 22G
-        int newTimeout = Constants.DEFAULT_LOCK_TIMEOUT_MILLIS + 1
-        updateInfo = [
-            name:newName,
-            awayMessageSuffix: "",
-            timeout:newTimeout,
-            location:[
-                lat:newLat,
-                lon:newLon
-            ]
-        ]
-        res = service.update(org.id, updateInfo)
+        res = service.tryUpdate(org1.id, body2)
 
     	then:
-    	res.success == true
+        1 * service.locationService.tryUpdate(org1.location, locMap) >> Result.void()
+    	res.status == ResultStatus.OK
         res.payload instanceof Organization
-        res.payload.name == newName
-        res.payload.timeout == newTimeout
-        res.payload.awayMessageSuffix == ""
-        res.payload.location.lat == newLat
-        res.payload.location.lon == newLon
+        res.payload.name == body2.name
+        res.payload.timeout == body2.timeout
+        res.payload.awayMessageSuffix == body2.awayMessageSuffix
     }
 }

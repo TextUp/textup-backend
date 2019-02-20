@@ -8,14 +8,14 @@ import org.textup.type.*
 class ManagesDomain {
 
     interface Creater<T> {
-        Result<T> create(Long id, TypeMap body)
+        Result<T> tryCreate(Long id, TypeMap body)
     }
 
     interface Updater<T> {
-        Result<T> update(Long id, TypeMap body)
+        Result<T> tryUpdate(Long id, TypeMap body)
     }
 
     interface Deleter {
-        Result<Void> delete(Long id)
+        Result<Void> tryDelete(Long id)
     }
 }

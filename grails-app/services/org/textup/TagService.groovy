@@ -19,7 +19,7 @@ class TagService implements ManagesDomain.Creater<GroupPhoneRecord>, ManagesDoma
     TagActionService tagActionService
 
     @RollbackOnResultFailure
-    Result<GroupPhoneRecord> create(Long pId, TypeMap body) {
+    Result<GroupPhoneRecord> tryCreate(Long pId, TypeMap body) {
         Phones.mustFindActiveForId(pId)
             .then { Phone p1 -> GroupPhoneRecord.tryCreate(p1, body.string("name")) }
             .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
@@ -29,7 +29,7 @@ class TagService implements ManagesDomain.Creater<GroupPhoneRecord>, ManagesDoma
     }
 
     @RollbackOnResultFailure
-    Result<GroupPhoneRecord> update(Long grpId, TypeMap body) {
+    Result<GroupPhoneRecord> tryUpdate(Long grpId, TypeMap body) {
         GroupPhoneRecords.mustFindForId(grpId)
             .then { GroupPhoneRecord gpr1 -> trySetFields(gpr1, body) }
             .then { GroupPhoneRecord gpr1 -> tryNotifications(gpr1, body) }
@@ -37,7 +37,7 @@ class TagService implements ManagesDomain.Creater<GroupPhoneRecord>, ManagesDoma
     }
 
     @RollbackOnResultFailure
-    Result<Void> delete(Long gprId) {
+    Result<Void> tryDelete(Long gprId) {
         GroupPhoneRecords.mustFindForId(gprId)
             .then { GroupPhoneRecord gpr1 ->
                 gpr1.isDeleted = true

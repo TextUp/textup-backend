@@ -79,7 +79,7 @@ class BaseController {
 
         RequestUtils.tryGetJsonBody(req, key)
             .then { TypeMap body -> ClosureUtils.execute(checkAllowed, [body]).curry(body) }
-            .then { TypeMap body, Long id -> service.create(id, body) }
+            .then { TypeMap body, Long id -> service.tryCreate(id, body) }
             .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
@@ -88,13 +88,13 @@ class BaseController {
 
         RequestUtils.tryGetJsonBody(req, key)
             .then { TypeMap body -> ClosureUtils.execute(checkAllowed, [body]).curry(body) }
-            .then { TypeMap body, Long id -> service.update(id, body) }
+            .then { TypeMap body, Long id -> service.tryUpdate(id, body) }
             .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     protected void doDelete(ManagesDomain.Deleter service, Closure<Result<Long>> checkAllowed) {
         ClosureUtils.execute(checkAllowed, [])
-            .then { Long id -> service.delete(id) }
+            .then { Long id -> service.tryDelete(id) }
             .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 

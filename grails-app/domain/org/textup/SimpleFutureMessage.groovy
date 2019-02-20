@@ -36,7 +36,8 @@ class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureM
         SimpleFutureMessage sMsg = new SimpleFutureMessage(record: rec1,
             type: type,
             message: msg,
-            media: mInfo)
+            media: mInfo,
+            language: rec1?.language)
         DomainUtils.trySave(sMsg, ResultStatus.CREATED)
     }
 

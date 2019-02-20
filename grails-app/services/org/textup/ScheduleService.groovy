@@ -13,8 +13,8 @@ import org.textup.validator.*
 @Transactional
 class ScheduleService {
 
-    Result<Schedule> update(Schedule sched1, TypeMap body, String timezone) {
-        if (body) {
+    Result<Schedule> tryUpdate(Schedule sched1, TypeMap body, String timezone) {
+        if (sched1 && body) {
             trySetFields(sched1, body).then {
                 sched1.updateWithIntervalStrings(body, timezone)
             }

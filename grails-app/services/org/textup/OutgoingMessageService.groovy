@@ -23,8 +23,8 @@ class OutgoingMessageService {
         TempRecordItem temp1, Author author1, Future<Result<?>> mediaFuture = null) {
         // step 1: create initial domain classes
         ResultGroup<? extends RecordItem> resGroup = new ResultGroup<>()
-        r1.eachRecord { Record rec1 ->
-            resGroup << rec1.storeOutgoing(type, author1, temp1.text, temp1.media)
+        r1?.eachRecord { Record rec1 ->
+            resGroup << rec1.storeOutgoing(type, author1, temp1?.text, temp1?.media)
         }
         resGroup.toResult(false)
             .then { List<? extends RecordItem> rItems ->
@@ -32,16 +32,21 @@ class OutgoingMessageService {
                 // Spock integration tests are run inside of a transaction that is rolled back at the
                 // end of the test. This means that test data in the db is not accessible from another
                 // thread. This seeems to be a limitation of the integration testing environment only.
-                Future<?> future = threadService.delay(10, TimeUnit.SECONDS) {
-                    DehydratedRecipients.tryCreate(r1)
-                        .then { DehydratedRecipients dr1 ->
-                            DehydratedTempRecordItem.tryCreate(temp1).curry(dr1)
-                        }
-                        .thenEnd { DehydratedRecipients dr1, DehydratedTempRecordItem dTemp1 ->
-                            waitForMedia(type, resGroup.payload*.id, dr1, dTemp1, mediaFuture)
-                        }
+                if (rItems) {
+                    Future<?> future = threadService.delay(10, TimeUnit.SECONDS) {
+                        DehydratedRecipients.tryCreate(r1)
+                            .then { DehydratedRecipients dr1 ->
+                                DehydratedTempRecordItem.tryCreate(temp1).curry(dr1)
+                            }
+                            .thenEnd { DehydratedRecipients dr1, DehydratedTempRecordItem dTemp1 ->
+                                waitForMedia(type, resGroup.payload*.id, dr1, dTemp1, mediaFuture)
+                            }
+                    }
+                    IOCUtils.resultFactory.success(rItems, future)
                 }
-                IOCUtils.resultFactory.success(rItems, future)
+                else {
+                    IOCUtils.resultFactory.success(rItems, AsyncUtils.noOpFuture())
+                }
             }
     }
 
@@ -90,7 +95,7 @@ class OutgoingMessageService {
     protected Result<Void> sendAndStore(IndividualPhoneRecordWrapper w1, Collection<Record> records,
         TempRecordItem temp1, Map<Long, Collection<RecordItem>> recIdToItems, Token callToken) {
 
-        w1.tryGetOriginalPhone() // original phone so that sharing preserve client point of contact
+        w1.tryGetOriginalPhone() // original phone so that sharing preserves client point of contact
             .then { Phone p1 -> w1.tryGetSortedNumbers().curry(p1) }
             .then { Phone p1, List<ContactNumber> toNums ->
                 outgoingMediaService.trySend(p1.number, toNums, p1.customAccountId, temp1.text,
@@ -110,6 +115,7 @@ class OutgoingMessageService {
                                 ResultStatus.NOT_FOUND, [rec1.id, tempReceipts*.apiId])
                         }
                     }
+                    .logFail("sendAndStore")
                     .toEmptyResult(true)
             }
     }

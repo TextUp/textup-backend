@@ -14,18 +14,43 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-/**
- * See the API for {@link grails.test.mixin.services.ServiceUnitTestMixin} for usage instructions
- */
 @TestFor(ScheduleService)
 class ScheduleServiceSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
     def setup() {
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-    }
+    void "test updating"() {
+        given:
+        String tz = TestUtils.randString()
+        Schedule sched1 = GroovyMock() { asBoolean() >> true }
+        TypeMap body = TypeMap.create(manual: true, manualIsAvailable: true)
 
-    void "test something"() {
+        when:
+        Result res = service.tryUpdate(null, null, null)
+
+        then:
+        notThrown NullPointerException
+        res.status == ResultStatus.OK
+        res.payload == null
+
+        when:
+        res = service.tryUpdate(sched1, body, tz)
+
+        then:
+        1 * sched1.with(_ as Closure) >> { args ->
+            args[0].setDelegate(sched1)
+            args[0].call()
+        }
+        1 * sched1.setManual(true)
+        1 * sched1.setManualIsAvailable(true)
+        1 * sched1.save() >> sched1
+        1 * sched1.updateWithIntervalStrings(body, tz) >> Result.createSuccess(sched1)
+        res.status == ResultStatus.OK
     }
 }

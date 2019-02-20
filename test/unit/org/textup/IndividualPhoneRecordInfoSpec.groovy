@@ -17,6 +17,14 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class IndividualPhoneRecordInfoSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     void "test creation"() {
         given:
         Long id = TestUtils.randIntegerUpTo(88)

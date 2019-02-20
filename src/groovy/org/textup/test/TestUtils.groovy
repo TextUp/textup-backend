@@ -98,6 +98,8 @@ class TestUtils {
 
     static String randEmail() { "${TestUtils.randString()}@textup.org" }
 
+    static TypeMap randTypeMap() { TypeMap.create((TestUtils.randString()): TestUtils.randString()) }
+
     static String encodeBase64String(byte[] rawData) {
         Base64.encodeBase64String(rawData)
     }
@@ -526,6 +528,19 @@ class TestUtils {
             TestUtils.randIntegerUpTo(88, true),
             TestUtils.randIntegerUpTo(88, true),
             TestUtils.randString())
+    }
+
+    static TempRecordItem buildTempRecordItem() {
+        TempRecordItem
+            .tryCreate(TestUtils.randString(), TestUtils.buildMediaInfo(), TestUtils.buildLocation())
+            .payload
+    }
+
+    // TODO needed?
+    static Recipients buildRecipients() {
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
+        Recipients.tryCreate([ipr1], lang1, 10).payload
     }
 
     // Mocking

@@ -20,10 +20,10 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
     TeamActionService teamActionService
 
     @RollbackOnResultFailure
-    Result<Team> create(Long orgId, TypeMap body) {
+    Result<Team> tryCreate(Long orgId, TypeMap body) {
         Organizations.mustFindForId(orgId)
             .then { Organization org1 ->
-                locationService.create(body.typeMapNoNull("location")).curry(org1)
+                locationService.tryCreate(body.typeMapNoNull("location")).curry(org1)
             }
             .then { Organization org1, Location loc1 ->
                 Team.tryCreate(org1, body.string("name"), loc1)
@@ -38,7 +38,7 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
     }
 
     @RollbackOnResultFailure
-    Result<Team> update(Long tId, TypeMap body) {
+    Result<Team> tryUpdate(Long tId, TypeMap body) {
         Teams.mustFindForId(tId)
             .then { Team t1 -> trySetFields(t1, body) }
             .then { Team t1  ->
@@ -53,7 +53,7 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
     }
 
     @RollbackOnResultFailure
-    Result<Void> delete(Long tId) {
+    Result<Void> tryDelete(Long tId) {
         Teams.mustFindForId(tId)
             .then { Team t1 ->
                 t1.isDeleted = true
@@ -80,6 +80,6 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
         AuthUtils.tryGetAuthId()
             .then { Long authId -> Organizations.tryIfAdmin(t1.org.id, authId) }
             .then { Phones.mustFindActiveForOwner(t1.id, PhoneOwnershipType.GROUP, true) }
-            .then { Phone p1 -> phoneService.update(p1, phoneInfo, timezone) }
+            .then { Phone p1 -> phoneService.tryUpdate(p1, phoneInfo, timezone) }
     }
 }

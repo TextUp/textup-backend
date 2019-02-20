@@ -106,6 +106,30 @@ class ResultSpec extends Specification {
         successRes.then { byte[] payload -> returnValue } == returnValue
     }
 
+    void "test currying with a single null value"() {
+        given:
+        def curriedVal1 = TestUtils.randString()
+        def curriedVal2 = TestUtils.randString()
+
+        when:
+        Result.createSuccess(10)
+            .curry(null)
+            .thenEnd { arg1 -> curriedVal1 = arg1 }
+
+        then:
+        notThrown NullPointerException
+        curriedVal1 == null
+
+        when:
+        Result.createError([], ResultStatus.UNPROCESSABLE_ENTITY)
+            .curryFailure(null)
+            .ifFailEnd { arg1 -> curriedVal2 = arg1 }
+
+        then:
+        notThrown NullPointerException
+        curriedVal1 == null
+    }
+
     void "test currying arguments for failure when chaining"() {
         given:
         Result<Location> thisLocRes = Result.createSuccess(TestUtils.buildLocation())
@@ -115,7 +139,7 @@ class ResultSpec extends Specification {
 
         when: "subsequent handler with zero arguments"
         Result res = Result.createError([msg], ResultStatus.UNPROCESSABLE_ENTITY)
-            .curry(curry1, curry2)
+            .curryFailure(curry1, curry2)
             .ifFail { -> thisLocRes }
 
         then:
@@ -123,7 +147,7 @@ class ResultSpec extends Specification {
 
         when: "subsequent handler with exact number of arguments"
         res = Result.createError([msg], ResultStatus.UNPROCESSABLE_ENTITY)
-            .curry(curry1, curry2)
+            .curryFailure(curry1, curry2)
             .ifFail { Integer a1, String a2, Result a3 -> thisLocRes }
 
         then:
@@ -131,7 +155,7 @@ class ResultSpec extends Specification {
 
         when: "subsequent handler with too few arguments"
         res = Result.createError([msg], ResultStatus.UNPROCESSABLE_ENTITY)
-            .curry(curry1, curry2)
+            .curryFailure(curry1, curry2)
             .ifFail { Integer a1 -> thisLocRes }
 
         then:
@@ -140,7 +164,7 @@ class ResultSpec extends Specification {
         when: "subsequent handler with too many arguments"
         def extraArg
         res = Result.createError([msg], ResultStatus.UNPROCESSABLE_ENTITY)
-            .curry(curry1, curry2)
+            .curryFailure(curry1, curry2)
             .ifFail { Integer a1, String a2, Result a3, Boolean a4 ->
                 extraArg = a4
                 thisLocRes
@@ -152,33 +176,11 @@ class ResultSpec extends Specification {
 
         when: "incorrect arg types"
         res = Result.createError([msg], ResultStatus.UNPROCESSABLE_ENTITY)
-            .curry(curry1, curry2)
+            .curryFailure(curry1, curry2)
             .ifFail { String a1, Integer a2, Boolean a3 -> thisLocRes }
 
         then:
         thrown MissingMethodException
-    }
-
-    void "test currying with a single null value"() {
-        given:
-        def curriedVal1 = TestUtils.randString()
-        def curriedVal2 = TestUtils.randString()
-
-        when:
-        Result.createSuccess(10).curry(null)
-            .thenEnd { arg1 -> curriedVal1 = arg1 }
-
-        then:
-        notThrown NullPointerException
-        curriedVal1 == null
-
-        when:
-        Result.createError([], ResultStatus.UNPROCESSABLE_ENTITY).curry(null)
-            .ifFailEnd { arg1 -> curriedVal2 = arg1 }
-
-        then:
-        notThrown NullPointerException
-        curriedVal1 == null
     }
 
     void "test currying and clearing currying"() {
@@ -190,9 +192,10 @@ class ResultSpec extends Specification {
         Result failRes = Result.createError([TestUtils.randString()], ResultStatus.UNPROCESSABLE_ENTITY)
 
         when: "currying"
-        successRes.curry(curry1)
-            .currySuccess(successCurry1)
-        failRes.curry(curry1)
+        successRes
+            .curry(curry1, successCurry1)
+        failRes
+            .curry(curry1)
             .curryFailure(failCurry1)
 
         then:
@@ -201,16 +204,17 @@ class ResultSpec extends Specification {
             assert a2 == successCurry1;
             Result.void()
         }
-        failRes.ifFail { Integer a1, Boolean a2, Result a3 ->
-            assert a1 == curry1;
+        failRes.ifFail { Boolean a2, Result a3 ->
             assert a2 == failCurry1;
             Result.void()
         }
 
         when: "clearing curry"
         successRes.clearCurry()
+        successRes.clearCurryFailure()
         successRes.resetErrorHandling()
         failRes.clearCurry()
+        failRes.clearCurryFailure()
         failRes.resetErrorHandling()
 
         then: "reset back to default types without calling error"
@@ -329,7 +333,7 @@ class ResultSpec extends Specification {
         timesCalled == 2
     }
 
-    void "test catchall handlers"() {
+    void "test catch-all handlers"() {
         given:
         int timesCalled = 0
         Closure action = { ++timesCalled; Result.void(); }
@@ -338,8 +342,10 @@ class ResultSpec extends Specification {
         Result failRes = Result.createError([], ResultStatus.BAD_REQUEST)
 
         when:
-        res.alwaysEnd(action)
-        failRes.ifFail(action)
+        res
+            .alwaysEnd(action)
+        failRes
+            .ifFail(action)
             .alwaysEnd(action)
 
         then:
@@ -347,7 +353,8 @@ class ResultSpec extends Specification {
         failRes.hasErrorBeenHandled() == true
 
         when:
-        failRes.ifFail(action)
+        failRes
+            .ifFail(action)
             .alwaysEnd(action)
 
         then: "`alwaysEnd` called even if error already handled"

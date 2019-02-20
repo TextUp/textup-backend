@@ -20,7 +20,7 @@ class PhoneService {
     OwnerPolicyService ownerPolicyService
     PhoneActionService phoneActionService
 
-    Result<Phone> update(Phone p1, TypeMap body, String timezone) {
+    Result<Phone> tryUpdate(Phone p1, TypeMap body, String timezone) {
         Future<?> future
         mediaService.tryCreateOrUpdate(p1, body, true)
             .then { Future<?> fut1 ->
@@ -63,7 +63,7 @@ class PhoneService {
                 .then { Long authId ->
                     OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, authId)
                 }
-                .then { OwnerPolicy op1 -> ownerPolicyService.update(op1, oInfo, timezone) }
+                .then { OwnerPolicy op1 -> ownerPolicyService.tryUpdate(op1, oInfo, timezone) }
                 .then { DomainUtils.trySave(p1) }
         }
         else { DomainUtils.trySave(p1) }

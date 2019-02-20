@@ -28,7 +28,7 @@ class IndividualPhoneRecord extends PhoneRecord {
     }
 
     static Result<IndividualPhoneRecord> tryCreate(Phone p1) {
-        Record.tryCreate()
+        Record.tryCreate(p1?.language)
             .then { Record rec1 ->
                 IndividualPhoneRecord ipr1 = new IndividualPhoneRecord(phone: p1, record: rec1)
                 DomainUtils.trySave(ipr1, ResultStatus.CREATED)

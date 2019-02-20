@@ -34,6 +34,7 @@ class GroupPhoneRecordSpec extends Specification {
     void "test creation + constraints"() {
         given:
         Phone p1 = TestUtils.buildStaffPhone()
+        p1.language = VoiceLanguage.CHINESE
         String name = TestUtils.randString()
         int rBaseline = Record.count()
         int prmBaseline = PhoneRecordMembers.count()
@@ -57,6 +58,7 @@ class GroupPhoneRecordSpec extends Specification {
         res.payload.members != null
         res.payload.record != null
         res.payload.name == name
+        res.payload.record.language == p1.language
         Record.count() == rBaseline + 1
         PhoneRecordMembers.count() == prmBaseline + 1
 

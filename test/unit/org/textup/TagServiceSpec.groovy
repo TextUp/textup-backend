@@ -7,14 +7,13 @@ import grails.test.mixin.support.*
 import grails.test.runtime.*
 import grails.validation.*
 import org.joda.time.*
+import org.textup.action.*
 import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
-
-// TODO
 
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
@@ -24,280 +23,129 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(TagService)
 @TestMixin(HibernateTestMixin)
-class TagServiceSpec extends CustomSpec {
+class TagServiceSpec extends Specification {
 
-    // static doWithSpring = {
-    //     resultFactory(ResultFactory)
-    // }
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    // def setup() {
-    //     setupData()
-    //     service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-    //     service.notificationService = [
-    //         handleNotificationActions: { Phone p1, Long recordId, Object rawActions ->
-    //             new Result(status:ResultStatus.NO_CONTENT, payload:null)
-    //         }
-    //     ] as NotificationService
-    //     FutureMessage.metaClass.refreshTrigger = { -> null }
-    // }
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-    // def cleanup() {
-    //     cleanupData()
-    // }
+    void "test updating notification settings"() {
+        given:
+        TypeMap body = TestUtils.randTypeMap()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
 
-    // // Create
-    // // ------
+        service.notificationActionService = GroovyMock(NotificationActionService)
 
-    // void "test create"() {
-    //     given: "baselines"
-    //     int tBaseline = ContactTag.count()
-    //     int rBaseline = Record.count()
+        when:
+        Result res = service.tryNotifications(gpr1, body)
 
-    // 	when: "we create for a nonexistent Team"
-    //     Map createInfo = [name:"Tag 1"]
-    //     Result res = service.create(null, createInfo)
+        then:
+        1 * service.notificationActionService.tryHandleActions(
+            { it.first == gpr1.phone && it.second == gpr1.record.id },
+            body) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == gpr1
+    }
 
-    // 	then:
-    //     res.success == false
-    //     res.errorMessages[0] == "tagService.create.noPhone"
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     ContactTag.count() == tBaseline
-    //     Record.count() == rBaseline
+    void "test updating fields"() {
+        given:
+        TypeMap body = TypeMap.create(name: TestUtils.randString(),
+            hexColor: "#112233",
+            language: VoiceLanguage.KOREAN)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
 
-    // 	when: "we create tag with a unique name"
-    //     createInfo.language = VoiceLanguage.KOREAN.toString()
-    //     res = service.create(t1.phone, createInfo)
+        when:
+        Result res = service.trySetFields(gpr1, body)
 
-    // 	then:
-    //     res.success == true
-    //     res.status == ResultStatus.CREATED
-    //     res.payload instanceof ContactTag
-    //     res.payload.language == VoiceLanguage.KOREAN
-    //     res.payload.name == createInfo.name
-    //     ContactTag.count() == tBaseline + 1
-    //     Record.count() == rBaseline + 1
-    // }
+        then:
+        res.status == ResultStatus.OK
+        res.payload == gpr1
+        gpr1.name == body.name
+        gpr1.hexColor == body.hexColor
+        gpr1.record.language == body.language
+    }
 
-    // // Update
-    // // ------
+    void "test deleting"() {
+        given:
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
 
-    // void "test find tag from id"() {
-    //     when: "nonexistent tag"
-    //     Result res = service.findTagFromId(-88L)
+        MockedMethod tryCancelFutureMessages = MockedMethod.create(gpr1, "tryCancelFutureMessages") {
+            Result.void()
+        }
 
-    //     then:
-    //     res.success == false
-    //     res.errorMessages[0] == "tagService.update.notFound"
-    //     res.status == ResultStatus.NOT_FOUND
+        when:
+        Result res = service.tryDelete(gpr1.id)
 
-    //     when: "existing tag"
-    //     res = service.findTagFromId(tag1.id)
+        then:
+        tryCancelFutureMessages.callCount == 1
+        res.status == ResultStatus.NO_CONTENT
+        gpr1.isDeleted == true
 
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof ContactTag
-    //     res.payload.id == tag1.id
-    // }
+        cleanup:
+        tryCancelFutureMessages?.restore()
+    }
 
-    // void "test update tag info"() {
-    //     given: "baselines"
-    //     int tBaseline = ContactTag.count()
+    void "test updating"() {
+        given:
+        TypeMap body = TestUtils.randTypeMap()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
 
-    //     when: "update with invalid fields"
-    //     Map updateInfo = [name:"Tag888", hexColor:"invalid"]
-    //     Result res = service.updateTagInfo(tag2, updateInfo)
+        service.tagActionService = GroovyMock(TagActionService)
+        MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") {
+            Result.createSuccess(gpr1)
+        }
+        MockedMethod tryNotifications = MockedMethod.create(service, "tryNotifications") {
+            Result.createSuccess(gpr1)
+        }
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    //     ContactTag.count() == tBaseline
+        when:
+        Result res = service.tryUpdate(gpr1.id, body)
 
-    //     when: "we update with valid fields and tagActions"
-    //     updateInfo.hexColor = "#123"
-    //     res = service.updateTagInfo(tag2, updateInfo)
-    //     assert res.success
-    //     tag2.save(flush:true, failOnError:true)
+        then:
+        trySetFields.latestArgs == [gpr1, body]
+        tryNotifications.latestArgs == [gpr1, body]
+        1 * service.tagActionService.tryHandleActions(gpr1, body) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
 
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof ContactTag
-    //     res.payload.name == updateInfo.name
-    //     res.payload.hexColor == updateInfo.hexColor
-    //     ContactTag.count() == tBaseline
-    // }
+        cleanup:
+        trySetFields?.restore()
+        tryNotifications?.restore()
+    }
 
-    // void "test updating with notification actions"() {
-    //     given: "baselines"
-    //     int tBaseline = ContactTag.count()
+    void "test creating"() {
+        given:
+        TypeMap body = TypeMap.create(name: TestUtils.randString())
 
-    //     when: "we try to delete nonexistent number"
-    //     Map notifActions = [doNotificationActions:[[hello:"yes"]]]
-    //     Result res = service.handleNotificationActions(tag1, notifActions)
+        Phone tp1 = TestUtils.buildActiveTeamPhone()
 
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof ContactTag
-    //     res.payload.id == tag1.id
-    //     ContactTag.count() == tBaseline
-    // }
+        service.tagActionService = GroovyMock(TagActionService)
+        MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") { GroupPhoneRecord gpr1 ->
+            Result.createSuccess(gpr1)
+        }
+        MockedMethod tryNotifications = MockedMethod.create(service, "tryNotifications") { GroupPhoneRecord gpr1 ->
+            Result.createSuccess(gpr1)
+        }
 
-    // void "test tag actions invalid"() {
-    //     when: "we try to update with tag actions that is not list"
-    //     Map updateInfo = [doTagActions:"I am not a list"]
-    //     Result res = service.doTagActions(tag1, updateInfo)
+        when:
+        Result res = service.tryCreate(tp1.id, body)
 
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    //     res.errorMessages.contains("emptyOrNotACollection")
+        then:
+        trySetFields.latestArgs[1] == body
+        tryNotifications.latestArgs[1] == body
+        1 * service.tagActionService.tryHandleActions(_, body) >> { args ->
+            Result.createSuccess(args[0])
+        }
+        res.status == ResultStatus.CREATED
+        res.payload instanceof GroupPhoneRecord
+        res.payload.phone == tp1
+        res.payload.name == body.name
 
-    //     when: "we try to update tag action with nonexistent contact"
-    //     updateInfo = [doTagActions:[
-    //         [id:-88L, action:Constants.TAG_ACTION_ADD]
-    //     ]]
-    //     res = service.doTagActions(tag1, updateInfo)
-
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    //     res.errorMessages.contains("actionContainer.invalidActions")
-
-    //     when: "we try to update tag action with forbidden contact"
-    //     updateInfo = [doTagActions:[
-    //         [id:tC1.id, action:Constants.TAG_ACTION_ADD]
-    //     ]]
-    //     res = service.doTagActions(tag1, updateInfo)
-
-    //     then:
-    //     res.success == false
-    //     res.errorMessages[0] == "tagService.update.contactForbidden"
-    //     res.status == ResultStatus.FORBIDDEN
-
-    //     when: "we update with tag action with unspecified action"
-    //     updateInfo = [doTagActions:[
-    //         [id:c2.id, action:"invalid"]
-    //     ]]
-    //     res = service.doTagActions(tag2, updateInfo)
-
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-    //     res.errorMessages.contains("actionContainer.invalidActions")
-    // }
-
-    // void "test tag actions valid"() {
-    //     given: "no members in tag"
-    //     tag2.members?.clear()
-    //     tag2.save(flush:true, failOnError:true)
-
-    //     when: "add contact to tag"
-    //     Map updateInfo = [doTagActions:[
-    //         [id:c2.id, action:Constants.TAG_ACTION_ADD]
-    //     ]]
-    //     Result res = service.doTagActions(tag2, updateInfo)
-    //     assert res.success
-    //     tag2.save(flush:true, failOnError:true)
-
-    //     then:
-    //     tag2.members.size() == 1
-    //     tag2.members.contains(c2)
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof ContactTag
-    //     res.payload.id == tag2.id
-
-    //     when: "remove contact from tag"
-    //     updateInfo = [doTagActions:[
-    //         [id:c2.id, action:Constants.TAG_ACTION_REMOVE]
-    //     ]]
-    //     res = service.doTagActions(tag2, updateInfo)
-    //     assert res.success
-    //     tag2.save(flush:true, failOnError:true)
-
-    //     then:
-    //     tag2.members.isEmpty() == true
-    //     tag2.members.contains(c2) == false
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof ContactTag
-    //     res.payload.id == tag2.id
-    // }
-
-    // void "test update overall"() {
-    //     when: "invalid update"
-    //     Map updateInfo = [name:"Tag888", hexColor:"invalid"]
-    //     Result res = service.update(tag2.id, updateInfo)
-
-    //     then:
-    //     res.success == false
-    //     res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    //     res.errorMessages.size() == 1
-
-    //     when: "valid update"
-    //     updateInfo.hexColor = "#123"
-    //     updateInfo.language = VoiceLanguage.JAPANESE.toString()
-    //     res = service.update(tag2.id, updateInfo)
-    //     res.payload.save(flush:true, failOnError:true)
-
-    //     then:
-    //     res.success == true
-    //     res.status == ResultStatus.OK
-    //     res.payload instanceof ContactTag
-    //     res.payload.id == tag2.id
-    //     res.payload.name == updateInfo.name
-    //     res.payload.hexColor == updateInfo.hexColor
-    //     res.payload.language == VoiceLanguage.JAPANESE
-    // }
-
-    // // Delete
-    // // ------
-
-    // void "test delete"() {
-    //     given:
-    //     service.futureMessageJobService = Stub(FutureMessageJobService) {
-    //         cancelAll(*_) >> new ResultGroup()
-    //     }
-
-    // 	when: "we delete a nonexistent tag"
-    //     Result res = service.delete(-88L)
-
-    // 	then:
-    //     res.success == false
-    //     res.errorMessages[0] == "tagService.delete.notFound"
-    //     res.status == ResultStatus.NOT_FOUND
-
-    // 	when: "we delete an existing team tag"
-    //     res = service.delete(teTag1.id)
-    //     assert res.success
-    //     t1.merge(flush:true, failOnError:true)
-
-    // 	then:
-    //     res.status == ResultStatus.NO_CONTENT
-    //     teTag1.phone.tags.contains(teTag1) == false
-    //     teTag1.members.every { !it.tags.contains(teTag1) }
-    // }
-
-    // void "test delete for tag with future messages"() {
-    //     given:
-    //     service.futureMessageJobService = Mock(FutureMessageJobService)
-
-    //     FutureMessage fMsg1 = new FutureMessage(record:tag1.record,
-    //         type:FutureMessageType.CALL, message:"hi")
-    //     fMsg1.save(flush:true, failOnError:true)
-    //     int numFutureMsgs = tag1.record.countFutureMessages()
-
-    //     when: "deleting"
-    //     Result<Void> res = service.delete(tag1.id)
-    //     ContactTag.withSession { it.flush() }
-
-    //     then: "tag marked as deleted and all future messages cancelled"
-    //     1 * service.futureMessageJobService.cancelAll({ it.size() == numFutureMsgs }) >> new ResultGroup()
-    //     res.status == ResultStatus.NO_CONTENT
-    //     tag1.isDeleted == true
-    // }
+        cleanup:
+        trySetFields?.restore()
+        tryNotifications?.restore()
+    }
 }
