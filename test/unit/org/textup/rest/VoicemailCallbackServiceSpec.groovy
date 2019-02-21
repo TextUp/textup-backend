@@ -23,151 +23,86 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 @TestFor(VoicemailCallbackService)
-class VoicemailCallbackServiceSpec extends CustomSpec {
+class VoicemailCallbackServiceSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
-
-    // Voicemail message
-    // -----------------
-
-    void "test updating record call with voicemail info"() {
-        given:
-        RecordCall rCall1 = new RecordCall(record: rText1.record)
-        rCall1.save(flush: true, failOnError: true)
-        DateTime originalActivityTimestamp = rCall1.record.lastRecordActivity
-        List<MediaElement> eList = []
-        10.times { eList << TestUtils.buildMediaElement() }
-        eList*.save(flush: true, failOnError: true)
-
-        int mBaseline = MediaInfo.count()
-        int eBaseline = MediaElement.count()
-        int vBaseline = MediaElementVersion.count()
-
-        when: "call does not have media already"
-        int duration = 888
-        Result<RecordCall> res = service.updateVoicemailForCall(rCall1, duration, eList)
-        RecordCall.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload.media != null
-        res.payload.hasAwayMessage == true
-        res.payload.voicemailInSeconds == duration
-        res.payload.record.lastRecordActivity.isAfter(originalActivityTimestamp)
-        MediaInfo.count() == mBaseline + 1
-        MediaElement.count() == eBaseline
-        MediaElementVersion.count() == vBaseline
-
-        when: "call has existing media"
-        duration = 1000
-        originalActivityTimestamp = res.payload.record.lastRecordActivity
-        res = service.updateVoicemailForCall(rCall1, duration, eList)
-        RecordCall.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload.media != null
-        res.payload.hasAwayMessage == true
-        res.payload.voicemailInSeconds == duration
-        res.payload.record.lastRecordActivity.isAfter(originalActivityTimestamp)
-        MediaInfo.count() == mBaseline + 1
-        MediaElement.count() == eBaseline
-        MediaElementVersion.count() == vBaseline
-    }
-
-    @DirtiesRuntime
     void "test processing voicemail message"() {
         given:
-        MediaElement e1 = TestUtils.buildMediaElement()
-        e1.save(flush: true, failOnError: true)
-        RecordCall rCall1 = new RecordCall(record: rText1.record)
-        RecordItemReceipt rpt = TestUtils.buildReceipt()
-        rCall1.addToReceipts(rpt)
-        rCall1.save(flush: true, failOnError: true)
+        int duration = TestUtils.randIntegerUpTo(88)
+        RecordCall rCall1 = TestUtils.buildRecordCall()
+        RecordItemReceipt rpt1 = TestUtils.buildReceipt()
+        rCall1.addToReceipts(rpt1)
+        MediaElement el1 = TestUtils.buildMediaElement()
 
-        int mBaseline = MediaInfo.count()
-        int eBaseline = MediaElement.count()
-        int vBaseline = MediaElementVersion.count()
-        service.incomingMediaService = Mock(IncomingMediaService)
-        service.socketService = Mock(SocketService)
-        IncomingRecordingInfo ir1 = Mock(IncomingRecordingInfo)
-        MockedMethod updateVoicemailForCall = MockedMethod.create(service, "updateVoicemailForCall")
-            { RecordCall call -> new Result(payload: call) }
+        service.incomingMediaService = GroovyMock(IncomingMediaService)
+        service.socketService = GroovyMock(SocketService)
+        IncomingRecordingInfo ir1 = GroovyMock()
+        MockedMethod tryUpdateVoicemail = MockedMethod.create(RecordCall, "tryUpdateVoicemail")
+            { RecordCall call -> Result.createSuccess(call) }
 
         when: "incoming media service does not return any media elements"
-        ResultGroup<RecordCall> resGroup = service.processVoicemailMessage(rpt.apiId, 0, ir1)
-        RecordCall.withSession { it.flush() }
+        Result res = service.processVoicemailMessage(rpt1.apiId, duration, ir1)
 
         then: "recording info is marked as PRIVATE"
         1 * ir1.setIsPublic(false)
-        1 * service.incomingMediaService.process(*_) >>
-            Result.createError(["hi"], ResultStatus.BAD_REQUEST).toGroup()
+        1 * service.incomingMediaService.process([ir1]) >> Result.createError([], ResultStatus.BAD_REQUEST)
+        tryUpdateVoicemail.notCalled
         0 * service.socketService._
-        updateVoicemailForCall.callCount == 0
-        resGroup.anyFailures == true
-        MediaInfo.count() == mBaseline
-        MediaElement.count() == eBaseline
-        MediaElementVersion.count() == vBaseline
+        res.status == ResultStatus.BAD_REQUEST
 
         when: "does return some processed media elements"
-        resGroup = service.processVoicemailMessage(rpt.apiId, 0, ir1)
-        RecordCall.withSession { it.flush() }
+        res = service.processVoicemailMessage(rpt1.apiId, duration, ir1)
 
         then: "delegates to update call for voicemail helper method"
         1 * ir1.setIsPublic(false)
-        1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
-        1 * service.socketService.sendItems(*_)
-        updateVoicemailForCall.callCount == 1
-        resGroup.payload.size() == 1
-        resGroup.payload[0].id == rCall1.id
-    }
+        1 * service.incomingMediaService.process([ir1]) >> Result.createSuccess([el1])
+        tryUpdateVoicemail.latestArgs == [rCall1, duration, [el1]]
+        1 * service.socketService.sendItems([rCall1])
+        res.status == ResultStatus.NO_CONTENT
 
-    // Voicemail greeting
-    // ------------------
+        cleanup:
+        tryUpdateVoicemail?.restore()
+    }
 
     void "test processing voicemail greeting"() {
         given:
+        String callId = TestUtils.randString()
+
+        Phone p1 = TestUtils.buildActiveStaffPhone()
         CustomAccountDetails cad1 = TestUtils.buildCustomAccountDetails()
         p1.customAccount = cad1
-        MediaElement e1 = TestUtils.buildMediaElement()
-        [p1, e1]*.save(flush: true, failOnError: true)
+        MediaElement el1 = TestUtils.buildMediaElement()
 
         int mBaseline = MediaInfo.count()
         int eBaseline = MediaElement.count()
         int vBaseline = MediaElementVersion.count()
-        service.incomingMediaService = Mock(IncomingMediaService)
-        service.callService = Mock(CallService)
-        service.socketService = Mock(SocketService)
-        service.threadService = Mock(ThreadService)
-        IncomingRecordingInfo ir1 = Mock()
+
+        IncomingRecordingInfo ir1 = GroovyMock()
+        service.incomingMediaService = GroovyMock(IncomingMediaService)
+        service.socketService = GroovyMock(SocketService)
+        service.threadService = GroovyMock(ThreadService)
+        service.callService = GroovyMock(CallService)
 
         when:
-        Result<Void> res = service.finishedProcessingVoicemailGreeting(null, null, ir1)
+        Result res = service.finishProcessingVoicemailGreeting(null, null, null)
 
         then:
         res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "voicemailService.finishedProcessingVoicemailGreeting.phoneNotFound"
 
         when: "error in processing recordings"
-        res = service.finishedProcessingVoicemailGreeting(p1.id, null, ir1)
+        res = service.finishProcessingVoicemailGreeting(p1.id, callId, ir1)
         RecordCall.withSession { it.flush() }
 
         then: "recordings are marked as PUBLIC"
         1 * ir1.setIsPublic(true)
-        1 * service.incomingMediaService.process(*_) >>
-            Result.createError(["hi"], ResultStatus.BAD_REQUEST).toGroup()
-        0 * service.socketService._
-        0 * service.threadService._
+        1 * service.incomingMediaService.process([ir1]) >> Result.createError([], ResultStatus.BAD_REQUEST)
         res.status == ResultStatus.BAD_REQUEST
         p1.media == null
         MediaInfo.count() == mBaseline
@@ -175,33 +110,35 @@ class VoicemailCallbackServiceSpec extends CustomSpec {
         MediaElementVersion.count() == vBaseline
 
         when: "successfully processed recordings -- phone does not have existing media"
-        res = service.finishedProcessingVoicemailGreeting(p1.id, null, ir1)
+        res = service.finishProcessingVoicemailGreeting(p1.id, callId, ir1)
         RecordCall.withSession { it.flush() }
 
         then:
         1 * ir1.setIsPublic(true)
-        1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
-        1 * service.socketService.sendPhone(*_)
+        1 * service.incomingMediaService.process([ir1]) >> Result.createSuccess([el1])
+        1 * service.socketService.sendPhone(p1)
         1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
-        1 * service.callService.interrupt(_, _, cad1.accountId) >> new Result()
+        1 * service.callService.interrupt(callId, _, cad1.accountId) >> Result.void()
         res.status == ResultStatus.NO_CONTENT
         p1.media != null
+        el1 in p1.media.mediaElements
         MediaInfo.count() == mBaseline + 1
         MediaElement.count() == eBaseline
         MediaElementVersion.count() == vBaseline
 
         when: "successfully processed recordings -- phone has existing media"
-        res = service.finishedProcessingVoicemailGreeting(p1.id, null, ir1)
+        res = service.finishProcessingVoicemailGreeting(p1.id, callId, ir1)
         RecordCall.withSession { it.flush() }
 
         then:
         1 * ir1.setIsPublic(true)
-        1 * service.incomingMediaService.process(*_) >> new Result(payload:[e1]).toGroup()
-        1 * service.socketService.sendPhone(*_)
+        1 * service.incomingMediaService.process([ir1]) >> Result.createSuccess([el1])
+        1 * service.socketService.sendPhone(p1)
         1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
-        1 * service.callService.interrupt(_, _, cad1.accountId) >> new Result()
+        1 * service.callService.interrupt(callId, _, cad1.accountId) >> Result.void()
         res.status == ResultStatus.NO_CONTENT
         p1.media != null
+        el1 in p1.media.mediaElements
         MediaInfo.count() == mBaseline + 1
         MediaElement.count() == eBaseline
         MediaElementVersion.count() == vBaseline

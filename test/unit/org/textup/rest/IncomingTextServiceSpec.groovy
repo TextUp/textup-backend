@@ -1,6 +1,8 @@
 package org.textup.rest
 
-import grails.test.mixin.TestFor
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -10,197 +12,206 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
+@TestMixin(HibernateTestMixin)
 @TestFor(IncomingTextService)
 class IncomingTextServiceSpec extends Specification {
 
-    // // Texts
-    // // -----
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    // void "test build texts helper"() {
-    //     given:
-    //     IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
-    //     assert text.validate()
-    //     IncomingSession session = new IncomingSession(phone:p1, numberAsString: "1112223333")
-    //     assert session.save(flush: true, failOnError: true)
-    //     RecordText rText1
-    //     Closure<Void> storeText = { rText1 = it }
-    //     int tBaseline = RecordText.count()
-    //     int rptBaseline = RecordItemReceipt.count()
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-    //     when:
-    //     assert service.buildTextsHelper(text, session, storeText, c1) == null
-    //     RecordText.withSession { it.flush() }
+    void "test building texts"() {
+        given:
+        String apiId = TestUtils.randString()
+        String message = TestUtils.randString()
+        Integer numSegments = TestUtils.randIntegerUpTo(88, true)
 
-    //     then: "new text created + closure called"
-    //     rText1 instanceof RecordText
-    //     RecordText.count() == tBaseline + 1
-    //     RecordItemReceipt.count() == rptBaseline + 1
-    // }
+        Phone tp1 = TestUtils.buildTeamPhone()
+        IncomingSession is1 = TestUtils.buildSession()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+        spr1.permission = SharePermission.NONE
 
-    // void "test building texts overall"() {
-    //     given:
-    //     service.socketService = GroovyMock(SocketService)
-    //     Phone newPhone = new Phone(numberAsString:TestUtils.randPhoneNumberString())
-    //     newPhone.updateOwner(s1)
-    //     newPhone.save(flush:true, failOnError:true)
-    //     IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
-    //     assert text.validate()
-    //     IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: "1112223333")
-    //     assert sess1.save(flush: true, failOnError: true)
+        int textBaseline = RecordText.count()
 
-    //     int cBaseline = Contact.count()
-    //     int rBaseline = Record.count()
-    //     int tBaseline = RecordText.count()
-    //     int rptBaseline = RecordItemReceipt.count()
+        service.socketService = GroovyMock(SocketService)
+        MockedMethod tryMarkUnread = MockedMethod.create(PhoneRecordUtils, "tryMarkUnread") {
+            Result.createSuccess([ipr1, spr1]*.toWrapper())
+        }
 
-    //     when:
-    //     Result<Tuple<List<RecordText>, List<Contact>>> res = service.buildTexts(newPhone, text, sess1)
-    //     Contact.withSession { it.flush() }
+        when:
+        Result res = service.buildTexts(tp1, is1, apiId, message, numSegments)
 
-    //     then: "new contact and text is created"
-    //     1 * service.socketService.sendContacts(*_)
-    //     res.status == ResultStatus.OK
-    //     res.payload.first.size() == 1
-    //     res.payload.first[0].contents == text.message
-    //     res.payload.second.size() == 1
-    //     res.payload.second[0].sortedNumbers[0].number == sess1.numberAsString
-    //     Contact.count() == cBaseline + 1
-    //     Record.count() == rBaseline + 1
-    //     RecordText.count() == tBaseline + 1
-    //     RecordItemReceipt.count() == rptBaseline + 1
-    // }
+        then: "errors are ignored"
+        tryMarkUnread.latestArgs == [tp1, is1.number]
+        1 * service.socketService.sendIndividualWrappers([ipr1, spr1]*.toWrapper())
+        res.status == ResultStatus.CREATED
+        res.payload instanceof Collection
+        res.payload[0] instanceof RecordText
+        res.payload[0].record == ipr1.record
+        res.payload[0].contents == message
+        res.payload[0].author == Author.create(is1)
+        res.payload[0].outgoing == false
+        res.payload[0].receipts.size() == 1
+        res.payload[0].receipts[0].apiId == apiId
+        res.payload[0].receipts[0].contactNumber == is1.number
+        res.payload[0].receipts[0].numBillable == numSegments
+        RecordText.count() == textBaseline + 1
 
-    // void "test building response to incoming text"() {
-    //     given:
-    //     BasicNotification bn1 = GroovyMock(BasicNotification)
-    //     RecordText rText = GroovyMock(RecordText)
-    //     service.announcementService = GroovyMock(AnnouncementService)
-    //     String msg = TestUtils.randString()
+        cleanup:
+        tryMarkUnread?.restore()
+    }
 
-    //     when: "no notifications"
-    //     Result<Closure> res = service.buildTextResponse(p1, null, [rText], [])
+    void "test building text response"() {
+        given:
+        String msg1 = TestUtils.randString()
+        Phone p1 = TestUtils.buildStaffPhone()
+        IncomingSession is1 = TestUtils.buildSession()
+        RecordText rText1 = TestUtils.buildRecordText()
 
-    //     then: "sends away message"
-    //     1 * rText.setHasAwayMessage(true)
-    //     1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload: [msg])
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(msg) })
-    //     TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(p1.buildAwayMessage()) })
+        NotificationGroup notifGroup1 = GroovyMock()
+        service.announcementCallbackService = GroovyMock(AnnouncementCallbackService)
 
-    //     when: "has notifications"
-    //     res = service.buildTextResponse(p1, null, [rText], [bn1])
+        when:
+        Result res = service.buildTextResponse(p1, is1, null, notifGroup1)
 
-    //     then:
-    //     0 * rText._
-    //     1 * service.announcementService.tryBuildTextInstructions(*_) >> new Result(payload: [msg])
-    //     TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(msg) })
-    //     TestUtils.buildXml(res.payload).contains(TestUtils.buildXml { Message(p1.buildAwayMessage()) }) == false
-    // }
+        then:
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload).contains("textTwiml.blocked")
 
-    // void "test finishing processing texts helper"() {
-    //     given:
-    //     service.notificationService = GroovyMock(NotificationService)
-    //     service.socketService = GroovyMock(SocketService)
-    //     IncomingText text = new IncomingText(apiId: "testing", message: "hello", numSegments: 88)
-    //     assert text.validate()
-    //     MediaInfo invalidMedia = new MediaInfo()
-    //     MediaElement e1 = TestUtils.buildMediaElement()
-    //     e1.sendVersion.type = null
-    //     invalidMedia.addToMediaElements(e1)
-    //     assert invalidMedia.validate() == false
-    //     List<Long> textIds = [rText1, rText2]*.id
-    //     List<BasicNotification> notifs = []
+        when:
+        res = service.buildTextResponse(p1, is1, [rText1], notifGroup1)
 
-    //     when: "has some errors"
-    //     Result<Void> res = service.finishProcessingTextHelper(text, textIds, notifs, invalidMedia)
+        then:
+        1 * notifGroup1.canNotifyAny(NotificationFrequency.IMMEDIATELY) >> false
+        1 * service.announcementCallbackService.tryBuildTextInstructions(p1, is1) >>
+            Result.createSuccess([msg1])
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload).contains(p1.buildAwayMessage().replaceAll(/\s+/, ""))
+        TestUtils.buildXml(res.payload).contains(msg1)
+        rText1.hasAwayMessage
+    }
 
-    //     then: "errors are bubbled up"
-    //     0 * service.notificationService._
-    //     0 * service.socketService._
-    //     res.status == ResultStatus.OK.UNPROCESSABLE_ENTITY
+    void "test processing incoming text media"() {
+        given:
+        MediaElement el1 = TestUtils.buildMediaElement()
 
-    //     when: "no errors"
-    //     res = service.finishProcessingTextHelper(text, textIds, notifs, null)
+        int mBaseline = MediaInfo.count()
 
-    //     then:
-    //     1 * service.notificationService.send(*_) >> new ResultGroup()
-    //     1 * service.socketService.sendItems(*_) >> new ResultGroup()
-    //     res.status == ResultStatus.NO_CONTENT
-    // }
+        IncomingMediaInfo im1 = GroovyMock()
+        DehydratedNotificationGroup dng1 = GroovyMock()
+        NotificationGroup notifGroup1 = GroovyMock()
+        service.incomingMediaService = GroovyMock(IncomingMediaService)
+        MockedMethod finishProcessing = MockedMethod.create(service, "finishProcessing") {
+            Result.void()
+        }
 
-    // @DirtiesRuntime
-    // void "test finishing processing texts overall"() {
-    //     given:
-    //     service.incomingMediaService = GroovyMock(IncomingMediaService)
-    //     IncomingText text = Stub(IncomingText) { getApiId() >> "hi" }
-    //     TypeMap params = TypeMap.create()
-    //     MediaElement e1 = TestUtils.buildMediaElement()
-    //     MockedMethod finishProcessingTextHelper = MockedMethod.create(service, "finishProcessingTextHelper") { new Result() }
-    //     int mBaseline = MediaInfo.count()
-    //     int eBaseline = MediaElement.count()
+        when:
+        Result res = service.processMedia(null, dng1)
 
-    //     when: "no media"
-    //     Result<Void> res = service.finishProcessingText(text, null, null, params)
-    //     MediaInfo.withSession { it.flush() }
+        then:
+        1 * dng1.tryRehydrate() >> Result.createSuccess(notifGroup1)
+        finishProcessing.latestArgs == [notifGroup1, null]
+        res.status == ResultStatus.NO_CONTENT
+        MediaInfo.count() == mBaseline
 
-    //     then:
-    //     0 * service.incomingMediaService._
-    //     finishProcessingTextHelper.callCount == 1
-    //     res.status == ResultStatus.OK
-    //     MediaInfo.count() == mBaseline
-    //     MediaElement.count()  == eBaseline
+        when:
+        res = service.processMedia([im1], dng1)
 
-    //     when: "has media"
-    //     params.NumMedia = 8
-    //     res = service.finishProcessingText(text, null, null, params)
-    //     MediaInfo.withSession { it.flush() }
+        then:
+        1 * dng1.tryRehydrate() >> Result.createSuccess(notifGroup1)
+        1 * service.incomingMediaService.process([im1]) >> Result.createSuccess([el1])
+        finishProcessing.latestArgs[0] == notifGroup1
+        finishProcessing.latestArgs[1] instanceof MediaInfo
+        el1 in finishProcessing.latestArgs[1].mediaElements
+        res.status == ResultStatus.NO_CONTENT
+        MediaInfo.count() == mBaseline + 1
 
-    //     then:
-    //     1 * service.incomingMediaService.process(*_) >> new Result(payload: e1).toGroup()
-    //     finishProcessingTextHelper.callCount == 2
-    //     res.status == ResultStatus.OK
-    //     MediaInfo.count() == mBaseline + 1
-    //     MediaElement.count()  == eBaseline + 1
-    // }
+        cleanup:
+        finishProcessing?.restore()
+    }
 
-    // @DirtiesRuntime
-    // void "test processing texts overall for blocked vs not blocked"() {
-    //     given:
-    //     service.notificationService = GroovyMock(NotificationService)
-    //     service.threadService = GroovyMock(ThreadService)
-    //     MockedMethod finishProcessingText = MockedMethod.create(service, "finishProcessingText")
-    //         { new Result() }
-    //     MockedMethod buildTextResponse = MockedMethod.create(service, "buildTextResponse")
-    //         { new Result() }
+    void "test finish processing incoming text after done processing media"() {
+        given:
+        int numNotified = TestUtils.randIntegerUpTo(88, true)
 
-    //     when: "blocked"
-    //     MockedMethod buildTexts = MockedMethod.create(service, "buildTexts")
-    //         { new Result(payload: Tuple.create([], [])) }
-    //     Result<Closure> res = service.processText(null, null, null, null)
+        MediaInfo mInfo1 = TestUtils.buildMediaInfo()
+        RecordItem rItem1 = TestUtils.buildRecordItem()
 
-    //     then:
-    //     buildTexts.callCount == 1
-    //     1 * service.notificationService.build(*_) >> []
-    //     1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
-    //     finishProcessingText.callCount == 1
-    //     buildTextResponse.callCount == 0
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload).contains("twimlBuilder.text.blocked")
+        NotificationGroup notifGroup1 = GroovyMock()
+        service.notificationService = GroovyMock(NotificationService)
+        service.socketService = GroovyMock(SocketService)
 
-    //     when: "not blocked"
-    //     buildTexts.restore()
-    //     buildTexts = MockedMethod.create(service, "buildTexts")
-    //         { new Result(payload: Tuple.create([], [c1])) }
-    //     res = service.processText(null, null, null, null)
+        when:
+        Result res = service.finishProcessing(notifGroup1, mInfo1)
 
-    //     then:
-    //     buildTexts.callCount == 1
-    //     1 * service.notificationService.build(*_) >> []
-    //     1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
-    //     finishProcessingText.callCount == 2
-    //     buildTextResponse.callCount == 1
-    //     res.status == ResultStatus.OK
-    // }
+        then:
+        1 * notifGroup1.eachItem(_ as Closure) >> { args -> args[0].call(rItem1) }
+        1 * notifGroup1.getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem1) >> numNotified
+        rItem1.media == mInfo1
+        rItem1.numNotified == numNotified
+        1 * service.notificationService.send(NotificationFrequency.IMMEDIATELY, notifGroup1) >> Result.void()
+        1 * service.socketService.sendItems([rItem1])
+        res.status == ResultStatus.NO_CONTENT
+    }
+
+    void "test processing overall"() {
+        given:
+        String apiId = TestUtils.randString()
+        String message = TestUtils.randString()
+        Integer numSegments = TestUtils.randIntegerUpTo(88, true)
+
+        Phone p1 = TestUtils.buildStaffPhone()
+        IncomingSession is1 = TestUtils.buildSession()
+        RecordText rText1 = TestUtils.buildRecordText()
+
+        IncomingMediaInfo im1 = GroovyMock()
+        NotificationGroup notifGroup1 = GroovyMock()
+        DehydratedNotificationGroup dng1 = GroovyMock()
+        service.threadService = GroovyMock(ThreadService)
+        MockedMethod buildTexts = MockedMethod.create(service, "buildTexts") {
+            Result.createSuccess([rText1])
+        }
+        MockedMethod tryBuildNotificationGroup = MockedMethod.create(NotificationUtils, "tryBuildNotificationGroup") {
+            Result.createSuccess(notifGroup1)
+        }
+        MockedMethod tryCreate = MockedMethod.create(DehydratedNotificationGroup, "tryCreate") {
+            Result.createSuccess(dng1)
+        }
+        MockedMethod processMedia = MockedMethod.create(service, "processMedia") {
+            Result.void()
+        }
+        MockedMethod buildTextResponse = MockedMethod.create(service, "buildTextResponse") {
+            Result.void()
+        }
+
+        when:
+        Result res = service.process(p1, is1, apiId, message, numSegments, [im1])
+
+        then:
+        buildTexts.latestArgs == [p1, is1, apiId, message, numSegments]
+        tryBuildNotificationGroup.latestArgs == [[rText1]]
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
+        tryCreate.latestArgs == [notifGroup1]
+        processMedia.latestArgs == [[im1], dng1]
+        buildTextResponse.latestArgs == [p1, is1, [rText1], notifGroup1]
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        buildTexts?.restore()
+        tryBuildNotificationGroup?.restore()
+        tryCreate?.restore()
+        processMedia?.restore()
+        buildTextResponse?.restore()
+    }
 }

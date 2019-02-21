@@ -21,13 +21,14 @@ class IncomingMediaService {
 
     GrailsApplication grailsApplication
     StorageService storageService
+    ThreadService threadService
 
-    Result<List<MediaElement>> process(Collection<? extends IsIncomingMedia> incomingMediaList) {
-        DomainUtils.tryValidateAll(incomingMediaList)
+    Result<List<MediaElement>> process(Collection<? extends IsIncomingMedia> medias) {
+        DomainUtils.tryValidateAll(medias)
             .then {
                 Collection<UploadItem> toUpload = []
                 ResultGroup
-                    .collect(incomingMediaList) { IsIncomingMedia im1 ->
+                    .collect(medias) { IsIncomingMedia im1 ->
                         processElement(im1)
                             .logFail("process: mediaId: ${im1.mediaId}")
                             .then { Tuple<List<UploadItem>, MediaElement> processed ->
@@ -42,7 +43,7 @@ class IncomingMediaService {
                     .curry(toUpload)
             }
             .then { Collection<UploadItem> toUpload, List<MediaElement> els ->
-                finishProcessingUploads(incomingMediaList, toUpload)
+                finishProcessingUploads(medias, toUpload)
                     .logFail("process: finish processing elements")
                 IOCUtils.resultFactory.success(els)
             }
@@ -78,7 +79,7 @@ class IncomingMediaService {
             }
     }
 
-    protected Result<Void> finishProcessingUploads(Collection<? extends IsIncomingMedia> incomingMediaList,
+    protected Result<Void> finishProcessingUploads(Collection<? extends IsIncomingMedia> medias,
         Collection<UploadItem> itemsToUpload) {
         // step 1: upload our processed copies
         storageService.uploadAsync(itemsToUpload)
@@ -90,8 +91,9 @@ class IncomingMediaService {
                     // need a delay here because try to delete immediately results in an error saying
                     // that the incoming message hasn't finished delivering yet. For incoming message
                     // no status callbacks so we have to wait a fixed period of time then attempt to delete
-                    TimeUnit.SECONDS.sleep(5)
-                    incomingMediaList.each { IsIncomingMedia im1 -> resGroup << im1.delete() }
+                    threadService.delay(5, TimeUnit.SECONDS) {
+                        medias.each { IsIncomingMedia im1 -> resGroup << im1.delete() }
+                    }
                 }
                 resGroup.toEmptyResult(false)
             }

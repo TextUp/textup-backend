@@ -94,7 +94,11 @@ class TestUtils {
 
     static String randString() { UUID.randomUUID().toString() }
 
-    static String randUrl() { new URI("https://www.example.com/${TestUtils.randString()}") }
+    static URI randUri() { new URI("https://www.example.com/${TestUtils.randString()}") }
+
+    static URL randUrl() { TestUtils.randUri().toURL() }
+
+    static String randLinkString() { TestUtils.randUri().toString() }
 
     static String randEmail() { "${TestUtils.randString()}@textup.org" }
 
@@ -369,14 +373,16 @@ class TestUtils {
         pr1.save(flush: true, failOnError: true)
     }
 
-    static IndividualPhoneRecord buildIndPhoneRecord(Phone thisPhone = null) {
+    static IndividualPhoneRecord buildIndPhoneRecord(Phone thisPhone = null, boolean addNumber = true) {
         Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
         IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1)
             .logFail("buildIndPhoneRecord")
             .payload as IndividualPhoneRecord
         ipr1.name = TestUtils.randString()
-        ipr1.mergeNumber(TestUtils.randPhoneNumber(), 0)
-            .logFail("buildIndPhoneRecord")
+        if (addNumber) {
+            ipr1.mergeNumber(TestUtils.randPhoneNumber(), 0)
+                .logFail("buildIndPhoneRecord")
+        }
         ipr1.save(flush: true, failOnError: true)
     }
 
@@ -398,10 +404,9 @@ class TestUtils {
     }
 
     static MediaElement buildMediaElement(BigDecimal sendSize = 88) {
-        MediaElement e1 = new MediaElement()
-        e1.sendVersion = TestUtils.buildMediaElementVersion(sendSize)
-        assert e1.validate()
-        e1
+        MediaElement el1 = new MediaElement()
+        el1.sendVersion = TestUtils.buildMediaElementVersion(sendSize)
+        el1.save(flush: true, failOnError: true)
     }
 
     static UploadItem buildUploadItem(MediaType type = MediaType.AUDIO_MP3) {
@@ -413,8 +418,7 @@ class TestUtils {
             versionId: TestUtils.randString(),
             sizeInBytes: sendSize.longValue(),
             widthInPixels: 888)
-        assert mVers1.validate()
-        mVers1
+        mVers1.save(flush: true, failOnError: true)
     }
 
     static Record buildRecord() {

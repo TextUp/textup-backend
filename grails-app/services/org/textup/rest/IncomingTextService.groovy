@@ -21,7 +21,7 @@ class IncomingTextService {
     ThreadService threadService
 
     Result<Closure> process(Phone p1, IncomingSession is1, String apiId, String message,
-        Integer numSegments, List<IncomingMediaInfo> media = null) {
+        Integer numSegments, List<IncomingMediaInfo> medias = null) {
         // step 1: build texts
         buildTexts(p1, is1, apiId, message, numSegments)
             .then { List<RecordText> texts ->
@@ -33,7 +33,7 @@ class IncomingTextService {
                 // following ids, they will have be saved yet and we will get `null` in return
                 threadService.delay(5, TimeUnit.SECONDS) {
                     DehydratedNotificationGroup.tryCreate(notifGroup)
-                        .then { DehydratedNotificationGroup dng1 -> processMedia(apiId, media, dng1) }
+                        .then { DehydratedNotificationGroup dng1 -> processMedia(medias, dng1) }
                         .logFail("process: finishing processing")
                 }
                 // step 3: return the appropriate response while long-running tasks still processing
@@ -76,13 +76,13 @@ class IncomingTextService {
         else { TextTwiml.blocked() }
     }
 
-    protected Result<Void> processMedia(String apiId, List<IncomingMediaInfo> media,
+    protected Result<Void> processMedia(List<IncomingMediaInfo> medias,
         Rehydratable<NotificationGroup> dng1) {
 
         dng1.tryRehydrate()
             .then { NotificationGroup notifGroup ->
-                if (media) {
-                    incomingMediaService.process(media)
+                if (medias) {
+                    incomingMediaService.process(medias)
                         .then { List<MediaElement> els -> MediaInfo.tryCreate().curry(els) }
                         .then { List<MediaElement> els, MediaInfo mInfo ->
                             mInfo.tryAddAllElements(els)

@@ -1,6 +1,8 @@
 package org.textup.rest
 
-import grails.test.mixin.TestFor
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -10,382 +12,257 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
+@TestMixin(HibernateTestMixin)
 @TestFor(IncomingCallService)
 class IncomingCallServiceSpec extends Specification {
 
-    // // Helper methods
-    // // --------------
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    // void "test getting deliverable contacts"() {
-    //     given: "blocked and non-blocked contacts for a single phone number within a TextUp phone"
-    //     String numAsString = TestUtils.randPhoneNumberString()
-    //     PhoneNumber pNum = new PhoneNumber(number: numAsString)
-    //     assert pNum.validate()
-    //     Contact c1 = p1.createContact([status: "blocked"], [numAsString]).payload
-    //     Contact c2 = p1.createContact([:], [numAsString]).payload
-    //     Contact c3 = p1.createContact([:], [numAsString]).payload
-    //     [c1, c2, c3]*.save(flush: true, failOnError: true)
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-    //     when:
-    //     Tuple<List<Contact>, List<Contact>> info = service.getDeliverableContacts(p1, pNum)
+    void "test building call response"() {
+        given:
+        OwnerPolicy op1 = TestUtils.buildOwnerPolicy()
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IncomingSession is1 = TestUtils.buildSession()
+        RecordCall rCall1 = TestUtils.buildRecordCall()
 
-    //     then:
-    //     info.first.size() == 3 // all matching contacts
-    //     info.second.size() == 2 // not blocked contacts
-    // }
+        NotificationGroup notifGroup1 = GroovyMock()
+        MockedMethod connectIncoming = MockedMethod.create(CallTwiml, "connectIncoming")
+        MockedMethod recordVoicemailMessage = MockedMethod.create(CallTwiml, "recordVoicemailMessage")
 
-    // void "test storing and updating status for a single contact"() {
-    //     given:
-    //     String numAsString = TestUtils.randPhoneNumberString()
-    //     Contact c1 = p1.createContact([:], [numAsString]).payload
-    //     SharedContact sc1 = p1.share(c1, p2, SharePermission.DELEGATE).payload
-    //     [c1, sc1]*.save(flush: true, failOnError: true)
+        when:
+        Result res = service.buildCallResponse(p1, is1, [rCall1], notifGroup1)
 
-    //     and: "contact is NOT blocked"
-    //     assert c1.status != ContactStatus.BLOCKED
+        then:
+        1 * notifGroup1.buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY) >> []
+        connectIncoming.notCalled
+        recordVoicemailMessage.latestArgs == [p1, is1.number]
+        rCall1.hasAwayMessage
+        res == null
 
-    //     when: "contact with a shared contact that is NOT blocked"
-    //     Result<Void> res = service.storeAndUpdateStatusForContact({ c2 -> }, c1)
+        when:
+        res = service.buildCallResponse(p1, is1, [rCall1], notifGroup1)
 
-    //     then:
-    //     c1.status == ContactStatus.UNREAD
-    //     sc1.status == ContactStatus.UNREAD
+        then:
+        1 * notifGroup1.buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY) >> [op1]
+        connectIncoming.latestArgs == [p1.number, is1.number, [op1.staff.personalNumber]]
 
-    //     when: "contact with a shared contact that is blocked"
-    //     c1.status = ContactStatus.ACTIVE
-    //     sc1.status = ContactStatus.BLOCKED
-    //     [c1, sc1]*.save(flush: true, failOnError: true)
-    //     res = service.storeAndUpdateStatusForContact({ c2 -> }, c1)
+        cleanup:
+        connectIncoming?.restore()
+        recordVoicemailMessage?.restore()
+    }
 
-    //     then: "respect the collaborator's decision to block their shared contact"
-    //     c1.status == ContactStatus.UNREAD
-    //     sc1.status == ContactStatus.BLOCKED
-    // }
+    void "test finishing relaying call"() {
+        given:
+        RecordCall rCall1 = TestUtils.buildRecordCall()
 
-    // @DirtiesRuntime
-    // void "test storing for number without existing contacts"() {
-    //     given:
-    //     service.socketService = [
-    //         sendContacts: { List<Contact> contacts -> new ResultGroup() }
-    //     ] as SocketService
-    //     int cBaseline = Contact.count()
-    //     int cnBaseline = ContactNumber.count()
-    //     String numAsString = TestUtils.randPhoneNumberString()
-    //     PhoneNumber pNum = new PhoneNumber(number: numAsString)
-    //     assert pNum.validate()
+        Phone p1 = GroovyMock()
+        IncomingSession is1 = GroovyMock()
+        MockedMethod buildCallResponse = MockedMethod.create(service, "buildCallResponse")
 
-    //     when: "no contacts found for phone number"
-    //     Result<List<Contact>> res = service.storeForNumber(p1, pNum, { c2 -> })
+        when:
+        Result res = service.finishRelayCall(p1, is1, null)
 
-    //     then: "new contact is created"
-    //     res.status == ResultStatus.OK
-    //     res.payload.size() == 1 // newly created contact
-    //     Contact.count() == cBaseline + 1
-    //     ContactNumber.count() == cnBaseline + 1
-    // }
+        then:
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload).contains("Reject")
 
-    // @DirtiesRuntime
-    // void "test storing for number with existing contacts"() {
-    //     given:
-    //     service.socketService = [
-    //         sendContacts: { List<Contact> contacts -> new ResultGroup() }
-    //     ] as SocketService
-    //     String numAsString = TestUtils.randPhoneNumberString()
-    //     PhoneNumber pNum = new PhoneNumber(number: numAsString)
-    //     assert pNum.validate()
-    //     Contact c1 = p1.createContact([status: "blocked"], [numAsString]).payload
-    //     Contact c2 = p1.createContact([:], [numAsString]).payload
-    //     SharedContact sc1 = p1.share(c1, p2, SharePermission.DELEGATE).payload
-    //     SharedContact sc2 = p1.share(c2, p2, SharePermission.DELEGATE).payload
-    //     sc1.status = ContactStatus.ARCHIVED
-    //     sc2.status = ContactStatus.BLOCKED
-    //     [c1, c2, sc1, sc2]*.save(flush: true, failOnError: true)
-    //     int cBaseline = Contact.count()
-    //     int cnBaseline = ContactNumber.count()
+        when:
+        res = service.finishRelayCall(p1, is1, [rCall1])
 
-    //     when: "some contacts found for contact"
-    //     Result<List<Contact>> res = service.storeForNumber(p1, pNum, { thisContact -> })
+        then:
+        res == null
+        buildCallResponse.latestArgs[0] == p1
+        buildCallResponse.latestArgs[1] == is1
+        buildCallResponse.latestArgs[2] == [rCall1]
+        buildCallResponse.latestArgs[3] instanceof NotificationGroup
 
-    //     then: "no new contact is created"
-    //     res.status == ResultStatus.OK
-    //     res.payload.size() == 1
-    //     Contact.count() == cBaseline
-    //     ContactNumber.count() == cnBaseline
-    //     c1.status == ContactStatus.BLOCKED
-    //     sc1.status == ContactStatus.ARCHIVED
-    //     c2.status == ContactStatus.UNREAD
-    //     sc2.status == ContactStatus.BLOCKED
-    // }
+        cleanup:
+        buildCallResponse?.restore()
+    }
 
-    // // Calls
-    // // -----
+    void "test start relaying call"() {
+        given:
+        String apiId = TestUtils.randString()
 
-    // void "test storing incoming call"() {
-    //     given:
-    //     IncomingSession session = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumberString())
-    //     assert session.save(flush: true, failOnError: true)
-    //     RecordCall rCall1
-    //     Closure<Void> storeCall = { rCall1 = it }
-    //     int cBaseline = RecordCall.count()
-    //     int rptBaseline = RecordItemReceipt.count()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+        spr1.permission = SharePermission.NONE
+        IncomingSession is1 = TestUtils.buildSession()
 
-    //     when:
-    //     service.storeIncomingCall("uid", session, storeCall, c1)
-    //     RecordCall.withSession { it.flush() }
+        int callBaseline = RecordCall.count()
 
-    //     then: "new call created + closure called"
-    //     rCall1 instanceof RecordCall
-    //     RecordCall.count() == cBaseline + 1
-    //     RecordItemReceipt.count() == rptBaseline + 1
-    // }
+        Phone p1 = GroovyMock()
+        service.socketService = GroovyMock(SocketService)
+        MockedMethod tryMarkUnread = MockedMethod.create(PhoneRecordUtils, "tryMarkUnread") {
+            Result.createSuccess([ipr1, spr1]*.toWrapper())
+        }
+        MockedMethod finishRelayCall = MockedMethod.create(service, "finishRelayCall") { arg1, arg2, rCalls ->
+            Result.createSuccess(rCalls)
+        }
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
 
-    // @DirtiesRuntime
-    // void "test after storing incoming call"() {
-    //     given:
-    //     Boolean hasNotifications
-    //     service.metaClass.handleNotificationsForIncomingCall = { Phone p1, IncomingSession sess1,
-    //         List<BasicNotification> notifs ->
+        when:
+        Result res = service.relayCall(p1, is1, apiId)
 
-    //         hasNotifications = true
-    //         new Result()
-    //     }
-    //     service.metaClass.handleAwayForIncomingCall = { Phone p1, IncomingSession sess1,
-    //         List<RecordCall> rCalls ->
+        then: "ignores failures"
+        tryMarkUnread.latestArgs == [p1, is1.number]
+        1 * service.socketService.sendIndividualWrappers([ipr1, spr1]*.toWrapper())
+        finishRelayCall.latestArgs[0] == p1
+        finishRelayCall.latestArgs[1] == is1
+        res.status == ResultStatus.OK
+        res.payload.size() == 1
+        RecordCall.count() == callBaseline + 1
+        RecordCall.findByRecord(ipr1.record) == res.payload[0]
+        res.payload[0].outgoing == false
+        res.payload[0].receipts.find {  it.apiId == apiId }
+        res.payload[0].receipts.find { it.contactNumber == is1.number }
+        RecordCall.findByRecord(spr1.record) == null
+        stdErr.toString().contains("relayCall")
+        stdErr.toString().contains("phoneRecordWrapper.insufficientPermission")
 
-    //         hasNotifications = false
-    //         new Result()
-    //     }
+        cleanup:
+        tryMarkUnread?.restore()
+        finishRelayCall?.restore()
+        TestUtils.restoreAllStreams()
+    }
 
-    //     when: "all contacts are blocked"
-    //     Result<Closure> res = service.afterStoreForCall(null, null, null, [])
+    void "test handling self call errors"() {
+        given:
+        String digits1 = TestUtils.randString()
+        String digits2 = TestUtils.randPhoneNumberString()
 
-    //     then:
-    //     hasNotifications == null
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload) == TestUtils.buildXml {
-    //         Response { Reject(reason:"rejected") }
-    //     }
+        Phone p1 = GroovyMock()
+        Staff s1 = GroovyMock()
 
-    //     when: "no notifications built"
-    //     service.notificationService = [
-    //         build: { p1, notBlockedContacts -> [] }
-    //     ] as NotificationService
-    //     service.afterStoreForCall(null, null, null, [c1])
+        when:
+        Result res = service.handleSelfCall(null, null, null, null)
 
-    //     then:
-    //     hasNotifications == false
+        then:
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload).contains("callTwiml.selfGreeting")
 
-    //     when: "some notifications built"
-    //     service.notificationService = [
-    //         build: { p1, notBlockedContacts -> [new BasicNotification()] }
-    //     ] as NotificationService
-    //     service.afterStoreForCall(null, null, null, [c1])
+        when:
+        res = service.handleSelfCall(p1, null, digits1, s1)
 
-    //     then:
-    //     hasNotifications == true
-    // }
+        then:
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload).contains("callTwiml.selfInvalidDigits")
 
-    // void "test handling notifications for incoming call"() {
-    //     given:
-    //     IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumberString())
-    //     assert sess1.save(flush: true, failOnError: true)
-    //     List<BasicNotification> notifs = []
-    //     notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestUtils.randPhoneNumberString()))
-    //     notifs << new BasicNotification(staff: new Staff(personalPhoneAsString: TestUtils.randPhoneNumberString()))
+        when:
+        res = service.handleSelfCall(p1, null, digits2, s1)
 
-    //     when:
-    //     Result<Closure> res = service.handleNotificationsForIncomingCall(p1, sess1, notifs)
-    //     Map numParams = [handle:CallResponse.SCREEN_INCOMING, originalFrom: sess1.number.e164PhoneNumber]
+        then:
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload).contains("callTwiml.error")
+    }
 
-    //     String firstNum = notifs[0].staff.personalPhoneNumber.e164PhoneNumber,
-    //         secondNum = notifs[1].staff.personalPhoneNumber.e164PhoneNumber
+    void "test handling self call"() {
+        given:
+        String apiId = TestUtils.randString()
+        String digits = TestUtils.randPhoneNumberString()
 
-    //     then: "response includes unique set of all numbers to call"
-    //     res.status == ResultStatus.OK
-    //     // need to test presence of number elements separately because we pass in a set, which
-    //     // does not guaranteee iteration order
-    //     TestUtils.buildXml(res.payload).contains(TestUtils.buildXml {
-    //         Number(statusCallback: CallTwiml.childCallStatus(firstNum),
-    //             url: numParams.toString(), firstNum)
-    //     })
-    //     TestUtils.buildXml(res.payload).contains(TestUtils.buildXml {
-    //         Number(statusCallback: CallTwiml.childCallStatus(secondNum),
-    //             url:numParams.toString(), secondNum)
-    //     })
-    // }
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+        spr1.permission = SharePermission.NONE
 
-    // @DirtiesRuntime
-    // void "test handling away for incoming call"() {
-    //     given:
-    //     IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString: TestUtils.randPhoneNumberString())
-    //     assert sess1.save(flush: true, failOnError: true)
-    //     List<RecordCall> rCalls = []
-    //     10.times { rCalls << c1.record.storeOutgoingCall().payload }
+        PhoneRecord.withSession { it.flush() }
 
-    //     when:
-    //     Result<Closure> res = service.handleAwayForIncomingCall(p1, sess1, rCalls)
+        int callBaseline = RecordCall.count()
 
-    //     then: "all texts have away message flag set"
-    //     rCalls.every { it.hasAwayMessage }
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload).contains("twimlBuilder.call.voicemailDirections")
-    // }
+        service.socketService = GroovyMock(SocketService)
+        MockedMethod tryMarkUnread = MockedMethod.create(PhoneRecordUtils, "tryMarkUnread") {
+            Result.createSuccess([ipr1, spr1]*.toWrapper())
+        }
+        MockedMethod selfConnecting = MockedMethod.create(CallTwiml, "selfConnecting") {
+            Result.void()
+        }
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
 
-    // @DirtiesRuntime
-    // void "test relaying incoming call overall"() {
-    //     given:
-    //     String numAsString = TestUtils.randPhoneNumberString()
-    //     IncomingSession session = new IncomingSession(phone:p1, numberAsString: numAsString)
-    //     assert session.save(flush: true, failOnError: true)
-    //     Contact c1 = p1.createContact([:], [numAsString]).payload
-    //     Contact c2 = p1.createContact([:], [numAsString]).payload
-    //     [c1, c2]*.save(flush: true, failOnError: true)
-    //     List<RecordCall> rCalls
-    //     List<Contact> notBlockedContacts
-    //     service.metaClass.afterStoreForCall = { Phone p1, IncomingSession sess1,
-    //         List<RecordCall> callsList, List<Contact> contactsList ->
-    //         rCalls = callsList
-    //         notBlockedContacts = contactsList
-    //         new Result()
-    //     }
-    //     service.socketService = GroovyMock(SocketService)
+        when:
+        Result res = service.handleSelfCall(p1, apiId, digits, s1)
 
-    //     when:
-    //     service.relayCall(p1, "apiId", session)
+        then:
+        tryMarkUnread.latestArgs == [p1, PhoneNumber.create(digits)]
+        1 * service.socketService.sendIndividualWrappers([ipr1, spr1]*.toWrapper())
+        selfConnecting.latestArgs == [p1.number.e164PhoneNumber, PhoneNumber.create(digits).number]
+        res.status == ResultStatus.NO_CONTENT
+        RecordCall.findByRecord(ipr1.record).outgoing
+        RecordCall.findByRecord(ipr1.record).author == Author.create(s1)
+        RecordCall.findByRecord(ipr1.record).receipts[0].apiId == apiId
+        RecordCall.findByRecord(ipr1.record).receipts[0].contactNumber == PhoneNumber.create(digits)
+        RecordCall.findByRecord(spr1.record) == null
+        stdErr.toString().contains("phoneRecordWrapper.insufficientPermission")
 
-    //     then: "all calls collected when storing are passed to the after handler"
-    //     1 * service.socketService._
-    //     notBlockedContacts == [c1, c2]
-    //     rCalls.size() == 2
-    //     rCalls.every { it.record == c1.record || it.record == c2.record }
-    // }
+        cleanup:
+        tryMarkUnread?.restore()
+        selfConnecting?.restore()
+        TestUtils.restoreAllStreams()
+    }
 
-    // @DirtiesRuntime
-    // void "test receiving call"() {
-    //     given:
-    //     MockedMethod handleSelfCall = MockedMethod.create(service, "handleSelfCall") { new Result() }
-    //     MockedMethod relayCall = MockedMethod.create(service, "relayCall") { new Result() }
-    //     service.announcementService = GroovyMock(AnnouncementService)
-    //     Phone p1 = GroovyMock(Phone)
-    //     String pNum = TestUtils.randPhoneNumberString()
-    //     IncomingSession sess1 = Stub(IncomingSession) { getNumberAsString() >> pNum }
+    void "test processing incoming call overall"() {
+        given:
+        String apiId = TestUtils.randString()
+        String digits = TestUtils.randString()
 
-    //     when: "self call"
-    //     Result<Closure> res = service.receiveCall(p1, null, null, sess1)
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildStaffPhone(s1)
+        Phone p2 = TestUtils.buildActiveStaffPhone()
+        Phone p3 = TestUtils.buildActiveStaffPhone()
+        FeaturedAnnouncement fa1 = TestUtils.buildAnnouncement(p2)
 
-    //     then:
-    //     (1.._) * p1.owner >> Stub(PhoneOwnership) { buildAllStaff() >> [[personalPhoneAsString: pNum]] }
-    //     0 * service.announcementService._
-    //     handleSelfCall.callCount == 1
-    //     relayCall.callCount == 0
+        IncomingSession is1 = GroovyMock()
+        service.announcementCallbackService = GroovyMock(AnnouncementCallbackService)
+        MockedMethod handleSelfCall = MockedMethod.create(service, "handleSelfCall") {
+            Result.void()
+        }
+        MockedMethod relayCall = MockedMethod.create(service, "relayCall") {
+            Result.void()
+        }
 
-    //     when: "announcement call with fallback to relaying call"
-    //     res = service.receiveCall(p1, null, null, sess1)
+        when:
+        Result res = service.process(p1, is1, apiId, digits)
 
-    //     then:
-    //     (1.._) * p1.owner >> Stub(PhoneOwnership) { buildAllStaff() >> [[personalPhoneAsString: "other"]] }
-    //     (1.._) * p1.announcements >> [GroovyMock(FeaturedAnnouncement)]
-    //     // check that the fallback closure passed in actually calls relayCall
-    //     1 * service.announcementService.handleAnnouncementCall(*_) >> { args -> args[3].call(); null; }
-    //     handleSelfCall.callCount == 1
-    //     relayCall.callCount == 1
+        then:
+        1 * is1.numberAsString >> s1.personalNumberAsString
+        handleSelfCall.latestArgs == [p1, apiId, digits, s1]
+        relayCall.notCalled
+        res.status == ResultStatus.NO_CONTENT
 
-    //     when: "relaying call"
-    //     res = service.receiveCall(p1, null, null, sess1)
+        when:
+        res = service.process(p2, is1, apiId, digits)
 
-    //     then:
-    //     (1.._) * p1.owner >> Stub(PhoneOwnership) { buildAllStaff() >> [[personalPhoneAsString: "other"]] }
-    //     (1.._) * p1.announcements >> []
-    //     0 * service.announcementService._
-    //     handleSelfCall.callCount == 1
-    //     relayCall.callCount == 2
-    // }
+        then:
+        1 * service.announcementCallbackService.handleAnnouncementCall(p2, is1, digits, _ as Closure) >> { args ->
+            args[3].call()
+        }
+        handleSelfCall.callCount == 1
+        relayCall.latestArgs == [p2, is1, apiId]
+        res.status == ResultStatus.NO_CONTENT
 
-    // // Other call handlers
-    // // -------------------
+        when:
+        res = service.process(p3, is1, apiId, digits)
 
-    // void "test screening incoming call"() {
-    //     given:
-    //     IncomingSession session = new IncomingSession(phone:p1, numberAsString:c1.numbers[0].number)
-    //     session.save(flush:true, failOnError:true)
+        then:
+        handleSelfCall.callCount == 1
+        relayCall.latestArgs == [p3, is1, apiId]
+        res.status == ResultStatus.NO_CONTENT
 
-    //     when:
-    //     Result<Closure> res = service.screenIncomingCall(p1, session)
-
-    //     then:
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload).contains("twimlBuilder.call.screenIncoming")
-    // }
-
-    // void "test storing outgoing call"() {
-    //     given:
-    //     int iBaseline = RecordCall.count()
-    //     int rBaseline = RecordItemReceipt.count()
-    //     TempRecordReceipt rpt = TestUtils.buildTempReceipt()
-
-    //     when:
-    //     assert service.storeOutgoingCall(s1, rpt, c1) == null
-    //     RecordCall.withSession { it.flush() }
-
-    //     then: "new call created + receipt added"
-    //     RecordCall.count() == iBaseline + 1
-    //     RecordItemReceipt.count() == rBaseline + 1
-    // }
-
-    // @DirtiesRuntime
-    // void "handling self call"() {
-    //     given: "session with no corresponding contact"
-    //     int cBaseline = Contact.count()
-    //     int iBaseline = RecordCall.count()
-    //     int rBaseline = RecordItemReceipt.count()
-    //     service.socketService = GroovyMock(SocketService)
-
-    //     when: "missing digits"
-    //     Result<Closure> res = service.handleSelfCall(p1, "apiId", null, s1)
-
-    //     then: "self greeting"
-    //     0 * service.socketService._
-    //     Contact.count() == cBaseline
-    //     RecordCall.count() == iBaseline
-    //     RecordItemReceipt.count() == rBaseline
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload).contains("twimlBuilder.call.selfGreeting")
-
-    //     when: "digits are an invalid phone number"
-    //     res = service.handleSelfCall(p1, "apiId", "invalidNumber", s1)
-
-    //     then:
-    //     0 * service.socketService._
-    //     Contact.count() == cBaseline
-    //     RecordCall.count() == iBaseline
-    //     RecordItemReceipt.count() == rBaseline
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload).contains("twimlBuilder.call.selfInvalidDigits")
-
-    //     when: "valid phone number for missing apiId"
-    //     res = service.handleSelfCall(p1, null, TestUtils.randPhoneNumberString(), s1)
-
-    //     then:
-    //     0 * service.socketService._
-    //     Contact.count() == cBaseline
-    //     RecordCall.count() == iBaseline
-    //     RecordItemReceipt.count() == rBaseline
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload).contains("twimlBuilder.error")
-
-    //     when: "valid phone number and valid apiId"
-    //     String numAsString = TestUtils.randPhoneNumberString()
-    //     res = service.handleSelfCall(p1, "apiId", numAsString, s1)
-    //     Phone.withSession { it.flush() }
-
-    //     then:
-    //     1 * service.socketService._
-    //     Contact.count() == cBaseline + 1
-    //     RecordCall.count() == iBaseline + 1
-    //     RecordItemReceipt.count() == rBaseline + 1
-    //     res.status == ResultStatus.OK
-    //     TestUtils.buildXml(res.payload).contains("twimlBuilder.call.selfConnecting")
-    // }
+        cleanup:
+        handleSelfCall?.restore()
+        relayCall?.restore()
+    }
 }

@@ -36,7 +36,7 @@ class IncomingMediaInfoSpec extends Specification {
         String messageId = TestUtils.randString()
         TypeMap params = new TypeMap((TwilioUtils.ID_ACCOUNT): TestUtils.randString(),
             ("${TwilioUtils.MEDIA_CONTENT_TYPE_PREFIX}${index}".toString()): TestUtils.randString(),
-            ("${TwilioUtils.MEDIA_URL_PREFIX}${index}".toString()): TestUtils.randUrl())
+            ("${TwilioUtils.MEDIA_URL_PREFIX}${index}".toString()): TestUtils.randUri())
 
         when: "empty"
         Result res = IncomingMediaInfo.tryCreate(null, null, 0)
@@ -73,7 +73,7 @@ class IncomingMediaInfoSpec extends Specification {
         String messageId = TestUtils.randString()
         TypeMap params = new TypeMap((TwilioUtils.ID_ACCOUNT): TestUtils.randString(),
             ("${TwilioUtils.MEDIA_CONTENT_TYPE_PREFIX}${index}".toString()): TestUtils.randString(),
-            ("${TwilioUtils.MEDIA_URL_PREFIX}${index}".toString()): TestUtils.randUrl())
+            ("${TwilioUtils.MEDIA_URL_PREFIX}${index}".toString()): TestUtils.randUri())
         IncomingMediaInfo im1 = IncomingMediaInfo.tryCreate(messageId, params, index).payload
         assert im1.validate()
 

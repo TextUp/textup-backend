@@ -25,7 +25,7 @@ class CallbackService {
     @OptimisticLockingRetry
     @RollbackOnResultFailure
     Result<Closure> process(TypeMap params) {
-        processAnonymousCall(params) { processIdentifiedCall(params) }
+        processAnonymousCall(params) { processIdentifiedMessage(params) }
     }
 
     // Helpers
@@ -52,7 +52,7 @@ class CallbackService {
         }
     }
 
-    protected Result<Closure> processIdentifiedCall(TypeMap params) {
+    protected Result<Closure> processIdentifiedMessage(TypeMap params) {
         String callId = params.string(TwilioUtils.ID_CALL),
             textId = params.string(TwilioUtils.ID_TEXT)
         PhoneNumber.tryUrlDecode(params.string(TwilioUtils.FROM))
@@ -94,30 +94,13 @@ class CallbackService {
                 callCallbackService.checkIfVoicemail(p1, is1, params)
                 break
             case CallResponse.VOICEMAIL_DONE:
-                IncomingRecordingInfo.tryCreate(params).then { IncomingRecordingInfo ir1 ->
-                    // in about 5% of cases, when the RecordingStatusCallback is called, the recording
-                    // at the provided url still isn't ready and a request to that url returns a
-                    // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
-                    // is completely done being stored before attempting to fetch it.
-                    threadService.delay(5, TimeUnit.SECONDS) {
-                        int duration = params.int(TwilioUtils.RECORDING_DURATION, 0)
-                        voicemailCallbackService.processVoicemailMessage(apiId, duration, ir1)
-                            .logFail("processCall: VOICEMAIL_DONE")
-                    }
-                    TwilioUtils.noResponseTwiml()
-                }
+                processFinishedVoicemailMessage(apiId, params)
                 break
             case CallResponse.VOICEMAIL_GREETING_RECORD:
                 CallTwiml.recordVoicemailGreeting(p1.number, is1.number)
                 break
             case CallResponse.VOICEMAIL_GREETING_PROCESSED:
-                IncomingRecordingInfo.tryCreate(params).then { IncomingRecordingInfo ir1 ->
-                    threadService.delay(5, TimeUnit.SECONDS) {
-                        voicemailCallbackService.finishProcessingVoicemailGreeting(p1.id, apiId, ir1)
-                            .logFail("processCall: VOICEMAIL_GREETING_PROCESSED")
-                    }
-                    TwilioUtils.noResponseTwiml()
-                }
+                processFinishedVoicemailGreeting(p1.id, apiId, params)
                 break
             case CallResponse.VOICEMAIL_GREETING_PLAY:
                 CallTwiml.playVoicemailGreeting(p1.number, p1.voicemailGreetingUrl)
@@ -136,23 +119,50 @@ class CallbackService {
         }
     }
 
+    protected Result<Closure> processFinishedVoicemailMessage(String apiId, TypeMap params) {
+        IncomingRecordingInfo.tryCreate(params).then { IncomingRecordingInfo ir1 ->
+            // in about 5% of cases, when the RecordingStatusCallback is called, the recording
+            // at the provided url still isn't ready and a request to that url returns a
+            // NOT_FOUND. Therefore, we wait a few seconds to ensure that the voicemail
+            // is completely done being stored before attempting to fetch it.
+            threadService.delay(5, TimeUnit.SECONDS) {
+                int duration = params.int(TwilioUtils.RECORDING_DURATION, 0)
+                voicemailCallbackService.processVoicemailMessage(apiId, duration, ir1)
+                    .logFail("processCall: VOICEMAIL_DONE")
+            }
+            TwilioUtils.noResponseTwiml()
+        }
+    }
+
+    protected Result<Closure> processFinishedVoicemailGreeting(Long phoneId, String apiId,
+        TypeMap params) {
+
+        IncomingRecordingInfo.tryCreate(params).then { IncomingRecordingInfo ir1 ->
+            threadService.delay(5, TimeUnit.SECONDS) {
+                voicemailCallbackService.finishProcessingVoicemailGreeting(phoneId, apiId, ir1)
+                    .logFail("processCall: VOICEMAIL_GREETING_PROCESSED")
+            }
+            TwilioUtils.noResponseTwiml()
+        }
+    }
+
     protected Result<Closure> processText(Phone p1, IncomingSession is1, String apiId,
         TypeMap params) {
 
-        TwilioUtils.tryBuildIncomingMedia(apiId, params).then { List<IncomingMediaInfo> media ->
+        TwilioUtils.tryBuildIncomingMedia(apiId, params).then { List<IncomingMediaInfo> medias ->
             String message = params.string(TwilioUtils.BODY)
             Integer numSegments = params.int(TwilioUtils.NUM_SEGMENTS)
             switch (message) {
                 case TextTwiml.BODY_SEE_ANNOUNCEMENTS:
                     announcementCallbackService.textSeeAnnouncements(p1, is1) {
-                        incomingTextService.process(p1, is1, apiId, message, numSegments, media)
+                        incomingTextService.process(p1, is1, apiId, message, numSegments, medias)
                     }
                     break
                 case TextTwiml.BODY_TOGGLE_SUBSCRIBE:
                     announcementCallbackService.textToggleSubscribe(is1)
                     break
                 default:
-                    incomingTextService.process(p1, is1, apiId, message, numSegments, media)
+                    incomingTextService.process(p1, is1, apiId, message, numSegments, medias)
             }
         }
     }

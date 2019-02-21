@@ -40,9 +40,9 @@ class IOCUtils {
             params: linkParams)
     }
 
-    static String getHandleLink(String handle, Map linkParams = [:]) {
+    static String getHandleLink(Object handle, Map linkParams = [:]) {
         Map combinedParams = new HashMap(linkParams)
-        combinedParams.put(CallbackUtils.PARAM_HANDLE, handle)
+        combinedParams.put(CallbackUtils.PARAM_HANDLE, TypeUtils.to(String, handle))
         getWebhookLink(combinedParams)
     }
 

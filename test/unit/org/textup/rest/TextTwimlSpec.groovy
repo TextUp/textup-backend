@@ -21,123 +21,78 @@ import spock.lang.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class TextTwimlSpec extends CustomSpec {
+class TextTwimlSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-        setupData()
-    }
-
-    def cleanup() {
-        cleanupData()
+        TestUtils.standardMockSetup()
     }
 
     void "test building text strings"() {
         when:
-        String msg1 = "hello"
-        String msg2 = "there"
-        Result<Closure> res = TextTwiml.build([msg2, msg1])
+        String msg1 = TestUtils.randString()
+        String msg2 = TestUtils.randString()
+        Result res = TextTwiml.build([msg2, msg1])
 
         then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Message(msg2)
                 Message(msg1)
             }
-        })
+        }
     }
 
     void "test errors"() {
         when: "invalid number for text"
-        Result<Closure> res = TextTwiml.invalid()
+        Result res = TextTwiml.invalid()
 
         then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
-            Response { Message("twimlBuilder.invalidNumber") }
-        })
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
+            Response { Message("twiml.invalidNumber") }
+        }
 
         when: "not found for text"
         res = TextTwiml.notFound()
 
         then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
-            Response { Message("twimlBuilder.notFound") }
-        })
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
+            Response { Message("twiml.notFound") }
+        }
     }
 
     void "test texts"() {
         when: "subscribed"
-        Result<Closure> res = TextTwiml.subscribed()
+        Result res = TextTwiml.subscribed()
 
         then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
-            Response { Message("twimlBuilder.text.subscribed") }
-        })
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
+            Response { Message("textTwiml.subscribed") }
+        }
 
         when: "unsubscribed"
         res = TextTwiml.unsubscribed()
 
         then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
-            Response { Message("twimlBuilder.text.unsubscribed") }
-        })
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
+            Response { Message("textTwiml.unsubscribed") }
+        }
 
         when: "blocked"
         res = TextTwiml.blocked()
 
         then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
-            Response { Message("twimlBuilder.text.blocked") }
-        })
-    }
-
-    void "test seeing announcements"() {
-        when: "announcements, no params"
-        Result<Closure> res = TextTwiml.seeAnnouncements(null)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "twimlBuilder.invalidCode"
-
-        when: "announcements empty list"
-        res = TextTwiml.seeAnnouncements([])
-
-        then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
-            Response { Message("twimlBuilder.noAnnouncements") }
-        })
-
-        when: "announcements, valid"
-        Collection<FeaturedAnnouncement> announces = [[
-            whenCreated: DateTime.now(),
-            owner: p1,
-            message: "hello1"
-        ] as FeaturedAnnouncement, [
-            whenCreated: DateTime.now(),
-            owner: p1,
-            message: "hello2"
-        ] as FeaturedAnnouncement]
-        res = TextTwiml.seeAnnouncements(announces)
-
-        then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml({
-            Response {
-                Message("twimlBuilder.announcement")
-                Message("twimlBuilder.announcement")
-            }
-        })
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
+            Response { Message("textTwiml.blocked") }
+        }
     }
 }

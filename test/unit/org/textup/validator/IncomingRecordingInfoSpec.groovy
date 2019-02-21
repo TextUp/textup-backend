@@ -30,7 +30,7 @@ class IncomingRecordingInfoSpec extends Specification {
         given:
         TypeMap params = new TypeMap((TwilioUtils.ID_ACCOUNT): TestUtils.randString(),
             (TwilioUtils.ID_RECORDING): TestUtils.randString(),
-            (TwilioUtils.RECORDING_URL): TestUtils.randUrl())
+            (TwilioUtils.RECORDING_URL): TestUtils.randUri())
 
         when: "empty"
         Result res = IncomingRecordingInfo.tryCreate(null)
@@ -54,7 +54,7 @@ class IncomingRecordingInfoSpec extends Specification {
         ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
         TypeMap params = new TypeMap((TwilioUtils.ID_ACCOUNT): TestUtils.randString(),
             (TwilioUtils.ID_RECORDING): TestUtils.randString(),
-            (TwilioUtils.RECORDING_URL): TestUtils.randUrl())
+            (TwilioUtils.RECORDING_URL): TestUtils.randUri())
         IncomingRecordingInfo ir1 = IncomingRecordingInfo.tryCreate(params).payload
         assert ir1.validate()
 

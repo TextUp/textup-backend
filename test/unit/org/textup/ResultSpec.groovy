@@ -28,6 +28,7 @@ class ResultSpec extends Specification {
 
     	then:
     	res.success == true
+        res.hasErrorBeenHandled == false
     	res.status == ResultStatus.CREATED
     	res.errorMessages.isEmpty() == true
     	res.payload.id == loc1.id
@@ -38,6 +39,7 @@ class ResultSpec extends Specification {
 
     	then:
     	res.success == false
+        res.hasErrorBeenHandled == false
     	res.status == ResultStatus.UNPROCESSABLE_ENTITY
     	res.errorMessages.size() == 1
     	res.errorMessages[0] == msg
@@ -48,6 +50,7 @@ class ResultSpec extends Specification {
 
         then:
         res.success == true
+        res.hasErrorBeenHandled == false
         res.status == ResultStatus.NO_CONTENT
         res.payload == null
     }
@@ -212,10 +215,10 @@ class ResultSpec extends Specification {
         when: "clearing curry"
         successRes.clearCurry()
         successRes.clearCurryFailure()
-        successRes.resetErrorHandling()
+        successRes.hasErrorBeenHandled = false
         failRes.clearCurry()
         failRes.clearCurryFailure()
-        failRes.resetErrorHandling()
+        failRes.hasErrorBeenHandled = false
 
         then: "reset back to default types without calling error"
         successRes.then { Location a1, ResultStatus a2 ->
@@ -224,40 +227,6 @@ class ResultSpec extends Specification {
         failRes.ifFail { Result a1 ->
             Result.void()
         }
-    }
-
-    void "test only one failure handler will be called for a failed result"() {
-        given:
-        int timesCalled = 0
-        Closure failAction = { res -> ++timesCalled; res; }
-
-        when:
-        Result failRes = Result.createError([], ResultStatus.BAD_REQUEST)
-
-        then:
-        failRes.hasErrorBeenHandled() == false
-
-        when:
-        failRes.ifFail(failAction)
-
-        then:
-        failRes.hasErrorBeenHandled() == true
-        timesCalled == 1
-
-        when:
-        failRes.ifFail(failAction)
-
-        then: "not called again"
-        failRes.hasErrorBeenHandled() == true
-        timesCalled == 1
-
-        when:
-        failRes.resetErrorHandling()
-        failRes.ifFail(failAction)
-
-        then: "failure is called again after reset"
-        failRes.hasErrorBeenHandled() == true
-        timesCalled == 2
     }
 
     void "test failure handlers"() {
@@ -278,7 +247,7 @@ class ResultSpec extends Specification {
         timesCalled == 1
 
         when:
-        failRes.resetErrorHandling()
+        failRes.hasErrorBeenHandled = false
         retVal = failRes.ifFailEnd(failAction)
 
         then:
@@ -286,7 +255,7 @@ class ResultSpec extends Specification {
         timesCalled == 2
 
         when:
-        failRes.resetErrorHandling()
+        failRes.hasErrorBeenHandled = false
         retVal = failRes.ifFail(prefix1, failAction)
 
         then:
@@ -298,7 +267,7 @@ class ResultSpec extends Specification {
 
         when:
         stdErr.reset()
-        failRes.resetErrorHandling()
+        failRes.hasErrorBeenHandled = false
         retVal = failRes.ifFailEnd(prefix2, failAction)
 
         then:
@@ -350,7 +319,7 @@ class ResultSpec extends Specification {
 
         then:
         timesCalled == 3
-        failRes.hasErrorBeenHandled() == true
+        failRes.hasErrorBeenHandled == true
 
         when:
         failRes
@@ -358,7 +327,7 @@ class ResultSpec extends Specification {
             .alwaysEnd(action)
 
         then: "`alwaysEnd` called even if error already handled"
-        failRes.hasErrorBeenHandled() == true
+        failRes.hasErrorBeenHandled == true
         timesCalled == 4
     }
 
@@ -400,5 +369,120 @@ class ResultSpec extends Specification {
         timesSuccess == 2
         timesFail == 1
         timesAlways == 1
+    }
+
+    void "test only one failure handler will be called for a failed result"() {
+        given:
+        int timesCalled = 0
+        Closure failAction = { res -> ++timesCalled; res; }
+
+        when:
+        Result failRes = Result.createError([], ResultStatus.BAD_REQUEST)
+
+        then:
+        failRes.hasErrorBeenHandled == false
+
+        when:
+        failRes.ifFail(failAction)
+
+        then:
+        failRes.hasErrorBeenHandled == true
+        timesCalled == 1
+
+        when:
+        failRes.ifFail(failAction)
+
+        then: "not called again"
+        failRes.hasErrorBeenHandled == true
+        timesCalled == 1
+
+        when:
+        failRes.hasErrorBeenHandled = false
+        failRes.ifFail(failAction)
+
+        then: "failure is called again after reset"
+        failRes.hasErrorBeenHandled == true
+        timesCalled == 2
+    }
+
+    void "test `Result` returned from the `ifFail` will not trigger any subsequent handlers"() {
+        given:
+        String msg1 = TestUtils.randString()
+        String msg2 = TestUtils.randString()
+        String msg3 = TestUtils.randString()
+        String msg4 = TestUtils.randString()
+        String msg5 = TestUtils.randString()
+        String msg6 = TestUtils.randString()
+        String msg7 = TestUtils.randString()
+        String msg8 = TestUtils.randString()
+
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
+
+        when:
+        Result res = Result.createSuccess(msg1)
+            .then { Result.createError([msg2], ResultStatus.UNPROCESSABLE_ENTITY) }
+            .then { Result.createSuccess(msg3) }
+            .ifFail { Result.createSuccess(msg4) }
+            .then { Result.createSuccess(msg5) }
+            .ifFail { Result.createSuccess(msg6) }
+            .logFail(msg7)
+            .then { Result.createSuccess(msg8) }
+
+        then:
+        res.hasErrorBeenHandled == true
+        res.status == ResultStatus.OK
+        res.payload == msg4
+        stdErr.toString().contains(msg7) == false
+
+        cleanup:
+        TestUtils.restoreAllStreams()
+    }
+
+    void "test marking error has been handled in `ifFail` handler"() {
+        given:
+        String msg1 = TestUtils.randString()
+        String msg2 = TestUtils.randString()
+        String msg3 = TestUtils.randString()
+        Result failRes1 = Result.createError([msg1], ResultStatus.BAD_REQUEST)
+        Result res1 = Result.createSuccess(msg2)
+        Result res2 = Result.createSuccess(msg3)
+
+        when:
+        Result retVal = failRes1
+            .ifFail { res1 }
+            .then { res2 }
+
+        then:
+        retVal == res1
+        failRes1.hasErrorBeenHandled == true
+        res1.hasErrorBeenHandled == true
+    }
+
+    void "test `logFail` is only called once because this is considered to be handling error"() {
+        given:
+        String msg1 = TestUtils.randString()
+        String msg2 = TestUtils.randString()
+        String msg3 = TestUtils.randString()
+        String msg4 = TestUtils.randString()
+
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
+
+        when:
+        Result res = Result.createError([msg1], ResultStatus.BAD_REQUEST)
+            .logFail(msg2)
+            .logFail(msg3)
+            .logFail(msg4)
+
+        then:
+        res.hasErrorBeenHandled == true
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages == [msg1]
+        stdErr.toString().contains(msg1)
+        stdErr.toString().contains(msg2)
+        stdErr.toString().contains(msg3) == false
+        stdErr.toString().contains(msg4) == false
+
+        cleanup:
+        TestUtils.restoreAllStreams()
     }
 }

@@ -93,7 +93,7 @@ class TextServiceSpec extends Specification {
         given:
         String msg = TestUtils.randString()
         String customAccountId = TestUtils.randString()
-        Collection<URI> mediaLinks = [TestUtils.randUrl(), TestUtils.randUrl()]
+        Collection<URI> mediaLinks = [TestUtils.randUri(), TestUtils.randUri()]
 
         PhoneNumber fromNum = PhoneNumber.create(TestConstants.TEST_SMS_FROM_VALID)
         assert fromNum.validate()
@@ -139,7 +139,7 @@ class TextServiceSpec extends Specification {
         assert fromNum.validate()
         String msg = TestUtils.randString()
         String customAccountId = TestUtils.randString()
-        Collection<URI> mediaLinks = [TestUtils.randUrl(), TestUtils.randUrl()]
+        Collection<URI> mediaLinks = [TestUtils.randUri(), TestUtils.randUri()]
 
         PhoneNumber toNum1 = TestUtils.randPhoneNumber(),
             toNum2 = TestUtils.randPhoneNumber()

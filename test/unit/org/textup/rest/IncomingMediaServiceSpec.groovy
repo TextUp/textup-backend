@@ -1,14 +1,12 @@
 package org.textup.rest
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.test.runtime.*
-import java.util.concurrent.atomic.AtomicInteger
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.springframework.validation.Errors
 import org.textup.*
+import org.textup.media.*
 import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
@@ -27,164 +25,114 @@ class IncomingMediaServiceSpec extends Specification {
     }
 
     def setup() {
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
+        TestUtils.standardMockSetup()
     }
 
     void "test finish processing uploads"() {
         given:
-        service.storageService = Mock(StorageService)
-        IsIncomingMedia iMedia = Mock(IsIncomingMedia)
-        UploadItem uItem = TestUtils.buildUploadItem()
+        UploadItem uItem1 = TestUtils.buildUploadItem()
+
+        IsIncomingMedia im1 = GroovyMock()
+        service.threadService = GroovyMock(ThreadService)
+        service.storageService = GroovyMock(StorageService)
 
         when: "no items to upload"
-        Result<Void> res = service.finishProcessingUploads([iMedia], null)
+        Result res = service.finishProcessingUploads([im1], null)
 
         then:
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
-        0 * iMedia._
+        1 * service.storageService.uploadAsync(null) >> new ResultGroup()
         res.status == ResultStatus.NO_CONTENT
 
         when: "has items to upload"
-        res = service.finishProcessingUploads([iMedia], [uItem])
+        res = service.finishProcessingUploads([im1], [uItem1])
 
         then:
-        1 * service.storageService.uploadAsync(*_) >> new ResultGroup()
-        1 * iMedia.delete()
+        1 * service.storageService.uploadAsync([uItem1]) >> new ResultGroup()
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
+        1 * im1.delete()
         res.status == ResultStatus.NO_CONTENT
 
         when: "has upload errors"
-        res = service.finishProcessingUploads([iMedia], [uItem])
+        res = service.finishProcessingUploads([im1], [uItem1])
 
         then: "if error, media is not deleted"
-        1 * service.storageService.uploadAsync(*_) >>
-            Result.createError(["hi"], ResultStatus.BAD_REQUEST).toGroup()
-        0 * iMedia._
+        1 * service.storageService.uploadAsync([uItem1]) >>
+            Result.createError([], ResultStatus.BAD_REQUEST).toGroup()
         res.status == ResultStatus.BAD_REQUEST
-    }
-
-    void "test processing element invalid inputs"() {
-        given:
-        IsIncomingMedia im1 = Mock(IsIncomingMedia)
-
-        when: "incoming media is missing information"
-        Result<Tuple<List<UploadItem>, MediaElement>> res = service.processElement(im1)
-
-        then:
-        1 * im1.validate() >> false
-        (1.._) * im1.errors >> Mock(Errors)
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-
-        when: "incoming media has invalid mime type"
-        res = service.processElement(im1)
-
-        then:
-        1 * im1.validate() >> true
-        (1.._) * im1.mimeType >> "invalid mime type"
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "incomingMediaService.processElement.invalidMimeType"
-    }
-
-    void "test basic auth request error conditions"() {
-        given: "override credentials so we're not sending actual credentials to testing endpoint"
-        IsIncomingMedia im1 = Mock(IsIncomingMedia) {
-            validate() >> true
-            getMimeType() >> MediaType.IMAGE_JPEG.mimeType
-        }
-        String sid = TestUtils.randString()
-        String authToken = TestUtils.randString()
-
-        when: "basic auth is missing credentials"
-        service.grailsApplication = Stub(GrailsApplication) {
-            getFlatConfig() >> [
-                "textup.apiKeys.twilio.sid": null,
-                "textup.apiKeys.twilio.authToken": null
-            ]
-        }
-        Result<Tuple<List<UploadItem>, MediaElement>> res = service.processElement(im1)
-
-        then:
-        1 * im1.url >> TestConstants.TEST_HTTP_ENDPOINT
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-
-        when: "basic auth returns an error response code"
-        service.grailsApplication.getFlatConfig() >> [
-            "textup.apiKeys.twilio.sid": sid,
-            "textup.apiKeys.twilio.authToken": authToken
-        ]
-        res = service.processElement(im1)
-
-        then:
-        1 * im1.url >> "${TestConstants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/invalid-password"
-        res.status == ResultStatus.UNAUTHORIZED
-        res.errorMessages[0] == "incomingMediaService.processElement.couldNotRetrieveMedia"
     }
 
     void "test processing element"() {
         given: "override credentials so we're not sending actual credentials to testing endpoint"
         String sid = TestUtils.randString()
         String authToken = TestUtils.randString()
-        IsIncomingMedia im1 = Mock(IsIncomingMedia) {
-            validate() >> true
-            getMimeType() >> MediaType.IMAGE_JPEG.mimeType
-            getUrl() >> "${TestConstants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/${authToken}"
-        }
+        UploadItem sendVersion = TestUtils.buildUploadItem()
+        UploadItem altVersion = TestUtils.buildUploadItem()
+
+        int eBaseline = MediaElement.count()
+        int vBaseline = MediaElementVersion.count()
+
         service.grailsApplication = Stub(GrailsApplication) {
             getFlatConfig() >> [
                 "textup.apiKeys.twilio.sid": sid,
                 "textup.apiKeys.twilio.authToken": authToken
             ]
         }
-        UploadItem sendVersion = TestUtils.buildUploadItem()
-        UploadItem altVersion = TestUtils.buildUploadItem()
-        MediaPostProcessor.metaClass."static".process = { MediaType type, byte[] data ->
-            new Result(payload: Tuple.create(sendVersion, [altVersion]))
+        IsIncomingMedia im1 = GroovyMock()
+        MockedMethod process = MockedMethod.create(MediaPostProcessor, "process") {
+            Result.createSuccess(Tuple.create(sendVersion, [altVersion]))
         }
-        int eBaseline = MediaElement.count()
-        int vBaseline = MediaElementVersion.count()
 
         when: "is a private asset"
-        Result<Tuple<List<UploadItem>, MediaElement>> res = service.processElement(im1)
+        Result res = service.processElement(im1)
         MediaElement.withSession { it.flush() }
 
         then:
+        1 * im1.mimeType >> MediaType.IMAGE_JPEG.mimeType
+        1 * im1.url >> "${TestConstants.TEST_HTTP_ENDPOINT}/basic-auth/${sid}/${authToken}"
+        process.latestArgs[0] == MediaType.IMAGE_JPEG
         (1.._) * im1.isPublic >> false
         res.status == ResultStatus.OK
         res.payload.first.size() == 2
-        res.payload.first.every { it == sendVersion || it == altVersion }
+        sendVersion in res.payload.first
+        altVersion in res.payload.first
         res.payload.second instanceof MediaElement
         res.payload.second.sendVersion.versionId == sendVersion.key
         res.payload.second.sendVersion.isPublic  == false
-        res.payload.second.alternateVersions.size()       == 1
+        res.payload.second.alternateVersions.size() == 1
         res.payload.second.alternateVersions[0].versionId == altVersion.key
         res.payload.second.alternateVersions[0].isPublic  == false
         MediaElement.count() == eBaseline + 1
         MediaElementVersion.count() == vBaseline + 2
+
+        cleanup:
+        process?.restore()
     }
 
-    @DirtiesRuntime
     void "test processing overall"() {
         given: "override credentials so we're not sending actual credentials to testing endpoint"
-        MediaElement e1 = TestUtils.buildMediaElement()
-        UploadItem uItem = TestUtils.buildUploadItem()
-        Collection<IsIncomingMedia> incomingMedia = []
-        5.times { incomingMedia << Mock(IsIncomingMedia) }
-        MockedMethod processElement = MockedMethod.create(service, "processElement")
-            { new Result(payload: Tuple.create([uItem], e1)) }
-        MockedMethod finishProcessingUploads = MockedMethod.create(service, "finishProcessingUploads")
-            { new Result() }
+        MediaElement el1 = TestUtils.buildMediaElement()
+        UploadItem uItem1 = TestUtils.buildUploadItem()
 
-        when: "is a public asset"
-        ResultGroup<MediaElement> resGroup = service.process(incomingMedia)
+        IsIncomingMedia im1 = GroovyMock() { asBoolean() >> true }
+        MockedMethod processElement = MockedMethod.create(service, "processElement") {
+            Result.createSuccess(Tuple.create([uItem1], el1))
+        }
+        MockedMethod finishProcessingUploads = MockedMethod.create(service, "finishProcessingUploads") {
+            Result.void()
+        }
+
+        when:
+        Result res = service.process([im1])
 
         then:
-        processElement.callCount == incomingMedia.size()
-        finishProcessingUploads.callCount == 1
-        finishProcessingUploads.allArgs.every { it[0] == incomingMedia }
-        // in the processElement mock we return 1 UploadItem per call
-        finishProcessingUploads.allArgs.every { it[1].size() == incomingMedia.size() }
-        resGroup.successes.size() == incomingMedia.size()
-        resGroup.anyFailures == false
-        resGroup.payload.every { it == e1 }
+        1 * im1.validate() >> true
+        processElement.latestArgs == [im1]
+        finishProcessingUploads.latestArgs == [[im1], [uItem1]]
+        res.status == ResultStatus.OK
+        el1 in res.payload
+
+        cleanup:
+        processElement?.restore()
+        finishProcessingUploads?.restore()
     }
 }

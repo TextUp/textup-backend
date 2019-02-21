@@ -1,6 +1,9 @@
 package org.textup.rest
 
-import grails.test.mixin.TestFor
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import org.joda.time.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -10,202 +13,270 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
-/**
- * See the API for {@link grails.test.mixin.services.ServiceUnitTestMixin} for usage instructions
- */
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
+@TestMixin(HibernateTestMixin)
 @TestFor(AnnouncementCallbackService)
 class AnnouncementCallbackServiceSpec extends Specification {
 
-    def setup() {
+    static doWithSpring = {
+        resultFactory(ResultFactory)
     }
 
-    def cleanup() {
+    def setup() {
+        TestUtils.standardMockSetup()
     }
 
     void "test see announcement via text"() {
         given:
-        Phone owner = GroovyMock(Phone)
-        FeaturedAnnouncement fa1 = GroovyMock(FeaturedAnnouncement) {
-            getWhenCreated() >> DateTime.now()
-            getOwner() >> owner
-        }
-        IncomingSession sess1 = GroovyMock(IncomingSession)
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        Phone p2 = TestUtils.buildActiveStaffPhone()
 
-        when:
-        Result<Closure> res = service.textSeeAnnouncements([fa1], sess1)
+        FeaturedAnnouncement fa1 = TestUtils.buildAnnouncement(p2)
+        IncomingSession is1 = TestUtils.buildSession(p1)
+        IncomingSession is2 = TestUtils.buildSession(p2)
+
+        int aRptBaseline = AnnouncementReceipt.count()
+
+        int fallbackCallCount = 0
+        Closure fallbackAction = { ++fallbackCallCount; Result.void(); }
+
+        when: "no announcements"
+        Result res = service.textSeeAnnouncements(p1, is1, fallbackAction)
 
         then:
-        1 * fa1.addToReceipts(RecordItemType.TEXT, sess1) >> new ResultGroup()
+        fallbackCallCount == 1
+        res.status == ResultStatus.NO_CONTENT
+        AnnouncementReceipt.count() == aRptBaseline
+
+        when:
+        res = service.textSeeAnnouncements(p2, is2, fallbackAction)
+
+        then:
+        fallbackCallCount == 1
         res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.announcement")
+        TestUtils.buildXml(res.payload).contains("twilioUtils.announcement")
+        AnnouncementReceipt.count() == aRptBaseline + 1
+        AnnouncementReceipt.findByAnnouncementAndSession(fa1, is2).type == RecordItemType.TEXT
     }
 
     void "test change announcement subscription for texts"() {
         given:
-        IncomingSession sess1 = GroovyMock(IncomingSession)
+        IncomingSession is1 = GroovyMock(IncomingSession)
 
         when: "is unsubscribed"
-        Result<Closure> res = service.textToggleSubscribe(sess1)
+        Result res = service.textToggleSubscribe(is1)
 
         then: "subscribe"
-        1 * sess1.isSubscribedToText >> false
-        1 * sess1.setIsSubscribedToText(true)
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.text.subscribed")
+        1 * is1.isSubscribedToText >> false
+        1 * is1.setIsSubscribedToText(true)
+        TestUtils.buildXml(res.payload).contains("textTwiml.subscribed")
 
         when: "is subscribed"
-        res = service.textToggleSubscribe(sess1)
+        res = service.textToggleSubscribe(is1)
 
         then: "unsubscribe"
-        1 * sess1.isSubscribedToText >> true
-        1 * sess1.setIsSubscribedToText(false)
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.text.unsubscribed")
+        1 * is1.isSubscribedToText >> true
+        1 * is1.setIsSubscribedToText(false)
+        TestUtils.buildXml(res.payload).contains("textTwiml.unsubscribed")
     }
 
     void "test try building text instructions"() {
         given:
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString:"1112223333")
-        session.save(flush:true, failOnError:true)
+        Phone p1 = TestUtils.buildStaffPhone()
+        Phone tp1 = TestUtils.buildActiveTeamPhone()
+        FeaturedAnnouncement fa1 = TestUtils.buildAnnouncement(tp1)
+
+        IncomingSession is1 = GroovyMock()
 
         when: "no announcements"
-        assert p1.countAnnouncements() == 0
-        Result<List<String>> res = service.tryBuildTextInstructions(p1, session)
+        Result res = service.tryBuildTextInstructions(p1, is1)
 
         then:
         res.status == ResultStatus.OK
         res.payload == []
 
         when: "has announcements, but should NOT send instructions"
-        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-            message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-        announce.save(flush:true, failOnError:true)
-        assert p1.countAnnouncements() > 0
-        session.lastSentInstructions = DateTime.now().plusDays(2)
-        assert session.shouldSendInstructions == false
-        res = service.tryBuildTextInstructions(p1, session)
+        res = service.tryBuildTextInstructions(tp1, is1)
 
         then:
+        1 * is1.shouldSendInstructions >> false
         res.status == ResultStatus.OK
         res.payload == []
 
         when: "has announcement and should send instructions"
-        session.isSubscribedToText = true
-        session.lastSentInstructions = DateTime.now().minusDays(2)
-        assert session.shouldSendInstructions == true
-        res = service.tryBuildTextInstructions(p1, session)
+        res = service.tryBuildTextInstructions(tp1, is1)
 
         then:
+        1 * is1.shouldSendInstructions >> true
+        1 * is1.updateLastSentInstructions()
+        1 * is1.isSubscribedToText >> true
         res.status == ResultStatus.OK
-        res.payload == ["twimlBuilder.text.instructionsSubscribed"]
+        res.payload == ["announcementCallbackService.instructionsSubscribed"]
 
         when: "has announcement and should send instructions"
-        session.isSubscribedToText = false
-        session.lastSentInstructions = DateTime.now().minusDays(2)
-        assert session.shouldSendInstructions == true
-        res = service.tryBuildTextInstructions(p1, session)
+        res = service.tryBuildTextInstructions(tp1, is1)
 
         then:
+        1 * is1.shouldSendInstructions >> true
+        1 * is1.updateLastSentInstructions()
+        1 * is1.isSubscribedToText >> false
         res.status == ResultStatus.OK
-        res.payload == ["twimlBuilder.text.instructionsUnsubscribed"]
+        res.payload == ["announcementCallbackService.instructionsUnsubscribed"]
     }
 
-    // @FreshRuntime // TODO
-    void "test handling incoming for call announcements"() {
-        given: "no announcements and session"
-        boolean didCallFallback = false
-        Closure<Result<Closure>> fallbackAction = {
-            didCallFallback = true
-            new Result()
+    void "test toggle subscription for call"() {
+        given:
+        IncomingSession is1 = GroovyMock()
+
+        when:
+        Result res = service.callToggleSubscribe(is1)
+
+        then:
+        1 * is1.isSubscribedToCall >> true
+        1 * is1.setIsSubscribedToCall(false)
+        TestUtils.buildXml(res.payload).contains("callTwiml.unsubscribed")
+
+        when:
+        res = service.callToggleSubscribe(is1)
+
+        then:
+        1 * is1.isSubscribedToCall >> false
+        1 * is1.setIsSubscribedToCall(true)
+        TestUtils.buildXml(res.payload).contains("callTwiml.subscribed")
+    }
+
+    void "test hear announcements over call"() {
+        given:
+        Phone tp1 = TestUtils.buildActiveTeamPhone()
+        FeaturedAnnouncement fa1 = TestUtils.buildAnnouncement(tp1)
+        IncomingSession is1 = TestUtils.buildSession(tp1)
+
+        int aRptBaseline = AnnouncementReceipt.count()
+
+        MockedMethod hearAnnouncements = MockedMethod.create(CallTwiml, "hearAnnouncements") {
+            Result.void()
         }
-        IncomingSession session = new IncomingSession(phone:p1, numberAsString:"1112223333")
-        session.save(flush:true, failOnError:true)
-        int aBaseline = AnnouncementReceipt.count()
 
-        when: "no digits or announcements"
-        assert p1.countAnnouncements() == 0
-        Result res = service.handleAnnouncementCall(p1, null, session, fallbackAction)
-
-        then: "fallback"
-        true == didCallFallback
-        res.success == true
-
-        when: "no digits, has announcements"
-        didCallFallback = false
-        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-            message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-        announce.save(flush:true, failOnError:true)
-        assert p1.countAnnouncements() > 0
-        res = service.handleAnnouncementCall(p1, null, session, fallbackAction)
+        when:
+        Result res = service.callHearAnnouncements(tp1.id, is1)
 
         then:
-        res.success == true
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.announcementGreetingWelcome")
-        AnnouncementReceipt.count() == aBaseline
-        false == didCallFallback
+        hearAnnouncements.latestArgs == [[fa1], is1.isSubscribedToCall]
+        res.status == ResultStatus.NO_CONTENT
+        AnnouncementReceipt.count() == aRptBaseline + 1
+        AnnouncementReceipt.findByAnnouncementAndSession(fa1, is1).type == RecordItemType.CALL
 
-        when: "digits, hear announcements"
-        res = service.handleAnnouncementCall(p1,
-            Constants.CALL_HEAR_ANNOUNCEMENTS, session, fallbackAction)
+        cleanup:
+        hearAnnouncements?.restore()
+    }
+
+    void "test handling call announcements overall"() {
+        given:
+        String randDigits = TestUtils.randString()
+
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        Phone p2 = TestUtils.buildStaffPhone()
+        FeaturedAnnouncement fa1 = TestUtils.buildAnnouncement(p1)
+
+        IncomingSession is1 = GroovyStub() { getIsSubscribedToCall() >> true }
+        MockedMethod callHearAnnouncements = MockedMethod.create(service, "callHearAnnouncements") {
+            Result.void()
+        }
+        MockedMethod callToggleSubscribe = MockedMethod.create(service, "callToggleSubscribe") {
+            Result.void()
+        }
+        MockedMethod announcementGreeting = MockedMethod.create(CallTwiml, "announcementGreeting") {
+            Result.void()
+        }
+        int fallbackCallCount = 0
+        Closure fallbackAction = { ++fallbackCallCount; Result.void(); }
+
+        when:
+        Result res = service.handleAnnouncementCall(null, is1, null, fallbackAction)
 
         then:
-        res.success == true
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.announcement")
-        AnnouncementReceipt.count() == aBaseline + 1
-        false == didCallFallback
+        fallbackCallCount == 1
+        callHearAnnouncements.notCalled
+        callToggleSubscribe.notCalled
+        announcementGreeting.notCalled
 
-        when: "digits, is NOT subscriber, toggle subscribe"
-        session.isSubscribedToCall = false
-        session.save(flush:true, failOnError:true)
-        res = service.handleAnnouncementCall(p1, Constants.CALL_TOGGLE_SUBSCRIBE, session, fallbackAction)
+        when:
+        res = service.handleAnnouncementCall(p1, is1, null, fallbackAction)
 
         then:
-        session.isSubscribedToCall == true
-        res.success == true
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.subscribed")
-        false == didCallFallback
+        fallbackCallCount == 1
+        callHearAnnouncements.notCalled
+        callToggleSubscribe.notCalled
+        announcementGreeting.latestArgs == [p1.buildName(), is1.isSubscribedToCall]
 
-        when: "digits, is subscriber, toggle subscribe"
-        session.isSubscribedToCall = true
-        session.save(flush:true, failOnError:true)
-        res = service.handleAnnouncementCall(p1, Constants.CALL_TOGGLE_SUBSCRIBE, session, fallbackAction)
+        when:
+        res = service.handleAnnouncementCall(p1, is1, randDigits, fallbackAction)
 
         then:
-        session.isSubscribedToCall == false
-        res.success == true
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.unsubscribed")
-        false == didCallFallback
+        fallbackCallCount == 2
+        callHearAnnouncements.notCalled
+        callToggleSubscribe.notCalled
+        announcementGreeting.hasBeenCalled
 
-        when: "digits, no matching valid"
-        res = service.handleAnnouncementCall(p1, "blah", session, fallbackAction)
+        when:
+        res = service.handleAnnouncementCall(p1, is1, CallTwiml.DIGITS_HEAR_ANNOUNCEMENTS, fallbackAction)
 
-        then: "fallback"
-        res.success == true
-        true == didCallFallback
+        then:
+        fallbackCallCount == 2
+        callHearAnnouncements.latestArgs == [p1.id, is1]
+        callToggleSubscribe.notCalled
+        announcementGreeting.hasBeenCalled
+
+        when:
+        res = service.handleAnnouncementCall(p1, is1, CallTwiml.DIGITS_TOGGLE_SUBSCRIBE, fallbackAction)
+
+        then:
+        fallbackCallCount == 2
+        callHearAnnouncements.hasBeenCalled
+        callToggleSubscribe.latestArgs == [is1]
+        announcementGreeting.hasBeenCalled
+
+        cleanup:
+        callHearAnnouncements?.restore()
+        callToggleSubscribe?.restore()
+        announcementGreeting?.restore()
     }
 
     void "test complete call announcement"() {
         given:
-        IncomingSession session = GroovyMock(IncomingSession)
+        TypeMap params = TestUtils.randTypeMap()
+        String digits1 = CallTwiml.DIGITS_ANNOUNCEMENT_UNSUBSCRIBE
+        String randDigits = TestUtils.randString()
+
+        IncomingSession is1 = GroovyMock()
+
+        MockedMethod announcementAndDigits = MockedMethod.create(CallTwiml, "announcementAndDigits") {
+            Result.void()
+        }
 
         when: "unsubscribe"
-        String digits = Constants.CALL_ANNOUNCEMENT_UNSUBSCRIBE
-        Result<Closure> res = service.completeCallAnnouncement(digits, null, null, session)
+        Result res = service.completeCallAnnouncement(is1, digits1, params)
 
         then:
-        1 * session.setIsSubscribedToCall(false)
+        1 * is1.setIsSubscribedToCall(false)
+        announcementAndDigits.notCalled
         res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.unsubscribed")
+        TestUtils.buildXml(res.payload).contains("callTwiml.unsubscribed")
 
         when: "digits do not match unsubscribe"
-        digits = TestUtils.randString()
-        res = service.completeCallAnnouncement(digits, "hi", "hi", session)
+        res = service.completeCallAnnouncement(is1, randDigits, params)
 
         then:
-        0 * session._
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.announcementIntro")
+        0 * is1._
+        announcementAndDigits.latestArgs == [params]
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        announcementAndDigits?.restore()
     }
 }

@@ -167,7 +167,7 @@ class TwilioUtilsSpec extends Specification {
         List<String> urls = []
         int numMedia = 2
         numMedia.times {
-            String mockUrl = TestUtils.randUrl()
+            String mockUrl = TestUtils.randLinkString()
             urls << mockUrl
             params["MediaUrl${it}"] = mockUrl
             params["MediaContentType${it}"] = MediaType.IMAGE_JPEG.mimeType

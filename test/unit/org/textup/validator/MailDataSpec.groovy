@@ -134,7 +134,7 @@ class MailDataSpec extends Specification {
         !urlValidator.isValid(dataObj.link)
 
         when:
-        dataObj.link = TestUtils.randUrl()
+        dataObj.link = TestUtils.randLinkString()
 
         then:
         dataObj.validate()
@@ -164,7 +164,7 @@ class MailDataSpec extends Specification {
         !urlValidator.isValid(dataObj.link)
 
         when:
-        dataObj.link = TestUtils.randUrl()
+        dataObj.link = TestUtils.randLinkString()
 
         then:
         dataObj.validate()

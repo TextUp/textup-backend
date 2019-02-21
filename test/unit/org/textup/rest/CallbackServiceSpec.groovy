@@ -1,17 +1,8 @@
 package org.textup.rest
 
-import org.textup.test.*
-import com.twilio.security.RequestValidator
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import java.util.concurrent.TimeUnit
-import javax.servlet.http.HttpServletRequest
-import org.apache.commons.lang3.tuple.Pair
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.joda.time.DateTime
-import org.springframework.context.MessageSource
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -29,421 +20,418 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(CallbackService)
 @TestMixin(HibernateTestMixin)
-class CallbackServiceSpec extends CustomSpec {
+class CallbackServiceSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
 
     def setup() {
-    	setupData()
-    	service.resultFactory = TestUtils.getResultFactory(grailsApplication)
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-    	cleanupData()
-    }
-
-    // Gathering and coordinating
-    // --------------------------
-
-    void "test process invalid inputs"() {
-    	when: "'to' maps to nonexistent phone"
-        String nonexistentNumber = "8888888888"
-        assert Phone.countByNumberAsString(nonexistentNumber) == 0
-    	TypeMap params = TypeMap.create(From: nonexistentNumber, To:nonexistentNumber)
-    	Result<Closure> res = service.process(params)
-
-    	then:
-    	res.success == true
-    	TestUtils.buildXml(res.payload).contains("twimlBuilder.notFound")
-
-    	when: "neither messageSid nor callSid specified"
-    	params = TypeMap.create(To:p1.numberAsString, From:"1112223333")
-		res = service.process(params)
-
-    	then:
-    	res.success == false
-    	res.status == ResultStatus.BAD_REQUEST
-    	res.errorMessages[0] == "callbackService.process.invalid"
-    }
-
-    void "test process for non-US numbers"() {
-        when: "incoming is non-US number for text"
-        TypeMap params = TypeMap.create([To:"blah", From:"invalid", MessageSid:"ok"])
-        Result<Closure> res = service.process(params)
-
-        then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
-            Response {
-                Message("twimlBuilder.invalidNumber")
-            }
-        }
-
-        when: "incoming is non-US number for call"
-        params = TypeMap.create([To: "blah", From:"invalid", CallSid:"ok"])
-        res = service.process(params)
-
-        then:
-        res.success == true
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
-            Response {
-                Say("twimlBuilder.invalidNumber")
-                Hangup()
-            }
-        }
-    }
-
-    void "test process for anonymous call responses"() {
+    void "test processing text"() {
         given:
-        service.outgoingMessageService = Mock(OutgoingMessageService)
+        String apiId = TestUtils.randString()
+        TypeMap params1 = TypeMap.create((TwilioUtils.BODY): TextTwiml.BODY_SEE_ANNOUNCEMENTS,
+            (TwilioUtils.NUM_SEGMENTS): TestUtils.randIntegerUpTo(88, true))
+        TypeMap params2 = TypeMap.create((TwilioUtils.BODY): TextTwiml.BODY_TOGGLE_SUBSCRIBE,
+            (TwilioUtils.NUM_SEGMENTS): TestUtils.randIntegerUpTo(88, true))
+        TypeMap params3 = TypeMap.create((TwilioUtils.BODY): TestUtils.randString(),
+            (TwilioUtils.NUM_SEGMENTS): TestUtils.randIntegerUpTo(88, true))
 
-        when: "retrieving a outgoing direct message delivered through call"
-        TypeMap params = TypeMap.create([handle:CallResponse.DIRECT_MESSAGE.toString()])
-        Result<Closure> res = service.process(params)
+        Phone p1 = GroovyMock()
+        IncomingSession is1 = GroovyMock()
+        IncomingMediaInfo im1 = GroovyMock()
+        service.announcementCallbackService = GroovyMock(AnnouncementCallbackService)
+        service.incomingTextService = GroovyMock(IncomingTextService)
+        MockedMethod tryBuildIncomingMedia = MockedMethod.create(TwilioUtils, "tryBuildIncomingMedia") {
+            Result.createSuccess([im1])
+        }
+
+        when:
+        Result res = service.processText(p1, is1, apiId, params1)
 
         then:
-        1 * service.outgoingMessageService.directMessageCall(*_) >> new Result()
-        res.status == ResultStatus.OK
+        tryBuildIncomingMedia.latestArgs == [apiId, params1]
+        1 * service.announcementCallbackService.textSeeAnnouncements(p1, is1, _ as Closure) >> { args ->
+            args[2].call()
+        }
+        1 * service.incomingTextService.process(p1,
+            is1,
+            apiId,
+            TextTwiml.BODY_SEE_ANNOUNCEMENTS,
+            params1[TwilioUtils.NUM_SEGMENTS],
+            [im1]) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
 
-        when: "no-op"
-        params = TypeMap.create([handle:CallResponse.DO_NOTHING.toString()])
-        res = service.process(params)
+        when:
+        res = service.processText(p1, is1, apiId, params2)
 
         then:
-        0 * service.outgoingMessageService._
+        tryBuildIncomingMedia.latestArgs == [apiId, params2]
+        1 * service.announcementCallbackService.textToggleSubscribe(is1) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        res = service.processText(p1, is1, apiId, params3)
+
+        then:
+        tryBuildIncomingMedia.latestArgs == [apiId, params3]
+        1 * service.incomingTextService.process(p1,
+            is1,
+            apiId,
+            params3[TwilioUtils.BODY],
+            params3[TwilioUtils.NUM_SEGMENTS],
+            [im1]) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        tryBuildIncomingMedia?.restore()
+    }
+
+    void "test when voicemail greeting has finished processing"() {
+        given:
+        Long pId = TestUtils.randIntegerUpTo(88)
+        String apiId = TestUtils.randString()
+        TypeMap params = TestUtils.randTypeMap()
+
+        IncomingRecordingInfo ir1 = GroovyMock()
+        service.threadService = GroovyMock(ThreadService)
+        service.voicemailCallbackService = GroovyMock(VoicemailCallbackService)
+        MockedMethod tryCreate = MockedMethod.create(IncomingRecordingInfo, "tryCreate") {
+            Result.createSuccess(ir1)
+        }
+
+        when:
+        Result res = service.processFinishedVoicemailGreeting(pId, apiId, params)
+
+        then:
+        tryCreate.latestArgs == [params]
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
+        1 * service.voicemailCallbackService.finishProcessingVoicemailGreeting(pId, apiId, ir1) >> Result.void()
         res.status == ResultStatus.OK
         TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
 
-        when: "hanging up"
-        params = TypeMap.create([handle:CallResponse.END_CALL.toString()])
-        res = service.process(params)
+        cleanup:
+        tryCreate?.restore()
+    }
+
+    void "test when recorded voicemail message has finished processing"() {
+        given:
+        String apiId = TestUtils.randString()
+        TypeMap params = TypeMap.create((TwilioUtils.RECORDING_DURATION): TestUtils.randIntegerUpTo(88, true))
+
+        IncomingRecordingInfo ir1 = GroovyMock()
+        service.threadService = GroovyMock(ThreadService)
+        service.voicemailCallbackService = GroovyMock(VoicemailCallbackService)
+        MockedMethod tryCreate = MockedMethod.create(IncomingRecordingInfo, "tryCreate") {
+            Result.createSuccess(ir1)
+        }
+
+        when:
+        Result res = service.processFinishedVoicemailMessage(apiId, params)
 
         then:
-        0 * service.outgoingMessageService._
+        tryCreate.latestArgs == [params]
+        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
+        1 * service.voicemailCallbackService.processVoicemailMessage(apiId,
+            params[TwilioUtils.RECORDING_DURATION],
+            ir1) >> Result.void()
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
+
+        cleanup:
+        tryCreate?.restore()
+    }
+
+    void "test processing call"() {
+        given:
+        String apiId = TestUtils.randString()
+        TypeMap params
+
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IncomingSession is1 = TestUtils.buildSession()
+
+        service.announcementCallbackService = GroovyMock(AnnouncementCallbackService)
+        service.callCallbackService = GroovyMock(CallCallbackService)
+        service.incomingCallService = GroovyMock(IncomingCallService)
+        MockedMethod processFinishedVoicemailMessage = MockedMethod.create(service, "processFinishedVoicemailMessage") {
+            Result.void()
+        }
+        MockedMethod recordVoicemailGreeting = MockedMethod.create(CallTwiml, "recordVoicemailGreeting") {
+            Result.void()
+        }
+        MockedMethod processFinishedVoicemailGreeting = MockedMethod.create(service, "processFinishedVoicemailGreeting") {
+            Result.void()
+        }
+        MockedMethod playVoicemailGreeting = MockedMethod.create(CallTwiml, "playVoicemailGreeting") {
+            Result.void()
+        }
+        MockedMethod finishBridge = MockedMethod.create(CallTwiml, "finishBridge") {
+            Result.void()
+        }
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.CHECK_IF_VOICEMAIL)
+        Result res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        1 * service.callCallbackService.checkIfVoicemail(p1, is1, { it == params }) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_DONE)
+        res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        processFinishedVoicemailMessage.latestArgs == [apiId, params]
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_RECORD)
+        res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        recordVoicemailGreeting.latestArgs == [p1.number, is1.number]
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PROCESSED)
+        res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        processFinishedVoicemailGreeting.latestArgs == [p1.id, apiId, params]
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PLAY)
+        res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        playVoicemailGreeting.latestArgs == [p1.number, p1.voicemailGreetingUrl]
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.ANNOUNCEMENT_AND_DIGITS,
+            (TwilioUtils.DIGITS): TestUtils.randString())
+        res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        1 * service.announcementCallbackService.completeCallAnnouncement(is1,
+            { it == params[TwilioUtils.DIGITS] },
+            { it == params }) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.FINISH_BRIDGE)
+        res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        finishBridge.latestArgs == [params]
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.SCREEN_INCOMING)
+        res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        1 * service.callCallbackService.screenIncomingCall(p1, is1) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): TestUtils.randString(),
+            (TwilioUtils.DIGITS): TestUtils.randString())
+        res = service.processCall(p1, is1, apiId, params)
+
+        then:
+        1 * service.incomingCallService.process(p1,
+            is1,
+            apiId,
+            { it == params[TwilioUtils.DIGITS] }) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        processFinishedVoicemailMessage?.restore()
+        recordVoicemailGreeting?.restore()
+        processFinishedVoicemailGreeting?.restore()
+        playVoicemailGreeting?.restore()
+        finishBridge?.restore()
+    }
+
+    @Unroll
+    void "test processing identified message errors for #messageIdName"() {
+        given:
+        TypeMap params1 = TypeMap.create((TwilioUtils.FROM): TestUtils.randString(),
+            (messageIdName): TestUtils.randString())
+        TypeMap params2 = TypeMap.create((TwilioUtils.FROM): TestUtils.randPhoneNumberString(),
+            (TwilioUtils.TO): TestUtils.randPhoneNumberString(),
+            (messageIdName): TestUtils.randString())
+
+        MockedMethod mustFindActiveForNumber = MockedMethod.create(Phones, "mustFindActiveForNumber") {
+            Result.createError([], ResultStatus.BAD_REQUEST)
+        }
+
+        when:
+        Result res = service.processIdentifiedMessage(params1)
+
+        then:
+        mustFindActiveForNumber.notCalled
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload).contains("twiml.invalidNumber")
+        TestUtils.buildXml(res.payload).contains(twimlString)
+
+        when:
+        res = service.processIdentifiedMessage(params2)
+
+        then:
+        mustFindActiveForNumber.hasBeenCalled
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload).contains("twiml.notFound")
+        TestUtils.buildXml(res.payload).contains(twimlString)
+
+        cleanup:
+        mustFindActiveForNumber?.restore()
+
+        where:
+        messageIdName       | twimlString
+        TwilioUtils.ID_CALL | "Say"
+        TwilioUtils.ID_TEXT | "Message"
+    }
+
+    void "test processing identified message"() {
+        given:
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IncomingSession is1 = TestUtils.buildSession(p1)
+
+        TypeMap params1 = TypeMap.create((TwilioUtils.FROM): is1.number,
+            (TwilioUtils.TO): p1.number)
+        TypeMap params2 = TypeMap.create((TwilioUtils.FROM): is1.number,
+            (TwilioUtils.TO): p1.number,
+            (TwilioUtils.ID_CALL): TestUtils.randString())
+        TypeMap params3 = TypeMap.create((TwilioUtils.FROM): is1.number,
+            (TwilioUtils.TO): p1.number,
+            (TwilioUtils.ID_TEXT): TestUtils.randString())
+
+        MockedMethod processCall = MockedMethod.create(service, "processCall") { Result.void() }
+        MockedMethod processText = MockedMethod.create(service, "processText") { Result.void() }
+
+        when:
+        Result res = service.processIdentifiedMessage(params1)
+
+        then:
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages == ["callbackService.neitherCallNorText"]
+
+        when:
+        res = service.processIdentifiedMessage(params2)
+
+        then:
+        processCall.latestArgs == [p1, is1, params2[TwilioUtils.ID_CALL], params2]
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        res = service.processIdentifiedMessage(params3)
+
+        then:
+        processText.latestArgs == [p1, is1, params3[TwilioUtils.ID_TEXT], params3]
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        processCall?.restore()
+        processText?.restore()
+    }
+
+    void "test processing anonymous call"() {
+        given:
+        TypeMap params
+        String token1 = TestUtils.randString()
+
+        service.callCallbackService = GroovyMock(CallCallbackService)
+        MockedMethod extractDirectMessageToken = MockedMethod.create(CallTwiml, "extractDirectMessageToken") {
+            token1
+        }
+        int callCount = 0
+        Closure continueAction = { ++callCount; Result.void() }
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.DIRECT_MESSAGE)
+        Result res = service.processAnonymousCall(params, continueAction)
+
+        then:
+        callCount == 0
+        extractDirectMessageToken.hasBeenCalled
+        1 * service.callCallbackService.directMessageCall(token1) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.DO_NOTHING)
+        res = service.processAnonymousCall(params, continueAction)
+
+        then:
+        callCount == 0
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
+
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.END_CALL)
+        res = service.processAnonymousCall(params, continueAction)
+
+        then:
+        callCount == 0
         res.status == ResultStatus.OK
         TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { Hangup() } }
 
-        when: "voicemail greeting response"
-        params = TypeMap.create([handle:CallResponse.VOICEMAIL_GREETING_PROCESSING.toString()])
-        res = service.process(params)
+        when:
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PROCESSING)
+        res = service.processAnonymousCall(params, continueAction)
 
         then:
-        0 * service.outgoingMessageService._
+        callCount == 0
         res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.processingVoicemailGreeting")
-        TestUtils.buildXml(res.payload).contains(Constants.CALL_HOLD_MUSIC_URL)
-    }
-
-    void "test handling sessions"() {
-        given:
-        PhoneNumber originalFromNumber = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        PhoneNumber fromNumber = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        PhoneNumber toNumber = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        [originalFromNumber, fromNumber, toNumber].each { assert it.validate() }
-        TypeMap params = TypeMap.create([originalFrom: originalFromNumber.number])
-        int iBaseline = IncomingSession.count()
-
-        when: "CallResponse.FINISH_BRIDGE + new phone number"
-        params.handle = CallResponse.FINISH_BRIDGE.toString()
-        Result<IncomingSession> res = service.getOrCreateIncomingSession(p1, fromNumber,
-            toNumber, params)
-
-        then:
-        IncomingSession.count() == iBaseline + 1
-        res.status == ResultStatus.OK
-        res.payload.numberAsString == toNumber.number
-
-        when: "CallResponse.ANNOUNCEMENT_AND_DIGITS + existing phone number"
-        params.handle = CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()
-        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
-
-        then:
-        IncomingSession.count() == iBaseline + 1
-        res.status == ResultStatus.OK
-        res.payload.numberAsString == toNumber.number
-
-        when: "CallResponse.VOICEMAIL_GREETING_RECORD + existing phone number"
-        params.handle = CallResponse.VOICEMAIL_GREETING_RECORD.toString()
-        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
-
-        then:
-        IncomingSession.count() == iBaseline + 1
-        res.status == ResultStatus.OK
-        res.payload.numberAsString == toNumber.number
-
-        when: "CallResponse.VOICEMAIL_GREETING_PROCESSED + existing phone number"
-        params.handle = CallResponse.VOICEMAIL_GREETING_PROCESSED.toString()
-        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
-
-        then:
-        IncomingSession.count() == iBaseline + 1
-        res.status == ResultStatus.OK
-        res.payload.numberAsString == toNumber.number
-
-        when: "CallResponse.VOICEMAIL_GREETING_PLAY + existing phone number"
-        params.handle = CallResponse.VOICEMAIL_GREETING_PLAY.toString()
-        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
-
-        then:
-        IncomingSession.count() == iBaseline + 1
-        res.status == ResultStatus.OK
-        res.payload.numberAsString == toNumber.number
-
-        when: "CallResponse.SCREEN_INCOMING + new phone number"
-        params.handle = CallResponse.SCREEN_INCOMING.toString()
-        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
-
-        then:
-        IncomingSession.count() == iBaseline + 2
-        res.status == ResultStatus.OK
-        res.payload.numberAsString == originalFromNumber.number
-
-        when: "another valid call response + new phone number"
-        params.handle = "another valid call response"
-        res = service.getOrCreateIncomingSession(p1, fromNumber, toNumber, params)
-
-        then:
-        IncomingSession.count() == iBaseline + 3
-        res.status == ResultStatus.OK
-        res.payload.numberAsString == fromNumber.number
-    }
-
-    void "test getting number for phone"() {
-        given:
-        PhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        PhoneNumber toNum = new PhoneNumber(number: TestUtils.randPhoneNumberString())
-
-        expect:
-        service.getNumberForPhone(fromNum, toNum, TypeMap.create(handle: handle)).number ==
-        phoneIsFromNumber ? fromNum.number : toNum.number
-
-        where:
-        handle                                               | phoneIsFromNumber
-        "anything"                                           | false
-        CallResponse.FINISH_BRIDGE.toString()                | true
-        CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()      | true
-        CallResponse.SCREEN_INCOMING.toString()              | true
-        CallResponse.VOICEMAIL_GREETING_RECORD.toString()    | true
-        CallResponse.VOICEMAIL_GREETING_PROCESSED.toString() | true
-        CallResponse.VOICEMAIL_GREETING_PLAY.toString()      | true
-    }
-
-
-    void "processing valid inputs overall"() {
-        given:
-        service.incomingMessageService = Mock(IncomingMessageService)
-
-        when: "call sid specified"
-        TypeMap params = TypeMap.create(To:p1.numberAsString, From:"1112223333",
-            CallSid: "hi")
-        Result<Closure> res = service.process(params)
-
-        then:
-        1 * service.incomingMessageService.receiveCall(*_)
-
-        when: "message id specified"
-        params.MessageSid = "hi"
-        params.CallSid = null
-        params.Body = "hi"
-        params.NumSegments = 8
-        res = service.process(params)
-
-        then:
-        1 * service.incomingMessageService.processText(*_)
-    }
-
-    // Text
-    // ----
-
-    void "test handling invalid text"() {
-        when: "missing required inputs"
-        Result<Closure> res = service.processText(null, null, null, TypeMap.create())
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    }
-
-    void "test announcement-related texts"() {
-        given:
-        service.announcementService = Mock(AnnouncementService)
-        service.incomingMessageService = Mock(IncomingMessageService)
-        Phone thisPhone = Mock(Phone)
-        TypeMap params = TypeMap.create(Body: Constants.TEXT_SEE_ANNOUNCEMENTS,
-            NumSegments: 8)
-
-        when: "seeing announcements but has no announcements"
-        Result<Closure> res = service.processText(thisPhone, null, "id", params)
-
-        then:
-        1 * thisPhone.announcements >> []
-        0 * service.announcementService._
-        1 * service.incomingMessageService.processText(*_) >> new Result()
-        res.status == ResultStatus.OK
-
-        when: "seeing announcements and has announcements"
-        res = service.processText(thisPhone, null, "id", params)
-
-        then:
-        1 * thisPhone.announcements >> [1, 2]
-        1 * service.announcementService.textSeeAnnouncements(*_) >> new Result()
-        0 * service.incomingMessageService._
-        res.status == ResultStatus.OK
-
-        when: "toggling subscription status"
-        params.Body = Constants.TEXT_TOGGLE_SUBSCRIBE
-        res = service.processText(thisPhone, null, "id", params)
-
-        then:
-        0 * thisPhone._
-        1 * service.announcementService.textToggleSubscribe(*_) >> new Result()
-        0 * service.incomingMessageService._
-        res.status == ResultStatus.OK
-    }
-
-    void "test processing texts in general"() {
-        given:
-        service.incomingMessageService = Mock(IncomingMessageService)
-        TypeMap params = TypeMap.create(Body: "hi", NumSegments: 8)
+        TestUtils.buildXml(res.payload).contains("callTwiml.processingVoicemailGreeting")
 
         when:
-        Result<Closure> res = service.processText(null, null, "id", params)
+        params = TypeMap.create((CallbackUtils.PARAM_HANDLE): TestUtils.randString())
+        res = service.processAnonymousCall(params, continueAction)
 
         then:
-        1 * service.incomingMessageService.processText(*_) >> new Result()
-        res.status == ResultStatus.OK
+        callCount == 1
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        extractDirectMessageToken?.restore()
     }
 
-    // Calls
-    // -----
-
-    void "test process for incoming calls and voicemail"() {
+    void "test processing overall"() {
         given:
-        service.threadService = Mock(ThreadService)
-        service.voicemailService = Mock(VoicemailService)
-        service.announcementService = Mock(AnnouncementService)
-        service.outgoingMessageService = Mock(OutgoingMessageService)
-        service.incomingMessageService = Mock(IncomingMessageService)
-        IncomingSession is1 = [number: TestUtils.randPhoneNumberString()] as IncomingSession
+        TypeMap params = TestUtils.randTypeMap()
 
-        when: "starting voicemail"
-        String clientNum = URLEncoder.encode("+1233834920", "UTF-8")
-        TypeMap params = TypeMap.create(CallSid: "iamasid!!",
-            handle: CallResponse.SCREEN_INCOMING.toString())
-        // voicemail is inbound so from client to TextUp phone
-        // but we use a relayed call to allow for screening so we store the
-        // originalFrom and use the From of the second bridged call to keep track
-        //  of the "from" client and the "to" TextUp phone number
-        params.originalFrom = clientNum
-        params.From = p1.numberAsString
-        params.To = "1112223333"
-        Result<Closure> res = service.processCall(p1, is1, null, params)
-
-        then:
-        1 * service.incomingMessageService.screenIncomingCall(*_) >> new Result()
-        res.status == ResultStatus.OK
-
-        when: "in the status callback, check to see if the call was answered and if voicemail should start"
-        params.From = clientNum
-        params.To = p1.numberAsString
-        params.DialCallStatus = "in-progress"
-        params.handle = CallResponse.CHECK_IF_VOICEMAIL.toString()
-        res = service.processCall(p1, is1, null, params)
-
-        then:
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.voicemailDirections")
+        MockedMethod processAnonymousCall = MockedMethod.create(service, "processAnonymousCall") {
+            Result.void()
+        }
+        MockedMethod processIdentifiedMessage = MockedMethod.create(service, "processIdentifiedMessage") {
+            Result.void()
+        }
 
         when:
-        params.DialCallStatus = "delivered"
-        res = service.processCall(p1, is1, null, params)
+        Result res = service.process(params)
 
         then:
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
+        processAnonymousCall.latestArgs[0] == params
+        processAnonymousCall.latestArgs[1] instanceof Closure
+        processIdentifiedMessage.notCalled
+        res.status == ResultStatus.NO_CONTENT
 
-        when: "completing voicemail"
-        params.handle = CallResponse.VOICEMAIL_DONE.toString()
-        params.RecordingSid = "recording id"
-        params.RecordingDuration = 88
-        params.RecordingUrl = "https://www.example.com"
-        res = service.processCall(p1, is1, null, params)
+        when:
+        def retVal = processAnonymousCall.latestArgs[1].call()
 
         then:
-        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
-        1 * service.voicemailService.processVoicemailMessage(*_) >> new ResultGroup()
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
+        processIdentifiedMessage.latestArgs == [params]
+        retVal.status == ResultStatus.NO_CONTENT
 
-        when: "unspecified or invalid"
-        params.handle = "blahblahinvalid"
-        res = service.processCall(p1, is1, null, params)
-
-        then: "receive call"
-        1 * service.incomingMessageService.receiveCall(*_)
-    }
-
-    void "test process for outbound calls"() {
-        given:
-        service.announcementService = Mock(AnnouncementService)
-        service.outgoingMessageService = Mock(OutgoingMessageService)
-
-    	when: "voicemail"
-    	String clientNum = "1233834920"
-    	TypeMap params = TypeMap.create([CallSid:"iamasid!!",
-            handle:CallResponse.FINISH_BRIDGE.toString()])
-        // outbound so from TextUp phone to client
-        params.From = p1.numberAsString
-        params.To = clientNum
-    	Result<Closure> res = service.processCall(null, null, null, params)
-
-    	then:
-        1 * service.outgoingMessageService.finishBridgeCall(*_)
-
-		when: "announcement and digits"
-		params.handle = CallResponse.ANNOUNCEMENT_AND_DIGITS.toString()
-		res = service.processCall(null, null, null, params)
-
-		then:
-        1 * service.announcementService.completeCallAnnouncement(*_)
-    }
-
-    void "test handling voicemail greeting"() {
-        given:
-        service.threadService = Mock(ThreadService)
-        service.voicemailService = Mock(VoicemailService)
-        Phone thisPhone = Mock()
-        IncomingSession is1 = Mock()
-
-        when: "recording voicemail greeting"
-        TypeMap params = TypeMap.create(handle: CallResponse.VOICEMAIL_GREETING_RECORD)
-        Result<Closure> res = service.processCall(thisPhone, is1, null, params)
-
-        then:
-        1 * thisPhone.number >> new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        1 * is1.number >> new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.recordVoicemailGreeting")
-
-        when: "finished processing voicemail greeting"
-        params.handle = CallResponse.VOICEMAIL_GREETING_PROCESSED
-        res = service.processCall(p1, null, null, params)
-
-        then:
-        1 * service.threadService.delay(*_) >> { args -> args[2].call(); null; }
-        1 * service.voicemailService.finishedProcessingVoicemailGreeting(*_) >> new Result()
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload) == TestUtils.buildXml { Response { } }
-
-        when: "playing voicemail greeting"
-        params.handle = CallResponse.VOICEMAIL_GREETING_PLAY
-        res = service.processCall(thisPhone, null, null, params)
-
-        then:
-        1 * thisPhone.number >> new PhoneNumber(number: TestUtils.randPhoneNumberString())
-        1 * thisPhone.voicemailGreetingUrl >> new URL("https://www.example.com")
-        res.status == ResultStatus.OK
-        TestUtils.buildXml(res.payload).contains("twimlBuilder.call.finishedVoicemailGreeting")
+        cleanup:
+        processAnonymousCall?.restore()
+        processIdentifiedMessage?.restore()
     }
 }

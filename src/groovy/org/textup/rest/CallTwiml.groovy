@@ -23,47 +23,6 @@ class CallTwiml {
     private static final String HOLD_MUSIC_URL = "http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3"
     private static final String SCREEN_INCOMING_FROM = "originalFrom"
 
-    // CallResponse.DIRECT_MESSAGE
-    static Map<String, String> infoForDirectMessage(String token) {
-        [
-            (CallbackUtils.PARAM_HANDLE): CallResponse.DIRECT_MESSAGE,
-            (DIRECT_MESSAGE_TOKEN): token
-        ]
-    }
-
-    static String extractDirectMessageToken(TypeMap params) { params.string(DIRECT_MESSAGE_TOKEN) }
-
-    static Result<Closure> directMessage(String ident, String message, VoiceLanguage lang,
-        List<URL> recordingUrls = []) {
-
-        if (!ident || !message || !lang || recordingUrls == null) {
-            return TwilioUtils.invalidTwimlInputs(CallResponse.DIRECT_MESSAGE.toString())
-        }
-        String messageIntro = IOCUtils.getMessage("callTwiml.messageIntro", [ident])
-        TwilioUtils.wrapTwiml {
-            Say(messageIntro)
-            Pause(length: 1)
-            DIRECT_MESSAGE_MAX_REPEATS.times {
-                Say(language: lang.toTwimlValue(), message)
-                recordingUrls.each { URL url -> Play(url.toString()) }
-            }
-            Hangup()
-        }
-    }
-
-    // CallResponse.END_CALL
-    static Result<Closure> hangUp() {
-        TwilioUtils.wrapTwiml { Hangup() }
-    }
-
-    // CallResponse.BLOCKED
-    static Result<Closure> blocked() {
-        TwilioUtils.wrapTwiml { Reject(reason: "rejected") }
-    }
-
-    // Errors
-    // ------
-
     static Result<Closure> invalid() {
         String invalidNumber = IOCUtils.getMessage("twiml.invalidNumber")
         TwilioUtils.wrapTwiml {
@@ -84,6 +43,44 @@ class CallTwiml {
         String error = IOCUtils.getMessage("callTwiml.error")
         TwilioUtils.wrapTwiml {
             Say(error)
+            Hangup()
+        }
+    }
+
+    // CallResponse.END_CALL
+    static Result<Closure> hangUp() {
+        TwilioUtils.wrapTwiml { Hangup() }
+    }
+
+    // CallResponse.BLOCKED
+    static Result<Closure> blocked() {
+        TwilioUtils.wrapTwiml { Reject(reason: "rejected") }
+    }
+
+    // CallResponse.DIRECT_MESSAGE
+    static Map<String, String> infoForDirectMessage(String token) {
+        [
+            (CallbackUtils.PARAM_HANDLE): CallResponse.DIRECT_MESSAGE.toString(),
+            (DIRECT_MESSAGE_TOKEN): token
+        ]
+    }
+
+    static String extractDirectMessageToken(TypeMap params) { params.string(DIRECT_MESSAGE_TOKEN) }
+
+    static Result<Closure> directMessage(String ident, String message, VoiceLanguage lang,
+        List<URL> recordingUrls = []) {
+
+        if (!ident || !message || !lang || recordingUrls == null) {
+            return TwilioUtils.invalidTwimlInputs(CallResponse.DIRECT_MESSAGE.toString())
+        }
+        String messageIntro = IOCUtils.getMessage("callTwiml.messageIntro", [ident])
+        TwilioUtils.wrapTwiml {
+            Say(messageIntro)
+            Pause(length: 1)
+            DIRECT_MESSAGE_MAX_REPEATS.times {
+                Say(language: lang.toTwimlValue(), message)
+                recordingUrls.each { URL url -> Play(url.toString()) }
+            }
             Hangup()
         }
     }
@@ -152,7 +149,7 @@ class CallTwiml {
             Dial(callerId: displayed.e164PhoneNumber, timeout: 15, answerOnBridge: true,
                 action: voicemailLink) {
                 numsToCall.each { BasePhoneNumber bNum ->
-                    Number(statusCallback: childCallStatus(bNum), url: screenLink,
+                    Number(statusCallback: childCallStatus(bNum.e164PhoneNumber), url: screenLink,
                         bNum.e164PhoneNumber)
                 }
             }
@@ -161,7 +158,7 @@ class CallTwiml {
 
     static Map<String, String> infoForScreenIncoming(BasePhoneNumber bNum) {
         [
-            (CallbackUtils.PARAM_HANDLE): CallResponse.SCREEN_INCOMING,
+            (CallbackUtils.PARAM_HANDLE): CallResponse.SCREEN_INCOMING.toString(),
             (SCREEN_INCOMING_FROM): bNum.e164PhoneNumber
         ]
     }
@@ -180,7 +177,7 @@ class CallTwiml {
             goodbye = IOCUtils.getMessage("callTwiml.goodbye"),
             finishScreenWebhook = IOCUtils.getHandleLink(CallResponse.DO_NOTHING)
         TwilioUtils.wrapTwiml {
-            Gather(numDigits: 1, action:finishScreenWebhook) {
+            Gather(numDigits: 1, action: finishScreenWebhook) {
                 Pause(length: 1)
                 Say(loop: 2, directions)
             }
@@ -231,7 +228,7 @@ class CallTwiml {
     }
 
     static Result<Closure> finishBridge(TypeMap params) {
-        IndividualPhoneRecordWrappers.mustFindActiveForId(params.long(FINISH_BRIDGE_WRAPPER_ID))
+        IndividualPhoneRecordWrappers.mustFindForId(params.long(FINISH_BRIDGE_WRAPPER_ID))
             .ifFail { TwilioUtils.invalidTwimlInputs(CallResponse.FINISH_BRIDGE.toString()) }
             .then { IndividualPhoneRecordWrapper w1 -> w1.tryGetSortedNumbers().curry(w1) }
             .then { IndividualPhoneRecordWrapper w1, List<ContactNumber> nums ->
@@ -282,7 +279,7 @@ class CallTwiml {
 
     // CallResponse.VOICEMAIL_GREETING_RECORD
     static Map<String, String> infoForRecordVoicemailGreeting() {
-        [(CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_RECORD]
+        [(CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_RECORD.toString()]
     }
 
     static Result<Closure> recordVoicemailGreeting(BasePhoneNumber phoneNum, BasePhoneNumber sessNum) {
@@ -319,15 +316,15 @@ class CallTwiml {
         BasePhoneNumber sessionNum) {
 
         [
-            (CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PROCESSED,
-            (TwilioUtils.TO): sessionNum.number,
-            (TwilioUtils.FROM): phoneNum.number
+            (CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PROCESSED.toString(),
+            (TwilioUtils.FROM): phoneNum.number,
+            (TwilioUtils.TO): sessionNum.number
         ]
     }
 
     // CallResponse.VOICEMAIL_GREETING_PLAY
     static Map<String, String> infoForPlayVoicemailGreeting() {
-        [(CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PLAY]
+        [(CallbackUtils.PARAM_HANDLE): CallResponse.VOICEMAIL_GREETING_PLAY.toString()]
     }
 
     static Result<Closure> playVoicemailGreeting(BasePhoneNumber fromNum, URL greetingLink) {
@@ -405,8 +402,8 @@ class CallTwiml {
     }
 
     static Result<Closure> announcementAndDigits(TypeMap params) {
-        String identifier = params.string(ANNOUNCEMENT_AND_DIGITS_IDENT),
-            message = params.string(ANNOUNCEMENT_AND_DIGITS_MSG)
+        String identifier = params?.string(ANNOUNCEMENT_AND_DIGITS_IDENT),
+            message = params?.string(ANNOUNCEMENT_AND_DIGITS_MSG)
         if (!identifier || !message) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.ANNOUNCEMENT_AND_DIGITS.toString())
         }

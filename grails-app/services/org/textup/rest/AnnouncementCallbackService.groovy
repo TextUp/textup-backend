@@ -73,7 +73,7 @@ class AnnouncementCallbackService {
                     fallbackAction()
             }
         }
-        else if (FeaturedAnnouncements.anyForPhoneId(p1.id)) {
+        else if (FeaturedAnnouncements.anyForPhoneId(p1?.id)) {
             CallTwiml.announcementGreeting(p1.owner.buildName(), is1.isSubscribedToCall)
         }
         else { fallbackAction() }

@@ -180,7 +180,7 @@ class PhoneSpec extends CustomSpec {
         el1.sendVersion.type = MediaType.AUDIO_MP3
         mInfo.addToMediaElements(el1)
 
-        String randUrlString = TestUtils.randUrl()
+        String randUrlString = TestUtils.randLinkString()
         MockedMethod getLink = MockedMethod.create(el1.sendVersion, "getLink") { new URL(randUrlString) }
 
         when:

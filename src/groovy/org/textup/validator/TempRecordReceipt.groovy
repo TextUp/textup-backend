@@ -22,7 +22,7 @@ import org.textup.util.domain.*
 class TempRecordReceipt implements CanValidate {
 
     final PhoneNumber contactNumber
-    final String apiId //used for finding the RecordItem in a StatusCallback
+    final String apiId // used for finding the RecordItem in a StatusCallback
 
     Integer numBillable
     ReceiptStatus status = ReceiptStatus.PENDING

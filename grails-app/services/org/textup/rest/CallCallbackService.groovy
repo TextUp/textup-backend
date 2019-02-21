@@ -28,7 +28,7 @@ class CallCallbackService {
     }
 
     Result<Closure> screenIncomingCall(Phone p1, IncomingSession is1) {
-        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, [is1.number], false)
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, is1 ? [is1.number] : null, false)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numberToPhoneRecords ->
                 Collection<String> names = CollectionUtils
                     .mergeUnique(numberToPhoneRecords.values())*.secureName
