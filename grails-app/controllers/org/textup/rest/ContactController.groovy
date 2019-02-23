@@ -65,10 +65,10 @@ class ContactController extends BaseController {
         Long gprId = qParams.long("tagId")
         PhoneRecords.isAllowed(gprId)
             .then { GroupPhoneRecords.mustFindForId(gprId) }
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { GroupPhoneRecord gpr1 ->
                 Collection<PhoneRecord> prs = gpr1.members.getByStatus(statuses)
-                respondWithMany({ prs.size() },
+                respondWithClosures({ prs.size() },
                     { prs*.toWrapper() },
                     qParams,
                     MarshallerUtils.KEY_CONTACT)
@@ -77,10 +77,10 @@ class ContactController extends BaseController {
 
     protected void listForIds(Collection<PhoneRecordStatus> statuses, TypeMap qParams) {
         ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
                 DetachedCriteria<PhoneRecord> criteria = buildCriteria(pId, statuses, qParams)
-                respondWithMany(CriteriaUtils.countAction(criteria),
+                respondWithClosures(CriteriaUtils.countAction(criteria),
                     IndividualPhoneRecordWrappers.listAction(criteria),
                     qParams,
                     MarshallerUtils.KEY_CONTACT)

@@ -28,10 +28,10 @@ class NumberController extends BaseController {
                 numberService.listNewNumbers(qParams.string("search"), authUser.org.location)
                     .curry(iNums)
             }
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Collection<AvailablePhoneNumber> iNums, Collection<AvailablePhoneNumber> lNums ->
                 Collection<AvailablePhoneNumber> allNums = iNums + lNums
-                respondWithMany({ allNums.size() },
+                respondWithClosures({ allNums.size() },
                     { allNums },
                     qParams,
                     MarshallerUtils.KEY_PHONE_NUMBER)

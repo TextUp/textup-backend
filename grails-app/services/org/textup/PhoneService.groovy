@@ -33,10 +33,7 @@ class PhoneService {
                 tryRequestVoicemailGreetingCall(p1, body.string("requestVoicemailGreetingCall"))
             }
             .then { DomainUtils.trySave(p1) }
-            .ifFail { Result<?> failRes ->
-                future?.cancel(true)
-                failRes
-            }
+            .ifFailAndPreserveError { future?.cancel(true) }
     }
 
     // Helpers

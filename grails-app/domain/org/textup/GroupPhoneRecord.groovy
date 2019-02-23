@@ -37,10 +37,9 @@ class GroupPhoneRecord extends PhoneRecord {
                     record: rec1,
                     members: prMembers)
                 DomainUtils.trySave(gpr1, ResultStatus.CREATED)
-                    .ifFail { Result<?> failRes ->
+                    .ifFailAndPreserveError {
                         rec1.delete()
                         prMembers.delete()
-                        failRes
                     }
             }
     }

@@ -1,13 +1,9 @@
 package org.textup.rest
 
-import grails.plugin.jodatime.converters.JodaConverters
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -17,8 +13,6 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -27,187 +21,93 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(OrganizationController)
 @TestMixin(HibernateTestMixin)
-class OrganizationControllerSpec extends CustomSpec {
+class OrganizationControllerSpec extends Specification {
 
-    // static doWithSpring = {
-    //     resultFactory(ResultFactory)
-    // }
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    // def setup() {
-    //     setupData()
-    //     JodaConverters.registerJsonAndXmlMarshallers()
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-    //     controller.authService = [getIsActive:{ -> true }] as AuthService
-    // }
+    void "test index"() {
+        given:
+        String search = TestUtils.randString()
 
-    // def cleanup() {
-    //     cleanupData()
-    // }
+        DetachedCriteria crit1 = GroovyMock()
+        MockedMethod buildForOptions = MockedMethod.create(Organizations, "buildForOptions") {
+            crit1
+        }
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
 
-    // // List
-    // // ----
+        when:
+        params.search = search
+        controller.index()
 
-    // void "test list"() {
-    //     when:
-    //     request.method = "GET"
-    //     controller.index()
+        then:
+        buildForOptions.latestArgs == [search, null]
+        respondWithCriteria.latestArgs == [crit1, TypeMap.create(params), null, MarshallerUtils.KEY_ORGANIZATION]
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.size() == Organization.count()
-    // }
+        cleanup:
+        buildForOptions?.restore()
+        respondWithCriteria?.restore()
+    }
 
-    // void "test list with successful search"() {
-    //     when:
-    //     request.method = "GET"
-    //     params.search = "organ"
-    //     controller.index()
+    void "test show"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.organizations.size() ==
-    //         Organization.countSearch(StringUtils.toQuery(params.search))
-    // }
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod mustFindForId = MockedMethod.create(Organizations, "mustFindForId")
 
-    // void "test list with unsuccessful search"() {
-    //     when:
-    //     request.method = "GET"
-    //     params.search = "sdfjksljsdf"
-    //     controller.index()
+        when:
+        params.id = id
+        controller.show()
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.organizations != null //when empty, we manually add in the root
-    //     response.json.organizations?.size() == 0
-    // }
+        then:
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
 
-    // void "test list for invalid status"() {
-    //     when:
-    //     request.method = "GET"
-    //     params["status[]"] = ["invalid"]
-    //     controller.index()
+        when:
+        def retVal = doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
 
-    //     then: "returns empty set"
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.organizations.size() == 0
-    // }
+        then:
+        retVal == Result.void()
+        mustFindForId.latestArgs == [id]
 
-    // void "test list for valid statuses"() {
-    //     when:
-    //     request.method = "GET"
-    //     params["status[]"] = [OrgStatus.APPROVED.toString()]
-    //     controller.index()
+        cleanup:
+        doShow?.restore()
+        mustFindForId?.restore()
+    }
 
-    //     then: "returns empty set"
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.organizations.size() ==
-    //         Organization.countByStatusInList([OrgStatus.APPROVED])
-    // }
+    void "test update"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    // // Show
-    // // ----
+        controller.organizationService = GroovyMock(OrganizationService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(Organizations, "isAllowed")
 
-    // void "test show nonexistent"() {
-    //     when:
-    //     request.method = "GET"
-    //     params.id = -88L
-    //     controller.show()
+        when:
+        params.id = id
+        controller.update()
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_NOT_FOUND
-    // }
+        then:
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_ORGANIZATION
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.organizationService
+        doUpdate.latestArgs[3] instanceof Closure
 
-    // void "test show"() {
-    //     when:
-    //     request.method = "GET"
-    //     params.id = org.id
-    //     controller.show()
+        when:
+        doUpdate.latestArgs[3].call()
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.id == org.id
-    // }
+        then:
+        isAllowed.latestArgs == [id]
 
-    // // Save
-    // // ----
-
-    // void "test save"() {
-    //     when:
-    //     request.json = "{'organization':{}}"
-    //     request.method = "POST"
-    //     controller.save()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
-    // }
-
-    // // Update
-    // // ------
-
-    // void "test update a nonexistent org"() {
-    //     given:
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> false }
-    //     ] as AuthService
-
-    //     when:
-    //     request.json = "{'organization':{}}"
-    //     params.id = -88L
-    //     request.method = "PUT"
-    //     controller.update()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_NOT_FOUND
-    // }
-
-    // void "test update a forbidden org"() {
-    //     given:
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> true },
-    //         isAdminAt:{ Long id -> false }
-    //     ] as AuthService
-
-    //     when:
-    //     request.json = "{'organization':{}}"
-    //     params.id = c1.id
-    //     request.method = "PUT"
-    //     controller.update()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_FORBIDDEN
-    // }
-
-    // void "test update"() {
-    //     given:
-    //     controller.organizationService = [update:{ Long cId, Map body ->
-    //         new Result(payload:org, status:ResultStatus.OK)
-    //     }] as OrganizationService
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> true },
-    //         isAdminAt:{ Long id -> true }
-    //     ] as AuthService
-
-    //     when:
-    //     request.json = "{'organization':{}}"
-    //     params.id = org.id
-    //     request.method = "PUT"
-    //     controller.update()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.id == org.id
-    // }
-
-    // // Delete
-    // // ------
-
-    // void "test delete"() {
-    //     when:
-    //     params.id = org.id
-    //     request.method = "DELETE"
-    //     controller.delete()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
-    // }
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
+    }
 }

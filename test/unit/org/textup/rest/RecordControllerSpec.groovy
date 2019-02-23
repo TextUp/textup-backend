@@ -1,15 +1,9 @@
 package org.textup.rest
 
-import grails.plugin.jodatime.converters.JodaConverters
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.test.runtime.DirtiesRuntime
-import grails.validation.ValidationErrors
-import org.joda.time.DateTime
-import org.springframework.context.MessageSource
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -19,8 +13,6 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -29,347 +21,208 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(RecordController)
 @TestMixin(HibernateTestMixin)
-class RecordControllerSpec extends CustomSpec {
+class RecordControllerSpec extends Specification {
 
-    // static doWithSpring = {
-    //     resultFactory(ResultFactory)
-    // }
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    // def setup() {
-    //     setupData()
-    //     JodaConverters.registerJsonAndXmlMarshallers()
-    //     controller.recordService = [parseTypes:{ Collection<?> rawTypes -> [] }] as RecordService
-    //     controller.resultFactory = TestUtils.getResultFactory(grailsApplication)
-    // }
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-    // def cleanup() {
-    //     cleanupData()
-    // }
+    void "test show"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    // // List
-    // // ----
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(RecordItems, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(RecordItems, "mustFindForId")
 
-    // @DirtiesRuntime
-    // void "test listing error conditions"() {
-    //     given:
-    //     controller.authService = Mock(AuthService)
-    //     String errorMsg = TestUtils.randString()
-    //     MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
-    //         Result.createError([errorMsg], ResultStatus.BAD_REQUEST)
-    //     }
-    //     Long teamId = TestUtils.randIntegerUpTo(88) + 1
+        when:
+        params.id = id
+        controller.show()
 
-    //     when: "validation error when building record item request"
-    //     controller.index()
+        then:
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
 
-    //     then:
-    //     1 * controller.authService.loggedInAndActive
-    //     buildRecordItemRequest.callCount == 1
-    //     response.status == ResultStatus.BAD_REQUEST.intStatus
+        when:
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
 
-    //     when: "passed in nonexistent team id"
-    //     params.clear()
-    //     response.reset()
+        then:
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
 
-    //     params.teamId = teamId
-    //     controller.index()
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
+    }
 
-    //     then:
-    //     1 * controller.authService.loggedInAndActive
-    //     1 * controller.authService.exists(Team, teamId) >> false
-    //     buildRecordItemRequest.callCount == 1
-    //     response.status == ResultStatus.NOT_FOUND.intStatus
+    void "test save"() {
+        given:
+        Long teamId = TestUtils.randIntegerUpTo(88)
+        Long pId = TestUtils.randIntegerUpTo(88)
 
-    //     when: "forbidden to access team's phone"
-    //     params.clear()
-    //     response.reset()
+        controller.recordService = GroovyMock(RecordService)
+        MockedMethod doSave = MockedMethod.create(controller, "doSave")
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId") {
+            Result.createSuccess(pId)
+        }
 
-    //     params.teamId = teamId
-    //     controller.index()
+        when:
+        params.teamId = teamId
+        controller.save()
 
-    //     then:
-    //     1 * controller.authService.loggedInAndActive
-    //     1 * controller.authService.exists(Team, teamId) >> true
-    //     1 * controller.authService.hasPermissionsForTeam(teamId) >> false
-    //     buildRecordItemRequest.callCount == 1
-    //     response.status == ResultStatus.FORBIDDEN.intStatus
-    // }
+        then:
+        doSave.latestArgs[0] == MarshallerUtils.KEY_RECORD_ITEM
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.recordService
+        doSave.latestArgs[3] instanceof Closure
 
-    // @DirtiesRuntime
-    // void "test passing pagination options and timezone when listing items"() {
-    //     given:
-    //     controller.authService = Stub(AuthService)
-    //     RecordItemRequest stubItemRequest = Stub() {
-    //         countRecordItems() >> 100
-    //         getRecordItems(*_) >> []
-    //     }
-    //     MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
-    //         Result.createSuccess(stubItemRequest, ResultStatus.OK)
-    //     }
-    //     String tzId = TestUtils.randString()
+        when:
+        doSave.latestArgs[3].call()
 
-    //     when:
-    //     params.timezone = tzId
-    //     controller.index()
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+        RequestUtils.tryGet(RequestUtils.PHONE_ID).payload == pId
 
-    //     then:
-    //     request[Constants.REQUEST_PAGINATION_OPTIONS] == params
-    //     request[Constants.REQUEST_TIMEZONE] == tzId
-    // }
+        cleanup:
+        doSave?.restore()
+        tryGetPhoneId?.restore()
+    }
 
-    // @DirtiesRuntime
-    // void "test listing with json response"() {
-    //     given:
-    //     controller.authService = Mock(AuthService)
-    //     Phone mockPhone = Mock()
-    //     Staff staffStub = Stub { getPhone() >> mockPhone }
-    //     RecordItemRequest mockItemRequest = Mock()
-    //     MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
-    //         Result.createSuccess(mockItemRequest, ResultStatus.OK)
-    //     }
+    void "test update"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    //     when:
-    //     controller.index()
+        controller.recordService = GroovyMock(RecordService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(RecordItems, "isAllowed")
 
-    //     then:
-    //     (1.._) * controller.authService.loggedInAndActive >> staffStub
-    //     1 * mockItemRequest.countRecordItems() >> 100
-    //     1 * mockItemRequest.getRecordItems(*_) >> []
-    //     buildRecordItemRequest.callCount == 1
-    //     buildRecordItemRequest.allArgs[0][0] == mockPhone
-    //     buildRecordItemRequest.allArgs[0][1] == params
-    //     buildRecordItemRequest.allArgs[0][2] == false
-    //     response.status == ResultStatus.OK.intStatus
-    //     response.getHeaderValue("Content-Type") == "application/json;charset=UTF-8"
-    //     response.json.records.size() == 0 // getRecordItems returns an empty list
-    //     response.json.meta.total == 100
-    // }
+        when:
+        params.id = id
+        controller.update()
 
-    // @DirtiesRuntime
-    // void "test listing with pdf response"() {
-    //     given:
-    //     controller.authService = Mock(AuthService)
-    //     controller.pdfService = Mock(PdfService)
-    //     Phone mockPhone = Mock()
-    //     Staff staffStub = Stub { getPhone() >> mockPhone }
-    //     RecordItemRequest mockItemRequest = Mock()
-    //     MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
-    //         Result.createSuccess(mockItemRequest, ResultStatus.OK)
-    //     }
+        then:
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_RECORD_ITEM
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.recordService
+        doUpdate.latestArgs[3] instanceof Closure
 
-    //     when:
-    //     params.format = "pdf"
-    //     controller.index()
+        when:
+        doUpdate.latestArgs[3].call()
 
-    //     then:
-    //     (1.._) * controller.authService.loggedInAndActive >> staffStub
-    //     1 * controller.pdfService.buildRecordItems(mockItemRequest) >>
-    //         Result.createSuccess([] as byte[], ResultStatus.OK)
-    //     buildRecordItemRequest.callCount == 1
-    //     buildRecordItemRequest.allArgs[0][0] == mockPhone
-    //     buildRecordItemRequest.allArgs[0][1] == params
-    //     buildRecordItemRequest.allArgs[0][2] == false
-    //     response.status == ResultStatus.OK.intStatus
-    //     response.getHeaderValue("Content-Type") == "application/pdf;charset=utf-8"
-    //     response.getHeaderValue("Content-Disposition").contains("attachment;filename=")
-    // }
+        then:
+        isAllowed.latestArgs == [id]
 
-    // // Show
-    // // ----
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
+    }
 
-    // void "test show nonexistent item"() {
-    //     when:
-    //     request.method = "GET"
-    //     params.id = -88L
-    //     controller.show()
+    void "test delete"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_NOT_FOUND
-    // }
+        controller.recordService = GroovyMock(RecordService)
+        MockedMethod doDelete = MockedMethod.create(controller, "doDelete")
+        MockedMethod isAllowed = MockedMethod.create(RecordItems, "isAllowed")
 
-    // void "test show forbidden item"() {
-    //     given:
-    //     controller.authService = [
-    //         hasPermissionsForItem:{ Long id -> false },
-    //     ] as AuthService
+        when:
+        params.id = id
+        controller.delete()
 
-    //     when:
-    //     request.method = "GET"
-    //     params.id = rText1.id
-    //     controller.show()
+        then:
+        doDelete.latestArgs[0] == controller.recordService
+        doDelete.latestArgs[1] instanceof Closure
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_FORBIDDEN
-    // }
+        when:
+        doDelete.latestArgs[1].call()
 
-    // void "test show item"() {
-    //     given:
-    //     controller.authService = [
-    //         hasPermissionsForItem:{ Long id -> true },
-    //     ] as AuthService
+        then:
+        isAllowed.latestArgs == [id]
 
-    //     when:
-    //     request.method = "GET"
-    //     params.id = rText1.id
-    //     controller.show()
+        cleanup:
+        doDelete?.restore()
+        isAllowed?.restore()
+    }
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.id == rText1.id
-    // }
+    void "test responding with pdf"() {
+        given:
+        String fileName = TestUtils.randString()
+        String err1 = TestUtils.randString()
+        byte[] randData = TestUtils.randString().bytes
 
-    // // Save
-    // // ----
+        Result failRes1 = Result.createError([err1], ResultStatus.FORBIDDEN)
+        Result res1 = Result.createSuccess(randData)
 
-    // void "test validating recipients in request body for save"() {
-    //     expect: "no validation to happen for recipients for texts"
-    //     controller.validateCreateBody(RecordText, TypeMap.create([:])) == true
+        when:
+        controller.respondWithPdf(fileName, failRes1)
 
-    //     and: "only one recipient allowed for calls"
-    //     controller.validateCreateBody(RecordCall, TypeMap.create([:])) == false
-    //     controller.validateCreateBody(RecordCall, TypeMap.create([callContact: 1])) == true
-    //     controller.validateCreateBody(RecordCall, TypeMap.create([callSharedContact: 1])) == true
-    //     controller.validateCreateBody(RecordCall, TypeMap.create([callContact: 1, callSharedContact: 1])) == false
+        then:
+        response.status == ResultStatus.FORBIDDEN.intStatus
+        response.text.contains(err1)
 
-    //     and: "only one recipient allowed for notes"
-    //     controller.validateCreateBody(RecordNote, TypeMap.create([:])) == false
-    //     controller.validateCreateBody(RecordNote, TypeMap.create([forContact: 1])) == true
-    //     controller.validateCreateBody(RecordNote, TypeMap.create([forSharedContact: 1])) == true
-    //     controller.validateCreateBody(RecordNote, TypeMap.create([forTag: 1])) == true
-    //     controller.validateCreateBody(RecordNote, TypeMap.create([forContact: 1, forSharedContact: 1])) == false
-    //     controller.validateCreateBody(RecordNote, TypeMap.create([forContact: 1, forTag: 1])) == false
-    //     controller.validateCreateBody(RecordNote, TypeMap.create([forSharedContact: 1, forTag: 1])) == false
-    //     controller.validateCreateBody(RecordNote, TypeMap.create([forContact: 1, forSharedContact: 1, forTag: 1])) == false
-    // }
+        when:
+        response.reset()
+        controller.respondWithPdf(fileName, res1)
 
-    // protected void mockForSave(Class requestClass, boolean doesExist, boolean hasTeamPermissions, Staff authUser) {
-    //     RecordUtils.metaClass."static".determineClass = { Map body ->
-    //         new Result(status: ResultStatus.OK, payload:requestClass)
-    //     }
-    //     controller.recordService = [
-    //         create:{ Long id, Map body ->
-    //             ResultGroup resGroup = new ResultGroup()
-    //             resGroup << new Result(status:ResultStatus.CREATED, payload:rText1)
-    //             resGroup << new Result(status:ResultStatus.CREATED, payload:rText2)
-    //             resGroup
-    //         }
-    //     ] as RecordService
-    //     controller.authService = [
-    //         exists: { Class clazz, Long id -> doesExist },
-    //         hasPermissionsForTeam: { Long id -> hasTeamPermissions },
-    //         getLoggedInAndActive: { -> authUser }
-    //     ] as AuthService
-    // }
+        then:
+        response.status == ResultStatus.OK.intStatus
+        response.contentType.contains(ControllerUtils.CONTENT_TYPE_PDF)
+        response.contentAsByteArray == randData
+    }
 
-    // void "test save for team"() {
-    //     given:
-    //     mockForSave(RecordCall, true, true, s1)
+    void "test listing overall"() {
+        given:
+        Long teamId = TestUtils.randIntegerUpTo(88)
+        Long pId = TestUtils.randIntegerUpTo(88)
+        String tzId = TestUtils.randString()
 
-    //     when:
-    //     request.json = "{'record':{'callContact': 1}}"
-    //     params.teamId = t1.id
-    //     request.method = "POST"
-    //     controller.save()
+        DetachedCriteria crit1 = GroovyStub()
+        RecordItemRequest iReq = GroovyStub() { getCriteria() >> crit1 }
+        controller.pdfService = GroovyMock(PdfService)
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId") {
+            Result.createSuccess(pId)
+        }
+        MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
+            Result.createSuccess(iReq)
+        }
+        MockedMethod respondWithPdf = MockedMethod.create(controller, "respondWithPdf")
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
 
-    //     then: "see mock"
-    //     response.status == HttpServletResponse.SC_CREATED
-    //     response.json.size() == 2
-    //     response.json*.id.every { (it as Long) in [rText1, rText2]*.id }
-    // }
+        when:
+        params.teamId = teamId
+        controller.index()
 
-    // void "test save for staff"() {
-    //     given:
-    //     mockForSave(RecordText, false, false, s1)
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+        buildRecordItemRequest.latestArgs == [pId, TypeMap.create(params)]
+        respondWithPdf.notCalled
+        respondWithCriteria.latestArgs[0] == crit1
+        respondWithCriteria.latestArgs[1] == TypeMap.create(params)
+        respondWithCriteria.latestArgs[2] instanceof Closure
+        respondWithCriteria.latestArgs[3] == MarshallerUtils.KEY_RECORD_ITEM
 
-    //     when:
-    //     request.json = "{'record':{}}"
-    //     request.method = "POST"
-    //     controller.save()
+        when:
+        response.reset()
+        params.format = ControllerUtils.FORMAT_PDF
+        controller.index()
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_CREATED
-    //     response.json.size() == 2
-    //     response.json*.id.every { (it as Long) in [rText1, rText2]*.id }
-    // }
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+        buildRecordItemRequest.latestArgs == [pId, TypeMap.create(params)]
+        1 * controller.pdfService.buildRecordItems(iReq) >> Result.void()
+        respondWithPdf.latestArgs[0].contains(".pdf")
+        respondWithPdf.latestArgs[1] == Result.void()
 
-    // // Update
-    // // ------
-
-    // void "test update a nonexistent note"() {
-    //     given:
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> false }
-    //     ] as AuthService
-
-    //     when:
-    //     params.id = "nonexistent"
-    //     request.json = "{'record':{}}"
-    //     request.method = "PUT"
-    //     controller.update()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
-    // }
-    // void "test update a note"() {
-    //     given: "a persisted note"
-    //     RecordNote note1 = new RecordNote(record:c1.record)
-    //     note1.save(flush:true, failOnError:true)
-
-    //     controller.recordService = [update:{ Long id, Map body ->
-    //         new Result(success:true, payload:note1)
-    //     }] as RecordService
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> true },
-    //         hasPermissionsForItem:{ Long cId -> true }
-    //     ] as AuthService
-
-    //     when:
-    //     params.id = note1.id
-    //     request.json = "{'record':{}}"
-    //     request.method = "PUT"
-    //     controller.update()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.id == note1.id
-    // }
-
-    // // Delete
-    // // ------
-
-    // void "test delete for a non-note"() {
-    //     given:
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> false }
-    //     ] as AuthService
-
-    //     when:
-    //     params.id = rText1.id
-    //     request.method = "DELETE"
-    //     controller.delete()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
-    // }
-    // void "test delete for a note"() {
-    //     given: "a persisted note"
-    //     RecordNote note1 = new RecordNote(record:c1.record)
-    //     note1.save(flush:true, failOnError:true)
-
-    //     controller.recordService = [delete:{ Long id ->
-    //         new Result(status:ResultStatus.NO_CONTENT)
-    //     }] as RecordService
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> true },
-    //         hasPermissionsForItem:{ Long cId -> true }
-    //     ] as AuthService
-
-    //     when:
-    //     params.id = note1.id
-    //     request.method = "DELETE"
-    //     controller.delete()
-
-    //     then:
-    //     response.status == HttpServletResponse.SC_NO_CONTENT
-    // }
+        cleanup:
+        tryGetPhoneId?.restore()
+        buildRecordItemRequest?.restore()
+        respondWithPdf?.restore()
+        respondWithCriteria?.restore()
+    }
 }

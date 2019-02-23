@@ -17,8 +17,6 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -27,336 +25,199 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(FutureMessageController)
 @TestMixin(HibernateTestMixin)
-class FutureMessageControllerSpec extends CustomSpec {
+class FutureMessageControllerSpec extends Specification {
 
-	// static doWithSpring = {
- //        resultFactory(ResultFactory)
- //    }
+	static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
- //    FutureMessage fMsg1
+    def setup() {
+        TestUtils.standardMockSetup()
+        IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
+    }
 
- //    def setup() {
- //        super.setupData()
- //        JodaConverters.registerJsonAndXmlMarshallers()
- //        IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
- //        fMsg1 = new FutureMessage(record: c1.record, type:FutureMessageType.CALL, message:"hi")
- //        fMsg1.save(flush:true, failOnError:true)
- //    }
- //    def cleanup() {
- //        super.cleanupData()
- //    }
+    void "test index"() {
+    	given:
+    	PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+    	spr1.permission = SharePermission.NONE
+    	PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord()
+    	GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
 
- //    protected void mockAuth(boolean exists, boolean hasPermission) {
- //    	controller.authService = [
- //    		exists: { Class clazz, Long id -> exists },
- //    		hasPermissionsForFutureMessage: { Long id -> hasPermission }
- //    	] as AuthService
- //    }
+    	FutureMessage fMsg1 = TestUtils.buildFutureMessage(spr2.record)
+    	FutureMessage fMsg2 = TestUtils.buildFutureMessage(gpr1.record)
 
- //    // List
- //    // ----
+    	MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed") { Result.void() }
 
- //    void "test list with no ids"() {
-	// 	when:
-	// 	request.method = "GET"
-	// 	controller.index()
+    	when:
+    	params.contactId = spr1.id
+    	Result res = controller.index()
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_BAD_REQUEST
- //    }
- //    void "test list with more than 1 id"() {
- //    	when:
-	// 	request.method = "GET"
-	// 	params.contactId = c1.id
-	// 	params.tagId = tag1.id
-	// 	controller.index()
+    	then:
+    	isAllowed.latestArgs == [spr1.id]
+    	response.status == ResultStatus.FORBIDDEN.intStatus
+    	response.text.contains("phoneRecordWrapper.insufficientPermission")
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == spr1.id
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_BAD_REQUEST
- //    }
- //    void "test list for contact id for my contact"() {
- //    	given:
- //    	controller.authService = [hasPermissionsForContact: { Long id ->
- //    		true
-	// 	}] as AuthService
-	// 	fMsg1.record = c1.record
-	// 	fMsg1.save(flush:true, failOnError:true)
+    	when:
+    	params.clear()
+    	response.reset()
+    	params.contactId = spr2.id
+    	res = controller.index()
 
- //    	when:
-	// 	request.method = "GET"
-	// 	params.contactId = c1.id
-	// 	controller.index()
+    	then:
+    	isAllowed.latestArgs == [spr2.id]
+    	response.status == ResultStatus.OK.intStatus
+    	response.json[0].id == fMsg1.id
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == spr2.id
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_OK
-	// 	response.json.isEmpty() == false
-	// 	response.json*.id.find { it == fMsg1.id }
- //    }
- //    void "test list for contact id for shared contact"() {
- //    	given:
- //    	controller.authService = [
- //    		hasPermissionsForContact: { Long id -> false },
- //    		getSharedContactIdForContact: { Long id -> sc1.id }
-	// 	] as AuthService
-	// 	fMsg1.record = sc1.contact.record
-	// 	fMsg1.save(flush:true, failOnError:true)
+    	when:
+    	params.clear()
+    	response.reset()
+    	params.tagId = gpr1.id
+    	res = controller.index()
 
- //    	when:
-	// 	request.method = "GET"
-	// 	params.contactId = c1.id
-	// 	controller.index()
+    	then:
+    	isAllowed.latestArgs == [gpr1.id]
+    	response.status == ResultStatus.OK.intStatus
+    	response.json[0].id == fMsg2.id
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == gpr1.id
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_OK
-	// 	response.json.isEmpty() == false
-	// 	response.json*.id.find { it == fMsg1.id }
- //    }
- //    void "test list for tag id"() {
- //    	given:
- //    	controller.authService = [hasPermissionsForTag: { Long id ->
- //    		true
- //    	}] as AuthService
-	// 	fMsg1.record = tag1.record
-	// 	fMsg1.save(flush:true, failOnError:true)
+    	cleanup:
+    	isAllowed?.restore()
+    }
 
- //    	when:
-	// 	request.method = "GET"
-	// 	params.tagId = tag1.id
-	// 	controller.index()
+    void "test show"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_OK
-	// 	response.json.isEmpty() == false
-	// 	response.json*.id.find { it == fMsg1.id }
- //    }
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(FutureMessages, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(FutureMessages, "mustFindForId")
 
- //    // Show
- //    // ----
+        when:
+        params.id = id
+        controller.show()
 
- //    void "test show nonexistent message"() {
-	// 	when:
-	// 	request.method = "GET"
-	// 	params.id = "-88L"
-	// 	controller.show()
+        then:
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_NOT_FOUND
- //    }
- //    void "test show forbidden message"() {
- //    	given:
-	// 	controller.authService = [
- //    		hasPermissionsForFutureMessage: { Long id -> false }
- //    	] as AuthService
+        when:
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
 
-	// 	when:
-	// 	request.method = "GET"
-	// 	params.id = fMsg1.id
-	// 	controller.show()
+        then:
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_FORBIDDEN
- //    }
- //    void "test show message"() {
- //    	given:
- //    	controller.authService = [
- //    		hasPermissionsForFutureMessage: { Long id -> true }
- //    	] as AuthService
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
+    }
 
-	// 	when:
-	// 	request.method = "GET"
-	// 	params.id = fMsg1.id
-	// 	controller.show()
+    void "test save"() {
+        given:
+        Long contactId = TestUtils.randIntegerUpTo(88)
+        Long tagId = TestUtils.randIntegerUpTo(88)
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_OK
-	// 	response.json.id == fMsg1.id
- //    }
+        controller.futureMessageService = GroovyMock(FutureMessageService)
+        MockedMethod doSave = MockedMethod.create(controller, "doSave")
+        MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed")
 
- //    // Save
- //    // ----
+        when:
+        params.tagId = tagId
+        controller.save()
 
- //    String _calledWhichCreate
- //    protected void mockForSave() {
- //    	controller.futureMessageService = [
- //    		createForTag: { Long id, Map body, String timezone = null ->
- //    			_calledWhichCreate = "tag"
- //    			new Result(payload:fMsg1, status:ResultStatus.CREATED)
-	// 		},
-	// 		createForContact: { Long id, Map body, String timezone = null ->
-	// 			_calledWhichCreate = "contact"
-	// 			new Result(payload:fMsg1, status:ResultStatus.CREATED)
-	// 		},
-	// 		createForSharedContact: { Long id, Map body, String timezone = null ->
-	// 			_calledWhichCreate = "sharedContact"
-	// 			new Result(payload:fMsg1, status:ResultStatus.CREATED)
-	// 		}
- //    	] as FutureMessageService
- //    }
+        then:
+        doSave.latestArgs[0] == MarshallerUtils.KEY_FUTURE_MESSAGE
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.futureMessageService
+        doSave.latestArgs[3] instanceof Closure
 
- //    void "test save no ids"() {
- //    	when:
-	// 	request.method = "POST"
-	// 	controller.save()
+        when:
+        doSave.latestArgs[3].call()
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_BAD_REQUEST
- //    }
- //    void "test save multiple ids"() {
- //    	when:
-	// 	request.method = "POST"
-	// 	params.contactId = c1.id
-	// 	params.tagId = tag1.id
-	// 	controller.save()
+        then:
+        isAllowed.latestArgs == [tagId]
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == tagId
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_BAD_REQUEST
- //    }
- //    void "test save for contact id for my contact"() {
- //    	given:
-	// 	mockForSave()
-	// 	controller.authService = [
- //    		exists: { Class clazz, Long id -> true },
- //    		hasPermissionsForContact: { Long id -> true }
- //    	] as AuthService
+        when:
+        response.reset()
+        params.contactId = contactId
+        controller.save()
 
-	// 	when:
-	// 	request.json = "{'future-message':{}}"
-	// 	request.method = "POST"
-	// 	params.contactId = c1.id
-	// 	controller.save()
+        then:
+        doSave.latestArgs[0] == MarshallerUtils.KEY_FUTURE_MESSAGE
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.futureMessageService
+        doSave.latestArgs[3] instanceof Closure
 
-	// 	then: "implicitly save for logged-in staff"
-	// 	response.status == HttpServletResponse.SC_CREATED
- //        response.json.id == fMsg1.id
- //        _calledWhichCreate == "contact"
- //    }
- //    void "test save for contact id for shared contact"() {
- //    	mockForSave()
-	// 	controller.authService = [
- //    		exists: { Class clazz, Long id -> true },
- //    		hasPermissionsForContact: { Long id -> false },
- //    		getSharedContactIdForContact: { Long id -> sc1.id }
- //    	] as AuthService
+        when:
+        doSave.latestArgs[3].call()
 
-	// 	when:
-	// 	request.json = "{'future-message':{}}"
-	// 	request.method = "POST"
-	// 	params.contactId = c1.id
-	// 	controller.save()
+        then:
+        isAllowed.latestArgs == [contactId]
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == contactId
 
-	// 	then: "implicitly save for logged-in staff"
-	// 	response.status == HttpServletResponse.SC_CREATED
- //        response.json.id == fMsg1.id
- //        _calledWhichCreate == "sharedContact"
- //    }
- //    void "test save for tag id"() {
- //    	given:
-	// 	mockForSave()
-	// 	controller.authService = [
- //    		exists: { Class clazz, Long id -> true },
- //    		hasPermissionsForTag: { Long id -> true }
- //    	] as AuthService
+        cleanup:
+        doSave?.restore()
+        isAllowed?.restore()
+    }
 
-	// 	when:
-	// 	request.json = "{'future-message':{}}"
-	// 	request.method = "POST"
-	// 	params.tagId = tag1.id
-	// 	controller.save()
+    void "test update"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-	// 	then: "implicitly save for logged-in staff"
-	// 	response.status == HttpServletResponse.SC_CREATED
- //        response.json.id == fMsg1.id
- //        _calledWhichCreate == "tag"
- //    }
+        controller.futureMessageService = GroovyMock(FutureMessageService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(FutureMessages, "isAllowed")
 
- //    // Update
- //    // ------
+        when:
+        params.id = id
+        controller.update()
 
-	// void "test update nonexistent message"() {
-	// 	given:
-	// 	mockAuth(false, false)
+        then:
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_FUTURE_MESSAGE
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.futureMessageService
+        doUpdate.latestArgs[3] instanceof Closure
 
-	// 	when:
-	// 	request.json = "{'future-message':{}}"
-	// 	request.method = "PUT"
-	// 	params.id = fMsg1.id
-	// 	controller.update()
+        when:
+        doUpdate.latestArgs[3].call()
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_NOT_FOUND
-	// }
-	// void "test update forbidden message"() {
-	// 	given:
-	// 	mockAuth(true, false)
+        then:
+        isAllowed.latestArgs == [id]
 
-	// 	when:
-	// 	request.json = "{'future-message':{}}"
-	// 	request.method = "PUT"
-	// 	params.id = fMsg1.id
-	// 	controller.update()
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
+    }
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_FORBIDDEN
-	// }
-	// void "test update message"() {
-	// 	given:
-	// 	mockAuth(true, true)
-	// 	controller.futureMessageService = [update: { Long id,
-	// 		Map fInfo, String timezone ->
-	// 		new Result(success:true, payload:fMsg1)
-	// 	}] as FutureMessageService
+    void "test delete"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-	// 	when:
-	// 	request.json = "{'future-message':{}}"
-	// 	request.method = "PUT"
-	// 	params.id = fMsg1.id
-	// 	controller.update()
+        controller.futureMessageService = GroovyMock(FutureMessageService)
+        MockedMethod doDelete = MockedMethod.create(controller, "doDelete")
+        MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed")
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_OK
-	// 	response.json.id == fMsg1.id
-	// }
+        when:
+        params.id = id
+        controller.delete()
 
- //    // Delete
- //    // ------
+        then:
+        doDelete.latestArgs[0] == controller.futureMessageService
+        doDelete.latestArgs[1] instanceof Closure
 
- //    void "test delete nonexistent message"() {
- //    	given:
-	// 	mockAuth(false, false)
+        when:
+        doDelete.latestArgs[1].call()
 
-	// 	when:
-	// 	request.method = "DELETE"
-	// 	params.id = fMsg1.id
-	// 	controller.delete()
+        then:
+        isAllowed.latestArgs == [id]
 
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_NOT_FOUND
-	// }
-	// void "test delete forbidden message"() {
-	// 	given:
-	// 	mockAuth(true, false)
-
-	// 	when:
-	// 	request.method = "DELETE"
-	// 	params.id = fMsg1.id
-	// 	controller.delete()
-
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_FORBIDDEN
-	// }
-	// void "test delete message"() {
-	// 	given:
-	// 	mockAuth(true, true)
-	// 	controller.futureMessageService = [delete: { Long id ->
-	// 		new Result<Void>(payload:null, status:ResultStatus.NO_CONTENT)
-	// 	}] as FutureMessageService
-
-	// 	when:
-	// 	request.method = "DELETE"
-	// 	params.id = fMsg1.id
-	// 	controller.delete()
-
-	// 	then:
-	// 	response.status == HttpServletResponse.SC_NO_CONTENT
-	// }
+        cleanup:
+        doDelete?.restore()
+        isAllowed?.restore()
+    }
 }

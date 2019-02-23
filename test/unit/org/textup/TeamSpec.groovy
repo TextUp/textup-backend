@@ -21,7 +21,7 @@ import spock.lang.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class TeamSpec extends CustomSpec {
+class TeamSpec extends Specification {
 
 	static doWithSpring = {
         resultFactory(ResultFactory)

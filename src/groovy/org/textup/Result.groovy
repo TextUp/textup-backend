@@ -41,52 +41,42 @@ class Result<T> {
     }
 
     void thenEnd(Closure<?> successAction) {
-        then(successAction)
+        tryExecuteSuccess(successAction)
     }
 
     public <V> Result<V> then(Closure<Result<V>> successAction) {
-        getSuccess() ? tryExecuteSuccess(successAction) : this
+        tryExecuteSuccess(successAction)
     }
 
-    public <V> Result<V> ifFail(String prefix, Closure<Result<V>> failAction) {
-        tryLogMessageIfFail(prefix)
-        ifFail(failAction)
+    Result<T> ifFailAndPreserveError(Closure<?> failAction) {
+        tryExecuteFailure(failAction)
+        this
     }
-
-    public <V> Result<V> ifFail(String prefix, LogLevel level, Closure<Result<V>> failAction) {
-        tryLogMessageIfFail(prefix, level)
-        ifFail(failAction)
+    Result<T> ifFailAndPreserveError(String prefix, Closure<?> failAction) {
+        tryLogMessage(prefix)
+        ifFailAndPreserveError(failAction)
     }
-
-    void ifFailEnd(Closure<?> failAction) {
-        ifFail(failAction)
-    }
-
-    void ifFailEnd(String prefix, Closure<?> failAction) {
-        tryLogMessageIfFail(prefix)
-        ifFail(failAction)
-    }
-
-    void ifFailEnd(String prefix, LogLevel level, Closure<?> failAction) {
-        tryLogMessageIfFail(prefix, level)
-        ifFail(failAction)
+    Result<T> ifFailAndPreserveError(String prefix, LogLevel level, Closure<?> failAction) {
+        tryLogMessage(prefix, level)
+        ifFailAndPreserveError(failAction)
     }
 
     public <V> Result<V> ifFail(Closure<Result<V>> failAction) {
-        if (getSuccess()) {
-            this
-        }
-        else {
-            Result<V> handledResult = tryExecuteFailure(failAction)
-            hasErrorBeenHandled = true // this Result has been handled
-            handledResult?.hasErrorBeenHandled = true // if a different result, has also been handled
-            handledResult
-        }
+        tryExecuteFailure(failAction)
+    }
+    public <V> Result<V> ifFail(String prefix, Closure<Result<V>> failAction) {
+        tryLogMessage(prefix)
+        ifFail(failAction)
+    }
+    public <V> Result<V> ifFail(String prefix, LogLevel level, Closure<Result<V>> failAction) {
+        tryLogMessage(prefix, level)
+        ifFail(failAction)
     }
 
     Result<T> logFail(String prefix = "", LogLevel level = LogLevel.ERROR) {
+        tryLogMessage(prefix, level)
+        // set flag AFTER attempting to log or else we'll never log
         if (!getSuccess()) {
-            tryLogMessage(prefix, level)
             hasErrorBeenHandled = true
         }
         this
@@ -120,14 +110,8 @@ class Result<T> {
     // Helpers
     // -------
 
-    protected void tryLogMessageIfFail(String prefix, LogLevel level = LogLevel.ERROR) {
-        if (!getSuccess()) {
-            tryLogMessage(prefix, level)
-        }
-    }
-
-    protected void tryLogMessage(String prefix, LogLevel level) {
-        if (!hasErrorBeenHandled) {
+    protected void tryLogMessage(String prefix, LogLevel level = LogLevel.ERROR) {
+        if (!getSuccess() && !hasErrorBeenHandled) {
             String statusString = status.intStatus.toString()
             String msg = prefix ?
                 "${prefix}: ${statusString}: ${errorMessages}" :
@@ -146,7 +130,7 @@ class Result<T> {
     }
 
     protected <W> W tryExecuteSuccess(Closure<W> action) {
-        if (action && !hasErrorBeenHandled) {
+        if (getSuccess() && action && !hasErrorBeenHandled) {
             List<Object> args = new ArrayList<Object>(successArgs)
             args << payload
             args << status
@@ -156,10 +140,17 @@ class Result<T> {
     }
 
     protected <W> W tryExecuteFailure(Closure<W> action) {
-        if (action && !hasErrorBeenHandled) {
+        if (!getSuccess() && action && !hasErrorBeenHandled) {
             List<Object> args = new ArrayList<Object>(failureArgs)
             args << this
-            ClosureUtils.execute(action, args)
+            Object retVal = ClosureUtils.execute(action, args)
+            // set after conditional
+            hasErrorBeenHandled = true
+            // if retVal is also result has also been handled NO MATTER THE SUCCESS STATE
+            if (retVal instanceof Result) {
+                retVal.hasErrorBeenHandled = true
+            }
+            retVal
         }
         else { this }
     }

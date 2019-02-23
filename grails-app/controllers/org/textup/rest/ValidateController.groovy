@@ -19,7 +19,7 @@ class ValidateController extends BaseController {
 	void save() {
         RequestUtils.tryGetJsonBody(request)
             .then { TypeMap body -> AuthUtils.tryGetActiveAuthUser().curry(body) }
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { TypeMap body, Staff authUser ->
                 boolean isValid = body.password ?
                     AuthUtils.isValidCredentials(authUser.username, body.string("password")) :

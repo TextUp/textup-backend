@@ -47,10 +47,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
                     }
                 }
             }
-            .ifFail { Result<?> failRes ->
-                future?.cancel(true)
-                failRes
-            }
+            .ifFail { future?.cancel(true) }
     }
 
     @RollbackOnResultFailure
@@ -71,10 +68,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
             }
             .then { RecordNote rNote1 -> rNote1.tryCreateRevision() }
             .then { RecordNote rNote1 -> DomainUtils.trySave(rNote1) }
-            .ifFail { Result<?> failRes ->
-                future?.cancel(true)
-                failRes
-            }
+            .ifFailAndPreserveError { future?.cancel(true) }
     }
 
     @RollbackOnResultFailure

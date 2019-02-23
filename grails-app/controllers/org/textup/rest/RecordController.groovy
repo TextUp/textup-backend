@@ -32,7 +32,7 @@ class RecordController extends BaseController {
                 RequestUtils.trySet(RequestUtils.PHONE_ID, pId)
                 RecordUtils.buildRecordItemRequest(pId, qParams)
             }
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { RecordItemRequest iReq ->
                 if (qParams.format == ControllerUtils.FORMAT_PDF) {
                     RequestUtils.trySet(RequestUtils.PAGINATION_OPTIONS, qParams)
@@ -96,7 +96,11 @@ class RecordController extends BaseController {
                 }
             }
         }
-        else { respond(ControllerUtils.buildErrors(pdfRes)) }
+        else {
+            withJsonFormat {
+                respond(ControllerUtils.buildErrors(pdfRes))
+            }
+        }
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)

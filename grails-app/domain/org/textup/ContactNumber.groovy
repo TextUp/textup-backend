@@ -31,10 +31,7 @@ class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNu
         ContactNumber cNum = new ContactNumber(preference: preference, number: bNum?.number)
         ipr1?.addToNumbers(cNum)
         DomainUtils.trySave(cNum, ResultStatus.CREATED)
-            .ifFail { Result<?> failRes ->
-                ipr1?.removeFromNumbers(cNum)
-                failRes
-            }
+            .ifFailAndPreserveError { ipr1?.removeFromNumbers(cNum) }
     }
 
     // Methods

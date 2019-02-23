@@ -1,12 +1,9 @@
 package org.textup.rest
 
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -16,8 +13,6 @@ import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
-// TODO
-
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
     MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
@@ -26,246 +21,260 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(StaffController)
 @TestMixin(HibernateTestMixin)
-class StaffControllerSpec extends CustomSpec {
+class StaffControllerSpec extends Specification {
 
-    // static doWithSpring = {
-    //     resultFactory(ResultFactory)
-    // }
-    // def setup() {
-    //     super.setupData()
-    //     // enables resolving of resource names from class
-    //     controller.grailsApplication.flatConfig = config.flatten()
-    // }
-    // def cleanup() {
-    //     super.cleanupData()
-    // }
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
-    // // List
-    // // ----
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
 
-    // protected void mockForList() {
-    //     controller.authService = [
-    //         isAdminAt:{ Long id -> true },
-    //         isAdminAtSameOrgAs:{ Long id -> true },
-    //         isLoggedInAndActive:{ Long id -> true },
-    //         hasPermissionsForTeam:{ Long id -> true },
-    //         getIsActive: { -> true },
-    //         getLoggedInAndActive: { -> s1 }
-    //     ] as AuthService
-    // }
+    void "test show"() {
+        given:
+        String tzId = TestUtils.randString()
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    // void "test listing with no ids"() {
-    //     when:
-    //     request.method = "GET"
-    //     controller.index()
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(Staffs, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(Staffs, "mustFindForId")
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_BAD_REQUEST
-    // }
+        when:
+        params.id = id
+        params.timezone = tzId
+        controller.show()
 
-    // void "test listing with both ids"() {
-    //     when:
-    //     request.method = "GET"
-    //     params.organizationId = org.id
-    //     params.teamId = t1.id
-    //     params.canShareStaffId = s1.id
-    //     controller.index()
+        then:
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_BAD_REQUEST
-    // }
+        when:
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
 
-    // void "test listing with org id"() {
-    //     when:
-    //     mockForList()
-    //     request.method = "GET"
-    //     params.organizationId = org.id
-    //     controller.index()
-    //     List<Long> ids = TypeConversionUtils.allTo(Long, org.people*.id)
+        then:
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.size() == ids.size()
-    //     response.json*.id.every { ids.contains(it as Long) }
-    // }
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
+    }
 
-    // void "test list with team id"() {
-    //     when:
-    //     mockForList()
-    //     request.method = "GET"
-    //     params.teamId = t1.id
-    //     controller.index()
-    //     List<Long> ids = TypeConversionUtils.allTo(Long, t1.members*.id)
+    void "test save"() {
+        given:
+        String tzId = TestUtils.randString()
+        String err1 = TestUtils.randString()
+        TypeMap body = TestUtils.randTypeMap()
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.size() == ids.size()
-    //     response.json*.id.every { ids.contains(it as Long) }
-    // }
+        controller.staffService = GroovyMock(StaffService)
+        MockedMethod tryGetJsonBody = MockedMethod.create(RequestUtils, "tryGetJsonBody") {
+            Result.createError([err1], ResultStatus.FORBIDDEN)
+        }
 
-    // void "test list staff that can share with provided staff id"() {
-    //     when:
-    //     mockForList()
-    //     request.method = "GET"
-    //     params.canShareStaffId = s1.id
-    //     controller.index()
-    //     List<Long> ids = TypeConversionUtils.allTo(Long, s1.teams.members*.id.flatten())
-    //     ids.remove(s1.id)
+        when:
+        params.timezone = tzId
+        controller.save()
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.size() == ids.size()
-    //     response.json*.id.every { ids.contains(it as Long) }
-    // }
+        then:
+        tryGetJsonBody.latestArgs == [request, MarshallerUtils.KEY_STAFF]
+        0 * controller.staffService._
+        response.status == ResultStatus.FORBIDDEN.intStatus
+        response.text.contains(err1)
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
-    // void "test list search"() {
-    //     when:
-    //     mockForList()
-    //     request.method = "GET"
-    //     params.search = "demo"
-    //     controller.index()
-    //     List<Long> ids = TypeConversionUtils.allTo(Long, org.getStaff(params.search)*.id)
+        when:
+        tryGetJsonBody = MockedMethod.create(tryGetJsonBody) { Result.createSuccess(body) }
+        response.reset()
+        controller.save()
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.staff.size() == ids.size()
-    //     response.json.staff*.id.every { ids.contains(it as Long) }
-    // }
+        then:
+        tryGetJsonBody.latestArgs == [request, MarshallerUtils.KEY_STAFF]
+        1 * controller.staffService.tryCreate(body) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
-    // // Show
-    // // ----
+        cleanup:
+        tryGetJsonBody?.restore()
+    }
 
-    // void "test show nonexistent staff"() {
-    //     when:
-    //     request.method = "GET"
-    //     params.id = -88L
-    //     controller.show()
+    void "test update"() {
+        given:
+        String tzId = TestUtils.randString()
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_NOT_FOUND
-    // }
+        controller.staffService = GroovyMock(StaffService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(Staffs, "isAllowed")
 
-    // void "test show a forbidden staff"() {
-    //     given:
-    //     controller.authService = [
-    //         hasPermissionsForStaff:{ Long id -> false },
-    //     ] as AuthService
+        when:
+        params.id = id
+        params.timezone = tzId
+        controller.update()
 
-    //     when:
-    //     request.method = "GET"
-    //     params.id = s1.id
-    //     controller.show()
+        then:
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_STAFF
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.staffService
+        doUpdate.latestArgs[3] instanceof Closure
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_FORBIDDEN
-    // }
+        when:
+        doUpdate.latestArgs[3].call()
 
-    // void "test show a staff"() {
-    //     given:
-    //     controller.authService = [
-    //         hasPermissionsForStaff:{ Long id -> true },
-    //     ] as AuthService
+        then:
+        isAllowed.latestArgs == [id]
 
-    //     when:
-    //     request.method = "GET"
-    //     params.id = s1.id
-    //     controller.show()
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
+    }
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.id == s1.id
-    // }
+    void "test listing for org"() {
+        given:
+        Long orgId = TestUtils.randIntegerUpTo(88)
+        StaffStatus stat1 = StaffStatus.values()[0]
+        TypeMap qParams = TypeMap.create(organizationId: TestUtils.randIntegerUpTo(88),
+            search: TestUtils.randString())
 
-    // // Save
-    // // ----
+        DetachedCriteria crit1 = GroovyMock()
+        MockedMethod isAllowed = MockedMethod.create(Organizations, "isAllowed") {
+            Result.createSuccess(orgId)
+        }
+        MockedMethod buildForOrgIdAndOptions = MockedMethod.create(Staffs, "buildForOrgIdAndOptions") {
+            crit1
+        }
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
 
-    // void "test save"() {
-    //     given:
-    //     controller.staffService = [create:{ Map body, String timezone ->
-    //         new Result(payload:s1, status:ResultStatus.CREATED)
-    //     }, addRoleToStaff: { Long sId ->
-    //         new Result(payload:s1, status:ResultStatus.CREATED)
-    //     }] as StaffService
+        when:
+        controller.listForOrg([stat1], qParams)
 
-    //     when:
-    //     request.json = "{'staff':{}}"
-    //     request.method = "POST"
-    //     controller.save()
+        then:
+        isAllowed.latestArgs == [qParams.organizationId]
+        buildForOrgIdAndOptions.latestArgs == [orgId, qParams.search, [stat1]]
+        respondWithCriteria.latestArgs == [crit1, params, null, MarshallerUtils.KEY_STAFF]
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_CREATED
-    //     response.json.id == s1.id
-    // }
+        cleanup:
+        isAllowed?.restore()
+        respondWithCriteria?.restore()
+    }
 
-    // // Update
-    // // ------
+    void "test listing for team"() {
+        given:
+        StaffStatus stat1 = StaffStatus.values()[0]
 
-    // void "test update a nonexistent staff"() {
-    //     given:
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> false }
-    //     ] as AuthService
+        Team t1 = TestUtils.buildTeam()
+        Staff s1 = TestUtils.buildStaff()
+        s1.status = stat1
+        t1.addToMembers(s1)
+        Staff.withSession { it.flush() }
 
-    //     when:
-    //     request.json = "{'staff':{}}"
-    //     params.id = -88L
-    //     request.method = "PUT"
-    //     controller.update()
+        TypeMap qParams = TypeMap.create(teamId: t1.id)
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_NOT_FOUND
-    // }
+        MockedMethod isAllowed = MockedMethod.create(Teams, "isAllowed") {
+            Result.createSuccess(t1.id)
+        }
+        MockedMethod respondWithClosures = MockedMethod.create(controller, "respondWithClosures")
 
-    // void "test update a forbidden staff"() {
-    //     given:
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> true },
-    //         isLoggedIn:{ Long id -> false },
-    //         isAdminAtSameOrgAs:{ Long id -> false }
-    //     ] as AuthService
+        when:
+        controller.listForTeam([stat1], qParams)
 
-    //     when:
-    //     request.json = "{'staff':{}}"
-    //     params.id = s1.id
-    //     request.method = "PUT"
-    //     controller.update()
+        then:
+        isAllowed.latestArgs == [t1.id]
+        respondWithClosures.latestArgs[2] == qParams
+        respondWithClosures.latestArgs[3] == MarshallerUtils.KEY_STAFF
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_FORBIDDEN
-    // }
+        and:
+        respondWithClosures.latestArgs[0].call() == 1
+        respondWithClosures.latestArgs[1].call().size() == 1
+        respondWithClosures.latestArgs[1].call()[0] == s1
 
-    // void "test update a staff"() {
-    //     given:
-    //     controller.staffService = [update:{ Long cId, Map body, String tz ->
-    //         new Result(payload:s1, status:ResultStatus.OK)
-    //     }] as StaffService
-    //     controller.authService = [
-    //         exists:{ Class clazz, Long id -> true },
-    //         isLoggedIn:{ Long id -> true },
-    //         isAdminAtSameOrgAs:{ Long id -> true }
-    //     ] as AuthService
+        cleanup:
+        isAllowed?.restore()
+        respondWithClosures?.restore()
+    }
 
-    //     when:
-    //     request.json = "{'staff':{}}"
-    //     params.id = s1.id
-    //     request.method = "PUT"
-    //     controller.update()
+    void "test listing for staff that user can share with"() {
+        given:
+        Long sId = TestUtils.randIntegerUpTo(88)
+        TypeMap qParams = TypeMap.create(shareStaffId: sId)
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_OK
-    //     response.json.id == s1.id
-    // }
+        Staff s1 = GroovyMock()
+        MockedMethod isAllowed = MockedMethod.create(Staffs, "isAllowed") {
+            Result.createSuccess(sId)
+        }
+        MockedMethod findEveryForSharingId = MockedMethod.create(Staffs, "findEveryForSharingId") {
+            [s1]
+        }
+        MockedMethod respondWithClosures = MockedMethod.create(controller, "respondWithClosures")
 
-    // // Delete
-    // // ------
+        when:
+        controller.listForShareStaff(qParams)
 
-    // void "test delete"() {
-    //     when:
-    //     params.id = s1.id
-    //     request.method = "DELETE"
-    //     controller.delete()
+        then:
+        isAllowed.latestArgs == [sId]
+        findEveryForSharingId.latestArgs == [sId]
+        respondWithClosures.latestArgs[2] == qParams
+        respondWithClosures.latestArgs[3] == MarshallerUtils.KEY_STAFF
 
-    //     then:
-    //     response.status == HttpServletResponse.SC_METHOD_NOT_ALLOWED
-    // }
+        and:
+        respondWithClosures.latestArgs[0].call() == 1
+        respondWithClosures.latestArgs[1].call() == [s1]
+
+        cleanup:
+        isAllowed?.restore()
+        findEveryForSharingId?.restore()
+        respondWithClosures?.restore()
+    }
+
+    void "test listing overall"() {
+        given:
+        String tzId = TestUtils.randString()
+        StaffStatus stat1 = StaffStatus.values()[0]
+        Long orgId = TestUtils.randIntegerUpTo(88)
+        Long tId = TestUtils.randIntegerUpTo(88)
+
+        MockedMethod listForOrg = MockedMethod.create(controller, "listForOrg")
+        MockedMethod listForTeam = MockedMethod.create(controller, "listForTeam")
+        MockedMethod listForShareStaff = MockedMethod.create(controller, "listForShareStaff")
+
+        when:
+        params.timezone = tzId
+        controller.index()
+
+        then:
+        listForShareStaff.latestArgs == [TypeMap.create(params)]
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
+
+        when:
+        params.clear()
+        response.reset()
+
+        params.teamId = tId
+        params."status[]" = [stat1]
+        controller.index()
+
+        then:
+        listForTeam.latestArgs == [[stat1], TypeMap.create(params)]
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == null
+
+        when:
+        params.clear()
+        response.reset()
+
+        params.organizationId = orgId
+        controller.index()
+
+        then:
+        listForOrg.latestArgs == [StaffStatus.ACTIVE_STATUSES, TypeMap.create(params)]
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == null
+
+        cleanup:
+        listForOrg?.restore()
+        listForTeam?.restore()
+        listForShareStaff?.restore()
+    }
 }

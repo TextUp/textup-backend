@@ -140,7 +140,7 @@ class IncomingCallServiceSpec extends Specification {
 
     void "test handling self call errors"() {
         given:
-        String digits1 = TestUtils.randString()
+        String digits1 = "invalid phone number"
         String digits2 = TestUtils.randPhoneNumberString()
 
         Phone p1 = GroovyMock()

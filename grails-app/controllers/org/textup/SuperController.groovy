@@ -47,10 +47,8 @@ class SuperController {
             redirect(action: "settings")
             return
         }
-
         Staff s1 = IOCUtils.security.currentUser as Staff
         String oldUsername = s1.username
-
         // if wanting to change password, need to validate current password first
         if (newPassword) {
             if (qParams.currentPassword &&
@@ -71,14 +69,15 @@ class SuperController {
             }
         }
         // save new settings
-        if (s1.save()) {
-            IOCUtils.security.reauthenticate(oldUsername)
-            flash.messages = ["Successfully updated settings."]
-        }
-        else {
-            flash.errorObj = s1
-            s1.discard()
-        }
+        DomainUtils.trySave(s1)
+            .ifFailAndPreserveError { Result<?> failRes ->
+                flash.errorObj = s1
+                s1.discard()
+            }
+            .thenEnd {
+                IOCUtils.security.reauthenticate(oldUsername)
+                flash.messages = ["Successfully updated settings."]
+            }
         redirect(action: "settings")
     }
 
@@ -91,7 +90,7 @@ class SuperController {
 
     void rejectOrg() {
         Organizations.mustFindForId(params.long("id"))
-            .ifFail { Result<?> failRes -> flash.messages = failRes.errorMessages }
+            .ifFailAndPreserveError { Result<?> failRes -> flash.messages = failRes.errorMessages }
             .thenEnd { Organization org1 ->
                 Staff admin = Staffs.buildForOrgIdAndOptions(org1.id, null, [StaffStatus.ADMIN])
                     .list(max: 1)[0]
@@ -102,7 +101,7 @@ class SuperController {
                             flash.messages = ["Successfully rejected ${org1.name}"]
                             mailService.notifyRejection(admin)
                         }
-                        .ifFailEnd("rejectOrg") { Result<?> failRes ->
+                        .ifFailAndPreserveError("rejectOrg") { Result<?> failRes ->
                             flash.messages = failRes.errorMessages
                             org1.discard()
                         }
@@ -114,7 +113,7 @@ class SuperController {
 
     void approveOrg() {
         Organizations.mustFindForId(params.long("id"))
-            .ifFail { Result<?> failRes -> flash.messages = failRes.errorMessages }
+            .ifFailAndPreserveError { Result<?> failRes -> flash.messages = failRes.errorMessages }
             .thenEnd { Organization org1 ->
                 Staff admin = Staffs.buildForOrgIdAndOptions(org1.id, null, [StaffStatus.ADMIN])
                     .list(max: 1)[0]
@@ -125,7 +124,7 @@ class SuperController {
                             flash.messages = ["Successfully approved ${org1.name}"]
                             mailService.notifyApproval(admin)
                         }
-                        .ifFailEnd("approveOrg") { Result<?> failRes ->
+                        .ifFailAndPreserveError("approveOrg") { Result<?> failRes ->
                             flash.messages = failRes.errorMessages
                             org1.discard()
                         }

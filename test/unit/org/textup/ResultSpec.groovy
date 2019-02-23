@@ -7,6 +7,7 @@ import grails.test.mixin.support.*
 import grails.test.runtime.*
 import grails.validation.*
 import org.apache.log4j.Logger
+import org.codehaus.groovy.runtime.typehandling.GroovyCastException
 import org.joda.time.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -126,7 +127,7 @@ class ResultSpec extends Specification {
         when:
         Result.createError([], ResultStatus.UNPROCESSABLE_ENTITY)
             .curryFailure(null)
-            .ifFailEnd { arg1 -> curriedVal2 = arg1 }
+            .ifFailAndPreserveError { arg1 -> curriedVal2 = arg1 }
 
         then:
         notThrown NullPointerException
@@ -248,10 +249,10 @@ class ResultSpec extends Specification {
 
         when:
         failRes.hasErrorBeenHandled = false
-        retVal = failRes.ifFailEnd(failAction)
+        retVal = failRes.ifFailAndPreserveError(failAction)
 
         then:
-        retVal == null
+        retVal == failRes
         timesCalled == 2
 
         when:
@@ -268,10 +269,10 @@ class ResultSpec extends Specification {
         when:
         stdErr.reset()
         failRes.hasErrorBeenHandled = false
-        retVal = failRes.ifFailEnd(prefix2, failAction)
+        retVal = failRes.ifFailAndPreserveError(prefix2, failAction)
 
         then:
-        retVal == null
+        retVal == failRes
         !stdErr.toString().contains(prefix1)
         stdErr.toString().contains(prefix2)
         stdErr.toString().contains(msg)
@@ -484,5 +485,18 @@ class ResultSpec extends Specification {
 
         cleanup:
         TestUtils.restoreAllStreams()
+    }
+
+    void "test `thenEnd` and `ifFailEnd` do not require a Result return type"() {
+        given:
+        Result res1 = Result.createSuccess(null)
+        Result failRes1 = Result.createError([], ResultStatus.BAD_REQUEST)
+
+        when:
+        res1.thenEnd { TestUtils.randString() }
+        failRes1.ifFailAndPreserveError { TestUtils.randString() }
+
+        then: "no runtime errors thrown"
+        notThrown GroovyCastException
     }
 }

@@ -22,7 +22,7 @@ class TagController extends BaseController {
     @Override
     void index() {
         ControllerUtils.tryGetPhoneId(params.long("teamId"))
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
                 respondWithCriteria(GroupPhoneRecords.buildForPhoneIdAndOptions(pId),
                     params,

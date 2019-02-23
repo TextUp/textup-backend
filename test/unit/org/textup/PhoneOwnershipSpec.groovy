@@ -22,7 +22,7 @@ import spock.lang.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
-class PhoneOwnershipSpec extends CustomSpec {
+class PhoneOwnershipSpec extends Specification {
 
 	static doWithSpring = {
         resultFactory(ResultFactory)

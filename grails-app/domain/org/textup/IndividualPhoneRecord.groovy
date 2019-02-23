@@ -32,10 +32,7 @@ class IndividualPhoneRecord extends PhoneRecord {
             .then { Record rec1 ->
                 IndividualPhoneRecord ipr1 = new IndividualPhoneRecord(phone: p1, record: rec1)
                 DomainUtils.trySave(ipr1, ResultStatus.CREATED)
-                    .ifFail { Result<?> failRes ->
-                        rec1.delete()
-                        failRes
-                    }
+                    .ifFailAndPreserveError { rec1.delete() }
             }
     }
 

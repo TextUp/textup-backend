@@ -38,10 +38,7 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
             .then { FutureMessage fMsg -> trySetFields(fMsg, body, body.string("timezone")) }
             .then { FutureMessage fMsg -> trySchedule(true, fMsg) }
             .then { FutureMessage fMsg -> DomainUtils.trySave(fMsg, ResultStatus.CREATED) }
-            .ifFail { Result<?> failRes ->
-                future?.cancel(true)
-                failRes
-            }
+            .ifFailAndPreserveError { future?.cancel(true) }
     }
 
     @RollbackOnResultFailure
@@ -58,10 +55,7 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
             }
             .then { FutureMessage fMsg -> trySchedule(false, fMsg) }
             .then { FutureMessage fMsg -> DomainUtils.trySave(fMsg) }
-            .ifFail { Result<?> failRes ->
-                future?.cancel(true)
-                failRes
-            }
+            .ifFailAndPreserveError { future?.cancel(true) }
     }
 
     @RollbackOnResultFailure

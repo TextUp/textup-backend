@@ -24,7 +24,15 @@ class ScheduleJsonMarshaller extends JsonNamedMarshaller {
         }
 
         RequestUtils.tryGet(RequestUtils.TIMEZONE)
-            .then { Object zoneName ->
+            .ifFailAndPreserveError {
+                json.with {
+                    nextAvailable   = sched1.nextAvailable()
+                    nextUnavailable = sched1.nextUnavailable()
+                }
+                sched1.getAllAsLocalIntervals()
+                    .each { String k, Collection v -> json[k] = v*.toString() }
+            }
+            .thenEnd { Object zoneName ->
                 String tz = JodaUtils.getZoneFromId(TypeUtils.to(String, zoneName)).getID()
                 json.with {
                     nextAvailable   = sched1.nextAvailable(tz)
@@ -32,15 +40,6 @@ class ScheduleJsonMarshaller extends JsonNamedMarshaller {
                     timezone        = tz
                 }
                 sched1.getAllAsLocalIntervals(tz)
-                    .each { String k, Collection v -> json[k] = v*.toString() }
-                Result.void()
-            }
-            .ifFailEnd {
-                json.with {
-                    nextAvailable   = sched1.nextAvailable()
-                    nextUnavailable = sched1.nextUnavailable()
-                }
-                sched1.getAllAsLocalIntervals()
                     .each { String k, Collection v -> json[k] = v*.toString() }
             }
 

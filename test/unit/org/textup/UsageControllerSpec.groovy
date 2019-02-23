@@ -15,7 +15,12 @@ import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
+// For some reason all controllers that have the `@Transactional` annotation must have
+// `HibernateTestMixin` mixed for proper initialization of transaction manager
+// see https://stackoverflow.com/a/25865276
+
 @TestFor(UsageController)
+@TestMixin(HibernateTestMixin)
 class UsageControllerSpec extends Specification {
 
     void "test building usage and costs"() {
@@ -73,7 +78,6 @@ class UsageControllerSpec extends Specification {
         info.numActivePhones == numActivePhones
     }
 
-    @DirtiesRuntime
     void "test building timeframe parameters"() {
         given:
         MockedMethod dateTimeToMonthString = MockedMethod.create(UsageUtils, "dateTimeToMonthString") { "hi" }
@@ -91,6 +95,11 @@ class UsageControllerSpec extends Specification {
         info.monthString != null
         info.availableMonthStrings != null
         info.currentTime != null
+
+        cleanup:
+        dateTimeToMonthString?.restore()
+        getAvailableMonthStrings?.restore()
+        dateTimeToTimestamp?.restore()
     }
 
     void "test getting timeframe from session with fallback"() {
@@ -139,7 +148,6 @@ class UsageControllerSpec extends Specification {
         response.redirectedUrl == "/usage/show/${orgId}"
     }
 
-    @DirtiesRuntime
     void "test getting longitudinal activity action"() {
         given:
         controller.usageService = Mock(UsageService)
@@ -186,9 +194,11 @@ class UsageControllerSpec extends Specification {
         1 * controller.usageService.getActivityForNumber(number) >> ["hi"]
         response.json.numberData != null
         response.json.currentMonthIndex != null
+
+        cleanup:
+        getAvailableMonthStringIndex?.restore()
     }
 
-    @DirtiesRuntime
     void "test show endpoint"() {
         given:
         controller.usageService = Mock(UsageService)
@@ -226,9 +236,11 @@ class UsageControllerSpec extends Specification {
         model.org != null
         model.staffs != null
         model.teams != null
+
+        cleanup:
+        getAvailableMonthStrings?.restore()
     }
 
-    @DirtiesRuntime
     void "test index endpoint"() {
         given:
         controller.usageService = Mock(UsageService)
@@ -253,5 +265,8 @@ class UsageControllerSpec extends Specification {
         model.teamPhoneCounts != null
         model.staffOrgs != null
         model.teamOrgs != null
+
+        cleanup:
+        getAvailableMonthStrings?.restore()
     }
 }

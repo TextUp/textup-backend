@@ -29,11 +29,10 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
             .thenEnd { Staff authUser -> json.exportedBy = authUser.name }
         // fetching sections with appropriate pagination options
     	RequestUtils.tryGet(RequestUtils.PAGINATION_OPTIONS)
-            .then { Object opts ->
+            .ifFailAndPreserveError { json.sections = iReq1.buildSections() }
+            .thenEnd { Object opts ->
                 json.sections = iReq1.buildSections(TypeUtils.to(Map, opts))
-                Result.void()
             }
-            .ifFailEnd { json.sections = iReq1.buildSections() }
         // setting timestamps with appropriate
         RequestUtils.tryGet(RequestUtils.TIMEZONE)
             .thenEnd { Object tz ->

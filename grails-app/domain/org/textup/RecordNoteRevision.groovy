@@ -51,10 +51,9 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId, CanSave<
         }
         rNote1?.addToRevisions(rev1)
         DomainUtils.trySave(rev1, ResultStatus.CREATED)
-            .ifFail { Result<?> failRes ->
+            .ifFailAndPreserveError {
                 rNote1?.removeFromRevisions(rev1)
                 rev1.discard()
-                failRes
             }
     }
 

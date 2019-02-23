@@ -5,6 +5,7 @@ import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
 import org.textup.test.*
+import spock.lang.*
 
 @Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
     FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
@@ -13,7 +14,7 @@ import org.textup.test.*
     RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class GroupMemberActionSpec extends CustomSpec {
+class GroupMemberActionSpec extends Specification {
 
 	static doWithSpring = {
         resultFactory(ResultFactory)

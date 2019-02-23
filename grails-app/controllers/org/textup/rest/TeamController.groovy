@@ -25,7 +25,7 @@ class TeamController extends BaseController {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         AuthUtils.tryGetAuthId()
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long authId ->
                 Long orgId = qParams.long("organizationId")
                 Long staffId = qParams.long("staffId", authId)
@@ -57,7 +57,7 @@ class TeamController extends BaseController {
     void update() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
-        doUpdate(MarshallerUtils.KEY_TEAM, request, teamService) { TypeMap body ->
+        doUpdate(MarshallerUtils.KEY_TEAM, request, teamService) {
             Teams.isAllowed(qParams.long("id"))
         }
     }

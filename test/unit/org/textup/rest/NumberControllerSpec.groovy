@@ -1,15 +1,8 @@
 package org.textup.rest
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import groovy.json.JsonBuilder
-import groovy.xml.MarkupBuilder
-import javax.servlet.http.HttpServletRequest
-import org.joda.time.DateTime
-import org.springframework.context.MessageSource
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -27,134 +20,94 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(NumberController)
 @TestMixin(HibernateTestMixin)
-class NumberControllerSpec extends CustomSpec {
+class NumberControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
-        controller.resultFactory = TestUtils.getResultFactory(grailsApplication)
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
-
-    // Listing available phone numbers
-    // -------------------------------
-
-    void "test listing available phone numbers"() {
+    void "test index"() {
         given:
-        controller.authService = Mock(AuthService)
-        controller.numberService = Mock(NumberService)
-        AvailablePhoneNumber aNum = Mock()
+        String search = TestUtils.randString()
+        AvailablePhoneNumber aNum1 = AvailablePhoneNumber.tryCreateExisting(TestUtils.randPhoneNumberString(), TestUtils.randString()).payload
+        AvailablePhoneNumber aNum2 = AvailablePhoneNumber.tryCreateExisting(TestUtils.randPhoneNumberString(), TestUtils.randString()).payload
 
-        when: "not logged in and active"
-        request.method = "GET"
+        Staff s1 = TestUtils.buildStaff()
+
+        controller.numberService = GroovyMock(NumberService)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s1)
+        }
+        MockedMethod respondWithClosures = MockedMethod.create(controller, "respondWithClosures")
+
+        when:
+        params.search = search
         controller.index()
 
         then:
-        1 * controller.authService.loggedInAndActive
-        0 * controller.numberService._
-        response.status == HttpServletResponse.SC_FORBIDDEN
+        1 * controller.numberService.listExistingNumbers() >> Result.createSuccess([aNum1])
+        1 * controller.numberService.listNewNumbers(search, s1.org.location) >> Result.createSuccess([aNum2])
+        respondWithClosures.latestArgs[0] instanceof Closure
+        respondWithClosures.latestArgs[0].call() == 2
+        respondWithClosures.latestArgs[1] instanceof Closure
+        aNum1 in respondWithClosures.latestArgs[1].call()
+        aNum2 in respondWithClosures.latestArgs[1].call()
+        respondWithClosures.latestArgs[2] == TypeMap.create(params)
+        respondWithClosures.latestArgs[3] == MarshallerUtils.KEY_PHONE_NUMBER
 
-        when:
-        response.reset()
-        request.method = "GET"
-        controller.index()
-
-        then:
-        1 * controller.authService.loggedInAndActive >> s1
-        1 * controller.numberService.listExistingNumbers(*_) >> new Result(payload: [aNum])
-        1 * controller.numberService.listNewNumbers(*_) >> new Result(payload: [aNum])
-        response.status == HttpServletResponse.SC_OK
-        response.json.size() == 2
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+        respondWithClosures?.restore()
     }
 
-    // Validate single number
-    // ----------------------
-
-    void "test validating numbers"() {
+    void "test show"() {
         given:
-        controller.numberService = Mock(NumberService)
-        AvailablePhoneNumber aNum = Mock()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+
+        controller.numberService = GroovyMock(NumberService)
 
         when:
-        request.method = "GET"
-        params.id = "i am not a number 123"
+        params.id = pNum1.number
         controller.show()
 
         then:
-        0 * controller.numberService._
-        response.status == 422
-        response.json.errors?.size() > 0
+        1 * controller.numberService.validateNumber(pNum1) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
+    }
+
+    void "test save"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        TypeMap body1 = TypeMap.create(phoneNumber: pNum1.number)
+        TypeMap body2 = TypeMap.create(phoneNumber: pNum1.number, token: TestUtils.randString())
+
+        controller.numberService = GroovyMock(NumberService)
+        MockedMethod tryGetJsonBody = MockedMethod.create(RequestUtils, "tryGetJsonBody") {
+            Result.createSuccess(body1)
+        }
 
         when:
+        controller.save()
+
+        then:
+        1 * controller.numberService.startVerifyOwnership(pNum1) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
+
+        when:
+        tryGetJsonBody = MockedMethod.create(tryGetJsonBody) { Result.createSuccess(body2) }
+        params.clear()
         response.reset()
-        request.method = "GET"
-        params.id = "111 222 i am a valid number 3333"
-        controller.show()
-
-        then:
-        1 * controller.numberService.validateNumber(*_) >> new Result(payload: aNum)
-        response.status == HttpServletResponse.SC_OK
-    }
-
-    // Request verify
-    // -------------
-
-    void "test request verify without phoneNumber"() {
-        given:
-        controller.numberService = Mock(NumberService)
-
-        when:
-        request.method = "POST"
-        request.json = "{}"
         controller.save()
 
         then:
-        0 * controller.numberService._
-        response.status == 422 // unprocessable entity
-    }
+        1 * controller.numberService.finishVerifyOwnership(body2.token, pNum1) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
 
-    void "test request verify success"() {
-        given:
-        controller.numberService = Mock(NumberService)
-        String num = TestUtils.randPhoneNumberString()
-
-        when:
-        request.method = "POST"
-        request.json = DataFormatUtils.toJsonString(phoneNumber: num)
-        controller.save()
-
-        then:
-        1 * controller.numberService.startVerifyOwnership({ it.number == num }) >>
-            new Result(status: ResultStatus.NO_CONTENT)
-        response.status == HttpServletResponse.SC_NO_CONTENT
-        response.text == ""
-    }
-
-    // Complete verify
-    // ----------------
-
-
-    void "test complete verify success"() {
-        given:
-        controller.numberService = Mock(NumberService)
-        String tok = TestUtils.randString()
-        String num = TestUtils.randPhoneNumberString()
-
-        when:
-        request.method = "POST"
-        request.json = DataFormatUtils.toJsonString(token: tok, phoneNumber: num)
-        controller.save()
-
-        then:
-        1 * controller.numberService.finishVerifyOwnership(tok, { it.number == num }) >>
-            new Result(status: ResultStatus.NO_CONTENT)
-        response.status == HttpServletResponse.SC_NO_CONTENT
-        response.text == ""
+        cleanup:
+        tryGetJsonBody?.restore()
     }
 }

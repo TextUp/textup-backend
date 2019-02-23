@@ -33,7 +33,7 @@ class OrganizationController extends BaseController {
     @Override
     void show() {
         Long id = params.long("id")
-        doShow({ Result.void() }, { IndividualPhoneRecordWrappers.mustFindForId(id) })
+        doShow({ Result.void() }, { Organizations.mustFindForId(id) })
     }
 
     @Override

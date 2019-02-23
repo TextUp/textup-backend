@@ -67,7 +67,7 @@ class StaffController extends BaseController {
 
     protected void listForOrg(Collection<StaffStatus> statuses, TypeMap qParams) {
         Organizations.isAllowed(qParams.long("organizationId"))
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long orgId ->
                 String search = qParams.string("search")
                 respondWithCriteria(Staffs.buildForOrgIdAndOptions(orgId, search, statuses),
@@ -80,19 +80,19 @@ class StaffController extends BaseController {
     protected void listForTeam(Collection<StaffStatus> statuses, TypeMap qParams) {
         Teams.isAllowed(qParams.long("teamId"))
             .then { Long tId -> Teams.mustFindForId(tId) }
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Team t1 ->
                 Collection<Staff> staffs = t1.getMembersByStatus(statuses)
-                respondWithMany({ staffs.size() }, { staffs }, qParams, MarshallerUtils.KEY_STAFF)
+                respondWithClosures({ staffs.size() }, { staffs }, qParams, MarshallerUtils.KEY_STAFF)
             }
     }
 
     protected void listForShareStaff(TypeMap qParams) {
         Staffs.isAllowed(qParams.long("shareStaffId"))
-            .ifFail { Result<?> failRes -> respondWithResult(failRes) }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .then { Long sId ->
                 Collection<Staff> staffs = Staffs.findEveryForSharingId(sId)
-                respondWithMany({ staffs.size() }, { staffs }, qParams, MarshallerUtils.KEY_STAFF)
+                respondWithClosures({ staffs.size() }, { staffs }, qParams, MarshallerUtils.KEY_STAFF)
             }
     }
 }

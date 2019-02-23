@@ -1,17 +1,9 @@
 package org.textup.rest
 
-import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import groovy.json.JsonBuilder
-import javax.servlet.http.HttpServletRequest
-import org.joda.time.DateTime
-import org.springframework.context.MessageSource
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.userdetails.UserDetails
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -29,68 +21,34 @@ import spock.lang.*
     SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(SocketController)
 @TestMixin(HibernateTestMixin)
-class SocketControllerSpec extends CustomSpec {
+class SocketControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
-    private String _username, _token
-
     def setup() {
-        setupData()
-		controller.pusherService = new PusherTester("test", "test", "test")
-    }
-    def cleanup() {
-        cleanupData()
+        TestUtils.standardMockSetup()
     }
 
-    protected String toJson(Closure data) {
-    	JsonBuilder builder = new JsonBuilder()
-    	builder(data)
-    	builder.toString()
-    }
+    void "test save"() {
+        given:
+        String channelName = TestUtils.randString()
+        String socketId = TestUtils.randString()
 
-    void "test without all required fields"() {
-    	when:
-    	request.method = "POST"
-    	controller.save()
+        controller.socketService = GroovyMock(SocketService)
+        MockedMethod respondWithResult = MockedMethod.create(controller, "respondWithResult")
 
-    	then:
-    	response.status == HttpServletResponse.SC_FORBIDDEN
-    }
-
-    void "test forbidden from accessing private channel outside your own"() {
         when:
-        request.method = "POST"
-        request.userPrincipal = [
-            getPrincipal: {
-                [getUsername:{ loggedInUsername }] as UserDetails
-            }
-        ] as Authentication
-        params.channel_name = "private-someothernameherechannel"
-        params.socket_id = "socket"
+        params.channel_name = channelName
+        params.socket_id = socketId
         controller.save()
 
         then:
-        response.status == HttpServletResponse.SC_FORBIDDEN
-    }
+        1 * controller.socketService.authenticate(channelName, socketId) >> Result.void()
+        respondWithResult.latestArgs == [Result.void()]
 
-    void "test successfully authenticate private channel"() {
-    	when:
-        request.method = "POST"
-        request.userPrincipal = [
-            getPrincipal: {
-                [getUsername:{ loggedInUsername }] as UserDetails
-            }
-        ] as Authentication
-        params.channel_name = "private-${loggedInUsername}"
-        params.socket_id = "socket"
-        controller.save()
-
-        then:
-        response.status == HttpServletResponse.SC_OK
-        response.json.socketId == params.socket_id
-        response.json.channelName == params.channel_name
+        cleanup:
+        respondWithResult?.restore()
     }
 }

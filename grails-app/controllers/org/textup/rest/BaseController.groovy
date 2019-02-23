@@ -35,7 +35,7 @@ class BaseController {
     protected void respondWithCriteria(DetachedCriteria<?> criteria, Map params = [:],
         Closure sortOptions = null, String customMarshallerKey = null) {
 
-        respondWithMany(CriteriaUtils.countAction(criteria),
+        respondWithClosures(CriteriaUtils.countAction(criteria),
             { Map opts ->
                 sortOptions ? criteria.build(sortOptions).list(opts) : criteria.list(opts)
             },
@@ -43,7 +43,7 @@ class BaseController {
             customMarshallerKey)
     }
 
-    protected void respondWithMany(Closure<Integer> count, Closure<? extends Collection<?>> list,
+    protected void respondWithClosures(Closure<Integer> count, Closure<? extends Collection<?>> list,
         Map params = [:], String customMarshallerKey = null) {
         // step 1: build info
         Integer total = count.call()
@@ -123,8 +123,12 @@ class BaseController {
                     respond(res.payload)
                 }
             }
+    }
+        else {
+            withJsonFormat {
+                respond(ControllerUtils.buildErrors(res))
+            }
         }
-        else { respond(ControllerUtils.buildErrors(res)) }
     }
 
     protected void renderStatus(ResultStatus stat1) {
