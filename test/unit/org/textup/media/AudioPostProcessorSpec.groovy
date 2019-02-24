@@ -51,7 +51,7 @@ class AudioPostProcessorSpec extends Specification {
         Result<UploadItem> res = processor.createInitialVersion()
 
         then:
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.CREATED
         res.payload instanceof UploadItem
         res.payload.type == type
         res.payload.data == data
@@ -75,7 +75,7 @@ class AudioPostProcessorSpec extends Specification {
         Result<UploadItem> res = processor.createSendVersion()
 
         then: "create send version with appropriate width and file size"
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.CREATED
         res.payload instanceof UploadItem
         res.payload.type == AudioPostProcessor.SEND_TYPE
         res.payload.widthInPixels == null
@@ -102,7 +102,7 @@ class AudioPostProcessorSpec extends Specification {
         ResultGroup<UploadItem> resGroup = processor.createAlternateVersions()
 
         then:
-        resGroup.successStatus == ResultStatus.OK
+        resGroup.successStatus == ResultStatus.CREATED
         resGroup.successes.size() == 1
         resGroup.payload[0].type == AudioPostProcessor.ALT_TYPE
         resGroup.payload[0].widthInPixels == null

@@ -1,11 +1,17 @@
 package org.textup.job
 
-import grails.test.mixin.support.GrailsUnitTestMixin
-import grails.test.mixin.TestMixin
+import grails.test.mixin.*
+import grails.test.mixin.support.*
 import org.apache.commons.logging.Log
+import org.joda.time.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
-import spock.lang.Specification
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
 @TestMixin(GrailsUnitTestMixin)
 class PhoneNumberCleanupJobSpec extends Specification {
@@ -14,14 +20,14 @@ class PhoneNumberCleanupJobSpec extends Specification {
         given:
         PhoneNumberCleanupJob job = new PhoneNumberCleanupJob()
         job.numberService = GroovyMock(NumberService)
-        job.log = Mock(Log)
+        job.log = GroovyMock(Log)
 
         when: "success"
         job.execute()
 
         then:
         1 * job.numberService.cleanupInternalNumberPool() >>
-            new Result(payload: Tuple.create([], []))
+            Result.createSuccess(Tuple.create([], []))
         1 * job.log.info(*_)
 
         when: "an error happens"
@@ -29,7 +35,7 @@ class PhoneNumberCleanupJobSpec extends Specification {
 
         then: "logger not called"
         1 * job.numberService.cleanupInternalNumberPool() >>
-            new Result(status: ResultStatus.BAD_REQUEST)
+            Result.createError([], ResultStatus.BAD_REQUEST)
         0 * job.log._
     }
 }

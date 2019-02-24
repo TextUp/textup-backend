@@ -71,7 +71,7 @@ class MediaPostProcessorSpec extends Specification {
 
         then:
         TestUtils.numInTempDirectory == numTempFiles
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.CREATED
         res.payload.type == type
         res.payload.data == data
 

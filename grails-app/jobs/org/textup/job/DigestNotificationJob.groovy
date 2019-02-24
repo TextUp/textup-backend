@@ -2,7 +2,6 @@ package org.textup.job
 
 import grails.compiler.GrailsTypeChecked
 import org.quartz.*
-import org.quartz.JobExecutionContext
 import org.quartz.utils.Key
 import org.springframework.beans.factory.annotation.Autowired
 import org.textup.*
@@ -13,7 +12,7 @@ import org.textup.validator.*
 
 class DigestNotificationJob implements Job {
 
-    private static final String FREQ_KEY = "frequency"
+    static final String FREQ_KEY = "frequency"
 
     // Any additional properties provided here call analogous setters on CronTriggerImpl
     // see: https://github.com/grails-plugins/grails-quartz/blob/1.x/src/groovy/grails/plugins/quartz/config/TriggersConfigBuilder.groovy

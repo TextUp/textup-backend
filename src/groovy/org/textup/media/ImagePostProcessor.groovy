@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import java.awt.image.BufferedImage
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*

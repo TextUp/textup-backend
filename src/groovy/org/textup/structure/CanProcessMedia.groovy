@@ -1,4 +1,4 @@
-package org.textup.media
+package org.textup.structure
 
 import grails.compiler.GrailsTypeChecked
 import org.textup.*

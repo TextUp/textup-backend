@@ -21,22 +21,20 @@ class FutureMessageJobSpec extends Specification {
 	FutureMessageJob job
 
     def setup() {
+        TestUtils.standardMockSetup()
     	job = new FutureMessageJob()
-    	job.resultFactory = TestUtils.getResultFactory(grailsApplication)
     }
 
     void "test executing then mark done"() {
         given:
-        job.threadService = Mock(ThreadService)
-        job.futureMessageJobService = Mock(FutureMessageJobService)
-        JobExecutionContext context = Mock()
-        Trigger trig = Mock()
         String key = TestUtils.randString()
-        Long id = 88
-        Map data = [
-            (QuartzUtils.DATA_FUTURE_MESSAGE_KEY): key,
-            (QuartzUtils.DATA_STAFF_ID): id
-        ]
+        Long id = TestUtils.randIntegerUpTo(88)
+        Map data = [(QuartzUtils.DATA_FUTURE_MESSAGE_KEY): key, (QuartzUtils.DATA_STAFF_ID): id]
+
+        JobExecutionContext context = GroovyMock()
+        Trigger trig = GroovyMock()
+        job.threadService = GroovyMock(ThreadService)
+        job.futureMessageJobService = GroovyMock(FutureMessageJobService)
 
     	when: "execution does not succeed but will not fire again"
         job.execute(context)
@@ -47,8 +45,8 @@ class FutureMessageJobSpec extends Specification {
         1 * trig.mayFireAgain() >> false
         1 * job.threadService.delay(*_) >> { args -> args[2].call(); null; }
         1 * job.futureMessageJobService.execute(key, id) >>
-            new Result(status: ResultStatus.INTERNAL_SERVER_ERROR).toGroup()
-        1 * job.futureMessageJobService.markDone(key) >> new Result()
+            Result.createError([], ResultStatus.INTERNAL_SERVER_ERROR)
+        1 * job.futureMessageJobService.markDone(key) >> Result.void()
 
     	when: "execution succeeds but trigger may still fire again"
     	job.execute(context)
@@ -58,7 +56,7 @@ class FutureMessageJobSpec extends Specification {
         1 * context.trigger >> trig
         1 * trig.mayFireAgain() >> true
         1 * job.threadService.delay(*_) >> { args -> args[2].call(); null; }
-        1 * job.futureMessageJobService.execute(key, id) >> new ResultGroup()
+        1 * job.futureMessageJobService.execute(key, id) >> Result.void()
         0 * job.futureMessageJobService.markDone(*_)
 
     	when: "execution succeeds and trigger will not fire again"
@@ -69,7 +67,7 @@ class FutureMessageJobSpec extends Specification {
         1 * context.trigger >> trig
         1 * trig.mayFireAgain() >> false
         1 * job.threadService.delay(*_) >> { args -> args[2].call(); null; }
-        1 * job.futureMessageJobService.execute(key, id) >> new ResultGroup()
-        1 * job.futureMessageJobService.markDone(key) >> new Result()
+        1 * job.futureMessageJobService.execute(key, id) >> Result.void()
+        1 * job.futureMessageJobService.markDone(key) >> Result.void()
     }
 }
