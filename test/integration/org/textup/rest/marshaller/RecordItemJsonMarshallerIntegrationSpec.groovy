@@ -44,15 +44,18 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         given:
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
 
         RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
         RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
+        RecordItem rItem3 = TestUtils.buildRecordItem(spr1.record)
 
         when:
         RequestUtils.trySet(RequestUtils.PHONE_ID, "not a number")
         Map json = TestUtils.objToJsonMap(rItem1)
 
         then:
+        json.ownerName == null
         json.contact == null
         json.tag == null
 
@@ -61,6 +64,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         json = TestUtils.objToJsonMap(rItem1)
 
         then:
+        json.ownerName == ipr1.name
         json.contact == ipr1.id
         json.tag == null
 
@@ -69,8 +73,18 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         json = TestUtils.objToJsonMap(rItem2)
 
         then:
+        json.ownerName == gpr1.name
         json.contact == null
         json.tag == gpr1.id
+
+        when: "record owner is a shared contact"
+        RequestUtils.trySet(RequestUtils.PHONE_ID, spr1.phone.id)
+        json = TestUtils.objToJsonMap(rItem3)
+
+        then:
+        json.ownerName == spr1.shareSource.name
+        json.contact == spr1.id
+        json.tag == null
     }
 
     void "test marshalling call"() {

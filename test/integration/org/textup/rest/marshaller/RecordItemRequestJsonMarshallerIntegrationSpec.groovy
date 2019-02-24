@@ -18,7 +18,7 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
         RecordCall rCall1 = TestUtils.buildRecordCall(ipr1.record)
 
-        RecordItemRequest iReq1 = TestUtils.buildRecordItemRequest(p1)
+        RecordItemRequest iReq1 = RecordItemRequest.tryCreate(p1, null, false).payload
 
         MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
             Result.createError([], ResultStatus.FORBIDDEN)
@@ -31,7 +31,7 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
         then:
         json.maxAllowedNumItems == ControllerUtils.MAX_PAGINATION_MAX
         json.phoneName == p1.buildName()
-        json.phoneNumber.noFormatNumber == p1.number.number
+        json.phoneNumber == p1.number.prettyPhoneNumber
         json.totalNumItems > 0
         json.totalNumItems == iReq1.criteria.count()
         json.sections.size() == 1
@@ -45,7 +45,7 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
         then:
         json.maxAllowedNumItems == ControllerUtils.MAX_PAGINATION_MAX
         json.phoneName == p1.buildName()
-        json.phoneNumber.noFormatNumber == p1.number.number
+        json.phoneNumber == p1.number.prettyPhoneNumber
         json.totalNumItems > 0
         json.totalNumItems == iReq1.criteria.count()
         json.sections.size() == 1
@@ -59,7 +59,7 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
         given:
         Staff s1 = TestUtils.buildStaff()
         Phone p1 = TestUtils.buildActiveStaffPhone(s1)
-        RecordItemRequest iReq1 = TestUtils.buildRecordItemRequest(p1)
+        RecordItemRequest iReq1 = RecordItemRequest.tryCreate(p1, null, false).payload
 
         MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
             Result.createError([], ResultStatus.FORBIDDEN)
@@ -88,7 +88,7 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
         RecordCall rCall1 = TestUtils.buildRecordCall(ipr1.record)
 
-        RecordItemRequest iReq1 = TestUtils.buildRecordItemRequest(p1)
+        RecordItemRequest iReq1 = RecordItemRequest.tryCreate(p1, null, false).payload
         iReq1.with {
             start = DateTime.now().minusDays(8)
             end = DateTime.now().minusDays(1)

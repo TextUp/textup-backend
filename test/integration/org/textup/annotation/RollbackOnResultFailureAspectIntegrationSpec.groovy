@@ -25,7 +25,7 @@ class RollbackOnResultFailureAspectIntegrationSpec extends Specification {
         // See https://blog.10ne.org/2014/01/08/registering-new-spring-beans-in-grails-during-runtime/
         GenericBeanDefinition beanDef = new GenericBeanDefinition(beanClass: RollbackTestClass,
             autowireMode: AbstractBeanDefinition.AUTOWIRE_BY_NAME)
-        grailsApplication.mainContext.registerBeanDefinition('rollbackTestClass', beanDef)
+        grailsApplication.mainContext.registerBeanDefinition("rollbackTestClass", beanDef)
     }
 
     @FreshRuntime
@@ -36,8 +36,8 @@ class RollbackOnResultFailureAspectIntegrationSpec extends Specification {
 
         when: "notAnnotated with result failure"
         testClass.notAnnotated {
-            buildLocation()
-            new Result(status: ResultStatus.BAD_REQUEST)
+            TestUtils.buildLocation()
+            Result.createError([], ResultStatus.BAD_REQUEST)
         }
 
         then: "NOT rolled back"
@@ -52,8 +52,8 @@ class RollbackOnResultFailureAspectIntegrationSpec extends Specification {
 
         when: "annotated and correct return type with result failure"
         testClass.correctReturn {
-            buildLocation()
-            new Result(status: ResultStatus.BAD_REQUEST)
+            TestUtils.buildLocation()
+            Result.createError([], ResultStatus.BAD_REQUEST)
         }
 
         then: "DID roll back"
@@ -68,7 +68,7 @@ class RollbackOnResultFailureAspectIntegrationSpec extends Specification {
 
         when: "annotated and wrong return type"
         testClass.incorrectReturn {
-            buildLocation()
+            TestUtils.buildLocation()
             false
         }
 
@@ -81,9 +81,5 @@ class RollbackOnResultFailureAspectIntegrationSpec extends Specification {
 
     protected RollbackTestClass getTestClass() {
         grailsApplication.mainContext.getBean(RollbackTestClass)
-    }
-
-    protected Location buildLocation() {
-        new Location(address: "hello", lat: 0G, lon: 0G).save()
     }
 }

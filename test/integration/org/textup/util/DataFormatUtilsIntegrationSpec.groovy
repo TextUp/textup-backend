@@ -18,7 +18,7 @@ class DataFormatUtilsIntegrationSpec extends Specification {
 
     void "test converting object to xml string"() {
         given:
-        Map seedData = [hello:[1, 2, 3], goodbye: "hello"]
+        Map seedData = [hello: [1, 2, 3], goodbye: "hello"]
 
         expect:
         DataFormatUtils.toXmlString(seedData) ==

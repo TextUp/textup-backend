@@ -21,7 +21,9 @@ class PdfServiceIntegrationSpec extends Specification {
         RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
         RecordItem rItem3 = TestUtils.buildRecordItem(gpr1.record)
 
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
+        RecordItemRequest iReq = RecordItemRequest.tryCreate(p1, null, false).payload
+
+        MockedMethod trySet = MockedMethod.create(RequestUtils, "trySet")
 
         when: "no input"
         Result res = pdfService.buildRecordItems(null)
@@ -43,5 +45,9 @@ class PdfServiceIntegrationSpec extends Specification {
         res.payload[2] == 0x44 // D
         res.payload[3] == 0x46 // F
         res.payload[4] == 0x2D // -
+        trySet.latestArgs == [RequestUtils.PHONE_ID, iReq.mutablePhone.id]
+
+        cleanup:
+        trySet?.restore()
     }
 }

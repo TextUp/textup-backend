@@ -78,7 +78,9 @@ class RecordUtils {
             .collect(wrappers) { PhoneRecordWrapper w1 ->
                 w1.tryGetReadOnlyRecord()
                     .then { ReadOnlyRecord rec1 ->
-                        w1.tryGetReadOnlyMutablePhone().curry(rec1) // will show sharedWith phone
+                        // While overall the `RecordItemRequest` is for the mutable phone, show
+                        // `shareSource` phone for sharing relationships when in a single section
+                        w1.tryGetReadOnlyOriginalPhone().curry(rec1)
                     }
                     .then { ReadOnlyRecord rec1, ReadOnlyPhone p1 ->
                         RecordItemRequestSection.tryCreate(p1.buildName(), p1.number,

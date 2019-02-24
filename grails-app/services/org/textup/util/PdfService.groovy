@@ -55,6 +55,9 @@ class PdfService {
             return IOCUtils.resultFactory.failWithCodeAndStatus("pdfService.noInputData",
                 ResultStatus.INTERNAL_SERVER_ERROR)
         }
+        // set phone id on the request for RecordItem marshaller to access
+        RequestUtils.trySet(RequestUtils.PHONE_ID, itemRequest.mutablePhone.id)
+        // build xml
         OutputStream out
         try {
             out = new ByteArrayOutputStream()

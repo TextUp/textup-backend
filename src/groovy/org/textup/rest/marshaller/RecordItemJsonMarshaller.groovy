@@ -57,13 +57,13 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 json.whenCreated = JodaUtils.toDateTimeWithZone(json.whenCreated, zoneName)
                 json.whenChanged = JodaUtils.toDateTimeWithZone(json.whenChanged, zoneName)
             }
-
         RequestUtils.tryGet(RequestUtils.PHONE_ID)
             .thenEnd { Object pId ->
                 PhoneRecord pr1 = PhoneRecords.buildActiveForRecordIds([rItem1.id])
                     .build(PhoneRecords.forPhoneIds([TypeUtils.to(Long, pId)]))
                     .list(max: 1)[0]
                 if (pr1) {
+                    json.ownerName = pr1.toWrapper().tryGetSecureName().payload // for pdf export
                     if (pr1 instanceof GroupPhoneRecord) {
                         json.tag = pr1.id
                     }

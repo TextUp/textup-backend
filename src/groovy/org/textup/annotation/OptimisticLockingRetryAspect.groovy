@@ -17,8 +17,7 @@ class OptimisticLockingRetryAspect implements Ordered {
 	int order = -1
 
 	@Around(value="@annotation(optimisticLockingRetry)", argNames = "optimisticLockingRetry")
-	def retry(ProceedingJoinPoint pjp, OptimisticLockingRetry optimisticLockingRetry)
-		throws Throwable {
+	def retry(ProceedingJoinPoint pjp, OptimisticLockingRetry optimisticLockingRetry) throws Throwable {
 		Integer allowedRetries = optimisticLockingRetry.retryCount(),
 			retriesSoFar = 0
 		def result

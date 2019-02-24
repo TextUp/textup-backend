@@ -56,6 +56,11 @@ class TestUtils {
     }
 
     static GPathResult buildXmlTransformOutput(GrailsApplication grailsApplication, RecordItemRequest iReq) {
+        // [IMPORTANT] here are testing the XSL transform from our marshalled XML to a format
+        // XSL-FO understands. Before we marshall, we need to make sure we set the phone id
+        // on the request for the marshallers as we do in `pdfService`
+        RequestUtils.trySet(RequestUtils.PHONE_ID, iReq.mutablePhone.id)
+
         String xmlString = DataFormatUtils.toXmlString(DataFormatUtils.jsonToObject(iReq))
         StringWriter writer = new StringWriter()
 
@@ -483,10 +488,6 @@ class TestUtils {
         rpt1.numBillable = TestUtils.randIntegerUpTo(10)
         assert rpt1.validate()
         rpt1
-    }
-
-    static RecordItemRequest buildRecordItemRequest(Phone p1, boolean groupByEntity = false) {
-        RecordItemRequest.tryCreate(p1, [], groupByEntity).payload
     }
 
     static CustomAccountDetails buildCustomAccountDetails() {

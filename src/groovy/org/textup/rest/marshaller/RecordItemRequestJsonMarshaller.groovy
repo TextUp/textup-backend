@@ -19,7 +19,7 @@ class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
         json.with {
             maxAllowedNumItems = ControllerUtils.MAX_PAGINATION_MAX
             phoneName          = iReq1.mutablePhone.buildName()
-            phoneNumber        = iReq1.mutablePhone.number
+            phoneNumber        = iReq1.mutablePhone.number.prettyPhoneNumber // pass phone number as string
             totalNumItems      = iReq1.criteria.count()
             startDate          = iReq1.buildFormattedStart()
             endDate            = iReq1.buildFormattedEnd()

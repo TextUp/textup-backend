@@ -10,6 +10,7 @@ import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.util.Assert
 import org.textup.*
+import org.textup.util.*
 
 @Log4j
 class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
@@ -26,12 +27,13 @@ class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
         UserDetails userDetails = accessToken.principal as UserDetails
         Map result = [
             (usernamePropertyName) : userDetails.username,
-            (authoritiesPropertyName) : userDetails.authorities?.collect {GrantedAuthority role -> role.authority },
+            (authoritiesPropertyName) : userDetails.authorities?.collect { GrantedAuthority role -> role.authority },
             id: userDetails.id
         ]
         // add additional information about the staff
         Staff.withNewSession {
-            result.staff = DataFormatUtils.jsonToObject(Staff.get(userDetails.id))
+            Staff s1 = Staff.get(userDetails.id)
+            result.staff = s1 ? DataFormatUtils.jsonToObject(s1) : null
         }
         // add token information
         if (useBearerToken) {
@@ -48,8 +50,6 @@ class CustomTokenJsonRenderer implements AccessTokenJsonRenderer {
             result["$tokenPropertyName"] = accessToken.accessToken
         }
         // build json string result
-        def jsonResult = new JSON(result)
-        log.debug "CUSTOM Generated JSON:\n${jsonResult.toString(true)}"
-        return jsonResult.toString()
+        new JSON(result)
     }
 }
