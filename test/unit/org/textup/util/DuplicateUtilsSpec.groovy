@@ -77,6 +77,12 @@ class DuplicateUtilsSpec extends Specification {
         then:
         targetId == null
 
+        when: "no ambiguous ids"
+        targetId = DuplicateUtils.findMergeTargetId(possibleIdsNoAmbig, new HashSet())
+
+        then:
+        targetId == possibleIdsNoAmbig[0]
+
         when:
         targetId = DuplicateUtils.findMergeTargetId(possibleIdsNoAmbig, ambiguousIds)
 
@@ -117,8 +123,24 @@ class DuplicateUtilsSpec extends Specification {
         when:
         resGroup = DuplicateUtils.tryBuildMergeGroups(numToIdsNoAmbiguous)
 
-        then: "no overlaps to merge"
-        resGroup.isEmpty
+        then:
+        resGroup.anyFailures == false
+        resGroup.anySuccesses == true
+        resGroup.payload.size() == 2
+        resGroup.payload.find {
+            it.targetId == id1 &&
+                it.possibleMerges.size() == 1 &&
+                it.possibleMerges[0].number == pNum1 &&
+                it.possibleMerges[0].mergeIds.size() == 1 &&
+                it.possibleMerges[0].mergeIds[0] == id2
+        }
+        resGroup.payload.find {
+            it.targetId == id3 &&
+                it.possibleMerges.size() == 1 &&
+                it.possibleMerges[0].number == pNum2 &&
+                it.possibleMerges[0].mergeIds.size() == 1 &&
+                it.possibleMerges[0].mergeIds[0] == id4
+        }
 
         when:
         resGroup = DuplicateUtils.tryBuildMergeGroups(numToIdsWithManyAmbiguous)

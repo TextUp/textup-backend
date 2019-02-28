@@ -29,7 +29,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
                     channelName    = SocketUtils.channelName(rs1)
                     email          = rs1.email
                     org            = rs1.readOnlyOrg
-                    personalNumber = rs1.personalNumber
+                    personalNumber = rs1.hasPersonalNumber() ? rs1.personalNumber : null
                     teams          = Teams.buildActiveForStaffIds([rs1.id]).list()
                 }
             }

@@ -165,4 +165,20 @@ class StaffSpec extends Specification {
         then:
         s1.validate()
     }
+
+    void "test personal number"() {
+        when: "has personal number"
+        Staff s1 = TestUtils.buildStaff()
+
+        then:
+        s1.hasPersonalNumber()
+        s1.personalNumber.validate()
+
+        when: "no personal number"
+        s1.personalNumberAsString = null
+
+        then:
+        s1.hasPersonalNumber() == false
+        s1.personalNumber.validate() == false
+    }
 }

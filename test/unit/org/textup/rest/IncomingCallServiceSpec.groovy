@@ -36,6 +36,7 @@ class IncomingCallServiceSpec extends Specification {
         Phone p1 = TestUtils.buildActiveStaffPhone()
         IncomingSession is1 = TestUtils.buildSession()
         RecordCall rCall1 = TestUtils.buildRecordCall()
+        RecordCall rCall2 = TestUtils.buildRecordCall()
 
         NotificationGroup notifGroup1 = GroovyMock()
         MockedMethod connectIncoming = MockedMethod.create(CallTwiml, "connectIncoming")
@@ -47,16 +48,32 @@ class IncomingCallServiceSpec extends Specification {
         then:
         1 * notifGroup1.buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY) >> []
         connectIncoming.notCalled
+        recordVoicemailMessage.callCount == 1
         recordVoicemailMessage.latestArgs == [p1, is1.number]
         rCall1.hasAwayMessage
         res == null
 
-        when:
+        when: "with personal number"
         res = service.buildCallResponse(p1, is1, [rCall1], notifGroup1)
 
         then:
         1 * notifGroup1.buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY) >> [op1]
+        connectIncoming.callCount == 1
         connectIncoming.latestArgs == [p1.number, is1.number, [op1.staff.personalNumber]]
+        op1.staff.hasPersonalNumber()
+        res == null
+
+        when:
+        op1.staff.personalNumberAsString = null
+        res = service.buildCallResponse(p1, is1, [rCall2], notifGroup1)
+
+        then:
+        1 * notifGroup1.buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY) >> [op1]
+        connectIncoming.callCount == 1
+        recordVoicemailMessage.callCount == 2
+        recordVoicemailMessage.latestArgs == [p1, is1.number]
+        rCall2.hasAwayMessage
+        res == null
 
         cleanup:
         connectIncoming?.restore()

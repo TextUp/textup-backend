@@ -58,7 +58,10 @@ class NotificationServiceSpec extends Specification {
         OwnerPolicy op1 = TestUtils.buildOwnerPolicy()
         op1.method = NotificationMethod.TEXT
         OwnerPolicy op2 = TestUtils.buildOwnerPolicy()
-        op2.method = NotificationMethod.EMAIL
+        op2.method = NotificationMethod.TEXT
+        op2.staff.personalNumberAsString = null
+        OwnerPolicy op3 = TestUtils.buildOwnerPolicy()
+        op3.method = NotificationMethod.EMAIL
         OwnerPolicy.withSession { it.flush() }
 
         Token tok1 = GroovyMock()
@@ -74,7 +77,7 @@ class NotificationServiceSpec extends Specification {
         notThrown NullPointerException
         res.status == ResultStatus.NO_CONTENT
 
-        when: "send via text"
+        when: "send via text + staff has personal number"
         res = service.send(freq1, notifGroup1)
 
         then:
@@ -86,14 +89,23 @@ class NotificationServiceSpec extends Specification {
             notif1.mutablePhone.customAccountId) >> Result.void()
         res.status == ResultStatus.NO_CONTENT
 
-        when: "send via email"
+        when: "send via text + staff has no personal number"
         res = service.send(freq1, notifGroup1)
 
         then:
         1 * notifGroup1.eachNotification(freq1, _ as Closure) >> { args -> args[1].call(op2, notif1) }
         1 * service.tokenService.tryGeneratePreviewInfo(op2, notif1) >> Result.createSuccess(tok1)
+        0 * service.textService._
+        res.status == ResultStatus.NO_CONTENT
+
+        when: "send via email"
+        res = service.send(freq1, notifGroup1)
+
+        then:
+        1 * notifGroup1.eachNotification(freq1, _ as Closure) >> { args -> args[1].call(op3, notif1) }
+        1 * service.tokenService.tryGeneratePreviewInfo(op3, notif1) >> Result.createSuccess(tok1)
         1 * service.mailService.notifyMessages(freq1,
-            op2.staff,
+            op3.staff,
             _ as NotificationInfo,
             tok1) >> Result.void()
         res.status == ResultStatus.NO_CONTENT

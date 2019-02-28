@@ -55,6 +55,7 @@ class OutgoingCallServiceSpec extends Specification {
     void "test starting bridge call"() {
         given:
         PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber invalidNum1 = PhoneNumber.create("invalid")
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         Author author1 = TestUtils.buildAuthor()
         TempRecordReceipt tempRpt1 = TestUtils.buildTempReceipt()
@@ -67,6 +68,13 @@ class OutgoingCallServiceSpec extends Specification {
 
         when:
         Result res = service.tryStart(null, null, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages == ["outgoingCallService.noPersonalNumber"]
+
+        when:
+        res = service.tryStart(invalidNum1, ipr1.toWrapper(), author1)
 
         then:
         res.status == ResultStatus.UNPROCESSABLE_ENTITY

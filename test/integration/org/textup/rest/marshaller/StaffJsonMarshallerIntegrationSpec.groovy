@@ -65,6 +65,13 @@ class StaffJsonMarshallerIntegrationSpec extends Specification {
         json.teams instanceof Collection
         json.teams.isEmpty()
 
+        when: "clear personal number"
+        s1.personalNumberAsString = null
+        json = TestUtils.objToJsonMap(s1)
+
+        then:
+        json.personalNumber == null
+
         cleanup:
         isAllowed?.restore()
     }

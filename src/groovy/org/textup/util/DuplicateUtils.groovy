@@ -56,7 +56,6 @@ class DuplicateUtils {
     }
 
     protected static Long findMergeTargetId(Collection<Long> possibleIds, HashSet<Long> ambiguousIds) {
-        // TODO test ambiguousIds could be an empty collection but NOT null
         if (possibleIds != null && ambiguousIds != null) {
             Collection<Long> possibleAmbiguousIds = possibleIds.intersect(ambiguousIds)
             // the ambiguous id has to be the target

@@ -74,7 +74,8 @@ class AuthUtilsSpec extends Specification {
 
     void "test try getting auth id"() {
         given:
-        Long authId = TestUtils.randIntegerUpTo(88)
+        MockedMethod encodeSecureString = MockedMethod.create(AuthUtils, "encodeSecureString") { it }
+        Staff s1 = TestUtils.buildStaff()
 
         when:
         Result res = AuthUtils.tryGetAuthId()
@@ -88,9 +89,12 @@ class AuthUtilsSpec extends Specification {
 
         then:
         1 * mockSecurity.isLoggedIn() >> true
-        1 * mockSecurity.loadCurrentUser() >> authId
+        1 * mockSecurity.loadCurrentUser() >> s1
         res.status == ResultStatus.OK
-        res.payload == authId
+        res.payload == s1.id
+
+        cleanup:
+        encodeSecureString.restore()
     }
 
     void "try getting auth user"() {
@@ -112,7 +116,7 @@ class AuthUtilsSpec extends Specification {
 
         then:
         1 * mockSecurity.isLoggedIn() >> true
-        1 * mockSecurity.loadCurrentUser() >> s1.id
+        1 * mockSecurity.loadCurrentUser() >> s1
         res.status == ResultStatus.FORBIDDEN
 
         when:
@@ -123,7 +127,7 @@ class AuthUtilsSpec extends Specification {
 
         then:
         1 * mockSecurity.isLoggedIn() >> true
-        1 * mockSecurity.loadCurrentUser() >> s1.id
+        1 * mockSecurity.loadCurrentUser() >> s1
         res.status == ResultStatus.OK
         res.payload == s1
 

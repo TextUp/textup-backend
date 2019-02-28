@@ -103,6 +103,54 @@ class RecipientsSpec extends Specification {
         PhoneRecord.count() == prBaseline
     }
 
+    void "test permission constraint"() {
+        given:
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+        spr1.permission = SharePermission.NONE
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
+
+        when:
+        Result res = Recipients.tryCreate([spr1], lang1, 10)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.contains("someNoPermissions")
+    }
+
+    void "test number of recipient constraint"() {
+        given:
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        IndividualPhoneRecord ipr3 = TestUtils.buildIndPhoneRecord(p1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        gpr1.members.addToPhoneRecords(ipr2)
+        gpr1.members.addToPhoneRecords(ipr3)
+        PhoneRecord.withSession { it.flush() }
+
+        when:
+        Result res = Recipients.tryCreate([ipr1, ipr2, gpr1], lang1, 3, false)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.buildCount() == 3
+
+        when:
+        res = Recipients.tryCreate([ipr1, ipr2, gpr1], lang1, 10, true)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.buildCount() == 4
+
+        when:
+        res = Recipients.tryCreate([ipr1, ipr2, gpr1], lang1, 3, true)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.contains("tooManyRecipients")
+    }
+
     void "test getters"() {
         given:
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()

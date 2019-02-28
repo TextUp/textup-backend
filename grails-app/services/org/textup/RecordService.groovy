@@ -87,7 +87,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
         Future<Result<?>> future = null) {
 
         int max = ValidationUtils.MAX_NUM_TEXT_RECIPIENTS
-        Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), max)
+        Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), max, true)
             .then { Recipients r1 ->
                 TempRecordItem.tryCreate(body.string("contents"), mInfo, null).curry(r1)
             }

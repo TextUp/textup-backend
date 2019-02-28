@@ -20,25 +20,25 @@ class Recipients implements CanValidate {
     final Integer maxNum
     final Phone phone
     final VoiceLanguage language
+    final boolean countAsRecords // so that GroupPhoneRecords also count their members
 
     static constraints = { // all nullable: false by default
         maxNum min: 1
         all minSize: 1, validator: { Collection<? extends PhoneRecord> val, Recipients obj ->
             if (val) {
                 if (val.findAll { !it.toPermissions().canModify() }) {
-                    return ["someNoPermissions", all*.id]
+                    return ["someNoPermissions", val*.id]
                 }
-                // TODO for text we want to also count the members within each tag, but we do not want
-                // to do this for calls and notes -- how to handle this?
-                if (val.size() > obj.maxNum) {
-                    return ["tooManyRecipients", val.size(), obj.maxNum]
+                int numRecips = obj.buildCount()
+                if (numRecips > obj.maxNum) {
+                    return ["tooManyRecipients", numRecips, obj.maxNum]
                 }
             }
         }
     }
 
     static Result<Recipients> tryCreate(Phone p1, Collection<Long> prIds,
-        Collection<PhoneNumber> pNums, int maxNum) {
+        Collection<PhoneNumber> pNums, int maxNum, boolean countAsRecords = false) {
         // create new contacts as needed
         IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, pNums, true)
             .then { Map<PhoneNumber, List<IndividualPhoneRecord>> ipRecs ->
@@ -48,24 +48,25 @@ class Recipients implements CanValidate {
                     .build(PhoneRecords.forIds(prIds))
                     .list()
                 pRecs.addAll(CollectionUtils.mergeUnique(ipRecs.values()))
-                Recipients.tryCreateForPhoneAndObjs(p1, pRecs, p1?.language, maxNum)
+                Recipients.tryCreateForPhoneAndObjs(p1, pRecs, p1?.language, maxNum, countAsRecords)
             }
     }
 
     static Result<Recipients> tryCreate(Collection<? extends PhoneRecord> pRecs,
-        VoiceLanguage language, int maxNum) {
+        VoiceLanguage language, int maxNum, boolean countAsRecords = false) {
 
-        Recipients.tryCreateForPhoneAndObjs(pRecs?.getAt(0)?.phone, pRecs, language, maxNum)
+        Recipients.tryCreateForPhoneAndObjs(pRecs?.getAt(0)?.phone, pRecs, language, maxNum, countAsRecords)
     }
 
     static Result<Recipients> tryCreateForPhoneAndObjs(Phone p1, Collection<? extends PhoneRecord> thisPhoneRecs,
-        VoiceLanguage language, int maxNum) {
+        VoiceLanguage language, int maxNum, boolean countAsRecords = false) {
 
         Collection<? extends PhoneRecord> prs = thisPhoneRecs ?: new ArrayList<? extends PhoneRecord>()
         Recipients r1 = new Recipients(Collections.unmodifiableCollection(prs),
             maxNum,
             p1,
-            language)
+            language,
+            countAsRecords)
         DomainUtils.tryValidate(r1, ResultStatus.CREATED)
     }
 
@@ -93,6 +94,10 @@ class Recipients implements CanValidate {
     }
 
     String buildFromName() { phone?.owner?.buildName() }
+
+    int buildCount() {
+        countAsRecords ? CollectionUtils.mergeUnique(all*.buildRecords()).size() : all.size()
+    }
 
     // loops through unique records for individuals, groups, and group members
     void eachRecord(Closure action) {

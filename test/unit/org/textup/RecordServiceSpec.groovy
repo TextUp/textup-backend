@@ -69,10 +69,10 @@ class RecordServiceSpec extends Specification {
         Location loc1 = TestUtils.buildLocation()
         MediaInfo mInfo1 = TestUtils.buildMediaInfo()
 
-        TypeMap body1 = TypeMap.create("ids[]": [spr1.id], "numbers[]": [pNum1])
+        TypeMap body1 = TypeMap.create("ids": [spr1.id], "numbers": [pNum1])
         TypeMap body2 = TypeMap.create(location: TestUtils.randTypeMap(),
             contents: TestUtils.randString(),
-            "numbers[]": [pNum1])
+            "numbers": [pNum1])
 
         int prBaseline = PhoneRecord.count()
 
@@ -121,9 +121,9 @@ class RecordServiceSpec extends Specification {
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
 
-        TypeMap body1 = TypeMap.create("ids[]": [spr1.id], "numbers[]": [pNum1])
-        TypeMap body2 = TypeMap.create("ids[]": [gpr1.id])
-        TypeMap body3 = TypeMap.create("numbers[]": [pNum1])
+        TypeMap body1 = TypeMap.create("ids": [spr1.id], "numbers": [pNum1])
+        TypeMap body2 = TypeMap.create("ids": [gpr1.id])
+        TypeMap body3 = TypeMap.create("numbers": [pNum1])
 
         int prBaseline = PhoneRecord.count()
 
@@ -174,8 +174,8 @@ class RecordServiceSpec extends Specification {
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
         MediaInfo mInfo1 = TestUtils.buildMediaInfo()
 
-        TypeMap body = TypeMap.create("ids[]": [ipr1, gpr1, spr1]*.id,
-            "numbers[]": [pNum1],
+        TypeMap body = TypeMap.create("ids": [ipr1, gpr1, spr1]*.id,
+            "numbers": [pNum1],
             contents: TestUtils.randString())
 
         int prBaseline = PhoneRecord.count()
@@ -192,7 +192,7 @@ class RecordServiceSpec extends Specification {
 
         then:
         1 * service.outgoingMessageService.tryStart(RecordItemType.TEXT,
-            _,
+            {  it.countAsRecords },
             { it.text == body.contents && it.media == mInfo1 && it.location == null },
             Author.create(s1),
             fut1) >> Result.createSuccess(Tuple.create([rText1], null))
