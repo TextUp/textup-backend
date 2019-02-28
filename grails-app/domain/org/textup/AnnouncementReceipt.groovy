@@ -12,7 +12,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@EqualsAndHashCode(includes = ["session"])
+@EqualsAndHashCode(includes = ["announcement", "session", "type"])
 @GrailsTypeChecked
 class AnnouncementReceipt implements WithId, CanSave<AnnouncementReceipt> {
 

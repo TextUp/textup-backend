@@ -18,7 +18,7 @@ class DuplicateController extends BaseController {
     DuplicateService duplicateService
 
     @Override
-    void index() {
+    def index() {
         TypeMap qParams = TypeMap.create(params)
         ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
             .then { Long pId ->

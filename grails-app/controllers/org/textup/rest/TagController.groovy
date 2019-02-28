@@ -20,7 +20,7 @@ class TagController extends BaseController {
     TagService tagService
 
     @Override
-    void index() {
+    def index() {
         ControllerUtils.tryGetPhoneId(params.long("teamId"))
             .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
@@ -32,27 +32,27 @@ class TagController extends BaseController {
     }
 
     @Override
-    void show() {
+    def show() {
         Long id = params.long("id")
         doShow({ PhoneRecords.isAllowed(id) }, { GroupPhoneRecords.mustFindForId(id) })
     }
 
     @Override
-    void save() {
+    def save() {
         doSave(MarshallerUtils.KEY_TAG, request, tagService) {
             ControllerUtils.tryGetPhoneId(params.long("teamId"))
         }
     }
 
     @Override
-    void update() {
+    def update() {
         doUpdate(MarshallerUtils.KEY_TAG, request, tagService) {
             PhoneRecords.isAllowed(params.long("id"))
         }
     }
 
     @Override
-    void delete() {
+    def delete() {
         doDelete(tagService) { PhoneRecords.isAllowed(params.long("id")) }
     }
 }

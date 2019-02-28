@@ -74,6 +74,14 @@ class Staff implements WithId, CanSave<Staff>, ReadOnlyStaff {
         }
     }
 
+    // Methods
+    // -------
+
+    @Override
+    boolean hasPersonalNumber() {
+        PhoneNumber.tryCreate(personalNumberAsString).payload != null
+    }
+
     // Properties
     // ----------
 

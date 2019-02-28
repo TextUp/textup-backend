@@ -21,7 +21,7 @@ class TeamController extends BaseController {
     TeamService teamService
 
     @Override
-    void index() {
+    def index() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         AuthUtils.tryGetAuthId()
@@ -37,7 +37,7 @@ class TeamController extends BaseController {
     }
 
     @Override
-    void show() {
+    def show() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         Long id = qParams.long("id")
@@ -45,7 +45,7 @@ class TeamController extends BaseController {
     }
 
     @Override
-    void save() {
+    def save() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         doSave(MarshallerUtils.KEY_TEAM, request, teamService) { TypeMap body ->
@@ -54,7 +54,7 @@ class TeamController extends BaseController {
     }
 
     @Override
-    void update() {
+    def update() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         doUpdate(MarshallerUtils.KEY_TEAM, request, teamService) {
@@ -63,7 +63,7 @@ class TeamController extends BaseController {
     }
 
     @Override
-    void delete() {
+    def delete() {
         doDelete(teamService) { Teams.isAllowed(params.long("id")) }
     }
 }

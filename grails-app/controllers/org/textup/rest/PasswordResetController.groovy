@@ -18,14 +18,14 @@ class PasswordResetController extends BaseController {
 	PasswordResetService passwordResetService
 
     @Override
-    void save() {
+    def save() {
         RequestUtils.tryGetJsonBody(request)
             .then { TypeMap body -> passwordResetService.start(body.string("username")) }
             .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     @Override
-    void update() {
+    def update() {
         RequestUtils.tryGetJsonBody(request)
             .then { TypeMap body ->
                 passwordResetService.finish(body.string("token"), body.string("password"))

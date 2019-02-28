@@ -21,7 +21,7 @@ class OrganizationController extends BaseController {
 
     @Secured("permitAll")
     @Override
-    void index() {
+    def index() {
         TypeMap qParams = TypeMap.create(params)
         respondWithCriteria(Organizations.buildForOptions(qParams.string("search")),
             qParams,
@@ -31,13 +31,13 @@ class OrganizationController extends BaseController {
 
     @Secured("permitAll")
     @Override
-    void show() {
+    def show() {
         Long id = params.long("id")
         doShow({ Result.void() }, { Organizations.mustFindForId(id) })
     }
 
     @Override
-    void update() {
+    def update() {
         doUpdate(MarshallerUtils.KEY_ORGANIZATION, request, organizationService) {
             Organizations.isAllowed(params.long("id"))
         }

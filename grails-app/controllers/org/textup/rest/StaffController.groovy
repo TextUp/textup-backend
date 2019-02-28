@@ -21,7 +21,7 @@ class StaffController extends BaseController {
     StaffService staffService
 
     @Override
-    void index() {
+    def index() {
         TypeMap qParams = TypeMap.create(params)
         Collection<StaffStatus> statuses = qParams
             .enumList(StaffStatus, "status[]") ?: StaffStatus.ACTIVE_STATUSES
@@ -36,7 +36,7 @@ class StaffController extends BaseController {
     }
 
     @Override
-    void show() {
+    def show() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         Long id = qParams.long("id")
@@ -45,7 +45,7 @@ class StaffController extends BaseController {
 
     @Secured("permitAll")
     @Override
-    void save() {
+    def save() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         RequestUtils.tryGetJsonBody(request, MarshallerUtils.KEY_STAFF)
@@ -54,7 +54,7 @@ class StaffController extends BaseController {
     }
 
     @Override
-    void update() {
+    def update() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         doUpdate(MarshallerUtils.KEY_STAFF, request, staffService) {

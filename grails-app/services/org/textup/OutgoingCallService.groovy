@@ -18,7 +18,7 @@ class OutgoingCallService {
     Result<RecordCall> tryStart(BasePhoneNumber personalNum, IndividualPhoneRecordWrapper w1,
         Author author1) {
 
-        if (!personalNum) {
+        if (!personalNum || !personalNum?.validate()) {
             return IOCUtils.resultFactory.failWithCodeAndStatus(
                 "outgoingCallService.noPersonalNumber",
                 ResultStatus.UNPROCESSABLE_ENTITY)

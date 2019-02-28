@@ -170,13 +170,6 @@ class MergeActionServiceIntegrationSpec extends Specification {
         IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord()
         IndividualPhoneRecord ipr3 = TestUtils.buildIndPhoneRecord()
 
-        // TODO
-        // // For some reason, in unit tests merging numbers with the same preference number doesn't add
-        // // a new number to the hasMany relationship. Therefore, here we ensure that the numbers have
-        // // different preference and we test number merging again in an integration test
-        // ipr2.numbers.each { it.preference += 10 }
-        // ipr3.numbers.each { it.preference += 100 }
-
         when:
         Result res = mergeActionService.tryMergeNumbers(ipr1, [ipr2, ipr3])
 

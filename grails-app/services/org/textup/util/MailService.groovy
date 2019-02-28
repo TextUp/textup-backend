@@ -9,6 +9,9 @@ import org.textup.type.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
+// TODO actually returns a JSON fails with the following errors:
+// Message: No serializer found for class org.springframework.validation.DefaultMessageCodesResolver and no properties discovered to create BeanSerializer (to avoid exception, disable SerializationFeature.FAIL_ON_EMPTY_BEANS) (through reference chain: com.sendgrid.Mail["personalizations"]->java.util.ArrayList[0]->com.sendgrid.Personalization["dynamic_template_data"]->java.util.TreeMap["errors"]->grails.validation.ValidationErrors["messageCodesResolver"])
+
 @GrailsTypeChecked
 @Transactional
 class MailService {

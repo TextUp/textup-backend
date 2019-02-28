@@ -22,7 +22,7 @@ class ContactController extends BaseController {
     ContactService contactService
 
     @Override
-    void index() {
+    def index() {
         TypeMap qParams = TypeMap.create(params)
         Collection<PhoneRecordStatus> statuses = qParams
             .enumList(PhoneRecordStatus, "status[]") ?: PhoneRecordStatus.VISIBLE_STATUSES
@@ -33,13 +33,13 @@ class ContactController extends BaseController {
     }
 
     @Override
-    void show() {
+    def show() {
         Long id = params.long("id")
         doShow({ PhoneRecords.isAllowed(id) }, { IndividualPhoneRecordWrappers.mustFindForId(id) })
     }
 
     @Override
-    void save() {
+    def save() {
         doSave(MarshallerUtils.KEY_CONTACT, request, contactService) {
             ControllerUtils.tryGetPhoneId(params.long("teamId"))
         }
@@ -47,14 +47,14 @@ class ContactController extends BaseController {
 
     @OptimisticLockingRetry
     @Override
-    void update() {
+    def update() {
         doUpdate(MarshallerUtils.KEY_CONTACT, request, contactService) {
             PhoneRecords.isAllowed(params.long("id"))
         }
     }
 
     @Override
-    void delete() {
+    def delete() {
         doDelete(contactService) { PhoneRecords.isAllowed(params.long("id")) }
     }
 

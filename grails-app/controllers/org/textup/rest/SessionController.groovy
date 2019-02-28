@@ -20,7 +20,7 @@ class SessionController extends BaseController {
     SessionService sessionService
 
     @Override
-    void index() {
+    def index() {
         ControllerUtils.tryGetPhoneId(params.long("teamId"))
             .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
@@ -34,20 +34,20 @@ class SessionController extends BaseController {
     }
 
     @Override
-    void show() {
+    def show() {
         Long id = params.long("id")
         doShow({ IncomingSessions.isAllowed(id) }, { IncomingSessions.mustFindForId(id) })
     }
 
     @Override
-    void save() {
+    def save() {
         doSave(MarshallerUtils.KEY_SESSION, request, sessionService) {
             ControllerUtils.tryGetPhoneId(params.long("teamId"))
         }
     }
 
     @Override
-    void update() {
+    def update() {
         doUpdate(MarshallerUtils.KEY_SESSION, request, sessionService) {
             IncomingSessions.isAllowed(params.long("id"))
         }

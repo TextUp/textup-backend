@@ -14,6 +14,7 @@ interface ReadOnlyStaff {
     String getUsername()
     String getEmail()
     StaffStatus getStatus()
+    boolean hasPersonalNumber()
     PhoneNumber getPersonalNumber()
     ReadOnlyOrganization getReadOnlyOrg()
 }

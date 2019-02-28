@@ -99,8 +99,9 @@ class IncomingCallService {
         Collection<? extends ReadOnlyOwnerPolicy> policies = notifGroup
             .buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY)
         Collection<? extends ReadOnlyStaff> staffs = policies.collect { it.readOnlyStaff }
-        Collection<PhoneNumber> pNums = staffs.collect { it.personalNumber }
-        if (pNums) {
+        Collection<? extends ReadOnlyStaff> withPersonalNumbers = staffs.findAll { it.hasPersonalNumber() }
+        if (withPersonalNumbers) {
+            Collection<PhoneNumber> pNums = withPersonalNumbers.collect { it.personalNumber }
             CallTwiml.connectIncoming(p1.number, is1.number, pNums)
         }
         else {

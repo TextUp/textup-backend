@@ -1,70 +1,72 @@
 package org.textup.rest
 
-import org.textup.test.*
 import grails.plugins.rest.client.RestResponse
-import java.util.concurrent.TimeUnit
-import java.util.UUID
+import grails.test.mixin.*
+import grails.test.mixin.support.*
 import javax.servlet.http.HttpServletRequest
-import org.quartz.JobDataMap
-import org.quartz.JobExecutionContext
-import org.quartz.Trigger
+import org.joda.time.*
+import org.quartz.*
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
-import org.textup.job.FutureMessageJob
+import org.textup.cache.*
+import org.textup.job.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import static org.springframework.http.HttpStatus.*
+import spock.lang.*
 
-class CallRetryFunctionalSpec extends RestSpec {
+@TestMixin(GrailsUnitTestMixin)
+class CallRetryFunctionalSpec extends FunctionalSpec {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
     String _firstApiId
     String _retryApiId
-    List<String> _numbers = ["1112223333", "2223338888"]
+    List _numbers
 
     def setup() {
         _firstApiId = TestUtils.randString()
         _retryApiId = TestUtils.randString()
+        _numbers = [TestUtils.randPhoneNumberString(), TestUtils.randPhoneNumberString()]
 
-        setupData()
+        doSetup()
         remote.exec({ nums, apiId1, apiId2 ->
-            MockedMethod.force(ctx.callService, "retry") { from, toNums, existingApiId ->
-                String toNumAsString = toNums[0].number
-                String retryApiId = apiId2
-                TempRecordReceipt tempReceipt = new TempRecordReceipt(apiId:retryApiId,
-                    contactNumberAsString:toNumAsString)
-                RecordItem.findEveryByApiId(existingApiId).each { RecordItem item1 ->
-                    item1.addReceipt(tempReceipt)
-                    item1.save(flush:true, failOnError:true)
-                }
-                ctx.resultFactory.success(tempReceipt)
-            }
             MockedMethod.force(ctx.callService, "start") { fromNum, toNums ->
-                String toNumAsString = toNums[0].number
-                String apiId = apiId1
-                ctx.resultFactory.success(new TempRecordReceipt(apiId: apiId,
-                    contactNumberAsString: toNumAsString))
+                TempRecordReceipt tempRpt1 = TempRecordReceipt.tryCreate(apiId1, toNums[0]).payload
+                ctx.resultFactory.success(tempRpt1)
+            }
+            MockedMethod.force(ctx.callService, "retry") { from, toNums, existingApiId ->
+                TempRecordReceipt tempRpt1 = TempRecordReceipt.tryCreate(apiId2, toNums[0]).payload
+                RecordItems.findEveryForApiId(existingApiId).each { RecordItem rItem1 ->
+                    rItem1.addReceipt(tempRpt1)
+                    rItem1.save(flush: true, failOnError: true)
+                }
+                ctx.resultFactory.success(tempRpt1)
             }
             return
         }.curry(_numbers, _firstApiId, _retryApiId))
     }
 
     def cleanup() {
-    	cleanupData()
+    	doCleanup()
     }
 
     void "test retry call on failure of initial call"() {
         given:
         String authToken = getAuthToken()
-        Long cId
-        Long sId
-        ( cId, sId ) = remote.exec({ un, nums ->
+        def (Long cId, Long sId) = remote.exec({ un, nums ->
             Staff s1 = Staff.findByUsername(un)
-            Phone p1 = s1.phone
-            Contact contact = p1.createContact([:], nums).payload
-            contact.save(flush:true, failOnError:true)
-            return [contact.id, s1.id]
+            Phone p1 = IOCUtils.phoneCache.findPhone(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1, false)
+            nums.eachWithIndex { num, i -> ipr1.mergeNumber(PhoneNumber.create(num), i + 10) }
+            ipr1.save(flush: true, failOnError: true)
+            return [ipr1.id, s1.id]
         }.curry(loggedInUsername, _numbers))
 
         when: "creating a future message for a contact with two numbers"
@@ -82,7 +84,7 @@ class CallRetryFunctionalSpec extends RestSpec {
         }
 
         then:
-        response.status == CREATED.value()
+        response.status == ResultStatus.CREATED.intStatus
         response.json["future-message"].message == msg
         response.json["future-message"].type == fType.toString()
 
@@ -96,12 +98,11 @@ class CallRetryFunctionalSpec extends RestSpec {
             FutureMessageJob job = new FutureMessageJob()
             job.futureMessageJobService = ctx.getBean("futureMessageJobService")
             job.threadService = ctx.getBean("threadService")
-            job.resultFactory = ctx.getBean("resultFactory")
             job.execute([
                 getMergedJobDataMap: { ->
                     [
-                        (QuartzUtils.DATA_FUTURE_MESSAGE_KEY):jobKey,
-                        (QuartzUtils.DATA_STAFF_ID):staffId
+                        (QuartzUtils.DATA_FUTURE_MESSAGE_KEY): jobKey,
+                        (QuartzUtils.DATA_STAFF_ID): staffId
                     ] as JobDataMap
                 },
                 getTrigger: {
@@ -120,15 +121,15 @@ class CallRetryFunctionalSpec extends RestSpec {
         form.add("CallStatus", ReceiptStatus.FAILED.statuses[0])
         form.add("CallDuration", "88")
         String requestUrl = "${baseUrl}/v1/public/records?"
-        requestUrl += "handle=${Constants.CALLBACK_STATUS}"
-        requestUrl += "&remaining=+1${_numbers[1..-1]}"
+        requestUrl += "${CallbackUtils.PARAM_HANDLE}=${CallbackUtils.STATUS}&"
+        requestUrl += "${CallService.RETRY_REMAINING}=+1${_numbers[1..-1]}"
         response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)
         }
 
         then: "status is stored but second number is tried"
-        response.status == OK.value()
+        response.status == ResultStatus.OK.intStatus
         remote.exec({ apiId1 ->
             return RecordItemReceipt.countByApiId(apiId1)
         }.curry(_firstApiId))

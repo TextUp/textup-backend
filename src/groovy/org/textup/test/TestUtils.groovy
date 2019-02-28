@@ -541,13 +541,6 @@ class TestUtils {
             .payload
     }
 
-    // TODO needed?
-    static Recipients buildRecipients() {
-        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
-        VoiceLanguage lang1 = VoiceLanguage.values()[0]
-        Recipients.tryCreate([ipr1], lang1, 10).payload
-    }
-
     // Mocking
     // -------
 

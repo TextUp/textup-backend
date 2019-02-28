@@ -33,8 +33,7 @@ class IOCUtils {
     static LinkGenerator getLinkGenerator() { getBean(LinkGenerator) }
 
     static String getWebhookLink(Map linkParams = [:]) {
-        IOCUtils.linkGenerator.link(namespace: "v1",
-            resource: "publicRecord",
+        IOCUtils.linkGenerator.link(resource: "publicRecord",
             action: "save",
             absolute: true,
             params: linkParams)

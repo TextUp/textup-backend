@@ -23,7 +23,7 @@ class SocketController extends BaseController {
     SocketService socketService
 
     @Override
-    void save() {
+    def save() {
         TypeMap qParams = TypeMap.create(params)
         String channelName = qParams.string("channel_name"),
             socketId = qParams.string("socket_id")

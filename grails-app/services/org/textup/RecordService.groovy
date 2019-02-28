@@ -32,7 +32,6 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
             }
             .then { Phone p1, Class<? extends RecordItem> clazz,
                 Tuple<MediaInfo, Future<Result<?>>> processed ->
-
                 Tuple.split(processed) { MediaInfo mInfo, Future<Result<?>> fut1 ->
                     future = fut1
                     switch(clazz) {
@@ -47,7 +46,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
                     }
                 }
             }
-            .ifFail { future?.cancel(true) }
+            .ifFailAndPreserveError { future?.cancel(true) }
     }
 
     @RollbackOnResultFailure
@@ -88,7 +87,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
         Future<Result<?>> future = null) {
 
         int max = ValidationUtils.MAX_NUM_TEXT_RECIPIENTS
-        Recipients.tryCreate(p1, body.typedList(Long, "ids[]"), body.phoneNumberList("numbers[]"), max)
+        Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), max)
             .then { Recipients r1 ->
                 TempRecordItem.tryCreate(body.string("contents"), mInfo, null).curry(r1)
             }
@@ -104,7 +103,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
     }
 
     protected Result<List<RecordCall>> createCall(Phone p1, TypeMap body) {
-        Recipients.tryCreate(p1, body.typedList(Long, "ids[]"), body.phoneNumberList("numbers[]"), 1)
+        Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), 1)
             .then { Recipients r1 -> r1.tryGetOneIndividual() }
             .then { IndividualPhoneRecordWrapper w1 -> AuthUtils.tryGetActiveAuthUser().curry(w1) }
             .then { IndividualPhoneRecordWrapper w1, Staff authUser ->
@@ -116,7 +115,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
     }
 
     protected Result<List<RecordNote>> createNote(Phone p1, TypeMap body, MediaInfo mInfo = null) {
-        Recipients.tryCreate(p1, body.typedList(Long, "ids[]"), body.phoneNumberList("numbers[]"), 1)
+        Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), 1)
             .then { Recipients r1 -> r1.tryGetOne() }
             .then { PhoneRecordWrapper w1 ->
                 Location loc1 = locationService.tryCreate(body.typeMapNoNull("location")).payload

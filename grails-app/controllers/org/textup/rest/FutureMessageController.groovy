@@ -22,7 +22,7 @@ class FutureMessageController extends BaseController {
 	FutureMessageService futureMessageService
 
     @Override
-    void index() {
+    def index() {
         Long prId = params.long("contactId") ?: params.long("tagId")
         RequestUtils.trySet(RequestUtils.PHONE_RECORD_ID, prId)
         PhoneRecords.isAllowed(prId)
@@ -38,13 +38,13 @@ class FutureMessageController extends BaseController {
     }
 
     @Override
-    void show() {
+    def show() {
         Long id = params.long("id")
         doShow({ FutureMessages.isAllowed(id) }, { FutureMessages.mustFindForId(id) })
     }
 
     @Override
-    void save() {
+    def save() {
         doSave(MarshallerUtils.KEY_FUTURE_MESSAGE, request, futureMessageService) {
             Long prId = params.long("contactId") ?: params.long("tagId")
             RequestUtils.trySet(RequestUtils.PHONE_RECORD_ID, prId)
@@ -53,14 +53,14 @@ class FutureMessageController extends BaseController {
     }
 
     @Override
-    void update() {
+    def update() {
         doUpdate(MarshallerUtils.KEY_FUTURE_MESSAGE, request, futureMessageService) {
             FutureMessages.isAllowed(params.long("id"))
         }
     }
 
     @Override
-    void delete() {
+    def delete() {
         doDelete(futureMessageService) { PhoneRecords.isAllowed(params.long("id")) }
     }
 }

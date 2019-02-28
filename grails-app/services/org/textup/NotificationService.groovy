@@ -27,12 +27,15 @@ class NotificationService {
                 .then { Token tok1 = null ->
                     NotificationInfo notifInfo = NotificationInfo.create(rop1, notif1)
                     if (rop1.method == NotificationMethod.TEXT) {
-                        textService
-                            .send(notif1.mutablePhone.number,
-                                [rop1.readOnlyStaff.personalNumber],
-                                notifInfo.buildTextMessage(tok1),
-                                notif1.mutablePhone.customAccountId)
-                            .logFail("send: phone `${notif1.mutablePhone.id}`, staff `${rop1.readOnlyStaff.id}`")
+                        if (rop1.readOnlyStaff.hasPersonalNumber()) {
+                            textService
+                                .send(notif1.mutablePhone.number,
+                                    [rop1.readOnlyStaff.personalNumber],
+                                    notifInfo.buildTextMessage(tok1),
+                                    notif1.mutablePhone.customAccountId)
+                                .logFail("send: phone `${notif1.mutablePhone.id}`, staff `${rop1.readOnlyStaff.id}`")
+                        }
+                        else { Result.void() }
                     }
                     else { mailService.notifyMessages(freq1, rop1.readOnlyStaff, notifInfo, tok1) }
                 }

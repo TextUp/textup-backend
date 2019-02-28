@@ -21,7 +21,7 @@ class PublicRecordController extends BaseController {
     ThreadService threadService
 
     @Override
-    void save() {
+    def save() {
         TypeMap qParams = TypeMap.create(params)
         TwilioUtils.validate(request, qParams)
             .then {

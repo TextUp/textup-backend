@@ -18,7 +18,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
     OrganizationService organizationService
     PhoneService phoneService
 
-    // [NOTE] `create` can be called by anybody
+    // [NOTE] `tryCreate` can be called by anybody
     @RollbackOnResultFailure
     Result<Staff> tryCreate(TypeMap body) {
         organizationService.tryFindOrCreate(body.typeMapNoNull("org"))

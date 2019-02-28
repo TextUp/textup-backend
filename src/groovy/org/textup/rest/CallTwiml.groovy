@@ -15,13 +15,13 @@ class CallTwiml {
     static final String DIGITS_TOGGLE_SUBSCRIBE = "2"
     static final String DIGITS_ANNOUNCEMENT_UNSUBSCRIBE = "1"
 
-    private static final int DIRECT_MESSAGE_MAX_REPEATS = 5
-    private static final String ANNOUNCEMENT_AND_DIGITS_IDENT = "identifier"
-    private static final String ANNOUNCEMENT_AND_DIGITS_MSG = "message"
-    private static final String DIRECT_MESSAGE_TOKEN = "token"
-    private static final String FINISH_BRIDGE_WRAPPER_ID = "contactId"
-    private static final String HOLD_MUSIC_URL = "http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3"
-    private static final String SCREEN_INCOMING_FROM = "originalFrom"
+    static final int DIRECT_MESSAGE_MAX_REPEATS = 5
+    static final String ANNOUNCEMENT_AND_DIGITS_IDENT = "identifier"
+    static final String ANNOUNCEMENT_AND_DIGITS_MSG = "message"
+    static final String DIRECT_MESSAGE_TOKEN = "token"
+    static final String FINISH_BRIDGE_WRAPPER_ID = "contactId"
+    static final String HOLD_MUSIC_URL = "http://com.twilio.music.guitars.s3.amazonaws.com/Pitx_-_Long_Winter.mp3"
+    static final String SCREEN_INCOMING_FROM = "originalFrom"
 
     static Result<Closure> invalid() {
         String invalidNumber = IOCUtils.getMessage("twiml.invalidNumber")

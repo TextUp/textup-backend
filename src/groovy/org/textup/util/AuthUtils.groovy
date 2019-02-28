@@ -25,10 +25,14 @@ class AuthUtils {
             }
     }
 
+    // `loadCurrentUser` returns a `Staff` proxy class for only `id` property access
+    // see: http://grails-plugins.github.io/grails-spring-security-core/2.0.x/guide/helperClasses.html#springSecurityService
     static Result<Long> tryGetAuthId() {
-        IOCUtils.security.isLoggedIn() ?
-            IOCUtils.resultFactory.success(IOCUtils.security.loadCurrentUser() as Long) :
-            forbidden()
+        if (IOCUtils.security.isLoggedIn()) {
+            Staff authUserProxy = IOCUtils.security.loadCurrentUser() as Staff
+            IOCUtils.resultFactory.success(authUserProxy.id)
+        }
+        else { forbidden() }
     }
 
     static Result<Void> isAllowed(boolean outcome) {

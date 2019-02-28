@@ -25,7 +25,7 @@ class RecordController extends BaseController {
     RecordService recordService
 
     @Override
-    void index() {
+    def index() {
         TypeMap qParams = TypeMap.create(params)
         ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
             .then { Long pId ->
@@ -50,14 +50,14 @@ class RecordController extends BaseController {
     }
 
     @Override
-    void show() {
+    def show() {
         Long id = params.long("id")
         doShow({ RecordItems.isAllowed(id) }, { RecordItems.mustFindForId(id) })
     }
 
     @OptimisticLockingRetry
     @Override
-    void save() {
+    def save() {
         doSave(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) {
             ControllerUtils.tryGetPhoneId(params.long("teamId"))
                 .then { Long pId ->
@@ -68,14 +68,14 @@ class RecordController extends BaseController {
     }
 
     @Override
-    void update() {
+    def update() {
         doUpdate(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) {
             RecordItems.isAllowed(params.long("id"))
         }
     }
 
     @Override
-    void delete() {
+    def delete() {
         doDelete(recordService) { RecordItems.isAllowed(params.long("id")) }
     }
 

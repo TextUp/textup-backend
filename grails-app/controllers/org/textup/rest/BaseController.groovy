@@ -16,18 +16,21 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
+// [NOTE] the return types of the method handlers MUST BE `def`. Having a `void` return type
+// will cause these methods to not have the appropriate signatures to match incoming requests
+
 @GrailsTypeChecked
 class BaseController {
 
-    void index() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
+    def index() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
-    void show() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
+    def show() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
-    void save() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
+    def save() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
-    void update() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
+    def update() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
-    void delete() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
+    def delete() { renderStatus(ResultStatus.METHOD_NOT_ALLOWED) }
 
     // Helpers
     // -------

@@ -15,7 +15,7 @@ class RollbackOnResultFailureAspect {
 
     @Around(value="@annotation(rAnnotation)", argNames = "rAnnotation")
     def rollbackTransactionOnFailure(ProceedingJoinPoint pjp, RollbackOnResultFailure rAnnotation) {
-        Object result
+        Object resObj
         // Can use any class to expose the TransactionStatus object. Business logic should always
         // be encapsulated in a Transaction. In the off chance that it is not, this will create
         // a new transaction and set the only possible outcome of the transaction to rollback any
@@ -27,15 +27,15 @@ class RollbackOnResultFailureAspect {
         // doWithoutFlush method also uses the Organization class so we have to mock only one web
         // of dependencies when testing
         Organization.withTransaction { TransactionStatus status ->
-            result = pjp.proceed()
-            if (result instanceof Result) {
-                Result res = result as Result
+            resObj = pjp.proceed()
+            if (resObj instanceof Result) {
+                Result res = resObj as Result
                 if (!res.success) {
                     status.setRollbackOnly()
                     res.logFail("Rolling back transaction. Reason:", rAnnotation.value())
                 }
             }
         }
-        result
+        resObj
     }
 }

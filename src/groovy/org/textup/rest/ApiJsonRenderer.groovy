@@ -8,6 +8,7 @@ import java.io.Writer
 import org.codehaus.groovy.grails.web.converters.exceptions.ConverterException
 import org.codehaus.groovy.grails.web.json.JSONWriter
 import org.codehaus.groovy.grails.web.mime.MimeType
+import org.textup.util.*
 
 @Log4j
 class ApiJsonRenderer<T> extends AbstractRenderer<T> {

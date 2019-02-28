@@ -20,7 +20,7 @@ class SuperController {
     // Page handlers
     // -------------
 
-    void index() {
+    def index() {
         flash.previousPage = "index"
         [unverifiedOrgs: Organization.findAllByStatus(OrgStatus.PENDING)]
     }

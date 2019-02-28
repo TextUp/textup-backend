@@ -16,7 +16,7 @@ import org.textup.validator.*
 class ValidateController extends BaseController {
 
     @Override
-	void save() {
+	def save() {
         RequestUtils.tryGetJsonBody(request)
             .then { TypeMap body -> AuthUtils.tryGetActiveAuthUser().curry(body) }
             .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }

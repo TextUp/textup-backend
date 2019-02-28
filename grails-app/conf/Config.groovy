@@ -137,6 +137,14 @@ log4j.main = {
     //    console name:'stdout', layout:pattern(conversionPattern: '%c{2} %m%n')
     //}
 
+    // // For debugging access-restricted page issues
+    // // see http://alvarosanchez.github.io/grails-spring-security-rest/1.5.3/docs/guide/debugging.html
+    // debug  'grails.plugin.springsecurity',
+    //        'grails.app.controllers.grails.plugin.springsecurity',
+    //        'grails.app.services.grails.plugin.springsecurity',
+    //        'org.pac4j',
+    //        'org.springframework.security'
+
     // // For printing out the data values bound to the printed Hibernate SQL statements
     // // see https://therealdanvega.com/blog/2013/08/20/grails-hibernate-logging
     // trace  'org.hibernate.type.descriptor.sql.BasicBinder'
@@ -178,7 +186,7 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
     '/**/css/**':                     ['permitAll'],
     '/**/images/**':                  ['permitAll'],
     '/**/favicon.ico':                ['permitAll'],
-    '/grails-remote-control':         ['permitAll'], //needed for remote control in functional tests
+    '/grails-remote-control':         ['permitAll'], // needed for remote control in functional tests
     '/monitoring/**':                 ['ROLE_USER', 'ROLE_ADMIN'],
     '/dbconsole/**':                  ['ROLE_USER', 'ROLE_ADMIN'],
     "/console/**":                    ['ROLE_USER', 'ROLE_ADMIN'],
@@ -193,7 +201,6 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
 grails.plugin.springsecurity.filterChain.chainMap = [
     '/v1/public/**': 'anonymousAuthenticationFilter,restTokenValidationFilter,restExceptionTranslationFilter,filterInvocationInterceptor',
     '/v1/**': 'JOINED_FILTERS,-anonymousAuthenticationFilter,-exceptionTranslationFilter,-authenticationProcessingFilter,-securityContextPersistenceFilter,-rememberMeAuthenticationFilter',  // v1 rest api stateless
-    '/api/**': 'JOINED_FILTERS,-anonymousAuthenticationFilter,-exceptionTranslationFilter,-authenticationProcessingFilter,-securityContextPersistenceFilter,-rememberMeAuthenticationFilter',  // api utility methods stateless
     '/**': 'JOINED_FILTERS,-restTokenValidationFilter,-restExceptionTranslationFilter'
 ]
 grails {
@@ -319,7 +326,7 @@ textup {
             mediaElement        = [singular: "mediaElement", plural:  "mediaElements"]
             mediaElementVersion = [singular: "version", plural:  "versions"]
             mediaInfo           = [singular: "medium", plural:  "media"]
-            mergeGroup          = [singular: "merge", plural: "merges"]
+            mergeGroup          = [singular: "merge-group", plural: "merge-groups"]
             mergeGroupItem      = [singular: "mergeItem", plural: "mergeItems"]
             notification        = [singular: "notification", plural: "notifications"]
             notificationDetail  = [singular: "detail", plural: "details"]

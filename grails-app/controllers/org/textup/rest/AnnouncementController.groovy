@@ -20,7 +20,7 @@ class AnnouncementController extends BaseController {
     AnnouncementService announcementService
 
     @Override
-    void index() {
+    def index() {
         ControllerUtils.tryGetPhoneId(params.long("teamId"))
             .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
@@ -32,20 +32,20 @@ class AnnouncementController extends BaseController {
     }
 
     @Override
-    void show() {
+    def show() {
         Long id = params.long("id")
         doShow({ FeaturedAnnouncements.isAllowed(id) }, { FeaturedAnnouncements.mustFindForId(id) })
     }
 
     @Override
-    void save() {
+    def save() {
         doSave(MarshallerUtils.KEY_ANNOUNCEMENT, request, announcementService) {
             ControllerUtils.tryGetPhoneId(params.long("teamId"))
         }
     }
 
     @Override
-    void update() {
+    def update() {
         doUpdate(MarshallerUtils.KEY_ANNOUNCEMENT, request, announcementService) {
             FeaturedAnnouncements.isAllowed(params.long("id"))
         }

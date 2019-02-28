@@ -6,13 +6,13 @@ import org.codehaus.groovy.grails.web.mime.MimeType
 class ApiJsonCollectionRenderer extends ApiJsonRenderer implements ContainerRenderer {
     final Class componentType
 
-    public ApiJsonCollectionRenderer(Class componentType) {
+    public ApiJsonCollectionRenderer(Class classType) {
         super(Collection)
-        componentType = componentType
+        componentType = classType
     }
 
-    public ApiJsonCollectionRenderer(Class componentType, MimeType... mimeTypes) {
+    public ApiJsonCollectionRenderer(Class classType, MimeType... mimeTypes) {
         super(Collection, mimeTypes)
-        componentType = componentType
+        componentType = classType
     }
 }

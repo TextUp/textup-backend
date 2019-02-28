@@ -20,7 +20,7 @@ class NumberController extends BaseController {
 
     // requesting list of available twilio numbers
     @Override
-    void index() {
+    def index() {
         TypeMap qParams = TypeMap.create(params)
         AuthUtils.tryGetActiveAuthUser()
             .then { Staff authUser -> numberService.listExistingNumbers().curry(authUser) }
@@ -40,7 +40,7 @@ class NumberController extends BaseController {
 
     // validating phone number against the twilio phone number validator
     @Override
-    void show() {
+    def show() {
         TypeMap qParams = TypeMap.create(params)
         PhoneNumber.tryCreate(qParams.string("id"))
             .then { PhoneNumber pNum -> numberService.validateNumber(pNum) }
@@ -49,7 +49,7 @@ class NumberController extends BaseController {
 
     // requesting and checking phone number validation tokens
     @Override
-    void save() {
+    def save() {
         RequestUtils.tryGetJsonBody(request)
             .then { TypeMap body -> PhoneNumber.tryCreate(body.string("phoneNumber")).curry(body) }
             .then { TypeMap body, PhoneNumber pNum ->
