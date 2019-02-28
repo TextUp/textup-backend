@@ -77,7 +77,7 @@ class MailUtils {
                 }
                 ASM asm1 = new ASM()
                 asm1.with {
-                    groupId = getGroupId()
+                    groupId = MailUtils.getGroupId()
                 }
                 Mail mail1 = new Mail()
                 mail1.with {
@@ -95,7 +95,7 @@ class MailUtils {
                 }
                 // step 3: send the request
                 try {
-                    SendGrid sg = new SendGrid(getApiKey())
+                    SendGrid sg = new SendGrid(MailUtils.getApiKey())
                     SendGridResponse resp1 = sg.api(req1)
                     if (ResultStatus.convert(resp1.statusCode).isSuccess) {
                         Result.void()

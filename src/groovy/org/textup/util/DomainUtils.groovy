@@ -13,13 +13,17 @@ import org.textup.validator.*
 @Log4j
 class DomainUtils {
 
+    static final Collection<String> INSTANCE_PROPS_TO_IGNORE = Collections.unmodifiableCollection(["constraints", "class", "errors"])
+
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static Object tryGetId(Object obj) {
         obj?.metaClass?.hasProperty(obj, "id") ? obj.id : null
     }
 
-    static boolean isNew(Object obj) {
-        obj ? (tryGetId(obj) == null) : false
+    static Map<String, ?> instanceProps(Object obj) {
+        Map<String, ?> props = new HashMap<>(obj?.properties ?: [:])
+        INSTANCE_PROPS_TO_IGNORE.each { props.remove(it) }
+        props
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)

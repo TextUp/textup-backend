@@ -35,6 +35,19 @@ class DomainUtilsSpec extends Specification {
         DomainUtils.tryGetId(loc1) == loc1.id
     }
 
+    void "test getting instance properties"() {
+        given:
+        Author author1 = TestUtils.buildAuthor()
+
+        when:
+        Map rawProps = author1.properties
+        Map cleanedProps = DomainUtils.instanceProps(author1)
+
+        then:
+        DomainUtils.INSTANCE_PROPS_TO_IGNORE.every { it in rawProps.keySet() }
+        DomainUtils.INSTANCE_PROPS_TO_IGNORE.every { !(it in cleanedProps.keySet()) }
+    }
+
     void "test checking for dirty non-object fields"() {
         when:
         Location loc1 = TestUtils.buildLocation()
