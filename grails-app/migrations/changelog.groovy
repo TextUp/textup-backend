@@ -974,15 +974,9 @@ databaseChangeLog = {
 
 	include file: 'consolidate-availability-in-schedule-and-owner-policy.groovy'
 
-	// TODO
 	include file: 'set-up-phone-records.groovy'
 
-	// TODO
-	include file: 'migrate-contacts-to-phone-records.groovy'
+	include file: 'migrate-data-to-phone-records.groovy'
 
-	// TODO
-	include file: 'migrate-tags-to-phone-records.groovy'
-
-	// TODO
-	include file: 'migrate-sharing-to-phone-records.groovy'
+	include file: 'cleanup-tags-contacts-shared-contacts.groovy'
 }

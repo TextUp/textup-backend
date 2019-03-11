@@ -1,5 +1,14 @@
 databaseChangeLog = {
 
+	// make team <-> team sharing possible
+    changeSet(author: "ericbai (generated)", id: "1551375338796-11") {
+        addColumn(tableName: "phone_ownership") {
+            column(name: "allow_sharing_with_other_teams", type: "bit") {
+                constraints(nullable: "false")
+            }
+        }
+    }
+
 	changeSet(author: "ericbai (generated)", id: "1551375338796-6") {
 		createTable(tableName: "phone_record") {
 			column(autoIncrement: "true", name: "id", type: "bigint") {
@@ -107,6 +116,15 @@ databaseChangeLog = {
 			column(name: "phone_record_members_phone_records_id")
 		}
 	}
+
+	// need to drop foreign key constraint on `contact_number` before we can add another one
+	changeSet(author: "ericbai (generated)", id: "1551375338796-26") {
+        dropForeignKeyConstraint(baseTableName: "contact_number", baseTableSchemaName: "prodDb", constraintName: "FK_1cjhdw1dw396gqxyeqbv7x863")
+    }
+
+	changeSet(author: "ericbai (generated)", id: "1551375338796-39") {
+        addForeignKeyConstraint(baseColumnNames: "owner_id", baseTableName: "contact_number", constraintName: "FK_1cjhdw1dw396gqxyeqbv7x863", deferrable: "false", initiallyDeferred: "false", referencedColumnNames: "id", referencedTableName: "phone_record", referencesUniqueColumn: "false")
+    }
 
 	changeSet(author: "ericbai (generated)", id: "1551375338796-48") {
 		addForeignKeyConstraint(baseColumnNames: "members_id", baseTableName: "phone_record", constraintName: "FK_kyr0l0hxdthh6puwtar1d7629", deferrable: "false", initiallyDeferred: "false", referencedColumnNames: "id", referencedTableName: "phone_record_members", referencesUniqueColumn: "false")
