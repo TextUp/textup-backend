@@ -121,6 +121,7 @@ class PhonesSpec extends Specification {
             Result.createError([], ResultStatus.NOT_FOUND)
         res.status == ResultStatus.CREATED
         res.payload instanceof Phone
+        res.hasErrorBeenHandled == false // so not use the `ifFail` handler on `Result`
         Phone.count() == pBaseline + 1
 
         when:

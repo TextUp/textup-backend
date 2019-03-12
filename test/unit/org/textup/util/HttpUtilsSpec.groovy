@@ -29,6 +29,7 @@ class HttpUtilsSpec extends Specification {
 
     void "test executing basic auth request"() {
         given:
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
         String root = TestConstants.TEST_HTTP_ENDPOINT
         String un = TestUtils.randString()
         String pwd = TestUtils.randString()
@@ -40,16 +41,20 @@ class HttpUtilsSpec extends Specification {
 
         then: "exception is gracefully handled"
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
+        stdErr.toString().contains("Username may not be null")
 
         when: "invalid credentials"
+        stdErr.reset()
         res = HttpUtils.executeBasicAuthRequest("incorrect", "incorrect", request) { HttpResponse resp ->
             new Result()
         }
 
         then:
         res.status == ResultStatus.UNAUTHORIZED
+        stdErr.size() == 0
 
         when: "valid credentials"
+        stdErr.reset()
         res = HttpUtils.executeBasicAuthRequest(un, pwd, request) { HttpResponse resp ->
             statusCode = resp.statusLine.statusCode
             Result.void()
@@ -58,5 +63,9 @@ class HttpUtilsSpec extends Specification {
         then:
         res.status == ResultStatus.NO_CONTENT
         statusCode < 400
+        stdErr.size() == 0
+
+        cleanup:
+        TestUtils.restoreAllStreams()
     }
 }

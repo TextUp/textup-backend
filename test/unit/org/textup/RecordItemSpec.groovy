@@ -86,16 +86,16 @@ class RecordItemSpec extends Specification {
 
     void "test cascading validation and saving to media object"() {
         given:
-        MediaElement e1 = TestUtils.buildMediaElement()
+        // these are already flushed and saved
+        MediaElement el1 = TestUtils.buildMediaElement()
+        Record rec1 = TestUtils.buildRecord()
+        // these are still transient
         MediaInfo mInfo = new MediaInfo()
-        mInfo.addToMediaElements(e1)
+        mInfo.addToMediaElements(el1)
         assert mInfo.validate()
-        Record rec = new Record()
-        rec.save(flush:true, failOnError:true)
-        RecordItem rItem = new RecordItem(record:rec)
+        RecordItem rItem = new RecordItem(record:rec1)
         assert rItem.validate()
         int miBaseline = MediaInfo.count()
-        int meBaseline = MediaElement.count()
         int riBaseline = RecordItem.count()
 
         when:
@@ -104,26 +104,23 @@ class RecordItemSpec extends Specification {
         then:
         rItem.validate() == true
         MediaInfo.count() == miBaseline
-        MediaElement.count() == meBaseline
         RecordItem.count() == riBaseline
 
         when:
-        e1.whenCreated = null
+        el1.whenCreated = null
 
         then:
         rItem.validate() == false
         rItem.errors.getFieldErrorCount("media.mediaElements.0.whenCreated") == 1
         MediaInfo.count() == miBaseline
-        MediaElement.count() == meBaseline
         RecordItem.count() == riBaseline
 
         when:
-        e1.whenCreated = DateTime.now()
+        el1.whenCreated = DateTime.now()
         assert rItem.save(flush: true, failOnError: true)
 
         then:
         MediaInfo.count() == miBaseline + 1
-        MediaElement.count() == meBaseline + 1
         RecordItem.count() == riBaseline + 1
     }
 

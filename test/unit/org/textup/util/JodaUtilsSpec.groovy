@@ -53,19 +53,21 @@ class JodaUtilsSpec extends Specification {
         DateTimeZone notUTCZone = DateTimeZone.forID("America/New_York")
         int hourNum = 11
         LocalTime lTime = new LocalTime(hourNum, 0)
+        int offsetInHours = TimeUnit.HOURS.convert(notUTCZone.getOffset(DateTime.now()), TimeUnit.MILLISECONDS)
 
         expect: "both default to UTC if no zone specified so should be same"
         JodaUtils.toUTCDateTimeTodayThenZone(lTime).toString() ==
             JodaUtils.toZoneDateTimeTodayThenUTC(lTime).toString()
 
         and:
-        // UTC date time -> zone date time = subtract 5 (Eastern time is behind UTC by five hours)
+        // UTC date time -> zone date time = add offset
+        // For example, Eastern time is behind UTC by four or five hours depending daylight savings
         JodaUtils.toUTCDateTimeTodayThenZone(lTime, notUTCZone).toString()
-            .contains("${hourNum - 5}:00:00")
-        // zone date time -> UTC date time = add 5 to remove -5 offset
+            .contains("${hourNum + offsetInHours}:00:00")
+        // zone date time -> UTC date time = subtract to reverse offset
         // (Eastern time is behind UTC by five hours)
         JodaUtils.toZoneDateTimeTodayThenUTC(lTime, notUTCZone).toString()
-            .contains("${hourNum + 5}:00:00")
+            .contains("${hourNum - offsetInHours}:00:00")
     }
 
     void "test determining start of the month"() {

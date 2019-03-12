@@ -20,6 +20,10 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class UsageUtilsSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
     void "test getting table name for various phone ownership types"() {
         expect:
         UsageUtils.getTableName(null) == ""
@@ -89,7 +93,7 @@ class UsageUtilsSpec extends Specification {
     void "testing building numbers for a certain phone and month"() {
         given:
         MockedMethod mustFindActiveForId
-        Phone p1 = Mock()
+        Phone p1 = GroovyMock() { asBoolean() >> true }
         Long pId = TestUtils.randIntegerUpTo(88)
         DateTime dt = DateTime.now()
         PhoneNumber pNum1 = TestUtils.randPhoneNumber()
@@ -104,11 +108,11 @@ class UsageUtilsSpec extends Specification {
         numbers == UsageUtils.NO_NUMBERS
 
         when: "valid but no numbers found"
-        mustFindActiveForId.restore()
-        mustFindActiveForId = MockedMethod.create(Phones, "mustFindActiveForId") { Result.createSuccess(p1) }
+        mustFindActiveForId = MockedMethod.create(mustFindActiveForId) { Result.createSuccess(p1) }
         numbers = UsageUtils.buildNumbersStringForMonth(pId, dt)
 
         then:
+        p1.asType(Phone) >> p1
         1 * p1.buildNumbersForMonth(dt.monthOfYear, dt.year) >> []
         numbers == UsageUtils.NO_NUMBERS
 
@@ -116,12 +120,13 @@ class UsageUtilsSpec extends Specification {
         numbers = UsageUtils.buildNumbersStringForMonth(pId, dt)
 
         then:
+        p1.asType(Phone) >> p1
         1 * p1.buildNumbersForMonth(dt.monthOfYear, dt.year) >> [pNum1, pNum2, pNum3]
         numbers != UsageUtils.NO_NUMBERS
         numbers == "${pNum1}, ${pNum2} and ${pNum3}"
 
         cleanup:
-        mustFindActiveForId.restore()
+        mustFindActiveForId?.restore()
     }
 
     @DirtiesRuntime

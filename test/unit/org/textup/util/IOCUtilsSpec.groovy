@@ -91,7 +91,6 @@ class IOCUtilsSpec extends Specification {
         link.contains("handle")
         link.contains("publicRecord")
         link.contains("save")
-        link.contains("v1")
         link == IOCUtils.getHandleLink(handle)
     }
 

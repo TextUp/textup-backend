@@ -163,7 +163,7 @@ class PhoneServiceSpec extends Specification {
         MockedMethod tryRequestVoicemailGreetingCall = MockedMethod.create(service, "tryRequestVoicemailGreetingCall") { Result.void() }
 
         when:
-        Result res = service.update(p1, body, tz)
+        Result res = service.tryUpdate(p1, body, tz)
 
         then:
         1 * service.mediaService.tryCreateOrUpdate(p1, body, true) >> Result.createSuccess(fut1)
@@ -177,7 +177,7 @@ class PhoneServiceSpec extends Specification {
         res.errorMessages == [errMsg1]
 
         when:
-        res = service.update(p1, body, tz)
+        res = service.tryUpdate(p1, body, tz)
 
         then:
         1 * service.mediaService.tryCreateOrUpdate(p1, body, true) >> Result.createSuccess(fut1)

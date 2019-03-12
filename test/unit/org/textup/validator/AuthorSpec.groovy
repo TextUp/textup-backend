@@ -17,6 +17,10 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class AuthorSpec extends Specification {
 
+	static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
 	void "test constraints"() {
 		when: "we have all null fields"
 		Author author1 = Author.create(null, null, null)

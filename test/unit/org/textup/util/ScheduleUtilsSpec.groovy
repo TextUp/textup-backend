@@ -55,7 +55,7 @@ class ScheduleUtilsSpec extends Specification {
     void "test validating interval strings"() {
         given:
         DateTime start = DateTime.now().withHourOfDay(6)
-        DateTime end = DateTime.now().plusHours(1)
+        DateTime end = start.plusHours(1)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(ScheduleUtils.TIME_FORMAT).withZoneUTC()
 
         expect:
@@ -75,7 +75,7 @@ class ScheduleUtilsSpec extends Specification {
     void "test parsing strings into intervals with UTC time zone"() {
         given:
         DateTime start = DateTime.now().withHourOfDay(6)
-        DateTime end = DateTime.now().plusHours(1)
+        DateTime end = start.plusHours(1)
         DateTimeFormatter dtf = DateTimeFormat.forPattern(ScheduleUtils.TIME_FORMAT).withZoneUTC()
 
         int daysToAdd = TestUtils.randIntegerUpTo(88, true)

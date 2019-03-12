@@ -444,12 +444,14 @@ class TestUtils {
         new RecordItem(record: rec1).save(flush: true, failOnError: true)
     }
 
-    static RecordCall buildRecordCall(Record thisRecord = null) {
+    static RecordCall buildRecordCall(Record thisRecord = null, boolean shouldAddRpt = true) {
         Record rec1 = thisRecord ?: TestUtils.buildRecord()
         RecordCall rCall1 = RecordCall.tryCreate(rec1)
             .logFail("buildRecordCall")
             .payload as RecordCall
-        rCall1.addReceipt(TestUtils.buildTempReceipt(ReceiptStatus.SUCCESS)) // for duration
+        if (shouldAddRpt) {
+            rCall1.addReceipt(TestUtils.buildTempReceipt(ReceiptStatus.SUCCESS)) // for duration
+        }
         rCall1.save(flush: true, failOnError: true)
     }
 

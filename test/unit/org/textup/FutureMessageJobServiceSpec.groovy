@@ -148,7 +148,7 @@ class FutureMessageJobServiceSpec extends Specification {
 
         then:
         1 * service.outgoingMessageService.tryStart(fMsg1.type.toRecordItemType(),
-            { it.language == fMsg1.language && spr1 in it.all && ipr1 in it.all },
+            { it.language == fMsg1.language && !(spr1 in it.all) && ipr1 in it.all }, // only owned
             { it.text == fMsg1.message && !it.media && !it.location },
             Author.create(s1)) >> Result.createSuccess(Tuple.create([rItem1], fut1))
         startNotifySelf.latestArgs == [[rItem1], fut1]

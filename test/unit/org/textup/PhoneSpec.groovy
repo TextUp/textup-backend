@@ -137,14 +137,15 @@ class PhoneSpec extends Specification {
 
     void "test cascading validation and saving to media object"() {
         given:
+        // these are already flushed
         Phone p1 = TestUtils.buildStaffPhone()
         MediaElement e1 = TestUtils.buildMediaElement()
+        // this is still transient
         MediaInfo mInfo = new MediaInfo()
         mInfo.addToMediaElements(e1)
         assert mInfo.validate()
 
         int miBaseline = MediaInfo.count()
-        int meBaseline = MediaElement.count()
 
         when:
         p1.media = mInfo
@@ -152,7 +153,6 @@ class PhoneSpec extends Specification {
         then:
         p1.validate() == true
         MediaInfo.count() == miBaseline
-        MediaElement.count() == meBaseline
 
         when:
         e1.whenCreated = null
@@ -161,7 +161,6 @@ class PhoneSpec extends Specification {
         p1.validate() == false
         p1.errors.getFieldErrorCount("media.mediaElements.0.whenCreated") == 1
         MediaInfo.count() == miBaseline
-        MediaElement.count() == meBaseline
 
         when:
         e1.whenCreated = DateTime.now()
@@ -169,7 +168,6 @@ class PhoneSpec extends Specification {
 
         then:
         MediaInfo.count() == miBaseline + 1
-        MediaElement.count() == meBaseline + 1
     }
 
     void "test getting voicemail greeting url"() {

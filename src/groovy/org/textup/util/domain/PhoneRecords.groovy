@@ -56,6 +56,12 @@ class PhoneRecords {
         else { [] }
     }
 
+    static Closure forOwnedOnly() {
+        return {
+            ne("class", PhoneRecord) // only contacts or tags that we own, not shared ones
+        }
+    }
+
     static Closure forShareSourceIds(Collection<Long> sourceIds) {
         return {
             CriteriaUtils.inList(delegate, "shareSource.id", sourceIds)

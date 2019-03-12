@@ -75,8 +75,7 @@ class RecordCallSpec extends Specification {
 
     void "test getting duration in seconds and excluding receipt with longest duration"() {
         given: "a valid record call"
-        Record rec1 = TestUtils.buildRecord()
-        RecordCall call = new RecordCall(record: rec1)
+        RecordCall call = TestUtils.buildRecordCall(null, false)
 
         when: "no receipts"
         assert call.receipts == null
@@ -109,8 +108,7 @@ class RecordCallSpec extends Specification {
 
     void "test grouping receipts by status for incoming versus outgoing"() {
         given: "a valid record call with multiple receipts with varying numBillable"
-        Record rec1 = TestUtils.buildRecord()
-        RecordCall call = new RecordCall(record: rec1)
+        RecordCall call = TestUtils.buildRecordCall(null, false)
         RecordItemReceipt rpt1 = TestUtils.buildReceipt(ReceiptStatus.PENDING),
             rpt2 = TestUtils.buildReceipt(ReceiptStatus.PENDING),
             rpt3 = TestUtils.buildReceipt(ReceiptStatus.PENDING)

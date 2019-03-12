@@ -77,6 +77,11 @@ class FutureMessageJobService {
             .then { FutureMessage fMsg, Staff s1, TempRecordItem temp1 ->
                 Collection<PhoneRecord> pRecs = PhoneRecords
                     .buildActiveForRecordIds([fMsg.record.id])
+                    // exclude shared phone records because these would be duplicates
+                    // We already checked for permissions when this `FutureMessage` was created
+                    // so we do not need to involve shared `PhoneRecord`s which may result in a
+                    // permissions error if the permission level is not high enough
+                    .build(PhoneRecords.forOwnedOnly())
                     .list()
                 int max = ValidationUtils.MAX_NUM_TEXT_RECIPIENTS
                 Recipients.tryCreate(pRecs, fMsg.language, max).curry(fMsg, s1, temp1)

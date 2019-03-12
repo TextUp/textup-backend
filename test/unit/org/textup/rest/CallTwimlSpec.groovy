@@ -220,14 +220,16 @@ class CallTwimlSpec extends Specification {
 
         then:
         res.status == ResultStatus.OK
-        getWebhookLink.hasBeenCalled
-        getWebhookLink.latestArgs == [null]
         TestUtils.buildXml(res.payload) == TestUtils.buildXml {
             Response {
                 Say("callTwiml.selfInvalidDigits")
                 Redirect(webhookUrl)
             }
         }
+
+        and:
+        getWebhookLink.hasBeenCalled
+        getWebhookLink.latestArgs == [null]
     }
 
     void "test connecting incoming calls"() {

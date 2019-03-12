@@ -3,6 +3,7 @@ package org.textup.rest
 import grails.plugins.rest.client.RestResponse
 import grails.test.mixin.*
 import grails.test.mixin.support.*
+import java.util.concurrent.*
 import javax.servlet.http.HttpServletRequest
 import org.joda.time.*
 import org.springframework.util.LinkedMultiValueMap
@@ -145,6 +146,8 @@ class OutgoingMediaFunctionalSpec extends FunctionalSpec {
                 }
             }
         }
+        // Allow time for the session to flush before getting after counts
+        TimeUnit.SECONDS.sleep(3)
         Map afterCounts = remote.exec({
             [
                 numItems: RecordItem.count(),

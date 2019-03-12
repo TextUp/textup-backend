@@ -95,7 +95,7 @@ class ResultGroupSpec extends Specification {
         Map input1 = [(key1): value1, (key2): value2]
 
         when:
-        ResultGroup resGroup = ResultGroup.collect(input1, action)
+        ResultGroup resGroup = ResultGroup.collectEntries(input1, action)
 
         then:
         resGroup.successes.size() == input1.size()

@@ -103,19 +103,19 @@ class PhoneRecordsSpec extends Specification {
         res.payload == gpr1.id
 
         cleanup:
-        tryGetAuthId.restore()
+        tryGetAuthId?.restore()
     }
 
     void "test criteria finding active for record ids"() {
         given:
-        Phone p1 = TestUtils.buildActiveTeamPhone()
+        Phone tp1 = TestUtils.buildActiveTeamPhone()
 
-        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
-        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(tp1)
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(tp1)
         ipr2.isDeleted = true
 
-        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
-        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord(null, p1)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, tp1)
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord(null, tp1)
         spr2.dateExpired = DateTime.now().minusDays(1)
 
         PhoneRecord.withSession { it.flush() }
@@ -128,9 +128,16 @@ class PhoneRecordsSpec extends Specification {
 
         when:
         criteria = PhoneRecords.buildActiveForRecordIds([ipr1, ipr2, spr1, spr2]*.record*.id)
+        Collection foundPrs = criteria.list()
 
         then:
-        criteria.list() == [ipr1, spr1]
+        foundPrs.size() == 4
+        ipr1 in foundPrs
+        !(ipr2 in foundPrs)
+        spr1 in foundPrs
+        spr1.shareSource in foundPrs
+        !(spr2 in foundPrs)
+        spr2.shareSource in foundPrs
     }
 
     void "test criteria finding active for phone ids"() {
@@ -210,6 +217,30 @@ class PhoneRecordsSpec extends Specification {
 
         then: "personal phone is not active but team phone is"
         recIds == [gpr1, ipr1, spr1]*.record*.id
+    }
+
+    void "test closure for finding only owned phone records"() {
+        given:
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+
+        DetachedCriteria criteria = new DetachedCriteria(PhoneRecord).build {
+            eq("record.id", spr1.record.id)
+        }
+
+        when:
+        Collection foundPrs = criteria.list()
+
+        then:
+        foundPrs.size() == 2
+        spr1 in foundPrs
+        spr1.shareSource in foundPrs
+
+        when:
+        foundPrs = criteria.build(PhoneRecords.forOwnedOnly()).list()
+
+        then:
+        foundPrs == [spr1.shareSource]
     }
 
     void "test closure for finding given ids"() {

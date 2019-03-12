@@ -40,14 +40,14 @@ class Phones {
     static Result<Phone> mustFindActiveForOwner(Long ownerId, PhoneOwnershipType type,
         boolean createIfAbsent) {
 
-        IOCUtils.phoneCache.mustFindAnyPhoneIdForOwner(ownerId, type)
+        Result<Phone> findRes = IOCUtils.phoneCache.mustFindAnyPhoneIdForOwner(ownerId, type)
             .then { Long pId -> Phones.mustFindActiveForId(pId) }
-            .ifFail { Result<?> failRes ->
-                if (createIfAbsent) {
-                    Phone.tryCreate(ownerId, type)
-                }
-                else { failRes }
-            }
+        // Need to manually interact with the `Result` object because using the `ifFail` handler
+        // will cause the return value to have the `hasErrorBeenHandled` flag set to true
+        if (!findRes.success && createIfAbsent) {
+            Phone.tryCreate(ownerId, type)
+        }
+        else { findRes }
     }
 
     static DetachedCriteria<Phone> buildActiveForNumber(BasePhoneNumber bNum) {

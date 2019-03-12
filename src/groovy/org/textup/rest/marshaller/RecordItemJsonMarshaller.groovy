@@ -59,7 +59,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             }
         RequestUtils.tryGet(RequestUtils.PHONE_ID)
             .thenEnd { Object pId ->
-                PhoneRecord pr1 = PhoneRecords.buildActiveForRecordIds([rItem1.id])
+                PhoneRecord pr1 = PhoneRecords.buildActiveForRecordIds([rItem1.readOnlyRecord.id])
                     .build(PhoneRecords.forPhoneIds([TypeUtils.to(Long, pId)]))
                     .list(max: 1)[0]
                 if (pr1) {
