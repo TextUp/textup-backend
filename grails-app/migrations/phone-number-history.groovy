@@ -54,36 +54,28 @@ databaseChangeLog = {
         grailsChange {
             change {
                 // step 1: fetch all phones no matter status
-                List<GroovyRowResult> phoneIdAndNumbers = sql.rows("""
-                    SELECT id, number_as_string
-                    FROM phone
-                """)
-                phoneIdAndNumbers.each { GroovyRowResult row ->
+                sql.rows("SELECT * FROM phone").each { GroovyRowResult thisPhone ->
                     // step 2: create a history entry for each phone
                     Long phoneHistoryId = sql.executeInsert([
                             version: 0,
                             whenCreated: "2010-01-01 00:00:00", // this must be at the beginning of the month
-                            phoneNumber: row.number_as_string
+                            phoneNumber: thisPhone.number_as_string
                         ], """
-                        INSERT INTO phone_number_history (
-                            version,
+                        INSERT INTO phone_number_history (version,
                             when_created,
                             number_as_string)
-                        VALUES (
-                            :version,
+                        VALUES (:version,
                             :whenCreated,
                             :phoneNumber)
                     """)[0][0]
                     // step 3: add to the join table to associate history entry with phone
                     sql.executeInsert([
-                        phoneId: row.id,
+                        phoneId: thisPhone.id,
                         historyId: phoneHistoryId
                     ], """
-                        INSERT INTO phone_phone_number_history (
-                            phone_number_history_entries_id,
+                        INSERT INTO phone_phone_number_history (phone_number_history_entries_id,
                             phone_number_history_id)
-                        VALUES (
-                            :phoneId,
+                        VALUES (:phoneId,
                             :historyId)
                     """)
                 }

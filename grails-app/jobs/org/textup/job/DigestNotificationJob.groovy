@@ -10,8 +10,6 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-// TODO
-
 class DigestNotificationJob implements Job {
 
     static final String FREQ_KEY = "frequency"
@@ -20,17 +18,14 @@ class DigestNotificationJob implements Job {
     // see: https://github.com/grails-plugins/grails-quartz/blob/1.x/src/groovy/grails/plugins/quartz/config/TriggersConfigBuilder.groovy
     static triggers = {
         cron cronExpression: "0 0/15 * * * ?", // in UTC time, run every hour on each 15 min increment
-            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING
-
-            // TODO
-            // misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
-            // jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.QUARTER_HOUR.toString())
-        // cron cronExpression: "0 30 * * * ?", // in UTC time, run every hour on the half hour
-        //     misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
-        //     jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.HALF_HOUR.toString())
-        // cron cronExpression: "0 0 * * * ?", // in UTC time, run every hour on the hour
-        //     misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
-        //     jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.HOUR.toString())
+            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
+            jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.QUARTER_HOUR.toString())
+        cron cronExpression: "0 30 * * * ?", // in UTC time, run every hour on the half hour
+            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
+            jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.HALF_HOUR.toString())
+        cron cronExpression: "0 0 * * * ?", // in UTC time, run every hour on the hour
+            misfireInstruction: CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING,
+            jobDataMap: new JobDataMap((FREQ_KEY): NotificationFrequency.HOUR.toString())
     }
 
     // `requestsRecovery` default is false so don't send duplicate notifications when recovering
@@ -43,18 +38,18 @@ class DigestNotificationJob implements Job {
 
     @GrailsTypeChecked
     void execute(JobExecutionContext context) {
-        // NotificationFrequency freq1 = TypeMap.create(context.mergedJobDataMap)
-        //     .enum(NotificationFrequency, FREQ_KEY)
-        // if (freq1) {
-        //     Collection<RecordItem> rItems = RecordItems
-        //         .buildForIncomingMessagesAfter(freq1.buildDateTimeInPast())
-        //         .list()
-        //     NotificationUtils.tryBuildNotificationGroup(rItems)
-        //         .then { NotificationGroup notifGroup ->
-        //             notificationService.send(freq1, notifGroup)
-        //         }
-        //         .logFail("sending digest notifications for frequency $freq1")
-        // }
-        // else { log.error("could not find stored frequency to start job") }
+        NotificationFrequency freq1 = TypeMap.create(context.mergedJobDataMap)
+            .enum(NotificationFrequency, FREQ_KEY)
+        if (freq1) {
+            Collection<RecordItem> rItems = RecordItems
+                .buildForIncomingMessagesAfter(freq1.buildDateTimeInPast())
+                .list()
+            NotificationUtils.tryBuildNotificationGroup(rItems)
+                .then { NotificationGroup notifGroup ->
+                    notificationService.send(freq1, notifGroup)
+                }
+                .logFail("sending digest notifications for frequency $freq1")
+        }
+        else { log.error("could not find stored frequency to start job") }
     }
 }

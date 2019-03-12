@@ -66,36 +66,27 @@ databaseChangeLog = {
         grailsChange {
             change {
                 // migrate phone-ownership association from join table to foreign key
-                List<GroovyRowResult> existingJoinEntries = sql.rows("""
-                    SELECT phone_ownership_policies_id, notification_policy_id
-                    FROM phone_ownership_notification_policy
-                """)
-                existingJoinEntries.each { GroovyRowResult row ->
-                    sql.executeUpdate([
-                        ownerId: row.phone_ownership_policies_id,
-                        policyId: row.notification_policy_id
-                    ], """
-                        UPDATE owner_policy
-                        SET owner_id = :ownerId
-                        WHERE id = :policyId
-                    """)
-                }
+                sql.rows("SELECT * FROM phone_ownership_notification_policy")
+                    .each { GroovyRowResult joinEntry ->
+                        sql.executeUpdate([
+                            ownerId: joinEntry.phone_ownership_policies_id,
+                            policyId: joinEntry.notification_policy_id
+                        ], """
+                            UPDATE owner_policy
+                            SET owner_id = :ownerId
+                            WHERE id = :policyId
+                        """)
+                    }
             }
             rollback {
-                List<GroovyRowResult> existingForeignKeys = sql.rows("""
-                    SELECT id, owner_id
-                    FROM owner_policy
-                """)
-                existingForeignKeys.each { GroovyRowResult row ->
+                sql.rows("SELECT * FROM owner_policy").each { GroovyRowResult ownerPolicy ->
                     sql.executeInsert([
-                        ownerId: row.owner_id,
-                        policyId: row.id
+                        ownerId: ownerPolicy.owner_id,
+                        policyId: ownerPolicy.id
                     ], """
-                        INSERT INTO phone_ownership_notification_policy(
-                            phone_ownership_policies_id,
+                        INSERT INTO phone_ownership_notification_policy(phone_ownership_policies_id,
                             notification_policy_id)
-                        VALUES (
-                            :ownerId,
+                        VALUES (:ownerId,
                             :policyId)
                     """)
                 }
@@ -135,11 +126,11 @@ databaseChangeLog = {
         dropForeignKeyConstraint(baseTableName: "phone_ownership_notification_policy", baseTableSchemaName: "prodDb", constraintName: "FK_l3nesjxr17d7qijoxu9n6hfxg")
     }
 
-    changeSet(author: "ericbai (generated)", id: "1551375338796-75") {
+    changeSet(author: "ericbai (generated)", id: "1551375338796-75-1") {
         dropColumn(columnName: "blacklist_data", tableName: "owner_policy")
     }
 
-    changeSet(author: "ericbai (generated)", id: "1551375338796-75") {
+    changeSet(author: "ericbai (generated)", id: "1551375338796-75-2") {
         dropColumn(columnName: "whitelist_data", tableName: "owner_policy")
     }
 

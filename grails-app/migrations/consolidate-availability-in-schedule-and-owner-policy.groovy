@@ -19,23 +19,19 @@ databaseChangeLog = {
         }
     }
 
-    // copy manual schedules from staff to correspnding schedule
-    changeSet(author: "ericbai", id: "1551375338796-custom-9") {
+    // copy manual schedules from `Staff` to correspnding `Schedule`
+    changeSet(author: "ericbai", id: "1551375338796-custom-9-1") {
         grailsChange {
             change {
-                List<GroovyRowResult> staffScheduleInfo = sql.rows("""
-                    SELECT schedule_id, manual_schedule, is_available
-                    FROM staff
-                """)
-                staffScheduleInfo.each { GroovyRowResult row ->
+                sql.rows("SELECT * FROM staff").each { GroovyRowResult thisStaff ->
                     sql.executeUpdate([
-                        scheduleId: row.schedule_id,
-                        useManual: row.manual_schedule,
-                        isAvailable: row.is_available
+                        scheduleId: thisStaff.schedule_id,
+                        useManual: thisStaff.manual_schedule,
+                        isAvailable: thisStaff.is_available
                     ], """
                         UPDATE schedule
                         SET manual = :useManual
-                            manual_is_available = :isAvailable
+                            AND manual_is_available = :isAvailable
                         WHERE id = :scheduleId
                     """)
                 }
@@ -44,98 +40,109 @@ databaseChangeLog = {
         }
     }
 
+    // copy manual schedules from `OwnerPolicy` to correspnding `Schedule`
+    changeSet(author: "ericbai", id: "1551375338796-custom-9-2") {
+        grailsChange {
+            change {
+                sql.rows("""
+                    SELECT *
+                    FROM owner_policy
+                    WHERE schedule_id IS NOT NULL
+                """).each { GroovyRowResult thisPolicy ->
+                    sql.executeUpdate([
+                        scheduleId: thisPolicy.schedule_id,
+                        useManual: thisPolicy.manual_schedule,
+                        isAvailable: thisPolicy.is_available
+                    ], """
+                        UPDATE schedule
+                        SET manual = :useManual
+                            AND manual_is_available = :isAvailable
+                        WHERE id = :scheduleId
+                    """)
+                }
+            }
+            // no need to copy back boolean flags because we never erased them on `OwnerPolicy`s
+        }
+    }
+
     // find all phones that each staff member has access to and fill in schedule info if not present
     changeSet(author: "ericbai", id: "1551375338796-custom-10") {
         grailsChange {
             change {
                 // step 1: find all staffs
-                List<GroovyRowResult> staffs = sql.rows("""
-                    SELECT id, schedule_id
-                    FROM staff
-                """)
-                staffs.each { GroovyRowResult row1 ->
-                    // step 2: find all teams this staff is on
-                    List<Long> teamIds = sql.rows([staffId: row1.id], """
-                        SELECT team_members_id
-                        FROM team_staff
-                        WHERE staff_id = :staffId
-                    """)*.team_members_id ?: []
-                    // step 3: find all phones this staff member has access to
-                    List<Long> accessiblePhoneOwnerIds = sql.rows([
-                        staffId: row1.id,
-                        teamIds: teamIds
-                    ], """
-                        SELECT po.id
+                sql.rows("SELECT * FROM staff").each { GroovyRowResult thisStaff ->
+                    // step 2: find all phones this staff member has access to
+                    List<Long> phoneOwnerIds = sql.rows([staffId: thisStaff.id], """
+                        SELECT po.id AS phone_owner_id
                         FROM phone_ownership AS po
                         LEFT JOIN staff AS s ON s.id = po.owner_id
-                            AND po.type = 'INDIVIDUAL'
-                            AND s.id = :staffId
                         LEFT JOIN team AS t ON t.id = po.owner_id
-                            AND po.type = 'GROUP'
-                            AND t.id IN :teamIds
-                    """)*.id ?: []
-                    // step 4: find existing policies with a null schedule
-                    List<GroovyRowResult> policiesMissingSchedule = sql.rows([
-                        ownerIds: accessiblePhoneOwnerIds
-                    ], """
-                        SELECT id, owner_id
+                        WHERE (po.type = 'INDIVIDUAL' AND s.id = :staffId)
+                            OR (po.type = 'GROUP' AND t.id IN (SELECT team_members_id
+                                FROM team_staff
+                                WHERE staff_id = :staffId))
+                    """)*.phone_owner_id ?: []
+                    // step 3: find existing policies
+                    List<GroovyRowResult> existingPolicies = sql.rows([staffId: thisStaff.id], """
+                        SELECT *
                         FROM owner_policy
-                        WHERE owner_id IN :ownerIds
-                            AND schedule_id IS NULL
+                        WHERE staff_id = :staffId
                     """)
-                    policiesMissingSchedule.each { GroovyRowResult row2 ->
-                        Long newScheduleId = doCopySchedule(row1.schedule_id)
-                        sql.executeUpdate([policyId: row2.id, scheduleId: newScheduleId], """
-                            UPDATE owner_policy
-                            SET schedule_id = :scheduleId
-                            WHERE id = :policyId
-                        """)
-                    }
-                    // step 5: find phones missing a policy
-                    (accessiblePhoneOwnerIds - policiesMissingSchedule*.owner_id)
-                        .each { Long missingPolicyOwnerId ->
-                            Long newScheduleId = doCopySchedule(row1.schedule_id)
-                            sql.executeInsert([
-                                version: 0,
-                                frequency: DefaultOwnerPolicy.DEFAULT_FREQUENCY.toString(),
-                                level: DefaultOwnerPolicy.DEFAULT_LEVEL.toString(),
-                                method: DefaultOwnerPolicy.DEFAULT_METHOD.toString(),
-                                ownerId: missingPolicyOwnerId,
-                                scheduleId: newScheduleId,
-                                shouldSendPreviewLink: DefaultOwnerPolicy.DEFAULT_SEND_PREVIEW_LINK.toString(),
-                                staffId: row1.id
-                            ], """
-                                INSERT INTO owner_policy (
-                                    version,
-                                    frequency,
-                                    level,
-                                    method,
-                                    owner_id,
-                                    schedule_id,
-                                    should_send_preview_link,
-                                    staff_id)
-                                VALUES (
-                                    :version,
-                                    :frequency,
-                                    :level,
-                                    :method,
-                                    :ownerId,
-                                    :scheduleId,
-                                    :shouldSendPreviewLink,
-                                    :staffId)
+                    existingPolicies.each { GroovyRowResult thisPolicy ->
+                        // only copy schedule over from staff if this policy doesn't already have a schedule
+                        if (!thisPolicy.schedule_id) {
+                            Long newScheduleId = doCopySchedule(sql, thisStaff.schedule_id)
+                            sql.executeUpdate([policyId: thisPolicy.id, scheduleId: newScheduleId], """
+                                UPDATE owner_policy
+                                SET schedule_id = :scheduleId
+                                WHERE id = :policyId
                             """)
                         }
+                    }
+                    // step 4: find phones missing a policy
+                    (phoneOwnerIds - existingPolicies*.owner_id).each { Long missingPolicyOwnerId ->
+                        Long newScheduleId = doCopySchedule(sql, thisStaff.schedule_id)
+                        sql.executeInsert([
+                            version: 0,
+                            frequency: DefaultOwnerPolicy.DEFAULT_FREQUENCY.toString(),
+                            level: DefaultOwnerPolicy.DEFAULT_LEVEL.toString(),
+                            method: DefaultOwnerPolicy.DEFAULT_METHOD.toString(),
+                            ownerId: missingPolicyOwnerId,
+                            scheduleId: newScheduleId,
+                            shouldSendPreviewLink: DefaultOwnerPolicy.DEFAULT_SEND_PREVIEW_LINK.toString() ? 1 : 0,
+                            staffId: thisStaff.id
+                        ], """
+                            INSERT INTO owner_policy (
+                                version,
+                                frequency,
+                                level,
+                                method,
+                                owner_id,
+                                schedule_id,
+                                should_send_preview_link,
+                                staff_id)
+                            VALUES (
+                                :version,
+                                :frequency,
+                                :level,
+                                :method,
+                                :ownerId,
+                                :scheduleId,
+                                :shouldSendPreviewLink,
+                                :staffId)
+                        """)
+                    }
                 }
             }
             rollback {
-                List<GroovyRowResult> staffWithNoSchedule = sql.rows("""
-                    SELECT id
+                List<GroovyRowResult> staffsWithNoSchedule = sql.rows("""
+                    SELECT *
                     FROM staff
                     WHERE schedule_id IS NULL
                 """)
-                staffWithNoSchedule.each { GroovyRowResult row ->
-                    Long newScheduleId = doCopySchedule(null)
-                    sql.executeUpdate([staffId: row.id, scheduleId: newScheduleId], """
+                staffsWithNoSchedule.each { GroovyRowResult thisStaff ->
+                    Long newScheduleId = doCopySchedule(sql, null)
+                    sql.executeUpdate([staffId: thisStaff.id, scheduleId: newScheduleId], """
                         UPDATE staff
                         SET schedule_id = :scheduleId
                         WHERE id = :staffId
@@ -150,13 +157,13 @@ databaseChangeLog = {
         grailsChange {
             change {
                 List<GroovyRowResult> policiesWithNoSchedule = sql.rows("""
-                    SELECT id
+                    SELECT *
                     FROM owner_policy
                     WHERE schedule_id IS NULL
                 """)
-                policiesWithNoSchedule.each { GroovyRowResult row ->
-                    Long newScheduleId = doCopySchedule(null)
-                    sql.executeUpdate([policyId: row.id, scheduleId: newScheduleId], """
+                policiesWithNoSchedule.each { GroovyRowResult thisPolicy ->
+                    Long newScheduleId = doCopySchedule(sql, null)
+                    sql.executeUpdate([policyId: thisPolicy.id, scheduleId: newScheduleId], """
                         UPDATE owner_policy
                         SET schedule_id = :scheduleId
                         WHERE id = :policyId
@@ -165,46 +172,6 @@ databaseChangeLog = {
             }
             // it's fine to have some orphan schedules in the worst case on rollback
         }
-    }
-
-    Long doCopySchedule(Long scheduleId) {
-        GroovyRowResult existingSchedule = sql.rows([scheduleId: scheduleId],
-            "SELECT * FROM schedule where id = :scheduleId")[0]
-        sql.executeInsert([
-            version: 0,
-            manual: existingSchedule?.manual != null ? existingSchedule.manual : true,
-            manualIsAvailable: existingSchedule?.manualIsAvailable != null ? existingSchedule.manualIsAvailable : true,
-            sunday: existingSchedule?.sunday ?: "",
-            monday: existingSchedule?.monday ?: "",
-            tuesday: existingSchedule?.tuesday ?: "",
-            wednesday: existingSchedule?.wednesday ?: "",
-            thursday: existingSchedule?.thursday ?: "",
-            friday: existingSchedule?.friday ?: "",
-            saturday: existingSchedule?.saturday ?: ""
-        ],"""
-        INSERT INTO schedule (
-            version,
-            manual,
-            manual_is_available,
-            sunday,
-            monday,
-            tuesday,
-            wednesday,
-            thursday,
-            friday,
-            saturday)
-        VALUES (
-            :version,
-            :manual,
-            :manualIsAvailable,
-            :sunday,
-            :monday,
-            :tuesday,
-            :wednesday,
-            :thursday,
-            :friday,
-            :saturday)
-    """)
     }
 
     changeSet(author: "ericbai (generated)", id: "1551375338796-38") {
@@ -220,23 +187,23 @@ databaseChangeLog = {
         dropColumn(columnName: "class", tableName: "schedule")
     }
 
-    changeSet(author: "ericbai (generated)", id: "1551375338796-72") {
+    changeSet(author: "ericbai (generated)", id: "1551375338796-73-1") {
         dropColumn(columnName: "is_available", tableName: "staff")
     }
 
-    changeSet(author: "ericbai (generated)", id: "1551375338796-73") {
+    changeSet(author: "ericbai (generated)", id: "1551375338796-73-2") {
         dropColumn(columnName: "manual_schedule", tableName: "staff")
     }
 
-    changeSet(author: "ericbai (generated)", id: "1551375338796-72") {
+    changeSet(author: "ericbai (generated)", id: "1551375338796-73-3") {
         dropColumn(columnName: "use_staff_availability", tableName: "owner_policy")
     }
 
-    changeSet(author: "ericbai (generated)", id: "1551375338796-73") {
+    changeSet(author: "ericbai (generated)", id: "1551375338796-73-4") {
         dropColumn(columnName: "is_available", tableName: "owner_policy")
     }
 
-    changeSet(author: "ericbai (generated)", id: "1551375338796-73") {
+    changeSet(author: "ericbai (generated)", id: "1551375338796-73-5") {
         dropColumn(columnName: "manual_schedule", tableName: "owner_policy")
     }
 
@@ -271,4 +238,50 @@ databaseChangeLog = {
     changeSet(author: "ericbai (generated)", id: "1551375338796-23") {
         addNotNullConstraint(columnDataType: "varchar(255)", columnName: "wednesday", tableName: "schedule")
     }
+}
+
+Long doCopySchedule(Sql sql, Long scheduleId) {
+    GroovyRowResult existingSchedule = sql.rows([scheduleId: scheduleId], """
+        SELECT *
+        FROM schedule
+        WHERE id = :scheduleId
+    """)[0]
+    sql.executeInsert([
+        class: Schedule.class.canonicalName,
+        version: 0,
+        manual: existingSchedule?.manual != null ? existingSchedule.manual : 1,
+        manualIsAvailable: existingSchedule?.manual_is_available != null ?
+            existingSchedule.manual_is_available :
+            1,
+        sunday: existingSchedule?.sunday ?: "",
+        monday: existingSchedule?.monday ?: "",
+        tuesday: existingSchedule?.tuesday ?: "",
+        wednesday: existingSchedule?.wednesday ?: "",
+        thursday: existingSchedule?.thursday ?: "",
+        friday: existingSchedule?.friday ?: "",
+        saturday: existingSchedule?.saturday ?: ""
+    ],"""
+        INSERT INTO schedule (class,
+            version,
+            manual,
+            manual_is_available,
+            sunday,
+            monday,
+            tuesday,
+            wednesday,
+            thursday,
+            friday,
+            saturday)
+        VALUES (:class,
+            :version,
+            :manual,
+            :manualIsAvailable,
+            :sunday,
+            :monday,
+            :tuesday,
+            :wednesday,
+            :thursday,
+            :friday,
+            :saturday)
+    """)[0][0]
 }

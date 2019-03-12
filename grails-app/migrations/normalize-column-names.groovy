@@ -44,4 +44,16 @@ databaseChangeLog = {
             newColumnName: "personal_number_as_string",
             columnDataType: "varchar(255)")
     }
+
+    changeSet(author: "ericbai (generated)", id: "1551375338796-custom-1-1") {
+        addNotNullConstraint(columnDataType: "bigint",
+            columnName: "phone_id",
+            tableName: "featured_announcement")
+    }
+
+    changeSet(author: "ericbai (generated)", id: "1551375338796-custom-1-2") {
+        addNotNullConstraint(columnDataType: "decimal(19,2)",
+            columnName: "lng",
+            tableName: "location")
+    }
 }
