@@ -23,7 +23,7 @@ class SessionJsonMarshallerIntegrationSpec extends Specification {
     	json.id == is1.id
         json.isSubscribedToText == is1.isSubscribedToText
         json.isSubscribedToCall == is1.isSubscribedToCall
-        json.number.noFormatNumber == is1.number.number
+        json.number == is1.number.prettyPhoneNumber
         json.whenCreated == is1.whenCreated.toString()
         json.lastSentInstructions == is1.lastSentInstructions.toString()
         json.shouldSendInstructions == is1.shouldSendInstructions

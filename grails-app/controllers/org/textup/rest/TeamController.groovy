@@ -49,6 +49,7 @@ class TeamController extends BaseController {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         doSave(MarshallerUtils.KEY_TEAM, request, teamService) { TypeMap body ->
+            body.timezone = qParams.string("timezone")
             Organizations.isAllowed(body.long("org"))
         }
     }
@@ -57,7 +58,8 @@ class TeamController extends BaseController {
     def update() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
-        doUpdate(MarshallerUtils.KEY_TEAM, request, teamService) {
+        doUpdate(MarshallerUtils.KEY_TEAM, request, teamService) { TypeMap body ->
+            body.timezone = qParams.string("timezone")
             Teams.isAllowed(qParams.long("id"))
         }
     }

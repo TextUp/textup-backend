@@ -82,7 +82,7 @@ class AnnouncementFunctionalSpec extends FunctionalSpec {
 
         then:
         response.status == ResultStatus.CREATED.intStatus
-        response.json.session.number.noFormatNumber == pNum.number
+        response.json.session.number == pNum.prettyPhoneNumber
         response.json.session.isSubscribedToText == true
         response.json.session.isSubscribedToCall == true
 

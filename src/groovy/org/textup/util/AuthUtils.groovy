@@ -17,14 +17,6 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class AuthUtils {
 
-    static Result<Staff> tryGetActiveAuthUser() {
-        AuthUtils.tryGetAuthId()
-            .then { Long authId ->
-                Staff s1 = Staff.get(authId)
-                isActive(s1) ? IOCUtils.resultFactory.success(s1) : forbidden()
-            }
-    }
-
     // `loadCurrentUser` returns a `Staff` proxy class for only `id` property access
     // see: http://grails-plugins.github.io/grails-spring-security-core/2.0.x/guide/helperClasses.html#springSecurityService
     static Result<Long> tryGetAuthId() {
@@ -33,6 +25,19 @@ class AuthUtils {
             IOCUtils.resultFactory.success(authUserProxy.id)
         }
         else { forbidden() }
+    }
+
+    static Result<Staff> tryGetAnyAuthUser() {
+        AuthUtils.tryGetAuthId()
+            .then { Long authId ->
+                Staff s1 = Staff.get(authId)
+                s1 ? IOCUtils.resultFactory.success(s1) : forbidden()
+            }
+    }
+
+    static Result<Staff> tryGetActiveAuthUser() {
+        AuthUtils.tryGetAnyAuthUser()
+            .then { Staff s1 -> isActive(s1) ? IOCUtils.resultFactory.success(s1) : forbidden() }
     }
 
     static Result<Void> isAllowed(boolean outcome) {

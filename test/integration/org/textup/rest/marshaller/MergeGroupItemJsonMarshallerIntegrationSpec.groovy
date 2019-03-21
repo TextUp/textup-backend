@@ -21,7 +21,7 @@ class MergeGroupItemJsonMarshallerIntegrationSpec extends Specification {
         Map json = TestUtils.objToJsonMap(mItem1)
 
         then:
-        json.mergeBy.noFormatNumber == mItem1.number.number
+        json.mergeBy == mItem1.number.prettyPhoneNumber
         json.mergeWith instanceof Collection
         json.mergeWith.size() == 1
         json.mergeWith[0].id == ipr1.toInfo().id

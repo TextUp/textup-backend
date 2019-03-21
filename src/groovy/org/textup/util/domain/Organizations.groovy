@@ -19,10 +19,13 @@ class Organizations {
     }
 
     @GrailsTypeChecked
-    static Result<Void> tryIfAdmin(Long org1, Long staffId) {
-        Staffs.mustFindForId(staffId).then { Staff s1 ->
-            AuthUtils.isAllowed(s1.status == StaffStatus.ADMIN && s1.org.id == org1)
-        }
+    static Result<Void> tryIfAdmin(Long orgId, Long staffId) {
+        Staffs.mustFindForId(staffId)
+            .then { Staff s1 -> AuthUtils.isAllowed(isAdminAt(orgId, s1)) }
+    }
+
+    static boolean isAdminAt(Long orgId, Staff s1) {
+        s1?.status == StaffStatus.ADMIN && s1?.org?.id == orgId
     }
 
     @GrailsTypeChecked

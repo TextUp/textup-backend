@@ -53,9 +53,9 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
         }
         if (WrapperUtils.isSharedContact(w1)) {
             json.with {
-                permission    = w1.permissions.level.toString()
-                sharedByName  = origPhone1.buildName()
-                sharedByPhone = origPhone1.id
+                permission      = w1.permissions.level.toString()
+                sharedByName    = origPhone1.buildName()
+                sharedByPhoneId = origPhone1.id
             }
         }
         if (WrapperUtils.isContact(w1)) {

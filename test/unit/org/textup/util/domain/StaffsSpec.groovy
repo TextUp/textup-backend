@@ -163,6 +163,12 @@ class StaffsSpec extends Specification {
         criteria.list() == [s1]
 
         when:
+        criteria = Staffs.buildForOrgIdAndOptions(org1.id, TestConstants.TEST_DEFAULT_AREA_CODE)
+
+        then:
+        criteria.list() == [s1]
+
+        when:
         criteria = Staffs.buildForOrgIdAndOptions(org1.id, null, [StaffStatus.PENDING])
 
         then:

@@ -47,8 +47,11 @@ class PhoneOwnershipSpec extends Specification {
         when:
         res = PhoneOwnership.tryCreate(p1, -88, PhoneOwnershipType.INDIVIDUAL)
 
-        then: "fail on nonexistent"
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        then: "OK even if nonexistent"
+        res.status == ResultStatus.CREATED
+        res.payload.phone == p1
+        res.payload.ownerId == -88
+        res.payload.type == PhoneOwnershipType.INDIVIDUAL
 
     	when:
         res = PhoneOwnership.tryCreate(p1, s1.id, PhoneOwnershipType.INDIVIDUAL)

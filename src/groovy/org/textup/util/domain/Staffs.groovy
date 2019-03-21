@@ -77,7 +77,7 @@ class Staffs {
             teams.each { Team t1 ->
                 // add only staff members that have a phone!
                 Collection<Staff> staffWitPhones = t1.activeMembers.findAll { Staff s1 ->
-                    !!Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, false).payload
+                    !!IOCUtils.phoneCache.findPhone(s1.id, PhoneOwnershipType.INDIVIDUAL)
                 }
                 shareCandidates.addAll(staffWitPhones)
             }
@@ -110,16 +110,15 @@ class Staffs {
 
     protected static Closure forQuery(String query) {
         String formattedQuery = StringUtils.toQuery(query)
-        PhoneNumber pNum1 = PhoneNumber.create(query)
-        String numberQuery = pNum1.validate() ? StringUtils.toQuery(pNum1.number) : null
-
+        String possibleNum = StringUtils.cleanPhoneNumber(query)
+        String numberQuery = StringUtils.toQuery(possibleNum)
         return {
             if (formattedQuery) {
                 or {
                     ilike("name", formattedQuery)
                     ilike("email", formattedQuery)
                     ilike("username", formattedQuery)
-                    if (numberQuery) {
+                    if (possibleNum) {
                         ilike("personalNumberAsString", numberQuery)
                     }
                 }

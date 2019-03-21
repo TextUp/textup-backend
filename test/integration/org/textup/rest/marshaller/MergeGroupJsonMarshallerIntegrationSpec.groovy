@@ -29,6 +29,6 @@ class MergeGroupJsonMarshallerIntegrationSpec extends Specification {
         json.numbers.size() == ipr2.numbers.size()
         json.merges instanceof Collection
         json.merges.size() == mGroup1.possibleMerges.size()
-        json.merges[0].mergeBy.noFormatNumber == mItem1.number.number
+        json.merges[0].mergeBy == mItem1.number.prettyPhoneNumber
     }
 }

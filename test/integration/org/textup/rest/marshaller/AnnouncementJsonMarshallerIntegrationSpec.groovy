@@ -37,13 +37,13 @@ class AnnouncementJsonMarshallerIntegrationSpec extends Specification {
         json.receipts instanceof Map
         json.receipts.recipients instanceof Collection
         json.receipts.recipients.size() == 2
-        aRpt1.session.number.number in json.receipts.recipients*.noFormatNumber
-        aRpt2.session.number.number in json.receipts.recipients*.noFormatNumber
+        aRpt1.session.number.prettyPhoneNumber in json.receipts.recipients
+        aRpt2.session.number.prettyPhoneNumber in json.receipts.recipients
         json.receipts.textRecipients instanceof Collection
         json.receipts.textRecipients.size() == 1
-        aRpt1.session.number.number in json.receipts.recipients*.noFormatNumber
+        aRpt1.session.number.prettyPhoneNumber in json.receipts.recipients
         json.receipts.callRecipients instanceof Collection
         json.receipts.callRecipients.size() == 1
-        aRpt2.session.number.number in json.receipts.recipients*.noFormatNumber
+        aRpt2.session.number.prettyPhoneNumber in json.receipts.recipients
     }
 }

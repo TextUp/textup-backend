@@ -58,5 +58,5 @@ abstract class BaseAction implements CanValidate {
 	boolean isCase(BaseAction otherAction) { otherAction?.equals(this) }
 
 	@Override
-	String toString() { action }
+	String toString() { action?.toLowerCase() }
 }

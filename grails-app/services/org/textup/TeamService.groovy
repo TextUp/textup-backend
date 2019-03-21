@@ -29,10 +29,10 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
                 Team.tryCreate(org1, body.string("name"), loc1)
             }
             .then { Team t1 -> trySetFields(t1, body) }
-            .then { Team t1 -> teamActionService.tryHandleActions(t1, body) }
+            .then { Team t1 -> tryHandleTeamActions(t1, body) }
             .then { Team t1 ->
-                String timezone = body.string("timezone")
-                tryUpdatePhone(t1, body.typeMapNoNull("phone"), timezone).curry(t1)
+                String tzId = body.string("timezone")
+                tryUpdatePhone(t1, body.long("staffId"), body.typeMapNoNull("phone"), tzId).curry(t1)
             }
             .then { Team t1 -> IOCUtils.resultFactory.success(t1, ResultStatus.CREATED) }
     }
@@ -44,10 +44,10 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
             .then { Team t1  ->
                 locationService.tryUpdate(t1.location, body.typeMapNoNull("location")).curry(t1)
             }
-            .then { Team t1 -> teamActionService.tryHandleActions(t1, body) }
+            .then { Team t1 -> tryHandleTeamActions(t1, body) }
             .then { Team t1 ->
-                String timezone = body.string("timezone")
-                tryUpdatePhone(t1, body.typeMapNoNull("phone"), timezone).curry(t1)
+                String tzId = body.string("timezone")
+                tryUpdatePhone(t1, body.long("staffId"), body.typeMapNoNull("phone"), tzId).curry(t1)
             }
             .then { Team t1 -> IOCUtils.resultFactory.success(t1) }
     }
@@ -72,14 +72,25 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
         DomainUtils.trySave(t1)
     }
 
-    protected Result<?> tryUpdatePhone(Team t1, TypeMap phoneInfo, String timezone) {
-        // Only want to do admin check if the user is attempting to update this
+    protected Result<Team> tryHandleTeamActions(Team t1, TypeMap body) {
+        if (teamActionService.hasActions(body)) {
+            teamActionService.tryHandleActions(t1, body)
+        }
+        else { IOCUtils.resultFactory.success(t1) }
+    }
+
+    protected Result<?> tryUpdatePhone(Team t1, Long staffId, TypeMap phoneInfo, String timezone) {
+        // Only want to do logged-in check if the user is attempting to update this
         if (!phoneInfo) {
             return Result.void()
         }
         AuthUtils.tryGetAuthId()
-            .then { Long authId -> Organizations.tryIfAdmin(t1.org.id, authId) }
-            .then { Phones.mustFindActiveForOwner(t1.id, PhoneOwnershipType.GROUP, true) }
-            .then { Phone p1 -> phoneService.tryUpdate(p1, phoneInfo, timezone) }
+            .then { Long authId -> Staffs.isAllowed(staffId ?: authId) }
+            .then { Long sId ->
+                phoneService.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
+                    .curry(sId)
+            }
+            .then { Long sId, Long pId -> Phones.mustFindForId(pId).curry(sId) }
+            .then { Long sId, Phone p1 -> phoneService.tryUpdate(p1, phoneInfo, sId, timezone) }
     }
 }

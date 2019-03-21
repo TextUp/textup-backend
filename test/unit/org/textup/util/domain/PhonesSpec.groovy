@@ -53,23 +53,31 @@ class PhonesSpec extends Specification {
         Phone active = TestUtils.buildActiveStaffPhone()
 
         when:
-        Result res = Phones.mustFindActiveForId(null)
+        Result res1 = Phones.mustFindForId(null)
+        Result res2 = Phones.mustFindActiveForId(null)
 
         then:
-        res.status == ResultStatus.NOT_FOUND
+        res1.status == ResultStatus.NOT_FOUND
+        res2.status == ResultStatus.NOT_FOUND
 
         when:
-        res = Phones.mustFindActiveForId(inactive.id)
+        res1 = Phones.mustFindForId(inactive.id)
+        res2 = Phones.mustFindActiveForId(inactive.id)
 
         then:
-        res.status == ResultStatus.NOT_FOUND
+        res1.status == ResultStatus.OK
+        res1.payload == inactive
+        res2.status == ResultStatus.NOT_FOUND
 
         when:
-        res = Phones.mustFindActiveForId(active.id)
+        res1 = Phones.mustFindForId(active.id)
+        res2 = Phones.mustFindActiveForId(active.id)
 
         then:
-        res.status == ResultStatus.OK
-        res.payload == active
+        res1.status == ResultStatus.OK
+        res1.payload == active
+        res2.status == ResultStatus.OK
+        res2.payload == active
     }
 
     void "test finding active given phone number"() {
@@ -95,47 +103,6 @@ class PhonesSpec extends Specification {
         then:
         res.status == ResultStatus.OK
         res.payload == active
-    }
-
-    void "test finding active given owner"() {
-        given:
-        Team t1 = TestUtils.buildTeam()
-        int pBaseline = Phone.count()
-        PhoneCache pCache = GroovyMock()
-        IOCUtils.metaClass."static".getPhoneCache = { -> pCache }
-
-        when:
-        Result res = Phones.mustFindActiveForOwner(t1.id, PhoneOwnershipType.GROUP, false)
-
-        then:
-        1 * pCache.mustFindAnyPhoneIdForOwner(t1.id, PhoneOwnershipType.GROUP) >>
-            Result.createError([], ResultStatus.NOT_FOUND)
-        res.status == ResultStatus.NOT_FOUND
-        Phone.count() == pBaseline
-
-        when:
-        res = Phones.mustFindActiveForOwner(t1.id, PhoneOwnershipType.GROUP, true)
-
-        then:
-        1 * pCache.mustFindAnyPhoneIdForOwner(t1.id, PhoneOwnershipType.GROUP) >>
-            Result.createError([], ResultStatus.NOT_FOUND)
-        res.status == ResultStatus.CREATED
-        res.payload instanceof Phone
-        res.hasErrorBeenHandled == false // so not use the `ifFail` handler on `Result`
-        Phone.count() == pBaseline + 1
-
-        when:
-        res.payload.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
-        res.payload.save(flush: true, failOnError: true)
-
-        Result res2 = Phones.mustFindActiveForOwner(t1.id, PhoneOwnershipType.GROUP, false)
-
-        then:
-        1 * pCache.mustFindAnyPhoneIdForOwner(t1.id, PhoneOwnershipType.GROUP) >>
-            Result.createSuccess(res.payload.id)
-        res2.status == ResultStatus.OK
-        res2.payload == res.payload
-        Phone.count() == pBaseline + 1
     }
 
     void "test criteria for active given phone number"() {

@@ -23,11 +23,11 @@ class NotificationJsonMarshaller extends JsonNamedMarshaller {
         }
         RequestUtils.tryGet(RequestUtils.STAFF_ID)
             .then { Object staffId -> Staffs.mustFindForId(TypeUtils.to(Long, staffId)) }
-            .ifFailAndPreserveError { json.details = notif1.items }
+            .ifFailAndPreserveError { json.details = notif1.details }
             .thenEnd { Staff s1 ->
                 ReadOnlyOwnerPolicy rop1 = OwnerPolicies.findReadOnlyOrDefaultForOwnerAndStaff(own1, s1)
-                json.details = notif1.buildAllowedItemsForOwnerPolicy(rop1)
-                json.putAll(NotificationInfo.create(rop1, notif1).properties)
+                json.details = notif1.buildDetailsWithAllowedItemsForOwnerPolicy(rop1)
+                json.putAll(DomainUtils.instanceProps(NotificationInfo.create(rop1, notif1)))
             }
         json
 	}

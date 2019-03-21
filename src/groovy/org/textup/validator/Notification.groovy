@@ -72,12 +72,8 @@ class Notification implements CanValidate {
         } as Integer
     }
 
-    Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(ReadOnlyOwnerPolicy rop1) {
-        Collection<? extends RecordItem> allowedItems = []
-        getDetails().each { NotificationDetail nd1 ->
-            allowedItems.addAll(nd1.buildAllowedItemsForOwnerPolicy(rop1))
-        }
-        allowedItems
+    Collection<NotificationDetail> buildDetailsWithAllowedItemsForOwnerPolicy(ReadOnlyOwnerPolicy rop1) {
+        getDetails().findAll { NotificationDetail nd1 -> nd1.anyAllowedItemsForOwnerPolicy(rop1) }
     }
 
 	// Properties

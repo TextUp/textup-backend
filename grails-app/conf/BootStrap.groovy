@@ -45,7 +45,7 @@ class BootStrap {
             Organization org2 = Organization.tryCreate("Rhode Island House", TestUtils.buildLocation())
                 .logFail("bootstrap: creating organization 2")
                 .payload
-            org1.status = OrgStatus.APPROVED
+            org2.status = OrgStatus.APPROVED
 
             Staff.withSession { it.flush() }
 
@@ -78,31 +78,36 @@ class BootStrap {
             Team t1 = Team.tryCreate(org2, "Rapid Rehousing", TestUtils.buildLocation())
                 .logFail("bootstrap: creating team 1")
                 .payload
-            t1.addToMembers(s1)
             t1.addToMembers(s2)
+            t1.addToMembers(s3)
             Team t2 = Team.tryCreate(org2, "Housing First", TestUtils.buildLocation())
                 .logFail("bootstrap: creating team 2")
                 .payload
+            t2.addToMembers(s1)
             t2.addToMembers(s2)
-            t2.addToMembers(s3)
 
             Staff.withSession { it.flush() }
 
             Phone p1 = Phone.tryCreate(s1.id, PhoneOwnershipType.INDIVIDUAL)
                 .logFail("bootstrap: creating phone 1")
                 .payload
-            p1.numberAsString = TestUtils.randPhoneNumberString()
+            p1.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+                .logFail("bootstrap: activating phone 1")
             Phone p2 = Phone.tryCreate(s2.id, PhoneOwnershipType.INDIVIDUAL)
                 .logFail("bootstrap: creating phone 2")
                 .payload
-            p1.numberAsString = TestUtils.randPhoneNumberString()
+            p2.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+                .logFail("bootstrap: activating phone 2")
             Phone p3 = Phone.tryCreate(s3.id, PhoneOwnershipType.INDIVIDUAL)
                 .logFail("bootstrap: creating phone 3")
                 .payload
-            p1.numberAsString = TestUtils.randPhoneNumberString()
+            p3.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+                .logFail("bootstrap: activating phone 3")
             Phone tp1 = Phone.tryCreate(t1.id, PhoneOwnershipType.GROUP)
                 .logFail("bootstrap: creating phone 4")
                 .payload
+            tp1.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+                .logFail("bootstrap: activating phone 4")
 
             Staff.withSession { it.flush() }
 
@@ -156,11 +161,11 @@ class BootStrap {
             RecordText rText2 = ipr2.record.storeOutgoing(RecordItemType.TEXT, Author.create(s1), TestUtils.randString())
                 .logFail("bootstrap: creating record item 2")
                 .payload
-            rText1.addToReceipts(TestUtils.buildReceipt())
+            rText2.addToReceipts(TestUtils.buildReceipt())
             RecordText rText3 = ipr3.record.storeOutgoing(RecordItemType.TEXT, Author.create(s1), TestUtils.randString())
                 .logFail("bootstrap: creating record item 3")
                 .payload
-            rText1.addToReceipts(TestUtils.buildReceipt())
+            rText3.addToReceipts(TestUtils.buildReceipt())
             RecordText rText4 = gpr3.record.storeOutgoing(RecordItemType.TEXT, Author.create(s1), TestUtils.randString())
                 .logFail("bootstrap: creating record item 4")
                 .payload

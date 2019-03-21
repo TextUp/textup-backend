@@ -71,7 +71,7 @@ class RecordServiceSpec extends Specification {
 
         TypeMap body1 = TypeMap.create("ids": [spr1.id], "numbers": [pNum1])
         TypeMap body2 = TypeMap.create(location: TestUtils.randTypeMap(),
-            contents: TestUtils.randString(),
+            noteContents: TestUtils.randString(),
             "numbers": [pNum1])
 
         int prBaseline = PhoneRecord.count()
@@ -102,7 +102,7 @@ class RecordServiceSpec extends Specification {
         res.status == ResultStatus.CREATED
         res.payload instanceof Collection
         res.payload[0] instanceof RecordNote
-        res.payload[0].noteContents == body2.contents
+        res.payload[0].noteContents == body2.noteContents
         res.payload[0].media == mInfo1
         res.payload[0].location == loc1
         PhoneRecord.count() == prBaseline + 1

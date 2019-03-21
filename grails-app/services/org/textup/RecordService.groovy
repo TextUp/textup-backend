@@ -119,7 +119,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
             .then { Recipients r1 -> r1.tryGetOne() }
             .then { PhoneRecordWrapper w1 ->
                 Location loc1 = locationService.tryCreate(body.typeMapNoNull("location")).payload
-                TempRecordItem.tryCreate(body.string("contents"), mInfo, loc1).curry(w1)
+                TempRecordItem.tryCreate(body.string("noteContents"), mInfo, loc1).curry(w1)
             }
             .then { PhoneRecordWrapper w1, TempRecordItem temp1 -> w1.tryGetRecord().curry(temp1) }
             .then { TempRecordItem temp1, Record rec1 -> RecordNote.tryCreate(rec1, temp1) }

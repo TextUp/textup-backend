@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.Future
+import org.springframework.transaction.annotation.Propagation
 import org.textup.action.*
 import org.textup.annotation.*
 import org.textup.rest.*
@@ -20,14 +21,37 @@ class PhoneService {
     OwnerPolicyService ownerPolicyService
     PhoneActionService phoneActionService
 
-    Result<Phone> tryUpdate(Phone p1, TypeMap body, String timezone) {
+    // `PhoneActionService` called in this service requires that even newly-created phones are
+    // immediately findable via id. Therefore, this method requires a new transaction such that
+    // after returning the newly-created phone will already have been persisted to the db.
+    // The downside of this method is that we'll have a few more orphan rows in the phone id for
+    // empty phones pointing to nonexistent staff members.
+    // [NOTE] only external method calls heed annotations
+    // [NOTE] must NOT return a domain object because the session for this new transaction will be
+    // closed and the returned object will be detached. Return an ID instead to allow re-fetching
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    Result<Long> tryFindAnyIdOrCreateImmediatelyForOwner(Long ownerId, PhoneOwnershipType type) {
+        Phone p1 = IOCUtils.phoneCache.findPhone(ownerId, type, true)
+        if (p1) {
+            IOCUtils.resultFactory.success(p1.id)
+        }
+        else {
+            Phone.tryCreate(ownerId, type).then { Phone p2 ->
+                // associate owner with newly-created phone in the cache
+                IOCUtils.phoneCache.updateOwner(ownerId, type, p2.id)
+                IOCUtils.resultFactory.success(p2.id, ResultStatus.CREATED)
+            }
+        }
+    }
+
+    Result<Phone> tryUpdate(Phone p1, TypeMap body, Long staffId, String timezone) {
         Future<?> future
-        mediaService.tryCreateOrUpdate(p1, body, true)
+        tryHandlePhoneActionsImmediatelyAndRefresh(p1, body)
+            .then { mediaService.tryCreateOrUpdate(p1, body, true) }
             .then { Future<?> fut1 ->
                 future = fut1
-                phoneActionService.tryHandleActions(p1, body)
+                tryUpdateOwnerPolicy(p1, staffId, body.typedList(Map, "policies"), timezone)
             }
-            .then { tryUpdateOwnerPolicy(p1, body.typeMapNoNull("self"), timezone) }
             .then { trySetFields(p1, body) }
             .then {
                 tryRequestVoicemailGreetingCall(p1, body.string("requestVoicemailGreetingCall"))
@@ -38,6 +62,24 @@ class PhoneService {
 
     // Helpers
     // -------
+
+    // Must be an admin to perform phone actions
+    protected Result<Void> tryHandlePhoneActionsImmediatelyAndRefresh(Phone p1, TypeMap body) {
+        if (phoneActionService.hasActions(body)) {
+            AuthUtils.tryGetActiveAuthUser()
+                .then { Staff authUser -> AuthUtils.isAllowed(authUser.status == StaffStatus.ADMIN) }
+                .then { phoneActionService.tryHandleActions(p1.id, body) }
+                .then {
+                    // refresh in case we made db updates in the phoneActionService
+                    // [NOTE] this means that this helper method needs to be called first
+                    // because all changes to the phone object in this session will be discarded
+                    // as the phone object is effectively refetched from the db
+                    p1.refresh()
+                    Result.void()
+                }
+        }
+        else { Result.void() }
+    }
 
     protected Result<Phone> trySetFields(Phone p1, TypeMap body) {
         p1.with {
@@ -54,13 +96,15 @@ class PhoneService {
         DomainUtils.trySave(p1)
     }
 
-    protected Result<Phone> tryUpdateOwnerPolicy(Phone p1, TypeMap oInfo, String timezone) {
+    protected Result<Phone> tryUpdateOwnerPolicy(Phone p1, Long sId, Collection<Map> policies,
+        String timezone) {
+
+        Map oInfo = policies?.find { Map m -> TypeMap.create(m).long("staffId") == sId }
         if (oInfo) {
-            AuthUtils.tryGetAuthId()
-                .then { Long authId ->
-                    OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, authId)
+            OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, sId)
+                .then { OwnerPolicy op1 ->
+                    ownerPolicyService.tryUpdate(op1, TypeMap.create(oInfo), timezone)
                 }
-                .then { OwnerPolicy op1 -> ownerPolicyService.tryUpdate(op1, oInfo, timezone) }
                 .then { DomainUtils.trySave(p1) }
         }
         else { DomainUtils.trySave(p1) }

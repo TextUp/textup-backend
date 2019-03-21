@@ -13,6 +13,7 @@ import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
@@ -39,46 +40,82 @@ class TeamServiceSpec extends Specification {
         given:
         TypeMap pInfo = TestUtils.randTypeMap()
         String tz = TestUtils.randString()
+        Long staffId = TestUtils.randIntegerUpTo(88)
+        Long authId = TestUtils.randIntegerUpTo(88)
 
         Organization org1 = TestUtils.buildOrg()
         Team t1 = TestUtils.buildTeam(org1)
-        Staff s1 = TestUtils.buildStaff(org1)
-        s1.status = StaffStatus.ADMIN
-        Team.withSession { it.flush() }
-
-        int pBaseline = Phone.count()
+        Phone p1 = TestUtils.buildStaffPhone()
 
         service.phoneService = GroovyMock(PhoneService)
         MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
-            Result.createSuccess(s1.id)
+            Result.createSuccess(authId)
+        }
+        MockedMethod isAllowed = MockedMethod.create(Staffs, "isAllowed") { Long sId ->
+            Result.createSuccess(sId)
         }
 
         when:
-        Result res = service.tryUpdatePhone(null, null, null)
+        Result res = service.tryUpdatePhone(null, null, null, null)
 
         then:
         tryGetAuthId.notCalled
+        isAllowed.notCalled
         res.status == ResultStatus.NO_CONTENT
-        Phone.count() == pBaseline
 
         when:
-        res = service.tryUpdatePhone(t1, pInfo, tz)
+        res = service.tryUpdatePhone(t1, null, pInfo, tz)
 
         then:
         tryGetAuthId.hasBeenCalled
-        1 * service.phoneService.tryUpdate(_, pInfo, tz) >> Result.void()
+        isAllowed.hasBeenCalled
+        1 * service.phoneService.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP) >>
+            Result.createSuccess(p1.id)
+        1 * service.phoneService.tryUpdate(p1, pInfo, authId, tz) >> Result.void()
         res.status == ResultStatus.NO_CONTENT
-        Phone.count() == pBaseline + 1
-        IOCUtils.phoneCache.findAnyPhoneIdForOwner(t1.id, PhoneOwnershipType.GROUP) != null
+
+        when:
+        res = service.tryUpdatePhone(t1, staffId, pInfo, tz)
+
+        then:
+        tryGetAuthId.hasBeenCalled
+        isAllowed.hasBeenCalled
+        1 * service.phoneService.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP) >>
+            Result.createSuccess(p1.id)
+        1 * service.phoneService.tryUpdate(p1, pInfo, staffId, tz) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
 
         cleanup:
-        tryGetAuthId.restore()
+        tryGetAuthId?.restore()
+        isAllowed?.restore()
+    }
+
+    void "test handling team actions"() {
+        given:
+        TypeMap body = TestUtils.randTypeMap()
+        Team t1 = GroovyMock()
+        service.teamActionService = GroovyMock(TeamActionService)
+
+        when:
+        Result res = service.tryHandleTeamActions(t1, body)
+
+        then:
+        1 * service.teamActionService.hasActions(body) >> false
+        res.status == ResultStatus.OK
+        res.payload == t1
+
+        when:
+        res = service.tryHandleTeamActions(t1, body)
+
+        then:
+        1 * service.teamActionService.hasActions(body) >> true
+        1 * service.teamActionService.tryHandleActions(t1, body) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
     }
 
     void "test trying to update fields"() {
         given:
-        TypeMap body = TypeMap.create(name: TestUtils.randString(),
-            hexColor: "#889900")
+        TypeMap body = TypeMap.create(name: TestUtils.randString(), hexColor: "#889900")
         Team t1 = TestUtils.buildTeam()
 
         when:
@@ -108,12 +145,15 @@ class TeamServiceSpec extends Specification {
         given:
         TypeMap body = TypeMap.create(location: TestUtils.randTypeMap(),
             timezone: TestUtils.randString(),
+            staffId: TestUtils.randIntegerUpTo(88),
             phone: TestUtils.randTypeMap())
         Team t1 = TestUtils.buildTeam()
 
         service.locationService = GroovyMock(LocationService)
-        service.teamActionService = GroovyMock(TeamActionService)
         MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") {
+            Result.createSuccess(t1)
+        }
+        MockedMethod tryHandleTeamActions = MockedMethod.create(service, "tryHandleTeamActions") {
             Result.createSuccess(t1)
         }
         MockedMethod tryUpdatePhone = MockedMethod.create(service, "tryUpdatePhone") {
@@ -125,9 +165,9 @@ class TeamServiceSpec extends Specification {
 
         then:
         trySetFields.latestArgs == [t1, body]
+        tryHandleTeamActions.latestArgs == [t1, body]
         1 * service.locationService.tryUpdate(t1.location, body.location) >> Result.void()
-        1 * service.teamActionService.tryHandleActions(t1, body) >> Result.createSuccess(t1)
-        tryUpdatePhone.latestArgs == [t1, body.phone, body.timezone]
+        tryUpdatePhone.latestArgs == [t1, body.staffId, body.phone, body.timezone]
         res.status == ResultStatus.OK
         res.payload == t1
 
@@ -140,6 +180,7 @@ class TeamServiceSpec extends Specification {
         given:
         TypeMap body = TypeMap.create(location: TestUtils.randTypeMap(),
             timezone: TestUtils.randString(),
+            staffId: TestUtils.randIntegerUpTo(88),
             phone: TestUtils.randTypeMap(),
             name: TestUtils.randString())
 
@@ -147,8 +188,10 @@ class TeamServiceSpec extends Specification {
         Location loc1 = TestUtils.buildLocation()
 
         service.locationService = GroovyMock(LocationService)
-        service.teamActionService = GroovyMock(TeamActionService)
         MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") { Team t1 ->
+            Result.createSuccess(t1)
+        }
+        MockedMethod tryHandleTeamActions = MockedMethod.create(service, "tryHandleTeamActions") { Team t1 ->
             Result.createSuccess(t1)
         }
         MockedMethod tryUpdatePhone = MockedMethod.create(service, "tryUpdatePhone") { Team t1 ->
@@ -162,12 +205,12 @@ class TeamServiceSpec extends Specification {
         1 * service.locationService.tryCreate(body.location) >> Result.createSuccess(loc1)
         trySetFields.latestArgs[0] instanceof Team
         trySetFields.latestArgs[1] == body
-        1 * service.teamActionService.tryHandleActions(_ as Team, body) >> { args ->
-            Result.createSuccess(args[0])
-        }
+        tryHandleTeamActions.latestArgs[0] instanceof Team
+        tryHandleTeamActions.latestArgs[1] == body
         tryUpdatePhone.latestArgs[0] instanceof Team
-        tryUpdatePhone.latestArgs[1] == body.phone
-        tryUpdatePhone.latestArgs[2] == body.timezone
+        tryUpdatePhone.latestArgs[1] == body.staffId
+        tryUpdatePhone.latestArgs[2] == body.phone
+        tryUpdatePhone.latestArgs[3] == body.timezone
         res.status == ResultStatus.CREATED
         res.payload instanceof Team
         res.payload.name == body.name

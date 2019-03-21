@@ -21,7 +21,7 @@ class OwnerPolicyJsonMarshaller extends JsonNamedMarshaller {
             name                  = rop1.readOnlyStaff.name
             schedule              = rop1.readOnlySchedule
             shouldSendPreviewLink = rop1.shouldSendPreviewLink
-            staff                 = rop1.readOnlyStaff.id
+            staffId               = rop1.readOnlyStaff.id
         }
         json
     }

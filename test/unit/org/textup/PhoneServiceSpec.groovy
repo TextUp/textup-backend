@@ -9,6 +9,7 @@ import grails.validation.*
 import java.util.concurrent.*
 import org.joda.time.*
 import org.textup.action.*
+import org.textup.cache.*
 import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
@@ -28,10 +29,47 @@ class PhoneServiceSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
+        phoneCache(PhoneCache)
     }
 
     def setup() {
         TestUtils.standardMockSetup()
+    }
+
+    void "test finding active given owner"() {
+        given:
+        Team t1 = TestUtils.buildTeam()
+        int pBaseline = Phone.count()
+
+        when: "owner does not have phone"
+        Result res = service.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
+        Phone newPhone = Phone.get(res.payload)
+
+        then:
+        res.status == ResultStatus.CREATED
+        Phone.count() == pBaseline + 1
+        newPhone != null
+        newPhone.isActive() == false
+        res.hasErrorBeenHandled == false
+
+        when: "newly created phone is still not active yet"
+        res = service.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == newPhone.id
+        Phone.count() == pBaseline + 1
+
+        when: "newly created phone is active"
+        newPhone.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+        newPhone.save(flush: true, failOnError: true)
+
+        res = service.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == newPhone.id
+        Phone.count() == pBaseline + 1
     }
 
     void "test getting greeting call number"() {
@@ -88,39 +126,42 @@ class PhoneServiceSpec extends Specification {
     void "test trying to update owner policy"() {
         given:
         String tz = TestUtils.randString()
-        TypeMap oInfo = TestUtils.randTypeMap()
 
         Staff s1 = TestUtils.buildStaff()
+        Staff s2 = TestUtils.buildStaff()
         Phone tp1 = TestUtils.buildActiveTeamPhone()
 
-        int opBaseline = OwnerPolicy.count()
+        TypeMap oInfo1 = TestUtils.randTypeMap()
+        TypeMap oInfo2 = TypeMap.create(staffId: s1.id)
+        TypeMap oInfo3 = TestUtils.randTypeMap()
 
+        int opBaseline = OwnerPolicy.count()
         service.ownerPolicyService = GroovyMock(OwnerPolicyService)
-        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
-            Result.createSuccess(s1.id)
-        }
 
         when:
-        Result res = service.tryUpdateOwnerPolicy(tp1, null, tz)
+        Result res = service.tryUpdateOwnerPolicy(tp1, null, null, tz)
 
         then:
-        tryGetAuthId.notCalled
         res.status == ResultStatus.OK
         res.payload == tp1
         OwnerPolicy.count() == opBaseline
 
         when:
-        res = service.tryUpdateOwnerPolicy(tp1, oInfo, tz)
+        res = service.tryUpdateOwnerPolicy(tp1, s2.id, [oInfo1, oInfo2, oInfo3], tz)
 
         then:
-        tryGetAuthId.hasBeenCalled
-        1 * service.ownerPolicyService.tryUpdate(_, oInfo, tz) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == tp1
+        OwnerPolicy.count() == opBaseline
+
+        when:
+        res = service.tryUpdateOwnerPolicy(tp1, s1.id, [oInfo1, oInfo2, oInfo3], tz)
+
+        then:
+        1 * service.ownerPolicyService.tryUpdate({ it.staff == s1 }, oInfo2, tz) >> Result.void()
         res.status == ResultStatus.OK
         res.payload == tp1
         OwnerPolicy.count() == opBaseline + 1
-
-        cleanup:
-        tryGetAuthId?.restore()
     }
 
     void "test trying to update fields"() {
@@ -145,31 +186,66 @@ class PhoneServiceSpec extends Specification {
         p1.owner.allowSharingWithOtherTeams == body.allowSharingWithOtherTeams
     }
 
+    void "test handling phone actions"() {
+        given:
+        TypeMap body = TestUtils.randTypeMap()
+        Long pId = TestUtils.randIntegerUpTo(88)
+        Phone p1 = GroovyMock() { getId() >> pId }
+        Staff authUser = GroovyMock()
+
+        service.phoneActionService = GroovyMock(PhoneActionService)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(authUser)
+        }
+
+        when:
+        Result res = service.tryHandlePhoneActionsImmediatelyAndRefresh(p1, body)
+
+        then:
+        1 * service.phoneActionService.hasActions(body) >> false
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        res = service.tryHandlePhoneActionsImmediatelyAndRefresh(p1, body)
+
+        then:
+        1 * service.phoneActionService.hasActions(body) >> true
+        1 * authUser.status >> StaffStatus.ADMIN
+        1 * service.phoneActionService.tryHandleActions(pId, body) >> Result.void()
+        1 * p1.refresh()
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
+
     void "test updating overall"() {
         given:
         String errMsg1 = TestUtils.randString()
         String tz = TestUtils.randString()
+        Long staffId = TestUtils.randIntegerUpTo(88)
         TypeMap selfMap = TestUtils.randTypeMap()
-        TypeMap body = TypeMap.create(self: selfMap,
+        TypeMap body = TypeMap.create(policies: [selfMap],
             requestVoicemailGreetingCall: TestUtils.randString())
 
         Phone p1 = TestUtils.buildStaffPhone()
 
         Future fut1 = GroovyMock()
         service.mediaService = GroovyMock(MediaService)
-        service.phoneActionService = GroovyMock(PhoneActionService)
-        MockedMethod tryUpdateOwnerPolicy = MockedMethod.create(service, "tryUpdateOwnerPolicy") { Result.void() }
+        MockedMethod tryHandlePhoneActionsImmediatelyAndRefresh = MockedMethod.create(service, "tryHandlePhoneActionsImmediatelyAndRefresh") { Result.void() }
+        MockedMethod tryUpdateOwnerPolicy = MockedMethod.create(service, "tryUpdateOwnerPolicy") {
+            Result.createError([errMsg1], ResultStatus.BAD_REQUEST)
+        }
         MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") { Result.void() }
         MockedMethod tryRequestVoicemailGreetingCall = MockedMethod.create(service, "tryRequestVoicemailGreetingCall") { Result.void() }
 
         when:
-        Result res = service.tryUpdate(p1, body, tz)
+        Result res = service.tryUpdate(p1, body, staffId, tz)
 
         then:
+        tryHandlePhoneActionsImmediatelyAndRefresh.latestArgs == [p1, body]
         1 * service.mediaService.tryCreateOrUpdate(p1, body, true) >> Result.createSuccess(fut1)
-        1 * service.phoneActionService.tryHandleActions(p1, body) >>
-            Result.createError([errMsg1], ResultStatus.BAD_REQUEST)
-        tryUpdateOwnerPolicy.notCalled
+        tryUpdateOwnerPolicy.hasBeenCalled
         trySetFields.notCalled
         tryRequestVoicemailGreetingCall.notCalled
         1 * fut1.cancel(true)
@@ -177,12 +253,13 @@ class PhoneServiceSpec extends Specification {
         res.errorMessages == [errMsg1]
 
         when:
-        res = service.tryUpdate(p1, body, tz)
+        tryUpdateOwnerPolicy = MockedMethod.create(tryUpdateOwnerPolicy) { Result.void() }
+        res = service.tryUpdate(p1, body, staffId, tz)
 
         then:
+        tryHandlePhoneActionsImmediatelyAndRefresh.latestArgs == [p1, body]
         1 * service.mediaService.tryCreateOrUpdate(p1, body, true) >> Result.createSuccess(fut1)
-        1 * service.phoneActionService.tryHandleActions(p1, body) >> Result.void()
-        tryUpdateOwnerPolicy.latestArgs == [p1, selfMap, tz]
+        tryUpdateOwnerPolicy.latestArgs == [p1, staffId, [selfMap], tz]
         trySetFields.latestArgs == [p1, body]
         tryRequestVoicemailGreetingCall.latestArgs == [p1, body.requestVoicemailGreetingCall]
         0 * fut1._
@@ -190,6 +267,7 @@ class PhoneServiceSpec extends Specification {
         res.payload == p1
 
         cleanup:
+        tryHandlePhoneActionsImmediatelyAndRefresh?.restore()
         tryUpdateOwnerPolicy?.restore()
         trySetFields?.restore()
         tryRequestVoicemailGreetingCall?.restore()

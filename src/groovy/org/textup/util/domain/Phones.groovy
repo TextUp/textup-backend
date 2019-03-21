@@ -13,13 +13,25 @@ import org.textup.validator.*
 class Phones {
 
     @GrailsTypeChecked
+    static Result<Phone> mustFindForId(Long pId) {
+        Phone p1 = pId ? Phone.get(pId) : null
+        if (p1) {
+            IOCUtils.resultFactory.success(p1)
+        }
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("phones.notFoundForId",
+                ResultStatus.NOT_FOUND, [pId])
+        }
+    }
+
+    @GrailsTypeChecked
     static Result<Phone> mustFindActiveForId(Long pId) {
         Phone p1 = pId ? Phone.get(pId) : null
         if (p1?.isActive()) {
             IOCUtils.resultFactory.success(p1)
         }
         else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("phones.notFoundForId",
+            IOCUtils.resultFactory.failWithCodeAndStatus("phones.notFoundActiveForId",
                 ResultStatus.NOT_FOUND, [pId])
         }
     }
@@ -34,20 +46,6 @@ class Phones {
             IOCUtils.resultFactory.failWithCodeAndStatus("phones.notFoundForNumber",
                 ResultStatus.NOT_FOUND, [bNum])
         }
-    }
-
-    @GrailsTypeChecked
-    static Result<Phone> mustFindActiveForOwner(Long ownerId, PhoneOwnershipType type,
-        boolean createIfAbsent) {
-
-        Result<Phone> findRes = IOCUtils.phoneCache.mustFindAnyPhoneIdForOwner(ownerId, type)
-            .then { Long pId -> Phones.mustFindActiveForId(pId) }
-        // Need to manually interact with the `Result` object because using the `ifFail` handler
-        // will cause the return value to have the `hasErrorBeenHandled` flag set to true
-        if (!findRes.success && createIfAbsent) {
-            Phone.tryCreate(ownerId, type)
-        }
-        else { findRes }
     }
 
     static DetachedCriteria<Phone> buildActiveForNumber(BasePhoneNumber bNum) {

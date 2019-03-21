@@ -30,4 +30,19 @@ class TeamJsonMarshallerIntegrationSpec extends Specification {
         json.phone instanceof Map
         json.phone.id == tp1.id
     }
+
+    void "test marshalling team with inactive phone"() {
+        given:
+        Team t1 = TestUtils.buildTeam()
+        Phone tp1 = TestUtils.buildTeamPhone(t1)
+
+        when:
+        Map json = TestUtils.objToJsonMap(t1)
+
+        then: "still show"
+        tp1.isActive() == false
+        json.phone instanceof Map
+        json.phone.id == tp1.id
+    }
+
 }

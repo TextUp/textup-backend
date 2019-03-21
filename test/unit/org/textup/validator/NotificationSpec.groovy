@@ -188,27 +188,26 @@ class NotificationSpec extends Specification {
 		buildCanNotifyReadOnlyPolicies.restore()
 	}
 
-	void "test building allowed items given owner policy"() {
+	void "test building owner policies with any allowed items"() {
 		given:
 		OwnerPolicy mockOwnerPolicy = GroovyMock()
 		NotificationDetail mockDetail = GroovyMock()
-		RecordItem mockItem = GroovyMock()
 		Notification notif1 = Notification.tryCreate(GroovyMock(Phone)).payload
 		notif1.addDetail(mockDetail)
 
 		when:
-		Collection allowedItems = notif1.buildAllowedItemsForOwnerPolicy(null)
+		Collection allowedDetails = notif1.buildDetailsWithAllowedItemsForOwnerPolicy(null)
 
 		then:
-		1 * mockDetail.buildAllowedItemsForOwnerPolicy(null) >> []
-		allowedItems.isEmpty()
+		1 * mockDetail.anyAllowedItemsForOwnerPolicy(null) >> false
+		allowedDetails.isEmpty()
 
 		when:
-		allowedItems = notif1.buildAllowedItemsForOwnerPolicy(mockOwnerPolicy)
+		allowedDetails = notif1.buildDetailsWithAllowedItemsForOwnerPolicy(mockOwnerPolicy)
 
 		then:
-		1 * mockDetail.buildAllowedItemsForOwnerPolicy(mockOwnerPolicy) >> [mockItem]
-		allowedItems == [mockItem]
+		1 * mockDetail.anyAllowedItemsForOwnerPolicy(mockOwnerPolicy) >> true
+		allowedDetails == [mockDetail]
 	}
 
 	void "test counting items and voicemail"() {

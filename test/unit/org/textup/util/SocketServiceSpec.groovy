@@ -41,7 +41,7 @@ class SocketServiceSpec extends Specification {
         Staff s1 = TestUtils.buildStaff()
 
         service.pusherService = GroovyMock(Pusher)
-        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+        MockedMethod tryGetAnyAuthUser = MockedMethod.create(AuthUtils, "tryGetAnyAuthUser") {
             Result.createSuccess(s1)
         }
 
@@ -67,7 +67,7 @@ class SocketServiceSpec extends Specification {
         res.payload == data
 
         cleanup:
-        tryGetActiveAuthUser?.restore()
+        tryGetAnyAuthUser?.restore()
     }
 
     void "test trying to send data to specific staff member"() {

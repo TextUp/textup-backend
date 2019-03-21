@@ -66,7 +66,7 @@ class PhoneRecordWrapperJsonMarshallerIntegrationSpec extends Specification {
         json.unreadInfo == null
         json.permission == null
         json.sharedByName == null
-        json.sharedByPhone == null
+        json.sharedByPhoneId == null
         json.sharedWith instanceof Collection
         json.sharedWith.isEmpty()
 
@@ -107,6 +107,6 @@ class PhoneRecordWrapperJsonMarshallerIntegrationSpec extends Specification {
         json.phone == spr1.phone.id
         json.permission == spr1.permission.toString()
         json.sharedByName == ipr1.phone.buildName()
-        json.sharedByPhone == ipr1.phone.id
+        json.sharedByPhoneId == ipr1.phone.id
     }
 }

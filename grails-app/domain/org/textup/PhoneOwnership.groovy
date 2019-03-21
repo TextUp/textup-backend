@@ -21,18 +21,6 @@ class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
     static mapping = {
         policies fetch: "join", cascade: "all-delete-orphan"
     }
-    static constraints = {
-    	ownerId validator: { Long val, PhoneOwnership obj ->
-            if (val) {
-                if (obj.type == PhoneOwnershipType.INDIVIDUAL && !Staff.exists(val)) {
-                    ["nonexistentStaff"]
-                }
-                else if (obj.type == PhoneOwnershipType.GROUP && !Team.exists(val)) {
-                    ["nonexistentTeam"]
-                }
-            }
-    	}
-    }
 
     static Result<PhoneOwnership> tryCreate(Phone p1, Long ownerId, PhoneOwnershipType type) {
         PhoneOwnership own1 = new PhoneOwnership(ownerId: ownerId, type: type, phone: p1)

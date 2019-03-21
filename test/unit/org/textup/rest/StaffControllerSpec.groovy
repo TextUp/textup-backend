@@ -94,6 +94,7 @@ class StaffControllerSpec extends Specification {
         then:
         tryGetJsonBody.latestArgs == [request, MarshallerUtils.KEY_STAFF]
         1 * controller.staffService.tryCreate(body) >> Result.void()
+        body.timezone == tzId
         response.status == ResultStatus.NO_CONTENT.intStatus
         RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
@@ -105,6 +106,7 @@ class StaffControllerSpec extends Specification {
         given:
         String tzId = TestUtils.randString()
         Long id = TestUtils.randIntegerUpTo(88)
+        TypeMap body = TypeMap.create()
 
         controller.staffService = GroovyMock(StaffService)
         MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
@@ -123,9 +125,10 @@ class StaffControllerSpec extends Specification {
         RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
         when:
-        doUpdate.latestArgs[3].call()
+        doUpdate.latestArgs[3].call(body)
 
         then:
+        body.timezone == tzId
         isAllowed.latestArgs == [id]
 
         cleanup:
@@ -236,6 +239,7 @@ class StaffControllerSpec extends Specification {
         StaffStatus stat1 = StaffStatus.values()[0]
         Long orgId = TestUtils.randIntegerUpTo(88)
         Long tId = TestUtils.randIntegerUpTo(88)
+        Long shareId = TestUtils.randIntegerUpTo(88)
 
         MockedMethod listForOrg = MockedMethod.create(controller, "listForOrg")
         MockedMethod listForTeam = MockedMethod.create(controller, "listForTeam")
@@ -243,9 +247,12 @@ class StaffControllerSpec extends Specification {
 
         when:
         params.timezone = tzId
+        params.shareStaffId = shareId
+        params.teamId = tId
+        params.organizationId = orgId
         controller.index()
 
-        then:
+        then: "most restrictive query param first"
         listForShareStaff.latestArgs == [TypeMap.create(params)]
         RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
@@ -254,6 +261,7 @@ class StaffControllerSpec extends Specification {
         response.reset()
 
         params.teamId = tId
+        params.organizationId = orgId
         params."status[]" = [stat1]
         controller.index()
 
@@ -266,6 +274,16 @@ class StaffControllerSpec extends Specification {
         response.reset()
 
         params.organizationId = orgId
+        controller.index()
+
+        then:
+        listForOrg.latestArgs == [StaffStatus.ACTIVE_STATUSES, TypeMap.create(params)]
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == null
+
+        when:
+        params.clear()
+        response.reset()
+
         controller.index()
 
         then:

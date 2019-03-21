@@ -35,19 +35,21 @@ class IndividualPhoneRecordWrappers {
         }
     }
 
-    static DetachedJoinableCriteria<PhoneRecord> buildForPhoneIdWithOptions(Long phoneId,
+    static DetachedCriteria<PhoneRecord> buildForPhoneIdWithOptions(Long phoneId,
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES,
         boolean onlyShared = false) {
 
-        DetachedJoinableCriteria<PhoneRecord> criteria = buildActiveBase(query, statuses)
+        DetachedCriteria<PhoneRecord> criteria = buildActiveBase(query, statuses)
             .build { eq("phone.id", phoneId) }
         onlyShared ? criteria.build { isNotNull("shareSource") } : criteria // inner join
     }
 
-    static DetachedJoinableCriteria<PhoneRecord> buildForSharedByIdWithOptions(Long sharedById,
+    static DetachedCriteria<PhoneRecord> buildForSharedByIdWithOptions(Long sharedById,
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES) {
 
-        buildActiveBase(query, statuses).build { eq("ssource1.phone.id", sharedById) }
+        buildActiveBase(query, statuses).build {
+            shareSource { eq("phone.id", sharedById) }
+        }
     }
 
     static Closure<List<IndividualPhoneRecordWrapper>> listAction(DetachedCriteria<PhoneRecord> criteria) {
@@ -84,10 +86,10 @@ class IndividualPhoneRecordWrappers {
     // Helpers
     // -------
 
-    static DetachedJoinableCriteria<PhoneRecord> buildActiveBase(String query,
+    static DetachedCriteria<PhoneRecord> buildActiveBase(String query,
         Collection<PhoneRecordStatus> statuses) {
 
-        new DetachedJoinableCriteria(PhoneRecord)
+        new DetachedCriteria(PhoneRecord)
             .build { ne("class", GroupPhoneRecord) } // only owned or shared individuals
             .build(forStatuses(statuses))
             .build(forQuery(query))
@@ -98,25 +100,26 @@ class IndividualPhoneRecordWrappers {
         return { CriteriaUtils.inList(delegate, "status", statuses) }
     }
 
-    // For hasMany left join, see: https://stackoverflow.com/a/45193881
     protected static Closure forQuery(String query) {
         String formattedQuery = StringUtils.toQuery(query)
-        PhoneNumber pNum1 = PhoneNumber.create(query)
-        String numberQuery = pNum1.validate() ? StringUtils.toQuery(pNum1.number) : null
+        String possibleNum = StringUtils.cleanPhoneNumber(query)
+        String numberQuery = StringUtils.toQuery(possibleNum)
         return {
-            // need to use createAlias because this property is not on the superclass
-            createAliasWithJoin("numbers", "indnumbers1", JoinType.LEFT_OUTER_JOIN)
-            createAliasWithJoin("shareSource", "ssource1", JoinType.LEFT_OUTER_JOIN)
-            createAliasWithJoin("ssource1.numbers", "ssourcenums1", JoinType.LEFT_OUTER_JOIN)
             if (formattedQuery) {
-                or {
-                    ilike("name", formattedQuery)
-                    ilike("ssource1.name", formattedQuery)
-                    // don't include the numbersQuery if null or else will match all
-                    if (numberQuery) {
-                        ilike("indnumbers1.number", numberQuery)
-                        ilike("ssourcenums1.number", numberQuery)
+                Collection<Long> searchIds = new DetachedCriteria(IndividualPhoneRecord)
+                    .build {
+                        or {
+                            ilike("name", formattedQuery)
+                            if (possibleNum) {
+                                numbers { ilike("number", numberQuery) }
+                            }
+                        }
                     }
+                    .build(CriteriaUtils.returnsId())
+                    .list()
+                or {
+                    CriteriaUtils.inList(delegate, "id", searchIds)
+                    CriteriaUtils.inList(delegate, "shareSource.id", searchIds)
                 }
             }
         }

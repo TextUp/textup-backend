@@ -39,6 +39,10 @@ class NotificationDetail implements CanValidate {
     // Methods
     // -------
 
+    boolean anyAllowedItemsForOwnerPolicy(ReadOnlyOwnerPolicy rop1) {
+        items.any { RecordItem rItem1 -> rItem1 && rop1?.isAllowed(rItem1.record.id) }
+    }
+
     Collection<? extends RecordItem> buildAllowedItemsForOwnerPolicy(ReadOnlyOwnerPolicy rop1) {
         items.findAll { RecordItem rItem1 -> rItem1 && rop1?.isAllowed(rItem1.record.id) }
     }

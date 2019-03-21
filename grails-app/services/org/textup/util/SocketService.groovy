@@ -25,7 +25,7 @@ class SocketService {
     Pusher pusherService
 
     Result<Object> authenticate(String channelName, String socketId) {
-        AuthUtils.tryGetActiveAuthUser()
+        Result<Object> res = AuthUtils.tryGetAnyAuthUser()
             .then { Staff authUser ->
                 if (socketId && authUser.username == SocketUtils.channelToUserName(channelName)) {
                     try {
@@ -41,6 +41,7 @@ class SocketService {
                         ResultStatus.FORBIDDEN)
                 }
             }
+        res
     }
 
     void sendItems(Collection<? extends RecordItem> items) {

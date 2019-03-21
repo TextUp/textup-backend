@@ -58,8 +58,10 @@ class RecordController extends BaseController {
     @OptimisticLockingRetry
     @Override
     def save() {
-        doSave(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) {
-            ControllerUtils.tryGetPhoneId(params.long("teamId"))
+        TypeMap qParams = TypeMap.create(params)
+        doSave(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) { TypeMap body ->
+            body.timezone = qParams.string("timezone")
+            ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
                 .then { Long pId ->
                     RequestUtils.trySet(RequestUtils.PHONE_ID, pId)
                     IOCUtils.resultFactory.success(pId)
@@ -69,7 +71,9 @@ class RecordController extends BaseController {
 
     @Override
     def update() {
-        doUpdate(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) {
+        TypeMap qParams = TypeMap.create(params)
+        doUpdate(MarshallerUtils.KEY_RECORD_ITEM, request, recordService) { TypeMap body ->
+            body.timezone = qParams.string("timezone")
             RecordItems.isAllowed(params.long("id"))
         }
     }

@@ -12,6 +12,7 @@ import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
@@ -41,36 +42,32 @@ class StaffServiceSpec extends Specification {
 
         Organization org1 = TestUtils.buildOrg()
         Staff s1 = TestUtils.buildStaff(org1)
-        s1.status = StaffStatus.ADMIN
-        Staff s2 = TestUtils.buildStaff(org1)
-
-        int pBaseline = Phone.count()
+        Phone p1 = TestUtils.buildStaffPhone()
 
         service.phoneService = GroovyMock(PhoneService)
-        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
-            Result.createSuccess(s1.id)
+        MockedMethod isAllowed = MockedMethod.create(Staffs, "isAllowed") { Long sId ->
+            Result.createSuccess(sId)
         }
 
         when:
         Result res = service.tryUpdatePhone(null, null, null)
 
         then:
-        tryGetAuthId.notCalled
+        isAllowed.notCalled
         res.status == ResultStatus.NO_CONTENT
-        Phone.count() == pBaseline
 
         when:
-        res = service.tryUpdatePhone(s2, pInfo, tz)
+        res = service.tryUpdatePhone(s1, pInfo, tz)
 
         then:
-        tryGetAuthId.hasBeenCalled
-        1 * service.phoneService.tryUpdate(_, pInfo, tz) >> Result.void()
+        isAllowed.latestArgs == [s1.id]
+        1 * service.phoneService.tryFindAnyIdOrCreateImmediatelyForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL) >>
+            Result.createSuccess(p1.id)
+        1 * service.phoneService.tryUpdate(p1, pInfo, s1.id, tz) >> Result.void()
         res.status == ResultStatus.NO_CONTENT
-        Phone.count() == pBaseline + 1
-        IOCUtils.phoneCache.findAnyPhoneIdForOwner(s2.id, PhoneOwnershipType.INDIVIDUAL) != null
 
         cleanup:
-        tryGetAuthId?.restore()
+        isAllowed?.restore()
     }
 
     void "test updating status"() {
@@ -88,13 +85,23 @@ class StaffServiceSpec extends Specification {
         Result res = service.trySetStatus(null, null)
 
         then:
+        tryGetAuthId.notCalled
         res.status == ResultStatus.OK
         res.payload == null
+
+        when:
+        res = service.trySetStatus(s1, s1.status)
+
+        then: "same status also short circuits"
+        tryGetAuthId.notCalled
+        res.status == ResultStatus.OK
+        res.payload == s1
 
         when:
         res = service.trySetStatus(s1, StaffStatus.PENDING)
 
         then:
+        tryGetAuthId.hasBeenCalled
         res.status == ResultStatus.FORBIDDEN
         res.errorMessages == ["staffService.lastAdmin"]
 
@@ -102,6 +109,7 @@ class StaffServiceSpec extends Specification {
         res = service.trySetStatus(s2, StaffStatus.PENDING)
 
         then:
+        tryGetAuthId.hasBeenCalled
         res.status == ResultStatus.OK
         res.payload == s2
         s2.status == StaffStatus.PENDING

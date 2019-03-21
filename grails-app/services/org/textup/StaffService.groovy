@@ -113,7 +113,7 @@ class StaffService implements ManagesDomain.Updater<Staff> {
 
     protected Result<Staff> trySetStatus(Staff s1, StaffStatus newStatus) {
         // Only want to do admin check if the user is attempting to update this
-        if (!newStatus) {
+        if (!newStatus || s1.status == newStatus) {
             return IOCUtils.resultFactory.success(s1)
         }
         AuthUtils.tryGetAuthId()
@@ -134,15 +134,17 @@ class StaffService implements ManagesDomain.Updater<Staff> {
             }
     }
 
-    // [NOTE] ensure that a public user cannot provision creation of phone, must be active admin
+    // [NOTE] ensure that a public user cannot provision creation of phone, must be logged-in
     protected Result<?> tryUpdatePhone(Staff s1, TypeMap phoneInfo, String timezone) {
-        // Only want to do admin check if the user is attempting to update this
+        // Only want to do logged-in check if the user is attempting to update this
         if (!phoneInfo) {
             return Result.void()
         }
-        AuthUtils.tryGetAuthId()
-            .then { Long authId -> Organizations.tryIfAdmin(s1.org.id, authId) }
-            .then { Phones.mustFindActiveForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL, true) }
-            .then { Phone p1 -> phoneService.tryUpdate(p1, phoneInfo, timezone) }
+        Staffs.isAllowed(s1.id)
+            .then {
+                phoneService.tryFindAnyIdOrCreateImmediatelyForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            }
+            .then { Long pId -> Phones.mustFindForId(pId) }
+            .then { Phone p1 -> phoneService.tryUpdate(p1, phoneInfo, s1.id, timezone) }
     }
 }

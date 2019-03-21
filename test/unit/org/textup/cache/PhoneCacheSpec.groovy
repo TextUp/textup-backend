@@ -37,22 +37,13 @@ class PhoneCacheSpec extends Specification {
 
     void "test try updating owner"() {
         given:
-        Phone p1 = TestUtils.buildStaffPhone()
-        Team t1 = TestUtils.buildTeam()
+        Long ownerId = TestUtils.randIntegerUpTo(88)
+        PhoneOwnershipType type = PhoneOwnershipType.values()[0]
+        Long pId = TestUtils.randIntegerUpTo(88)
 
-        when:
-        Result res = pCache.tryUpdateOwner(null, null, null)
-
-        then:
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-
-        when:
-        res = pCache.tryUpdateOwner(p1, t1.id, PhoneOwnershipType.GROUP)
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload.owner.ownerId == t1.id
-        res.payload.owner.type == PhoneOwnershipType.GROUP
+        expect: "simple pass-through for notifying cache of changes"
+        pCache.updateOwner(null, null, null) == null
+        pCache.updateOwner(ownerId, type, pId) == pId
     }
 
     void "test finding phone id of any status given owner"() {

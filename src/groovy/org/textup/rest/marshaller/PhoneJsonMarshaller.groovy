@@ -31,22 +31,17 @@ class PhoneJsonMarshaller extends JsonNamedMarshaller {
         }
 
         AuthUtils.tryGetActiveAuthUser().thenEnd { Staff authUser ->
+            Long orgId = p1.owner.buildOrganization()?.id
             Collection<Staff> allStaffs = p1.owner.buildAllStaff()
             // only show owner policy info if the logged-in user is actually an owner
-            if (allStaffs.contains(authUser)) {
-                ReadOnlyOwnerPolicy myPolicy = OwnerPolicies
-                    .findReadOnlyOrDefaultForOwnerAndStaff(p1.owner, authUser)
-                Collection<ReadOnlyOwnerPolicy> otherPolicies = []
-                allStaffs.each { Staff s1 ->
-                    if (s1 != authUser) {
-                        otherPolicies << OwnerPolicies.findReadOnlyOrDefaultForOwnerAndStaff(p1.owner, s1)
-                    }
+            if (Organizations.isAdminAt(orgId, authUser) || allStaffs.contains(authUser)) {
+                Collection<ReadOnlyOwnerPolicy> allPolicies = allStaffs.collect { Staff s1 ->
+                    OwnerPolicies.findReadOnlyOrDefaultForOwnerAndStaff(p1.owner, s1)
                 }
                 json.with {
                     allowSharingWithOtherTeams = p1.owner.allowSharingWithOtherTeams
                     tags                       = GroupPhoneRecords.buildForPhoneIdAndOptions(p1.id).list()
-                    self                       = myPolicy
-                    others                     = otherPolicies
+                    policies                   = allPolicies
                 }
             }
         }

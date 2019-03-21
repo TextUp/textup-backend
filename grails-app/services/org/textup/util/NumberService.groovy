@@ -181,14 +181,14 @@ class NumberService {
     }
 
     // [UNTESTED] due to mocking constraints
-    Result<IncomingPhoneNumber> freeExistingNumberToInternalPool(String oldApiId) {
+    Result<Void> freeExistingNumberToInternalPool(String oldApiId) {
         try {
             String available = grailsApplication.flatConfig["textup.apiKeys.twilio.available"]
             IncomingPhoneNumber iNum = IncomingPhoneNumber
                 .updater(oldApiId)
                 .setFriendlyName(available)
                 .update()
-            IOCUtils.resultFactory.success(iNum)
+            Result.void()
         }
         catch (TwilioException e) {
             IOCUtils.resultFactory.failWithThrowable(e)

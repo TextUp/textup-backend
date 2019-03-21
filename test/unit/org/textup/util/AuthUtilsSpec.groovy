@@ -97,39 +97,47 @@ class AuthUtilsSpec extends Specification {
         encodeSecureString.restore()
     }
 
-    void "try getting auth user"() {
+    void "try getting any and active auth user"() {
         given:
         MockedMethod encodeSecureString = MockedMethod.create(AuthUtils, "encodeSecureString") { it }
         Staff s1 = TestUtils.buildStaff()
 
         when:
-        Result res = AuthUtils.tryGetActiveAuthUser()
+        Result res1 = AuthUtils.tryGetAnyAuthUser()
+        Result res2 = AuthUtils.tryGetActiveAuthUser()
 
         then:
-        1 * mockSecurity.isLoggedIn() >> false
-        res.status == ResultStatus.FORBIDDEN
+        (1.._) * mockSecurity.isLoggedIn() >> false
+        res1.status == ResultStatus.FORBIDDEN
+        res2.status == ResultStatus.FORBIDDEN
 
         when:
         s1.status = StaffStatus.PENDING
 
-        res = AuthUtils.tryGetActiveAuthUser()
+        res1 = AuthUtils.tryGetAnyAuthUser()
+        res2 = AuthUtils.tryGetActiveAuthUser()
 
         then:
-        1 * mockSecurity.isLoggedIn() >> true
-        1 * mockSecurity.loadCurrentUser() >> s1
-        res.status == ResultStatus.FORBIDDEN
+        (1.._) * mockSecurity.isLoggedIn() >> true
+        (1.._) * mockSecurity.loadCurrentUser() >> s1
+        res1.status == ResultStatus.OK
+        res1.payload == s1
+        res2.status == ResultStatus.FORBIDDEN
 
         when:
         s1.status = StaffStatus.STAFF
         s1.org.status = OrgStatus.APPROVED
 
-        res = AuthUtils.tryGetActiveAuthUser()
+        res1 = AuthUtils.tryGetAnyAuthUser()
+        res2 = AuthUtils.tryGetActiveAuthUser()
 
         then:
-        1 * mockSecurity.isLoggedIn() >> true
-        1 * mockSecurity.loadCurrentUser() >> s1
-        res.status == ResultStatus.OK
-        res.payload == s1
+        (1.._) * mockSecurity.isLoggedIn() >> true
+        (1.._) * mockSecurity.loadCurrentUser() >> s1
+        res1.status == ResultStatus.OK
+        res1.payload == s1
+        res2.status == ResultStatus.OK
+        res2.payload == s1
 
         cleanup:
         encodeSecureString.restore()

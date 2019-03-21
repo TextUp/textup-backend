@@ -13,18 +13,10 @@ import org.textup.validator.*
 class BasePhoneNumberJsonMarshaller extends JsonNamedMarshaller {
 
     static final Closure marshalClosure = { BasePhoneNumber bNum ->
-        Map json = [:]
-        json.with {
-            e164Number     = bNum.e164PhoneNumber
-            noFormatNumber = bNum.number
-            number         = bNum.prettyPhoneNumber
-        }
-
         if (bNum instanceof AvailablePhoneNumber) {
-            json[bNum.infoType] = bNum.info
+            [(bNum.infoType): bNum.info, number: bNum.prettyPhoneNumber]
         }
-
-        json
+        else { bNum.prettyPhoneNumber }
     }
 
     BasePhoneNumberJsonMarshaller() {

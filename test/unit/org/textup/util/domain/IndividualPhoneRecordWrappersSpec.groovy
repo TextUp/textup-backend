@@ -98,7 +98,7 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
 
-        DetachedCriteria criteria = new DetachedJoinableCriteria(PhoneRecord).build { eq("phone", p1) }
+        DetachedCriteria criteria = new DetachedCriteria(PhoneRecord).build { eq("phone", p1) }
 
         when:
         Collection prs = criteria.build(IndividualPhoneRecordWrappers.forQuery(null)).list()
@@ -131,6 +131,14 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
 
         then:
         prs == [ipr1]
+
+        when:
+        prs = criteria.build(IndividualPhoneRecordWrappers.forQuery(TestConstants.TEST_DEFAULT_AREA_CODE)).list()
+
+        then:
+        prs.size() > 0
+        ipr1 in prs
+        spr1 in prs
     }
 
     void "test criteria base"() {

@@ -65,6 +65,8 @@ class RecordControllerSpec extends Specification {
         given:
         Long teamId = TestUtils.randIntegerUpTo(88)
         Long pId = TestUtils.randIntegerUpTo(88)
+        String tzId = TestUtils.randString()
+        TypeMap body = TypeMap.create()
 
         controller.recordService = GroovyMock(RecordService)
         MockedMethod doSave = MockedMethod.create(controller, "doSave")
@@ -73,6 +75,7 @@ class RecordControllerSpec extends Specification {
         }
 
         when:
+        params.timezone = tzId
         params.teamId = teamId
         controller.save()
 
@@ -83,9 +86,10 @@ class RecordControllerSpec extends Specification {
         doSave.latestArgs[3] instanceof Closure
 
         when:
-        doSave.latestArgs[3].call()
+        doSave.latestArgs[3].call(body)
 
         then:
+        body.timezone == tzId
         tryGetPhoneId.latestArgs == [teamId]
         RequestUtils.tryGet(RequestUtils.PHONE_ID).payload == pId
 
@@ -97,12 +101,15 @@ class RecordControllerSpec extends Specification {
     void "test update"() {
         given:
         Long id = TestUtils.randIntegerUpTo(88)
+        String tzId = TestUtils.randString()
+        TypeMap body = TypeMap.create()
 
         controller.recordService = GroovyMock(RecordService)
         MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
         MockedMethod isAllowed = MockedMethod.create(RecordItems, "isAllowed")
 
         when:
+        params.timezone = tzId
         params.id = id
         controller.update()
 
@@ -113,9 +120,10 @@ class RecordControllerSpec extends Specification {
         doUpdate.latestArgs[3] instanceof Closure
 
         when:
-        doUpdate.latestArgs[3].call()
+        doUpdate.latestArgs[3].call(body)
 
         then:
+        body.timezone == tzId
         isAllowed.latestArgs == [id]
 
         cleanup:

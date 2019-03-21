@@ -28,13 +28,12 @@ class PhoneJsonMarshallerIntegrationSpec extends Specification {
         json.isActive == p1.isActive()
         json.language == p1.language.toString()
         json.media == null
-        json.number.noFormatNumber == p1.number.number
+        json.number == p1.number.prettyPhoneNumber
         json.useVoicemailRecordingIfPresent == p1.useVoicemailRecordingIfPresent
         json.voice == p1.voice.toString()
         json.allowSharingWithOtherTeams == null
         json.tags == null
-        json.self == null
-        json.others == null
+        json.policies == null
 
         cleanup:
         tryGetActiveAuthUser?.restore()
@@ -56,51 +55,56 @@ class PhoneJsonMarshallerIntegrationSpec extends Specification {
         MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
             Result.createSuccess(s3)
         }
+        MockedMethod isAdminAt = MockedMethod.create(Organizations, "isAdminAt") { true }
 
-        when: "this is not a phone we can access"
+        when: "an admin"
         Map json = TestUtils.objToJsonMap(tp1)
 
-        then:
+        then: "can access phone"
         json.awayMessage == tp1.awayMessage
         json.awayMessageMaxLength == ValidationUtils.TEXT_BODY_LENGTH * 2
         json.id == tp1.id
         json.isActive == tp1.isActive()
         json.language == tp1.language.toString()
         json.media == null
-        json.number.noFormatNumber == tp1.number.number
-        json.useVoicemailRecordingIfPresent == tp1.useVoicemailRecordingIfPresent
-        json.voice == tp1.voice.toString()
-        json.allowSharingWithOtherTeams == null
-        json.tags == null
-        json.self == null
-        json.others == null
-
-        when: "this is our phone"
-        tryGetActiveAuthUser = MockedMethod.create(tryGetActiveAuthUser) { Result.createSuccess(s1) }
-        json = TestUtils.objToJsonMap(tp1)
-
-        then:
-        json.awayMessage == tp1.awayMessage
-        json.awayMessageMaxLength == ValidationUtils.TEXT_BODY_LENGTH * 2
-        json.id == tp1.id
-        json.isActive == tp1.isActive()
-        json.language == tp1.language.toString()
-        json.media == null
-        json.number.noFormatNumber == tp1.number.number
+        json.number == tp1.number.prettyPhoneNumber
         json.useVoicemailRecordingIfPresent == tp1.useVoicemailRecordingIfPresent
         json.voice == tp1.voice.toString()
         json.allowSharingWithOtherTeams == tp1.owner.allowSharingWithOtherTeams
         json.tags instanceof Collection
         json.tags.size() == 1
         json.tags[0].id == gpr1.id
-        json.self instanceof Map
-        json.self.staff == s1.id
-        json.others instanceof Collection
-        json.others.size() == 1
-        json.others[0].staff == s2.id
+        json.policies instanceof Collection
+        json.policies.size() == 2
+        json.policies.any { it.staffId == s1.id }
+        json.policies.any { it.staffId == s2.id }
+
+        when: "a non-admin staff member"
+        isAdminAt = MockedMethod.create(isAdminAt) { false }
+        json = TestUtils.objToJsonMap(tp1)
+
+        then: "this is not a phone we can access"
+        json.allowSharingWithOtherTeams == null
+        json.tags == null
+        json.policies == null
+
+        when: "non-admin and this is our phone"
+        tryGetActiveAuthUser = MockedMethod.create(tryGetActiveAuthUser) { Result.createSuccess(s1) }
+        json = TestUtils.objToJsonMap(tp1)
+
+        then: "can access phone"
+        json.allowSharingWithOtherTeams == tp1.owner.allowSharingWithOtherTeams
+        json.tags instanceof Collection
+        json.tags.size() == 1
+        json.tags[0].id == gpr1.id
+        json.policies instanceof Collection
+        json.policies.size() == 2
+        json.policies.any { it.staffId == s1.id }
+        json.policies.any { it.staffId == s2.id }
 
         cleanup:
         tryGetActiveAuthUser?.restore()
+        isAdminAt?.restore()
     }
 
     void "test marshalling with various voicemail options"() {

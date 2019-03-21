@@ -31,11 +31,13 @@ class PhoneCache {
 
     // Must be a non-static public method for Spring AOP advice to apply
     // Key is a SpEL list, see: https://stackoverflow.com/a/17406598
-    @CacheEvict(value = "phonesCache", key = "{ #p1, #p2 }")
-    Result<Phone> tryUpdateOwner(Phone p1, Long ownerId, PhoneOwnershipType type) {
-        p1?.owner?.ownerId = ownerId
-        p1?.owner?.type = type
-        DomainUtils.trySave(p1)
+    // We use a CachePut here because we want to update the cache values
+    // immediately to avoid allowing further calls to findAnyPhoneIdForOwner to potentially
+    // restore outdated values. This is why `phoneActionService` which calls this method
+    // is in its own transaction that flushes immediately when the method is finished.
+    @CachePut(value = "phonesCache", key = "{ #p0, #p1 }")
+    Long updateOwner(Long ownerId, PhoneOwnershipType type, Long newPhoneId) {
+        newPhoneId
     }
 
     // Must be a non-static public method for Spring AOP advice to apply

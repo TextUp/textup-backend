@@ -26,13 +26,13 @@ class StaffController extends BaseController {
         Collection<StaffStatus> statuses = qParams
             .enumList(StaffStatus, "status[]") ?: StaffStatus.ACTIVE_STATUSES
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
-        if (qParams.organizationId) {
-            listForOrg(statuses, qParams)
+        if (qParams.shareStaffId) {
+            listForShareStaff(qParams)
         }
         else if (qParams.teamId) {
             listForTeam(statuses, qParams)
         }
-        else { listForShareStaff(qParams) }
+        else { listForOrg(statuses, qParams) }
     }
 
     @Override
@@ -49,7 +49,10 @@ class StaffController extends BaseController {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
         RequestUtils.tryGetJsonBody(request, MarshallerUtils.KEY_STAFF)
-            .then { TypeMap body -> staffService.tryCreate(body) }
+            .then { TypeMap body ->
+                body.timezone = qParams.string("timezone")
+                staffService.tryCreate(body)
+            }
             .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
@@ -57,7 +60,8 @@ class StaffController extends BaseController {
     def update() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
-        doUpdate(MarshallerUtils.KEY_STAFF, request, staffService) {
+        doUpdate(MarshallerUtils.KEY_STAFF, request, staffService) { TypeMap body ->
+            body.timezone = qParams.string("timezone")
             Staffs.isAllowed(qParams.long("id"))
         }
     }

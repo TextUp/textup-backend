@@ -67,13 +67,16 @@ class NotificationDetailSpec extends Specification {
         res.payload.errors.getFieldErrorCount("items") > 0
     }
 
-    void "test building all allowed items given an owner policy"() {
+    void "test checking and building all allowed items given an owner policy"() {
         given:
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
         RecordItem rItem2 = TestUtils.buildRecordItem()
         PhoneRecordWrapper w1 = ipr1.toWrapper()
-        OwnerPolicy op1 = GroovyMock()
+        OwnerPolicy op1 = GroovyStub() {
+            isAllowed(rItem1.record.id) >> true
+            isAllowed(rItem2.record.id) >> false
+        }
 
         when:
         NotificationDetail nd1 = NotificationDetail.tryCreate(w1).payload
@@ -81,6 +84,8 @@ class NotificationDetailSpec extends Specification {
         then:
         nd1.buildAllowedItemsForOwnerPolicy(null).isEmpty()
         nd1.buildAllowedItemsForOwnerPolicy(op1).isEmpty()
+        nd1.anyAllowedItemsForOwnerPolicy(null) == false
+        nd1.anyAllowedItemsForOwnerPolicy(op1) == false
 
         when:
         nd1.items << rItem1
@@ -89,13 +94,11 @@ class NotificationDetailSpec extends Specification {
         Collection rItems = nd1.buildAllowedItemsForOwnerPolicy(op1)
 
         then:
-        1 * op1.isAllowed(rItem1.record.id) >> true
-        1 * op1.isAllowed(rItem2.record.id) >> false
         rItems.size() == 1
         rItem1 in rItems
-
-        and:
         nd1.buildAllowedItemsForOwnerPolicy(null).isEmpty()
+        nd1.anyAllowedItemsForOwnerPolicy(null) == false
+        nd1.anyAllowedItemsForOwnerPolicy(op1)
     }
 
     void "test counting outgoing items for various options"() {

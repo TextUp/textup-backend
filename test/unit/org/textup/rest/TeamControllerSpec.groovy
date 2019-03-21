@@ -149,6 +149,7 @@ class TeamControllerSpec extends Specification {
         doSave.latestArgs[3].call(body)
 
         then:
+        body.timezone == tzId
         isAllowed.latestArgs == [orgId]
 
         cleanup:
@@ -160,6 +161,7 @@ class TeamControllerSpec extends Specification {
         given:
         String tzId = TestUtils.randString()
         Long id = TestUtils.randIntegerUpTo(88)
+        TypeMap body = TypeMap.create()
 
         controller.teamService = GroovyMock(TeamService)
         MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
@@ -178,9 +180,10 @@ class TeamControllerSpec extends Specification {
         RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
         when:
-        doUpdate.latestArgs[3].call()
+        doUpdate.latestArgs[3].call(body)
 
         then:
+        body.timezone == tzId
         isAllowed.latestArgs == [id]
 
         cleanup:

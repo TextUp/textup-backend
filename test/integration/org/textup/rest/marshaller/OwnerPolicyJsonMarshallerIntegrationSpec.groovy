@@ -26,7 +26,7 @@ class OwnerPolicyJsonMarshallerIntegrationSpec extends Specification {
         json.schedule instanceof Map
         json.schedule.id != null
         json.shouldSendPreviewLink == op1.shouldSendPreviewLink
-        json.staff == op1.staff.id
+        json.staffId == op1.staff.id
     }
 
     void "test marshalling default owner policy"() {
@@ -45,6 +45,6 @@ class OwnerPolicyJsonMarshallerIntegrationSpec extends Specification {
         json.schedule instanceof Map
         json.schedule.id == null
         json.shouldSendPreviewLink == rop1.shouldSendPreviewLink
-        json.staff == s1.id
+        json.staffId == s1.id
     }
 }

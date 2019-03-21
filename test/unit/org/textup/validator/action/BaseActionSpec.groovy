@@ -9,7 +9,7 @@ import org.textup.Constants
 @TestMixin(GrailsUnitTestMixin)
 class BaseActionSpec extends Specification {
 
-	static final String ALLOWED_ACTION = "allowedAction"
+	static final String ALLOWED_ACTION = "allowedaction"
 
 	void "test constraints"() {
 		when:
@@ -56,13 +56,28 @@ class BaseActionSpec extends Specification {
 
 	void "test use in switch statements"() {
 		given:
-		BaseActionImpl bAction = new BaseActionImpl(action: ALLOWED_ACTION)
+		BaseActionImpl bAction = new BaseActionImpl(action: "aLlOwEdAcTiOn")
+
+		int branchNum = -1
+		switch (bAction) {
+			case "aLlOwEdAcTiOn":
+				branchNum = 0
+				break
+			case "allowedAction":
+				branchNum = 1
+				break
+			case "allowedaction":
+				branchNum = 2
+				break
+			case ALLOWED_ACTION:
+				branchNum = 3
+				break
+			default:
+				branchNum = 4
+		}
 
 		expect:
-		switch (bAction) {
-			case "aLlOwEdAcTiOn": true; break;
-			default: false
-		}
+		branchNum == 2
 	}
 
 	protected class BaseActionImpl extends BaseAction {

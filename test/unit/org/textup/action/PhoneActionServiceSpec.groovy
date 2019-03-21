@@ -41,11 +41,10 @@ class PhoneActionServiceSpec extends Specification {
 
     void "test handling actions errors"() {
         given:
-        Phone p1 = GroovyStub() {
-            getCustomAccountId() >> TestUtils.randString()
-            getNumber() >> TestUtils.randPhoneNumber()
-        }
-        Phone p2 = GroovyStub()
+        Phone p1 = TestUtils.buildStaffPhone()
+        p1.customAccount = TestUtils.buildCustomAccountDetails()
+        Phone p2 = TestUtils.buildTeamPhone()
+
         PhoneAction a1 = GroovyMock()
         MockedMethod tryProcess = MockedMethod.create(ActionContainer, "tryProcess") {
             Result.createSuccess([a1])
@@ -55,13 +54,13 @@ class PhoneActionServiceSpec extends Specification {
         }
 
         when:
-        Result res = service.tryHandleActions(p1, [:])
+        Result res = service.tryHandleActions(p1.id, [:])
 
         then:
         res.status == ResultStatus.FORBIDDEN
 
         when:
-        res = service.tryHandleActions(p2, [:])
+        res = service.tryHandleActions(p2.id, [:])
 
         then:
         1 * a1.toString() >> PhoneAction.DEACTIVATE
@@ -97,7 +96,7 @@ class PhoneActionServiceSpec extends Specification {
         MockedMethod tryUpdatePhoneForApiId = MockedMethod.create(service, "tryUpdatePhoneForApiId") { Result.void() }
 
         when:
-        Result res = service.tryHandleActions(p1, [doPhoneActions: str1])
+        Result res = service.tryHandleActions(p1.id, [doPhoneActions: str1])
 
         then:
         tryProcess.latestArgs == [PhoneAction, str1]
@@ -107,11 +106,10 @@ class PhoneActionServiceSpec extends Specification {
         tryExchangeOwners.callCount == 0
         tryUpdatePhoneForNumber.callCount == 0
         tryUpdatePhoneForApiId.callCount == 0
-        res.status == ResultStatus.OK
-        res.payload == p1
+        res.status == ResultStatus.NO_CONTENT
 
         when:
-        res = service.tryHandleActions(p1, [doPhoneActions: str1])
+        res = service.tryHandleActions(p1.id, [doPhoneActions: str1])
 
         then:
         tryProcess.latestArgs == [PhoneAction, str1]
@@ -121,11 +119,10 @@ class PhoneActionServiceSpec extends Specification {
         tryExchangeOwners.latestArgs == [p1, targetId, pType]
         tryUpdatePhoneForNumber.callCount == 0
         tryUpdatePhoneForApiId.callCount == 0
-        res.status == ResultStatus.OK
-        res.payload == p1
+        res.status == ResultStatus.NO_CONTENT
 
         when:
-        res = service.tryHandleActions(p1, [doPhoneActions: str1])
+        res = service.tryHandleActions(p1.id, [doPhoneActions: str1])
 
         then:
         tryProcess.latestArgs == [PhoneAction, str1]
@@ -135,11 +132,10 @@ class PhoneActionServiceSpec extends Specification {
         tryUpdatePhoneForNumber.callCount == 1
         tryUpdatePhoneForNumber.latestArgs == [p1, pNum1]
         tryUpdatePhoneForApiId.callCount == 0
-        res.status == ResultStatus.OK
-        res.payload == p1
+        res.status == ResultStatus.NO_CONTENT
 
         when:
-        res = service.tryHandleActions(p1, [doPhoneActions: str1])
+        res = service.tryHandleActions(p1.id, [doPhoneActions: str1])
 
         then:
         tryProcess.latestArgs == [PhoneAction, str1]
@@ -149,8 +145,7 @@ class PhoneActionServiceSpec extends Specification {
         tryUpdatePhoneForNumber.callCount == 1
         tryUpdatePhoneForApiId.callCount == 1
         tryUpdatePhoneForApiId.latestArgs == [p1, numId]
-        res.status == ResultStatus.OK
-        res.payload == p1
+        res.status == ResultStatus.NO_CONTENT
 
         cleanup:
         tryProcess?.restore()
@@ -266,10 +261,9 @@ class PhoneActionServiceSpec extends Specification {
         Result res = service.tryExchangeOwners(p1, t1.id, PhoneOwnershipType.GROUP)
 
         then:
-        res.status == ResultStatus.OK
-        res.payload == p1
-        res.payload.owner.ownerId == t1.id
-        res.payload.owner.type == PhoneOwnershipType.GROUP
+        res.status == ResultStatus.NO_CONTENT
+        p1.owner.ownerId == t1.id
+        p1.owner.type == PhoneOwnershipType.GROUP
         p2.owner.ownerId == s1.id
         p2.owner.type == PhoneOwnershipType.INDIVIDUAL
 
@@ -277,10 +271,9 @@ class PhoneActionServiceSpec extends Specification {
         res = service.tryExchangeOwners(p1, s1.id, PhoneOwnershipType.INDIVIDUAL)
 
         then:
-        res.status == ResultStatus.OK
-        res.payload == p1
-        res.payload.owner.ownerId == s1.id
-        res.payload.owner.type == PhoneOwnershipType.INDIVIDUAL
+        res.status == ResultStatus.NO_CONTENT
+        p1.owner.ownerId == s1.id
+        p1.owner.type == PhoneOwnershipType.INDIVIDUAL
         p2.owner.ownerId == t1.id
         p2.owner.type == PhoneOwnershipType.GROUP
     }

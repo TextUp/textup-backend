@@ -18,7 +18,7 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
             id       = rs1.id
             links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_STAFF, rs1.id)
             name     = rs1.name
-            phone    = Phones.mustFindActiveForOwner(rs1.id, PhoneOwnershipType.INDIVIDUAL, false).payload
+            phone    = IOCUtils.phoneCache.findPhone(rs1.id, PhoneOwnershipType.INDIVIDUAL, true)
             status   = rs1.status.toString()
             username = rs1.username
         }

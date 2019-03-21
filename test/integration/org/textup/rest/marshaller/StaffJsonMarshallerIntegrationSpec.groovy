@@ -40,6 +40,20 @@ class StaffJsonMarshallerIntegrationSpec extends Specification {
         isAllowed?.restore()
     }
 
+    void "test marshalling staff with inactive phone"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildStaffPhone(s1)
+
+        when:
+        Map json = TestUtils.objToJsonMap(s1)
+
+        then: "still show"
+        p1.isActive() == false
+        json.phone instanceof Map
+        json.phone.id == p1.id
+    }
+
     void "test marshalling staff with permission"() {
         given:
         Staff s1 = TestUtils.buildStaff()
@@ -61,7 +75,7 @@ class StaffJsonMarshallerIntegrationSpec extends Specification {
         json.email == s1.email
         json.org instanceof Map
         json.org.id == s1.org.id
-        json.personalNumber.noFormatNumber == s1.personalNumber.number
+        json.personalNumber == s1.personalNumber.prettyPhoneNumber
         json.teams instanceof Collection
         json.teams.isEmpty()
 
