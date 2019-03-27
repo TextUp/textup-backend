@@ -66,22 +66,29 @@ class RecordUtilsSpec extends Specification {
 
     void "test adjusting position in record based on `whenCreated` timestamp"() {
         given:
+        DateTime dt = DateTime.now().minusHours(1)
+
         Record rec1 = TestUtils.buildRecord()
         Record rec2 = TestUtils.buildRecord()
         RecordItem rItem1 = TestUtils.buildRecordItem(rec2)
-        DateTime dt = DateTime.now().minusHours(1)
+        RecordItem rItem2 = TestUtils.buildRecordItem(rec2)
+        rItem2.whenCreated = rItem1.whenCreated.plusYears(1)
+
+        RecordItem.withSession { it.flush() }
 
         when: "no before item found"
         DateTime retDt = RecordUtils.adjustPosition(rec1.id, dt)
 
-        then:
-        retDt == dt
+        then: "return the current time as the timestamp because no need to manipulate `whenCreated`"
+        retDt.isAfter(dt)
 
         when: "yes before item found"
         retDt = RecordUtils.adjustPosition(rec2.id, dt)
 
-        then:
+        then: "placed between the after time and the oldest record item (`rItem1`)"
         retDt.isAfter(dt)
+        retDt.isBefore(rItem1.whenCreated)
+        retDt.isBefore(rItem2.whenCreated)
         retDt.isAfter(dt.plus(ValidationUtils.MIN_NOTE_SPACING_MILLIS))
         // note that passed-in time is one HOUR ago so we definitely hit the max spacing
         retDt.isEqual(dt.plus(ValidationUtils.MAX_NOTE_SPACING_MILLIS))

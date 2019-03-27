@@ -62,22 +62,60 @@ class LocationServiceSpec extends Specification {
         Result res = service.tryUpdate(null, null)
 
         then:
-        res.status == ResultStatus.NO_CONTENT
+        res.status == ResultStatus.OK
 
         when:
         res = service.tryUpdate(loc1, body1)
 
         then:
-        res.status == ResultStatus.NO_CONTENT
+        res.status == ResultStatus.OK
         loc1.address == body1.address
 
         when:
         res = service.tryUpdate(loc1, body2)
 
         then:
-        res.status == ResultStatus.NO_CONTENT
+        res.status == ResultStatus.OK
         loc1.address == body2.address
         loc1.lat == body2.lat
         loc1.lng == body2.lng
+    }
+
+    void "try creating or updating only if the location map is present"() {
+        given:
+        TypeMap lInfo = TestUtils.randTypeMap()
+        TypeMap emptyInfo = TypeMap.create()
+        Location loc1 = TestUtils.buildLocation()
+
+        MockedMethod tryCreate = MockedMethod.create(service, "tryCreate") { Result.void() }
+        MockedMethod tryUpdate = MockedMethod.create(service, "tryUpdate") { Result.void() }
+
+        when:
+        Result res = service.tryCreateOrUpdateIfPresent(null, emptyInfo)
+
+        then:
+        res.status == ResultStatus.OK
+        tryCreate.notCalled
+        tryUpdate.notCalled
+
+        when:
+        res = service.tryCreateOrUpdateIfPresent(null, lInfo)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        tryCreate.latestArgs == [lInfo]
+        tryUpdate.notCalled
+
+        when:
+        res = service.tryCreateOrUpdateIfPresent(loc1, lInfo)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        tryCreate.callCount == 1
+        tryUpdate.latestArgs == [loc1, lInfo]
+
+        cleanup:
+        tryCreate?.restore()
+        tryUpdate?.restore()
     }
 }

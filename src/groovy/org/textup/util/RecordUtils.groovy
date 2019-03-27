@@ -22,9 +22,14 @@ class RecordUtils {
     }
 
     static DateTime adjustPosition(Long recordId, DateTime afterTime) {
-        RecordItem beforeItem = afterTime ?
-            RecordItems.buildForRecordIdsWithOptions([recordId], afterTime).list(max:1)[0] :
-            null
+        RecordItem beforeItem
+        if (afterTime) {
+            // the afterTime is usually the whenCreated timestamp of the item we need to be after
+            // Therefore, we add 1 millisecond so that the new whenCreated is actually right after
+            beforeItem = RecordItems.buildForRecordIdsWithOptions([recordId], afterTime.plusMillis(1))
+                .build(RecordItems.forSort(false)) // want older items first
+                .list(max: 1)[0]
+        }
         if (beforeItem) {
             Long val  = new Duration(afterTime, beforeItem.whenCreated).millis / 2 as Long,
                 min = ValidationUtils.MIN_NOTE_SPACING_MILLIS,
@@ -36,7 +41,14 @@ class RecordUtils {
             // set note's whenCreated to the DateTime we need to be after plus an offset
             afterTime.plus(plusAmount)
         }
-        else { afterTime }
+        else {
+            // if no item to place this new item before, then this means that we are trying to
+            // add an item after the most recent item in this record. Therefore, there's no need
+            // to manipulate the whenCreated timestamp and we just return the current time to allow
+            // for enough space to insert in additional items in between this item and the earlier
+            // one if we want to in the future
+            JodaUtils.utcNow()
+        }
     }
 
     static Result<RecordItemRequest> buildRecordItemRequest(Long pId, TypeMap body) {

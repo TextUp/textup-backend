@@ -13,11 +13,18 @@ import org.textup.validator.*
 @Transactional
 class LocationService {
 
+    Result<Location> tryCreateOrUpdateIfPresent(Location loc1, TypeMap body) {
+        if (body) {
+            loc1 ? tryUpdate(loc1, body) : tryCreate(body)
+        }
+        else { IOCUtils.resultFactory.success(loc1) }
+    }
+
     Result<Location> tryCreate(TypeMap body) {
         Location.tryCreate(body?.string("address"), body?.double("lat"), body?.double("lng"))
     }
 
-    Result<Void> tryUpdate(Location loc1, TypeMap body) {
+    Result<Location> tryUpdate(Location loc1, TypeMap body) {
         if (loc1 && body) {
             loc1.with {
                 if (body.address) address = body.address
@@ -25,8 +32,7 @@ class LocationService {
                 if (body.lng != null) lng = body.double("lng")
             }
             DomainUtils.trySave(loc1)
-                .then { Result.void() }
         }
-        else { Result.void() }
+        else { IOCUtils.resultFactory.success(loc1) }
     }
 }

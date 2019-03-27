@@ -36,7 +36,7 @@ class RecordServiceSpec extends Specification {
     void "test updating note fields"() {
         given:
         DateTime dt = DateTime.now().plusHours(1)
-        TypeMap body = TypeMap.create(contents: TestUtils.randString(),
+        TypeMap body = TypeMap.create(noteContents: TestUtils.randString(),
             isDeleted: true,
             after: DateTime.now())
         RecordNote rNote1 = TestUtils.buildRecordNote()
@@ -50,7 +50,7 @@ class RecordServiceSpec extends Specification {
         res.status == ResultStatus.OK
         res.payload == rNote1
         rNote1.author == author1
-        rNote1.noteContents == body.contents
+        rNote1.noteContents == body.noteContents
         rNote1.isDeleted == body.isDeleted
         adjustPosition.latestArgs == [rNote1.record.id, body.after]
         rNote1.whenCreated == dt
@@ -95,7 +95,7 @@ class RecordServiceSpec extends Specification {
         res = service.createNote(p1, body2, mInfo1)
 
         then:
-        1 * service.locationService.tryCreate(body2.location) >> Result.createSuccess(loc1)
+        1 * service.locationService.tryCreateOrUpdateIfPresent(null, body2.location) >> Result.createSuccess(loc1)
         trySetNoteFields.latestArgs[0] instanceof RecordNote
         trySetNoteFields.latestArgs[1] == body2
         trySetNoteFields.latestArgs[2] == Author.create(s1)
@@ -243,7 +243,7 @@ class RecordServiceSpec extends Specification {
 
         then:
         1 * service.mediaService.tryCreateOrUpdate(rNote1, body) >> Result.createSuccess(fut1)
-        1 * service.locationService.tryUpdate(rNote1.location, body.location) >>
+        1 * service.locationService.tryCreateOrUpdateIfPresent(rNote1.location, body.location) >>
             Result.createError([errMsg1], ResultStatus.BAD_REQUEST)
         tryCreateRevision.notCalled
         1 * fut1.cancel(true)
@@ -256,11 +256,13 @@ class RecordServiceSpec extends Specification {
         then:
         trySetNoteFields.latestArgs == [rNote1, body, Author.create(s1)]
         1 * service.mediaService.tryCreateOrUpdate(rNote1, body) >> Result.createSuccess(fut1)
-        1 * service.locationService.tryUpdate(rNote1.location, body.location) >> Result.void()
+        1 * service.locationService.tryCreateOrUpdateIfPresent(rNote1.location, body.location) >>
+            Result.createSuccess(rNote1.location)
         tryCreateRevision.callCount == 1
         0 * fut1._
         res.status == ResultStatus.OK
         res.payload == rNote1
+        res.payload.location == rNote1.location // location is preserved
 
         cleanup:
         tryGetActiveAuthUser?.restore()

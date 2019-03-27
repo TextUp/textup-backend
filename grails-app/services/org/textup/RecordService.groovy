@@ -63,7 +63,11 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
             .then { RecordNote rNote1, Future<Result<?>> fut1 ->
                 future = fut1
                 TypeMap lInfo = body.typeMapNoNull("location")
-                locationService.tryUpdate(rNote1.location, lInfo).curry(rNote1)
+                locationService.tryCreateOrUpdateIfPresent(rNote1.location, lInfo).curry(rNote1)
+            }
+            .then { RecordNote rNote1, Location loc1 = null ->
+                rNote1.location = loc1
+                DomainUtils.trySave(rNote1)
             }
             .then { RecordNote rNote1 -> rNote1.tryCreateRevision() }
             .then { RecordNote rNote1 -> DomainUtils.trySave(rNote1) }
@@ -118,7 +122,10 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
         Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), 1)
             .then { Recipients r1 -> r1.tryGetOne() }
             .then { PhoneRecordWrapper w1 ->
-                Location loc1 = locationService.tryCreate(body.typeMapNoNull("location")).payload
+                TypeMap lInfo = body.typeMapNoNull("location")
+                locationService.tryCreateOrUpdateIfPresent(null, lInfo).curry(w1)
+            }
+            .then { PhoneRecordWrapper w1, Location loc1 = null ->
                 TempRecordItem.tryCreate(body.string("noteContents"), mInfo, loc1).curry(w1)
             }
             .then { PhoneRecordWrapper w1, TempRecordItem temp1 -> w1.tryGetRecord().curry(temp1) }
@@ -136,7 +143,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
     protected Result<RecordNote> trySetNoteFields(RecordNote rNote1, TypeMap body, Author author1) {
         rNote1.with {
             author = author1
-            if (body.contents != null) noteContents = body.string("contents")
+            if (body.noteContents != null) noteContents = body.string("noteContents")
             if (body.boolean("isDeleted") != null) isDeleted = body.boolean("isDeleted")
             if (body.after) {
                 whenCreated = RecordUtils.adjustPosition(rNote1.record.id, body.dateTime("after"))
