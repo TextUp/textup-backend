@@ -70,11 +70,15 @@ class JodaUtils {
         else { dt }
     }
 
+    // standard MySQL DATETIME type only stores at the seconds fidelity so if we use the largest
+    // milliseconds this will be rounded up to the next month, not something that we want IF
+    // we do store this end of month value in the database
     static DateTime atEndOfMonth(DateTime dt) {
         if (dt) {
             dt
                 .dayOfMonth().withMaximumValue()
                 .millisOfDay().withMaximumValue()
+                .millisOfSecond().withMinimumValue()
         }
         else { dt }
     }

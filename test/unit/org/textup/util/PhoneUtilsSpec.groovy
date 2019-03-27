@@ -39,12 +39,20 @@ class PhoneUtilsSpec extends Specification {
         when:
         Result res = PhoneUtils.tryAddChangeToHistory(null, null)
 
+        // flush then refresh to allow GORM to filter out duplicate hasMany associations
+        Phone.withSession { it.flush() }
+        p1.refresh()
+
         then:
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        p1.numberHistoryEntries == null
+        !p1.numberHistoryEntries
 
         when:
         res = PhoneUtils.tryAddChangeToHistory(p1, invalidNum)
+
+        // flush then refresh to allow GORM to filter out duplicate hasMany associations
+        Phone.withSession { it.flush() }
+        p1.refresh()
 
         then: "invalid nums treated as no number"
         res.status == ResultStatus.OK
@@ -55,12 +63,17 @@ class PhoneUtilsSpec extends Specification {
         when:
         res = PhoneUtils.tryAddChangeToHistory(p1, pNum1)
 
+        // flush then refresh to allow GORM to filter out duplicate hasMany associations
+        Phone.withSession { it.flush() }
+        p1.refresh()
+        List sortedHistoryEntries = p1.numberHistoryEntries.sort()
+
         then:
         res.status == ResultStatus.OK
-        p1.numberHistoryEntries.size() == 2
-        p1.numberHistoryEntries[0].endTime.monthOfYear == p1.numberHistoryEntries[1].whenCreated.monthOfYear
-        p1.numberHistoryEntries[0].endTime.year == p1.numberHistoryEntries[1].whenCreated.year
-        p1.numberHistoryEntries[1].numberAsString == pNum1.number
-        p1.numberHistoryEntries[1].endTime == null
+        sortedHistoryEntries.size() == 2
+        sortedHistoryEntries[0].endTime.monthOfYear == sortedHistoryEntries[1].whenCreated.monthOfYear
+        sortedHistoryEntries[0].endTime.year == sortedHistoryEntries[1].whenCreated.year
+        sortedHistoryEntries[1].numberAsString == pNum1.number
+        sortedHistoryEntries[1].endTime == null
     }
 }

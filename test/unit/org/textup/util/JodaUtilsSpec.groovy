@@ -115,6 +115,6 @@ class JodaUtilsSpec extends Specification {
         newDt.hourOfDay > 0
         newDt.minuteOfDay > 0
         newDt.secondOfMinute > 0
-        newDt.millisOfSecond > 0
+        newDt.millisOfSecond == 0
     }
 }

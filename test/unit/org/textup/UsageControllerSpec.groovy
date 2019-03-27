@@ -25,15 +25,15 @@ class UsageControllerSpec extends Specification {
 
     void "test building usage and costs"() {
         given:
-        ActivityEntity.HasActivity a1 = Mock()
-        ActivityRecord activity1 = Mock()
+        ActivityEntity.HasActivity ha1 = GroovyMock()
+        ActivityRecord activity1 = GroovyMock()
 
         when:
-        Map info = controller.buildUsageAndCosts([a1])
+        Map info = controller.buildUsageAndCosts([ha1])
 
         then:
-        1 * a1.totalCost >> TestUtils.randIntegerUpTo(888) + 1
-        (1.._) * a1.activity >> activity1
+        1 * ha1.totalCost >> TestUtils.randIntegerUpTo(888) + 1
+        (1.._) * ha1.activity >> activity1
         1 * activity1.cost >> TestUtils.randIntegerUpTo(888) + 1
         1 * activity1.textCost >> TestUtils.randIntegerUpTo(888) + 1
         1 * activity1.callCost >> TestUtils.randIntegerUpTo(888) + 1
@@ -55,8 +55,8 @@ class UsageControllerSpec extends Specification {
 
     void "test building phone counts"() {
         given:
-        ActivityEntity.Organization org1 = Mock()
-        ActivityRecord activity1 = Mock()
+        ActivityEntity.Organization org1 = GroovyMock()
+        ActivityRecord activity1 = GroovyMock()
 
         when:
         Map info = controller.buildPhoneCounts([org1])
@@ -150,11 +150,11 @@ class UsageControllerSpec extends Specification {
 
     void "test getting longitudinal activity action"() {
         given:
-        controller.usageService = Mock(UsageService)
+        controller.usageService = GroovyMock(UsageService)
         MockedMethod getAvailableMonthStringIndex = MockedMethod.create(UsageUtils, "getAvailableMonthStringIndex") { 8 }
 
-        Long orgId = TestUtils.randIntegerUpTo(88) + 1
-        String number = TestUtils.randString()
+        Long orgId = TestUtils.randIntegerUpTo(88, true)
+        Long phoneId = TestUtils.randIntegerUpTo(88)
 
         when: "no query params"
         controller.ajaxGetActivity()
@@ -182,17 +182,17 @@ class UsageControllerSpec extends Specification {
         response.json.teamData != null
         response.json.currentMonthIndex != null
 
-        when: "phone number query param"
+        when: "phone id query param"
         response.reset()
         params.clear()
 
-        params.number = number
+        params.phoneId = phoneId
         controller.ajaxGetActivity()
 
         then:
         getAvailableMonthStringIndex.callCount == 3
-        1 * controller.usageService.getActivityForNumber(number) >> ["hi"]
-        response.json.numberData != null
+        1 * controller.usageService.getActivityForPhoneId(phoneId) >> ["hi"]
+        response.json.phoneIdData != null
         response.json.currentMonthIndex != null
 
         cleanup:
@@ -201,9 +201,9 @@ class UsageControllerSpec extends Specification {
 
     void "test show endpoint"() {
         given:
-        controller.usageService = Mock(UsageService)
+        controller.usageService = GroovyMock(UsageService)
         Long orgId = TestUtils.randIntegerUpTo(88) + 1
-        Organization mockOrg = Mock()
+        Organization mockOrg = GroovyMock()
         Organization.metaClass."static".get = { Long id -> mockOrg }
         MockedMethod getAvailableMonthStrings = MockedMethod.create(UsageUtils, "getAvailableMonthStrings") { 8 }
 
@@ -243,7 +243,7 @@ class UsageControllerSpec extends Specification {
 
     void "test index endpoint"() {
         given:
-        controller.usageService = Mock(UsageService)
+        controller.usageService = GroovyMock(UsageService)
         MockedMethod getAvailableMonthStrings = MockedMethod.create(UsageUtils, "getAvailableMonthStrings") { 8 }
 
         when:

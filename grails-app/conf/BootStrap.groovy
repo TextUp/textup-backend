@@ -2,6 +2,7 @@ import com.twilio.Twilio
 import grails.util.GrailsUtil
 import java.security.Security
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.joda.time.*
 import org.textup.*
 import org.textup.rest.*
 import org.textup.test.*
@@ -24,6 +25,9 @@ class BootStrap {
     	// is not present in the OpenJDKs in our Ubuntu-based production environments
     	Security.insertProviderAt(new BouncyCastleProvider(), 1)
     	Security.removeProvider("SunEC")
+        // set default timezones for Java Dates and JodaTime timezones
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        DateTimeZone.setDefault(DateTimeZone.UTC)
     	// builder pattern in Twilio needs to be initialized
     	def twilioConfig = grailsApplication.config.textup.apiKeys.twilio
     	Twilio.init(twilioConfig.sid, twilioConfig.authToken)

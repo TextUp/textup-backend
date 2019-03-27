@@ -40,7 +40,7 @@
                     <th>$ fees for usage</th>
                     <th>Username</th>
                     <th>Email</th>
-                    <th>TextUp phone</th>
+                    <th>TextUp phone number(s)</th>
 
                     <th>$ billable segments</th>
                     <th># notification texts</th>
@@ -58,7 +58,7 @@
             <tbody>
                 <g:each var="staff" in="${staffs}">
                     <tr>
-                        <td data-number="${staff.number}"></td>
+                        <td data-phone-id="${staff.phoneId}"></td>
                         <td>${staff.name}</td>
                         <td>
                             $<g:formatNumber number="${staff.totalCost}"

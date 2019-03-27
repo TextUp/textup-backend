@@ -34,7 +34,7 @@ abstract class BasePhoneNumber implements CanValidate {
 
     String getPrettyPhoneNumber() {
         String num1 = number
-        (num1 && num1.size() > 6) ? "${num1[0..2]} ${num1[3..5]} ${num1[6..-1]}" : ""
+        (num1 && num1.size() > 6) ? "(${num1[0..2]}) ${num1[3..5]}-${num1[6..-1]}" : ""
     }
 
     String getE164PhoneNumber() { number ? "+1${number}" : "" }

@@ -79,9 +79,9 @@ class UsageController {
                 currentMonthIndex: currentMonthIndex
             ]
         }
-        else if (params.number) {
+        else if (params.long("phoneId")) {
             payload = [
-                numberData: usageService.getActivityForNumber(params.number as String),
+                phoneIdData: usageService.getActivityForPhoneId(params.long("phoneId")),
                 currentMonthIndex: currentMonthIndex
             ]
         }

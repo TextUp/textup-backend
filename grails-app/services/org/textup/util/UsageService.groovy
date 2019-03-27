@@ -25,6 +25,8 @@ import org.textup.validator.*
 class UsageService {
 
     private static final String ACTIVITY_QUERY = """
+        LEFT(i.when_created, 7) AS monthString,
+
         SUM(CASE WHEN i.num_notified IS NOT NULL THEN i.num_notified ELSE 0 END) AS numNotificationTexts,
 
         SUM(CASE WHEN i.class = 'org.textup.RecordText' AND i.outgoing = TRUE THEN 1 ELSE 0 END) AS numOutgoingTexts,
@@ -61,23 +63,23 @@ class UsageService {
         if (!dt || !type) {
             return []
         }
-        UsageUtils.associateActivity(getAllOrgs(dt, type), getAllActivity(dt, type))
+        UsageUtils.associateActivityForMonth(dt, getAllOrgs(dt, type), getAllActivity(dt, type))
     }
 
     List<ActivityEntity.Staff> getStaffPhoneActivity(DateTime dt, Long orgId) {
         if (!dt || !orgId) {
             return []
         }
-        UsageUtils.associateActivity(getStaffForOrg(dt, orgId),
-            getActivityForOrg(dt, orgId, PhoneOwnershipType.INDIVIDUAL))
+        UsageUtils.associateActivityForMonth(dt, getStaffForOrg(dt, orgId),
+            getActivityForOrgForMonth(dt, orgId, PhoneOwnershipType.INDIVIDUAL))
     }
 
     List<ActivityEntity.Team> getTeamPhoneActivity(DateTime dt, Long orgId) {
         if (!dt || !orgId) {
             return []
         }
-        UsageUtils.associateActivity(getTeamsForOrg(dt, orgId),
-            getActivityForOrg(dt, orgId, PhoneOwnershipType.GROUP))
+        UsageUtils.associateActivityForMonth(dt, getTeamsForOrg(dt, orgId),
+            getActivityForOrgForMonth(dt, orgId, PhoneOwnershipType.GROUP))
     }
 
     List<ActivityRecord> getActivity(PhoneOwnershipType type) {
@@ -88,8 +90,8 @@ class UsageService {
         UsageUtils.ensureMonths(getActivityOverTimeForOrg(type, orgId))
     }
 
-    List<ActivityRecord> getActivityForNumber(String number) {
-        UsageUtils.ensureMonths(getActivityOverTimeForNumber(number))
+    List<ActivityRecord> getActivityForPhoneId(Long phoneId) {
+        UsageUtils.ensureMonths(getActivityOverTimeForPhoneId(phoneId))
     }
 
     // Details
@@ -202,7 +204,7 @@ class UsageService {
             }
     }
 
-    protected List<ActivityRecord> getActivityForOrg(DateTime dt, Long orgId, PhoneOwnershipType type) {
+    protected List<ActivityRecord> getActivityForOrgForMonth(DateTime dt, Long orgId, PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
                 SELECT m.id AS ownerId,
@@ -235,8 +237,7 @@ class UsageService {
     protected List<ActivityRecord> getActivityOverTime(PhoneOwnershipType type) {
         sessionFactory.currentSession
             .createSQLQuery("""
-                SELECT LEFT(i.when_created, 7) AS monthString,
-                    ${ACTIVE_PHONES_QUERY},
+                SELECT ${ACTIVE_PHONES_QUERY},
                     ${ACTIVITY_QUERY}
                 ${ACTIVITY_QUERY_SOURCE}
                 JOIN phone_ownership AS o ON p.owner_id = o.id
@@ -258,8 +259,7 @@ class UsageService {
 
         sessionFactory.currentSession
             .createSQLQuery("""
-                SELECT LEFT(i.when_created, 7) AS monthString,
-                    ${ACTIVE_PHONES_QUERY},
+                SELECT ${ACTIVE_PHONES_QUERY},
                     ${ACTIVITY_QUERY}
                 ${ACTIVITY_QUERY_SOURCE}
                 JOIN phone_ownership AS o ON p.owner_id = o.id
@@ -277,20 +277,19 @@ class UsageService {
             }
     }
 
-    protected List<ActivityRecord> getActivityOverTimeForNumber(String number) {
+    protected List<ActivityRecord> getActivityOverTimeForPhoneId(Long phoneId) {
         sessionFactory.currentSession
             .createSQLQuery("""
-                SELECT LEFT(i.when_created, 7) AS monthString,
-                    ${ACTIVE_PHONES_QUERY},
+                SELECT ${ACTIVE_PHONES_QUERY},
                     ${ACTIVITY_QUERY}
                 ${ACTIVITY_QUERY_SOURCE}
-                WHERE p.number_as_string = :number
+                WHERE p.id = :phoneId
                     ${ACTIVITY_QUERY_CONDITION}
                 GROUP BY LEFT(i.when_created, 7)
                 ORDER BY LEFT(i.when_created, 7) ASC;
             """.toString()).with {
                 setResultTransformer(Transformers.aliasToBean(ActivityRecord.class))
-                setString("number", number)
+                setLong("phoneId", phoneId)
                 list()
             }
     }

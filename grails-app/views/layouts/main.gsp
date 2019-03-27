@@ -18,16 +18,11 @@
                 <g:img dir="images" file="logo.png" alt="TextUp" height="40"/>
             </a>
             <sec:ifAllGranted roles="ROLE_ADMIN">
-                <g:link controller="super" class="navbar-text"><b>Super Dashboard</b></g:link>
-                <g:link controller="super" action="rejected" class="navbar-text"><b>Rejected</b></g:link>
-                <g:link controller="super" action="approved" class="navbar-text"><b>Approved</b></g:link>
+                <g:link controller="super" class="navbar-text"><b>Pending Orgs</b></g:link>
+                <g:link controller="super" action="rejected" class="navbar-text"><b>Rejected Orgs</b></g:link>
+                <g:link controller="super" action="approved" class="navbar-text"><b>Approved Orgs</b></g:link>
                 <g:link controller="usage" class="navbar-text"><b>Usage &amp; Costs</b></g:link>
             </sec:ifAllGranted>
-            <sec:ifNotGranted roles="ROLE_ADMIN">
-                <a class="navbar-text" href="/">
-                    <b>API Documentation</b>
-                </a>
-            </sec:ifNotGranted>
 	    </div>
 	    <div class="navbar-right">
             <sec:ifAllGranted roles="ROLE_ADMIN">
@@ -35,7 +30,6 @@
                 <g:link controller="super" action="logout" class="btn btn-link navbar-btn">Logout</g:link>
             </sec:ifAllGranted>
             <sec:ifNotGranted roles="ROLE_ADMIN">
-                <g:link controller="super" class="btn btn-link navbar-btn">Super</g:link>
                 <a href="https://app.textup.org" target="_blank" class="btn btn-success navbar-btn">Launch</a>
             </sec:ifNotGranted>
 		</div>

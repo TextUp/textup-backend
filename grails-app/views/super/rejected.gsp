@@ -33,7 +33,7 @@
                             <span class="name">${o.name}</span>
                             <span class="address">${o.location.address}</span>
                         </div>
-                        <g:each var="a" in="${o.admins}">
+                        <g:each var="a" in="${grailsApplication.mainContext.getBean('superService').getAdminsForOrgId(o.id)}">
                             <div class="org-admin">
                                 <span class="name">${a.name}</span>
                                 <span class="email">${a.email}</span>

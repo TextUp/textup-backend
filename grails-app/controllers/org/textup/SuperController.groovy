@@ -25,21 +25,21 @@ class SuperController {
         [unverifiedOrgs: Organization.findAllByStatus(OrgStatus.PENDING)]
     }
 
-    void approved() {
+    def approved() {
         flash.previousPage = "approved"
         [orgs: Organization.findAllByStatus(OrgStatus.APPROVED)]
     }
 
-    void rejected() {
+    def rejected() {
         flash.previousPage = "rejected"
         [orgs: Organization.findAllByStatus(OrgStatus.REJECTED)]
     }
 
-    void settings() {
+    def settings() {
         [staff: IOCUtils.security.currentUser]
     }
 
-    void updateSettings() {
+    def updateSettings() {
         TypeMap qParams = TypeMap.create(params)
         String newPassword = qParams.newPassword
         if (newPassword && newPassword != qParams.confirmNewPassword) {
@@ -84,11 +84,11 @@ class SuperController {
     // Actions
     // -------
 
-    void logout() { // '/j_spring_security_logout'
+    def logout() { // '/j_spring_security_logout'
         redirect uri: (SpringSecurityUtils.securityConfig.logout as Map).filterProcessesUrl
     }
 
-    void rejectOrg() {
+    def rejectOrg() {
         Organizations.mustFindForId(params.long("id"))
             .ifFailAndPreserveError { Result<?> failRes -> flash.messages = failRes.errorMessages }
             .thenEnd { Organization org1 ->
@@ -111,7 +111,7 @@ class SuperController {
         flash.previousPage ? redirect(action: flash.previousPage) : redirect(action: "index")
     }
 
-    void approveOrg() {
+    def approveOrg() {
         Organizations.mustFindForId(params.long("id"))
             .ifFailAndPreserveError { Result<?> failRes -> flash.messages = failRes.errorMessages }
             .thenEnd { Organization org1 ->

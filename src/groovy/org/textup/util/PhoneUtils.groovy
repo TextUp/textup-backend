@@ -17,10 +17,17 @@ class PhoneUtils {
         DateTime dt = JodaUtils.utcNow()
         PhoneNumberHistory.tryCreate(dt, bNum)
             .then { PhoneNumberHistory nh1 ->
-                // find most recent entry before adding new one
-                p1?.numberHistoryEntries?.max()?.setEndTime(dt) // phone save will cascade
-                // add new entry
-                p1?.addToNumberHistoryEntries(nh1)
+                if (p1) {
+                    // find most recent entry before adding new one
+                    PhoneNumberHistory nh2 = p1.numberHistoryEntries?.max()
+                    if (nh2) {
+                        nh2.endTime = dt
+                        // make to not loose this association + ensure save cascades
+                        p1.addToNumberHistoryEntries(nh2)
+                    }
+                    // add new entry
+                    p1.addToNumberHistoryEntries(nh1)
+                }
                 DomainUtils.trySave(p1)
             }
     }

@@ -9,10 +9,10 @@ import org.textup.validator.*
 class UrlMappings {
 
 	static mappings = {
-        "/$controller/$action?/$id?(.$format)?"{ constraints { } }
+        "/$controller/$action?/$id?(.$format)?"()
 
         //login endpoint is `/login` (provided by Spring Security REST)
-        "/"(controller: "super")
+        "/"(redirect: [controller: "super", permanent: true])
         "500"(view: "/error")
 
         group("/v1") {

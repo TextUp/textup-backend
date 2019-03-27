@@ -92,7 +92,7 @@ class UsageUtilsSpec extends Specification {
 
     void "testing building numbers for a certain phone and month"() {
         given:
-        MockedMethod mustFindActiveForId
+        MockedMethod mustFindForId
         Phone p1 = GroovyMock() { asBoolean() >> true }
         Long pId = TestUtils.randIntegerUpTo(88)
         DateTime dt = DateTime.now()
@@ -101,14 +101,14 @@ class UsageUtilsSpec extends Specification {
         PhoneNumber pNum3 = TestUtils.randPhoneNumber()
 
         when: "null inputs"
-        mustFindActiveForId = MockedMethod.create(Phones, "mustFindActiveForId") { Result.void() }
+        mustFindForId = MockedMethod.create(Phones, "mustFindForId") { Result.void() }
         String numbers = UsageUtils.buildNumbersStringForMonth(null, null)
 
         then:
         numbers == UsageUtils.NO_NUMBERS
 
         when: "valid but no numbers found"
-        mustFindActiveForId = MockedMethod.create(mustFindActiveForId) { Result.createSuccess(p1) }
+        mustFindForId = MockedMethod.create(mustFindForId) { Result.createSuccess(p1) }
         numbers = UsageUtils.buildNumbersStringForMonth(pId, dt)
 
         then:
@@ -126,7 +126,7 @@ class UsageUtilsSpec extends Specification {
         numbers == "${pNum1}, ${pNum2} and ${pNum3}"
 
         cleanup:
-        mustFindActiveForId?.restore()
+        mustFindForId?.restore()
     }
 
     @DirtiesRuntime
@@ -134,7 +134,7 @@ class UsageUtilsSpec extends Specification {
         given:
         DateTime now = DateTime.now()
         int numMonthsLastIndex = 8
-        RecordItem itemStub = Stub() { getWhenCreated() >> now.minusMonths(numMonthsLastIndex) }
+        RecordItem itemStub = GroovyStub() { getWhenCreated() >> now.minusMonths(numMonthsLastIndex) }
         RecordItem.metaClass."static".first = { String propName -> itemStub }
 
         expect: "invalid + out of range inputs return -1"
@@ -156,24 +156,33 @@ class UsageUtilsSpec extends Specification {
             owners1 << new ActivityEntity.HasActivity(id: ownerId)
             activityList << new ActivityRecord(ownerId: ownerId)
         }
+        DateTime dt = DateTime.now()
+        String monthString = UsageUtils.dateTimeToMonthString(dt)
+        DateTime monthObj = UsageUtils.monthStringToDateTime(monthString)
 
         when:
-        List<ActivityEntity.HasActivity> owners2 = UsageUtils.associateActivity(owners1, activityList)
+        List<ActivityEntity.HasActivity> owners2 = UsageUtils.associateActivityForMonth(dt, owners1, activityList)
 
         then: "returns copied owners -- no side effects"
         // `.is()` in Groovy is `==` in Java. See http://mrhaki.blogspot.com/2009/09/groovy-goodness-check-for-object.html
         owners2.is(owners1) == false
+
         owners1.size() == numOwners
         owners1.every { it.activity.ownerId == null }
+        owners1.every { it.activity.monthString == null }
+        owners1.every { it.activity.monthObj == null }
+
         owners2.size() == numOwners
         owners2.every { it.activity.ownerId == it.id }
+        owners2.every { it.activity.monthString == monthString }
+        owners2.every { it.activity.monthObj == monthObj }
     }
 
     @DirtiesRuntime
     void "test ensuring all months are present chronlogically within a list of activity records + has no side effects"() {
         given:
         DateTime now = DateTime.now()
-        RecordItem mockItem = Stub() { getWhenCreated() >> now.minusMonths(2) }
+        RecordItem mockItem = GroovyStub() { getWhenCreated() >> now.minusMonths(2) }
         RecordItem.metaClass."static".first = { String propName -> mockItem }
 
         ActivityRecord actNow = new ActivityRecord(monthString: JodaUtils.QUERY_MONTH_FORMAT.print(now)),

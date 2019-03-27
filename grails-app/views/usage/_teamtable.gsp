@@ -38,7 +38,7 @@
                     <th>Invoice total</th>
                     <th>$ fees for usage</th>
                     <th># staff</th>
-                    <th>TextUp phone</th>
+                    <th>TextUp phone number(s)</th>
 
                     <th>$ billable segments</th>
                     <th># notification texts</th>
@@ -56,7 +56,7 @@
             <tbody>
                 <g:each var="team" in="${teams}">
                     <tr>
-                        <td data-number="${team.number}"></td>
+                        <td data-phone-id="${team.phoneId}"></td>
                         <td>${team.name}</td>
                         <td>
                             $<g:formatNumber number="${team.totalCost}"

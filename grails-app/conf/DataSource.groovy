@@ -85,10 +85,13 @@ environments {
             dbCreate = "none" //use dbmigration plugin to manage schema changes
             driverClassName = "com.mysql.jdbc.Driver"
             dialect = "org.textup.override.MySQL5UTF8MB4InnoDBDialect"
-            // url CANNOT HAVE characterEncoding=utf8 because that will
+            // [NOTE] url CANNOT HAVE characterEncoding=utf8 because that will
             // override our settings in /etc/mysql/my.cnf to set the character
             // encoding to utf8mb4
-            url = "jdbc:mysql://localhost/prodDb?useUnicode=true"
+            // [NOTE] to prevent mysql from using the system timezone, we force mysql to use
+            // the server timezone, which we set to UTC in `BootStrap.groovy`
+            // see https://stackoverflow.com/a/7610174
+            url = "jdbc:mysql://localhost/prodDb?useUnicode=true&useLegacyDatetimeCode=false&serverTimezone=UTC"
             username = System.getenv("TEXTUP_BACKEND_DB_USERNAME") ?: System.getProperty("TEXTUP_BACKEND_DB_USERNAME")
             password = System.getenv("TEXTUP_BACKEND_DB_PASSWORD") ?: System.getProperty("TEXTUP_BACKEND_DB_PASSWORD")
 

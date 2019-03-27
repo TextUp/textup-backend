@@ -36,7 +36,7 @@ class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Compara
 
     static Result<PhoneNumberHistory> tryCreate(DateTime created, BasePhoneNumber bNum) {
         PhoneNumberHistory nh1 = new PhoneNumberHistory(numberAsString: bNum?.number,
-            whenCreated: JodaUtils.atStartOfMonth(created))
+            whenCreated: created)
         DomainUtils.trySave(nh1, ResultStatus.CREATED)
     }
 
@@ -48,11 +48,13 @@ class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Compara
             if (month == null || year == null) {
                 return false
             }
-            DateTime dt = DateTime.now()
+            DateTime dt = JodaUtils.utcNow()
                 .withMonthOfYear(month)
                 .withYear(year)
-            if (dt.isEqual(whenCreated) || dt.isAfter(whenCreated)) {
-                !endTime || dt.isEqual(endTime) || dt.isBefore(endTime)
+            DateTime startOfMonth = JodaUtils.atStartOfMonth(whenCreated)
+            if (dt.isEqual(startOfMonth) || dt.isAfter(startOfMonth)) {
+                DateTime endOfMonth = JodaUtils.atEndOfMonth(endTime)
+                !endOfMonth || dt.isEqual(endOfMonth) || dt.isBefore(endOfMonth)
             }
             else { false }
         }
@@ -71,6 +73,4 @@ class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Compara
     // ----------
 
     PhoneNumber getNumberIfPresent() { PhoneNumber.tryCreate(numberAsString).payload }
-
-    void setEndTime(DateTime dt) { endTime = JodaUtils.atEndOfMonth(dt) }
 }

@@ -42,7 +42,7 @@ class PhoneNumberHistorySpec extends Specification {
 
         then: "do not validate number as string"
         res.status == ResultStatus.CREATED
-        res.payload.whenCreated == JodaUtils.atStartOfMonth(dt)
+        res.payload.whenCreated == dt
         res.payload.numberAsString == null
 
         when:
@@ -50,12 +50,12 @@ class PhoneNumberHistorySpec extends Specification {
 
         then:
         res.status == ResultStatus.CREATED
-        res.payload.whenCreated == JodaUtils.atStartOfMonth(dt)
+        res.payload.whenCreated == dt
         res.payload.numberAsString == pNum1.number
         res.payload.numberIfPresent.number == pNum1.number
     }
 
-    void "test cleaning start and end times of range"() {
+    void "test do not clean start and end times of range"() {
         given:
         DateTime start1 = DateTime.now()
         DateTime end1 = start1.plusDays(1).plusMonths(2)
@@ -65,14 +65,14 @@ class PhoneNumberHistorySpec extends Specification {
         PhoneNumberHistory nh1 = PhoneNumberHistory.tryCreate(start1, pNum1).payload
 
         then:
-        nh1.whenCreated == JodaUtils.atStartOfMonth(start1)
+        nh1.whenCreated == start1
         nh1.endTime == null
 
         when:
         nh1.endTime = end1
 
         then:
-        nh1.endTime == JodaUtils.atEndOfMonth(end1)
+        nh1.endTime == end1
     }
 
     void "test sorting"() {

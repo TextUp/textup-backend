@@ -210,8 +210,8 @@ class UsageServiceIntegrationSpec extends Specification {
         int numMonthsInPast = 8
 
         when: "only data this month"
-        List aList1 = usageService.getActivityForNumber(p1.numberAsString)
-        List aList2 = usageService.getActivityForNumber(p2.numberAsString)
+        List aList1 = usageService.getActivityForPhoneId(p1.id)
+        List aList2 = usageService.getActivityForPhoneId(p2.id)
 
         then:
         aList1.size() == 1
@@ -224,8 +224,8 @@ class UsageServiceIntegrationSpec extends Specification {
         rCall1.addReceipt(TestUtils.buildTempReceipt())
         rCall1.save(flush: true, failOnError: true)
 
-        aList1 = usageService.getActivityForNumber(p1.numberAsString)
-        aList2 = usageService.getActivityForNumber(p2.numberAsString)
+        aList1 = usageService.getActivityForPhoneId(p1.id)
+        aList2 = usageService.getActivityForPhoneId(p2.id)
 
         then:
         aList1.size() == numMonthsInPast + 1
@@ -251,7 +251,7 @@ class UsageServiceIntegrationSpec extends Specification {
         }
 
         when:
-        List aList = usageService.getActivityForNumber(thisPhone.numberAsString)
+        List aList = usageService.getActivityForPhoneId(thisPhone.id)
 
         then:
         aList.size() == 1

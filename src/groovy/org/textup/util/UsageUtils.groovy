@@ -31,19 +31,27 @@ class UsageUtils {
     // Building data
     // -------------
 
-    static <T extends ActivityEntity.HasActivity> List<T> associateActivity(List<T> activityOwners,
-        List<ActivityRecord> activityList) {
+    // make sure that even owners that don't have an activity to associate have their monthString
+    // set to the current month for proper phone number history calculations
+    static <T extends ActivityEntity.HasActivity> List<T> associateActivityForMonth(DateTime dt,
+        List<T> activityOwners, List<ActivityRecord> activityList) {
 
-        if (!activityOwners || !activityList) {
+        if (dt == null || activityOwners == null || activityList == null) {
             return activityOwners
         }
-        List<T> clonedOwners = []
-        activityOwners.each { T ha1 -> clonedOwners << ha1.clone() }
-        Map<BigInteger, T> ownerMap = MapUtils.buildObjectMap(clonedOwners) { T ha1 -> ha1.id }
-        activityList.each { ActivityRecord a1 ->
-            ownerMap.get(a1.ownerId)?.setActivity(a1)
+        String monthString = UsageUtils.dateTimeToMonthString(dt)
+        DateTime monthObj = UsageUtils.monthStringToDateTime(monthString)
+        Map<Number, ActivityRecord> ownerIdToActivity = MapUtils
+            .buildObjectMap(activityList) { ActivityRecord a1 -> a1.ownerId }
+        activityOwners.collect { T ha1 ->
+            T ha2 = ha1.clone()
+            if (ownerIdToActivity.containsKey(ha2.id)) {
+                ha2.activity = ownerIdToActivity[ha2.id]
+            }
+            ha2.activity.setMonthStringDirectly(monthString)
+            ha2.activity.monthObj = monthObj
+            ha2
         }
-        clonedOwners
     }
 
     static List<ActivityRecord> ensureMonths(List<ActivityRecord> aList) {
@@ -54,6 +62,7 @@ class UsageUtils {
         getAvailableMonthStrings().each { String monthString ->
             if (!monthStringToActivity.containsKey(monthString)) {
                 ActivityRecord a1 = new ActivityRecord()
+                // the monthString setter takes in a query month
                 a1.setMonthStringDirectly(monthString)
                 a1.monthObj = UsageUtils.monthStringToDateTime(monthString)
                 monthStringToActivity[monthString] = a1
@@ -63,7 +72,7 @@ class UsageUtils {
     }
 
     static String buildNumbersStringForMonth(Number phoneId, DateTime monthObj) {
-        Phone p1 = Phones.mustFindActiveForId(phoneId as Long)
+        Phone p1 = Phones.mustFindForId(phoneId as Long)
             .logFail("buildNumbersStringForMonth")
             .payload as Phone
         List<String> nums = []
