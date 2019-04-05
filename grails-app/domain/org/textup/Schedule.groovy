@@ -145,10 +145,10 @@ class Schedule implements WithId, CanSave<Schedule>, ReadOnlySchedule {
                     // should add wraparound on Saturday
                     else if (dayOfWeek == ScheduleUtils.DAYS_OF_WEEK.last()) {
                         if (hasWraparound && times[1] == "2359") {
-                            DateTime start = DateTimeUtils
+                            DateTime start = JodaUtils
                                 .toUTCDateTimeTodayThenZone(dtf.parseLocalTime(times[0]), zone)
                                 .plusDays(addDays)
-                            DateTime end = DateTimeUtils
+                            DateTime end = JodaUtils
                                 .toUTCDateTimeTodayThenZone(dtf.parseLocalTime(firstDayWrappedEnd), zone)
                                 .plusDays(addDays + 1)
                             intervalsForDay << new Interval(start, end)
@@ -223,14 +223,14 @@ class Schedule implements WithId, CanSave<Schedule>, ReadOnlySchedule {
             firstDayAtBeginning = false
         String firstDayWrappedEnd
         for (wrapRange in this."${ScheduleUtils.DAYS_OF_WEEK[0]}".tokenize(ScheduleUtils.RANGE_DELIMITER)) {
-            if (wrapRange.tokenize(TIME_DELIMITER)[0] == "0000") {
-                firstDayWrappedEnd = wrapRange.tokenize(TIME_DELIMITER)[1]
+            if (wrapRange.tokenize(ScheduleUtils.TIME_DELIMITER)[0] == "0000") {
+                firstDayWrappedEnd = wrapRange.tokenize(ScheduleUtils.TIME_DELIMITER)[1]
                 firstDayAtBeginning = true
                 break
             }
         }
         for (wrapRange in this."${ScheduleUtils.DAYS_OF_WEEK.last()}".tokenize(ScheduleUtils.RANGE_DELIMITER)) {
-            if (wrapRange.tokenize(TIME_DELIMITER)[1] == "2359") {
+            if (wrapRange.tokenize(ScheduleUtils.TIME_DELIMITER)[1] == "2359") {
                 lastDayAtEnd = true
                 break
             }

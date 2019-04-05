@@ -16,6 +16,9 @@ class BasePhoneNumberJsonMarshaller extends JsonNamedMarshaller {
         if (bNum instanceof AvailablePhoneNumber) {
             [(bNum.infoType): bNum.info, number: bNum.prettyPhoneNumber]
         }
+        else if (bNum instanceof ContactNumber) { // TODO test
+            [number: bNum.prettyPhoneNumber]
+        }
         else { bNum.prettyPhoneNumber }
     }
 

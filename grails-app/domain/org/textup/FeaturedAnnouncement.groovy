@@ -25,6 +25,8 @@ class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
         expiresAt type: PersistentDateTime
     }
     static constraints = {
+        // TODO add character limit
+        // message maxSize: (ValidationUtils.TEXT_BODY_LENGTH * 2)
     	expiresAt validator: { DateTime val, FeaturedAnnouncement obj ->
     		if (!val?.isAfter(obj.whenCreated)) { ["expiresBeforeCreation"] }
     	}
