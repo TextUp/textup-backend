@@ -104,9 +104,13 @@ class TestUtils {
         sBuilder.toString()
     }
 
+    static int getOffsetInHours(String tzId) {
+        DateTimeZone tz = DateTimeZone.forID(tzId) ?: DateTimeZone.UTC
+        TimeUnit.HOURS.convert(tz.getOffset(DateTime.now()), TimeUnit.MILLISECONDS)
+    }
+
     static String getDateTimeOffsetString(String tzId) {
-        DateTimeZone tz = DateTimeZone.forID(tzId)
-        long offsetInHours = TimeUnit.HOURS.convert(tz.getOffset(DateTime.now()), TimeUnit.MILLISECONDS)
+        int offsetInHours = TestUtils.getOffsetInHours(tzId)
         String sign = offsetInHours >= 0 ? "+" : "-",
             offsetString = "${Math.abs(offsetInHours)}:00"
         offsetString = offsetString.startsWith("0") ? offsetString : "0${offsetString}"

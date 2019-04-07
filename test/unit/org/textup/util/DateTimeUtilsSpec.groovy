@@ -58,8 +58,10 @@ class DateTimeUtilsSpec extends Specification {
 
     void "test converting local time to date time"() {
         given:
-        DateTimeZone notUTCZone = DateTimeZone.forID("America/New_York")
+        String tzId = "America/New_York"
+        DateTimeZone notUTCZone = DateTimeZone.forID(tzId)
         int hourNum = 11
+        int utcOffsetInHours = TestUtils.getOffsetInHours(tzId)
         LocalTime lTime = new LocalTime(hourNum, 0)
 
         expect: "both default to UTC if no zone specified so should be same"
@@ -69,11 +71,11 @@ class DateTimeUtilsSpec extends Specification {
         and:
         // UTC date time -> zone date time = subtract 5 (Eastern time is behind UTC by five hours)
         DateTimeUtils.toUTCDateTimeTodayThenZone(lTime, notUTCZone).toString()
-            .contains("${hourNum - 5}:00:00")
+            .contains("${hourNum + utcOffsetInHours}:00:00")
         // zone date time -> UTC date time = add 5 to remove -5 offset
         // (Eastern time is behind UTC by five hours)
         DateTimeUtils.toZoneDateTimeTodayThenUTC(lTime, notUTCZone).toString()
-            .contains("${hourNum + 5}:00:00")
+            .contains("${hourNum - utcOffsetInHours}:00:00")
     }
 
     void "test calculating # days between two date times"() {
