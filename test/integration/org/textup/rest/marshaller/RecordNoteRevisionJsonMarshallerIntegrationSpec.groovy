@@ -15,6 +15,9 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling revision"() {
         given: "revision"
+        String tzId = "Europe/Stockholm"
+        String offsetString = TestUtils.getDateTimeOffsetString(tzId)
+
         Record rec = new Record()
         rec.save(flush:true, failOnError:true)
         RecordNote note1 = new RecordNote(record:rec, noteContents:"note contents!!")
@@ -44,16 +47,15 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends Specification {
         json.authorName == rev1.authorName
         json.authorId == rev1.authorId
         json.authorType == rev1.authorType.toString()
-        !json.whenChanged.contains("+01:00")
+        !json.whenChanged.contains(offsetString)
 
         when: "add timezone"
-        String tzId = "Europe/Stockholm"
         Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, tzId)
         JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
             json = TestUtils.jsonToMap(rev1 as JSON)
         }
 
         then:
-        json.whenChanged.contains("+01:00")
+        json.whenChanged.contains(offsetString)
     }
 }

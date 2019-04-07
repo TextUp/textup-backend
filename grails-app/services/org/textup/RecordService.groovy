@@ -6,6 +6,7 @@ import java.util.concurrent.Future
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.rest.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -16,6 +17,7 @@ import org.textup.validator.action.*
 class RecordService {
 
     AuthService authService
+    CallService callService
     MediaService mediaService
     OutgoingMessageService outgoingMessageService
     ResultFactory resultFactory
@@ -105,17 +107,44 @@ class RecordService {
     // -----------
 
     @RollbackOnResultFailure
-    Result<RecordItem> update(Long noteId, TypeConvertingMap body) {
-        RecordNote note1 = RecordNote.get(noteId)
-        if (!note1) {
-            return resultFactory.failWithCodeAndStatus("recordService.update.notFound",
-                ResultStatus.NOT_FOUND, [noteId])
+    Result<? extends RecordItem> update(Long itemId, TypeConvertingMap body) {
+        RecordItem rItem1 = RecordItem.get(itemId)
+        Result<? extends RecordItem> res
+        if (rItem1) {
+            if (rItem1.instanceOf(RecordNote)) {
+                tryUpdateNote(rItem1 as RecordNote, body)
+            }
+            else if (rItem1.instanceOf(RecordCall) && body.boolean("endOngoing")) {
+                tryEndOngoingCall(rItem1 as RecordCall)
+            }
+            else { resultFactory.success(rItem1) }
         }
-        if (note1.isReadOnly) {
-            return resultFactory.failWithCodeAndStatus("recordService.update.readOnly",
-                ResultStatus.FORBIDDEN, [noteId])
+        else {
+            resultFactory.failWithCodeAndStatus("recordService.update.notFound",
+                ResultStatus.NOT_FOUND, [itemId])
         }
-        mergeNote(note1, body)
+    }
+
+    protected Result<? extends RecordItem> tryUpdateNote(RecordNote rNote1, TypeConvertingMap body) {
+        if (rNote1.isReadOnly) {
+            resultFactory.failWithCodeAndStatus("recordService.update.readOnly",
+                ResultStatus.FORBIDDEN, [rNote1.id])
+        }
+        else { mergeNote(rNote1, body) }
+    }
+
+    protected Result<? extends RecordItem> tryEndOngoingCall(RecordCall rCall1) {
+        String parentCallId = rCall1.buildParentCallApiId()
+        if (parentCallId && rCall1.isStillOngoing()) {
+            Phone p1 = Phone.getPhonesForRecords([rCall1.record], false)[0]
+            callService
+                .hangUpImmediately(parentCallId, p1?.customAccountId)
+                .then { resultFactory.success(rCall1) }
+        }
+        else {
+            resultFactory.failWithCodeAndStatus("recordService.tryEndOngoingCall.tooEarlyOrAlreadyEnded",
+                ResultStatus.UNPROCESSABLE_ENTITY, [rCall1.id])
+        }
     }
 
     // Delete note

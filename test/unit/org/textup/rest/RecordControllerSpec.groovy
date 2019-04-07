@@ -293,7 +293,7 @@ class RecordControllerSpec extends CustomSpec {
     // Update
     // ------
 
-    void "test update a nonexistent note"() {
+    void "test update a nonexistent item"() {
         given:
         controller.authService = [
             exists:{ Class clazz, Long id -> false }
@@ -308,13 +308,13 @@ class RecordControllerSpec extends CustomSpec {
         then:
         response.status == SC_METHOD_NOT_ALLOWED
     }
-    void "test update a note"() {
-        given: "a persisted note"
-        RecordNote note1 = new RecordNote(record:c1.record)
-        note1.save(flush:true, failOnError:true)
+    void "test update a item"() {
+        given: "a persisted item"
+        RecordItem item1 = new RecordItem(record:c1.record)
+        item1.save(flush:true, failOnError:true)
 
         controller.recordService = [update:{ Long id, Map body ->
-            new Result(success:true, payload:note1)
+            new Result(success:true, payload:item1)
         }] as RecordService
         controller.authService = [
             exists:{ Class clazz, Long id -> true },
@@ -322,14 +322,14 @@ class RecordControllerSpec extends CustomSpec {
         ] as AuthService
 
         when:
-        params.id = note1.id
+        params.id = item1.id
         request.json = "{'record':{}}"
         request.method = "PUT"
         controller.update()
 
         then:
         response.status == SC_OK
-        response.json.id == note1.id
+        response.json.id == item1.id
     }
 
     // Delete

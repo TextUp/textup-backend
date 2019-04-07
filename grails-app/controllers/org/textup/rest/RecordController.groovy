@@ -228,7 +228,7 @@ class RecordController extends BaseController {
         if (inputData == null) { return }
         TypeConvertingMap noteInfo = new TypeConvertingMap(inputData)
         Long id = params.long("id")
-        if (authService.exists(RecordNote, id)) {
+        if (authService.exists(RecordItem, id)) {
             if (authService.hasPermissionsForItem(id)) {
                 respondWithResult(RecordItem, recordService.update(id, noteInfo))
             }

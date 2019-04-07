@@ -2,6 +2,7 @@ package org.textup
 
 import com.twilio.exception.ApiException
 import com.twilio.rest.api.v2010.account.Call
+import com.twilio.rest.api.v2010.account.Call.UpdateStatus
 import com.twilio.rest.api.v2010.account.CallCreator
 import com.twilio.rest.api.v2010.account.CallUpdater
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
@@ -62,6 +63,22 @@ class CallService {
         try {
             callUpdater(callId, customAccountId)
                 .setUrl(IOCUtils.getWebhookLink(afterPickup))
+                .setStatusCallback(IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS))
+                .update()
+            IOCUtils.resultFactory.success()
+        }
+        catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
+    }
+
+    // use `setStatus` to end calls instead of interrupt and redirecting to Twiml with HangUp
+    // because this works for both in-progress and still-ringing calls. Interrupting only
+    // works for in-progress calls and will fail for still-ringing calls
+    Result<Void> hangUpImmediately(String callId, String customAccountId) {
+        try {
+            callUpdater(callId, customAccountId)
+                // hang up call either ringing or already in progress
+                // see https://www.twilio.com/docs/voice/api/call#update-a-call-resource
+                .setStatus(UpdateStatus.COMPLETED)
                 .setStatusCallback(IOCUtils.getWebhookLink(handle: Constants.CALLBACK_STATUS))
                 .update()
             IOCUtils.resultFactory.success()

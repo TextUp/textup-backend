@@ -221,6 +221,13 @@ class PhoneSpec extends CustomSpec {
         phones.size() == 2
         [p1, p2].every { it in phones }
 
+        when: "exclude sharing"
+        phones = Phone.getPhonesForRecords([sc1.contact.record], false)
+
+        then:
+        phones.size() == 1
+        [p1].every { it in phones }
+
         when: "have records belonging to our tags, records, and shared FOR ONE PHONE"
         List<Record> myContactRecs = Contact.findAllByPhone(p1)*.record,
             myTagRecs = p1.tags*.record,

@@ -333,11 +333,11 @@ class CallbackStatusServiceSpec extends CustomSpec {
         params = new TypeConvertingMap([
             CallSid: "hi",
             CallStatus: ReceiptStatus.PENDING.statuses[0],
-            CallDuration: "88",
+            CallDuration: "0",
         ])
         service.process(params)
 
-        then: "parent call"
+        then: "parent call and any non-null duration is valid"
         0 == handleUpdateForText.callCount
         0 == handleUpdateForChildCall.callCount
         1 == handleUpdateForParentCall.callCount

@@ -26,7 +26,8 @@ class CallbackStatusService {
         if (params?.CallSid) {
             ReceiptStatus status = ReceiptStatus.translate(params.CallStatus as String)
             Integer duration = TypeConversionUtils.to(Integer, params.CallDuration)
-            if (status && duration) {
+            // duration may be 0 if call is ended immediately
+            if (status && duration != null) {
                 if (params.ParentCallSid) {
                     PhoneNumber childNumber = PhoneNumber
                         .urlDecode(params[Constants.CALLBACK_CHILD_CALL_NUMBER_KEY] as String)

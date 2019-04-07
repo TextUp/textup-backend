@@ -44,17 +44,24 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
         voicemailInSeconds minSize:0
     }
 
+    // Methods
+    // -------
+
+    // duration in seconds only present when the call has been completed
+    // see `CallDuration` in https://www.twilio.com/docs/voice/api/call#statuscallbackevent
+    boolean isStillOngoing() {
+        tryGetParentReceipt()?.numBillable == null // can be zero if call was ended immediately
+    }
+
+    String buildParentCallApiId() {
+        tryGetParentReceipt()?.apiId
+    }
+
     // Property Access
     // ---------------
 
     int getDurationInSeconds() {
-        int duration = 0
-        this.receipts?.each { RecordItemReceipt rpt1 ->
-            if (rpt1.numBillable && rpt1.numBillable > duration) {
-                duration = rpt1.numBillable
-            }
-        }
-        duration
+        tryGetParentReceipt()?.numBillable ?: 0
     }
 
     @Override
@@ -72,6 +79,11 @@ class RecordCall extends RecordItem implements ReadOnlyRecordCall {
 
     // Helpers
     // -------
+
+    // parent receipt is the one with the longest duration
+    protected RecordItemReceipt tryGetParentReceipt() {
+        this.receipts?.max { RecordItemReceipt rpt1 -> rpt1?.numBillable }
+    }
 
     protected Collection<RecordItemReceipt> showOnlyContactReceipts() {
         List<RecordItemReceipt> rpts = []

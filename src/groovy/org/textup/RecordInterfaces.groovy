@@ -55,6 +55,7 @@ interface ReadOnlyRecordText {
 interface ReadOnlyRecordCall {
     int getDurationInSeconds()
     int getVoicemailInSeconds()
+    boolean isStillOngoing()
 }
 
 @GrailsTypeChecked

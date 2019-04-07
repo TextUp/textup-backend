@@ -7,6 +7,7 @@ import groovy.util.logging.Log4j
 import groovy.util.slurpersupport.GPathResult
 import groovy.xml.MarkupBuilder
 import java.nio.file.*
+import java.util.concurrent.*
 import javax.xml.transform.stream.*
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
@@ -14,6 +15,7 @@ import org.apache.commons.io.IOUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.codehaus.groovy.reflection.*
+import org.joda.time.*
 import org.quartz.*
 import org.springframework.context.MessageSource
 import org.textup.*
@@ -100,6 +102,15 @@ class TestUtils {
         StringBuilder sBuilder = new StringBuilder()
         Constants.MAX_TEXT_COLUMN_SIZE.times { it -> sBuilder << it }
         sBuilder.toString()
+    }
+
+    static String getDateTimeOffsetString(String tzId) {
+        DateTimeZone tz = DateTimeZone.forID(tzId)
+        long offsetInHours = TimeUnit.HOURS.convert(tz.getOffset(DateTime.now()), TimeUnit.MILLISECONDS)
+        String sign = offsetInHours >= 0 ? "+" : "-",
+            offsetString = "${Math.abs(offsetInHours)}:00"
+        offsetString = offsetString.startsWith("0") ? offsetString : "0${offsetString}"
+        sign + offsetString
     }
 
     // Media

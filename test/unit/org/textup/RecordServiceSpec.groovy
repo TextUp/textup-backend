@@ -1,6 +1,5 @@
 package org.textup
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
@@ -9,6 +8,8 @@ import grails.test.runtime.*
 import java.util.concurrent.Future
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
+import org.textup.rest.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -310,82 +311,128 @@ class RecordServiceSpec extends CustomSpec {
         RecordNoteRevision.count() == revBaseline
     }
 
+    void "test trying to end call"() {
+        given:
+        String apiId = TestUtils.randString()
+        RecordCall rCall1 = GroovyMock()
+        service.callService = GroovyMock(CallService)
+
+        when: "too early"
+        Result res = service.tryEndOngoingCall(rCall1)
+
+        then:
+        1 * rCall1.buildParentCallApiId() >> null
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "recordService.tryEndOngoingCall.tooEarlyOrAlreadyEnded"
+
+        when: "already ended"
+        res = service.tryEndOngoingCall(rCall1)
+
+        then:
+        1 * rCall1.buildParentCallApiId() >> apiId
+        1 * rCall1.isStillOngoing() >> false
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages[0] == "recordService.tryEndOngoingCall.tooEarlyOrAlreadyEnded"
+
+        when: "can end"
+        res = service.tryEndOngoingCall(rCall1)
+
+        then:
+        1 * rCall1.buildParentCallApiId() >> apiId
+        1 * rCall1.isStillOngoing() >> true
+        1 * service.callService.hangUpImmediately(apiId, null) >> new Result()
+        res.status == ResultStatus.OK
+        res.payload == rCall1
+    }
+
+    void "test trying to update note"() {
+        given:
+        RecordNote rNote1 = GroovyMock()
+        TypeConvertingMap body = new TypeConvertingMap()
+        MockedMethod mergeNote = TestUtils.mock(service, "mergeNote")
+
+        when:
+        Result res = service.tryUpdateNote(rNote1, body)
+
+        then:
+        1 * rNote1.isReadOnly >> true
+        mergeNote.callCount == 0
+        res.status == ResultStatus.FORBIDDEN
+        res.errorMessages[0] == "recordService.update.readOnly"
+
+        when:
+        res = service.tryUpdateNote(rNote1, body)
+
+        then:
+        1 * rNote1.isReadOnly >> false
+        mergeNote.callCount == 1
+        mergeNote.callArguments[0] == [rNote1, body, null]
+
+        cleanup:
+        mergeNote?.restore()
+    }
+
+    @DirtiesRuntime
     void "test updating note overall"() {
         given:
-        service.mediaService                        = Mock(MediaService)
-        service.authService                         = Mock(AuthService)
-        Record rec                                  = new Record()
-        assert rec.save(flush: true, failOnError: true)
-        RecordNote note1 = new RecordNote(record:rec,
-            noteContents: "hi",
-            location: new Location(address: "hi", lat: 0G, lon: 0G),
-            author: s1.toAuthor())
-        assert note1.save(flush: true, failOnError: true)
-        int lBaseline   = Location.count()
-        int mBaseline   = MediaInfo.count()
-        int nBaseline   = RecordNote.count()
-        int revBaseline = RecordNoteRevision.count()
+        Long itemId = TestUtils.randIntegerUpTo(88)
+        RecordItem rItem1 = GroovyMock()
+        TypeConvertingMap body1 = new TypeConvertingMap(endOngoing: false)
+        TypeConvertingMap body2 = new TypeConvertingMap(endOngoing: true)
+        MockedMethod tryUpdateNote = TestUtils.mock(service, "tryUpdateNote")
+        MockedMethod tryEndOngoingCall = TestUtils.mock(service, "tryEndOngoingCall")
 
-        when: "nonexistent note"
-        Result<RecordItem> res = service.update(-88L, null)
+        when: "not found"
+        RecordItem.metaClass."static".get = { Long arg1 -> null }
+        Result res = service.update(itemId, body1)
 
         then:
-        res.status                 == ResultStatus.NOT_FOUND
-        res.errorMessages[0]       == "recordService.update.notFound"
-        Location.count()           == lBaseline
-        MediaInfo.count()          == mBaseline
-        RecordNote.count()         == nBaseline
-        RecordNoteRevision.count() == revBaseline
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "recordService.update.notFound"
+        tryUpdateNote.callCount == 0
+        tryEndOngoingCall.callCount == 0
 
-        when: "note is read only"
-        note1.isReadOnly = true
-        note1.save(flush:true, failOnError:true)
-        res = service.update(note1.id, new TypeConvertingMap())
+        when: "is note"
+        RecordItem.metaClass."static".get = { Long arg1 -> rItem1 }
+        res = service.update(itemId, body1)
 
         then:
-        res.status                 == ResultStatus.FORBIDDEN
-        res.errorMessages[0]       == "recordService.update.readOnly"
-        Location.count()           == lBaseline
-        MediaInfo.count()          == mBaseline
-        RecordNote.count()         == nBaseline
-        RecordNoteRevision.count() == revBaseline
+        1 * rItem1.asBoolean() >> true
+        1 * rItem1.instanceOf(RecordNote) >> true
+        tryUpdateNote.callCount == 1
+        tryEndOngoingCall.callCount == 0
 
-        when: "no longer read only, toggle deleted flag"
-        note1.isReadOnly = false
-        note1.save(flush:true, failOnError:true)
-        TypeConvertingMap body = new TypeConvertingMap(isDeleted: true)
-        res      = service.update(note1.id, body)
-
-        then: "updated but no revisions"
-        1 * service.mediaService.tryProcess(*_) >> { args ->
-            new Result(payload: Tuple.create(args[0], null))
-        }
-        1 * service.authService.loggedInAndActive >> s1
-        res.status                 == ResultStatus.OK
-        res.payload                == note1
-        res.payload.isDeleted      == true
-        Location.count()           == lBaseline
-        MediaInfo.count()          == mBaseline
-        RecordNote.count()         == nBaseline
-        RecordNoteRevision.count() == revBaseline
-
-
-        when: "update contents"
-        body = new TypeConvertingMap(noteContents: TestUtils.randString())
-        res  = service.update(note1.id, body)
+        when: "is call but do not end outgoing"
+        res = service.update(itemId, body1)
 
         then:
-        1 * service.mediaService.tryProcess(*_) >> { args ->
-            new Result(payload: Tuple.create(args[0], null))
-        }
-        1 * service.authService.loggedInAndActive >> s1
-        res.status                 == ResultStatus.OK
-        res.payload                == note1
-        res.payload.noteContents   == body.noteContents
-        Location.count()           == lBaseline + 1
-        MediaInfo.count()          == mBaseline
-        RecordNote.count()         == nBaseline
-        RecordNoteRevision.count() == revBaseline + 1
+        1 * rItem1.asBoolean() >> true
+        1 * rItem1.instanceOf(RecordCall) >> true
+        tryUpdateNote.callCount == 1
+        tryEndOngoingCall.callCount == 0
+
+        when: "is call and end outgoing"
+        res = service.update(itemId, body2)
+
+        then:
+        1 * rItem1.asBoolean() >> true
+        1 * rItem1.instanceOf(RecordCall) >> true
+        tryUpdateNote.callCount == 1
+        tryEndOngoingCall.callCount == 1
+
+        when: "is neither note nor call"
+        res = service.update(itemId, body1)
+
+        then:
+        1 * rItem1.asBoolean() >> true
+        1 * rItem1.instanceOf(RecordNote) >> false
+        1 * rItem1.instanceOf(RecordCall) >> false
+        tryUpdateNote.callCount == 1
+        tryEndOngoingCall.callCount == 1
+
+        cleanup:
+        tryUpdateNote?.restore()
+        tryEndOngoingCall?.restore()
     }
 
     void "test deleting note"() {

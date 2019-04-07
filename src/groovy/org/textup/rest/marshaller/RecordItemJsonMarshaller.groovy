@@ -35,6 +35,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
             if (item instanceof ReadOnlyRecordCall) {
                 durationInSeconds = item.durationInSeconds
                 voicemailInSeconds = item.voicemailInSeconds
+                stillOngoing = item.isStillOngoing()
                 type = RecordItemType.CALL.toString()
             }
             else if (item instanceof ReadOnlyRecordText) {

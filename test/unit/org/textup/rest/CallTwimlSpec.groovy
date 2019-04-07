@@ -81,7 +81,7 @@ class CallTwimlSpec extends CustomSpec {
         link.contains(randString)
     }
 
-    void "test call utility responses"() {
+    void "test hanging up"() {
         when:
         Result<Closure> res = CallTwiml.hangUp()
 
@@ -90,9 +90,11 @@ class CallTwimlSpec extends CustomSpec {
         TestUtils.buildXml(res.payload) == TestUtils.buildXml({
             Response { Hangup() }
         })
+    }
 
+    void "test call blocked"() {
         when:
-        res = CallTwiml.blocked()
+        Result<Closure> res = CallTwiml.blocked()
 
         then:
         res.status == ResultStatus.OK

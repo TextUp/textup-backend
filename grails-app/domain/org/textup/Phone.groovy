@@ -138,7 +138,7 @@ class Phone implements WithMedia, WithId {
     // --------------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static HashSet<Phone> getPhonesForRecords(Collection<Record> recs) {
+    static HashSet<Phone> getPhonesForRecords(Collection<Record> recs, boolean includeShared = true) {
         if (!recs) { return new HashSet<Phone>() }
         Collection<Phone> cPhones = Contact.createCriteria().list {
                 projections { property("phone") }
@@ -150,7 +150,9 @@ class Phone implements WithMedia, WithId {
                 eq("isDeleted", false)
             },
             phones = cPhones + tPhones,
-            // phones from contacts that are shared with me
+            sPhones = []
+        // phones from contacts that are shared with me
+        if (includeShared) {
             sPhones = SharedContact.createCriteria().list {
                 projections { property("sharedWith") }
                 contact {
@@ -162,6 +164,7 @@ class Phone implements WithMedia, WithId {
                 }
                 else { eq("sharedBy", null) }
             }
+        }
         new HashSet<Phone>(phones + sPhones)
     }
 

@@ -240,6 +240,37 @@ class CallServiceSpec extends Specification {
         callUpdater.restore()
     }
 
+    void "test ending call immediately call"() {
+        given:
+        String customAccountId = TestUtils.randString()
+        String callId = TestUtils.randString()
+
+        CallUpdater updater = GroovyMock()
+        MockedMethod callUpdater = TestUtils.mock(service, "callUpdater") {
+            throw new IllegalArgumentException(TestUtils.randString())
+        }
+
+        when:  "has error"
+        Result<Void> res = service.hangUpImmediately(callId, customAccountId)
+
+        then: "errors gracefully handled"
+        res.status == ResultStatus.INTERNAL_SERVER_ERROR
+
+        when: "no error"
+        callUpdater.restore()
+        callUpdater = TestUtils.mock(service, "callUpdater") { updater }
+        res = service.hangUpImmediately(callId, customAccountId)
+
+        then:
+        1 * updater.setStatus(Call.UpdateStatus.COMPLETED) >> updater
+        1 * updater.setStatusCallback({ it.toString().contains(Constants.CALLBACK_STATUS) }) >> updater
+        1 * updater.update()
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        callUpdater.restore()
+    }
+
     void "test retrying call"() {
         given:
         BasePhoneNumber fromNum = new PhoneNumber(number: TestUtils.randPhoneNumber())

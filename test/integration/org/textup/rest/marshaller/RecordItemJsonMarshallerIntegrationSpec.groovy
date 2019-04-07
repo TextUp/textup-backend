@@ -1,6 +1,7 @@
 package org.textup.rest.marshaller
 
 import grails.converters.JSON
+import java.util.concurrent.*
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.util.WebUtils
 import org.joda.time.DateTime
@@ -128,6 +129,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         then:
         validate(json, rCall1)
         json.durationInSeconds == rCall1.durationInSeconds
+        json.stillOngoing == false
         json.voicemailInSeconds == 0
         json.type == RecordItemType.CALL.toString()
     }
@@ -197,6 +199,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
     void "test marshalling note with specified timezone"() {
         given:
         String tzId = "Europe/Stockholm"
+        String offsetString = TestUtils.getDateTimeOffsetString(tzId)
         Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, tzId)
 
         RecordNote note1 = new RecordNote(record: rec, noteContents: TestUtils.randString())
@@ -209,7 +212,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends CustomSpec {
         }
 
         then:
-        json.whenCreated.contains("+01:00")
-        json.whenChanged.contains("+01:00")
+        json.whenCreated.contains(offsetString)
+        json.whenChanged.contains(offsetString)
     }
 }

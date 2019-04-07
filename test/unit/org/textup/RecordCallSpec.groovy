@@ -44,6 +44,8 @@ class RecordCallSpec extends Specification {
         assert call.receipts == null
 
         then:
+        call.isStillOngoing() == true
+        call.buildParentCallApiId() == null
         call.durationInSeconds == 0
         call.showOnlyContactReceipts() == []
 
@@ -53,6 +55,17 @@ class RecordCallSpec extends Specification {
         call.addToReceipts(rpt1)
 
         then: "show only contact receipts excludes null"
+        call.isStillOngoing() == true
+        call.buildParentCallApiId() == rpt1.apiId
+        call.durationInSeconds == 0
+        call.showOnlyContactReceipts() == []
+
+        when:
+        rpt1.numBillable = 0
+
+        then: "show only contact receipts excludes null"
+        call.isStillOngoing() == false
+        call.buildParentCallApiId() == rpt1.apiId
         call.durationInSeconds == 0
         call.showOnlyContactReceipts() == []
 
@@ -64,6 +77,8 @@ class RecordCallSpec extends Specification {
         [rpt2, rpt3].each(call.&addToReceipts)
 
         then:
+        call.isStillOngoing() == false
+        call.buildParentCallApiId() == rpt3.apiId
         call.durationInSeconds == 88
         call.showOnlyContactReceipts().size() == 1
         call.showOnlyContactReceipts().every { it in [rpt2] }
