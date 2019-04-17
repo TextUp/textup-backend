@@ -13,6 +13,9 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling revision"() {
         given: "revision"
+        String tzId = "Europe/Stockholm"
+        String offsetString = TestUtils.getDateTimeOffsetString(tzId)
+
         Record rec1 = TestUtils.buildRecord()
         RecordNote rNote1 = new RecordNote(record: rec1, noteContents: TestUtils.randString())
         rNote1.save(flush:true, failOnError:true)
@@ -42,11 +45,10 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends Specification {
         json.whenChanged.contains("Z")
 
         when: "add timezone"
-        String tzId = "Europe/Stockholm"
         RequestUtils.trySet(RequestUtils.TIMEZONE, tzId)
         json = TestUtils.objToJsonMap(rev1)
 
         then:
-        json.whenChanged.contains("+01:00")
+        json.whenChanged.contains(offsetString)
     }
 }

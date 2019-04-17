@@ -1,6 +1,5 @@
 package org.textup.rest
 
-import grails.gorm.DetachedCriteria
 import grails.plugin.jodatime.converters.JodaConverters
 import grails.plugin.springsecurity.SpringSecurityService
 import grails.test.mixin.gorm.Domain
@@ -10,6 +9,7 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.override.*
 import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
@@ -165,8 +165,8 @@ class ContactControllerSpec extends Specification {
             "ids[]": [id2])
         TypeMap params3 = TypeMap.create(search: TestUtils.randString())
 
-        DetachedCriteria crit1 = GroovyMock()
-        DetachedCriteria crit2 = GroovyMock()
+        DetachedJoinableCriteria crit1 = GroovyMock()
+        DetachedJoinableCriteria crit2 = GroovyMock()
         Closure closure1 = GroovyMock()
         MockedMethod buildForSharedByIdWithOptions = MockedMethod.create(IndividualPhoneRecordWrappers, "buildForSharedByIdWithOptions") {
             crit1
@@ -179,7 +179,7 @@ class ContactControllerSpec extends Specification {
         }
 
         when:
-        DetachedCriteria retCrit = controller.buildCriteria(pId, [stat1], params1)
+        DetachedJoinableCriteria retCrit = controller.buildCriteria(pId, [stat1], params1)
 
         then:
         buildForSharedByIdWithOptions.latestArgs == [pId, params1.search, [stat1]]

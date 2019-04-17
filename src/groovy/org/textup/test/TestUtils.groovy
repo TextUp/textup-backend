@@ -7,6 +7,7 @@ import groovy.util.logging.Log4j
 import groovy.util.slurpersupport.GPathResult
 import groovy.xml.MarkupBuilder
 import java.nio.file.*
+import java.util.concurrent.*
 import javax.xml.transform.stream.*
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.codec.digest.DigestUtils
@@ -121,6 +122,24 @@ class TestUtils {
         StringBuilder sBuilder = new StringBuilder()
         ValidationUtils.MAX_TEXT_COLUMN_SIZE.times { it -> sBuilder << it }
         sBuilder.toString()
+    }
+
+    static int getOffsetInHours(String tzId) {
+        DateTimeZone tz = DateTimeZone.forID(tzId) ?: DateTimeZone.UTC
+        TimeUnit.HOURS.convert(tz.getOffset(DateTime.now()), TimeUnit.MILLISECONDS)
+    }
+
+    static String getDateTimeOffsetString(String tzId) {
+        int offsetInHours = TestUtils.getOffsetInHours(tzId)
+        if (offsetInHours == 0) {
+            "Z"
+        }
+        else {
+            String sign = offsetInHours > 0 ? "+" : "-",
+                offsetString = "${Math.abs(offsetInHours)}:00"
+            offsetString = offsetString.startsWith("0") ? offsetString : "0${offsetString}"
+            sign + offsetString
+        }
     }
 
     // Media
@@ -487,7 +506,7 @@ class TestUtils {
             .tryCreate(TestUtils.randString(), TestUtils.randPhoneNumber())
             .payload
         rpt1.status = status
-        rpt1.numBillable = TestUtils.randIntegerUpTo(10)
+        rpt1.numBillable = TestUtils.randIntegerUpTo(10, true)
         assert rpt1.validate()
         rpt1
     }

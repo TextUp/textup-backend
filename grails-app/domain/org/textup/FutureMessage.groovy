@@ -59,7 +59,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, CanSave
         endDate type: PersistentDateTime
         whenAdjustDaylightSavings type: PersistentDateTime
         daylightSavingsZone type: PersistentDateTimeZoneAsString
-        media lazy: false, cascade: "save-update"
+        media fetch: "join", cascade: "save-update"
     }
     static constraints = {
         // removed the constraint the prohibited message from being null because a future message

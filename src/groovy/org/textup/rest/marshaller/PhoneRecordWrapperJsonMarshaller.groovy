@@ -44,7 +44,7 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
             numbers            = w1.tryGetSortedNumbers().payload
             phone              = mutPhone1.id
             status             = stat1.toString()
-            tags               = GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone1.id).list()
+            tags               =  GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone1.id).list()
             whenCreated        = w1.tryGetWhenCreated().payload
 
             if (stat1 == PhoneRecordStatus.UNREAD) {

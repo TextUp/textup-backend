@@ -56,15 +56,11 @@ class OutgoingMessageService {
     protected void waitForMedia(RecordItemType type, Collection<Long> itemIds,
         Rehydratable<Recipients> dr1, Rehydratable<TempRecordItem> dTemp1, Future<Result<?>> fut) {
 
-        if (fut) {
-            Result<?> res = fut.get()
-            if (res) {
-                res.then { finishProcessing(type, itemIds, dr1, dTemp1) }
-            }
-            else {
-                log.error("waitForMedia: no result from media future for `$itemIds`")
-                finishProcessing(type, itemIds, dr1, dTemp1)
-            }
+        Result<?> res = fut ? fut.get() : null
+        // No need to log error if not a result because we may return a no-op future
+        if (res) {
+            res.then { finishProcessing(type, itemIds, dr1, dTemp1) }
+                .logFail("waitForMedia: with itemIds `$itemIds`")
         }
         else { finishProcessing(type, itemIds, dr1, dTemp1) }
     }

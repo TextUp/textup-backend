@@ -8,6 +8,7 @@ import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
 import org.textup.annotation.*
+import org.textup.override.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
@@ -79,7 +80,7 @@ class ContactController extends BaseController {
         ControllerUtils.tryGetPhoneId(qParams.long("teamId"))
             .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { Long pId ->
-                DetachedCriteria<PhoneRecord> criteria = buildCriteria(pId, statuses, qParams)
+                DetachedJoinableCriteria<PhoneRecord> criteria = buildCriteria(pId, statuses, qParams)
                 respondWithClosures(CriteriaUtils.countAction(criteria),
                     IndividualPhoneRecordWrappers.listAction(criteria),
                     qParams,
@@ -87,10 +88,10 @@ class ContactController extends BaseController {
             }
     }
 
-    protected DetachedCriteria<PhoneRecord> buildCriteria(Long pId,
+    protected DetachedJoinableCriteria<PhoneRecord> buildCriteria(Long pId,
         Collection<PhoneRecordStatus> statuses, TypeMap qParams) {
 
-        DetachedCriteria<PhoneRecord> criteria
+        DetachedJoinableCriteria<PhoneRecord> criteria
         String searchVal = qParams.string("search")
         if (qParams.shareStatus == "sharedByMe") {
             criteria = IndividualPhoneRecordWrappers

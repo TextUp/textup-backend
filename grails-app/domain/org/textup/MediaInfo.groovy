@@ -17,7 +17,7 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
     static transients = ["_originalMediaElements"]
     static hasMany = [mediaElements: MediaElement]
     static mapping = {
-        mediaElements lazy: false, cascade: "save-update"
+        mediaElements fetch: "join", cascade: "save-update"
     }
     static constraints = { // all nullable:false by default
         mediaElements cascadeValidation: true

@@ -84,6 +84,9 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling specified timezone"() {
         given:
+        String tzId = "Europe/Stockholm"
+        String offsetString = TestUtils.getDateTimeOffsetString(tzId)
+
         Phone p1 = TestUtils.buildActiveStaffPhone()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
         RecordCall rCall1 = TestUtils.buildRecordCall(ipr1.record)
@@ -103,18 +106,18 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
         Map json = TestUtils.objToJsonMap(iReq1)
 
         then:
-        json.startDate instanceof String
-        json.endDate instanceof String
-        json.exportedOnDate instanceof String
+        json.startDate.contains("Z")
+        json.endDate.contains("Z")
+        json.exportedOnDate.contains("Z")
 
         when:
-        RequestUtils.trySet(RequestUtils.TIMEZONE, "Europe/Stockholm")
+        RequestUtils.trySet(RequestUtils.TIMEZONE, tzId)
         json = TestUtils.objToJsonMap(iReq1)
 
         then:
-        json.startDate instanceof String
-        json.endDate instanceof String
-        json.exportedOnDate instanceof String
+        json.startDate.contains(offsetString)
+        json.endDate.contains(offsetString)
+        json.exportedOnDate.contains(offsetString)
 
         cleanup:
         tryGetActiveAuthUser?.restore()

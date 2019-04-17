@@ -93,10 +93,7 @@ class UtilsSpec extends Specification {
 
     void "test executing closures without flushing the session"() {
         given: "an saved but not persisted instance"
-        Organization org1 = new Organization()
-        org1.name = "hi"
-        org1.location = TestUtils.buildLocation()
-        org1.save(flush:true, failOnError:true)
+        Organization org1 = TestUtils.buildOrg()
 
         org1.name = TestUtils.randString()
         assert org1.isDirty()

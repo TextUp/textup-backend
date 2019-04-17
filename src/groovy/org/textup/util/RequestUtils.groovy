@@ -3,7 +3,8 @@ package org.textup.util
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.TypeCheckingMode
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.util.WebUtils
+import org.codehaus.groovy.grails.web.servlet.mvc.GrailsWebRequest
+import org.springframework.web.context.request.RequestContextHolder
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -21,30 +22,20 @@ class RequestUtils {
     static final String UPLOAD_ERRORS = "uploadErrors"
 
     static Result<Void> trySet(String key, Object obj) {
-        try {
-            WebUtils.retrieveGrailsWebRequest().currentRequest.setAttribute(key, obj)
-            Result.void()
-        }
-        catch (IllegalStateException e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "trySet")
-        }
+        tryGetRequest()?.setAttribute(key, obj)
+        Result.void()
     }
 
     static <T> Result<T> tryGet(String key) {
-        try {
-            HttpServletRequest req = WebUtils.retrieveGrailsWebRequest().currentRequest
-            Object obj = req.getAttribute(key) ?: req.getParameter(key)
-            // only return a successful result if something is actually found
-            if (obj != null) {
-                IOCUtils.resultFactory.success(TypeUtils.to(T, obj))
-            }
-            else {
-                IOCUtils.resultFactory.failWithCodeAndStatus("requestUtils.notFound",
-                    ResultStatus.NOT_FOUND, [key])
-            }
+        HttpServletRequest req = tryGetRequest()
+        Object obj = req?.getAttribute(key) ?: req?.getParameter(key)
+        // only return a successful result if something is actually found
+        if (obj != null) {
+            IOCUtils.resultFactory.success(TypeUtils.to(T, obj))
         }
-        catch (IllegalStateException e) {
-            IOCUtils.resultFactory.failWithThrowable(e, "tryGet")
+        else {
+            IOCUtils.resultFactory.failWithCodeAndStatus("requestUtils.notFound",
+                ResultStatus.NOT_FOUND, [key])
         }
     }
 
@@ -70,6 +61,12 @@ class RequestUtils {
 
     // Helpers
     // -------
+
+    protected static HttpServletRequest tryGetRequest() {
+        // `WebUtils.retrieveGrailsWebRequest()` is the version that throws `IllegalArgumentException`
+        // if no thread-bound request is found. `RequestContextHolder` does now throw an exception
+        (RequestContextHolder.getRequestAttributes() as GrailsWebRequest)?.currentRequest
+    }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static String getForwardURI(HttpServletRequest req) {

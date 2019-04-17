@@ -19,6 +19,9 @@ import org.textup.validator.*
 // (3) denominators in division operations should be written as floats or else H2 db will
 //      interpret the division result as an integer, truncating the decimal places
 //      Specifically, dividing by 60 must be written as "60.0"
+// (4) GROUP BY clause needs to have `when_created` in it because we run an aggregation function on it
+//      MySQL permits not doing so but other stricter dbs (like H2) require it
+//      see: https://stackoverflow.com/questions/31596497/h2-db-column-must-be-in-group-by-list
 
 @GrailsTypeChecked
 @Transactional
@@ -193,7 +196,7 @@ class UsageService {
                     AND EXTRACT(MONTH FROM i.when_created) = :month
                     AND o.type = :type
                     ${ACTIVITY_QUERY_CONDITION}
-                GROUP BY org.id
+                GROUP BY org.id, LEFT(i.when_created, 7)
                 ORDER BY COUNT(DISTINCT(p.id)) DESC;
             """.toString()).with {
                 setResultTransformer(Transformers.aliasToBean(ActivityRecord.class))
@@ -219,7 +222,7 @@ class UsageService {
                     AND m.org_id = :orgId
                     AND p.number_as_string IS NOT NULL
                     ${ACTIVITY_QUERY_CONDITION}
-                GROUP BY p.number_as_string
+                GROUP BY p.number_as_string, LEFT(i.when_created, 7)
                 ORDER BY m.name ASC;
             """.toString()).with {
                 setResultTransformer(Transformers.aliasToBean(ActivityRecord.class))

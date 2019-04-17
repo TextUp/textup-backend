@@ -35,16 +35,16 @@ class IndividualPhoneRecordWrappers {
         }
     }
 
-    static DetachedCriteria<PhoneRecord> buildForPhoneIdWithOptions(Long phoneId,
+    static DetachedJoinableCriteria<PhoneRecord> buildForPhoneIdWithOptions(Long phoneId,
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES,
         boolean onlyShared = false) {
 
-        DetachedCriteria<PhoneRecord> criteria = buildActiveBase(query, statuses)
+        DetachedJoinableCriteria<PhoneRecord> criteria = buildActiveBase(query, statuses)
             .build { eq("phone.id", phoneId) }
         onlyShared ? criteria.build { isNotNull("shareSource") } : criteria // inner join
     }
 
-    static DetachedCriteria<PhoneRecord> buildForSharedByIdWithOptions(Long sharedById,
+    static DetachedJoinableCriteria<PhoneRecord> buildForSharedByIdWithOptions(Long sharedById,
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES) {
 
         buildActiveBase(query, statuses).build {
@@ -52,7 +52,7 @@ class IndividualPhoneRecordWrappers {
         }
     }
 
-    static Closure<List<IndividualPhoneRecordWrapper>> listAction(DetachedCriteria<PhoneRecord> criteria) {
+    static Closure<List<IndividualPhoneRecordWrapper>> listAction(DetachedJoinableCriteria<PhoneRecord> criteria) {
         return { Map opts ->
             if (criteria) {
                 criteria.build(forSort())
@@ -86,10 +86,10 @@ class IndividualPhoneRecordWrappers {
     // Helpers
     // -------
 
-    static DetachedCriteria<PhoneRecord> buildActiveBase(String query,
+    static DetachedJoinableCriteria<PhoneRecord> buildActiveBase(String query,
         Collection<PhoneRecordStatus> statuses) {
 
-        new DetachedCriteria(PhoneRecord)
+        new DetachedJoinableCriteria(PhoneRecord)
             .build { ne("class", GroupPhoneRecord) } // only owned or shared individuals
             .build(forStatuses(statuses))
             .build(forQuery(query))
@@ -129,9 +129,11 @@ class IndividualPhoneRecordWrappers {
     protected static Closure forSort() {
         return {
             order("status", "desc") // unread first then active
-            record {
-                order("lastRecordActivity", "desc") // more recent first
-            }
+            // `DetachedCriteria` doesn't fully support `createAlias` so we have to
+            // override and create our own. Also, without an alias, it seems like order by
+            // associations doesn't work.
+            createAliasWithJoin("record", "r1", JoinType.INNER_JOIN)
+            order("r1.lastRecordActivity", "desc") // more recent first
         }
     }
 }

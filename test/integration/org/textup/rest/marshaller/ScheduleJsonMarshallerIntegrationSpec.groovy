@@ -13,6 +13,9 @@ class ScheduleJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling schedule"() {
         given:
+        String tzId = "Europe/Stockholm"
+        String offsetString = TestUtils.getDateTimeOffsetString(tzId)
+
         Collection beforeIntStrings = ["0130:0231", "0230:0330", "0400:0430"]
         Collection afterIntStrings = ["0130:0330", "0400:0430"]
         Collection afterIntStringsWithOffset = ["0230:0430", "0500:0530"]
@@ -51,7 +54,6 @@ class ScheduleJsonMarshallerIntegrationSpec extends Specification {
         json.timezone == "UTC"
 
         when:
-        String tzId = "Europe/Stockholm"
         RequestUtils.trySet(RequestUtils.TIMEZONE, tzId)
 
         json = TestUtils.objToJsonMap(sched1)
@@ -61,8 +63,8 @@ class ScheduleJsonMarshallerIntegrationSpec extends Specification {
         json.isAvailableNow == sched1.isAvailableNow()
         json.manual == sched1.manual
         json.manualIsAvailable == sched1.manualIsAvailable
-        json.nextUnavailable.contains("+01:00")
-        json.nextAvailable.contains("+01:00")
+        json.nextUnavailable.contains(offsetString)
+        json.nextAvailable.contains(offsetString)
         json.monday != afterIntStrings // now offset based on timezone
         json.monday == afterIntStringsWithOffset
         json.timezone == tzId

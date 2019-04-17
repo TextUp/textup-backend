@@ -118,7 +118,9 @@ class OutgoingMessageServiceSpec extends Specification {
         DehydratedRecipients dr1 = GroovyMock()
         Future fut1 = GroovyMock() { asBoolean() >> true }
 
-        MockedMethod finishProcessing = MockedMethod.create(service, "finishProcessing")
+        MockedMethod finishProcessing = MockedMethod.create(service, "finishProcessing") {
+            Result.void()
+        }
         ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
 
         when:
@@ -139,10 +141,10 @@ class OutgoingMessageServiceSpec extends Specification {
         when:
         service.waitForMedia(type, itemIds, dr1, dTemp1, fut1)
 
-        then:
+        then: "no log error because we may return a no-op future which has a null payload"
         1 * fut1.get() >> null
         finishProcessing.latestArgs == [type, itemIds, dr1, dTemp1]
-        stdErr.toString().contains("waitForMedia")
+        !stdErr.toString().contains("waitForMedia")
 
         cleanup:
         finishProcessing?.restore()

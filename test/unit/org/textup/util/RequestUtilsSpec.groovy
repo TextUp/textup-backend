@@ -4,7 +4,7 @@ import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsWebRequest
-import org.codehaus.groovy.grails.web.util.WebUtils
+import org.springframework.web.context.request.RequestContextHolder
 import org.textup.*
 import org.textup.structure.*
 import org.textup.test.*
@@ -24,26 +24,25 @@ class RequestUtilsSpec extends Specification {
         TestUtils.standardMockSetup()
     }
 
-    void "test error handling on request operations"() {
+    void "test request operations when no request"() {
         when: "setting -- no request"
-        Result<Void> res = RequestUtils.trySet("hello", "world")
+        Result res = RequestUtils.trySet("hello", "world")
 
-        then: "IllegalStateException is caught and gracefully returned -- see mock"
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0].contains("No thread-bound request found")
+        then: "silently does nothing"
+        res.status == ResultStatus.NO_CONTENT
 
         when: "getting -- no request"
         res = RequestUtils.tryGet("hello")
 
-        then:
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0].contains("No thread-bound request found")
+        then: "nothing found"
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages[0] == "requestUtils.notFound"
     }
 
     void "test setting and getting on request"() {
         given:
         HttpServletRequest mockRequest = Mock()
-        MockedMethod retrieveGrailsWebRequest = MockedMethod.create(WebUtils, "retrieveGrailsWebRequest") {
+        MockedMethod getRequestAttributes = MockedMethod.create(RequestContextHolder, "getRequestAttributes") {
             Stub(GrailsWebRequest) { getCurrentRequest() >> mockRequest }
         }
         String key1 = TestUtils.randString()
@@ -72,7 +71,7 @@ class RequestUtilsSpec extends Specification {
         res.payload == pNum
 
         cleanup:
-        retrieveGrailsWebRequest.restore()
+        getRequestAttributes?.restore()
     }
 
     void "test getting browser url"() {

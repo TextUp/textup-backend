@@ -33,6 +33,18 @@ class BasePhoneNumberJsonMarshallerIntegrationSpec extends Specification {
         exception.message.contains(pNum1.toString())
     }
 
+    void "test marshalling `ContactNumber`"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        ContactNumber cNum1 = new ContactNumber(preference: 0, number: pNum1.number)
+
+        when:
+        Map json = TestUtils.objToJsonMap(cNum1)
+
+        then:
+        json.number == pNum1.prettyPhoneNumber
+    }
+
     void "test marshalling `AvailablePhoneNumber`"() {
         given:
         AvailablePhoneNumber sidNum = AvailablePhoneNumber

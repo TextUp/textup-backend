@@ -26,8 +26,8 @@ class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId, CanSave<
     static mapping = {
         whenChanged type: PersistentDateTime
         noteContents type: "text"
-        location lazy: false, cascade: "save-update"
-        media lazy: false, cascade: "save-update"
+        location fetch: "join", cascade: "save-update"
+        media fetch: "join", cascade: "save-update"
     }
     static constraints = {
     	importFrom RecordItem

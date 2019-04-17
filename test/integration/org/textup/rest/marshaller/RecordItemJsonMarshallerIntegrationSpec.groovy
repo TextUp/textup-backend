@@ -44,20 +44,23 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         given:
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
-        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(ipr1)
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord()
 
         RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
         RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
-        RecordItem rItem3 = TestUtils.buildRecordItem(spr1.record)
+        RecordItem rItem3 = TestUtils.buildRecordItem(spr2.record)
 
         when:
         RequestUtils.trySet(RequestUtils.PHONE_ID, "not a number")
         Map json = TestUtils.objToJsonMap(rItem1)
 
-        then:
-        json.ownerName == null
-        json.contact == null
-        json.tag == null
+        then: "owner name is one of the phone records' names"
+        json.ownerName != null
+        json.contacts.size() == 2
+        (ipr1.id as Integer) in json.contacts
+        (spr1.id as Integer) in json.contacts
+        json.tags == []
 
         when: "record owner is a contact"
         RequestUtils.trySet(RequestUtils.PHONE_ID, ipr1.phone.id)
@@ -65,8 +68,10 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
 
         then:
         json.ownerName == ipr1.name
-        json.contact == ipr1.id
-        json.tag == null
+        json.contacts.size() == 2
+        (ipr1.id as Integer) in json.contacts
+        (spr1.id as Integer) in json.contacts
+        json.tags == []
 
         when: "record owner is a tag"
         RequestUtils.trySet(RequestUtils.PHONE_ID, gpr1.phone.id)
@@ -74,17 +79,19 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
 
         then:
         json.ownerName == gpr1.name
-        json.contact == null
-        json.tag == gpr1.id
+        json.contacts == []
+        json.tags == [gpr1.id]
 
         when: "record owner is a shared contact"
-        RequestUtils.trySet(RequestUtils.PHONE_ID, spr1.phone.id)
+        RequestUtils.trySet(RequestUtils.PHONE_ID, spr2.phone.id)
         json = TestUtils.objToJsonMap(rItem3)
 
         then:
-        json.ownerName == spr1.shareSource.name
-        json.contact == spr1.id
-        json.tag == null
+        json.ownerName == spr2.shareSource.name
+        json.contacts.size() == 2
+        (spr2.shareSource.id as Integer) in json.contacts
+        (spr2.id as Integer) in json.contacts
+        json.tags == []
     }
 
     void "test marshalling call"() {
@@ -144,6 +151,8 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling note with specified timezone"() {
         given:
+        String tzId = "Europe/Stockholm"
+        String offsetString = TestUtils.getDateTimeOffsetString(tzId)
         RecordNote rNote1 = TestUtils.buildRecordNote()
 
         when:
@@ -155,11 +164,11 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
         json.whenChanged.contains("Z")
 
         when:
-        RequestUtils.trySet(RequestUtils.TIMEZONE, "Europe/Stockholm")
+        RequestUtils.trySet(RequestUtils.TIMEZONE, tzId)
         json = TestUtils.objToJsonMap(rNote1)
 
         then:
-        json.whenCreated.contains("+01:00")
-        json.whenChanged.contains("+01:00")
+        json.whenCreated.contains(offsetString)
+        json.whenChanged.contains(offsetString)
     }
 }

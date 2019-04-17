@@ -120,14 +120,14 @@ class SocketServiceSpec extends Specification {
         Collection staffs = [TestUtils.buildStaff(), TestUtils.buildStaff()]
         Collection toSend = []
         int numBatches = 3
-        (SocketService.PAYLOAD_BATCH_SIZE * 3).times { toSend << it }
+        (SocketService.DEFAULT_BATCH_SIZE * 3).times { toSend << it }
 
         MockedMethod trySendDataToStaff = MockedMethod.create(service, "trySendDataToStaff") {
             Result.createError([], ResultStatus.FORBIDDEN)
         }
 
         when:
-        Result res = service.trySend(str1, staffs, toSend)
+        Result res = service.trySend(str1, SocketService.DEFAULT_BATCH_SIZE, staffs, toSend)
 
         then:
         trySendDataToStaff.hasBeenCalled
@@ -135,7 +135,7 @@ class SocketServiceSpec extends Specification {
 
         when:
         trySendDataToStaff = MockedMethod.create(trySendDataToStaff) { Result.void() }
-        res = service.trySend(str1, staffs, toSend)
+        res = service.trySend(str1, SocketService.DEFAULT_BATCH_SIZE, staffs, toSend)
 
         then:
         trySendDataToStaff.callCount == numBatches * staffs.size()
@@ -162,26 +162,26 @@ class SocketServiceSpec extends Specification {
         service.sendItems([rItem1])
 
         then:
-        trySend.latestArgs == [SocketService.EVENT_RECORD_ITEMS, [s1], [rItem1]]
+        trySend.latestArgs == [SocketService.EVENT_RECORD_ITEMS, SocketService.DEFAULT_BATCH_SIZE, [s1], [rItem1]]
 
         when:
         service.sendIndividualWrappers([ipr1.toWrapper()])
 
         then:
-        trySend.latestArgs == [SocketService.EVENT_CONTACTS, [s1], [ipr1.toWrapper()]]
+        trySend.latestArgs == [SocketService.EVENT_CONTACTS, 1, [s1], [ipr1.toWrapper()]]
 
         when:
         refreshTrigger.hasBeenCalled
         service.sendFutureMessages([fMsg1])
 
         then:
-        trySend.latestArgs == [SocketService.EVENT_FUTURE_MESSAGES, [s1], [fMsg1]]
+        trySend.latestArgs == [SocketService.EVENT_FUTURE_MESSAGES, SocketService.DEFAULT_BATCH_SIZE, [s1], [fMsg1]]
 
         when:
         service.sendPhone(p1)
 
         then:
-        trySend.latestArgs == [SocketService.EVENT_PHONES, p1.owner.buildAllStaff(), [p1]]
+        trySend.latestArgs == [SocketService.EVENT_PHONES, 1, p1.owner.buildAllStaff(), [p1]]
 
         cleanup:
         trySend?.restore()

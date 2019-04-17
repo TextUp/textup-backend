@@ -3,8 +3,8 @@ package org.textup.rest
 import grails.compiler.GrailsTypeChecked
 import org.codehaus.groovy.grails.web.converters.configuration.DefaultConverterConfiguration
 import org.codehaus.groovy.grails.web.converters.Converter
-import org.codehaus.groovy.grails.web.converters.marshaller.ClosureObjectMarshaller
 import org.codehaus.groovy.grails.web.converters.marshaller.ObjectMarshaller
+import org.textup.override.*
 import org.textup.util.*
 
 @GrailsTypeChecked
@@ -26,7 +26,7 @@ class NamedMarshaller {
 
     ObjectMarshaller getMarshaller() {
         if (!marshaller) {
-            marshaller = new ClosureObjectMarshaller(clazz, closure)
+            marshaller = new ManualFlushClosureObjectMarshaller(clazz, closure)
         }
         marshaller
     }

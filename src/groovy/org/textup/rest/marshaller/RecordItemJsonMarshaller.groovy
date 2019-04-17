@@ -57,19 +57,27 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
                 json.whenCreated = JodaUtils.toDateTimeWithZone(json.whenCreated, zoneName)
                 json.whenChanged = JodaUtils.toDateTimeWithZone(json.whenChanged, zoneName)
             }
-        RequestUtils.tryGet(RequestUtils.PHONE_ID)
-            .thenEnd { Object pId ->
-                PhoneRecord pr1 = PhoneRecords.buildActiveForRecordIds([rItem1.readOnlyRecord.id])
-                    .build(PhoneRecords.forPhoneIds([TypeUtils.to(Long, pId)]))
-                    .list(max: 1)[0]
-                if (pr1) {
-                    json.ownerName = pr1.toWrapper().tryGetSecureName().payload // for pdf export
-                    if (pr1 instanceof GroupPhoneRecord) {
-                        json.tag = pr1.id
-                    }
-                    else { json.contact = pr1.id }
-                }
+
+        // Associated phone owners
+        Long pId = TypeUtils.to(Long, RequestUtils.tryGet(RequestUtils.PHONE_ID).payload)
+        Collection<PhoneRecord> prs = PhoneRecords
+            .buildActiveForRecordIds([rItem1.readOnlyRecord.id])
+            .list()
+        PhoneRecord ownerPr = pId ? prs.find { PhoneRecord pr1 -> pr1.phone.id == pId } : prs[0]
+        // For frontend to properly associate this item with all available record owners
+        Collection<Long> tagIds = [], contactIds = []
+        prs.each { PhoneRecord pr1 ->
+            if (pr1 instanceof GroupPhoneRecord) {
+                tagIds << pr1.id
             }
+            else { contactIds << pr1.id }
+        }
+        json.tags = tagIds
+        json.contacts = contactIds
+        // For pdf export, need to have the owner name for `From` or `To` fields
+        if (ownerPr) {
+            json.ownerName = ownerPr.toWrapper().tryGetSecureName().payload // for pdf export
+        }
 
         json
     }

@@ -26,7 +26,6 @@ class NotificationUtils {
         Map<Long, Collection<? extends RecordItem>> recIdToItems = [:]
             .withDefault { [] as Collection<? extends RecordItem> }
         rItems1.each { RecordItem rItem1 -> recIdToItems[rItem1.record.id] << rItem1 }
-
         List<PhoneRecord> prs = PhoneRecords
             .buildActiveForRecordIds(recIdToItems.keySet())
             .build(PhoneRecords.forPhoneIds(phoneIds, true)) // optional

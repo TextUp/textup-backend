@@ -209,13 +209,17 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
         given:
         Phone p1 = TestUtils.buildActiveStaffPhone()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        ipr1.status = PhoneRecordStatus.ACTIVE
+        ipr1.record.lastRecordActivity = DateTime.now().minusDays(1)
         IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        ipr2.status = PhoneRecordStatus.ACTIVE
         ipr2.record.lastRecordActivity = DateTime.now().minusDays(3)
         IndividualPhoneRecord ipr3 = TestUtils.buildIndPhoneRecord(p1)
         ipr3.status = PhoneRecordStatus.UNREAD
+        ipr3.record.lastRecordActivity = DateTime.now().minusDays(10)
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
 
-        DetachedCriteria criteria = new DetachedCriteria(PhoneRecord).build { eq("phone", p1) }
+        DetachedJoinableCriteria criteria = new DetachedJoinableCriteria(PhoneRecord).build { eq("phone", p1) }
 
         when:
         Closure action = IndividualPhoneRecordWrappers.listAction(null)

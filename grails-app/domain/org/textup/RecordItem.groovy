@@ -17,6 +17,12 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem> {
 
+    // If we want to include id in the equality comparator, we need to explicitly declare it
+    // This was an issue when using `CollectionUtils.mergeUnique` on several record items as
+    // record items with unique ids but same fields would be eliminated as non-unique
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     AuthorType authorType
     boolean hasAwayMessage = false
     boolean isAnnouncement = false

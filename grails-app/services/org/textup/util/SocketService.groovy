@@ -16,7 +16,7 @@ import org.textup.validator.*
 @Transactional(readOnly = true)
 class SocketService {
 
-    static final int PAYLOAD_BATCH_SIZE = 20
+    static final int DEFAULT_BATCH_SIZE = 20
     static final String EVENT_CONTACTS = "contacts"
     static final String EVENT_FUTURE_MESSAGES = "futureMessages"
     static final String EVENT_RECORD_ITEMS = "recordItems"
@@ -45,25 +45,31 @@ class SocketService {
     }
 
     void sendItems(Collection<? extends RecordItem> items) {
-        trySend(EVENT_RECORD_ITEMS, Staffs.findEveryForRecordIds(items*.record*.id), items)
+        trySend(EVENT_RECORD_ITEMS,
+                DEFAULT_BATCH_SIZE,
+                Staffs.findEveryForRecordIds(items*.record*.id),
+                items)
             .logFail("sendItems: `${items*.id}`")
     }
 
     void sendIndividualWrappers(Collection<? extends IndividualPhoneRecordWrapper> wraps) {
         Collection<Long> recIds = WrapperUtils.recordIdsIgnoreFails(wraps)
-        trySend(EVENT_CONTACTS, Staffs.findEveryForRecordIds(recIds), wraps)
+        trySend(EVENT_CONTACTS, 1, Staffs.findEveryForRecordIds(recIds), wraps)
             .logFail("sendIndividualWrappers: phone records `${wraps*.id}`")
     }
 
     void sendFutureMessages(Collection<FutureMessage> fMsgs) {
         // refresh trigger so we get the most up-to-date job detail info
         fMsgs?.each { FutureMessage fMsg -> fMsg.refreshTrigger() }
-        trySend(EVENT_FUTURE_MESSAGES, Staffs.findEveryForRecordIds(fMsgs*.record*.id), fMsgs)
+        trySend(EVENT_FUTURE_MESSAGES,
+                DEFAULT_BATCH_SIZE,
+                Staffs.findEveryForRecordIds(fMsgs*.record*.id),
+                fMsgs)
             .logFail("sendFutureMessages: future messages `${fMsgs*.id}`")
     }
 
     void sendPhone(Phone p1) {
-        trySend(EVENT_PHONES, p1.owner.buildAllStaff(), [p1])
+        trySend(EVENT_PHONES, 1, p1.owner.buildAllStaff(), [p1])
             .logFail("sendPhone: phone `${p1.id}`")
     }
 
@@ -71,10 +77,13 @@ class SocketService {
     // -------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected Result<Void> trySend(String event, Collection<Staff> staffs, Collection<?> toSend) {
+    protected Result<Void> trySend(String event, int batchSize, Collection<Staff> staffs,
+        Collection<?> toSend) {
+
         ResultGroup<?> resGroup = new ResultGroup<>()
         if (staffs && toSend) {
-            toSend.collate(PAYLOAD_BATCH_SIZE) // prevent exceeding payload max size
+            toSend // prevent exceeding payload max size
+                .collate(batchSize > 0 ? batchSize : DEFAULT_BATCH_SIZE)
                 .each { Collection<?> batch ->
                     Object serialized = DataFormatUtils.jsonToObject(batch)
                     staffs.each { Staff s1 ->

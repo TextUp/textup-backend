@@ -26,8 +26,8 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 	static hasMany = [revisions: RecordNoteRevision]
     static mapping = {
         whenChanged type: PersistentDateTime
-        location lazy: false, cascade: "all-delete-orphan"
-        revisions lazy: false, cascade: "all-delete-orphan"
+        location fetch: "join", cascade: "all-delete-orphan"
+        revisions fetch: "join", cascade: "all-delete-orphan"
     }
     static constraints = {
     	location cascadeValidation: true, nullable: true

@@ -21,8 +21,8 @@ class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement
     static hasMany = [alternateVersions: MediaElementVersion]
     static mapping = {
         whenCreated type: PersistentDateTime
-        sendVersion lazy: false, cascade: "save-update"
-        alternateVersions lazy: false, cascade: "save-update"
+        sendVersion fetch: "join", cascade: "save-update"
+        alternateVersions fetch: "join", cascade: "save-update"
     }
     static constraints = { // all nullable:false by default
         sendVersion nullable: true, cascadeValidation: true, validator: { MediaElementVersion send1 ->

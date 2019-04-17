@@ -11,6 +11,8 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
+// [FUTURE] If actually using this feature in the future, may need to add a message length constraint
+
 @EqualsAndHashCode
 @GrailsTypeChecked
 class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
@@ -25,8 +27,6 @@ class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
         expiresAt type: PersistentDateTime
     }
     static constraints = {
-        // TODO add character limit
-        // message maxSize: (ValidationUtils.TEXT_BODY_LENGTH * 2)
     	expiresAt validator: { DateTime val, FeaturedAnnouncement obj ->
     		if (!val?.isAfter(obj.whenCreated)) { ["expiresBeforeCreation"] }
     	}
