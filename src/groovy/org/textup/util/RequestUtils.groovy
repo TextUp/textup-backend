@@ -1,10 +1,15 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
+import grails.util.GrailsWebUtil
 import groovy.transform.TypeCheckingMode
 import javax.servlet.http.HttpServletRequest
+import javax.servlet.ServletContext
+import org.codehaus.groovy.grails.web.context.ServletContextHolder
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsWebRequest
 import org.springframework.web.context.request.RequestContextHolder
+import org.springframework.web.context.support.WebApplicationContextUtils
+import org.springframework.web.context.WebApplicationContext
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
@@ -20,15 +25,19 @@ class RequestUtils {
     static final String STAFF_ID = "staffId"
     static final String TIMEZONE = "timezone"
     static final String UPLOAD_ERRORS = "uploadErrors"
+    // Remove once we use SocketEvents
+    static final String MOST_RECENT_MEDIA_ELEMENTS_ONLY = "mostRecentMediaElementsOnly"
 
     static Result<Void> trySet(String key, Object obj) {
-        tryGetRequest()?.setAttribute(key, obj)
+        if (key) {
+            tryGetRequest()?.setAttribute(key, obj)
+        }
         Result.void()
     }
 
     static <T> Result<T> tryGet(String key) {
         HttpServletRequest req = tryGetRequest()
-        Object obj = req?.getAttribute(key) ?: req?.getParameter(key)
+        Object obj = key ? (req?.getAttribute(key) ?: req?.getParameter(key)) : null
         // only return a successful result if something is actually found
         if (obj != null) {
             IOCUtils.resultFactory.success(TypeUtils.to(T, obj))
@@ -62,10 +71,20 @@ class RequestUtils {
     // Helpers
     // -------
 
+    // If no thread-bound request is found, we bind a mock request to re-enable passing of request
+    // parameters from the application to marshallers.
+    // see: https://github.com/vahidhedayati/grails-queuekit-plugin/blob/grails2/grails-app/services/org/grails/plugin/queuekit/reports/QueuekitBaseReportsService.groovy
     protected static HttpServletRequest tryGetRequest() {
         // `WebUtils.retrieveGrailsWebRequest()` is the version that throws `IllegalArgumentException`
         // if no thread-bound request is found. `RequestContextHolder` does now throw an exception
-        (RequestContextHolder.getRequestAttributes() as GrailsWebRequest)?.currentRequest
+        GrailsWebRequest request = RequestContextHolder.getRequestAttributes() as GrailsWebRequest
+        if (!request) {
+            ServletContext servletContext  = ServletContextHolder.getServletContext()
+            WebApplicationContext applicationContext = WebApplicationContextUtils
+                .getRequiredWebApplicationContext(servletContext)
+            request = GrailsWebUtil.bindMockWebRequest(applicationContext)
+        }
+        request?.currentRequest
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)

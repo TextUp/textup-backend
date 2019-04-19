@@ -15,6 +15,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     DateTime lastRecordActivity = JodaUtils.utcNow()
     VoiceLanguage language = VoiceLanguage.ENGLISH
 

@@ -200,7 +200,7 @@ class FutureMessageControllerSpec extends Specification {
 
         controller.futureMessageService = GroovyMock(FutureMessageService)
         MockedMethod doDelete = MockedMethod.create(controller, "doDelete")
-        MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed")
+        MockedMethod isAllowed = MockedMethod.create(FutureMessages, "isAllowed")
 
         when:
         params.id = id

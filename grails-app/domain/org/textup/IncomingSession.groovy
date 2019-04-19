@@ -15,6 +15,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class IncomingSession implements WithId, CanSave<IncomingSession> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     Boolean isSubscribedToCall = false
     Boolean isSubscribedToText = false
     DateTime lastSentInstructions = JodaUtils.utcNow().minusDays(2)

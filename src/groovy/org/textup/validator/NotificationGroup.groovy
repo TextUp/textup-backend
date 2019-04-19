@@ -44,20 +44,26 @@ class NotificationGroup implements CanValidate {
     // Methods
     // -------
 
+    boolean canNotifyAnyAllFrequencies() {
+        canNotifyAny(null)
+    }
     boolean canNotifyAny(NotificationFrequency freq1) {
         notifications?.any { Notification notif1 -> notif1.canNotifyAny(freq1) }
     }
 
+    Collection<? extends ReadOnlyOwnerPolicy> buildCanNotifyReadOnlyPoliciesAllFrequencies() {
+        buildCanNotifyReadOnlyPolicies(null)
+    }
     Collection<? extends ReadOnlyOwnerPolicy> buildCanNotifyReadOnlyPolicies(NotificationFrequency freq1) {
         HashSet<? extends ReadOnlyOwnerPolicy> canNotifyPolicies = new HashSet<>()
-        notifications.each { Notification notif1 ->
+        notifications?.each { Notification notif1 ->
             canNotifyPolicies.addAll(notif1.buildCanNotifyReadOnlyPolicies(freq1))
         }
         CollectionUtils.ensureNoNull(canNotifyPolicies)
     }
 
     void eachNotification(NotificationFrequency freq1, Closure<?> action) {
-        notifications.each { Notification notif1 ->
+        notifications?.each { Notification notif1 ->
             notif1.buildCanNotifyReadOnlyPolicies(freq1).each { ReadOnlyOwnerPolicy rop1 ->
                 action.call(rop1, notif1)
             }
@@ -74,8 +80,8 @@ class NotificationGroup implements CanValidate {
     // ----------
 
     int getNumNotifiedForItem(NotificationFrequency freq1, RecordItem item) {
-        notifications.inject(0) { int sum, Notification notif1 ->
+        notifications?.inject(0) { int sum, Notification notif1 ->
             sum + notif1.getNumNotifiedForItem(freq1, item)
-        } as Integer
+        } as Integer ?: 0
     }
 }

@@ -21,8 +21,6 @@ class DefaultOwnerPolicy implements ReadOnlyOwnerPolicy {
     private final Staff staff
     private final DefaultSchedule defaultSchedule
 
-    static boolean shouldEnsureAll(NotificationFrequency freq1) { freq1 == DEFAULT_FREQUENCY }
-
     static List<DefaultOwnerPolicy> createAll(Collection<Staff> staffs) {
         List<DefaultOwnerPolicy> ops = []
         staffs?.each { Staff s1 -> ops << DefaultOwnerPolicy.create(s1) }

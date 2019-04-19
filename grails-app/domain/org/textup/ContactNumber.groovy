@@ -18,6 +18,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNumber>, Comparable<ContactNumber> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
 	Integer preference
 
     static belongsTo = [owner: IndividualPhoneRecord]

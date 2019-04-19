@@ -26,6 +26,8 @@ class MediaService {
 
         if (mediaActionService.hasActions(body)) {
             MediaInfo.tryCreate(withMedia.media).then { MediaInfo mInfo ->
+                // need to associate media with media owner in case media is newly-created
+                withMedia.media = mInfo
                 tryStartProcessing(mInfo, body, isPublic)
             }
         }

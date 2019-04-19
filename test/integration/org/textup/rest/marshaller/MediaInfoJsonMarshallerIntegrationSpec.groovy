@@ -39,7 +39,7 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
         json.audio.isEmpty()
         json.uploadErrors == null
 
-        when: "some media elements"
+        when: "some media elements with upload errors"
         mInfo.tryAddAllElements(elements)
         RequestUtils.trySet(RequestUtils.UPLOAD_ERRORS, errorMessages)
 
@@ -59,5 +59,16 @@ class MediaInfoJsonMarshallerIntegrationSpec extends Specification {
         json.uploadErrors instanceof List
         json.uploadErrors.size() == errorMessages.size()
         errorMessages.every { String msg -> json.uploadErrors.find { it.contains(msg) } }
+
+        when:
+        RequestUtils.trySet(RequestUtils.MOST_RECENT_MEDIA_ELEMENTS_ONLY, true)
+        json = TestUtils.objToJsonMap(mInfo)
+
+        then:
+        json.id == mInfo.id
+        json.images instanceof Collection
+        json.images.size() == 1
+        json.audio instanceof Collection
+        json.audio.size() == 1
     }
 }

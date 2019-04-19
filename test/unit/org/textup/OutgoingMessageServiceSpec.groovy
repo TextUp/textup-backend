@@ -118,33 +118,43 @@ class OutgoingMessageServiceSpec extends Specification {
         DehydratedRecipients dr1 = GroovyMock()
         Future fut1 = GroovyMock() { asBoolean() >> true }
 
-        MockedMethod finishProcessing = MockedMethod.create(service, "finishProcessing") {
-            Result.void()
-        }
+        MockedMethod finishProcessing = MockedMethod.create(service, "finishProcessing")
         ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
 
-        when:
+        when: "no future"
         service.waitForMedia(type, itemIds, dr1, dTemp1, null)
 
         then:
+        finishProcessing.callCount == 1
         finishProcessing.latestArgs == [type, itemIds, dr1, dTemp1]
         stdErr.size() == 0
 
-        when:
-        service.waitForMedia(type, itemIds, dr1, dTemp1, fut1)
-
-        then:
-        1 * fut1.get() >> Result.void()
-        finishProcessing.latestArgs == [type, itemIds, dr1, dTemp1]
-        stdErr.size() == 0
-
-        when:
+        when: "future returns no payload"
         service.waitForMedia(type, itemIds, dr1, dTemp1, fut1)
 
         then: "no log error because we may return a no-op future which has a null payload"
         1 * fut1.get() >> null
+        finishProcessing.callCount == 2
         finishProcessing.latestArgs == [type, itemIds, dr1, dTemp1]
-        !stdErr.toString().contains("waitForMedia")
+        stdErr.size() == 0
+
+        when: "future returns a successful result"
+        service.waitForMedia(type, itemIds, dr1, dTemp1, fut1)
+
+        then:
+        1 * fut1.get() >> Result.void()
+        finishProcessing.callCount == 3
+        finishProcessing.latestArgs == [type, itemIds, dr1, dTemp1]
+        stdErr.size() == 0
+
+        when: "future returns a failed result"
+        service.waitForMedia(type, itemIds, dr1, dTemp1, fut1)
+
+        then: "an error is logged AND finish processing is still called"
+        1 * fut1.get() >> Result.createError([], ResultStatus.BAD_REQUEST)
+        finishProcessing.callCount == 4
+        finishProcessing.latestArgs == [type, itemIds, dr1, dTemp1]
+        stdErr.toString().contains("waitForMedia")
 
         cleanup:
         finishProcessing?.restore()

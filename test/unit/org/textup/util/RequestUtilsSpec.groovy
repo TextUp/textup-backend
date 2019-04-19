@@ -24,51 +24,73 @@ class RequestUtilsSpec extends Specification {
         TestUtils.standardMockSetup()
     }
 
-    void "test request operations when no request"() {
-        when: "setting -- no request"
-        Result res = RequestUtils.trySet("hello", "world")
-
-        then: "silently does nothing"
-        res.status == ResultStatus.NO_CONTENT
-
-        when: "getting -- no request"
-        res = RequestUtils.tryGet("hello")
-
-        then: "nothing found"
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "requestUtils.notFound"
-    }
-
     void "test setting and getting on request"() {
         given:
-        HttpServletRequest mockRequest = Mock()
-        MockedMethod getRequestAttributes = MockedMethod.create(RequestContextHolder, "getRequestAttributes") {
-            Stub(GrailsWebRequest) { getCurrentRequest() >> mockRequest }
-        }
         String key1 = TestUtils.randString()
-        PhoneNumber pNum = TestUtils.randPhoneNumber()
+        String key2 = TestUtils.randString()
+        String value2 = TestUtils.randString()
 
-        when: "set"
-        Result res = RequestUtils.trySet(key1, pNum)
+        when: "setting nothing"
+        Result res = RequestUtils.trySet(null, null)
 
         then:
-        1 * mockRequest.setAttribute(key1, pNum)
         res.status == ResultStatus.NO_CONTENT
 
-        when: "get nonexistent"
-        res = RequestUtils.tryGet("nonexistent key")
+        when: "setting null value"
+        res = RequestUtils.trySet(key1, null)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+
+        when: "setting non-null value"
+        res = RequestUtils.trySet(key2, value2)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+
+        when: "getting nonexistent"
+        res = RequestUtils.tryGet(null)
 
         then:
         res.status == ResultStatus.NOT_FOUND
         res.errorMessages == ["requestUtils.notFound"]
 
-        when: "get"
+        when: "getting an existing key with a null value"
         res = RequestUtils.tryGet(key1)
 
+        then: "null value is treated as not found"
+        res.status == ResultStatus.NOT_FOUND
+        res.errorMessages == ["requestUtils.notFound"]
+
+        when: "getting an existing key with a non-null value"
+        res = RequestUtils.tryGet(key2)
+
         then:
-        1 * mockRequest.getAttribute(key1) >> pNum
         res.status == ResultStatus.OK
-        res.payload == pNum
+        res.payload == value2
+    }
+
+    void "test when no request is present, transparently create and bind a mock request"() {
+        given:
+        HttpServletRequest mockRequest = Mock()
+        MockedMethod getRequestAttributes = MockedMethod.create(RequestContextHolder, "getRequestAttributes") {
+            Stub(GrailsWebRequest) { getCurrentRequest() >> mockRequest }
+        }
+
+        when: "has bound request"
+        HttpServletRequest request = RequestUtils.tryGetRequest()
+
+        then:
+        getRequestAttributes.callCount == 1
+        request != null
+
+        when: "no thread-bound request"
+        getRequestAttributes = MockedMethod.create(getRequestAttributes) { null }
+        request = RequestUtils.tryGetRequest()
+
+        then:
+        getRequestAttributes.callCount == 1
+        request != null
 
         cleanup:
         getRequestAttributes?.restore()

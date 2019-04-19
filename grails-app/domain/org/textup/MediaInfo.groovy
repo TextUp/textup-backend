@@ -12,6 +12,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     private Set<MediaElement> _originalMediaElements = Collections.emptySet()
 
     static transients = ["_originalMediaElements"]
@@ -113,6 +117,10 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
 
     MediaElement getMostRecentByType(Collection<MediaType> typesToFind = null) {
         getMediaElementsByType(typesToFind).max { MediaElement e1 -> e1.whenCreated }
+    }
+
+    ReadOnlyMediaElement getReadOnlyMostRecentByType(Collection<MediaType> typesToFind = null) {
+        getMostRecentByType(typesToFind)
     }
 
     MediaElement removeMediaElement(String uid) {

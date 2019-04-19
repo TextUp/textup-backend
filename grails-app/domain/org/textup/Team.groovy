@@ -15,6 +15,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Team implements WithId, CanSave<Team> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     boolean isDeleted = false
     DateTime whenCreated = JodaUtils.utcNow()
     Location location

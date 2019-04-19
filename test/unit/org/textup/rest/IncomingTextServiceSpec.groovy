@@ -93,7 +93,7 @@ class IncomingTextServiceSpec extends Specification {
         res = service.buildTextResponse(p1, is1, [rText1], notifGroup1)
 
         then:
-        1 * notifGroup1.canNotifyAny(NotificationFrequency.IMMEDIATELY) >> false
+        1 * notifGroup1.canNotifyAnyAllFrequencies() >> false
         1 * service.announcementCallbackService.tryBuildTextInstructions(p1, is1) >>
             Result.createSuccess([msg1])
         res.status == ResultStatus.OK

@@ -61,6 +61,6 @@ class FutureMessageController extends BaseController {
 
     @Override
     def delete() {
-        doDelete(futureMessageService) { PhoneRecords.isAllowed(params.long("id")) }
+        doDelete(futureMessageService) { FutureMessages.isAllowed(params.long("id")) }
     }
 }

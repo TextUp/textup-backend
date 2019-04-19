@@ -203,17 +203,33 @@ class MediaServiceSpec extends Specification {
         res.payload instanceof Future
         MediaInfo.count() == mBaseline
 
-        when:
+        when: "has actions but no media"
         res = service.tryCreateOrUpdate(withMedia, body, true)
 
-        then:
+        then: "no existing media so new media is created and associated with `withMedia`"
         1 * service.mediaActionService.hasActions(body) >> true
-        1 * withMedia.media >> mInfo1
-        tryStartProcessing.latestArgs == [mInfo1, body, true]
+        1 * withMedia.media >> null
+        1 * withMedia.setMedia(_ as MediaInfo)
+        tryStartProcessing.latestArgs[0] != mInfo1
+        tryStartProcessing.latestArgs[1] == body
+        tryStartProcessing.latestArgs[2] == true
         res.status == ResultStatus.OK
         res.payload instanceof Proxy
         res.payload instanceof Future
-        MediaInfo.count() == mBaseline
+        MediaInfo.count() == mBaseline + 1
+
+        when: "has actions and has existing media"
+        res = service.tryCreateOrUpdate(withMedia, body, false)
+
+        then: "existing media object is preserved"
+        1 * service.mediaActionService.hasActions(body) >> true
+        1 * withMedia.media >> mInfo1
+        1 * withMedia.setMedia(mInfo1)
+        tryStartProcessing.latestArgs == [mInfo1, body, false]
+        res.status == ResultStatus.OK
+        res.payload instanceof Proxy
+        res.payload instanceof Future
+        MediaInfo.count() == mBaseline + 1
 
         cleanup:
         tryStartProcessing?.restore()

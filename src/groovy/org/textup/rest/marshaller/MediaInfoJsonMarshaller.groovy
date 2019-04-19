@@ -13,11 +13,21 @@ import org.textup.validator.*
 class MediaInfoJsonMarshaller extends JsonNamedMarshaller {
 
     static final Closure marshalClosure = { ReadOnlyMediaInfo mInfo ->
-        Map json = [
-            audio  : mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES),
-            id     : mInfo.id,
-            images : mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES)
-        ]
+        // Remove once we use SocketEvents
+        Boolean mostRecentOnly = TypeUtils.to(Boolean,
+            RequestUtils.tryGet(RequestUtils.MOST_RECENT_MEDIA_ELEMENTS_ONLY).payload)
+        Map json = [:]
+        json.with {
+            id = mInfo.id
+            if (mostRecentOnly) {
+                audio = [mInfo.getReadOnlyMostRecentByType(MediaType.AUDIO_TYPES)]
+                images = [mInfo.getReadOnlyMostRecentByType(MediaType.IMAGE_TYPES)]
+            }
+            else {
+                audio = mInfo.getMediaElementsByType(MediaType.AUDIO_TYPES)
+                images = mInfo.getMediaElementsByType(MediaType.IMAGE_TYPES)
+            }
+        }
         // Display upload error from uploading the initial versions
         RequestUtils.tryGet(RequestUtils.UPLOAD_ERRORS)
             .thenEnd { json.uploadErrors = it }

@@ -17,13 +17,6 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class DefaultOwnerPolicySpec extends Specification {
 
-    void "test if should ensure that all staff members have owner policy"() {
-        expect:
-        NotificationFrequency.values().every {
-            DefaultOwnerPolicy.shouldEnsureAll(it) == (it == DefaultOwnerPolicy.DEFAULT_FREQUENCY)
-        }
-    }
-
     void "test creation"() {
         given:
         Staff mockStaff = GroovyMock()

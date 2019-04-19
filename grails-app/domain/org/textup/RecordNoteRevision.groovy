@@ -14,6 +14,10 @@ import org.textup.validator.*
 @EqualsAndHashCode
 class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId, CanSave<RecordNoteRevision> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     AuthorType authorType
     DateTime whenChanged
     Location location

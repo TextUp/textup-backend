@@ -123,4 +123,22 @@ class FutureMessagesSpec extends Specification {
         then:
         criteria.list() == [fMsg1]
     }
+
+    void "test criteria to show only not-done future messages"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage(rec1)
+        fMsg1.isDone = false
+        FutureMessage fMsg2 = TestUtils.buildFutureMessage(rec1)
+        fMsg2.isDone = true
+        FutureMessage.withSession { it.flush() }
+
+        when:
+        DetachedCriteria criteria = new DetachedCriteria(FutureMessage)
+            .build { eq("record", rec1) }
+            .build(FutureMessages.forIsNotDone())
+
+        then:
+        criteria.list() == [fMsg1]
+    }
 }

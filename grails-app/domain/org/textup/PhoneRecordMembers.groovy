@@ -16,6 +16,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class PhoneRecordMembers implements WithId, CanSave<PhoneRecordMembers> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     static hasMany = [phoneRecords: PhoneRecord]
     static constraints = {
         phoneRecords validator: { Collection<PhoneRecord> val ->

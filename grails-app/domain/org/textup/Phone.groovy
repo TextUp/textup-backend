@@ -17,6 +17,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     CustomAccountDetails customAccount
     DateTime whenCreated = JodaUtils.utcNow()
     PhoneOwnership owner
@@ -32,10 +36,12 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
 
     static transients = ["number"]
     static hasMany = [numberHistoryEntries: PhoneNumberHistory]
+
     static mapping = {
         cache usage: "read-write", include: "non-lazy"
         customAccount fetch: "join"
-        media fetch: "join", cascade: "save-update"
+        // keep as lazy (do not use `fetch: "join"`) because joining may sometimes cause only one `MediaElement` to be fetched instead of all of them
+        media cascade: "save-update"
         numberHistoryEntries fetch: "join", cascade: "save-update"
         owner fetch: "join", cascade: "all-delete-orphan"
         whenCreated type: PersistentDateTime

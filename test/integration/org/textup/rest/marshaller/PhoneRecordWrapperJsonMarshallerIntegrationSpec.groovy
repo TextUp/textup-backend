@@ -109,4 +109,23 @@ class PhoneRecordWrapperJsonMarshallerIntegrationSpec extends Specification {
         json.sharedByName == ipr1.phone.buildName()
         json.sharedByPhoneId == ipr1.phone.id
     }
+
+    void "test should only return not-done future messages"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage(ipr1.record)
+        fMsg1.isDone = false
+        FutureMessage fMsg2 = TestUtils.buildFutureMessage(ipr1.record)
+        fMsg2.isDone = true
+        FutureMessage.withSession { it.flush() }
+
+        when:
+        Map json = TestUtils.objToJsonMap(ipr1.toWrapper())
+
+        then:
+        json.id == ipr1.id
+        json.futureMessages instanceof Collection
+        json.futureMessages.size() == 1
+        json.futureMessages[0].id == fMsg1.id
+    }
 }

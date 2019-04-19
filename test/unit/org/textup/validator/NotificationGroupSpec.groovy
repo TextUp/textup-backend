@@ -109,6 +109,36 @@ class NotificationGroupSpec extends Specification {
         canNotifyAny.restore()
     }
 
+    void "test all frequency versions of canNotify methods"() {
+        given:
+        Notification notif1 = TestUtils.buildNotification()
+        NotificationGroup notifGroup1 = NotificationGroup.tryCreate([notif1]).payload
+
+        ReadOnlyOwnerPolicy rop1 = GroovyMock()
+        MockedMethod canNotifyAny = MockedMethod.create(notifGroup1, "canNotifyAny") { true }
+        MockedMethod buildCanNotifyReadOnlyPolicies = MockedMethod.create(notifGroup1, "buildCanNotifyReadOnlyPolicies") {
+            [rop1]
+        }
+
+        when:
+        def retVal = notifGroup1.canNotifyAnyAllFrequencies()
+
+        then:
+        canNotifyAny.latestArgs == [null]
+        retVal == true
+
+        when:
+        retVal = notifGroup1.buildCanNotifyReadOnlyPoliciesAllFrequencies()
+
+        then:
+        buildCanNotifyReadOnlyPolicies.latestArgs == [null]
+        retVal == [rop1]
+
+        cleanup:
+        canNotifyAny?.restore()
+        buildCanNotifyReadOnlyPolicies?.restore()
+    }
+
     void "test iterating through all owner policy + notification pairs"() {
         given:
         Phone p1 = TestUtils.buildStaffPhone()

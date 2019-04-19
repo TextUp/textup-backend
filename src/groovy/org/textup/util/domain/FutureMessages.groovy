@@ -47,6 +47,10 @@ class FutureMessages {
             .build { CriteriaUtils.inList(delegate, "record.id", recordIds) }
     }
 
+    static Closure forIsNotDone() {
+        return { eq("isDone", false) }
+    }
+
     // Helpers
     // -------
 

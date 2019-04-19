@@ -13,6 +13,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class OwnerPolicy implements WithId, CanSave<OwnerPolicy>, ReadOnlyOwnerPolicy {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     boolean shouldSendPreviewLink = DefaultOwnerPolicy.DEFAULT_SEND_PREVIEW_LINK
     NotificationFrequency frequency = DefaultOwnerPolicy.DEFAULT_FREQUENCY
     NotificationLevel level = DefaultOwnerPolicy.DEFAULT_LEVEL
@@ -52,6 +56,8 @@ class OwnerPolicy implements WithId, CanSave<OwnerPolicy>, ReadOnlyOwnerPolicy {
     // can notify = schedule is available + recordId is allowed
     // [NOTE] the staff member returned may not have the required info to notify with
     // For example, if a staff member does not have a personal phone, we can't notify via text
+    // We don't check personal phone number here because sometimes we don't notify using the
+    // personal phone number and use the staff member's email instead
     @Override
     boolean canNotifyForAny(Collection<Long> recordIds) {
         schedule?.isAvailableNow() && recordIds?.any { Long rId -> isAllowed(rId) }

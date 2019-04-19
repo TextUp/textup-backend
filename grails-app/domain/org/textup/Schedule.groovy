@@ -15,6 +15,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Schedule implements WithId, CanSave<Schedule>, ReadOnlySchedule {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     boolean manual = DefaultSchedule.DEFAULT_MANUAL
     boolean manualIsAvailable = DefaultSchedule.DEFAULT_MANUAL_IS_AVAILABLE
 

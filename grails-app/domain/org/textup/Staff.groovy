@@ -16,6 +16,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Staff implements WithId, CanSave<Staff>, ReadOnlyStaff {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     boolean enabled = true
     boolean accountExpired
     boolean accountLocked

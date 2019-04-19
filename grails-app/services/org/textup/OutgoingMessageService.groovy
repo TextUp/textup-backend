@@ -59,8 +59,8 @@ class OutgoingMessageService {
         Result<?> res = fut ? fut.get() : null
         // No need to log error if not a result because we may return a no-op future
         if (res) {
-            res.then { finishProcessing(type, itemIds, dr1, dTemp1) }
-                .logFail("waitForMedia: with itemIds `$itemIds`")
+            res.logFail("waitForMedia: with itemIds `$itemIds`")
+                .alwaysEnd { finishProcessing(type, itemIds, dr1, dTemp1) }
         }
         else { finishProcessing(type, itemIds, dr1, dTemp1) }
     }

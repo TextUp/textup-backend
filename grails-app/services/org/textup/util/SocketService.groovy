@@ -12,6 +12,10 @@ import org.textup.type.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
+// [FUTURE] To ensure reliability of this info going through, pass a standardized SocketEvent object
+// that contains the class and ids of the instances that have updates. Leave it to the frontend
+// to fetch resolve these ids via separate GET request(s)
+
 @GrailsTypeChecked
 @Transactional(readOnly = true)
 class SocketService {
@@ -69,6 +73,8 @@ class SocketService {
     }
 
     void sendPhone(Phone p1) {
+        // Once we use SocketEvents, do not need to special-case limit the payload size as we do here
+        RequestUtils.trySet(RequestUtils.MOST_RECENT_MEDIA_ELEMENTS_ONLY, true)
         trySend(EVENT_PHONES, 1, p1.owner.buildAllStaff(), [p1])
             .logFail("sendPhone: phone `${p1.id}`")
     }

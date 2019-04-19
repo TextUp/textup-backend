@@ -46,7 +46,7 @@ class IncomingCallServiceSpec extends Specification {
         Result res = service.buildCallResponse(p1, is1, [rCall1], notifGroup1)
 
         then:
-        1 * notifGroup1.buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY) >> []
+        1 * notifGroup1.buildCanNotifyReadOnlyPoliciesAllFrequencies() >> []
         connectIncoming.notCalled
         recordVoicemailMessage.callCount == 1
         recordVoicemailMessage.latestArgs == [p1, is1.number]
@@ -57,7 +57,7 @@ class IncomingCallServiceSpec extends Specification {
         res = service.buildCallResponse(p1, is1, [rCall1], notifGroup1)
 
         then:
-        1 * notifGroup1.buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY) >> [op1]
+        1 * notifGroup1.buildCanNotifyReadOnlyPoliciesAllFrequencies() >> [op1]
         connectIncoming.callCount == 1
         connectIncoming.latestArgs == [p1.number, is1.number, [op1.staff.personalNumber]]
         op1.staff.hasPersonalNumber()
@@ -68,7 +68,7 @@ class IncomingCallServiceSpec extends Specification {
         res = service.buildCallResponse(p1, is1, [rCall2], notifGroup1)
 
         then:
-        1 * notifGroup1.buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY) >> [op1]
+        1 * notifGroup1.buildCanNotifyReadOnlyPoliciesAllFrequencies() >> [op1]
         connectIncoming.callCount == 1
         recordVoicemailMessage.callCount == 2
         recordVoicemailMessage.latestArgs == [p1, is1.number]

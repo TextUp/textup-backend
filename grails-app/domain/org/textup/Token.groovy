@@ -17,6 +17,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Token implements WithId, CanSave<Token> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     DateTime expires = JodaUtils.utcNow().plusHours(1)
     String token
     Integer maxNumAccess

@@ -157,6 +157,7 @@ class SocketServiceSpec extends Specification {
 
         MockedMethod trySend = MockedMethod.create(service, "trySend") { Result.void() }
         MockedMethod refreshTrigger = MockedMethod.create(fMsg1, "refreshTrigger")
+        MockedMethod trySet = MockedMethod.create(RequestUtils, "trySet")
 
         when:
         service.sendItems([rItem1])
@@ -181,10 +182,12 @@ class SocketServiceSpec extends Specification {
         service.sendPhone(p1)
 
         then:
+        trySet.latestArgs == [RequestUtils.MOST_RECENT_MEDIA_ELEMENTS_ONLY, true]
         trySend.latestArgs == [SocketService.EVENT_PHONES, 1, p1.owner.buildAllStaff(), [p1]]
 
         cleanup:
         trySend?.restore()
         refreshTrigger?.restore()
+        trySet?.restore()
     }
 }

@@ -83,7 +83,8 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
             // endDate by omitting it from the passed-in body
             endDate = body.dateTime("endDate", timezone)
         }
-        if (body.language) fMsg.record.language = body.enum(VoiceLanguage, "language")
+        // we're updating the future message's copy of the language, not the record's language
+        if (body.language) fMsg.language = body.enum(VoiceLanguage, "language")
 
         if (fMsg.instanceOf(SimpleFutureMessage)) {
             SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage

@@ -20,6 +20,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, CanSave<FutureMessage> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     Trigger trigger
 
     boolean notifySelf = false

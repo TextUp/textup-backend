@@ -97,7 +97,7 @@ class IncomingCallService {
         List<RecordCall> rCalls, NotificationGroup notifGroup) {
 
         Collection<? extends ReadOnlyOwnerPolicy> policies = notifGroup
-            .buildCanNotifyReadOnlyPolicies(NotificationFrequency.IMMEDIATELY)
+            .buildCanNotifyReadOnlyPoliciesAllFrequencies()
         Collection<? extends ReadOnlyStaff> staffs = policies.collect { it.readOnlyStaff }
         Collection<? extends ReadOnlyStaff> withPersonalNumbers = staffs.findAll { it.hasPersonalNumber() }
         if (withPersonalNumbers) {

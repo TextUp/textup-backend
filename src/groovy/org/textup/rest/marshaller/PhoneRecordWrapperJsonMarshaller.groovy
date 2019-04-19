@@ -34,7 +34,7 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
         ReadOnlyRecord rec1 = w1.tryGetReadOnlyRecord().payload
 
         json.with {
-            futureMessages     = FutureMessages.buildForRecordIds([rec1.id]).list()
+            futureMessages     = FutureMessages.buildForRecordIds([rec1.id]).build(FutureMessages.forIsNotDone()).list()
             id                 = w1.id
             language           = rec1.language.toString()
             lastRecordActivity = rec1.lastRecordActivity
@@ -44,7 +44,7 @@ class PhoneRecordWrapperJsonMarshaller extends JsonNamedMarshaller {
             numbers            = w1.tryGetSortedNumbers().payload
             phone              = mutPhone1.id
             status             = stat1.toString()
-            tags               =  GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone1.id).list()
+            tags               = GroupPhoneRecords.buildForMemberIdsAndOptions([w1.id], mutPhone1.id).list()
             whenCreated        = w1.tryGetWhenCreated().payload
 
             if (stat1 == PhoneRecordStatus.UNREAD) {

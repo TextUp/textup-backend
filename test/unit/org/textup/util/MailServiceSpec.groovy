@@ -55,9 +55,9 @@ class MailServiceSpec extends Specification {
 
         then:
         send.callCount == 1
-        send.latestArgs[0].name == invited.name
-        send.latestArgs[0].email == invited.email
-        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[1].name == invited.name
+        send.latestArgs[1].email == invited.email
+        send.latestArgs[0] == MailUtils.defaultFromEntity()
         send.latestArgs[2] != null
         send.latestArgs[3].inviter == invitedBy.name
         send.latestArgs[3].invitee == invited.name
@@ -83,9 +83,9 @@ class MailServiceSpec extends Specification {
 
         then:
         send.callCount == 1
-        send.latestArgs[0].name == s1.name
-        send.latestArgs[0].email == s1.email
-        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[1].name == s1.name
+        send.latestArgs[1].email == s1.email
+        send.latestArgs[0] == MailUtils.defaultFromEntity()
         send.latestArgs[2] != null
         send.latestArgs[3].name == s1.name
         send.latestArgs[3].username == s1.username
@@ -110,8 +110,8 @@ class MailServiceSpec extends Specification {
 
         then:
         send.callCount == admins.size()
-        send.callArgs.every { it[0].name in admins*.name && it[0].email in admins*.email }
-        send.callArgs.every { it[1] == MailUtils.defaultFromEntity() }
+        send.callArgs.every { it[1].name in admins*.name && it[1].email in admins*.email }
+        send.callArgs.every { it[0] == MailUtils.defaultFromEntity() }
         send.callArgs.every { it[2] != null }
         send.callArgs.every { it[3].staff == pendingStaff.name }
         send.callArgs.every { it[3].org == pendingStaff.org.name }
@@ -134,8 +134,8 @@ class MailServiceSpec extends Specification {
 
         then:
         send.callCount == 1
-        send.latestArgs[0] == MailUtils.selfEntity()
-        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[1] == MailUtils.selfEntity()
+        send.latestArgs[0] == MailUtils.defaultFromEntity()
         send.latestArgs[2] != null
         send.latestArgs[3].org == org1.name
         send.latestArgs[3].link != null
@@ -157,9 +157,9 @@ class MailServiceSpec extends Specification {
 
         then:
         send.callCount == 1
-        send.latestArgs[0].name == s1.name
-        send.latestArgs[0].email == s1.email
-        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[1].name == s1.name
+        send.latestArgs[1].email == s1.email
+        send.latestArgs[0] == MailUtils.defaultFromEntity()
         send.latestArgs[2] != null
         send.latestArgs[3].name == s1.name
         send.latestArgs[3].username == s1.username
@@ -182,9 +182,9 @@ class MailServiceSpec extends Specification {
 
         then:
         send.callCount == 1
-        send.latestArgs[0].name == s1.name
-        send.latestArgs[0].email == s1.email
-        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[1].name == s1.name
+        send.latestArgs[1].email == s1.email
+        send.latestArgs[0] == MailUtils.defaultFromEntity()
         send.latestArgs[2] != null
         send.latestArgs[3].name == s1.name
         send.latestArgs[3].username == s1.username
@@ -210,9 +210,9 @@ class MailServiceSpec extends Specification {
 
         then:
         send.callCount == 1
-        send.latestArgs[0].name == s1.name
-        send.latestArgs[0].email == s1.email
-        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[1].name == s1.name
+        send.latestArgs[1].email == s1.email
+        send.latestArgs[0] == MailUtils.defaultFromEntity()
         send.latestArgs[2] != null
         send.latestArgs[3].staffName == s1.name
         send.latestArgs[3].phoneName == notifInfo.phoneName
@@ -230,9 +230,9 @@ class MailServiceSpec extends Specification {
 
         then:
         send.callCount == 2
-        send.latestArgs[0].name == s1.name
-        send.latestArgs[0].email == s1.email
-        send.latestArgs[1] == MailUtils.defaultFromEntity()
+        send.latestArgs[1].name == s1.name
+        send.latestArgs[1].email == s1.email
+        send.latestArgs[0] == MailUtils.defaultFromEntity()
         send.latestArgs[2] != null
         send.latestArgs[3].staffName == s1.name
         send.latestArgs[3].phoneName == notifInfo.phoneName

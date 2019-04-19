@@ -12,6 +12,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
     boolean allowSharingWithOtherTeams = false
     Long ownerId
     Phone phone
@@ -38,22 +42,30 @@ class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
         else { Team.get(ownerId)?.getActiveMembers() ?: [] }
     }
 
-    Collection<? extends ReadOnlyOwnerPolicy> buildActiveReadOnlyPoliciesForFrequency(NotificationFrequency freq1) {
-        HashSet<Staff> allStaffs = new HashSet<>(buildAllStaff())
-        if (freq1) {
-            Collection<? extends ReadOnlyOwnerPolicy> founds = []
-            policies?.each { OwnerPolicy op1 ->
-                if (allStaffs.contains(op1.staff) && op1.frequency == freq1) {
-                    founds << op1
+    // [NOTE] If passed-in frequency is null, we find active read-only policies for ALL FREQUENCIES
+    Collection<? extends ReadOnlyOwnerPolicy> buildActiveReadOnlyPoliciesForFrequency(NotificationFrequency freq1 = null) {
+        HashSet<Staff> allCurrentStaffs = new HashSet<>(buildAllStaff())
+        Collection<Staff> staffsWithDifferentFrequency = []
+        Collection<? extends ReadOnlyOwnerPolicy> foundPolicies = []
+        policies?.each { OwnerPolicy op1 ->
+            if (allCurrentStaffs.contains(op1.staff)) {
+                if (!freq1 || op1.frequency == freq1) {
+                    foundPolicies << op1
                 }
+                else { staffsWithDifferentFrequency << op1.staff }
             }
-            if (DefaultOwnerPolicy.shouldEnsureAll(freq1)) {
-                Collection<Staff> missing = CollectionUtils.difference(allStaffs, founds*.readOnlyStaff)
-                founds.addAll(DefaultOwnerPolicy.createAll(missing))
-            }
-            founds
         }
-        else { [] }
+        // should only fill in missing when we are trying to build for the default frequency
+        // and ONLY FOR STAFFS that don't have a policy at all. Staffs with non-default frequencies
+        // should not show up if we are requesting only the staff that have the default frequency
+        if (!freq1 || freq1 == DefaultOwnerPolicy.DEFAULT_FREQUENCY) {
+            Collection<Staff> staffsThatShouldHavePolicy = CollectionUtils.difference(allCurrentStaffs,
+                staffsWithDifferentFrequency)
+            Collection<Staff> missing = CollectionUtils.difference(staffsThatShouldHavePolicy,
+                foundPolicies*.readOnlyStaff)
+            foundPolicies.addAll(DefaultOwnerPolicy.createAll(missing))
+        }
+        foundPolicies
     }
 
     Organization buildOrganization() {

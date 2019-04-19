@@ -97,6 +97,6 @@ class MailService {
 
     protected Result<Void> sendMail(EmailEntity toEntity, Object info) {
         String templateId = MailUtils.getTemplateId(info.class)
-        MailUtils.send(toEntity, MailUtils.defaultFromEntity(), templateId, DomainUtils.instanceProps(info))
+        MailUtils.send(MailUtils.defaultFromEntity(), toEntity, templateId, DomainUtils.instanceProps(info))
     }
 }

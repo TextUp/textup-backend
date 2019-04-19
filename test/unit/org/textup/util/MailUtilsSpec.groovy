@@ -1,7 +1,9 @@
 package org.textup.util
 
+import com.sendgrid.Request as SendGridRequest
 import com.sendgrid.Response as SendGridResponse
 import com.sendgrid.SendGrid
+import grails.converters.JSON
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
@@ -51,6 +53,7 @@ class MailUtilsSpec extends Specification {
         MailUtils.getTemplateId(Collection) == ""
     }
 
+    // SendGridRequest defined here: https://github.com/sendgrid/java-http-client/blob/master/src/main/java/com/sendgrid/Request.java
     // see global mock cleanup bug: https://github.com/spockframework/spock/issues/445
     @ConfineMetaClassChanges([SendGrid])
     void "test sending emal"() {
@@ -68,9 +71,11 @@ class MailUtilsSpec extends Specification {
         when:
         Result res = MailUtils.send(fromEntity, toEntity, tId, data)
 
-        then:
+        then: "ensure that the first passed-in arg is the `from` entity"
         1 * new SendGrid(*_) >> sendGrid
-        1 * sendGrid.api(*_) >> mockResponse
+        1 * sendGrid.api({ SendGridRequest req1 ->
+            DataFormatUtils.jsonToObject(req1.body).from.email == fromEntity.email
+        }) >> mockResponse
         1 * mockResponse.statusCode >> ResultStatus.OK.intStatus
         res.status == ResultStatus.NO_CONTENT
     }

@@ -77,10 +77,12 @@ class FutureMessageServiceSpec extends Specification {
         res.payload.message == body1.message
         res.payload.startDate == body1.startDate
         res.payload.endDate == body1.endDate
-        res.payload.record.language == body1.language
         res.payload.repeatCount == body1.repeatCount
         res.payload.repeatIntervalInDays == body1.repeatIntervalInDays
         checkScheduleDaylightSavingsAdjustment.notCalled
+
+        and: "we update the future message's copy of the language NOT the record's language"
+        res.payload.language == body1.language
 
         when:
         res = service.trySetFields(sMsg1, body2)

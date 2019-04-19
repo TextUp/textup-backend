@@ -15,7 +15,7 @@ class GroupPhoneRecordJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { GroupPhoneRecord gpr1 ->
         Map json = [:]
         json.with {
-            futureMessages     = FutureMessages.buildForRecordIds([gpr1.record.id]).list()
+            futureMessages     = FutureMessages.buildForRecordIds([gpr1.record.id]).build(FutureMessages.forIsNotDone()).list()
             hexColor           = gpr1.hexColor
             id                 = gpr1.id
             language           = gpr1.record.language.toString()

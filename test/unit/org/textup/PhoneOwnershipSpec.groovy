@@ -107,49 +107,66 @@ class PhoneOwnershipSpec extends Specification {
         given:
         Staff s1 = TestUtils.buildStaff()
         Staff s2 = TestUtils.buildStaff()
-        Phone p1 = TestUtils.buildStaffPhone(s1)
-        Phone p2 = TestUtils.buildStaffPhone(s2)
-        PhoneOwnership noPolicesOwn1 = p1.owner
-        PhoneOwnership own1 = p2.owner
-        OwnerPolicy op1 = TestUtils.buildOwnerPolicy(own1, s1)
-        OwnerPolicy op2 = TestUtils.buildOwnerPolicy(own1, s2)
+        Staff s3 = TestUtils.buildStaff()
+        Staff s4 = TestUtils.buildStaff()
+        Staff s5 = TestUtils.buildStaff()
+        Team t1 = TestUtils.buildTeam()
+        t1.addToMembers(s1)
+        t1.addToMembers(s2)
+        t1.addToMembers(s3)
+        // note that `s4` is NOT CURRENTLY a part of this team but has a owner policy!
+
+        Phone tp1 = TestUtils.buildTeamPhone(t1)
+        OwnerPolicy op1 = TestUtils.buildOwnerPolicy(tp1.owner, s1)
+        op1.frequency = DefaultOwnerPolicy.DEFAULT_FREQUENCY
+        OwnerPolicy op2 = TestUtils.buildOwnerPolicy(tp1.owner, s2)
         op2.frequency = NotificationFrequency.QUARTER_HOUR
+        // note that `s3` does NOT have an owner policy
+        OwnerPolicy op4 = TestUtils.buildOwnerPolicy(tp1.owner, s4)
+        op4.frequency = DefaultOwnerPolicy.DEFAULT_FREQUENCY
+        OwnerPolicy op5 = TestUtils.buildOwnerPolicy(tp1.owner, s5)
+        op5.frequency = NotificationFrequency.HOUR
 
-        when:
-        Collection policies = noPolicesOwn1.buildActiveReadOnlyPoliciesForFrequency(null)
+        OwnerPolicy.withSession { it.flush() }
+
+        when: "if no frequency provided"
+        Collection policies = tp1.owner.buildActiveReadOnlyPoliciesForFrequency()
+
+        then: "then we build all current and fill in missing"
+        policies.size() == 3
+        op1 in policies
+        op2 in policies
+        policies.find { it instanceof DefaultOwnerPolicy && it.readOnlyStaff == s3 }
+        !(op4 in policies)
+        !(op5 in policies)
+
+        when: "default frequency"
+        policies = tp1.owner.buildActiveReadOnlyPoliciesForFrequency(DefaultOwnerPolicy.DEFAULT_FREQUENCY)
+
+        then: "get current with passed-in frequency and fill in missing"
+        policies.size() == 2
+        op1 in policies
+        !(op2 in policies)
+        policies.find { it instanceof DefaultOwnerPolicy && it.readOnlyStaff == s3 }
+        !(op4 in policies)
+        !(op5 in policies)
+
+        when: "non-default frequency that some CURRENT policies have"
+        policies = tp1.owner.buildActiveReadOnlyPoliciesForFrequency(op2.frequency)
+
+        then: "get current with passed-in frequency and DO NOT fill in missing"
+        policies.size() == 1
+        !(op1 in policies)
+        op2 in policies
+        !(policies.find { it instanceof DefaultOwnerPolicy && it.readOnlyStaff == s3 })
+        !(op4 in policies)
+        !(op5 in policies)
+
+        when: "non-default frequency that no CURRENT policies have"
+        policies = tp1.owner.buildActiveReadOnlyPoliciesForFrequency(op5.frequency)
 
         then:
         policies == []
-
-        when:
-        policies = noPolicesOwn1.buildActiveReadOnlyPoliciesForFrequency(DefaultOwnerPolicy.DEFAULT_FREQUENCY)
-
-        then: "create a default policy for `s1`"
-        policies.size() == 1
-        policies[0] instanceof DefaultOwnerPolicy
-        policies[0].readOnlyStaff == s1
-
-        when:
-        policies = own1.buildActiveReadOnlyPoliciesForFrequency(null)
-
-        then:
-        policies == []
-
-        when:
-        policies = own1.buildActiveReadOnlyPoliciesForFrequency(NotificationFrequency.QUARTER_HOUR)
-
-        then:
-        policies.size() == 1
-        !(policies[0] instanceof DefaultOwnerPolicy)
-        policies[0] == op2
-
-        when:
-        policies = own1.buildActiveReadOnlyPoliciesForFrequency(DefaultOwnerPolicy.DEFAULT_FREQUENCY)
-
-        then: "create a default policy for `s2`"
-        policies.size() == 1
-        policies[0] instanceof DefaultOwnerPolicy
-        policies[0].readOnlyStaff == s2
     }
 
     void "test building organization"() {

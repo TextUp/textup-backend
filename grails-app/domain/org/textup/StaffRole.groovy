@@ -12,6 +12,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class StaffRole implements Serializable, CanSave<StaffRole> {
 
+	// Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
 	private static final long serialVersionUID = 1
 
 	Staff staff

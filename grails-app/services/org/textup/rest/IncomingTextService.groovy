@@ -64,7 +64,7 @@ class IncomingTextService {
 
         if (rTexts) {
             List<String> responses = []
-            if (!notifGroup.canNotifyAny(NotificationFrequency.IMMEDIATELY)) {
+            if (!notifGroup.canNotifyAnyAllFrequencies()) {
                 rTexts.each { RecordText rText -> rText.hasAwayMessage = true }
                 responses << p1.buildAwayMessage()
             }

@@ -35,4 +35,23 @@ class GroupPhoneRecordJsonMarshallerIntegrationSpec extends Specification {
         json.numMembers == 1
         json.phone == gpr1.phone.id
     }
+
+    void "test should only return not-done future messages"() {
+        given:
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+        FutureMessage fMsg1 = TestUtils.buildFutureMessage(gpr1.record)
+        fMsg1.isDone = false
+        FutureMessage fMsg2 = TestUtils.buildFutureMessage(gpr1.record)
+        fMsg2.isDone = true
+        FutureMessage.withSession { it.flush() }
+
+        when:
+        Map json = TestUtils.objToJsonMap(gpr1)
+
+        then:
+        json.id == gpr1.id
+        json.futureMessages instanceof Collection
+        json.futureMessages.size() == 1
+        json.futureMessages[0].id == fMsg1.id
+    }
 }

@@ -12,6 +12,10 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Location implements ReadOnlyLocation, WithId, CanSave<Location> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
 	String address
     BigDecimal lat
     BigDecimal lng
