@@ -75,6 +75,25 @@ class PhoneNumberHistorySpec extends Specification {
         nh1.endTime == end1
     }
 
+    void "test equals (delegates to compareTo) and hashCode"() {
+        given:
+        DateTime start1 = DateTime.now()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumberHistory nh1 = PhoneNumberHistory.tryCreate(start1, pNum1).payload
+        PhoneNumberHistory nh2 = PhoneNumberHistory.tryCreate(start1, pNum1).payload
+
+        expect: "all three are consistent"
+        nh1 == nh1
+        nh1.equals(nh1)
+        nh1.compareTo(nh1) == 0
+        nh1.hashCode() == nh1.hashCode()
+
+        nh1 != nh2
+        !nh1.equals(nh2)
+        nh1.compareTo(nh2) != 0
+        nh1.hashCode() != nh2.hashCode()
+    }
+
     void "test sorting"() {
         given:
         DateTime start1 = DateTime.now()

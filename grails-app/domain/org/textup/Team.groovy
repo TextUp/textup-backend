@@ -41,11 +41,11 @@ class Team implements WithId, CanSave<Team> {
                         .build(CriteriaUtils.forNotIdIfPresent(obj.id))
                         .count() > 0
                 }) {
-                ["duplicate", obj.org?.name]
+                ["team.name.duplicate", obj.org?.name]
             }
         }
         hexColor validator: { String val ->
-            if (!ValidationUtils.isValidHexCode(val)) { ["invalidHex"] }
+            if (!ValidationUtils.isValidHexCode(val)) { ["team.hexColor.invalidHex"] }
         }
         location cascadeValidation: true
     }

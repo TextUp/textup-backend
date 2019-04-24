@@ -64,7 +64,7 @@ class FutureMessageJobServiceSpec extends Specification {
         1 * fut1.get()
         1 * dng1.tryRehydrate() >> Result.createSuccess(notifGroup1)
         1 * notifGroup1.eachItem(_ as Closure) >> { args -> args[0].call(rItem1) }
-        1 * notifGroup1.getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem1) >> num1
+        1 * notifGroup1.getNumNotifiedForItem(rItem1) >> num1
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when: "no errors"
@@ -74,15 +74,19 @@ class FutureMessageJobServiceSpec extends Specification {
         1 * fut1.get()
         1 * dng1.tryRehydrate() >> Result.createSuccess(notifGroup1)
         1 * notifGroup1.eachItem(_ as Closure) >> { args -> args[0].call(rItem2) }
-        1 * notifGroup1.getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem2) >> num2
-        1 * service.notificationService.send(NotificationFrequency.IMMEDIATELY, notifGroup1) >> Result.void()
+        1 * notifGroup1.getNumNotifiedForItem(rItem2) >> num2
+        1 * service.notificationService.send(notifGroup1) >> Result.void()
         res.status == ResultStatus.NO_CONTENT
         rItem2.numNotified == num2
     }
 
     void "test starting notify self"() {
         given:
-        RecordItem rItem1 = TestUtils.buildRecordItem()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+
+        RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
+        RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
 
         Future fut1 = GroovyMock()
         NotificationGroup notifGroup1 = GroovyMock()
@@ -99,11 +103,11 @@ class FutureMessageJobServiceSpec extends Specification {
         }
 
         when:
-        service.startNotifySelf([rItem1], fut1)
+        service.startNotifySelf([rItem1, rItem2], fut1)
 
         then:
-        tryBuildNotificationGroup.latestArgs == [[rItem1]]
-        1 * notifGroup1.canNotifyAny(NotificationFrequency.IMMEDIATELY) >> true
+        tryBuildNotificationGroup.latestArgs == [[rItem1]] // group item removed
+        1 * notifGroup1.canNotifyAnyAllFrequencies() >> true
         1 * service.threadService.submit(_ as Closure) >> { args -> args[0].call(); null; }
         tryCreate.latestArgs == [notifGroup1]
         finishNotifySelf.latestArgs == [dng1, fut1]
@@ -136,7 +140,7 @@ class FutureMessageJobServiceSpec extends Specification {
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(ipr1)
         FutureMessage fMsg1 = TestUtils.buildFutureMessage(ipr1.record)
-        fMsg1.notifySelf = true
+        fMsg1.notifySelfOnSend = true
         Staff s1 = TestUtils.buildStaff()
 
         Future fut1 = GroovyMock()

@@ -34,7 +34,7 @@ class OwnerPolicy implements WithId, CanSave<OwnerPolicy>, ReadOnlyOwnerPolicy {
         frequency validator: { NotificationFrequency val, OwnerPolicy obj ->
             if (obj.method == NotificationMethod.EMAIL &&
                 val == NotificationFrequency.IMMEDIATELY) {
-                ["cannotSendEmailImmediately"]
+                ["ownerPolicy.frequency.cannotSendEmailImmediately"]
             }
         }
     }

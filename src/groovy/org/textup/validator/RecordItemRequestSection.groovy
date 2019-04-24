@@ -17,7 +17,7 @@ import org.textup.util.domain.*
 class RecordItemRequestSection implements CanValidate {
 
     // Need to allow empty record items because FOP still expects the other fields even if no items
-    final Collection<? extends ReadOnlyRecordItem> recordItems
+    final List<? extends ReadOnlyRecordItem> recordItems
     final Collection<String> contactNames
     final Collection<String> sharedContactNames
     final Collection<String> tagNames
@@ -27,7 +27,8 @@ class RecordItemRequestSection implements CanValidate {
     static Result<RecordItemRequestSection> tryCreate(String pName, BasePhoneNumber pNum,
         Collection<? extends ReadOnlyRecordItem> thisItems, Collection<? extends PhoneRecordWrapper> wraps) {
 
-        Collection<? extends ReadOnlyRecordItem> rItems = thisItems ?: []
+        // pass in `false` to sort so it does not mutate
+        List<? extends ReadOnlyRecordItem> rItems = thisItems ? thisItems.sort(false) : []
         Collection<String> cNames = WrapperUtils.secureNamesIgnoreFails(wraps) { PhoneRecordWrapper w1 ->
             WrapperUtils.isContact(w1)
         }
@@ -38,7 +39,7 @@ class RecordItemRequestSection implements CanValidate {
             WrapperUtils.isTag(w1)
         }
         RecordItemRequestSection section1 = new RecordItemRequestSection(
-            Collections.unmodifiableCollection(rItems),
+            Collections.unmodifiableList(rItems),
             Collections.unmodifiableCollection(cNames),
             Collections.unmodifiableCollection(sNames),
             Collections.unmodifiableCollection(tNames),

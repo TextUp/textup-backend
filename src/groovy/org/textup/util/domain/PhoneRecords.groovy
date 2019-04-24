@@ -62,6 +62,12 @@ class PhoneRecords {
         }
     }
 
+    static Closure forNonGroupOnly() {
+        return {
+            ne("class", GroupPhoneRecord)
+        }
+    }
+
     static Closure forShareSourceIds(Collection<Long> sourceIds) {
         return {
             CriteriaUtils.inList(delegate, "shareSource.id", sourceIds)
@@ -77,6 +83,12 @@ class PhoneRecords {
     static Closure forIds(Collection<Long> ids) {
         return {
             CriteriaUtils.inList(delegate, "id", ids)
+        }
+    }
+
+    static Closure forVisibleStatuses() {
+        return {
+            "in"("status", PhoneRecordStatus.VISIBLE_STATUSES)
         }
     }
 
@@ -106,6 +118,13 @@ class PhoneRecords {
 
     static Closure forActive() {
         return {
+            "in"("status", PhoneRecordStatus.ACTIVE_STATUSES)
+            ClosureUtils.compose(delegate, PhoneRecords.forNotExpired())
+        }
+    }
+
+    static Closure forNotExpired() {
+        return {
             or {
                 isNull("isDeleted") // this column is null for `PhoneRecord`s
                 eq("isDeleted", false) // all subclasses need to share this column
@@ -113,6 +132,10 @@ class PhoneRecords {
             or {
                 isNull("dateExpired") // not expired if null
                 gt("dateExpired", JodaUtils.utcNow())
+            }
+            or {
+                isNull("permission")
+                ne("permission", SharePermission.NONE)
             }
             phone {
                 ClosureUtils.compose(delegate, Phones.forActive())

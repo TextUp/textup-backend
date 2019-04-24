@@ -125,12 +125,12 @@ class PhoneRecordWrapper implements CanSave<PhoneRecordWrapper> {
         else { insufficientPermission() }
     }
 
-    Result<Void> trySetStatusIfNotBlocked(PhoneRecordStatus status) {
+    Result<Void> trySetStatusIfHasVisibleStatus(PhoneRecordStatus status) {
         if (!status) {
             return Result.void()
         }
         if (permissions?.canView()) { // all sharing relationships have their own status
-            if (phoneRecord.status != PhoneRecordStatus.BLOCKED) {
+            if (phoneRecord.status in PhoneRecordStatus.VISIBLE_STATUSES) {
                 phoneRecord.status = status // do not update lastTouched timestamp
             }
             Result.void()

@@ -267,4 +267,81 @@ class PhoneRecordsSpec extends Specification {
         then:
         criteria.list() == [ipr1, gpr1]
     }
+
+    void "test building for active versus for not expired"() {
+        given:
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        ipr1.status = PhoneRecordStatus.ACTIVE
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        ipr2.status = PhoneRecordStatus.BLOCKED
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        spr1.dateExpired = DateTime.now().minusDays(1)
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord(null, p1)
+        spr2.dateExpired = null
+        spr2.permission = SharePermission.NONE
+        PhoneRecord spr3 = TestUtils.buildSharedPhoneRecord(null, p1)
+
+        DetachedCriteria criteria = new DetachedCriteria(PhoneRecord)
+            .build { eq("phone", p1) }
+
+        when:
+        Collection foundPrs = criteria.build(PhoneRecords.forNotExpired()).list()
+
+        then:
+        foundPrs.size() == 3
+        [ipr1, ipr2, spr3].every { it in foundPrs }
+
+        when:
+        foundPrs = criteria.build(PhoneRecords.forActive()).list()
+
+        then:
+        foundPrs.size() == 2
+        [ipr1, spr3].every { it in foundPrs }
+    }
+
+    void "test building for visible statuses"() {
+        given:
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        ipr1.status = PhoneRecordStatus.UNREAD
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        ipr2.status = PhoneRecordStatus.ACTIVE
+        IndividualPhoneRecord ipr3 = TestUtils.buildIndPhoneRecord(p1)
+        ipr3.status = PhoneRecordStatus.ARCHIVED
+        IndividualPhoneRecord ipr4 = TestUtils.buildIndPhoneRecord(p1)
+        ipr4.status = PhoneRecordStatus.BLOCKED
+
+        PhoneRecord.withSession { it.flush() }
+
+        when:
+        DetachedCriteria criteria = new DetachedCriteria(PhoneRecord)
+            .build { eq("phone", p1) }
+            .build(PhoneRecords.forVisibleStatuses())
+        Collection foundPrs = criteria.list()
+
+        then:
+        foundPrs.size() == 3
+        [ipr1, ipr2, ipr3].every { it in foundPrs }
+    }
+
+    void "test building for non-group `PhoneRecord`s only"() {
+        given:
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+
+        when:
+        DetachedCriteria criteria = new DetachedCriteria(PhoneRecord)
+            .build { eq("phone", p1) }
+            .build(PhoneRecords.forNonGroupOnly())
+        Collection foundPrs = criteria.list()
+
+        then:
+        foundPrs.size() == 2
+        ipr1 in foundPrs
+        spr1 in foundPrs
+        !(gpr1 in foundPrs)
+    }
 }

@@ -32,7 +32,9 @@ class FeaturedAnnouncement implements WithId, CanSave<FeaturedAnnouncement> {
     }
     static constraints = {
     	expiresAt validator: { DateTime val, FeaturedAnnouncement obj ->
-    		if (!val?.isAfter(obj.whenCreated)) { ["expiresBeforeCreation"] }
+    		if (!val?.isAfter(obj.whenCreated)) {
+                ["featuredAnnouncement.expiresAt.expiresBeforeCreation"]
+            }
     	}
     }
 

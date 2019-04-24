@@ -30,15 +30,15 @@ enum TokenType {
 		tokenSize = tokSize
 	}
 
-	static Map callDirectMessageData(String ident, VoiceLanguage lang, String msg, Long mId = null) {
-        if (ident && lang && msg) {
+	static Map callDirectMessageData(String ident, VoiceLanguage lang, String msg = null, Long mId = null) {
+        if (ident && lang && (msg || mId)) {
             [
                 (PARAM_CDM_IDENT): ident,
                 // cannot have language be of type VoiceLanguage because this hook is called
                 // after the the TextUp user picks up the call and we must serialize the
                 // parameters that are then passed back to TextUp by Twilio after pickup
                 (PARAM_CDM_LANG): lang.toString(),
-                (PARAM_CDM_MESSAGE): msg,
+                (PARAM_CDM_MESSAGE): msg, // may be null
                 (PARAM_CDM_MEDIA): mId // may be null
             ]
         }

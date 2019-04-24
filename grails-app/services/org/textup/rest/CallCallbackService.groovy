@@ -28,8 +28,8 @@ class CallCallbackService {
     }
 
     Result<Closure> screenIncomingCall(Phone p1, IncomingSession is1) {
-        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, is1 ? [is1.number] : null, false)
-            .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numberToPhoneRecords ->
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, is1 ? [is1.number] : null, false, false)
+            .then { Map<PhoneNumber, Collection<IndividualPhoneRecord>> numberToPhoneRecords ->
                 Collection<String> names = CollectionUtils
                     .mergeUnique(numberToPhoneRecords.values())*.secureName
                 CallTwiml.screenIncoming(names)

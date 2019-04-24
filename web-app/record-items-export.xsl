@@ -109,7 +109,7 @@
                     <fo:table-cell xsl:use-attribute-sets="text-small">
                         <fo:block>
                             <fo:inline xsl:use-attribute-sets="underline">TextUp phone</fo:inline>:
-                            <xsl:value-of select='$phoneName'/> (<xsl:value-of select='$phoneNumber'/>)
+                            <xsl:value-of select='$phoneName'/> - <xsl:value-of select='$phoneNumber'/>
                         </fo:block>
                         <fo:block>
                             <fo:inline xsl:use-attribute-sets="underline">Exported on</fo:inline>:
@@ -127,7 +127,7 @@
                             <fo:inline xsl:use-attribute-sets="underline">Records for</fo:inline>:
                             <xsl:choose>
                                 <xsl:when test="count(entry/string) = 0">
-                                    all records within <xsl:value-of select='$phoneName'/> (<xsl:value-of select='$phoneNumber'/>)
+                                    all records within <xsl:value-of select='$phoneName'/> - <xsl:value-of select='$phoneNumber'/>
                                 </xsl:when>
                                 <xsl:when test="count(entry/string) = 1">
                                     <xsl:value-of select="entry/string/text()" />
@@ -271,6 +271,9 @@
         <fo:block text-align-last="justify"
             xsl:use-attribute-sets="boxed space-bottom--small text-small">
             <xsl:choose>
+                <xsl:when test="entry[@key='type' and text()='NOTE']">
+                    Internal
+                </xsl:when>
                 <xsl:when test="entry[@key='outgoing' and text()='true']">
                     Outgoing
                 </xsl:when>
@@ -320,14 +323,13 @@
                     <fo:block>
                         To
                         <fo:inline xsl:use-attribute-sets="bold">
-                            <xsl:value-of select="../../entry[@key='phoneName']/text()" />
-                            (<xsl:value-of select="../../entry[@key='phoneNumber']/text()" />)
+                            <xsl:value-of select="../../entry[@key='phoneName']/text()" /> - <xsl:value-of select="../../entry[@key='phoneNumber']/text()" />
                         </fo:inline>
                     </fo:block>
                 </xsl:otherwise>
             </xsl:choose>
         </fo:block>
-        <xsl:if test="entry[@key='durationInSeconds'] | entry[@key='contents'] | entry[@key='noteContents'] | entry[@key='media']/*">
+        <xsl:if test="entry[@key='durationInSeconds'] | entry[@key='contents'] | entry[@key='noteContents'] | entry[@key='media']/* | entry[@key='location']/entry[@key='address']">
             <fo:list-block provisional-distance-between-starts="0.4cm"
                 provisional-label-separation="0.15cm">
                 <xsl:if test="entry[@key='durationInSeconds']">

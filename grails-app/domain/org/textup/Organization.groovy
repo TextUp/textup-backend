@@ -38,7 +38,7 @@ class Organization implements WithId, CanSave<Organization>, ReadOnlyOrganizatio
                         .build(CriteriaUtils.forNotIdIfPresent(obj.id))
                         .count() > 0
                 }) {
-                ["duplicate", obj.location.address]
+                ["organization.name.duplicate", obj.location.address]
             }
     	}
         timeout min: 0, max: ValidationUtils.MAX_LOCK_TIMEOUT_MILLIS

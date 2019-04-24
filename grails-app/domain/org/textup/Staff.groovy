@@ -43,7 +43,7 @@ class Staff implements WithId, CanSave<Staff>, ReadOnlyStaff {
     }
 	static constraints = {
 		username blank: false, unique: true, validator: { String val ->
-            if (!ValidationUtils.isValidForPusher(val)) { ["format"] }
+            if (!ValidationUtils.isValidForPusher(val)) { ["staff.username.format"] }
         }
 		password blank: false
         lockCode blank: false

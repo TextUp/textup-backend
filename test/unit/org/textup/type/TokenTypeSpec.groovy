@@ -34,12 +34,36 @@ class TokenTypeSpec extends Specification {
         VoiceLanguage lang = VoiceLanguage.ENGLISH
 
         when:
-        Map data = TokenType.callDirectMessageData(null, null, null)
+        Map data = TokenType.callDirectMessageData(null, null)
 
         then:
         data == [:]
 
-        when:
+        when: "neither message nor recording"
+        data = TokenType.callDirectMessageData(ident, lang)
+
+        then:
+        data == [:]
+
+        when: "only message"
+        data = TokenType.callDirectMessageData(ident, lang, msg)
+
+        then:
+        data[TokenType.PARAM_CDM_IDENT] == ident
+        data[TokenType.PARAM_CDM_LANG] == lang.toString()
+        data[TokenType.PARAM_CDM_MESSAGE] == msg
+        data[TokenType.PARAM_CDM_MEDIA] == null
+
+        when: "only recording"
+        data = TokenType.callDirectMessageData(ident, lang, null, mId)
+
+        then:
+        data[TokenType.PARAM_CDM_IDENT] == ident
+        data[TokenType.PARAM_CDM_LANG] == lang.toString()
+        data[TokenType.PARAM_CDM_MESSAGE] == null
+        data[TokenType.PARAM_CDM_MEDIA] == mId
+
+        when: "both message and recording"
         data = TokenType.callDirectMessageData(ident, lang, msg, mId)
 
         then:

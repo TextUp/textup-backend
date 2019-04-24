@@ -13,7 +13,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
 class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureMessage {
 
@@ -25,7 +25,7 @@ class SimpleFutureMessage extends FutureMessage implements ReadOnlySimpleFutureM
         repeatIntervalInMillis min: TypeUtils.to(Long, TimeUnit.DAYS.toMillis(1))
 		repeatCount nullable: true, validator: { Integer rNum, SimpleFutureMessage msg ->
 			if (rNum == SimpleTrigger.REPEAT_INDEFINITELY && !msg.endDate) {
-				["unboundedNeedsEndDate"]
+				["simpleFutureMessage.repeatCount.unboundedNeedsEndDate"]
 			}
 		}
     }

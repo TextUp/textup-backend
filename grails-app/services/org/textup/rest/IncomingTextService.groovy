@@ -43,18 +43,18 @@ class IncomingTextService {
 
     protected Result<List<RecordText>> buildTexts(Phone p1, IncomingSession is1, String apiId,
         String message, Integer numSegments) {
-
         PhoneRecordUtils.tryMarkUnread(p1, is1.number)
             .then { List<IndividualPhoneRecordWrapper> wrappers ->
                 socketService.sendIndividualWrappers(wrappers)
                 ResultGroup
                     .collect(wrappers) { IndividualPhoneRecordWrapper w1 ->
-                        w1.tryGetRecord().then { Record rec1 ->
-                            rec1.storeIncoming(RecordItemType.TEXT, Author.create(is1), is1.number,
-                                apiId, message, numSegments)
+                        // only store for owner because owner + shared all point to the same
+                        // record object and we want to avoid duplicates in the record
+                        w1.tryUnwrap().then { PhoneRecord pr1 ->
+                            pr1.record.storeIncoming(RecordItemType.TEXT, Author.create(is1),
+                                is1.number, apiId, message, numSegments)
                         }
                     }
-                    .logFail("buildTexts")
                     .toResult(true)
             }
     }
@@ -98,13 +98,13 @@ class IncomingTextService {
         notifGroup.eachItem { RecordItem rItem1 ->
             rItem1.media = mInfo
             rItem1.numNotified = notifGroup
-                .getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem1)
+                .getNumNotifiedForItem(rItem1, NotificationFrequency.IMMEDIATELY)
             resGroup << DomainUtils.trySave(rItem1)
         }
         resGroup.toResult(false)
             .then { List<RecordItem> rItems ->
                 // send out notifications
-                notificationService.send(NotificationFrequency.IMMEDIATELY, notifGroup)
+                notificationService.send(notifGroup, NotificationFrequency.IMMEDIATELY)
                     .logFail("finishProcessing: notifying staff")
                 // For outgoing messages and all calls, we rely on status callbacks
                 // to push record items to the frontend. However, for incoming texts

@@ -8,7 +8,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
 class IndividualPhoneRecord extends PhoneRecord {
 
@@ -44,7 +44,7 @@ class IndividualPhoneRecord extends PhoneRecord {
     // -------
 
     @Override
-    boolean isActive() { super.isActive() && !isDeleted }
+    boolean isNotExpired() { super.isNotExpired() && !isDeleted }
 
     @Override
     IndividualPhoneRecordWrapper toWrapper(PhoneRecord sharingOverride = null) {

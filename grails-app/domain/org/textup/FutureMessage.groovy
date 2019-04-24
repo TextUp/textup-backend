@@ -26,7 +26,7 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, CanSave
 
     Trigger trigger
 
-    boolean notifySelf = false
+    boolean notifySelfOnSend = false
     DateTime endDate
     DateTime startDate = JodaUtils.utcNow().plusDays(1)
     DateTime whenCreated = JodaUtils.utcNow()
@@ -71,11 +71,11 @@ class FutureMessage implements ReadOnlyFutureMessage, WithMedia, WithId, CanSave
         message blank: true, nullable: true, maxSize: (ValidationUtils.TEXT_BODY_LENGTH * 2)
         media nullable: true, validator: { MediaInfo mInfo, FutureMessage obj ->
             // message must have at least one of text and media
-            if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["noInfo"] }
+            if ((!mInfo || mInfo.isEmpty()) && !obj.message) { ["futureMessage.media.noInfo"] }
         }
         endDate nullable: true, validator: { DateTime end, FutureMessage msg ->
             if (end && end.isBefore(msg.startDate)) {
-                ["endBeforeStart"]
+                ["futureMessage.endDate.endBeforeStart"]
             }
         }
         whenAdjustDaylightSavings nullable: true

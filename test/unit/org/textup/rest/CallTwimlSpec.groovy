@@ -129,8 +129,8 @@ class CallTwimlSpec extends Specification {
         res.status == ResultStatus.BAD_REQUEST
         res.errorMessages[0] == "twilioUtils.invalidCode"
 
-        when: "valid without recording urls"
-        res = CallTwiml.directMessage(id, msg, lang)
+        when: "valid only message"
+        res = CallTwiml.directMessage(id, lang, msg)
 
         then:
         res.status == ResultStatus.OK
@@ -145,8 +145,24 @@ class CallTwimlSpec extends Specification {
             }
         }
 
-        when: "valid with recording urls"
-        res = CallTwiml.directMessage(id, msg, lang, recordingUrls)
+        when: "valid only recording urls"
+        res = CallTwiml.directMessage(id, lang, null, recordingUrls)
+
+        then:
+        res.status == ResultStatus.OK
+        TestUtils.buildXml(res.payload) == TestUtils.buildXml {
+            Response {
+                Say("callTwiml.messageIntro")
+                Pause(length: 1)
+                CallTwiml.DIRECT_MESSAGE_MAX_REPEATS.times {
+                    recordingUrls.each { Play(it.toString()) }
+                }
+                Hangup()
+            }
+        }
+
+        when: "valid both message and recording urls"
+        res = CallTwiml.directMessage(id, lang, msg, recordingUrls)
 
         then:
         res.status == ResultStatus.OK
@@ -246,9 +262,9 @@ class CallTwimlSpec extends Specification {
         res.errorMessages[0] == "twilioUtils.invalidCode"
 
         when: "connect incoming valid"
-        res = CallTwiml.connectIncoming(dispNum, originalFrom, [pNum1])
+        res = CallTwiml.connectIncoming(dispNum, originalFrom, [pNum1, pNum1, pNum1])
 
-        then:
+        then: "only unique numbers are called"
         res.status == ResultStatus.OK
         getHandleLink.latestArgs == [CallResponse.CHECK_IF_VOICEMAIL, null]
         getWebhookLink.latestArgs == [CallTwiml.infoForScreenIncoming(originalFrom)]

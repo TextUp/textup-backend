@@ -93,7 +93,7 @@ class FutureMessageJobService {
             .then { FutureMessage fMsg, Tuple<List<RecordItem>, Future<?>> processed ->
                 Tuple.split(processed) { List<RecordItem> rItems, Future<?> fut1 ->
                     rItems.each { RecordItem item1 -> item1.wasScheduled = true }
-                    if (fMsg.notifySelf) {
+                    if (fMsg.notifySelfOnSend) {
                         startNotifySelf(rItems, fut1)
                     }
                     DomainUtils.trySaveAll(rItems)
@@ -115,10 +115,14 @@ class FutureMessageJobService {
     // -------
 
     protected void startNotifySelf(Collection<RecordItem> rItems, Future<?> future) {
-        NotificationUtils.tryBuildNotificationGroup(rItems)
+        // We need to exclude `RecordItem`s that belong to `GroupPhoneRecord`s because not doing so
+        // results in notifications  with inflated numbers. This is because we duplicate `RecordItem`s
+        // to `GroupPhoneRecord` records so that they can keep track of messages that were send through them
+        Collection<RecordItem> nonGroupItems = RecordItems.findAllByNonGroupOwner(rItems)
+        NotificationUtils.tryBuildNotificationGroup(nonGroupItems)
             .logFail("startNotifySelf: building")
             .thenEnd { NotificationGroup notifGroup ->
-                if (notifGroup.canNotifyAny(NotificationFrequency.IMMEDIATELY)) {
+                if (notifGroup.canNotifyAnyAllFrequencies()) {
                     // wait for the future to finish ASYNCHRONOUSLY to avoid blocking this method
                     // to allow the record items to save. Otherwise, when the future resolves, the ids
                     // will point to non-existent items because we blocked the parent method from saving here
@@ -143,14 +147,11 @@ class FutureMessageJobService {
             .then { NotificationGroup notifGroup ->
                 ResultGroup<RecordItem> resGroup = new ResultGroup<>()
                 notifGroup.eachItem { RecordItem rItem1 ->
-                    rItem1.numNotified = notifGroup
-                        .getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem1)
+                    rItem1.numNotified = notifGroup.getNumNotifiedForItem(rItem1)
                     resGroup << DomainUtils.trySave(rItem1)
                 }
                 resGroup.toEmptyResult(false).curry(notifGroup)
             }
-            .then { NotificationGroup notifGroup ->
-                notificationService.send(NotificationFrequency.IMMEDIATELY, notifGroup)
-            }
+            .then { NotificationGroup notifGroup -> notificationService.send(notifGroup) }
     }
 }

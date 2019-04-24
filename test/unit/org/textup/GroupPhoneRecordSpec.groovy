@@ -115,12 +115,14 @@ class GroupPhoneRecordSpec extends Specification {
         GroupPhoneRecord gpr1 = GroupPhoneRecord.tryCreate(p1, name).payload
 
         then:
-        gpr1.isActive() == true
+        gpr1.isActive()
+        gpr1.isNotExpired()
 
         when:
         gpr1.isDeleted = true
 
         then:
         gpr1.isActive() == false
+        gpr1.isNotExpired() == false
     }
 }

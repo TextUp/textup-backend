@@ -60,8 +60,8 @@ class TokenService {
                         }
                 }
                 CallTwiml.directMessage(data.string(TokenType.PARAM_CDM_IDENT),
-                    data.string(TokenType.PARAM_CDM_MESSAGE),
                     data.enum(VoiceLanguage, TokenType.PARAM_CDM_LANG),
+                    data.string(TokenType.PARAM_CDM_MESSAGE),
                     CollectionUtils.ensureNoNull(recordings))
             }
     }

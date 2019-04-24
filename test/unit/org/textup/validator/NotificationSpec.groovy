@@ -145,7 +145,7 @@ class NotificationSpec extends Specification {
 
 		then:
 		1 * mockPhone.owner >> mockOwner
-		1 * mockOwner.buildActiveReadOnlyPoliciesForFrequency(freq1) >> [mockOwnerPolicy]
+		1 * mockOwner.buildActiveReadOnlyPolicies(freq1) >> [mockOwnerPolicy]
 		1 * mockOwnerPolicy.canNotifyForAny(_ as Collection) >> true
 		policies == [mockOwnerPolicy]
 
@@ -154,7 +154,7 @@ class NotificationSpec extends Specification {
 
 		then:
 		1 * mockPhone.owner >> mockOwner
-		1 * mockOwner.buildActiveReadOnlyPoliciesForFrequency(freq1) >> [mockOwnerPolicy]
+		1 * mockOwner.buildActiveReadOnlyPolicies(freq1) >> [mockOwnerPolicy]
 		1 * mockOwnerPolicy.canNotifyForAny(_ as Collection) >> false
 		policies.isEmpty()
 	}
@@ -254,5 +254,32 @@ class NotificationSpec extends Specification {
 		then:
 		1 * mockDetail.countItemsForOutgoingAndOptions(false) >> 0
 		wraps.isEmpty()
+	}
+
+	void "test getting num of staff notified for a particular item"() {
+		given:
+		Notification notif1 = TestUtils.buildNotification()
+
+		ReadOnlyOwnerPolicy rop1 = GroovyMock()
+		MockedMethod buildCanNotifyReadOnlyPolicies = MockedMethod.create(notif1, "buildCanNotifyReadOnlyPolicies") {
+			[rop1]
+		}
+
+		when:
+		int numNotif = notif1.getNumNotifiedForItem(null)
+
+		then:
+		buildCanNotifyReadOnlyPolicies.notCalled
+		numNotif == 0
+
+		when:
+		numNotif = notif1.getNumNotifiedForItem(notif1.items[0], NotificationFrequency.HOUR)
+
+		then:
+		buildCanNotifyReadOnlyPolicies.latestArgs == [NotificationFrequency.HOUR]
+		numNotif == 1
+
+		cleanup:
+		buildCanNotifyReadOnlyPolicies?.restore()
 	}
 }

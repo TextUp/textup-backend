@@ -93,7 +93,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
         int max = ValidationUtils.MAX_NUM_TEXT_RECIPIENTS
         Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), max, true)
             .then { Recipients r1 ->
-                TempRecordItem.tryCreate(body.string("contents"), mInfo, null).curry(r1)
+                TempRecordItem.tryCreate(body.trimmedString("contents"), mInfo, null).curry(r1)
             }
             .then { Recipients r1, TempRecordItem temp1 ->
                 AuthUtils.tryGetActiveAuthUser().curry(r1, temp1)
@@ -126,7 +126,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
                 locationService.tryCreateOrUpdateIfPresent(null, lInfo).curry(w1)
             }
             .then { PhoneRecordWrapper w1, Location loc1 = null ->
-                TempRecordItem.tryCreate(body.string("noteContents"), mInfo, loc1).curry(w1)
+                TempRecordItem.tryCreate(body.trimmedString("noteContents"), mInfo, loc1).curry(w1)
             }
             .then { PhoneRecordWrapper w1, TempRecordItem temp1 -> w1.tryGetRecord().curry(temp1) }
             .then { TempRecordItem temp1, Record rec1 -> RecordNote.tryCreate(rec1, temp1) }
@@ -143,7 +143,7 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
     protected Result<RecordNote> trySetNoteFields(RecordNote rNote1, TypeMap body, Author author1) {
         rNote1.with {
             author = author1
-            if (body.noteContents != null) noteContents = body.string("noteContents")
+            if (body.noteContents != null) noteContents = body.trimmedString("noteContents")
             if (body.boolean("isDeleted") != null) isDeleted = body.boolean("isDeleted")
             if (body.after) {
                 whenCreated = RecordUtils.adjustPosition(rNote1.record.id, body.dateTime("after"))

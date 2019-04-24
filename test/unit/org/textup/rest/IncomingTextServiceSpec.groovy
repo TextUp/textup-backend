@@ -41,22 +41,27 @@ class IncomingTextServiceSpec extends Specification {
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
         spr1.permission = SharePermission.NONE
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord()
+        spr2.permission = SharePermission.DELEGATE
+
+        PhoneRecord.withSession { it.flush() }
 
         int textBaseline = RecordText.count()
 
         service.socketService = GroovyMock(SocketService)
         MockedMethod tryMarkUnread = MockedMethod.create(PhoneRecordUtils, "tryMarkUnread") {
-            Result.createSuccess([ipr1, spr1]*.toWrapper())
+            Result.createSuccess([ipr1, spr1, spr2]*.toWrapper())
         }
 
         when:
         Result res = service.buildTexts(tp1, is1, apiId, message, numSegments)
 
-        then: "errors are ignored"
+        then: "errors are ignored + create record items ONLY FOR OWNED CONTACTS"
         tryMarkUnread.latestArgs == [tp1, is1.number]
-        1 * service.socketService.sendIndividualWrappers([ipr1, spr1]*.toWrapper())
+        1 * service.socketService.sendIndividualWrappers([ipr1, spr1, spr2]*.toWrapper())
         res.status == ResultStatus.CREATED
         res.payload instanceof Collection
+        res.payload.size() == 1
         res.payload[0] instanceof RecordText
         res.payload[0].record == ipr1.record
         res.payload[0].contents == message
@@ -157,10 +162,10 @@ class IncomingTextServiceSpec extends Specification {
 
         then:
         1 * notifGroup1.eachItem(_ as Closure) >> { args -> args[0].call(rItem1) }
-        1 * notifGroup1.getNumNotifiedForItem(NotificationFrequency.IMMEDIATELY, rItem1) >> numNotified
+        1 * notifGroup1.getNumNotifiedForItem(rItem1, NotificationFrequency.IMMEDIATELY) >> numNotified
         rItem1.media == mInfo1
         rItem1.numNotified == numNotified
-        1 * service.notificationService.send(NotificationFrequency.IMMEDIATELY, notifGroup1) >> Result.void()
+        1 * service.notificationService.send(notifGroup1, NotificationFrequency.IMMEDIATELY) >> Result.void()
         1 * service.socketService.sendItems([rItem1])
         res.status == ResultStatus.NO_CONTENT
     }

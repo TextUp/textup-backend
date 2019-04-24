@@ -23,19 +23,19 @@ class IndividualPhoneRecords {
         }
     }
 
-    static Result<Map<PhoneNumber, List<IndividualPhoneRecord>>> tryFindOrCreateNumToObjByPhoneAndNumbers(Phone p1,
-        Collection<? extends BasePhoneNumber> bNums, boolean createIfAbsent) {
+    static Result<Map<PhoneNumber, Collection<IndividualPhoneRecord>>> tryFindOrCreateNumToObjByPhoneAndNumbers(Phone p1,
+        Collection<? extends BasePhoneNumber> bNums, boolean createIfAbsent,
+        boolean createEvenIfSomeNotVisible) {
 
-        Map<? extends BasePhoneNumber, List<IndividualPhoneRecord>> numberToPhoneRecords = [:]
+        Map<? extends BasePhoneNumber, Collection<IndividualPhoneRecord>> numberToPhoneRecords = [:]
         if (!bNums) {
             return IOCUtils.resultFactory.success(numberToPhoneRecords)
         }
-        // step 1: find all contact numbers that match the ones passed ine
+        // step 1: find all contact numbers that match the ones passed in
         List<ContactNumber> cNums = ContactNumber.createCriteria().list {
             owner {
                 eq("phone", p1)
                 eq("isDeleted", false)
-                ne("status", PhoneRecordStatus.BLOCKED)
             }
             CriteriaUtils.inList(delegate, "number", bNums*.number)
         } as List<ContactNumber>
@@ -47,9 +47,9 @@ class IndividualPhoneRecords {
         }
         // step 3: if allowed, create new contacts for any phone numbers without any contacts
         if (createIfAbsent) {
-            tryCreateIfNone(p1, numberToPhoneRecords)
+            tryCreateIfNone(p1, numberToPhoneRecords, createEvenIfSomeNotVisible)
         }
-        else { IOCUtils.resultFactory.success(numberToPhoneRecords) }
+        else { IOCUtils.resultFactory.success(removeBlockedPhoneRecords(numberToPhoneRecords)) }
     }
 
     static Map<PhoneNumber, HashSet<Long>> findNumToIdByPhoneIdAndOptions(Long phoneId,
@@ -106,21 +106,46 @@ class IndividualPhoneRecords {
     // -------
 
     @GrailsTypeChecked
-    protected static Result<Map<PhoneNumber, List<IndividualPhoneRecord>>> tryCreateIfNone(Phone p1,
-        Map<? extends BasePhoneNumber, List<IndividualPhoneRecord>> numberToPhoneRecords) {
+    protected static Result<Map<PhoneNumber, Collection<IndividualPhoneRecord>>> tryCreateIfNone(Phone p1,
+        Map<? extends BasePhoneNumber, Collection<IndividualPhoneRecord>> numberToPhoneRecords,
+        boolean createEvenIfSomeNotVisible) {
 
+        Map<? extends BasePhoneNumber, Collection<IndividualPhoneRecord>> filledIn = [:]
         ResultGroup<IndividualPhoneRecord> resGroup = new ResultGroup<>()
-        numberToPhoneRecords.each { BasePhoneNumber bNum, List<IndividualPhoneRecord> iprList ->
-            if (iprList.isEmpty()) {
+        numberToPhoneRecords?.each { BasePhoneNumber bNum, Collection<IndividualPhoneRecord> iprList ->
+            IndividualPhoneRecord newPhoneRecord
+            if (shouldCreateNewPhoneRecord(iprList, createEvenIfSomeNotVisible)) {
                 resGroup << IndividualPhoneRecord.tryCreate(p1)
                     .then { IndividualPhoneRecord ipr1 -> ipr1.mergeNumber(bNum, 0).curry(ipr1) }
                     .then { IndividualPhoneRecord ipr1 ->
-                        iprList << ipr1
+                        newPhoneRecord = ipr1
                         IOCUtils.resultFactory.success(ipr1)
                     }
             }
+            filledIn[bNum] = CollectionUtils.mergeUnique([iprList, [newPhoneRecord]]) // removes nulls
         }
         resGroup.toEmptyResult(false)
-            .then { IOCUtils.resultFactory.success(numberToPhoneRecords) }
+            .then {
+                IOCUtils.resultFactory.success(removeBlockedPhoneRecords(filledIn))
+            }
+    }
+
+    @GrailsTypeChecked
+    protected static boolean shouldCreateNewPhoneRecord(Collection<IndividualPhoneRecord> iprList,
+        boolean createEvenIfSomeNotVisible) {
+
+        iprList?.isEmpty() ||
+            (createEvenIfSomeNotVisible && iprList?.every { !(it.status in PhoneRecordStatus.VISIBLE_STATUSES) })
+    }
+
+    @GrailsTypeChecked
+    protected static Map<? extends BasePhoneNumber, Collection<IndividualPhoneRecord>> removeBlockedPhoneRecords(
+        Map<? extends BasePhoneNumber, Collection<IndividualPhoneRecord>> numberToPhoneRecords) {
+
+        Map<? extends BasePhoneNumber, Collection<IndividualPhoneRecord>> cleaned = [:]
+        numberToPhoneRecords?.each { BasePhoneNumber bNum, Collection<IndividualPhoneRecord> iprList ->
+            cleaned[bNum] = iprList.findAll { it.status in PhoneRecordStatus.VISIBLE_STATUSES }
+        }
+        cleaned
     }
 }

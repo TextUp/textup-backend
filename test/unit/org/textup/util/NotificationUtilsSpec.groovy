@@ -270,8 +270,39 @@ class NotificationUtilsSpec extends Specification {
         when:
         Result res = NotificationUtils.tryBuildNotificationsForItems([rItem1, rItem2])
 
-        then:
-        res.status == ResultStatus.FORBIDDEN
+        then: "allow some errors because we expect view-only to fail"
+        res.status == ResultStatus.OK
+        // one is the owned contact and the second is the sharedSource
+        res.payload.size() == 2
+        res.payload.find {
+            it.mutablePhone == p1 &&
+                it.details.size() == 1 &&
+                it.details[0].wrapper == ipr1.toWrapper() &&
+                it.details[0].items.size() == 1 &&
+                it.details[0].items[0] == rItem1
+        }
+        res.payload.find {
+            it.mutablePhone == spr1.shareSource.phone &&
+                it.details.size() == 1 &&
+                it.details[0].wrapper == spr1.shareSource.toWrapper() &&
+                it.details[0].items.size() == 1 &&
+                it.details[0].items[0] == rItem2
+        }
+    }
+
+    void "test building notifications excludes non-visible `PhoneRecord`s"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.status = PhoneRecordStatus.BLOCKED
+
+        RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
+
+        when:
+        Result res = NotificationUtils.tryBuildNotificationsForItems([rItem1])
+
+        then: "non-visible (blocked) phone records are excluded"
+        res.status == ResultStatus.OK
+        res.payload.size() == 0
     }
 
     void "test building notification group"() {

@@ -194,7 +194,7 @@ class MailServiceSpec extends Specification {
 
     void "test send staff digest email notification"() {
         given:
-        NotificationFrequency freq1 = NotificationFrequency.values()[0]
+        NotificationFrequency freq1 = NotificationFrequency.HOUR
         Staff s1 = TestUtils.buildStaff()
         NotificationInfo notifInfo = TestUtils.buildNotificationInfo()
         Token tok1 = TestUtils.buildToken()
@@ -206,7 +206,7 @@ class MailServiceSpec extends Specification {
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when:
-        res = service.notifyMessages(freq1, s1, notifInfo)
+        res = service.notifyMessages(s1, notifInfo)
 
         then:
         send.callCount == 1
@@ -217,7 +217,7 @@ class MailServiceSpec extends Specification {
         send.latestArgs[3].staffName == s1.name
         send.latestArgs[3].phoneName == notifInfo.phoneName
         send.latestArgs[3].phoneNumber == notifInfo.phoneNumber.prettyPhoneNumber
-        send.latestArgs[3].timePeriodDescription == freq1.readableDescription
+        send.latestArgs[3].timePeriodDescription == NotificationFrequency.IMMEDIATELY.readableDescription
         send.latestArgs[3].incomingDescription instanceof String
         send.latestArgs[3].outgoingDescription instanceof String
         send.latestArgs[3].numIncoming == notifInfo.numIncomingText + notifInfo.numIncomingCall
@@ -226,7 +226,7 @@ class MailServiceSpec extends Specification {
         res.status == ResultStatus.NO_CONTENT
 
         when:
-        res = service.notifyMessages(freq1, s1, notifInfo, tok1)
+        res = service.notifyMessages(s1, notifInfo, freq1, tok1)
 
         then:
         send.callCount == 2

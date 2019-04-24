@@ -78,10 +78,10 @@ class NotificationServiceSpec extends Specification {
         res.status == ResultStatus.NO_CONTENT
 
         when: "send via text + staff has personal number"
-        res = service.send(freq1, notifGroup1)
+        res = service.send(notifGroup1, null)
 
         then:
-        1 * notifGroup1.eachNotification(freq1, _ as Closure) >> { args -> args[1].call(op1, notif1) }
+        1 * notifGroup1.eachNotification(null, _ as Closure) >> { args -> args[1].call(op1, notif1) }
         1 * service.tokenService.tryGeneratePreviewInfo(op1, notif1) >> Result.createSuccess(tok1)
         1 * service.textService.send(notif1.mutablePhone.number,
             [op1.staff.personalNumber],
@@ -90,7 +90,7 @@ class NotificationServiceSpec extends Specification {
         res.status == ResultStatus.NO_CONTENT
 
         when: "send via text + staff has no personal number"
-        res = service.send(freq1, notifGroup1)
+        res = service.send(notifGroup1, freq1)
 
         then:
         1 * notifGroup1.eachNotification(freq1, _ as Closure) >> { args -> args[1].call(op2, notif1) }
@@ -99,14 +99,14 @@ class NotificationServiceSpec extends Specification {
         res.status == ResultStatus.NO_CONTENT
 
         when: "send via email"
-        res = service.send(freq1, notifGroup1)
+        res = service.send(notifGroup1, freq1)
 
         then:
         1 * notifGroup1.eachNotification(freq1, _ as Closure) >> { args -> args[1].call(op3, notif1) }
         1 * service.tokenService.tryGeneratePreviewInfo(op3, notif1) >> Result.createSuccess(tok1)
-        1 * service.mailService.notifyMessages(freq1,
-            op3.staff,
+        1 * service.mailService.notifyMessages(op3.staff,
             _ as NotificationInfo,
+            freq1,
             tok1) >> Result.void()
         res.status == ResultStatus.NO_CONTENT
     }

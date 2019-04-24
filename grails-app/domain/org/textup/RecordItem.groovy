@@ -13,9 +13,13 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@EqualsAndHashCode
+// [NOTE] Only the generated `hashCode` is used. The generated `equals` is superceded by the
+// overriden `compareTo` method. Therefore, ensure the fields in the annotation match the ones
+// used in the compareTo implementation exactly
+
+@EqualsAndHashCode(includes = ["whenCreated", "id"])
 @GrailsTypeChecked
-class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem> {
+class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem>, Comparable<RecordItem> {
 
     // If we want to include id in the equality comparator, we need to explicitly declare it
     // This was an issue when using `CollectionUtils.mergeUnique` on several record items as
@@ -78,6 +82,15 @@ class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem> {
 
     @Override
     ReadOnlyRecord getReadOnlyRecord() { record }
+
+    // Domain classes with @GrailsTypeChecked seem to be unable to use @Sortable without
+    // triggering a canonicalization error during type checking.
+    // [NOTE] the `==` operator in Groovy calls `compareTo` INSTEAD OF `equals` if present
+    // see https://stackoverflow.com/a/9682512
+    @Override
+    int compareTo(RecordItem rItem) {
+        whenCreated <=> rItem?.whenCreated ?: id <=> rItem?.id
+    }
 
     void setAuthor(Author author) {
         if (author?.validate()) {

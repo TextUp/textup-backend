@@ -103,6 +103,28 @@ class RecipientsSpec extends Specification {
         PhoneRecord.count() == prBaseline
     }
 
+    // We don't want the user to be confused about why a request is failing when did in fact put in
+    // at least one recipient. If the user puts in a number they previous blocked, the likely mean to
+    // unblock that phone number, so we allow a new contact with that number to be created.
+    void "test creating new `IndividualPhoneRecord`s for phone numbers still happens even if a blocked one exists"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.status = PhoneRecordStatus.BLOCKED
+        IndividualPhoneRecord.withSession { it.flush() }
+
+        int iprBaseline = IndividualPhoneRecord.count()
+
+        when:
+        Result res = Recipients.tryCreate(ipr1.phone, [], [PhoneNumber.copy(ipr1.sortedNumbers[0])], 10)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.all.size() == 1
+        res.payload.all[0].id == IndividualPhoneRecord.last().id
+        res.payload.all[0].numbers.find { it.number == ipr1.sortedNumbers[0].number }
+        IndividualPhoneRecord.count()  == iprBaseline + 1
+    }
+
     void "test permission constraint"() {
         given:
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()

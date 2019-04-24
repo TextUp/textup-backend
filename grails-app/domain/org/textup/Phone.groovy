@@ -56,7 +56,7 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
                         .build(CriteriaUtils.forNotIdIfPresent(obj.id))
                         .count() > 0
                 }) {
-                return ["duplicate"]
+                return ["phone.numberAsString.duplicate"]
             }
         }
         awayMessage blank: false, size: 1..(ValidationUtils.TEXT_BODY_LENGTH * 2)

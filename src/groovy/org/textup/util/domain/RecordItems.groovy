@@ -46,11 +46,30 @@ class RecordItems {
         results
     }
 
-    static DetachedCriteria<RecordItem> buildForIncomingMessagesAfter(DateTime afterTime) {
+    static Collection<RecordItem> findAllByNonGroupOwner(Collection<RecordItem> rItems) {
+        if (!rItems) {
+            return []
+        }
         new DetachedCriteria(RecordItem)
-            .build { ne("class", RecordNote) }
+            .build { CriteriaUtils.inList(delegate, "id", rItems*.id) }
+            .build(RecordItems.forNonGroupOwnerOnly())
+            .list()
+    }
+
+    static DetachedCriteria<RecordItem> buildForOutgoingScheduledOrIncomingMessagesAfter(DateTime afterTime) {
+        new DetachedCriteria(RecordItem)
+            .build {
+                ne("class", RecordNote)
+                or {
+                    and { // outgoing scheduled
+                        eq("outgoing", true)
+                        eq("wasScheduled", true)
+                    }
+                    ClosureUtils.compose(delegate, RecordItems.forIncoming())
+                }
+            }
             .build(forDates(afterTime, null))
-            .build(RecordItems.forIncoming())
+            .build(RecordItems.forNonGroupOwnerOnly())
     }
 
     // Subqueries cannot include an `or` clause or else results in an NPE because of an existing bug.
@@ -80,6 +99,14 @@ class RecordItems {
 
     static Closure forIncoming() {
         return { eq("outgoing", false) }
+    }
+
+    static Closure forNonGroupOwnerOnly() {
+        return {
+            "in"("record.id", new DetachedCriteria(PhoneRecord)
+                .build(PhoneRecords.forNonGroupOnly())
+                .build(PhoneRecords.returnsRecordId()))
+        }
     }
 
     // Specify sort order separately because when we call `count()` on a DetachedCriteria

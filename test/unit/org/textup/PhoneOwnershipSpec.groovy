@@ -130,7 +130,7 @@ class PhoneOwnershipSpec extends Specification {
         OwnerPolicy.withSession { it.flush() }
 
         when: "if no frequency provided"
-        Collection policies = tp1.owner.buildActiveReadOnlyPoliciesForFrequency()
+        Collection policies = tp1.owner.buildActiveReadOnlyPolicies()
 
         then: "then we build all current and fill in missing"
         policies.size() == 3
@@ -141,7 +141,7 @@ class PhoneOwnershipSpec extends Specification {
         !(op5 in policies)
 
         when: "default frequency"
-        policies = tp1.owner.buildActiveReadOnlyPoliciesForFrequency(DefaultOwnerPolicy.DEFAULT_FREQUENCY)
+        policies = tp1.owner.buildActiveReadOnlyPolicies(DefaultOwnerPolicy.DEFAULT_FREQUENCY)
 
         then: "get current with passed-in frequency and fill in missing"
         policies.size() == 2
@@ -152,7 +152,7 @@ class PhoneOwnershipSpec extends Specification {
         !(op5 in policies)
 
         when: "non-default frequency that some CURRENT policies have"
-        policies = tp1.owner.buildActiveReadOnlyPoliciesForFrequency(op2.frequency)
+        policies = tp1.owner.buildActiveReadOnlyPolicies(op2.frequency)
 
         then: "get current with passed-in frequency and DO NOT fill in missing"
         policies.size() == 1
@@ -163,7 +163,7 @@ class PhoneOwnershipSpec extends Specification {
         !(op5 in policies)
 
         when: "non-default frequency that no CURRENT policies have"
-        policies = tp1.owner.buildActiveReadOnlyPoliciesForFrequency(op5.frequency)
+        policies = tp1.owner.buildActiveReadOnlyPolicies(op5.frequency)
 
         then:
         policies == []

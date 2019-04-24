@@ -139,4 +139,26 @@ class RecordItemSpec extends Specification {
         rItem.authorId == 88L
         rItem.authorType == AuthorType.STAFF
     }
+
+    void "test equals (delegates to compareTo) and hashCode"() {
+        given:
+        DateTime dt = DateTime.now()
+        RecordItem rItem1 = TestUtils.buildRecordItem()
+        rItem1.whenCreated = dt
+        RecordItem rItem2 = TestUtils.buildRecordItem()
+        rItem2.whenCreated = dt
+
+        RecordItem.withSession { it.flush() }
+
+        expect: "all three are consistent"
+        rItem1 == rItem1
+        rItem1.equals(rItem1)
+        rItem1.compareTo(rItem1) == 0
+        rItem1.hashCode() == rItem1.hashCode()
+
+        rItem1 != rItem2
+        !rItem1.equals(rItem2)
+        rItem1.compareTo(rItem2) != 0
+        rItem1.hashCode() != rItem2.hashCode()
+    }
 }

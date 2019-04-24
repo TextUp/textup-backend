@@ -40,8 +40,8 @@ class Recipients implements CanValidate {
     static Result<Recipients> tryCreate(Phone p1, Collection<Long> prIds,
         Collection<PhoneNumber> pNums, int maxNum, boolean countAsRecords = false) {
         // create new contacts as needed
-        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, pNums, true)
-            .then { Map<PhoneNumber, List<IndividualPhoneRecord>> ipRecs ->
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, pNums, true, true)
+            .then { Map<PhoneNumber, Collection<IndividualPhoneRecord>> ipRecs ->
                 // then fetch the shared contacts + tags
                 Collection<? extends PhoneRecord> pRecs = PhoneRecords
                     .buildActiveForPhoneIds([p1?.id])

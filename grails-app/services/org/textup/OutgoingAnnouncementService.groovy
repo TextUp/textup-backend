@@ -92,10 +92,10 @@ class OutgoingAnnouncementService {
         Phone p1, Author author1, String msg, Collection<IncomingSession> sess,
         Map<PhoneNumber, TempRecordReceipt> numToRpt) {
 
-        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, sess*.number, true)
-            .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPhoneRecs ->
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, sess*.number, true, false)
+            .then { Map<PhoneNumber, Collection<IndividualPhoneRecord>> numToPhoneRecs ->
                 ResultGroup<RecordItem> resGroup = new ResultGroup<>()
-                numToPhoneRecs.each { PhoneNumber pNum, List<IndividualPhoneRecord> iprs ->
+                numToPhoneRecs.each { PhoneNumber pNum, Collection<IndividualPhoneRecord> iprs ->
                     iprs*.record.each { Record rec1 ->
                         resGroup << tryStoreForRecordItem(rec1, type, author1, msg, numToRpt[pNum])
                     }

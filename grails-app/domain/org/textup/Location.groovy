@@ -23,10 +23,10 @@ class Location implements ReadOnlyLocation, WithId, CanSave<Location> {
     static constraints = {
         address nullable:false, blank:false
         lat validator: { BigDecimal l, Location obj ->
-            if (l > 90 || l < -90) { ["outOfBounds"] }
+            if (l > 90 || l < -90) { ["location.lat.outOfBounds"] }
         }
         lng validator: { BigDecimal l, Location obj ->
-            if (l > 180 || l < -180) { ["outOfBounds"] }
+            if (l > 180 || l < -180) { ["location.lng.outOfBounds"] }
         }
     }
 

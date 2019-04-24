@@ -67,10 +67,10 @@ class CallTwiml {
 
     static String extractDirectMessageToken(TypeMap params) { params.string(DIRECT_MESSAGE_TOKEN) }
 
-    static Result<Closure> directMessage(String ident, String message, VoiceLanguage lang,
+    static Result<Closure> directMessage(String ident, VoiceLanguage lang, String message = null,
         List<URL> recordingUrls = []) {
 
-        if (!ident || !message || !lang || recordingUrls == null) {
+        if (!ident || !lang || (!message && !recordingUrls)) {
             return TwilioUtils.invalidTwimlInputs(CallResponse.DIRECT_MESSAGE.toString())
         }
         String messageIntro = IOCUtils.getMessage("callTwiml.messageIntro", [ident])
@@ -78,8 +78,10 @@ class CallTwiml {
             Say(messageIntro)
             Pause(length: 1)
             DIRECT_MESSAGE_MAX_REPEATS.times {
-                Say(language: lang.toTwimlValue(), message)
-                recordingUrls.each { URL url -> Play(url.toString()) }
+                if (message) {
+                    Say(language: lang.toTwimlValue(), message)
+                }
+                recordingUrls?.each { URL url -> Play(url.toString()) }
             }
             Hangup()
         }
@@ -148,7 +150,7 @@ class CallTwiml {
             // take the voicemail instead of TextUp storing the voicemail
             Dial(callerId: displayed.e164PhoneNumber, timeout: 15, answerOnBridge: true,
                 action: voicemailLink) {
-                numsToCall.each { BasePhoneNumber bNum ->
+                CollectionUtils.mergeUnique([numsToCall]).each { BasePhoneNumber bNum ->
                     Number(statusCallback: childCallStatus(bNum.e164PhoneNumber), url: screenLink,
                         bNum.e164PhoneNumber)
                 }

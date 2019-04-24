@@ -42,11 +42,11 @@ class DigestNotificationJob implements Job {
             .enum(NotificationFrequency, FREQ_KEY)
         if (freq1) {
             Collection<RecordItem> rItems = RecordItems
-                .buildForIncomingMessagesAfter(freq1.buildDateTimeInPast())
+                .buildForOutgoingScheduledOrIncomingMessagesAfter(freq1.buildDateTimeInPast())
                 .list()
             NotificationUtils.tryBuildNotificationGroup(rItems)
                 .then { NotificationGroup notifGroup ->
-                    notificationService.send(freq1, notifGroup)
+                    notificationService.send(notifGroup, freq1)
                 }
                 .logFail("sending digest notifications for frequency $freq1")
         }

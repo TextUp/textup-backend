@@ -56,6 +56,17 @@ class TypeMapSpec extends Specification {
         map.string(key) == val
     }
 
+    void "test converting to trimmed string"() {
+        given:
+        String key = TestUtils.randString()
+        String val = TestUtils.randString()
+        TypeMap map = TypeMap.create((key): "  "  + val + " ")
+
+        expect:
+        map.string(key) != val
+        map.trimmedString(key) == val
+    }
+
     void "test converting to type map, if possible"() {
         given:
         String key1 = TestUtils.randString()

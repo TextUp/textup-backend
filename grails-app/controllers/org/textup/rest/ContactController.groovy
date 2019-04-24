@@ -26,7 +26,7 @@ class ContactController extends BaseController {
     def index() {
         TypeMap qParams = TypeMap.create(params)
         Collection<PhoneRecordStatus> statuses = qParams
-            .enumList(PhoneRecordStatus, "status[]") ?: PhoneRecordStatus.VISIBLE_STATUSES
+            .enumList(PhoneRecordStatus, "status[]") ?: PhoneRecordStatus.ACTIVE_STATUSES
         if (qParams.tagId) {
             listForTag(statuses, qParams)
         }

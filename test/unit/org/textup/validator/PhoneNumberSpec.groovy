@@ -52,7 +52,7 @@ class PhoneNumberSpec extends Specification {
         then:
     	pNum.number == "2223334444"
     	pNum.e164PhoneNumber == "+12223334444"
-    	pNum.prettyPhoneNumber == "222 333 4444"
+    	pNum.prettyPhoneNumber == "(222) 333-4444"
         pNum.toApiPhoneNumber().endpoint == pNum.number
     }
 
@@ -114,5 +114,15 @@ class PhoneNumberSpec extends Specification {
         pNum2.hashCode() != pNum3.hashCode()
         pNum1 != pNum3
         pNum1.hashCode() != pNum3.hashCode()
+    }
+
+    void "test getting area code"() {
+        given:
+        BasePhoneNumber bNum = TestUtils.randPhoneNumber()
+        BasePhoneNumber invalidNum = PhoneNumber.create("invalid number")
+
+        expect:
+        bNum.areaCode == TestConstants.TEST_DEFAULT_AREA_CODE
+        invalidNum.areaCode == ""
     }
 }

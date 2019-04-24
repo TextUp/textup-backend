@@ -35,7 +35,8 @@ class ExportTransformIntegrationSpec extends Specification {
         then:
         outputString.contains("This export contains 1 record items")
         outputString.contains("From ${spr1.shareSource.secureName}")
-        outputString.contains("To ${p1.buildName()} (${p1.number.prettyPhoneNumber})")
+        outputString.contains("To ${p1.buildName()}")
+        outputString.contains(p1.number.prettyPhoneNumber)
 
         when: "outgoing without author"
         rCall1.outgoing = true
@@ -379,9 +380,32 @@ class ExportTransformIntegrationSpec extends Specification {
         String outputString = xml.text().replaceAll(/\s+/, " ")
 
         then:
+        outputString.contains("Internal note")
         outputString.contains("This export contains 1 record items")
         outputString.contains("Note: ${noteContents}")
         outputString.contains("Attachments:")
+        outputString.contains("Location: ${locAddress}")
+    }
+
+    void "test displaying note with only location"(){
+        given:
+        Phone tp1 = TestUtils.buildActiveTeamPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(tp1)
+        RecordNote rNote1 = RecordNote.tryCreate(ipr1.record, null, null, TestUtils.buildLocation()).payload
+
+        RecordItemRequest iReq = RecordItemRequest.tryCreate(tp1, null, false).payload
+        String locAddress = rNote1.location.address
+
+        when:
+        GPathResult xml = TestUtils.buildXmlTransformOutput(grailsApplication, iReq)
+
+        String outputString = xml.text().replaceAll(/\s+/, " ")
+
+        then:
+        outputString.contains("Internal note")
+        outputString.contains("This export contains 1 record items")
+        !outputString.contains("Note:")
+        !outputString.contains("Attachments:")
         outputString.contains("Location: ${locAddress}")
     }
 

@@ -28,7 +28,7 @@ class FutureMessageJsonMarshallerIntegrationSpec extends Specification {
         json.id == fMsg1.id
         json.whenCreated == fMsg1.whenCreated.toString()
         json.startDate == fMsg1.startDate.toString()
-        json.notifySelf == fMsg1.notifySelf
+        json.notifySelfOnSend == fMsg1.notifySelfOnSend
         json.type == fMsg1.type.toString()
         json.message == fMsg1.message
         json.isDone == fMsg1.isReallyDone

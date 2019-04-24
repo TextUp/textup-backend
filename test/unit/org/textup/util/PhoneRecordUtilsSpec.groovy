@@ -75,8 +75,8 @@ class PhoneRecordUtilsSpec extends Specification {
 
         then:
         tryFindOrCreateEveryByPhoneAndNumbers.callCount == 1
-        tryFindOrCreateEveryByPhoneAndNumbers.allArgs[0] == [mockPhone, [pNum1], true]
-        1 * mockWrap.trySetStatusIfNotBlocked(PhoneRecordStatus.UNREAD) >> Result.void()
+        tryFindOrCreateEveryByPhoneAndNumbers.allArgs[0] == [mockPhone, [pNum1]]
+        1 * mockWrap.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.UNREAD) >> Result.void()
         res.status == ResultStatus.OK
         res.payload == [mockWrap]
 

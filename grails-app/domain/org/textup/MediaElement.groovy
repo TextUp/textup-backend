@@ -31,7 +31,7 @@ class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement
     static constraints = { // all nullable:false by default
         sendVersion nullable: true, cascadeValidation: true, validator: { MediaElementVersion send1 ->
             if (send1 && send1.sizeInBytes > ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
-                return ["sizeTooBig"]
+                return ["mediaElement.sendVersion.sizeTooBig"]
             }
         }
         alternateVersions nullable: true, cascadeValidation: true

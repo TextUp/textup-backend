@@ -12,7 +12,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@EqualsAndHashCode(includes = ["announcement", "session", "type"])
+@EqualsAndHashCode(includes = ["id", "announcement", "session", "type"])
 @GrailsTypeChecked
 class AnnouncementReceipt implements WithId, CanSave<AnnouncementReceipt> {
 
@@ -30,7 +30,9 @@ class AnnouncementReceipt implements WithId, CanSave<AnnouncementReceipt> {
     }
     static constraints = {
     	announcement validator: { FeaturedAnnouncement fa1, AnnouncementReceipt obj ->
-    		if (fa1?.phone?.id != obj.session?.phone?.id) { ["differentPhones"] }
+    		if (fa1?.phone?.id != obj.session?.phone?.id) {
+                ["announcementReceipt.announcement.differentPhones"]
+            }
     	}
     }
 

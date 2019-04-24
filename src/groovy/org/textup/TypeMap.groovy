@@ -43,6 +43,10 @@ class TypeMap extends TypeConvertingMap {
         TypeUtils.to(String, get(propName), fallbackVal)
     }
 
+    String trimmedString(String propName, String fallbackVal = null) {
+        TypeUtils.to(String, get(propName), fallbackVal)?.trim()
+    }
+
     TypeMap typeMapNoNull(String propName) {
         new TypeMap(get(propName))
     }

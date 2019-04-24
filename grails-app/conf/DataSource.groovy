@@ -1,3 +1,5 @@
+// TODO restore test credentials
+
 dataSource {
     pooled = true
     jmxExport = true
@@ -55,14 +57,40 @@ hibernate {
 environments {
     development {
         dataSource {
-            driverClassName = "org.h2.Driver"
-            dialect = "org.textup.override.ImprovedH2Dialect"
-            username = "sa"
-            password = ""
-            dbCreate = "create"
-            // For DATABASE_TO_UPPER, see https://stackoverflow.com/a/10793358
-            // For MySQL compatibility mode, see https://stokito.wordpress.com/2014/05/07/grails-mock-mysql-database-in-test-environment/
-            url = "jdbc:h2:mem:devDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL;DATABASE_TO_UPPER=FALSE;IGNORECASE=TRUE"
+            // driverClassName = "org.h2.Driver"
+            // dialect = "org.textup.override.ImprovedH2Dialect"
+            // username = "sa"
+            // password = ""
+            // dbCreate = "create"
+            // // For DATABASE_TO_UPPER, see https://stackoverflow.com/a/10793358
+            // // For MySQL compatibility mode, see https://stokito.wordpress.com/2014/05/07/grails-mock-mysql-database-in-test-environment/
+            // url = "jdbc:h2:mem:devDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL;DATABASE_TO_UPPER=FALSE;IGNORECASE=TRUE"
+
+            // TODO
+            dbCreate = "none" //use dbmigration plugin to manage schema changes
+            driverClassName = "com.mysql.jdbc.Driver"
+            dialect = "org.textup.override.MySQL5UTF8MB4InnoDBDialect"
+            // [NOTE] url CANNOT HAVE characterEncoding=utf8 because that will
+            // override our settings in /etc/mysql/my.cnf to set the character
+            // encoding to utf8mb4
+            // [NOTE] to prevent mysql from using the system timezone, we force mysql to use
+            // the server timezone, which we set to UTC in `BootStrap.groovy`
+            // see https://stackoverflow.com/a/7610174
+            url = "jdbc:mysql://localhost/prodDb?useUnicode=true&useLegacyDatetimeCode=false&serverTimezone=UTC"
+            username = System.getenv("TEXTUP_BACKEND_DB_USERNAME") ?: System.getProperty("TEXTUP_BACKEND_DB_USERNAME")
+            password = System.getenv("TEXTUP_BACKEND_DB_PASSWORD") ?: System.getProperty("TEXTUP_BACKEND_DB_PASSWORD")
+
+            properties {
+                minEvictableIdleTimeMillis = 180000
+                timeBetweenEvictionRunsMillis = 180000
+                numTestsPerEvictionRun = 3
+                testOnBorrow = true
+                testWhileIdle = true
+                testOnReturn = true
+                validationQuery = "SELECT 1"
+            }
+
+
         }
     }
     test {

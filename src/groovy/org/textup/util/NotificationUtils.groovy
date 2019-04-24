@@ -28,6 +28,7 @@ class NotificationUtils {
         rItems1.each { RecordItem rItem1 -> recIdToItems[rItem1.record.id] << rItem1 }
         List<PhoneRecord> prs = PhoneRecords
             .buildActiveForRecordIds(recIdToItems.keySet())
+            .build(PhoneRecords.forVisibleStatuses())
             .build(PhoneRecords.forPhoneIds(phoneIds, true)) // optional
             .list()
         Map<Phone, Notification> mutPhoneToNotif = [:]
@@ -57,7 +58,10 @@ class NotificationUtils {
                         DomainUtils.tryValidate(notif1)
                     }
             }
-            .toEmptyResult(false)
+            // allow some failures because we find shared phone records too. This includes
+            // shared collaborators (who we want to notify) and those that are view-only, who we
+            // do NOT want to notify
+            .toEmptyResult(true)
             .then {
                 IOCUtils.resultFactory.success(CollectionUtils.shallowCopyNoNull(mutPhoneToNotif.values()))
             }

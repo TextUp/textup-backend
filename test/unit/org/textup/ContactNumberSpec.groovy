@@ -77,7 +77,7 @@ class ContactNumberSpec extends Specification {
         [cNum2, cNum1].sort() == [cNum1, cNum2]
     }
 
-    void "test equals and hash code"() {
+    void "test equals (delegates to compareTo) and hash code"() {
         given:
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         PhoneNumber pNum1 = TestUtils.randPhoneNumber()
@@ -89,17 +89,25 @@ class ContactNumberSpec extends Specification {
         ContactNumber cNum2 = ContactNumber.tryCreate(ipr1, pNum1, pref1).payload
         ContactNumber cNum3 = ContactNumber.tryCreate(ipr1, pNum2, pref2).payload
 
-        expect:
+        expect: "all operations to be consistent"
         cNum1 == cNum1
+        cNum1.equals(cNum1)
+        cNum1.compareTo(cNum1) == 0
         cNum1.hashCode() == cNum1.hashCode()
 
         cNum1 == cNum2
+        cNum1.equals(cNum2)
+        cNum1.compareTo(cNum2) == 0
         cNum1.hashCode() == cNum2.hashCode()
 
         cNum1 != cNum3
+        !cNum1.equals(cNum3)
+        cNum1.compareTo(cNum3) != 0
         cNum1.hashCode() != cNum3.hashCode()
 
         cNum2 != cNum3
+        !cNum2.equals(cNum3)
+        cNum2.compareTo(cNum3) != 0
         cNum2.hashCode() != cNum3.hashCode()
     }
 }

@@ -32,25 +32,39 @@ class Schedule implements WithId, CanSave<Schedule>, ReadOnlySchedule {
 
     static constraints = {
         sunday validator: { String val ->
-            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) {
+                ["schedule.sunday.invalid"]
+            }
         }
         monday validator: { String val ->
-            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) {
+                ["schedule.monday.invalid"]
+            }
         }
         tuesday validator: { String val ->
-            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) {
+                ["schedule.tuesday.invalid"]
+            }
         }
         wednesday validator: { String val ->
-            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) {
+                ["schedule.wednesday.invalid"]
+            }
         }
         thursday validator: { String val ->
-            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) {
+                ["schedule.thursday.invalid"]
+            }
         }
         friday validator: { String val ->
-            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) {
+                ["schedule.friday.invalid"]
+            }
         }
         saturday validator: { String val ->
-            if (val && !ScheduleUtils.validateIntervalsString(val)) { ["invalid"] }
+            if (val && !ScheduleUtils.validateIntervalsString(val)) {
+                ["schedule.saturday.invalid"]
+            }
         }
     }
 

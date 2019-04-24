@@ -8,7 +8,7 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
 class GroupPhoneRecord extends PhoneRecord {
 
@@ -24,7 +24,9 @@ class GroupPhoneRecord extends PhoneRecord {
     }
     static constraints = {
         hexColor validator: { String val ->
-            if (!ValidationUtils.isValidHexCode(val)) { ["invalidHex"] }
+            if (!ValidationUtils.isValidHexCode(val)) {
+                ["groupPhoneRecord.hexColor.invalidHex"]
+            }
         }
     }
 
@@ -48,7 +50,7 @@ class GroupPhoneRecord extends PhoneRecord {
     // -------
 
     @Override
-    boolean isActive() { super.isActive() && !isDeleted }
+    boolean isNotExpired() { super.isNotExpired() && !isDeleted }
 
     @Override
     Collection<Record> buildRecords() {

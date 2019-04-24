@@ -308,7 +308,7 @@ class ContactControllerSpec extends Specification {
         controller.index()
 
         then:
-        listForIds.latestArgs == [PhoneRecordStatus.VISIBLE_STATUSES, TypeMap.create(params)]
+        listForIds.latestArgs == [PhoneRecordStatus.ACTIVE_STATUSES, TypeMap.create(params)]
         listForTag.notCalled
 
         when:

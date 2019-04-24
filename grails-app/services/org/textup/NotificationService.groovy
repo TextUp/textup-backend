@@ -20,7 +20,7 @@ class NotificationService {
     TextService textService
     TokenService tokenService
 
-    Result<Void> send(NotificationFrequency freq1, NotificationGroup notifGroup) {
+    Result<Void> send(NotificationGroup notifGroup, NotificationFrequency freq1 = null) {
         ResultGroup<?> resGroup = new ResultGroup<>()
         notifGroup?.eachNotification(freq1) { ReadOnlyOwnerPolicy rop1, Notification notif1 ->
             resGroup << tokenService.tryGeneratePreviewInfo(rop1, notif1)
@@ -37,7 +37,7 @@ class NotificationService {
                         }
                         else { Result.void() }
                     }
-                    else { mailService.notifyMessages(freq1, rop1.readOnlyStaff, notifInfo, tok1) }
+                    else { mailService.notifyMessages(rop1.readOnlyStaff, notifInfo, freq1, tok1) }
                 }
         }
         resGroup.toEmptyResult(false)

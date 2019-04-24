@@ -979,4 +979,6 @@ databaseChangeLog = {
 	include file: 'migrate-data-to-phone-records.groovy'
 
 	include file: 'cleanup-tags-contacts-shared-contacts.groovy'
+
+	include file: 'future-message-notify-on-send.groovy'
 }

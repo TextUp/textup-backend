@@ -19,6 +19,14 @@ import spock.lang.*
 @TestMixin(GrailsUnitTestMixin)
 class StringUtilsSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     void "test cleaning phone number"() {
         expect:
         StringUtils.cleanPhoneNumber(null) == null
@@ -63,11 +71,12 @@ class StringUtilsSpec extends Specification {
         StringUtils.buildInitials(null) == null
         StringUtils.buildInitials("") == ""
         StringUtils.buildInitials("Hello there") == "H.T."
-        StringUtils.buildInitials("  Hello 626 123 3920 okay!!") == "H.O."
+        StringUtils.buildInitials("  Hello 626 123 392 okay!!") == "H.O."
+        StringUtils.buildInitials("  Hello 626 123 3920 okay!!") == "${StringUtils.PHONE_NUMBER_INITIALS_PREFIX} 626"
         StringUtils.buildInitials("""    Hello 626 123
                 yes
             all right
-            3920 @@okay!!
+            @@okay!!
         """) == "H.Y.A.R.@."
     }
 

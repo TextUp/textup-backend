@@ -87,6 +87,7 @@ class IndividualPhoneRecordSpec extends Specification {
 
         then:
         ipr1.isActive()
+        ipr1.isNotExpired()
 
         when:
         ipr1.status = PhoneRecordStatus.ACTIVE
@@ -94,6 +95,7 @@ class IndividualPhoneRecordSpec extends Specification {
 
         then:
         ipr1.isActive() == false
+        ipr1.isNotExpired() == false
     }
 
     void "test merging + deleting errors"() {

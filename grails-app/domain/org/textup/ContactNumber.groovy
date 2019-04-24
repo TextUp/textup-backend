@@ -11,16 +11,17 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-// Grails Domain classes cannot apply the `@Sortable` without a compilation error
+// [NOTE] Grails Domain classes cannot apply the `@Sortable` without a compilation error
 // Use `@EqualsAndHashCode` to ensure that addTo* and removeFrom* work properly
+// [NOTE] Only the generated `hashCode` is used. The generated `equals` is superceded by the
+// overriden `compareTo` method. Therefore, ensure the fields in the annotation match the ones
+// used in the compareTo implementation exactly
+// [NOTE] using `id` in the `equals`, `hashCode`, `compareTo` calculations seems to break the
+// dynamic `removeFrom` methods. Therefore, we exclude using `id` from these calculations
 
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(includes = ["preference", "number"])
 @GrailsTypeChecked
 class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNumber>, Comparable<ContactNumber> {
-
-    // Need to declare id for it to be considered in equality operator
-    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
-    Long id
 
 	Integer preference
 
@@ -41,6 +42,8 @@ class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNu
     // Methods
     // -------
 
+    // [NOTE] the `==` operator in Groovy calls `compareTo` INSTEAD OF `equals` if present
+    // see https://stackoverflow.com/a/9682512
     @Override
     int compareTo(ContactNumber cNum) { // first sort on preference, then phone number value
         preference <=> cNum?.preference ?: number <=> cNum?.number

@@ -71,11 +71,13 @@ class IncomingCallService {
                 socketService.sendIndividualWrappers(wraps)
                 ResultGroup
                     .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
-                        w1.tryGetRecord().then { Record rec1 ->
-                            rec1.storeIncoming(RecordItemType.CALL, Author.create(is1), is1.number, apiId)
+                        // only store for owner because owner + shared all point to the same
+                        // record object and we want to avoid duplicates in the record
+                        w1.tryUnwrap().then { PhoneRecord pr1 ->
+                            pr1.record.storeIncoming(RecordItemType.CALL, Author.create(is1),
+                                is1.number, apiId)
                         }
                     }
-                    .logFail("relayCall")
                     .toResult(true)
             }
             .then { List<RecordCall> rCalls -> finishRelayCall(p1, is1, rCalls) }

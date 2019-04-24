@@ -116,6 +116,8 @@ class IncomingCallServiceSpec extends Specification {
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
         spr1.permission = SharePermission.NONE
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord()
+        spr2.permission = SharePermission.DELEGATE
         IncomingSession is1 = TestUtils.buildSession()
 
         int callBaseline = RecordCall.count()
@@ -123,7 +125,7 @@ class IncomingCallServiceSpec extends Specification {
         Phone p1 = GroovyMock()
         service.socketService = GroovyMock(SocketService)
         MockedMethod tryMarkUnread = MockedMethod.create(PhoneRecordUtils, "tryMarkUnread") {
-            Result.createSuccess([ipr1, spr1]*.toWrapper())
+            Result.createSuccess([ipr1, spr1, spr2]*.toWrapper())
         }
         MockedMethod finishRelayCall = MockedMethod.create(service, "finishRelayCall") { arg1, arg2, rCalls ->
             Result.createSuccess(rCalls)
@@ -133,9 +135,9 @@ class IncomingCallServiceSpec extends Specification {
         when:
         Result res = service.relayCall(p1, is1, apiId)
 
-        then: "ignores failures"
+        then: "ignores failures + create record items ONLY FOR OWNED CONTACTS"
         tryMarkUnread.latestArgs == [p1, is1.number]
-        1 * service.socketService.sendIndividualWrappers([ipr1, spr1]*.toWrapper())
+        1 * service.socketService.sendIndividualWrappers([ipr1, spr1, spr2]*.toWrapper())
         finishRelayCall.latestArgs[0] == p1
         finishRelayCall.latestArgs[1] == is1
         res.status == ResultStatus.OK
@@ -146,8 +148,10 @@ class IncomingCallServiceSpec extends Specification {
         res.payload[0].receipts.find {  it.apiId == apiId }
         res.payload[0].receipts.find { it.contactNumber == is1.number }
         RecordCall.findByRecord(spr1.record) == null
-        stdErr.toString().contains("relayCall")
-        stdErr.toString().contains("phoneRecordWrapper.insufficientPermission")
+        RecordCall.findByRecord(spr2.record) == null
+
+        and: "don't log errors because we EXPECT all shared conacts to error when trying to create items"
+        stdErr.size() == 0
 
         cleanup:
         tryMarkUnread?.restore()

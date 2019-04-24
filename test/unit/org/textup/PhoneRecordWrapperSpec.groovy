@@ -55,7 +55,7 @@ class PhoneRecordWrapperSpec extends Specification {
         w1.tryGetSecureName().status == ResultStatus.FORBIDDEN
         w1.tryGetPublicName().status == ResultStatus.FORBIDDEN
         w1.trySetStatusIfPresent(PhoneRecordStatus.values()[0]).status == ResultStatus.FORBIDDEN
-        w1.trySetStatusIfNotBlocked(PhoneRecordStatus.values()[0]).status == ResultStatus.FORBIDDEN
+        w1.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.values()[0]).status == ResultStatus.FORBIDDEN
         w1.trySetLanguageIfPresent(VoiceLanguage.values()[0]).status == ResultStatus.FORBIDDEN
     }
 
@@ -94,7 +94,7 @@ class PhoneRecordWrapperSpec extends Specification {
         ipr1.status == PhoneRecordStatus.UNREAD
 
         when:
-        res = w1.trySetStatusIfNotBlocked(PhoneRecordStatus.ACTIVE)
+        res = w1.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.ACTIVE)
 
         then:
         res.status == ResultStatus.NO_CONTENT
@@ -144,7 +144,7 @@ class PhoneRecordWrapperSpec extends Specification {
         spr1.status == PhoneRecordStatus.UNREAD
 
         when:
-        res = w1.trySetStatusIfNotBlocked(PhoneRecordStatus.ACTIVE)
+        res = w1.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.ACTIVE)
 
         then:
         res.status == ResultStatus.NO_CONTENT
@@ -194,7 +194,7 @@ class PhoneRecordWrapperSpec extends Specification {
         spr1.status == PhoneRecordStatus.UNREAD
 
         when:
-        res = w1.trySetStatusIfNotBlocked(PhoneRecordStatus.ACTIVE)
+        res = w1.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.ACTIVE)
 
         then: "all shared have own status"
         res.status == ResultStatus.NO_CONTENT
@@ -236,7 +236,7 @@ class PhoneRecordWrapperSpec extends Specification {
         w1.tryGetSecureName().status == ResultStatus.FORBIDDEN
         w1.tryGetPublicName().status == ResultStatus.FORBIDDEN
         w1.trySetStatusIfPresent(PhoneRecordStatus.UNREAD).status == ResultStatus.FORBIDDEN
-        w1.trySetStatusIfNotBlocked(PhoneRecordStatus.ACTIVE).status == ResultStatus.FORBIDDEN
+        w1.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.ACTIVE).status == ResultStatus.FORBIDDEN
         w1.trySetLanguageIfPresent(VoiceLanguage.PORTUGUESE).status == ResultStatus.FORBIDDEN
     }
 
@@ -246,7 +246,7 @@ class PhoneRecordWrapperSpec extends Specification {
 
         then:
         w1.trySetStatusIfPresent(null).status == ResultStatus.NO_CONTENT
-        w1.trySetStatusIfNotBlocked(null).status == ResultStatus.NO_CONTENT
+        w1.trySetStatusIfHasVisibleStatus(null).status == ResultStatus.NO_CONTENT
         w1.trySetLanguageIfPresent(null).status == ResultStatus.NO_CONTENT
     }
 
@@ -256,14 +256,14 @@ class PhoneRecordWrapperSpec extends Specification {
         PhoneRecordWrapper w1 = new PhoneRecordWrapper(ipr1, ipr1.toPermissions())
 
         when:
-        Result res = w1.trySetStatusIfNotBlocked(PhoneRecordStatus.BLOCKED)
+        Result res = w1.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.BLOCKED)
 
         then:
         res.status == ResultStatus.NO_CONTENT
         ipr1.status == PhoneRecordStatus.BLOCKED
 
         when:
-        res = w1.trySetStatusIfNotBlocked(PhoneRecordStatus.UNREAD)
+        res = w1.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.UNREAD)
 
         then:
         res.status == ResultStatus.NO_CONTENT

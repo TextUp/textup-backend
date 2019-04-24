@@ -71,13 +71,13 @@ class MailService {
             .then { EmailEntity toEntity -> sendMail(toEntity, md1) }
     }
 
-    Result<Void> notifyMessages(NotificationFrequency freq1, ReadOnlyStaff rs1,
-        NotificationInfo notifInfo, Token tok1 = null) {
+    Result<Void> notifyMessages(ReadOnlyStaff rs1, NotificationInfo notifInfo,
+        NotificationFrequency freq1 = null, Token tok1 = null) {
 
         MailData.Notification md1 = new MailData.Notification(staffName: rs1?.name,
             phoneName: notifInfo?.phoneName,
             phoneNumber: notifInfo?.phoneNumber?.prettyPhoneNumber,
-            timePeriodDescription: freq1?.readableDescription,
+            timePeriodDescription: (freq1 ?: NotificationFrequency.IMMEDIATELY).readableDescription,
             incomingDescription: NotificationUtils.buildIncomingMessage(notifInfo),
             outgoingDescription: NotificationUtils.buildOutgoingMessage(notifInfo))
         if (notifInfo) {

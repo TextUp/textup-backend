@@ -36,7 +36,7 @@ class IndividualPhoneRecordWrappers {
     }
 
     static DetachedJoinableCriteria<PhoneRecord> buildForPhoneIdWithOptions(Long phoneId,
-        String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES,
+        String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.ACTIVE_STATUSES,
         boolean onlyShared = false) {
 
         DetachedJoinableCriteria<PhoneRecord> criteria = buildActiveBase(query, statuses)
@@ -45,7 +45,7 @@ class IndividualPhoneRecordWrappers {
     }
 
     static DetachedJoinableCriteria<PhoneRecord> buildForSharedByIdWithOptions(Long sharedById,
-        String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.VISIBLE_STATUSES) {
+        String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.ACTIVE_STATUSES) {
 
         buildActiveBase(query, statuses).build {
             shareSource { eq("phone.id", sharedById) }
@@ -66,10 +66,10 @@ class IndividualPhoneRecordWrappers {
 
     @GrailsTypeChecked
     static Result<List<IndividualPhoneRecordWrapper>> tryFindOrCreateEveryByPhoneAndNumbers(Phone p1,
-        List<? extends BasePhoneNumber> bNums, boolean createIfAbsent) {
-        // step 1: create any missing contacts
-        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, bNums, createIfAbsent)
-            .then { Map<PhoneNumber, List<IndividualPhoneRecord>> numToPhoneRecs ->
+        List<? extends BasePhoneNumber> bNums) {
+        // step 1: create any missing contacts EXCEPT for numbers that have only blocked contacts
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, bNums, true, false)
+            .then { Map<PhoneNumber, Collection<IndividualPhoneRecord>> numToPhoneRecs ->
                 List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(numToPhoneRecs.values())
                 // step 2: find shared contacts (excludes tags)
                 List<PhoneRecord> sprs = PhoneRecords
@@ -90,10 +90,10 @@ class IndividualPhoneRecordWrappers {
         Collection<PhoneRecordStatus> statuses) {
 
         new DetachedJoinableCriteria(PhoneRecord)
-            .build { ne("class", GroupPhoneRecord) } // only owned or shared individuals
             .build(forStatuses(statuses))
             .build(forQuery(query))
-            .build(PhoneRecords.forActive())
+            .build(PhoneRecords.forNonGroupOnly())
+            .build(PhoneRecords.forNotExpired())
     }
 
     protected static Closure forStatuses(Collection<PhoneRecordStatus> statuses) {

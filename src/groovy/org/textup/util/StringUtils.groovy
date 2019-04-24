@@ -14,6 +14,7 @@ import org.textup.validator.*
 class StringUtils {
 
     static final List<String> ALPHABET = Collections.unmodifiableList(buildAlphabet())
+    static final String PHONE_NUMBER_INITIALS_PREFIX = "unnamed with area code"
 
     static String cleanPhoneNumber(String num) {
         if (num) {
@@ -45,12 +46,20 @@ class StringUtils {
         if (!contents) {
             return contents
         }
-        contents
-            .replaceAll(/\d+/, "") // remove digits
-            .trim()
-            .split(/\s+/)
-            .collect { String word -> word?.size() > 0 ? word[0].toUpperCase() : word }
-            .join(".") + "." // put a period after each initial
+        PhoneNumber.tryCreate(contents)
+            .then { PhoneNumber pNum1 ->
+                IOCUtils.resultFactory.success("${PHONE_NUMBER_INITIALS_PREFIX} ${pNum1.areaCode}")
+            }
+            .ifFail {
+                String initials = contents
+                    .replaceAll(/\d+/, "") // remove digits
+                    .trim()
+                    .split(/\s+/)
+                    .collect { String word -> word?.size() > 0 ? word[0].toUpperCase() : word }
+                    .join(".") + "." // put a period after each initial
+                IOCUtils.resultFactory.success(initials)
+            }
+            .payload
     }
 
     static String pluralize(Integer val, String measureWord) {

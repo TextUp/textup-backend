@@ -43,7 +43,7 @@ class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
     }
 
     // [NOTE] If passed-in frequency is null, we find active read-only policies for ALL FREQUENCIES
-    Collection<? extends ReadOnlyOwnerPolicy> buildActiveReadOnlyPoliciesForFrequency(NotificationFrequency freq1 = null) {
+    Collection<? extends ReadOnlyOwnerPolicy> buildActiveReadOnlyPolicies(NotificationFrequency freq1 = null) {
         HashSet<Staff> allCurrentStaffs = new HashSet<>(buildAllStaff())
         Collection<Staff> staffsWithDifferentFrequency = []
         Collection<? extends ReadOnlyOwnerPolicy> foundPolicies = []

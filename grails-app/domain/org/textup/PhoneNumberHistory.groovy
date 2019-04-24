@@ -11,9 +11,12 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
-// Grails Domain classes cannot apply the `@Sortable` without a compilation error
+// [NOTE] Grails Domain classes cannot apply the `@Sortable` without a compilation error
+// [NOTE] Only the generated `hashCode` is used. The generated `equals` is superceded by the
+// overriden `compareTo` method. Therefore, ensure the fields in the annotation match the ones
+// used in the compareTo implementation exactly
 
-@EqualsAndHashCode
+@EqualsAndHashCode(includes = ["whenCreated", "endTime", "id"])
 @GrailsTypeChecked
 class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Comparable<PhoneNumberHistory> {
 
@@ -32,7 +35,7 @@ class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Compara
     static constraints = {
         endTime nullable: true, validator: { DateTime val, PhoneNumberHistory obj ->
             if (val?.isBefore(obj.whenCreated) || val?.isEqual(obj.whenCreated)) {
-                ["endBeforeStart"]
+                ["phoneNumberHistory.endTime.endBeforeStart"]
             }
         }
         numberAsString nullable: true, blank: true, phoneNumber: true
@@ -68,9 +71,11 @@ class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Compara
         }
     }
 
+    // [NOTE] the `==` operator in Groovy calls `compareTo` INSTEAD OF `equals` if present
+    // see https://stackoverflow.com/a/9682512
     @Override
     int compareTo(PhoneNumberHistory nh1) { // first whenCreated, then endDate (nulls come first)
-        whenCreated <=> nh1?.whenCreated ?: endTime <=> nh1?.endTime
+        whenCreated <=> nh1?.whenCreated ?: endTime <=> nh1?.endTime ?: id <=> nh1?.id
     }
 
     // Properties

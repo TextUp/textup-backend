@@ -21,11 +21,11 @@ class PhoneRecordUtils {
     }
 
     static Result<List<IndividualPhoneRecordWrapper>> tryMarkUnread(Phone p1, PhoneNumber pNum) {
-        IndividualPhoneRecordWrappers.tryFindOrCreateEveryByPhoneAndNumbers(p1, [pNum], true)
+        IndividualPhoneRecordWrappers.tryFindOrCreateEveryByPhoneAndNumbers(p1, [pNum])
             .then { List<IndividualPhoneRecordWrapper> wraps ->
                 ResultGroup
                     .collect(wraps) { IndividualPhoneRecordWrapper w1 ->
-                        w1.trySetStatusIfNotBlocked(PhoneRecordStatus.UNREAD)
+                        w1.trySetStatusIfHasVisibleStatus(PhoneRecordStatus.UNREAD)
                     }
                     .toEmptyResult(true)
                     .curry(wraps)

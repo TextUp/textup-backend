@@ -54,7 +54,7 @@ class FutureMessageServiceSpec extends Specification {
 
     void "test updating fields"() {
         given:
-        TypeMap body1 = TypeMap.create(notifySelf: true,
+        TypeMap body1 = TypeMap.create(notifySelfOnSend: true,
             type: FutureMessageType.CALL,
             message: TestUtils.randString(),
             startDate: DateTime.now().plusDays(1),
@@ -72,7 +72,7 @@ class FutureMessageServiceSpec extends Specification {
 
         then:
         res.status == ResultStatus.OK
-        res.payload.notifySelf == body1.notifySelf
+        res.payload.notifySelfOnSend == body1.notifySelfOnSend
         res.payload.type == body1.type
         res.payload.message == body1.message
         res.payload.startDate == body1.startDate
@@ -95,7 +95,33 @@ class FutureMessageServiceSpec extends Specification {
         checkScheduleDaylightSavingsAdjustment?.restore()
     }
 
-    // We no longer tests that DateTime values are maintained across daylight savings changes
+    void "test updating message field for empty string and string starting/ending spaces"() {
+        given:
+        SimpleFutureMessage sMsg1 = TestUtils.buildFutureMessage()
+        sMsg1.message = TestUtils.randString()
+        sMsg1.media = TestUtils.buildMediaInfo(TestUtils.buildMediaElement())
+
+        MockedMethod checkScheduleDaylightSavingsAdjustment = MockedMethod.create(sMsg1, "checkScheduleDaylightSavingsAdjustment")
+
+        when:
+        Result res = service.trySetFields(sMsg1, TypeMap.create(message: ""))
+
+        then: "empty string is OK"
+        res.status == ResultStatus.OK
+        res.payload.message == null
+
+        when:
+        res = service.trySetFields(sMsg1, TypeMap.create(message: "  hello "))
+
+        then: "strings are trimmed"
+        res.status == ResultStatus.OK
+        res.payload.message == "hello"
+
+        cleanup:
+        checkScheduleDaylightSavingsAdjustment?.restore()
+    }
+
+    // We no longer test that DateTime values are maintained across daylight savings changes
     // because that is the responsibility of the JodaTime library. We don't need to duplicate
     // their tests here.
     void "test updating fields with timezone respects daylight savings time"() {
@@ -173,6 +199,23 @@ class FutureMessageServiceSpec extends Specification {
         cleanup:
         trySetFields?.restore()
         trySchedule?.restore()
+    }
+
+    void "test creating with a message of only space and no media will fail"() {
+        given:
+        TypeMap body = TypeMap.create(type: FutureMessageType.TEXT, message: "     ")
+        PhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        MediaInfo mInfo1 = TestUtils.buildMediaInfo()
+
+        service.mediaService = GroovyMock(MediaService)
+
+        when:
+        Result res = service.tryCreate(ipr1.id, body)
+
+        then: "empty string message is trimmed"
+        1 * service.mediaService.tryCreate(body) >> Result.createSuccess(Tuple.create(null, null))
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.contains("futureMessage.media.noInfo")
     }
 
     void "test creating"() {

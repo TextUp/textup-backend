@@ -31,7 +31,7 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
                     future = fut1
                     SimpleFutureMessage.tryCreate(rec1,
                         body.enum(FutureMessageType, "type"),
-                        body.string("message"),
+                        body.trimmedString("message"),
                         mInfo)
                 }
             }
@@ -75,9 +75,9 @@ class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, Mana
         String timezone = null) {
 
         fMsg.with {
-            if (body.notifySelf != null) notifySelf = body.boolean("notifySelf")
+            if (body.notifySelfOnSend != null) notifySelfOnSend = body.boolean("notifySelfOnSend")
             if (body.type) type = body.enum(FutureMessageType, "type")
-            if (body.message) message = body.string("message")
+            if (body.message != null) message = body.trimmedString("message")
             if (body.startDate) startDate = body.dateTime("startDate", timezone)
             // don't wrap endDate setter in if statement because we want to support nulling
             // endDate by omitting it from the passed-in body

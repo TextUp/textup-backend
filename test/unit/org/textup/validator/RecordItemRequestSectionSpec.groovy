@@ -60,4 +60,22 @@ class RecordItemRequestSectionSpec extends Specification {
         res.payload.tagNames.size() == 1
         res.payload.tagNames[0] == gpr1.secureName
     }
+
+    void "test passed-in record items will be sorted before creation"() {
+        given:
+        String name = TestUtils.randString()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        RecordItem rItem1 = TestUtils.buildRecordItem()
+        rItem1.whenCreated = DateTime.now().minusDays(1)
+        RecordItem rItem2 = TestUtils.buildRecordItem()
+        rItem2.whenCreated = DateTime.now().minusDays(10)
+        RecordItem.withSession { it.flush() }
+
+        when:
+        Result res = RecordItemRequestSection.tryCreate(name, pNum1, [rItem1, rItem2], null)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.recordItems == [rItem2, rItem1]
+    }
 }

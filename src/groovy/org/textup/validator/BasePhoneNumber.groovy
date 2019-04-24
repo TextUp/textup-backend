@@ -33,8 +33,11 @@ abstract class BasePhoneNumber implements CanValidate {
     // ----------
 
     String getPrettyPhoneNumber() {
-        String num1 = number
-        (num1 && num1.size() > 6) ? "(${num1[0..2]}) ${num1[3..5]}-${num1[6..-1]}" : ""
+        (number && number.size() > 6) ? "(${number[0..2]}) ${number[3..5]}-${number[6..-1]}" : ""
+    }
+
+    String getAreaCode() {
+        (number && number.size() > 3) ? "${number[0..2]}" : ""
     }
 
     String getE164PhoneNumber() { number ? "+1${number}" : "" }

@@ -24,7 +24,7 @@ class PhoneRecordMembers implements WithId, CanSave<PhoneRecordMembers> {
     static constraints = {
         phoneRecords validator: { Collection<PhoneRecord> val ->
             if (val.any { PhoneRecord pr1 -> pr1.instanceOf(GroupPhoneRecord) }) {
-                ["nestingNotSupported"]
+                ["phoneRecordMembers.phoneRecords.nestingNotSupported"]
             }
         }
     }
@@ -36,15 +36,21 @@ class PhoneRecordMembers implements WithId, CanSave<PhoneRecordMembers> {
     // Properties
     // ----------
 
+    // "active" is a more restrictive state than "not expired". Active means not expired
+    // AND the status is visible (that is, not blocked)
     Collection<PhoneRecord> getAllActive() {
         phoneRecords?.findAll { PhoneRecord pr1 -> pr1.isActive() } ?: new ArrayList<PhoneRecord>()
+    }
+
+    Collection<PhoneRecord> getAllNotExpired() {
+        phoneRecords?.findAll { PhoneRecord pr1 -> pr1.isNotExpired() } ?: new ArrayList<PhoneRecord>()
     }
 
     // Can't move to static class because Grails manages this relationship so no direct queries
     Collection<PhoneRecord> getByStatus(Collection<PhoneRecordStatus> statuses) {
         if (statuses) {
             HashSet<PhoneRecordStatus> statusesToFind = new HashSet<>(statuses)
-            getAllActive().findAll { PhoneRecord pr1 -> statusesToFind.contains(pr1.status) }
+            getAllNotExpired().findAll { PhoneRecord pr1 -> statusesToFind.contains(pr1.status) }
         }
         else { getAllActive() }
     }

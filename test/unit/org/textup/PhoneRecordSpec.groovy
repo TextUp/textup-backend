@@ -72,14 +72,14 @@ class PhoneRecordSpec extends Specification {
 
         then:
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("shareWithMyself")
+        res.errorMessages.contains("phoneRecord.shareSource.shareWithMyself")
 
         when:
         res = PhoneRecord.tryCreate(null, pr1, p2)
 
         then:
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.contains("mustSpecifySharingPermission")
+        res.errorMessages.contains("phoneRecord.shareSource.mustSpecifySharingPermission")
 
         when:
         res = PhoneRecord.tryCreate(perm1, pr1, p2)
@@ -151,5 +151,37 @@ class PhoneRecordSpec extends Specification {
         w1.id != ipr1.id
         w1.id == pr2.id
         w1.isOverridden() == true
+    }
+
+    void "test isNotExpired vs isActive"() {
+        given:
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+
+        when:
+        spr1.dateExpired = null
+        spr1.permission = SharePermission.DELEGATE
+        spr1.status = PhoneRecordStatus.ACTIVE
+
+        then:
+        spr1.isNotExpired()
+        spr1.isActive()
+
+        when:
+        spr1.dateExpired = null
+        spr1.permission = SharePermission.DELEGATE
+        spr1.status = PhoneRecordStatus.ARCHIVED
+
+        then: "can be not expired but also not active"
+        spr1.isNotExpired()
+        spr1.isActive() == false
+
+        when:
+        spr1.dateExpired = DateTime.now().minusDays(1)
+        spr1.permission = SharePermission.DELEGATE
+        spr1.status = PhoneRecordStatus.ACTIVE
+
+        then: "if is expired then is always also not active"
+        spr1.isNotExpired() == false
+        spr1.isActive() == false
     }
 }

@@ -55,7 +55,7 @@ class Notification implements CanValidate {
 	Collection<? extends ReadOnlyOwnerPolicy> buildCanNotifyReadOnlyPolicies(NotificationFrequency freq1) {
 		Collection<Long> itemIds = getItemIds()
 		mutablePhone?.owner
-			?.buildActiveReadOnlyPoliciesForFrequency(freq1)
+			?.buildActiveReadOnlyPolicies(freq1)
 			?.findAll { ReadOnlyOwnerPolicy op1 -> op1.canNotifyForAny(itemIds) }
 			?: new ArrayList<ReadOnlyOwnerPolicy>()
 	}
@@ -85,7 +85,7 @@ class Notification implements CanValidate {
 
     Collection<Long> getItemIds() { getItems()*.id }
 
-	int getNumNotifiedForItem(NotificationFrequency freq1, RecordItem item) {
+	int getNumNotifiedForItem(RecordItem item, NotificationFrequency freq1 = null) {
         getDetails().any { NotificationDetail nd1 -> nd1.items.contains(item) } ?
         	buildCanNotifyReadOnlyPolicies(freq1).size() :
         	0

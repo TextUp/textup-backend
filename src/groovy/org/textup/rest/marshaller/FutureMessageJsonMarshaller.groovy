@@ -15,17 +15,17 @@ class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 	static final Closure marshalClosure = { ReadOnlyFutureMessage fMsg1 ->
         Map json = [:]
         json.with {
-            id          = fMsg1.id
-            isDone      = fMsg1.isReallyDone
-            isRepeating = fMsg1.isRepeating
-            language    = fMsg1.language?.toString()
-            links       = MarshallerUtils.buildLinks(RestUtils.RESOURCE_FUTURE_MESSAGE, fMsg1.id)
-            media       = fMsg1.readOnlyMedia
-            message     = fMsg1.message
-            notifySelf  = fMsg1.notifySelf
-            startDate   = fMsg1.startDate
-            type        = fMsg1.type.toString()
-            whenCreated = fMsg1.whenCreated
+            id               = fMsg1.id
+            isDone           = fMsg1.isReallyDone
+            isRepeating      = fMsg1.isRepeating
+            language         = fMsg1.language?.toString()
+            links            = MarshallerUtils.buildLinks(RestUtils.RESOURCE_FUTURE_MESSAGE, fMsg1.id)
+            media            = fMsg1.readOnlyMedia
+            message          = fMsg1.message
+            notifySelfOnSend = fMsg1.notifySelfOnSend
+            startDate        = fMsg1.startDate
+            type             = fMsg1.type.toString()
+            whenCreated      = fMsg1.whenCreated
 
             if (fMsg1.nextFireDate) nextFireDate = fMsg1.nextFireDate
 			if (fMsg1.isRepeating) {

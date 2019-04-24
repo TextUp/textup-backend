@@ -104,8 +104,8 @@ class TokenServiceSpec extends Specification {
         mockToken.save() >> mockToken
         1 * mockToken.data >> data1
         directMessage.latestArgs == [data1[TokenType.PARAM_CDM_IDENT],
-            data1[TokenType.PARAM_CDM_MESSAGE],
             data1[TokenType.PARAM_CDM_LANG],
+            data1[TokenType.PARAM_CDM_MESSAGE],
             []]
         res.status == ResultStatus.OK
 
@@ -118,8 +118,8 @@ class TokenServiceSpec extends Specification {
         mockToken.save() >> mockToken
         1 * mockToken.data >> data2
         directMessage.latestArgs == [data2[TokenType.PARAM_CDM_IDENT],
-            data2[TokenType.PARAM_CDM_MESSAGE],
             data2[TokenType.PARAM_CDM_LANG],
+            data2[TokenType.PARAM_CDM_MESSAGE],
             [el1.sendVersion.link]]
 
         cleanup:

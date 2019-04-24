@@ -48,13 +48,13 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
         shareSource nullable: true, cascadeValidation: true, validator: { PhoneRecord val, PhoneRecord obj ->
             if (val) {
                 if (val.phone?.id == obj.phone?.id) {
-                    return ["shareWithMyself"]
+                    return ["phoneRecord.shareSource.shareWithMyself"]
                 }
                 if (val.record?.id != obj.record?.id) {
-                    return ["mismatchedRecord", obj.record?.id]
+                    return ["phoneRecord.shareSource.mismatchedRecord", obj.record?.id]
                 }
                 if (!obj.permission) {
-                    return ["mustSpecifySharingPermission"]
+                    return ["phoneRecord.shareSource.mustSpecifySharingPermission"]
                 }
             }
         }
@@ -75,7 +75,13 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
         PhoneRecordShareInfo.create(whenCreated, phone, permission)
     }
 
-    boolean isActive() { toPermissions().isNotExpired() }
+    boolean isActive() {
+        isNotExpired() && status in PhoneRecordStatus.ACTIVE_STATUSES
+    }
+
+    boolean isNotExpired() {
+        toPermissions().isNotExpired()
+    }
 
     PhoneRecordPermissions toPermissions() { new PhoneRecordPermissions(dateExpired, permission) }
 

@@ -146,6 +146,8 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
         Phone p1 = TestUtils.buildActiveStaffPhone()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
         ipr1.status = PhoneRecordStatus.ARCHIVED
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        ipr2.status = PhoneRecordStatus.BLOCKED
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
         spr1.status = PhoneRecordStatus.UNREAD
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
@@ -162,20 +164,19 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
             .build { eq("phone", p1) }
         Collection prs = criteria.list()
 
-        then:
+        then: "groups always excluded"
         prs.size() == 2
-        ipr1 in prs
-        spr1 in prs
-        !(gpr1 in prs)
+        [ipr1, spr1].every { it in prs }
 
         when:
         criteria = IndividualPhoneRecordWrappers
-            .buildActiveBase(null, [PhoneRecordStatus.UNREAD])
+            .buildActiveBase(null, [PhoneRecordStatus.UNREAD, PhoneRecordStatus.BLOCKED])
             .build { eq("phone", p1) }
         prs = criteria.list()
 
         then:
-        prs == [spr1]
+        prs.size() == 2
+        [spr1, ipr2].every { it in prs }
 
         when:
         criteria = IndividualPhoneRecordWrappers
@@ -303,16 +304,8 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
         int iprBaseline = IndividualPhoneRecord.count()
 
         when:
-        Result res = IndividualPhoneRecordWrappers.tryFindOrCreateEveryByPhoneAndNumbers(null, null,false)
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload == []
-        IndividualPhoneRecord.count() == iprBaseline
-
-        when:
-        res = IndividualPhoneRecordWrappers.tryFindOrCreateEveryByPhoneAndNumbers(tp1,
-            [ipr1.sortedNumbers[0], pNum1], true)
+        Result res = IndividualPhoneRecordWrappers.tryFindOrCreateEveryByPhoneAndNumbers(tp1,
+            [ipr1.sortedNumbers[0], pNum1])
 
         then:
         res.status == ResultStatus.OK
@@ -324,7 +317,7 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
 
         when:
         Result res2 = IndividualPhoneRecordWrappers.tryFindOrCreateEveryByPhoneAndNumbers(tp1,
-            [ipr1.sortedNumbers[0], pNum1], true)
+            [ipr1.sortedNumbers[0], pNum1])
 
         then:
         res2.status == ResultStatus.OK

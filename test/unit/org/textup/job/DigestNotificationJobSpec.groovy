@@ -26,7 +26,7 @@ class DigestNotificationJobSpec extends Specification {
         RecordItem rItem1 = GroovyMock()
         NotificationGroup notifGroup1 = GroovyMock()
         job.notificationService = GroovyMock(NotificationService)
-        MockedMethod buildForIncomingMessagesAfter = MockedMethod.create(RecordItems, "buildForIncomingMessagesAfter") {
+        MockedMethod buildForOutgoingScheduledOrIncomingMessagesAfter = MockedMethod.create(RecordItems, "buildForOutgoingScheduledOrIncomingMessagesAfter") {
             crit1
         }
         MockedMethod tryBuildNotificationGroup = MockedMethod.create(NotificationUtils, "tryBuildNotificationGroup") {
@@ -39,7 +39,7 @@ class DigestNotificationJobSpec extends Specification {
 
         then:
         1 * context.mergedJobDataMap >> new JobDataMap()
-        buildForIncomingMessagesAfter.notCalled
+        buildForOutgoingScheduledOrIncomingMessagesAfter.notCalled
         tryBuildNotificationGroup.notCalled
         stdErr.toString().contains("could not find stored frequency")
 
@@ -50,18 +50,18 @@ class DigestNotificationJobSpec extends Specification {
         then:
         1 * context.mergedJobDataMap >>
             new JobDataMap((DigestNotificationJob.FREQ_KEY): NotificationFrequency.HALF_HOUR)
-        buildForIncomingMessagesAfter.latestArgs[0] instanceof DateTime
-        buildForIncomingMessagesAfter.latestArgs[0]
+        buildForOutgoingScheduledOrIncomingMessagesAfter.latestArgs[0] instanceof DateTime
+        buildForOutgoingScheduledOrIncomingMessagesAfter.latestArgs[0]
             .isAfter(NotificationFrequency.HALF_HOUR.buildDateTimeInPast().minusMinutes(1))
-        buildForIncomingMessagesAfter.latestArgs[0]
+        buildForOutgoingScheduledOrIncomingMessagesAfter.latestArgs[0]
             .isBefore(NotificationFrequency.HALF_HOUR.buildDateTimeInPast().plusMinutes(1))
         1 * crit1.list() >> [rItem1]
         tryBuildNotificationGroup.latestArgs == [[rItem1]]
-        1 * job.notificationService.send(NotificationFrequency.HALF_HOUR, notifGroup1) >> Result.void()
+        1 * job.notificationService.send(notifGroup1, NotificationFrequency.HALF_HOUR) >> Result.void()
         stdErr.size() == 0
 
         cleanup:
-        buildForIncomingMessagesAfter?.restore()
+        buildForOutgoingScheduledOrIncomingMessagesAfter?.restore()
         tryBuildNotificationGroup?.restore()
         TestUtils.restoreAllStreams()
     }

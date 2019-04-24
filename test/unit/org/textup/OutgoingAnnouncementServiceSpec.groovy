@@ -91,7 +91,7 @@ class OutgoingAnnouncementServiceSpec extends Specification {
         Result res = service.tryStoreForRecords(type, p1, author1, msg1, [is1], numToRpt)
 
         then:
-        tryFindOrCreateNumToObjByPhoneAndNumbers.latestArgs == [p1, [is1.number], true]
+        tryFindOrCreateNumToObjByPhoneAndNumbers.latestArgs == [p1, [is1.number], true, false]
         tryStoreForRecordItem.callCount == 1
         tryStoreForRecordItem.latestArgs == [ipr1.record, type, author1, msg1, tempRpt1]
         stdErr.toString().contains(errMsg1)

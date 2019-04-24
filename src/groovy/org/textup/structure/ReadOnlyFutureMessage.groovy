@@ -16,7 +16,7 @@ interface ReadOnlyFutureMessage extends ReadOnlyWithMedia {
     DateTime getNextFireDate()
     DateTime getEndDate()
 
-    boolean getNotifySelf()
+    boolean getNotifySelfOnSend()
     boolean getIsReallyDone()
     boolean getIsRepeating()
 

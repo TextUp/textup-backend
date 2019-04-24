@@ -36,7 +36,7 @@ class RecordServiceSpec extends Specification {
     void "test updating note fields"() {
         given:
         DateTime dt = DateTime.now().plusHours(1)
-        TypeMap body = TypeMap.create(noteContents: TestUtils.randString(),
+        TypeMap body1 = TypeMap.create(noteContents: TestUtils.randString(),
             isDeleted: true,
             after: DateTime.now())
         RecordNote rNote1 = TestUtils.buildRecordNote()
@@ -44,19 +44,53 @@ class RecordServiceSpec extends Specification {
         MockedMethod adjustPosition = MockedMethod.create(RecordUtils, "adjustPosition") { dt }
 
         when:
-        Result res = service.trySetNoteFields(rNote1, body, author1)
+        Result res = service.trySetNoteFields(rNote1, body1, author1)
 
         then:
         res.status == ResultStatus.OK
         res.payload == rNote1
         rNote1.author == author1
-        rNote1.noteContents == body.noteContents
-        rNote1.isDeleted == body.isDeleted
-        adjustPosition.latestArgs == [rNote1.record.id, body.after]
+        rNote1.noteContents == body1.noteContents
+        rNote1.isDeleted == body1.isDeleted
+        adjustPosition.latestArgs == [rNote1.record.id, body1.after]
         rNote1.whenCreated == dt
+
+        when:
+        res = service.trySetNoteFields(rNote1, TypeMap.create(noteContents: ""), author1)
+
+        then: "empty string is okay"
+        res.status == ResultStatus.OK
+        res.payload == rNote1
+        rNote1.noteContents == null
+
+        when:
+        res = service.trySetNoteFields(rNote1, TypeMap.create(noteContents: "  hi "), author1)
+
+        then: "strings are trimmed"
+        res.status == ResultStatus.OK
+        res.payload == rNote1
+        rNote1.noteContents == "hi"
 
         cleanup:
         adjustPosition?.restore()
+    }
+
+    void "test creating note with only a message of only spaces fails validation"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        TypeMap body = TypeMap.create(numbers: [pNum1], noteContents: "   ")
+
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+
+        service.locationService = GroovyMock(LocationService)
+
+        when:
+        Result res = service.createNote(p1, body)
+
+        then:
+        1 * service.locationService.tryCreateOrUpdateIfPresent(*_) >> Result.void()
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.contains("atLeastOneRequired")
     }
 
     void "test creating note"() {
@@ -161,6 +195,21 @@ class RecordServiceSpec extends Specification {
 
         cleanup:
         tryGetActiveAuthUser?.restore()
+    }
+
+    void "test creating text with only a message of only spaces fails validation"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        TypeMap body = TypeMap.create(numbers: [pNum1], contents: "   ")
+
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+
+        when:
+        Result res = service.createText(p1, body)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.contains("atLeastOneRequired")
     }
 
     void "test creating text"() {

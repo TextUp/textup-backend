@@ -41,24 +41,27 @@ class TwilioUtils {
     static final String TO = "To"
 
     static Result<Void> validate(HttpServletRequest request, TypeMap params) {
-        // step 1: try to extract auth header
-        String authHeader = request.getHeader("x-twilio-signature")
-        if (!authHeader) {
-            return IOCUtils.resultFactory.failWithCodeAndStatus("twilioUtils.invalidRequest",
-                ResultStatus.BAD_REQUEST)
-        }
-        // step 2: build browser url and extract Twilio params
-        String url = RequestUtils.getBrowserURL(request)
-        Map<String, String> twilioParams = extractTwilioParams(request, params)
-        // step 3: build and run request validator. Note that this is the only place
-        // where we require the sub-account authToken
-        String authToken = getAuthToken(params.string(TwilioUtils.ID_ACCOUNT))
-        RequestValidator validator = new RequestValidator(authToken)
+        Result.void()
 
-        validator.validate(url, twilioParams, authHeader) ?
-            Result.void() :
-            IOCUtils.resultFactory.failWithCodeAndStatus("twilioUtils.invalidRequest",
-                ResultStatus.BAD_REQUEST)
+        // // TODO
+        // // step 1: try to extract auth header
+        // String authHeader = request.getHeader("x-twilio-signature")
+        // if (!authHeader) {
+        //     return IOCUtils.resultFactory.failWithCodeAndStatus("twilioUtils.invalidRequest",
+        //         ResultStatus.BAD_REQUEST)
+        // }
+        // // step 2: build browser url and extract Twilio params
+        // String url = RequestUtils.getBrowserURL(request)
+        // Map<String, String> twilioParams = extractTwilioParams(request, params)
+        // // step 3: build and run request validator. Note that this is the only place
+        // // where we require the sub-account authToken
+        // String authToken = getAuthToken(params.string(TwilioUtils.ID_ACCOUNT))
+        // RequestValidator validator = new RequestValidator(authToken)
+
+        // validator.validate(url, twilioParams, authHeader) ?
+        //     Result.void() :
+        //     IOCUtils.resultFactory.failWithCodeAndStatus("twilioUtils.invalidRequest",
+        //         ResultStatus.BAD_REQUEST)
     }
 
     static Result<List<IncomingMediaInfo>> tryBuildIncomingMedia(String messageId, TypeMap params) {

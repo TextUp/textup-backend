@@ -113,37 +113,6 @@ class RecordItemsSpec extends Specification {
         rItems == [rItem1, rItem2]
     }
 
-    void "test criteria for incoming messages (not notes) after a certain time"() {
-        given:
-        DateTime dt = DateTime.now().minusDays(1)
-        Record rec1 = TestUtils.buildRecord()
-        RecordCall rCall1 = new RecordCall(record: rec1, outgoing: false)
-        RecordCall rCall2 = new RecordCall(record: rec1, outgoing: true)
-        RecordText rText1 = new RecordText(record: rec1, outgoing: false, whenCreated: dt.minusDays(1))
-        RecordText rText2 = new RecordText(record: rec1, outgoing: true, whenCreated: dt.minusDays(1))
-        RecordNote rNote1 = new RecordNote(record: rec1, outgoing: false)
-        RecordNote rNote2 = new RecordNote(record: rec1, outgoing: true)
-        [rCall1, rCall2, rText1, rText2, rNote1, rNote2]*.save(flush: true, failOnError: true)
-
-        when:
-        DetachedCriteria criteria = RecordItems.buildForIncomingMessagesAfter(null)
-
-        then:
-        criteria.count() == 0
-
-        when:
-        criteria = RecordItems.buildForIncomingMessagesAfter(dt)
-        Collection rItems = criteria.list()
-
-        then:
-        rCall1 in rItems
-        !(rCall2 in rItems)
-        !(rText1 in rItems)
-        !(rText2 in rItems)
-        !(rNote1 in rItems)
-        !(rNote2 in rItems)
-    }
-
     void "test criteria for phone id and options"() {
         given:
         DateTime dt = DateTime.now()
@@ -265,5 +234,102 @@ class RecordItemsSpec extends Specification {
         criteria.build(RecordItems.forSort()).list() == [rItem4, rItem3, rItem2, rItem1]
         criteria.build(RecordItems.forSort(true)).list() == [rItem4, rItem3, rItem2, rItem1]
         criteria.build(RecordItems.forSort(false)).list() == [rItem1, rItem2, rItem3, rItem4]
+    }
+
+    void "test building for incoming"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
+        RecordItem rItem1 = TestUtils.buildRecordItem(rec1)
+        rItem1.outgoing = true
+        RecordItem rItem2 = TestUtils.buildRecordItem(rec1)
+        rItem2.outgoing = false
+        RecordItem.withSession { it.flush() }
+
+        when:
+        Collection found = new DetachedCriteria(RecordItem)
+            .build { eq("record", rec1) }
+            .build(RecordItems.forIncoming())
+            .list()
+
+        then:
+        found.size() == 1
+        rItem2 in found
+    }
+
+    void "test building and finding for non group owners only"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+
+        RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
+        RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
+        RecordItem rItem3 = TestUtils.buildRecordItem(spr1.record)
+
+        DetachedCriteria criteria = new DetachedCriteria(RecordItem)
+            .build { "in"("record", [ipr1, gpr1, spr1]*.record) }
+
+        when:
+        Collection found1 = criteria.list()
+        Collection found2 = criteria.build(RecordItems.forNonGroupOwnerOnly()).list()
+
+        then:
+        found1.size() == 3
+        [rItem1, rItem2, rItem3].every { it in found1 }
+        found2.size() == 2
+        [rItem1, rItem3].every { it in found2 }
+
+        when:
+        Collection found3 = RecordItems.findAllByNonGroupOwner([rItem1, rItem2, rItem3])
+
+        then:
+        found3.size() == 2
+        [rItem1, rItem3].every { it in found3 }
+
+        expect:
+        RecordItems.findAllByNonGroupOwner(null) == []
+    }
+
+    void "test criteria for outgoing scheduled and incoming messages (not notes) after a certain time"() {
+        given:
+        DateTime dt = DateTime.now().minusDays(1)
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+
+        Collection willFindItems = [
+            new RecordCall(record: ipr1.record, outgoing: false),
+            new RecordCall(record: ipr1.record, outgoing: true, wasScheduled: true),
+            new RecordText(record: ipr1.record, outgoing: false),
+            new RecordText(record: ipr1.record, outgoing: true, wasScheduled: true)
+        ]
+        Collection notFindItems = [
+            new RecordCall(record: ipr1.record, outgoing: true),
+            new RecordText(record: ipr1.record, outgoing: false, whenCreated: dt.minusDays(1)),
+            new RecordText(record: ipr1.record, outgoing: true, whenCreated: dt.minusDays(1)),
+            new RecordNote(record: ipr1.record, outgoing: false),
+            new RecordNote(record: ipr1.record, outgoing: true),
+            new RecordCall(record: gpr1.record, outgoing: false),
+            new RecordCall(record: gpr1.record, outgoing: true, wasScheduled: true),
+            new RecordText(record: gpr1.record, outgoing: false),
+            new RecordText(record: gpr1.record, outgoing: true, wasScheduled: true)
+        ]
+        willFindItems*.save(flush: true, failOnError: true)
+        notFindItems*.save(flush: true, failOnError: true)
+
+        when:
+        DetachedCriteria criteria = RecordItems.buildForOutgoingScheduledOrIncomingMessagesAfter(null)
+
+        then:
+        criteria.count() == 0
+
+        when:
+        criteria = RecordItems.buildForOutgoingScheduledOrIncomingMessagesAfter(dt)
+            .build { "in"("record", [ipr1, gpr1]*.record) }
+        Collection rItems = criteria.list()
+
+        then:
+        rItems.size() == willFindItems.size()
+        willFindItems.every { it in rItems }
+        notFindItems.every { !(it in rItems) }
     }
 }

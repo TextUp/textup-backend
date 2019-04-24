@@ -84,4 +84,18 @@ class PhoneRecordPermissionsSpec extends Specification {
         permissions.canModify() == false
         permissions.canView() == true
     }
+
+    void "test owner cannot be expired even if dated expired is set"() {
+        given:
+        DateTime dt = DateTime.now().minusDays(1)
+
+        when:
+        PhoneRecordPermissions permissions = new PhoneRecordPermissions(dt, null)
+
+        then: "if shared, this would be expired since dateExpired is in the past, but this is owner"
+        permissions.isOwner() == true
+        permissions.isNotExpired() == true
+        permissions.canModify() == true
+        permissions.canView() == true
+    }
 }

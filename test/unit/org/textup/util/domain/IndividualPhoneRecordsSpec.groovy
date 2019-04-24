@@ -96,52 +96,6 @@ class IndividualPhoneRecordsSpec extends Specification {
         !(ipr3 in iprs)
     }
 
-    void "test finding or creating map for phone and numbers"() {
-        given:
-        Phone p1 = TestUtils.buildStaffPhone()
-        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
-        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
-        int iprBaseline = IndividualPhoneRecord.count()
-
-        when:
-        Result res = IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(null, null, false)
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload == [:]
-        IndividualPhoneRecord.count() == iprBaseline
-
-        when:
-        res = IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1,
-            [ipr1.sortedNumbers[0], pNum1], false)
-
-        then:
-        res.status == ResultStatus.OK
-        IndividualPhoneRecord.count() == iprBaseline
-        res.payload[PhoneNumber.copy(ipr1.sortedNumbers[0])] == [ipr1]
-        res.payload[pNum1] == []
-
-        when:
-        res = IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1,
-            [ipr1.sortedNumbers[0], pNum1], true)
-
-        then:
-        res.status == ResultStatus.OK
-        IndividualPhoneRecord.count() == iprBaseline + 1
-        res.payload[PhoneNumber.copy(ipr1.sortedNumbers[0])] == [ipr1]
-        res.payload[pNum1].size() == 1
-
-        when:
-        Result res2 = res = IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1,
-            [ipr1.sortedNumbers[0], pNum1], true)
-
-        then:
-        res2.status == ResultStatus.OK
-        IndividualPhoneRecord.count() == iprBaseline + 1
-        res2.payload[PhoneNumber.copy(ipr1.sortedNumbers[0])] == [ipr1]
-        res2.payload[pNum1] == res.payload[pNum1]
-    }
-
     void "test finding num to id map given phone id and options"() {
         given:
         Phone tp1 = TestUtils.buildActiveTeamPhone()
@@ -179,5 +133,145 @@ class IndividualPhoneRecordsSpec extends Specification {
         numToIds[PhoneNumber.copy(ipr2.sortedNumbers[0])] == new HashSet([ipr2.id])
         numToIds[PhoneNumber.copy(ipr3.sortedNumbers[0])] == new HashSet([ipr3.id])
         numToIds[PhoneNumber.copy(ipr4.sortedNumbers[0])].isEmpty()
+    }
+
+    void "test removing blocked phone records"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum2 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum3 = TestUtils.randPhoneNumber()
+
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.status = PhoneRecordStatus.ACTIVE
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord()
+        ipr2.status = PhoneRecordStatus.BLOCKED
+        IndividualPhoneRecord.withSession { it.flush() }
+
+        Map numberToPhoneRecords = [(pNum1): [ipr1, ipr2], (pNum2): [ipr2], (pNum3): []]
+
+        when:
+        Map filtered = IndividualPhoneRecords.removeBlockedPhoneRecords(numberToPhoneRecords)
+
+        then:
+        filtered[pNum1] == [ipr1]
+        filtered[pNum2] == []
+        filtered[pNum3] == []
+
+        expect:
+        IndividualPhoneRecords.removeBlockedPhoneRecords(null) == [:]
+    }
+
+    void "test determining if we should create a new phone record"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.status = PhoneRecordStatus.ACTIVE
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord()
+        ipr2.status = PhoneRecordStatus.BLOCKED
+        IndividualPhoneRecord.withSession { it.flush() }
+
+        expect:
+        IndividualPhoneRecords.shouldCreateNewPhoneRecord(null, false) == false
+        IndividualPhoneRecords.shouldCreateNewPhoneRecord([ipr1], true) == false
+        IndividualPhoneRecords.shouldCreateNewPhoneRecord([ipr1, ipr2], true) == false
+
+        and: "should create if none in list"
+        IndividualPhoneRecords.shouldCreateNewPhoneRecord([], false) == true
+        IndividualPhoneRecords.shouldCreateNewPhoneRecord([], true) == true
+
+        and: "should create if everything in list is blocked and flag is set to true"
+        IndividualPhoneRecords.shouldCreateNewPhoneRecord([ipr2], true) == true
+    }
+
+    void "test trying to create new phone records if missing in collection"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum2 = TestUtils.randPhoneNumber()
+
+        Phone p1 = TestUtils.buildStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.status = PhoneRecordStatus.BLOCKED
+        IndividualPhoneRecord.withSession { it.flush() }
+
+        Map numberToPhoneRecords1 = [(pNum1): [ipr1], (pNum2): []]
+        Map numberToPhoneRecords2 = [(pNum1): [ipr1], (pNum2): []]
+        int iprBaseline = IndividualPhoneRecord.count()
+
+        when: "create if absent but if has some non-visible, then do not create"
+        Result res = IndividualPhoneRecords.tryCreateIfNone(p1, numberToPhoneRecords1, false)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload.is(numberToPhoneRecords1) == false
+        res.payload[pNum1].size() == 0 // blocked is removed
+        res.payload[pNum2].size() == 1
+        res.payload[pNum2][0].phone == p1
+        res.payload[pNum2][0].numbers.size() == 1
+        res.payload[pNum2][0].numbers.find { it.number == pNum2.number }
+        IndividualPhoneRecord.count() == iprBaseline + 1
+
+        when: "create even if there already exists some not visible"
+        res = IndividualPhoneRecords.tryCreateIfNone(p1, numberToPhoneRecords2, true)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload.is(numberToPhoneRecords2) == false
+        res.payload[pNum1].size() == 1 // blocked is removed
+        res.payload[pNum1][0] != ipr1
+        res.payload[pNum1][0].phone == p1
+        res.payload[pNum1][0].numbers.size() == 1
+        res.payload[pNum1][0].numbers.find { it.number == pNum1.number }
+        res.payload[pNum2].size() == 1
+        res.payload[pNum2][0].phone == p1
+        res.payload[pNum2][0].numbers.size() == 1
+        res.payload[pNum2][0].numbers.find { it.number == pNum2.number }
+        IndividualPhoneRecord.count() == iprBaseline + 3
+    }
+
+    void "test finding or creating map for phone and numbers"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+
+        Phone p1 = TestUtils.buildStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        ipr1.status = PhoneRecordStatus.ACTIVE
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        ipr2.status = PhoneRecordStatus.BLOCKED
+        IndividualPhoneRecord.withSession { it.flush() }
+
+        MockedMethod tryCreateIfNone = MockedMethod.create(IndividualPhoneRecords, "tryCreateIfNone")
+
+        when:
+        Result res = IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(null, null, false, false)
+
+        then:
+        tryCreateIfNone.notCalled
+        res.status == ResultStatus.OK
+        res.payload == [:]
+
+        when:
+        res = IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1,
+            [ipr1.sortedNumbers[0], pNum1], false, true)
+
+        then:
+        tryCreateIfNone.notCalled
+        res.status == ResultStatus.OK
+        res.payload[PhoneNumber.copy(ipr1.sortedNumbers[0])] == [ipr1]
+        res.payload[pNum1] == []
+
+        when:
+        res = IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1,
+            [ipr1.sortedNumbers[0], ipr2.sortedNumbers[0], pNum1], true, true)
+
+        then:
+        res == null // mock returns null
+        tryCreateIfNone.callCount == 1
+        tryCreateIfNone.latestArgs[0] == p1
+        tryCreateIfNone.latestArgs[1][PhoneNumber.copy(ipr1.sortedNumbers[0])] == [ipr1]
+        tryCreateIfNone.latestArgs[1][PhoneNumber.copy(ipr2.sortedNumbers[0])] == [ipr2] // even blocked passed-on
+        tryCreateIfNone.latestArgs[1][pNum1] == []
+        tryCreateIfNone.latestArgs[2] == true
+
+        cleanup:
+        tryCreateIfNone?.restore()
     }
 }

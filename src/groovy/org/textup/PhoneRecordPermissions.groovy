@@ -23,7 +23,7 @@ class PhoneRecordPermissions {
     boolean isOwner() { level == null }
 
     boolean isNotExpired() {
-        _dateExpired == null || _dateExpired?.isAfterNow()
+        isOwner() || _dateExpired == null || _dateExpired?.isAfterNow()
     }
 
     boolean canModify() {

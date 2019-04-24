@@ -39,7 +39,7 @@ class Token implements WithId, CanSave<Token> {
         maxNumAccess nullable: true
     	stringData maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE, validator: { String data, Token obj ->
     		if (!obj.type?.requiredKeys.every { String key -> data.contains(key) }) {
-    			["requiredKeys", obj.type, obj.type.requiredKeys]
+    			["token.stringData.requiredKeys", obj.type, obj.type.requiredKeys]
     		}
     	}
     }
