@@ -48,7 +48,7 @@ class IndividualPhoneRecordWrappers {
         String query = null, Collection<PhoneRecordStatus> statuses = PhoneRecordStatus.ACTIVE_STATUSES) {
 
         buildActiveBase(query, statuses).build {
-            shareSource { eq("phone.id", sharedById) }
+            eq("ss1.phone.id", sharedById)
         }
     }
 
@@ -71,7 +71,7 @@ class IndividualPhoneRecordWrappers {
         IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, bNums, true, false)
             .then { Map<PhoneNumber, Collection<IndividualPhoneRecord>> numToPhoneRecs ->
                 List<IndividualPhoneRecord> iprs = CollectionUtils.mergeUnique(numToPhoneRecs.values())
-                // step 2: find shared contacts (excludes tags)
+                // step 2: find visible (not blocked) shared contacts (excludes tags)
                 List<PhoneRecord> sprs = PhoneRecords
                     .buildActiveForShareSourceIds(iprs*.id)
                     .list()
@@ -92,6 +92,7 @@ class IndividualPhoneRecordWrappers {
         new DetachedJoinableCriteria(PhoneRecord)
             .build(forStatuses(statuses))
             .build(forQuery(query))
+            .build(forNotBlockedShareSourceIfPresent())
             .build(PhoneRecords.forNonGroupOnly())
             .build(PhoneRecords.forNotExpired())
     }
@@ -121,6 +122,16 @@ class IndividualPhoneRecordWrappers {
                     CriteriaUtils.inList(delegate, "id", searchIds)
                     CriteriaUtils.inList(delegate, "shareSource.id", searchIds)
                 }
+            }
+        }
+    }
+
+    protected static Closure forNotBlockedShareSourceIfPresent() {
+        return {
+            createAliasWithJoin("shareSource", "ss1", JoinType.LEFT_OUTER_JOIN)
+            or {
+                isNull("shareSource")
+                "in"("ss1.status", PhoneRecordStatus.VISIBLE_STATUSES)
             }
         }
     }

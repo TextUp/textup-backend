@@ -4,8 +4,9 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import groovy.transform.TupleConstructor
 import org.textup.structure.*
-import org.textup.validator.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.validator.*
 
 @EqualsAndHashCode
 @GrailsTypeChecked
@@ -42,8 +43,8 @@ class NotificationInfo {
     // Methods
     // -------
 
-    String buildTextMessage(Token tok1 = null) {
-        List<String> parts = [NotificationUtils.buildTextMessage(this)]
+    String buildTextMessage(NotificationFrequency freq1, Token tok1 = null) {
+        List<String> parts = [NotificationUtils.buildTextMessage(freq1, this)]
         if (tok1) {
             parts << LinkUtils.notification(tok1.token)
             parts << IOCUtils.getMessage("notificationInfo.previewLink")

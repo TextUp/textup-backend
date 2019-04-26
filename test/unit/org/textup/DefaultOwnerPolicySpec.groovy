@@ -33,6 +33,7 @@ class DefaultOwnerPolicySpec extends Specification {
         then:
         defaults.size() == 1
         defaults[0].canNotifyForAny(null) == true
+        defaults[0].isActive() == true
         defaults[0].isAllowed(null) == true
         defaults[0].shouldSendPreviewLink == DefaultOwnerPolicy.DEFAULT_SEND_PREVIEW_LINK
         defaults[0].frequency == DefaultOwnerPolicy.DEFAULT_FREQUENCY

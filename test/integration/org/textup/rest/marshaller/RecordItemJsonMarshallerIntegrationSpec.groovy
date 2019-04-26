@@ -43,6 +43,7 @@ class RecordItemJsonMarshallerIntegrationSpec extends Specification {
     void "test marshalling with different record owners"() {
         given:
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.status = PhoneRecordStatus.BLOCKED
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(ipr1)
         PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord()

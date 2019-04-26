@@ -98,6 +98,7 @@ class RecordUtilsSpec extends Specification {
         given:
         Phone p1 = TestUtils.buildActiveStaffPhone()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        ipr1.status = PhoneRecordStatus.BLOCKED
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
         DateTime start = DateTime.now().minusDays(2)
@@ -124,7 +125,7 @@ class RecordUtilsSpec extends Specification {
             "types[]": ["text"],
             "owners[]": [ipr1, gpr1, spr1]*.id))
 
-        then:
+        then: "non-active non-expired `PhoneRecord`s are included too"
         res.status == ResultStatus.CREATED
         res.payload instanceof RecordItemRequest
         res.payload.mutablePhone == p1

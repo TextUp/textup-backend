@@ -61,7 +61,7 @@ class RecordItemJsonMarshaller extends JsonNamedMarshaller {
         // Associated phone owners
         Long pId = TypeUtils.to(Long, RequestUtils.tryGet(RequestUtils.PHONE_ID).payload)
         Collection<PhoneRecord> prs = PhoneRecords
-            .buildActiveForRecordIds([rItem1.readOnlyRecord.id])
+            .buildNotExpiredForRecordIds([rItem1.readOnlyRecord.id])
             .list()
         PhoneRecord ownerPr = pId ? prs.find { PhoneRecord pr1 -> pr1.phone.id == pId } : prs[0]
         // For frontend to properly associate this item with all available record owners

@@ -118,6 +118,7 @@ class RecordItemsSpec extends Specification {
         DateTime dt = DateTime.now()
         Phone tp1 = TestUtils.buildActiveTeamPhone()
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(tp1)
+        gpr1.status = PhoneRecordStatus.BLOCKED
         RecordText rText1 = new RecordText(record: gpr1.record, whenCreated: dt.minusDays(1))
         RecordCall rCall1 = new RecordCall(record: gpr1.record)
         RecordNote rNote1 = new RecordNote(record: gpr1.record, whenCreated: dt.plusDays(1))

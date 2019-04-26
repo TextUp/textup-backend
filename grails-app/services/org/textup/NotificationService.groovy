@@ -31,7 +31,7 @@ class NotificationService {
                             textService
                                 .send(notif1.mutablePhone.number,
                                     [rop1.readOnlyStaff.personalNumber],
-                                    notifInfo.buildTextMessage(tok1),
+                                    notifInfo.buildTextMessage(freq1, tok1),
                                     notif1.mutablePhone.customAccountId)
                                 .logFail("send: phone `${notif1.mutablePhone.id}`, staff `${rop1.readOnlyStaff.id}`")
                         }

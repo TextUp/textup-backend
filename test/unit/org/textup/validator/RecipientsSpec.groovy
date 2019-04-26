@@ -36,7 +36,9 @@ class RecipientsSpec extends Specification {
         Phone p1 = TestUtils.buildActiveTeamPhone()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        gpr1.status = PhoneRecordStatus.BLOCKED
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        spr1.status = PhoneRecordStatus.BLOCKED
         PhoneNumber pNum1 = TestUtils.randPhoneNumber()
         int prBaseline = PhoneRecord.count()
 

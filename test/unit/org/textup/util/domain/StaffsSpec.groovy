@@ -236,6 +236,7 @@ class StaffsSpec extends Specification {
         Phone tp2 = TestUtils.buildTeamPhone(t2)
 
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(tp2)
+        ipr1.status = PhoneRecordStatus.BLOCKED
         PhoneRecord pr1 = TestUtils.buildSharedPhoneRecord(ipr1, tp1)
 
         when:

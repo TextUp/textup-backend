@@ -7,6 +7,7 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.constraint.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
@@ -40,25 +41,28 @@ class Phone implements ReadOnlyPhone, WithMedia, WithId, CanSave<Phone> {
     static mapping = {
         cache usage: "read-write", include: "non-lazy"
         customAccount fetch: "join"
-        // keep as lazy (do not use `fetch: "join"`) because joining may sometimes cause only one `MediaElement` to be fetched instead of all of them
-        media cascade: "save-update"
-        numberHistoryEntries fetch: "join", cascade: "save-update"
+        media fetch: "join", cascade: "save-update"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        numberHistoryEntries cascade: "save-update"
         owner fetch: "join", cascade: "all-delete-orphan"
         whenCreated type: PersistentDateTime
     }
     static constraints = {
         apiId blank: true, nullable: true, unique: true
         voice blank: false, nullable: false
-        numberAsString blank: true, nullable: true, phoneNumber: true, validator: { String num, Phone obj ->
-            //phone number must be unique for phones
-            if (num && Utils.<Boolean>doWithoutFlush {
-                    Phones.buildActiveForNumber(PhoneNumber.create(num))
-                        .build(CriteriaUtils.forNotIdIfPresent(obj.id))
-                        .count() > 0
-                }) {
-                return ["phone.numberAsString.duplicate"]
+        numberAsString blank: true, nullable: true, phoneNumber: PhoneNumberConstraint.PARAM_ALLOW_BLANK,
+            validator: { String num, Phone obj ->
+                //phone number must be unique for phones
+                if (num && Utils.<Boolean>doWithoutFlush {
+                        Phones.buildActiveForNumber(PhoneNumber.create(num))
+                            .build(CriteriaUtils.forNotIdIfPresent(obj.id))
+                            .count() > 0
+                    }) {
+                    return ["phone.numberAsString.duplicate"]
+                }
             }
-        }
         awayMessage blank: false, size: 1..(ValidationUtils.TEXT_BODY_LENGTH * 2)
         numberHistoryEntries cascadeValidation: true
         owner cascadeValidation: true

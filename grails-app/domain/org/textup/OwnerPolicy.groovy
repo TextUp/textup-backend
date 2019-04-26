@@ -25,6 +25,9 @@ class OwnerPolicy implements WithId, CanSave<OwnerPolicy>, ReadOnlyOwnerPolicy {
     Staff staff
 
     static belongsTo = [owner: PhoneOwnership]
+    // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+    // a left outer join to fetch the data runs into issues when a max is provided
+    // see: https://stackoverflow.com/a/25426734
     static hasMany = [blacklist: Long, whitelist: Long] // of allowed/disallowed record ids
     static mapping = {
         schedule fetch: "join", cascade: "save-update"
@@ -60,7 +63,12 @@ class OwnerPolicy implements WithId, CanSave<OwnerPolicy>, ReadOnlyOwnerPolicy {
     // personal phone number and use the staff member's email instead
     @Override
     boolean canNotifyForAny(Collection<Long> recordIds) {
-        schedule?.isAvailableNow() && recordIds?.any { Long rId -> isAllowed(rId) }
+        isActive() && recordIds?.any { Long rId -> isAllowed(rId) }
+    }
+
+    @Override
+    boolean isActive() {
+        schedule?.isAvailableNow()
     }
 
     @Override

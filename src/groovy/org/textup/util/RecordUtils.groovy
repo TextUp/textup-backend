@@ -55,7 +55,7 @@ class RecordUtils {
         Phones.mustFindActiveForId(pId)
             .then { Phone mutPhone1 ->
                 Collection<? extends PhoneRecordWrapper> wrappers = PhoneRecords
-                    .buildActiveForPhoneIds([pId])
+                    .buildNotExpiredForPhoneIds([pId])
                     .build(PhoneRecords.forIds(body.typedList(Long, "owners[]")))
                     .list()
                     *.toWrapper()

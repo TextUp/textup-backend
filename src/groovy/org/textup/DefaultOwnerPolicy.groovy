@@ -38,6 +38,9 @@ class DefaultOwnerPolicy implements ReadOnlyOwnerPolicy {
     boolean canNotifyForAny(Collection<Long> recordIds) { true }
 
     @Override
+    boolean isActive() { true }
+
+    @Override
     boolean isAllowed(Long recordId) { true }
 
     // Properties

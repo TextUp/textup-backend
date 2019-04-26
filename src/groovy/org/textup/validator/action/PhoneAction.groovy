@@ -5,6 +5,7 @@ import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
+import org.textup.constraint.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
@@ -46,13 +47,14 @@ class PhoneAction extends BaseAction {
 				}
 			}
 		}
-		number nullable: true, blank: true, phoneNumber: true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(NEW_NUM_BY_NUM)) {
-				if (!val) {
-					return ["requiredForChangeToNewNumber"]
+		number nullable: true, blank: true, phoneNumber: PhoneNumberConstraint.PARAM_ALLOW_BLANK,
+			validator: { String val, PhoneAction obj ->
+				if (obj.matches(NEW_NUM_BY_NUM)) {
+					if (!val) {
+						return ["requiredForChangeToNewNumber"]
+					}
 				}
 			}
-		}
 		numberId nullable: true, blank: true, validator: { String val, PhoneAction obj ->
 			if (obj.matches(NEW_NUM_BY_ID) && !val) {
 				["requiredForChangeToExistingNumber"]

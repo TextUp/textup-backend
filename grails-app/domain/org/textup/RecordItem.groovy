@@ -44,6 +44,9 @@ class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem>, Com
 	static transients = ["author"]
     static hasMany = [receipts: RecordItemReceipt]
     static mapping = {
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
         receipts cascade: "all-delete-orphan"
         media fetch: "join", cascade: "save-update"
         whenCreated type: PersistentDateTime

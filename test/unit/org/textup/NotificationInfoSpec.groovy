@@ -105,21 +105,21 @@ class NotificationInfoSpec extends Specification {
         NotificationInfo notifInfo = NotificationInfo.create(null, null)
 
         when:
-        String msg = notifInfo.buildTextMessage()
+        String msg = notifInfo.buildTextMessage(NotificationFrequency.HOUR)
 
         then:
         buildTextMessage.callCount == 1
-        buildTextMessage.allArgs[0] == [notifInfo]
+        buildTextMessage.allArgs[0] == [NotificationFrequency.HOUR, notifInfo]
         msg.contains(randStr1)
         msg.contains(randStr2) == false
         msg.contains("notificationInfo.previewLink") == false
 
         when:
-        msg = notifInfo.buildTextMessage(tok1)
+        msg = notifInfo.buildTextMessage(NotificationFrequency.HALF_HOUR, tok1)
 
         then:
         buildTextMessage.callCount == 2
-        buildTextMessage.allArgs[1] == [notifInfo]
+        buildTextMessage.allArgs[1] == [NotificationFrequency.HALF_HOUR, notifInfo]
         msg.contains(randStr1)
         msg.contains(randStr2)
         msg.contains("notificationInfo.previewLink")

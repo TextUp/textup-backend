@@ -140,13 +140,25 @@ class ShareActionServiceSpec extends Specification {
         given:
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
         assert spr1.isActive()
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord()
+        spr2.status = PhoneRecordStatus.BLOCKED
+        assert spr2.isActive() == false
 
-        when:
+        PhoneRecord.withSession { it.flush() }
+
+        when: "works for active contact"
         Result res = service.tryStopShare(spr1.shareSource, spr1.phone)
 
         then:
         res.status == ResultStatus.NO_CONTENT
         spr1.isActive() == false
+
+        when: "works for non-active contact too"
+        res = service.tryStopShare(spr2.shareSource, spr2.phone)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        spr2.isActive() == false
     }
 
     void "test trying to start share"() {

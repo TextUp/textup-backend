@@ -12,6 +12,8 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class Location implements ReadOnlyLocation, WithId, CanSave<Location> {
 
+    static final int COORD_PRECISION = 2 // decimal places
+
     // Need to declare id for it to be considered in equality operator
     // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
     Long id
@@ -50,5 +52,14 @@ class Location implements ReadOnlyLocation, WithId, CanSave<Location> {
             dup.discard()
             null
         }
+    }
+
+    // [NOTE] sometimes updating value will result in a new value with lots of trailing
+    // digits, which will trigger a false `isDirty` state. Therefore, we need to normalize
+    // the current and persistent values to the same precision before comparing
+    boolean isActuallyDirty() {
+        isDirty('address') ||
+            !NumberUtils.nearlyEqual(lat, getPersistentValue('lat') as BigDecimal, COORD_PRECISION) ||
+            !NumberUtils.nearlyEqual(lng, getPersistentValue('lng') as BigDecimal, COORD_PRECISION)
     }
 }

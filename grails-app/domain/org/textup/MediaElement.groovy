@@ -26,7 +26,10 @@ class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement
     static mapping = {
         whenCreated type: PersistentDateTime
         sendVersion fetch: "join", cascade: "save-update"
-        alternateVersions fetch: "join", cascade: "save-update"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        alternateVersions cascade: "save-update"
     }
     static constraints = { // all nullable:false by default
         sendVersion nullable: true, cascadeValidation: true, validator: { MediaElementVersion send1 ->

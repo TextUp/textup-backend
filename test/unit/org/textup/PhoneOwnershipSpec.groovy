@@ -169,6 +169,43 @@ class PhoneOwnershipSpec extends Specification {
         policies == []
     }
 
+    void "test when building policies, exclude all inactive ones"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+        Staff s2 = TestUtils.buildStaff()
+        Team t1 = TestUtils.buildTeam()
+        t1.addToMembers(s1)
+        t1.addToMembers(s2)
+
+        Phone tp1 = TestUtils.buildTeamPhone(t1)
+        OwnerPolicy op1 = TestUtils.buildOwnerPolicy(tp1.owner, s1)
+        op1.schedule.manual = true
+        op1.schedule.manualIsAvailable = true
+        OwnerPolicy op2 = TestUtils.buildOwnerPolicy(tp1.owner, s2)
+        op2.schedule.manual = true
+        op2.schedule.manualIsAvailable = false
+
+        OwnerPolicy.withSession { it.flush() }
+
+        when:
+        Collection policies = tp1.owner.buildActiveReadOnlyPolicies()
+
+        then:
+        policies.size() == 1
+        op1 in policies
+
+        when:
+        op2.schedule.manualIsAvailable = true
+        OwnerPolicy.withSession { it.flush() }
+
+        policies = tp1.owner.buildActiveReadOnlyPolicies()
+
+        then:
+        policies.size() == 2
+        op1 in policies
+        op2 in policies
+    }
+
     void "test building organization"() {
         given:
         Staff s1 = TestUtils.buildStaff()

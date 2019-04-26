@@ -5,6 +5,7 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.Sortable
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
+import org.textup.constraint.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
@@ -38,7 +39,7 @@ class PhoneNumberHistory implements CanSave<PhoneNumberHistory>, WithId, Compara
                 ["phoneNumberHistory.endTime.endBeforeStart"]
             }
         }
-        numberAsString nullable: true, blank: true, phoneNumber: true
+        numberAsString nullable: true, blank: true, phoneNumber: PhoneNumberConstraint.PARAM_ALLOW_BLANK
     }
 
     static Result<PhoneNumberHistory> tryCreate(DateTime created, BasePhoneNumber bNum) {

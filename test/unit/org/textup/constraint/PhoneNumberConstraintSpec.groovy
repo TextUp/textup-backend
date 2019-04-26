@@ -46,27 +46,53 @@ class PhoneNumberConstraintSpec extends Specification {
         obj.validate()
     }
 
-    void "test when IS a phone number for a class that allows nullable and blank"() {
+    void "test when IS a phone number for a class that allows nullable and blank withOUT proper param"() {
         when: "null"
-        HasPhoneNumberAllowEmpty obj = new HasPhoneNumberAllowEmpty(numberAsString: null)
+        HasPhoneNumberAllowEmptyFails obj = new HasPhoneNumberAllowEmptyFails(numberAsString: null)
 
         then: "tolerates nulls, if specified"
-        obj.validate() == true
+        obj.validate()
 
         when: "blank"
-        obj = new HasPhoneNumberAllowEmpty(numberAsString: "")
+        obj = new HasPhoneNumberAllowEmptyFails(numberAsString: "")
 
         then: "empty string (blank) is still a specified string and this is not a phone number so should fail"
         obj.validate() == false
 
         when: "filled out invalid"
-        obj = new HasPhoneNumberAllowEmpty(numberAsString: TestUtils.randString())
+        obj = new HasPhoneNumberAllowEmptyFails(numberAsString: TestUtils.randString())
 
         then:
         obj.validate() == false
 
         when: "filled out valid"
-        obj = new HasPhoneNumberAllowEmpty(numberAsString: TestUtils.randPhoneNumberString())
+        obj = new HasPhoneNumberAllowEmptyFails(numberAsString: TestUtils.randPhoneNumberString())
+
+        then:
+        obj.validate()
+    }
+
+    void "test when IS a phone number for a class that allows nullable and blank WITH proper param"() {
+        when: "null"
+        HasPhoneNumberAllowEmptySucceeds obj = new HasPhoneNumberAllowEmptySucceeds(numberAsString: null)
+
+        then: "tolerates nulls, if specified"
+        obj.validate()
+
+        when: "blank"
+        obj = new HasPhoneNumberAllowEmptySucceeds(numberAsString: "")
+
+        then: "empty string (blank) is still a specified string and this is not a phone number so should fail"
+        obj.validate()
+
+        when: "filled out invalid"
+        obj = new HasPhoneNumberAllowEmptySucceeds(numberAsString: TestUtils.randString())
+
+        then:
+        obj.validate() == false
+
+        when: "filled out valid"
+        obj = new HasPhoneNumberAllowEmptySucceeds(numberAsString: TestUtils.randPhoneNumberString())
 
         then:
         obj.validate()
@@ -126,11 +152,20 @@ class PhoneNumberConstraintSpec extends Specification {
     }
 
     @Validateable
-    protected class HasPhoneNumberAllowEmpty {
+    protected class HasPhoneNumberAllowEmptyFails {
         String numberAsString
 
         static constraints = {
             numberAsString nullable: true, blank: true, phoneNumber: true
+        }
+    }
+
+    @Validateable
+    protected class HasPhoneNumberAllowEmptySucceeds {
+        String numberAsString
+
+        static constraints = {
+            numberAsString nullable: true, blank: true, phoneNumber: PhoneNumberConstraint.PARAM_ALLOW_BLANK
         }
     }
 

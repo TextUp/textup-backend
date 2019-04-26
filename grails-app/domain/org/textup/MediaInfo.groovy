@@ -21,7 +21,10 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
     static transients = ["_originalMediaElements"]
     static hasMany = [mediaElements: MediaElement]
     static mapping = {
-        mediaElements fetch: "join", cascade: "save-update"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        mediaElements cascade: "save-update"
     }
     static constraints = { // all nullable:false by default
         mediaElements cascadeValidation: true

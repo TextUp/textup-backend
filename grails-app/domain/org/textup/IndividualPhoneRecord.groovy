@@ -19,7 +19,10 @@ class IndividualPhoneRecord extends PhoneRecord {
     static hasMany = [numbers: ContactNumber]
     // `name` and `isDeleted` columns are shared with `GroupPhoneRecord`
     static mapping = {
-        numbers fetch: "join", cascade: "all-delete-orphan"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        numbers cascade: "all-delete-orphan"
         note column: "individual_note", type: "text"
     }
     static constraints = {
@@ -78,7 +81,7 @@ class IndividualPhoneRecord extends PhoneRecord {
     // ----------
 
     @Override
-    String getSecureName() { name ?: numbers?.getAt(0)?.prettyPhoneNumber ?: "" }
+    String getSecureName() { name ?: getSortedNumbers()?.getAt(0)?.prettyPhoneNumber ?: "" }
 
     List<ContactNumber> getSortedNumbers() { numbers?.sort(false) ?: [] }
 

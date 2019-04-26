@@ -8,6 +8,7 @@ import org.textup.type.*
 interface ReadOnlyOwnerPolicy {
 
     boolean canNotifyForAny(Collection<Long> recordIds)
+    boolean isActive()
     boolean isAllowed(Long recordId)
 
     boolean getShouldSendPreviewLink()

@@ -54,6 +54,36 @@ class LocationSpec extends Specification {
         res.payload.lng == validLng
     }
 
+    void "test determining if actually dirty"() {
+        when:
+        Location loc1 = TestUtils.buildLocation()
+
+        then:
+        loc1.isDirty() == false
+        loc1.isActuallyDirty() == false
+
+        when: "change lat by a little bit"
+        loc1.lat = loc1.lat + 0.000001
+
+        then:
+        loc1.isDirty() == true
+        loc1.isActuallyDirty() == false
+
+        when: "change lng by a little bit"
+        loc1.lng = loc1.lng + 0.000001
+
+        then:
+        loc1.isDirty() == true
+        loc1.isActuallyDirty() == false
+
+        when: "change address"
+        loc1.address = TestUtils.randString()
+
+        then:
+        loc1.isDirty() == true
+        loc1.isActuallyDirty() == true
+    }
+
     void "test duplicating persistent state"() {
         given: "an unsaved obj"
         Location loc1 = new Location(address: "hi", lat: 0G, lng: 0G)

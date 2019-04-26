@@ -59,18 +59,26 @@ class IndividualPhoneRecordSpec extends Specification {
 
     void "getting names"() {
         given:
-        Phone p1 = TestUtils.buildStaffPhone()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
         String name = "Hello there"
         String initials = "H.T."
+        Phone p1 = TestUtils.buildStaffPhone()
 
-        when:
+        when: "no name or numbers"
         IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1).payload
 
         then:
         ipr1.secureName == ""
         ipr1.publicName == ""
 
-        when:
+        when: "no name but has number"
+        ipr1.mergeNumber(pNum1, 0)
+
+        then:
+        ipr1.secureName == pNum1.prettyPhoneNumber
+        ipr1.publicName.contains(StringUtils.PHONE_NUMBER_INITIALS_PREFIX)
+
+        when: "both name and number"
         ipr1.name = name
 
         then:

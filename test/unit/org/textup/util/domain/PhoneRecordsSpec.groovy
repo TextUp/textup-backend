@@ -106,6 +106,39 @@ class PhoneRecordsSpec extends Specification {
         tryGetAuthId?.restore()
     }
 
+    void "test blocked/archived contacts are still allowed"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildActiveStaffPhone(s1)
+
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        ipr1.status = PhoneRecordStatus.ARCHIVED
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        ipr2.status = PhoneRecordStatus.BLOCKED
+        IndividualPhoneRecord.withSession { it.flush() }
+
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
+            Result.createSuccess(s1.id)
+        }
+
+        when:
+        Result res = PhoneRecords.isAllowed(ipr1.id)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == ipr1.id
+
+        when:
+        res = PhoneRecords.isAllowed(ipr2.id)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == ipr2.id
+
+        cleanup:
+        tryGetAuthId?.restore()
+    }
+
     void "test criteria finding active for record ids"() {
         given:
         Phone tp1 = TestUtils.buildActiveTeamPhone()
@@ -115,50 +148,60 @@ class PhoneRecordsSpec extends Specification {
         ipr2.isDeleted = true
 
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, tp1)
+        spr1.status = PhoneRecordStatus.BLOCKED
         PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord(null, tp1)
         spr2.dateExpired = DateTime.now().minusDays(1)
 
         PhoneRecord.withSession { it.flush() }
 
         when:
-        DetachedCriteria criteria = PhoneRecords.buildActiveForRecordIds(null)
+        DetachedCriteria activeCriteria = PhoneRecords.buildActiveForRecordIds(null)
+        DetachedCriteria notExpiredCriteria = PhoneRecords.buildNotExpiredForRecordIds(null)
 
         then:
-        criteria.count() == 0
+        activeCriteria.count() == 0
+        notExpiredCriteria.count() == 0
 
         when:
-        criteria = PhoneRecords.buildActiveForRecordIds([ipr1, ipr2, spr1, spr2]*.record*.id)
-        Collection foundPrs = criteria.list()
+        activeCriteria = PhoneRecords.buildActiveForRecordIds([ipr1, ipr2, spr1, spr2]*.record*.id)
+        notExpiredCriteria = PhoneRecords.buildNotExpiredForRecordIds([ipr1, ipr2, spr1, spr2]*.record*.id)
+        Collection activePrs = activeCriteria.list()
+        Collection notExpiredPrs = notExpiredCriteria.list()
 
         then:
-        foundPrs.size() == 4
-        ipr1 in foundPrs
-        !(ipr2 in foundPrs)
-        spr1 in foundPrs
-        spr1.shareSource in foundPrs
-        !(spr2 in foundPrs)
-        spr2.shareSource in foundPrs
+        activePrs.size() == 3
+        [ipr1, spr1.shareSource, spr2.shareSource].every { it in activePrs }
+        notExpiredPrs.size() == 4
+        [ipr1, spr1, spr1.shareSource, spr2.shareSource].every { it in notExpiredPrs }
     }
 
-    void "test criteria finding active for phone ids"() {
+    void "test criteria finding not expired for phone ids"() {
         given:
         Phone p1 = TestUtils.buildStaffPhone()
         Phone p2 = TestUtils.buildActiveStaffPhone()
 
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
         GroupPhoneRecord gpr2 = TestUtils.buildGroupPhoneRecord(p2)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p2)
+        spr1.dateExpired = DateTime.now().minusDays(1)
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord(null, p2)
+        spr2.status = PhoneRecordStatus.BLOCKED
+
+        PhoneRecord.withSession { it.flush() }
 
         when:
-        DetachedCriteria criteria = PhoneRecords.buildActiveForPhoneIds(null)
+        DetachedCriteria criteria = PhoneRecords.buildNotExpiredForPhoneIds(null)
 
         then:
         criteria.count() == 0
 
         when:
-        criteria = PhoneRecords.buildActiveForPhoneIds([p1, p2]*.id)
+        criteria = PhoneRecords.buildNotExpiredForPhoneIds([p1, p2]*.id)
 
         then:
-        criteria.list() == [gpr2]
+        criteria.count() == 2
+        gpr2 in criteria.list()
+        spr2 in criteria.list()
     }
 
     void "test criteria finding active for share source ids"() {

@@ -44,7 +44,7 @@ class Recipients implements CanValidate {
             .then { Map<PhoneNumber, Collection<IndividualPhoneRecord>> ipRecs ->
                 // then fetch the shared contacts + tags
                 Collection<? extends PhoneRecord> pRecs = PhoneRecords
-                    .buildActiveForPhoneIds([p1?.id])
+                    .buildNotExpiredForPhoneIds([p1?.id])
                     .build(PhoneRecords.forIds(prIds))
                     .list()
                 pRecs.addAll(CollectionUtils.mergeUnique(ipRecs.values()))

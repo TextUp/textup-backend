@@ -16,6 +16,7 @@ class PhoneNumberConstraint extends AbstractVetoingConstraint {
     static final Pattern PHONE_NUMBER_PATTERN = Pattern.compile(/^(\d){10}$/)
     static final String DEFAULT_CODE = "default.invalid.phone.number.message"
     static final String NAME = "phoneNumber"
+    static final String PARAM_ALLOW_BLANK = "allowBlank"
 
     @Override
     String getName() { NAME }
@@ -25,11 +26,15 @@ class PhoneNumberConstraint extends AbstractVetoingConstraint {
 
     @Override
     void setParameter(Object constraintParamValue) {
-        if (!(constraintParamValue instanceof Boolean)) {
-            throw new IllegalArgumentException("""Parameter for constraint [$name] of property
-                [$constraintPropertyName] of class [$constraintOwningClass] must be a Boolean.""")
+        if (constraintParamValue instanceof Boolean || constraintParamValue == PARAM_ALLOW_BLANK) {
+            super.setParameter(constraintParamValue)
         }
-        super.setParameter(constraintParamValue)
+        else {
+            throw new IllegalArgumentException("""
+                Parameter for constraint [$name] of property [$constraintPropertyName] of class
+                [$constraintOwningClass] must be a Boolean or `${PARAM_ALLOW_BLANK}`
+            """)
+        }
     }
 
     @Override
@@ -38,7 +43,7 @@ class PhoneNumberConstraint extends AbstractVetoingConstraint {
     @Override
     protected boolean processValidateWithVetoing(Object target, Object propertyValue, Errors errors) {
         boolean shouldVeto = false
-        if (parameter == true) {
+        if (parameter == true || shouldValidateIfAllowingBlank(propertyValue)) {
             shouldVeto = !PHONE_NUMBER_PATTERN.matcher(propertyValue?.toString()).matches()
             if (shouldVeto) {
                 rejectValue(target,
@@ -49,5 +54,11 @@ class PhoneNumberConstraint extends AbstractVetoingConstraint {
             }
         }
         shouldVeto
+    }
+
+    // If allowing blank, then we will allow nulls and empty strings. Any other string value
+    // will undergo validation to see if it is a valid phone number
+    protected boolean shouldValidateIfAllowingBlank(Object propertyValue) {
+        parameter == PARAM_ALLOW_BLANK && propertyValue != "" && propertyValue != null
     }
 }

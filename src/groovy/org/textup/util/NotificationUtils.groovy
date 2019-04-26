@@ -26,6 +26,7 @@ class NotificationUtils {
         Map<Long, Collection<? extends RecordItem>> recIdToItems = [:]
             .withDefault { [] as Collection<? extends RecordItem> }
         rItems1.each { RecordItem rItem1 -> recIdToItems[rItem1.record.id] << rItem1 }
+        // Do not want to notify non-visible (e.g., blocked) `PhoneRecord`s
         List<PhoneRecord> prs = PhoneRecords
             .buildActiveForRecordIds(recIdToItems.keySet())
             .build(PhoneRecords.forVisibleStatuses())
@@ -74,10 +75,11 @@ class NotificationUtils {
         CollectionUtils.joinWithDifferentLast(initials, ", ", " and ")
     }
 
-    static String buildTextMessage(NotificationInfo n1) {
+    static String buildTextMessage(NotificationFrequency freq1, NotificationInfo n1) {
         List<String> parts = []
         if (n1) {
-            parts << n1.phoneName
+            parts << IOCUtils.getMessage("notificationInfo.context",
+                [NotificationFrequency.descriptionWithFallback(freq1), n1.phoneName])
             String incoming = NotificationUtils.buildIncomingMessage(n1)
             if (incoming) {
                 parts << IOCUtils.getMessage("notificationInfo.received")

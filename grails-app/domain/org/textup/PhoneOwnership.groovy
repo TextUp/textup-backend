@@ -23,7 +23,10 @@ class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
 
     static hasMany = [policies: OwnerPolicy]
     static mapping = {
-        policies fetch: "join", cascade: "all-delete-orphan"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        policies cascade: "all-delete-orphan"
     }
 
     static Result<PhoneOwnership> tryCreate(Phone p1, Long ownerId, PhoneOwnershipType type) {
@@ -65,7 +68,7 @@ class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
                 foundPolicies*.readOnlyStaff)
             foundPolicies.addAll(DefaultOwnerPolicy.createAll(missing))
         }
-        foundPolicies
+        foundPolicies.findAll { ReadOnlyOwnerPolicy rop1 -> rop1.isActive() }
     }
 
     Organization buildOrganization() {

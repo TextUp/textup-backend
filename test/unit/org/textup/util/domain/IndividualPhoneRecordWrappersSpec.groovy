@@ -141,6 +141,30 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
         spr1 in prs
     }
 
+    void "test building for share source must not be blocked, if is a shared contact"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        spr1.shareSource.status = PhoneRecordStatus.BLOCKED
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord(null, p1)
+        spr2.shareSource.status = PhoneRecordStatus.ARCHIVED
+
+        PhoneRecord.withSession { it.flush() }
+
+        when:
+        DetachedJoinableCriteria criteria = new DetachedJoinableCriteria(PhoneRecord)
+            .build { eq("phone", p1) }
+            .build(IndividualPhoneRecordWrappers.forNotBlockedShareSourceIfPresent())
+        Collection foundPrs = criteria.list()
+
+        then:
+        foundPrs.size() == 2
+        ipr1 in foundPrs
+        !(spr1 in foundPrs) // share source is blocked
+        spr2 in foundPrs
+    }
+
     void "test criteria base"() {
         given:
         Phone p1 = TestUtils.buildActiveStaffPhone()
@@ -150,6 +174,9 @@ class IndividualPhoneRecordWrappersSpec extends Specification {
         ipr2.status = PhoneRecordStatus.BLOCKED
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
         spr1.status = PhoneRecordStatus.UNREAD
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord(null, p1)
+        spr2.status = PhoneRecordStatus.ACTIVE
+        spr2.shareSource.status = PhoneRecordStatus.BLOCKED
         GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
 
         when:

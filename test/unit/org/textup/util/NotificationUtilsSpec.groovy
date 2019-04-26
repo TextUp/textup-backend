@@ -127,16 +127,16 @@ class NotificationUtilsSpec extends Specification {
             null)
 
         when:
-        String msg = NotificationUtils.buildTextMessage(null)
+        String msg = NotificationUtils.buildTextMessage(null, null)
 
         then:
         msg == ""
 
         when: "only incoming"
-        msg = NotificationUtils.buildTextMessage(nInfo1)
+        msg = NotificationUtils.buildTextMessage(null, nInfo1)
 
         then:
-        msg.contains(phoneName)
+        msg.contains("notificationInfo.context")
         msg.contains("notificationInfo.received")
         msg.contains("notificationInfo.and") == false
         msg.contains("notificationInfo.sent") == false
@@ -144,10 +144,10 @@ class NotificationUtilsSpec extends Specification {
         msg.contains("notificationInfo.scheduledCall") == false
 
         when: "only outgoing"
-        msg = NotificationUtils.buildTextMessage(nInfo2)
+        msg = NotificationUtils.buildTextMessage(null, nInfo2)
 
         then:
-        msg.contains(phoneName)
+        msg.contains("notificationInfo.context")
         msg.contains("notificationInfo.received") == false
         msg.contains("notificationInfo.and") == false
         msg.contains("notificationInfo.sent")
@@ -155,10 +155,10 @@ class NotificationUtilsSpec extends Specification {
         msg.contains("notificationInfo.scheduledCall")
 
         when: "both incoming + outgoing"
-        msg = NotificationUtils.buildTextMessage(nInfo3)
+        msg = NotificationUtils.buildTextMessage(null, nInfo3)
 
         then:
-        msg.contains(phoneName)
+        msg.contains("notificationInfo.context")
         msg.contains("notificationInfo.received")
         msg.contains("notificationInfo.and")
         msg.contains("notificationInfo.sent")

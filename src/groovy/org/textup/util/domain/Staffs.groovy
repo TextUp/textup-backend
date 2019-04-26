@@ -89,7 +89,7 @@ class Staffs {
     @GrailsTypeChecked
     static Collection<Staff> findEveryForRecordIds(Collection<Long> recIds) {
         if (recIds) {
-            List<Phone> phones = PhoneRecords.buildActiveForRecordIds(recIds)
+            List<Phone> phones = PhoneRecords.buildNotExpiredForRecordIds(recIds)
                 .build(PhoneRecords.returnsPhone())
                 .list() as List<Phone>
             CollectionUtils.mergeUnique(phones*.owner*.buildAllStaff())

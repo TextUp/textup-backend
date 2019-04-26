@@ -30,6 +30,9 @@ class Team implements WithId, CanSave<Team> {
     static mapping = {
         cache usage: "read-write", include: "non-lazy"
         whenCreated type: PersistentDateTime
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
         members cascade: "save-update"
         location fetch: "join", cascade: "save-update"
     }

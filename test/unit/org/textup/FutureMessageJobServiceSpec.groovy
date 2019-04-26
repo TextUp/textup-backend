@@ -138,6 +138,7 @@ class FutureMessageJobServiceSpec extends Specification {
         given:
         RecordItem rItem1 = TestUtils.buildRecordItem()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.status = PhoneRecordStatus.BLOCKED
         PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(ipr1)
         FutureMessage fMsg1 = TestUtils.buildFutureMessage(ipr1.record)
         fMsg1.notifySelfOnSend = true

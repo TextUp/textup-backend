@@ -78,7 +78,7 @@ class RecordItems {
         DateTime start = null, DateTime end = null,
         Collection<Class<? extends RecordItem>> types = null) {
 
-        Collection<Long> recIds = PhoneRecords.buildActiveForPhoneIds([phoneId])
+        Collection<Long> recIds = PhoneRecords.buildNotExpiredForPhoneIds([phoneId])
             .build(PhoneRecords.returnsRecordId())
             .list()
         new DetachedCriteria(RecordItem)

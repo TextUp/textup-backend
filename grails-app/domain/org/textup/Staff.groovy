@@ -6,6 +6,7 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.constraint.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
@@ -48,7 +49,7 @@ class Staff implements WithId, CanSave<Staff>, ReadOnlyStaff {
 		password blank: false
         lockCode blank: false
 		email email: true
-        personalNumberAsString blank: true, nullable: true, phoneNumber: true
+        personalNumberAsString blank: true, nullable: true, phoneNumber: PhoneNumberConstraint.PARAM_ALLOW_BLANK
 	}
 
     static Result<Staff> tryCreate(Role r1, Organization org1, String name, String un,

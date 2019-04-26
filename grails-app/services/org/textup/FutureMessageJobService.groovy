@@ -75,8 +75,11 @@ class FutureMessageJobService {
                 TempRecordItem.tryCreate(fMsg.message, fMsg.media, null).curry(fMsg, s1)
             }
             .then { FutureMessage fMsg, Staff s1, TempRecordItem temp1 ->
+                // If we scheduled a message to go out then blocked that `PhoneRecord`,
+                // we don't want that message to go out. In blocking that `PhoneRecord`, we
+                // signal that we no longer want to communicate with the person or group
                 Collection<PhoneRecord> pRecs = PhoneRecords
-                    .buildActiveForRecordIds([fMsg.record.id])
+                    .buildNotExpiredForRecordIds([fMsg.record.id])
                     // exclude shared phone records because these would be duplicates
                     // We already checked for permissions when this `FutureMessage` was created
                     // so we do not need to involve shared `PhoneRecord`s which may result in a

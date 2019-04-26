@@ -32,18 +32,11 @@ class IOCUtils {
 
     static LinkGenerator getLinkGenerator() { getBean(LinkGenerator) }
 
-    // TODO restore
     static String getWebhookLink(Map linkParams = [:]) {
-        String link = IOCUtils.linkGenerator.link(resource: "publicRecord",
+        IOCUtils.linkGenerator.link(resource: "publicRecord",
             action: "save",
             absolute: true,
             params: linkParams)
-
-        link = link.replaceAll("http://", "https://")
-        link = link.replaceAll("localhost:8080", "74450ff0.ngrok.io")
-        link = link.replaceAll("localhost", "74450ff0.ngrok.io")
-
-        link
     }
 
     static String getHandleLink(Object handle, Map linkParams = [:]) {

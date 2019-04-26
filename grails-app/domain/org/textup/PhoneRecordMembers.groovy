@@ -20,6 +20,9 @@ class PhoneRecordMembers implements WithId, CanSave<PhoneRecordMembers> {
     // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
     Long id
 
+    // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+    // a left outer join to fetch the data runs into issues when a max is provided
+    // see: https://stackoverflow.com/a/25426734
     static hasMany = [phoneRecords: PhoneRecord]
     static constraints = {
         phoneRecords validator: { Collection<PhoneRecord> val ->

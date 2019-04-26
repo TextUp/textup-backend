@@ -217,7 +217,7 @@ class MailServiceSpec extends Specification {
         send.latestArgs[3].staffName == s1.name
         send.latestArgs[3].phoneName == notifInfo.phoneName
         send.latestArgs[3].phoneNumber == notifInfo.phoneNumber.prettyPhoneNumber
-        send.latestArgs[3].timePeriodDescription == NotificationFrequency.IMMEDIATELY.readableDescription
+        send.latestArgs[3].timePeriodDescription == NotificationFrequency.descriptionWithFallback(null)
         send.latestArgs[3].incomingDescription instanceof String
         send.latestArgs[3].outgoingDescription instanceof String
         send.latestArgs[3].numIncoming == notifInfo.numIncomingText + notifInfo.numIncomingCall

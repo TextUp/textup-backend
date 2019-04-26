@@ -20,4 +20,10 @@ class NotificationFrequencySpec extends Specification {
         NotificationFrequency.HOUR.minutesInPast -
             Minutes.minutesBetween(NotificationFrequency.HOUR.buildDateTimeInPast(), dt).value  <= 1
     }
+
+    void "test getting readable description will fallback if absent"() {
+        expect:
+        NotificationFrequency.descriptionWithFallback(null) == NotificationFrequency.IMMEDIATELY.readableDescription
+        NotificationFrequency.descriptionWithFallback(NotificationFrequency.HALF_HOUR) == NotificationFrequency.HALF_HOUR.readableDescription
+    }
 }

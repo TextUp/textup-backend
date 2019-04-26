@@ -74,6 +74,7 @@ class OwnerPolicyIntegrationSpec extends Specification {
         }
 
         then:
+        op1.isActive()
         op1.canNotifyForAny(null) == false
         op1.canNotifyForAny([]) == false
         op1.canNotifyForAny([recId1]) == true
@@ -84,6 +85,7 @@ class OwnerPolicyIntegrationSpec extends Specification {
         op1.schedule.manualIsAvailable = false
 
         then:
+        op1.isActive() == false
         op1.canNotifyForAny(null) == false
         op1.canNotifyForAny([]) == false
         op1.canNotifyForAny([recId1]) == false

@@ -22,16 +22,21 @@ class PhoneRecords {
             .then { IOCUtils.resultFactory.success(thisId) }
     }
 
+    static DetachedCriteria<PhoneRecord> buildNotExpiredForRecordIds(Collection<Long> recordIds) {
+        new DetachedCriteria(PhoneRecord)
+            .build { CriteriaUtils.inList(delegate, "record.id", recordIds) }
+            .build(PhoneRecords.forNotExpired())
+    }
     static DetachedCriteria<PhoneRecord> buildActiveForRecordIds(Collection<Long> recordIds) {
         new DetachedCriteria(PhoneRecord)
             .build { CriteriaUtils.inList(delegate, "record.id", recordIds) }
             .build(PhoneRecords.forActive())
     }
 
-    static DetachedCriteria<PhoneRecord> buildActiveForPhoneIds(Collection<Long> phoneIds) {
+    static DetachedCriteria<PhoneRecord> buildNotExpiredForPhoneIds(Collection<Long> phoneIds) {
         new DetachedCriteria(PhoneRecord)
             .build(PhoneRecords.forPhoneIds(phoneIds, false))
-            .build(PhoneRecords.forActive())
+            .build(PhoneRecords.forNotExpired())
     }
 
     static DetachedCriteria<PhoneRecord> buildActiveForShareSourceIds(Collection<Long> sourceIds) {
@@ -149,6 +154,6 @@ class PhoneRecords {
     protected static DetachedCriteria<PhoneRecord> buildAllowed(Long staffId) {
         new DetachedCriteria(PhoneRecord)
             .build(Phones.activeForPhonePropNameAndStaffId("phone", staffId))
-            .build(PhoneRecords.forActive())
+            .build(PhoneRecords.forNotExpired())
     }
 }

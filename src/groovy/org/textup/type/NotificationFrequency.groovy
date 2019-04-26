@@ -12,7 +12,9 @@ enum NotificationFrequency {
     HOUR(60, "hour")
 
     final int minutesInPast
-    final String readableDescription // goes after "In the last..." in mail template
+    // Goes after "In the last..." in mail template
+    // See `NotificationUtils.buildTextMessage` for hwo this is used in text notification
+    final String readableDescription
 
     NotificationFrequency(int numMinutes, String desc) {
         minutesInPast = numMinutes
@@ -21,5 +23,9 @@ enum NotificationFrequency {
 
     DateTime buildDateTimeInPast() {
         DateTime.now().minus(TimeUnit.MINUTES.toMillis(minutesInPast))
+    }
+
+    static String descriptionWithFallback(NotificationFrequency freq1) {
+        (freq1 ?: NotificationFrequency.IMMEDIATELY).readableDescription
     }
 }

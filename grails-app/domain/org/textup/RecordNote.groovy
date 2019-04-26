@@ -27,7 +27,10 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
     static mapping = {
         whenChanged type: PersistentDateTime
         location fetch: "join", cascade: "all-delete-orphan"
-        revisions fetch: "join", cascade: "all-delete-orphan"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        revisions cascade: "all-delete-orphan"
     }
     static constraints = {
     	location cascadeValidation: true, nullable: true
@@ -50,8 +53,8 @@ class RecordNote extends RecordItem implements ReadOnlyRecordNote {
     // -------
 
     Result<RecordNote> tryCreateRevision() {
-        if (DomainUtils.hasDirtyNonObjectFields(this, ["isDeleted"]) || location?.isDirty() ||
-            media?.isDirty()) {
+        if (DomainUtils.hasDirtyNonObjectFields(this, ["isDeleted"]) || media?.isDirty() ||
+            location?.isActuallyDirty()) {
             // update whenChanged timestamp to keep it current for any revisions
             whenChanged = JodaUtils.utcNow()
             // create revision of persistent values
