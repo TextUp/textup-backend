@@ -91,7 +91,7 @@ class CallService {
                 .setStatus(Call.UpdateStatus.COMPLETED)
                 .setStatusCallback(IOCUtils.getHandleLink(CallbackUtils.STATUS))
                 .update()
-            IOCUtils.resultFactory.success()
+            Result.void()
         }
         catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
     }

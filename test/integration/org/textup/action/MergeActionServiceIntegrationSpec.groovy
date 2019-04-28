@@ -163,7 +163,6 @@ class MergeActionServiceIntegrationSpec extends Specification {
         ipr3 in gpr3.members.phoneRecords
     }
 
-
     void "test merging numbers"() {
         given:
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()

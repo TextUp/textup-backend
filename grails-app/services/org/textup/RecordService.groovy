@@ -132,21 +132,19 @@ class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>
     protected Result<? extends RecordItem> tryUpdateNote(RecordNote rNote1, TypeMap body) {
         Future<?> future
         AuthUtils.tryGetActiveAuthUser()
-            .then { RecordNote rNote1, Staff authUser ->
-                trySetNoteFields(rNote1, body, Author.create(authUser))
-            }
-            .then { RecordNote rNote1 -> mediaService.tryCreateOrUpdate(rNote1, body) }
-            .then { RecordNote rNote1, Future<Result<?>> fut1 ->
+            .then { Staff authUser -> trySetNoteFields(rNote1, body, Author.create(authUser)) }
+            .then { mediaService.tryCreateOrUpdate(rNote1, body) }
+            .then { Future<Result<?>> fut1 ->
                 future = fut1
                 TypeMap lInfo = body.typeMapNoNull("location")
                 locationService.tryCreateOrUpdateIfPresent(rNote1.location, lInfo)
             }
-            .then { RecordNote rNote1, Location loc1 = null ->
+            .then { Location loc1 = null ->
                 rNote1.location = loc1
                 DomainUtils.trySave(rNote1)
             }
-            .then { RecordNote rNote1 -> rNote1.tryCreateRevision() }
-            .then { RecordNote rNote1 -> DomainUtils.trySave(rNote1) }
+            .then { rNote1.tryCreateRevision() }
+            .then { DomainUtils.trySave(rNote1) }
             .ifFailAndPreserveError { future?.cancel(true) }
     }
 

@@ -162,9 +162,9 @@ class NotificationGroupSpec extends Specification {
         Notification notif1 = Notification.tryCreate(p1).payload
         Notification notif2 = Notification.tryCreate(p2).payload
         NotificationGroup notifGroup1 = NotificationGroup.tryCreate([notif1, notif2]).payload
+        RecordItem rItem1 = TestUtils.buildRecordItem()
+        RecordItem rItem2 = TestUtils.buildRecordItem()
 
-        RecordItem rItem1 = GroovyMock()
-        RecordItem rItem2 = GroovyMock()
         MockedMethod getItems1 = MockedMethod.create(notifGroup1.notifications[0], "getItems") { [rItem1] }
         MockedMethod getItems2 = MockedMethod.create(notifGroup1.notifications[1], "getItems") { [rItem2] }
 

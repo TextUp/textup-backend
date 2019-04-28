@@ -6,6 +6,8 @@ import org.textup.type.*
 
 @GrailsTypeChecked
 interface ReadOnlyRecordCall {
+    boolean isStillOngoing()
+
     int getDurationInSeconds()
     int getVoicemailInSeconds()
 }

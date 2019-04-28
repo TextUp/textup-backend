@@ -40,7 +40,7 @@ class FutureMessageSpec extends Specification {
     	fMsg.errors.errorCount == 3
     	fMsg.errors.getFieldErrorCount("record") == 1
     	fMsg.errors.getFieldErrorCount("media") == 1
-        fMsg.errors.getFieldError("media").codes.contains("noInfo")
+        fMsg.errors.getFieldError("media").codes.contains("futureMessage.media.noInfo")
     	fMsg.errors.getFieldErrorCount("type") == 1
 
     	when: "all required fields filled out"

@@ -246,7 +246,7 @@ class CallServiceSpec extends Specification {
         String callId = TestUtils.randString()
 
         CallUpdater updater = GroovyMock()
-        MockedMethod callUpdater = TestUtils.mock(service, "callUpdater") {
+        MockedMethod callUpdater = MockedMethod.create(service, "callUpdater") {
             throw new IllegalArgumentException(TestUtils.randString())
         }
 
@@ -258,17 +258,17 @@ class CallServiceSpec extends Specification {
 
         when: "no error"
         callUpdater.restore()
-        callUpdater = TestUtils.mock(service, "callUpdater") { updater }
+        callUpdater = MockedMethod.create(callUpdater) { updater }
         res = service.hangUpImmediately(callId, customAccountId)
 
         then:
         1 * updater.setStatus(Call.UpdateStatus.COMPLETED) >> updater
-        1 * updater.setStatusCallback({ it.toString().contains(Constants.CALLBACK_STATUS) }) >> updater
+        1 * updater.setStatusCallback({ it.toString().contains(CallbackUtils.STATUS) }) >> updater
         1 * updater.update()
         res.status == ResultStatus.NO_CONTENT
 
         cleanup:
-        callUpdater.restore()
+        callUpdater?.restore()
     }
 
     void "test retrying call"() {

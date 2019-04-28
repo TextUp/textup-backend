@@ -19,7 +19,10 @@ import org.textup.validator.*
 // [NOTE] using `id` in the `equals`, `hashCode`, `compareTo` calculations seems to break the
 // dynamic `removeFrom` methods. Therefore, we exclude using `id` from these calculations
 
-@EqualsAndHashCode(includes = ["preference", "number"])
+// Need to include `callSuper` because we can't include the `number` property directly since this is
+// a property of the superclass. If we include `number` in the `includes` list without adding
+// `callSuper` then `number` will be silently ignored
+@EqualsAndHashCode(callSuper = true, includes = ["preference"])
 @GrailsTypeChecked
 class ContactNumber extends BasePhoneNumber implements WithId, CanSave<ContactNumber>, Comparable<ContactNumber> {
 

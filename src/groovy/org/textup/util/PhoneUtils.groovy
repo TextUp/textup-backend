@@ -22,8 +22,6 @@ class PhoneUtils {
                     PhoneNumberHistory nh2 = p1.numberHistoryEntries?.max()
                     if (nh2) {
                         nh2.endTime = dt
-                        // make to not loose this association + ensure save cascades
-                        p1.addToNumberHistoryEntries(nh2)
                     }
                     // add new entry
                     p1.addToNumberHistoryEntries(nh1)

@@ -84,8 +84,9 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling specified timezone"() {
         given:
-        String tzId = "Europe/Stockholm"
-        String offsetString = TestUtils.getDateTimeOffsetString(tzId)
+        String startString = TestUtils.randString()
+        String endString = TestUtils.randString()
+        String tzId = TestUtils.randString()
 
         Phone p1 = TestUtils.buildActiveStaffPhone()
         IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
@@ -100,26 +101,35 @@ class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
         MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
             Result.createError([], ResultStatus.FORBIDDEN)
         }
+        MockedMethod buildFormattedStart = MockedMethod.create(iReq1, "buildFormattedStart") {
+            startString
+        }
+        MockedMethod buildFormattedEnd = MockedMethod.create(iReq1, "buildFormattedEnd") {
+            endString
+        }
 
         when:
-        RequestUtils.trySet(RequestUtils.TIMEZONE, 123)
         Map json = TestUtils.objToJsonMap(iReq1)
 
         then:
-        json.startDate.contains("Z")
-        json.endDate.contains("Z")
-        json.exportedOnDate.contains("Z")
+        json.startDate == startString
+        json.endDate == endString
+        buildFormattedStart.latestArgs == [null]
+        buildFormattedEnd.latestArgs == [null]
 
         when:
         RequestUtils.trySet(RequestUtils.TIMEZONE, tzId)
         json = TestUtils.objToJsonMap(iReq1)
 
         then:
-        json.startDate.contains(offsetString)
-        json.endDate.contains(offsetString)
-        json.exportedOnDate.contains(offsetString)
+        json.startDate == startString
+        json.endDate == endString
+        buildFormattedStart.latestArgs == [tzId]
+        buildFormattedEnd.latestArgs == [tzId]
 
         cleanup:
         tryGetActiveAuthUser?.restore()
+        buildFormattedStart?.restore()
+        buildFormattedEnd?.restore()
     }
 }

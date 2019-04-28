@@ -49,7 +49,7 @@ class SuperControllerSpec extends Specification {
 
         then:
         org1.status != OrgStatus.APPROVED
-        response.redirectUrl == "/"
+        response.redirectUrl == "/super/index"
         flash.messages != null
 
         when:
@@ -60,7 +60,7 @@ class SuperControllerSpec extends Specification {
         then:
         1 * controller.mailService.notifyApproval(s1) >> Result.void()
         org1.status == OrgStatus.APPROVED
-        response.redirectUrl == "/"
+        response.redirectUrl == "/super/index"
         flash.messages != null
     }
 
@@ -79,7 +79,7 @@ class SuperControllerSpec extends Specification {
 
         then:
         org1.status != OrgStatus.REJECTED
-        response.redirectUrl == "/"
+        response.redirectUrl == "/super/index"
         flash.messages != null
 
         when:
@@ -90,7 +90,7 @@ class SuperControllerSpec extends Specification {
         then:
         1 * controller.mailService.notifyRejection(s1) >> Result.void()
         org1.status == OrgStatus.REJECTED
-        response.redirectUrl == "/"
+        response.redirectUrl == "/super/index"
         flash.messages != null
     }
 

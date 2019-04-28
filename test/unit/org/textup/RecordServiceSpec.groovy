@@ -36,6 +36,12 @@ class RecordServiceSpec extends Specification {
     void "test trying to end call"() {
         given:
         String apiId = TestUtils.randString()
+
+        CustomAccountDetails cad1 = TestUtils.buildCustomAccountDetails()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        ipr1.phone.customAccount = cad1
+        ipr1.phone.save(flush: true, failOnError: true)
+
         RecordCall rCall1 = GroovyMock()
         service.callService = GroovyMock(CallService)
 
@@ -62,7 +68,8 @@ class RecordServiceSpec extends Specification {
         then:
         1 * rCall1.buildParentCallApiId() >> apiId
         1 * rCall1.isStillOngoing() >> true
-        1 * service.callService.hangUpImmediately(apiId, null) >> new Result()
+        1 * rCall1.record >> ipr1.record
+        1 * service.callService.hangUpImmediately(apiId, ipr1.phone.customAccountId) >> Result.void()
         res.status == ResultStatus.OK
         res.payload == rCall1
     }
@@ -290,17 +297,24 @@ class RecordServiceSpec extends Specification {
     void "test deleting"() {
         given:
         RecordNote rNote1 = TestUtils.buildRecordNote()
+        rNote1.isReadOnly = true
+        RecordItem rItem1 = TestUtils.buildRecordItem()
 
         when:
         Result res = service.tryDelete(rNote1.id)
 
         then:
+        res.status == ResultStatus.FORBIDDEN
+
+        when:
+        res = service.tryDelete(rItem1.id)
+
+        then:
         res.status == ResultStatus.NO_CONTENT
-        rNote1.isDeleted == true
+        rItem1.isDeleted == true
     }
 
-    // TODO
-    void "test updating overall"() {
+    void "test updating note"() {
         given:
         String errMsg1 = TestUtils.randString()
 
@@ -323,7 +337,7 @@ class RecordServiceSpec extends Specification {
         }
 
         when:
-        Result res = service.tryUpdate(rNote1.id, body)
+        Result res = service.tryUpdateNote(rNote1, body)
 
         then:
         1 * service.mediaService.tryCreateOrUpdate(rNote1, body) >> Result.createSuccess(fut1)
@@ -335,7 +349,7 @@ class RecordServiceSpec extends Specification {
         res.errorMessages == [errMsg1]
 
         when:
-        res = service.tryUpdate(rNote1.id, body)
+        res = service.tryUpdateNote(rNote1, body)
 
         then:
         trySetNoteFields.latestArgs == [rNote1, body, Author.create(s1)]
@@ -351,6 +365,62 @@ class RecordServiceSpec extends Specification {
         cleanup:
         tryGetActiveAuthUser?.restore()
         tryCreateRevision?.restore()
+    }
+
+    void "test updating overall"() {
+        given:
+        TypeMap body1 = TestUtils.randTypeMap()
+        TypeMap body2 = TypeMap.create(endOngoing: true)
+
+        RecordItem rItem1 = TestUtils.buildRecordItem()
+        RecordCall rCall1 = TestUtils.buildRecordCall()
+        RecordNote rNote1 = TestUtils.buildRecordNote()
+        rNote1.isReadOnly = true
+        RecordNote rNote2 = TestUtils.buildRecordNote()
+
+        MockedMethod tryUpdateNote = MockedMethod.create(service, "tryUpdateNote")
+        MockedMethod tryEndOngoingCall = MockedMethod.create(service, "tryEndOngoingCall")
+
+        when: "not a note or call"
+        Result res = service.tryUpdate(rItem1.id, body1)
+
+        then:
+        res.status == ResultStatus.OK
+        tryUpdateNote.notCalled
+        tryEndOngoingCall.notCalled
+
+        when: "call withOUT `endOngoing`"
+        res = service.tryUpdate(rCall1.id, body1)
+
+        then:
+        tryUpdateNote.notCalled
+        tryEndOngoingCall.notCalled
+
+        when: "call WITH `endOngoing`"
+        res = service.tryUpdate(rCall1.id, body2)
+
+        then:
+        tryUpdateNote.notCalled
+        tryEndOngoingCall.latestArgs == [rCall1]
+
+        when: "read-only note"
+        res = service.tryUpdate(rNote1.id, body1)
+
+        then:
+        res.status == ResultStatus.FORBIDDEN
+        tryUpdateNote.notCalled
+        tryEndOngoingCall.callCount == 1
+
+        when: "note that can be modified"
+        res = service.tryUpdate(rNote2.id, body1)
+
+        then:
+        tryUpdateNote.latestArgs == [rNote2, body1]
+        tryEndOngoingCall.callCount == 1
+
+        cleanup:
+        tryUpdateNote?.restore()
+        tryEndOngoingCall?.restore()
     }
 
     void "test creating overall"() {

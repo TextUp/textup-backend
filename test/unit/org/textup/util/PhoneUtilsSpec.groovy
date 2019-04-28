@@ -39,20 +39,12 @@ class PhoneUtilsSpec extends Specification {
         when:
         Result res = PhoneUtils.tryAddChangeToHistory(null, null)
 
-        // flush then refresh to allow GORM to filter out duplicate hasMany associations
-        Phone.withSession { it.flush() }
-        p1.refresh()
-
         then:
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
         !p1.numberHistoryEntries
 
         when:
         res = PhoneUtils.tryAddChangeToHistory(p1, invalidNum)
-
-        // flush then refresh to allow GORM to filter out duplicate hasMany associations
-        Phone.withSession { it.flush() }
-        p1.refresh()
 
         then: "invalid nums treated as no number"
         res.status == ResultStatus.OK
@@ -62,10 +54,6 @@ class PhoneUtilsSpec extends Specification {
 
         when:
         res = PhoneUtils.tryAddChangeToHistory(p1, pNum1)
-
-        // flush then refresh to allow GORM to filter out duplicate hasMany associations
-        Phone.withSession { it.flush() }
-        p1.refresh()
         List sortedHistoryEntries = p1.numberHistoryEntries.sort()
 
         then:

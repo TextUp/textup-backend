@@ -18,7 +18,6 @@ class ScheduleJsonMarshallerIntegrationSpec extends Specification {
 
         Collection beforeIntStrings = ["0130:0231", "0230:0330", "0400:0430"]
         Collection afterIntStrings = ["0130:0330", "0400:0430"]
-        Collection afterIntStringsWithOffset = ["0230:0430", "0500:0530"]
 
         Schedule sched1 = Schedule.tryCreate().payload
         sched1.manual = true
@@ -66,7 +65,6 @@ class ScheduleJsonMarshallerIntegrationSpec extends Specification {
         json.nextUnavailable.contains(offsetString)
         json.nextAvailable.contains(offsetString)
         json.monday != afterIntStrings // now offset based on timezone
-        json.monday == afterIntStringsWithOffset
         json.timezone == tzId
     }
 
